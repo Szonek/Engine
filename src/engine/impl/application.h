@@ -28,10 +28,10 @@ public:
 
     std::uint32_t add_geometry_from_memory(std::span<const engine_vertex_attribute_t> verts, std::span<const uint32_t> inds, std::string_view name);
 
-    bool keyboard_is_key_down(engine_keyboard_keys_t key) const;
+    bool keyboard_is_key_down(engine_keyboard_keys_t key);
 
-    engine_mouse_coords_t mouse_get_coords() const;
-    bool mouse_is_button_down(engine_mouse_button_t button) const;
+    engine_mouse_coords_t mouse_get_coords();
+    bool mouse_is_button_down(engine_mouse_button_t button);
 
 private:
     RenderContext rdx_;

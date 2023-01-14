@@ -132,17 +132,23 @@ std::uint32_t engine::Application::add_geometry_from_memory(std::span<const engi
 	return geometries_atlas_.add_object(name, Geometry(vertex_layout, { reinterpret_cast<const std::byte*>(verts.data()), verts.size_bytes() }, verts.size(), inds));
 }
 
-bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key) const
+bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
 {
-	return false;
+	return GLFW_PRESS == glfwGetKey(rdx_.get_glfw_window(), key);
 }
 
-engine_mouse_coords_t engine::Application::mouse_get_coords() const
+engine_mouse_coords_t engine::Application::mouse_get_coords()
 {
-	return engine_mouse_coords_t();
+	double coord_x = 0.;
+	double coord_y = 0.;
+	glfwGetCursorPos(rdx_.get_glfw_window(), &coord_x, &coord_y);
+	engine_mouse_coords_t ret{};
+	ret.x = static_cast<std::int32_t>(std::floor(coord_x));
+	ret.y = static_cast<std::int32_t>(std::floor(coord_y));
+	return ret;
 }
 
-bool engine::Application::mouse_is_button_down(engine_mouse_button_t button) const
+bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
 {
-	return false;
+	return GLFW_PRESS == glfwGetMouseButton(rdx_.get_glfw_window(), button);
 }

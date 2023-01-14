@@ -4,6 +4,7 @@
 #include <vector>
 #include <array>
 
+
 int main(int argc, char** argv)
 {
 	std::string assets_path = "";
@@ -142,20 +143,36 @@ int main(int argc, char** argv)
 		std::strcpy(nc->name, name.c_str());
 	}
 
-	bool run_main_loop = true;
-	while (run_main_loop)
+	while (true)
 	{
 		const auto frame_begin = engineApplicationFrameBegine(app);
+
+		if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_ESCAPE))
+		{
+			std::cout << std::format("User pressed ESCAPE key. Exiting.\n");
+			break;
+		}
+
+		if (engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT))
+		{
+			const auto mouse_coords = engineApplicationGetMouseCoords(app);
+			std::cout << std::format("User pressed LEFT mouse button."
+				"Mouse position [x,y]: {},{}\n", mouse_coords.x, mouse_coords.y);
+		}
 
 		engine_error_code = engineApplicationFrameRunScene(app, scene, frame_begin.delta_time);
 		if (engine_error_code != ENGINE_RESULT_CODE_OK)
 		{
-			run_main_loop = false;
-			std::cout << std::format("Scene update failed. Exiting main loop\n");
+			std::cout << std::format("Scene update failed. Exiting.\n");
 			break;
 		}
 		const auto frame_end = engineApplicationFrameEnd(app);
-		run_main_loop = frame_end.success;
+		if (!frame_end.success)
+		{
+			std::cout << std::format("Frame not finished sucesfully. Exiting.\n");
+
+			break;
+		}
 	}
 
 	engineSceneDestroy(scene);
