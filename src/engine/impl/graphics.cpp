@@ -1,13 +1,94 @@
 #include "graphics.h"
 #include "asset_store.h"
+#include "logger.h"
 
-#define GLAD_GL_IMPLEMENTATION
-#include <glad/gl.h>
-#include <GLFW/glfw3.h>
+//#define GLAD_GL_IMPLEMENTATION
+//#include <glad/gl.h>
+
+#define GLAD_GLES2_IMPLEMENTATION
+#include <glad/gles2.h>
+//#include <GLFW/glfw3.h>
+
+#include <SDL3/SDL.h>
+
+#include <fmt/format.h>
 
 #include <cassert>
 #include <array>
 #include <iostream>
+
+namespace
+{
+inline std::uint32_t to_ogl_datatype(engine::DataLayout layout)
+{
+    switch (layout)
+    {
+    case engine::DataLayout::eRGBA_U8:
+    case engine::DataLayout::eRGB_U8:
+    case engine::DataLayout::eR_U8: 
+        return GL_UNSIGNED_BYTE;
+    case engine::DataLayout::eRGBA_FP32:
+    case engine::DataLayout::eR_FP32:
+        return GL_FLOAT;
+    default:
+        assert(false && "Unknown texture data type.");
+        break;
+    }
+    return GL_FALSE;
+}
+
+inline std::uint32_t to_ogl_format(engine::DataLayout layout)
+{
+    switch (layout)
+    {
+    case engine::DataLayout::eRGBA_U8:
+    case engine::DataLayout::eRGBA_FP32:
+        return GL_RGBA;
+    case engine::DataLayout::eRGB_U8:
+        return GL_RGB;
+    case engine::DataLayout::eR_U8:
+    case engine::DataLayout::eR_FP32:
+        return GL_RED;
+    default:
+        assert(false && "Unknown texture data type.");
+        break;
+    }
+    return GL_FALSE;
+}
+
+inline std::uint8_t data_layout_bytes_width(engine::DataLayout layout)
+{
+    switch (layout)
+    {
+    case engine::DataLayout::eRGBA_FP32: return 4 * sizeof(float);
+    case engine::DataLayout::eR_FP32: return 1 * sizeof(float);
+
+    case engine::DataLayout::eRGBA_U8: return 4 * sizeof(unsigned char);
+    case engine::DataLayout::eRGB_U8: return 3 * sizeof(unsigned char);
+    case engine::DataLayout::eR_U8: return 1 * sizeof(unsigned char);
+    default:
+        assert(false && "Unknown texture data type.");
+        break;
+    }
+    return GL_FALSE;
+}
+
+inline std::uint32_t to_ogl_texture_border_clamp_mode(engine::TextureAddressClampMode mode)
+{
+    switch (mode)
+    {
+#if defined(GL_CLAMP_TO_BORDER)
+    case engine::TextureAddressClampMode::eClampToBorder: return GL_CLAMP_TO_BORDER;
+#endif
+    case engine::TextureAddressClampMode::eClampToEdge: return GL_CLAMP_TO_EDGE;
+    default:
+        assert(false && "Unknown TextureAddressClampMode!");
+    }
+    return GL_FALSE;
+}
+
+}
+
 
 engine::Shader::Shader(std::string_view vertex_shader_name, std::string fragment_shader_name)
 : vertex_shader_(0)
@@ -61,14 +142,28 @@ void engine::Shader::bind() const
 
 void engine::Shader::set_uniform_f4(std::string_view name, std::span<const float> host_data)
 {
-	assert(host_data.size() == 4 && "[ERROR] Not enough data.");
+	assert(host_data.size() == 4 && "[ERROR] Wrong size of data");
 	const auto loc = get_uniform_location(name);
 	glUniform4f(loc, host_data[0], host_data[1], host_data[2], host_data[3]);
 }
 
-void engine::Shader::set_uniform_mat4f(std::string_view name, std::span<const float> host_data)
+void engine::Shader::set_uniform_f2(std::string_view name, std::span<const float> host_data)
 {
-	assert(host_data.size() == 16 && "[ERROR] Not enough data.");
+    assert(host_data.size() == 2 && "[ERROR] Wrong size of data.");
+    const auto loc = get_uniform_location(name);
+    glUniform2f(loc, host_data[0], host_data[1]);
+}
+
+void engine::Shader::set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data)
+{
+    assert(host_data.size() == 2 && "[ERROR] Wrong size of data.");
+    const auto loc = get_uniform_location(name);
+    glUniform2ui(loc, host_data[0], host_data[1]);
+}
+
+void engine::Shader::set_uniform_mat_f4(std::string_view name, std::span<const float> host_data)
+{
+	assert(host_data.size() == 16 && "[ERROR] Wrong size of data");
 	const auto loc = get_uniform_location(name);
 	glUniformMatrix4fv(loc, 1, GL_FALSE, host_data.data());
 }
@@ -113,54 +208,47 @@ void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::st
 }
 
 
-inline auto generate_opengl_texture(std::uint32_t width, std::uint32_t height, std::uint32_t channels, GLenum gl_data_type, bool generate_mipmaps, const void* data)
+inline auto generate_opengl_texture(std::uint32_t width, std::uint32_t height, engine::DataLayout layout, bool generate_mipmaps, const void* data, engine::TextureAddressClampMode clamp_mode)
 {
 	assert(width != 0);
 	assert(height != 0);
-	assert(channels != 0);
-	assert(data != nullptr);
 
+    const auto rows_width = width * data_layout_bytes_width(layout);
+    const std::array<std::uint32_t, 4> rows_alignemnts = { 8, 4, 2, 1 };
+    for (const auto& ra : rows_alignemnts)
+    {
+        if (rows_width % ra == 0)
+        {
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        }
+    }
 
-	std::int32_t gl_internal_format = 0;
-	std::int32_t gl_host_format = 0;
-	if (channels == 4)
-	{
-		gl_host_format = GL_RGBA;
-		gl_internal_format = GL_RGBA;
-	}
-	else if (channels == 3)
-	{
-		gl_host_format = GL_RGB;
-		gl_internal_format = GL_RGB;
-	}
-	else
-	{
-		assert(false && "Not supported number of texture channels.");
-	}
+    const auto gl_internal_format = to_ogl_format(layout);
+	const auto gl_host_format = to_ogl_format(layout);
 
 	std::uint32_t tex_id{ 0 };
 	glGenTextures(1, &tex_id);
 	glBindTexture(GL_TEXTURE_2D, tex_id);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format, width, height,
-		0, gl_host_format, gl_data_type, data);
+		0, gl_host_format, to_ogl_datatype(layout), data);
 
 	if (generate_mipmaps)
 	{
 		glGenerateMipmap(GL_TEXTURE_2D);
 	}
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, to_ogl_texture_border_clamp_mode(clamp_mode));
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, to_ogl_texture_border_clamp_mode(clamp_mode));
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
+    glBindTexture(GL_TEXTURE_2D, 0);
 	return tex_id;
 }
 
 
-engine::Texture2D::Texture2D(std::uint32_t width, std::uint32_t height, std::uint32_t channels, bool generate_mipmaps, const void* data)
-	: texture_(generate_opengl_texture(width, height, channels, GL_UNSIGNED_BYTE, generate_mipmaps, data))
+engine::Texture2D::Texture2D(std::uint32_t width, std::uint32_t height, bool generate_mipmaps, const void* data, DataLayout layout, TextureAddressClampMode clamp_mode)
+	: texture_(generate_opengl_texture(width, height, layout, generate_mipmaps, data, clamp_mode))
 {
 	
 }
@@ -174,18 +262,30 @@ engine::Texture2D::Texture2D(std::string_view texture_name, bool generate_mipmap
 	assert(texture_data.get_channels() != 0);
 	assert(texture_data.get_data_ptr() != nullptr);
 
-	std::int32_t gl_data_type = 0;
-	switch (texture_data.get_type())
-	{
-	case TextureAssetContext::Type::eUchar8:
-		gl_data_type = GL_UNSIGNED_BYTE;
-		break;
-	default:
-		assert(false && "Unknown texture data type.");
-		break;
-	}
-	texture_ = generate_opengl_texture(texture_data.get_width(), texture_data.get_height(), texture_data.get_channels(),
-		gl_data_type, generate_mipmaps, texture_data.get_data_ptr());
+    DataLayout dt = DataLayout::eCount;
+    if (texture_data.get_type() == TextureAssetContext::TextureAssetDataType::eUchar8)
+    {
+        switch (texture_data.get_channels())
+        {
+        case 4:
+            dt = DataLayout::eRGBA_U8;
+            break;
+        case 3:
+            dt = DataLayout::eRGB_U8;
+            break;
+        case 1 :
+            dt = DataLayout::eR_U8;
+             break;
+        default:
+            assert("Unsupported number of channels for U8 texture!");
+        }
+    }
+    else
+    {
+        assert("Unsupported texture data type!");
+    }
+
+	texture_ = generate_opengl_texture(texture_data.get_width(), texture_data.get_height(), dt, generate_mipmaps, texture_data.get_data_ptr(), TextureAddressClampMode::eClampToEdge);
 }
 
 engine::Texture2D::Texture2D(Texture2D&& rhs) noexcept
@@ -210,6 +310,20 @@ engine::Texture2D::~Texture2D()
 	}
 }
 
+bool engine::Texture2D::is_valid() const
+{
+    return texture_ != 0;
+}
+
+bool engine::Texture2D::upload_region(std::uint32_t x_pos, std::uint32_t y_pos, std::uint32_t width, std::uint32_t height, const void* data, DataLayout layout)
+{
+    glBindTexture(GL_TEXTURE_2D, texture_);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, x_pos, y_pos, width, height, to_ogl_format(layout), to_ogl_datatype(layout), data);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    return false;
+}
+
+
 void engine::Texture2D::bind(std::uint32_t slot) const
 {
 	assert(texture_ != 0);
@@ -231,10 +345,11 @@ engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, st
 
 	// vertex buffer
 	glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-	glBufferData(GL_ARRAY_BUFFER, vertex_data.size_bytes(), vertex_data.data(), GL_STATIC_DRAW);
+	//glBufferData(GL_ARRAY_BUFFER, vertex_data.size_bytes(), vertex_data.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vertex_data.size_bytes(), vertex_data.data(), GL_DYNAMIC_DRAW);
 
 	// vertex layout 
-	std::ranges::for_each(vertex_layout, [](const vertex_attribute_t& vl)
+	std::for_each(vertex_layout.begin(), vertex_layout.end(), [](const vertex_attribute_t& vl)
 		{
 			std::uint32_t gl_type = 0;
 			switch (vl.type)
@@ -329,11 +444,12 @@ void engine::Geometry::draw(Mode mode) const
 	}
 }
 
-inline void framebuffer_size_callback(struct GLFWwindow* window, std::int32_t width, std::int32_t height)
-{
-	glViewport(0, 0, width, height);
-}
+//inline void framebuffer_size_callback(struct GLFWwindow* window, std::int32_t width, std::int32_t height)
+//{
+//	glViewport(0, 0, width, height);
+//}
 
+#if defined(GLAD_GL_IMPLEMENTATION)
 inline void GLAPIENTRY
 message_callback(GLenum source,
 	GLenum type,
@@ -343,6 +459,11 @@ message_callback(GLenum source,
 	const GLchar* message,
 	const void* userParam)
 {
+    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION)
+    {
+        // filter out notifactions
+        return;
+    }
 	std::string type_str = "";
 	switch (type)
 	{
@@ -368,34 +489,96 @@ message_callback(GLenum source,
 	default:
 		severity_str = "";
 	}
-	std::cerr << std::format("[OpenGL] Type: {}, severity: {}, message: {} \n",
+	std::cerr << fmt::format("[OpenGL] Type: {}, severity: {}, message: {} \n",
 		type_str, severity_str, message);
 }
-
-engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size)
-{
-	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if _DEBUG
-
-	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 #endif
-	window_ = glfwCreateWindow(init_size.width, init_size.height, window_name.data(), nullptr, nullptr);
-	if (!window_)
-	{
-		std::cout << "Failed to create GLFW window\n";
-		return;
-	}
 
-	glfwMakeContextCurrent(window_);
-	glfwSetFramebufferSizeCallback(window_, framebuffer_size_callback);
+engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen)
+{
+    std::int32_t result_code = 0;
+    result_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 
-	//vsync
-	glfwSwapInterval(1);
+    if(result_code < 0)
+    {
+        const auto err_msg = SDL_GetError();
+        std::cout << fmt::format("Cant init sdl: %s\n", err_msg);
+        return;
+    }
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 
-	const auto gl_version = gladLoadGL(glfwGetProcAddress);
+    const auto displays = []()
+    {
+        std::int32_t displays_count = 0;
+        const auto displays = SDL_GetDisplays(&displays_count);
+        std::vector<SDL_DisplayID> ret(displays_count);
+        for(std::int32_t i = 0; i < displays_count; i++)
+        {
+            ret[i] = displays[i];
+        }
+        SDL_free(displays);
+        return ret;
+    }();
+
+    if(displays.empty())
+    {
+        const auto err_msg = SDL_GetError();
+        std::cout << fmt::format("Cant create sdl window: %s\n", err_msg);
+        return;
+    }
+
+    const auto display_mode = SDL_GetCurrentDisplayMode(displays.front());
+    if(!display_mode)
+    {
+        const auto err_msg = SDL_GetError();
+        std::cout << fmt::format("Cant create sdl window: %s\n", err_msg);
+        return;
+    }
+
+    if(init_size.width == 0 || init_size.height == 0)
+    {
+        init_size.width = display_mode->screen_w;
+        init_size.height = display_mode->screen_h;
+    }
+
+    auto window_init_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
+    if (init_fullscreen)
+    {
+        window_init_flags |= SDL_WINDOW_FULLSCREEN;
+    }
+    window_ = SDL_CreateWindow("Test App SDL", 
+        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        init_size.width, init_size.height, window_init_flags);
+    if(!window_)
+    {
+        const auto err_msg = SDL_GetError();
+        std::cout << fmt::format("Cant create sdl window: %s\n", err_msg);
+        return;
+    }
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    context_ = SDL_GL_CreateContext(window_);
+    if (!context_)
+    {
+        std::cout << fmt::format("Failed to create OGL context: Error: {}\n", SDL_GetError());
+        return;
+    }
+    SDL_GL_MakeCurrent(window_, context_);
+    const auto set_swap_result = SDL_GL_SetSwapInterval(1);
+    if (set_swap_result < 0)
+    {
+        std::cout << "Failed to set swap interval\n";
+        return;
+    }
+
+#if defined(GLAD_GLES2_IMPLEMENTATION)
+    const auto gl_version = gladLoadGLES2(SDL_GL_GetProcAddress);
+#elif defined(GLAD_GL_IMPLEMENTATION)
+    const auto gl_version = gladLoadGL(SDL_GL_GetProcAddress);
+#endif
 	if (gl_version == 0)
 	{
 		std::cout << "Failed to initialize GLAD\n";
@@ -403,10 +586,10 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 	}
 	else
 	{
-		std::cout << std::format("Sucesfully loaded Opengl ver: {0}, {1}.\n",
-			GLAD_VERSION_MAJOR(gl_version), GLAD_VERSION_MINOR(gl_version));
+        log::log(log::LogLevel::eTrace, fmt::format("Sucesfully loaded OpenglES ver: {}, {}.\n",
+            GLAD_VERSION_MAJOR(gl_version), GLAD_VERSION_MINOR(gl_version)));
 	}
-#if _DEBUG
+#if _DEBUG && defined(GLAD_GL_IMPLEMENTATION)
 	std::cout << "[INFO] Debug build. Building with debug context.\n";
 	glEnable(GL_DEBUG_OUTPUT);
 	glDebugMessageCallback(message_callback, 0);
@@ -414,15 +597,16 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 
 	int32_t vertex_attributes_limit = 0;
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &vertex_attributes_limit);
-	std::cout << "Maximum nr of vertex attributes supported: " << vertex_attributes_limit << std::endl;
-
+    log::log(log::LogLevel::eTrace, fmt::format("Maximum nr of vertex attributes supported: {}\n", vertex_attributes_limit));
 	// enable depth test
 	glEnable(GL_DEPTH_TEST);
+
 }
 
 engine::RenderContext::RenderContext(RenderContext&& rhs) noexcept
 {
 	std::swap(window_, rhs.window_);
+	std::swap(context_, rhs.context_);
 }
 
 engine::RenderContext& engine::RenderContext::operator=(RenderContext&& rhs) noexcept
@@ -430,21 +614,21 @@ engine::RenderContext& engine::RenderContext::operator=(RenderContext&& rhs) noe
 	if (this != &rhs)
 	{
 		std::swap(window_, rhs.window_);
+		std::swap(context_, rhs.context_);
 	}
 	return *this;
 }
 
 engine::RenderContext::~RenderContext()
 {
-	if (window_)
-	{
-		glfwTerminate();
-	}
-}
-
-struct GLFWwindow* engine::RenderContext::get_glfw_window()
-{
-	return window_;
+    if (context_)
+    {
+        SDL_GL_DeleteContext(context_);
+    }
+    if (window_)
+    {
+        SDL_DestroyWindow(window_);
+    }
 }
 
 void engine::RenderContext::set_viewport(const viewport_t& viewport)
@@ -457,8 +641,21 @@ void engine::RenderContext::set_clear_color(float r, float g, float b, float a)
 	glClearColor(r, g, b, a);
 }
 
+void engine::RenderContext::set_depth_test(bool flag)
+{
+    if (flag)
+    {
+        glEnable(GL_DEPTH_TEST);
+    }
+    else
+    {
+        glDisable(GL_DEPTH_TEST);
+    }
+}
+
 void engine::RenderContext::set_polygon_mode(PolygonFaceType face, PolygonMode mode)
 {
+#if defined(GLAD_GL_IMPLEMENTATION)
 	std::uint32_t gl_face = 0;
 	switch (face)
 	{
@@ -483,6 +680,34 @@ void engine::RenderContext::set_polygon_mode(PolygonFaceType face, PolygonMode m
 	}
 
 	glPolygonMode(gl_face, gl_mode);
+#endif
+}
+
+void engine::RenderContext::set_blend_mode(bool enable, BlendFactor src_rgb, BlendFactor dst_rgb, BlendFactor src_a, BlendFactor dst_a)
+{
+    if (!enable)
+    {
+        glDisable(GL_BLEND);
+        return;
+    }
+
+
+    auto to_gl_blend = [](const BlendFactor& bf)
+    {
+        switch (bf)
+        {
+        case BlendFactor::eZero: return GL_ZERO;
+        case BlendFactor::eOne: return GL_ONE;
+        case BlendFactor::eSrcAlpha: return GL_SRC_ALPHA;
+        case BlendFactor::eOneMinusSrcAlpha: return GL_ONE_MINUS_SRC_ALPHA;
+        default:
+            assert("Unknown blond factor!");
+        }
+        return GL_FALSE;
+    };
+
+    glEnable(GL_BLEND);
+    glBlendFuncSeparate(to_gl_blend(src_rgb), to_gl_blend(dst_rgb), to_gl_blend(src_a), to_gl_blend(dst_a));
 }
 
 void engine::RenderContext::begin_frame()
@@ -492,7 +717,7 @@ void engine::RenderContext::begin_frame()
 
 void engine::RenderContext::end_frame()
 {
-	glfwSwapBuffers(window_);
+    SDL_GL_SwapWindow(window_);
 
 	// process errors
 #if _DEBUG

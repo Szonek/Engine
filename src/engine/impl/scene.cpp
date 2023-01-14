@@ -1,4 +1,5 @@
 #include "scene.h"
+#include "text_2d_manager.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -6,11 +7,22 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/matrix_access.hpp>
 
-#include <GLFW/glfw3.h>
 
+namespace
+{
+inline glm::mat4 compute_model_matirx(const glm::vec3& glm_pos, const glm::vec3& glm_rot, const glm::vec3& glm_scl)
+{
+    auto model_identity = glm::mat4{ 1.0f };
+    auto translation = glm::translate(model_identity, glm_pos);
+    translation *= glm::toMat4(glm::quat(glm_rot));
+    //translation = glm::rotate(translation, glm::radians(0.0f), glm::vec3(1.0f, 0.3f, 0.5f));
+    translation = glm::scale(translation, glm_scl);
+    return translation;
+}
+}
 
 engine::Scene::Scene(engine_result_code_t& out_code)
-    : shader_(Shader("simple.vs", "simple.fs"))
+    : shader_simple_(Shader("simple.vs", "simple.fs"))
 {
     out_code = ENGINE_RESULT_CODE_OK;
 }
@@ -19,27 +31,23 @@ engine::Scene::~Scene()
 {
 }
 
-engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::span<const Texture2D> textures, std::span<const Geometry> geometries)
+engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::span<const Texture2D> textures, std::span<const Geometry> geometries, TextManager* text_mgn)
 {
     // TRANSFORM SYSTEM
     auto transform_view = entity_registry_.view<engine_tranform_component_t>();
     transform_view.each([](engine_tranform_component_t& transform)
         {
-            auto model_identity = glm::mat4{ 1.0f };
-
             const auto glm_pos = glm::make_vec3(transform.position);
             const auto glm_rot = glm::make_vec3(transform.rotation);
             const auto glm_scl = glm::make_vec3(transform.scale);
 
-            auto translation = glm::translate(model_identity, glm_pos);
-            translation *= glm::toMat4(glm::quat(glm_rot));
-			//translation = glm::rotate(translation, glm::radians(0.0f), glm::vec3(1.0f, 0.3f, 0.5f));
-            translation = glm::scale(translation, glm_scl);
-            std::memcpy(transform.local_to_world, &translation, sizeof(translation));
+            const auto model_matrix = compute_model_matirx(glm_pos, glm_rot, glm_scl);
+            std::memcpy(transform.local_to_world, &model_matrix, sizeof(model_matrix));
         }
     );
 
-	auto renderables_view = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>();
+	auto geometry_renderet = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>();
+	auto text_renderer = entity_registry_.view<const engine_rect_tranform_component_t, const engine_material_component_t, const engine_text_component_t>();
     auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
     for (auto [entity, camera, transform] : camera_view.each()) 
     {
@@ -48,20 +56,21 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
             continue;
         }
 
-        shader_.bind();
+        std::int32_t width = -1;
+        std::int32_t height = -1;
+        //glfwGetWindowSize(rdx.get_glfw_window(), &width, &height);
+        width = 800;
+        height = 600;
         // update camera: view and projection
         {
             const auto z_near = camera.clip_plane_near;
             const auto z_far = camera.clip_plane_far;
 
-            std::int32_t width = -1;
-            std::int32_t height = -1;
-            glfwGetWindowSize(rdx.get_glfw_window(), &width, &height);
-
             const auto adjusted_width = width * (camera.viewport_rect.width - camera.viewport_rect.x);
             const auto adjusted_height = height * (camera.viewport_rect.height - camera.viewport_rect.y);
             const float aspect = adjusted_width / adjusted_height;
             glm::mat4 projection;
+
             if (camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC)
             {
                 const float scale = camera.type_union.orthographics_scale;
@@ -76,19 +85,33 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
             const auto target = glm::make_vec3(camera.target);
             const auto view = glm::lookAt(eye_position, target, up);
 
-            shader_.set_uniform_mat4f("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
-            shader_.set_uniform_mat4f("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
+            shader_simple_.bind();
+            shader_simple_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
+            shader_simple_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
         }
 
-		renderables_view.each([this, &textures, &geometries](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material)
-			{
-				shader_.set_uniform_mat4f("model", transform.local_to_world);
-				textures[material.diffuse_texture].bind(0); // bind at diffuse slot
+        geometry_renderet.each([this, &textures, &geometries](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material)
+            {
+                shader_simple_.bind();
+                shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
+                shader_simple_.set_uniform_mat_f4("model", transform.local_to_world);
 
                 geometries[mesh.geometry].bind();
                 geometries[mesh.geometry].draw(Geometry::Mode::eTriangles);
 			}
 		);
+
+        text_renderer.each([this, &rdx, &width, &height, &text_mgn](const engine_rect_tranform_component_t& transform, const engine_material_component_t& material, const engine_text_component_t& text)
+            {
+
+                const auto glm_pos = glm::vec3(transform.position[0] * width, transform.position[1] * height, 0.0f);
+                const auto glm_rot = glm::vec3(0.0f, 0.0f, 0.0f);
+                const auto glm_scl = glm::vec3(transform.scale[0], transform.scale[1], 1.0f);
+                const auto model_matrix = compute_model_matirx(glm_pos, glm_rot, glm_scl);
+
+                text_mgn->render_text(rdx, text.text, text.font_handle, { glm::value_ptr(model_matrix), sizeof(model_matrix) / sizeof(float) }, width, height);
+            }
+        );
     }
 
     return ENGINE_RESULT_CODE_OK;

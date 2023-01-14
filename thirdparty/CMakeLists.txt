@@ -1,6 +1,8 @@
-# glfw
-add_subdirectory(glfw)
-include_directories("glfw/include")
+#sdl
+add_subdirectory(SDL)
+
+#fmt
+add_subdirectory(fmt)
 
 # glad
 add_subdirectory(glad)
@@ -14,3 +16,9 @@ add_subdirectory(glm)
 
 # entt
 add_subdirectory(entt)
+
+#bullet3
+#add_subdirectory(bullet3)
+
+# font library
+add_subdirectory(freetype)

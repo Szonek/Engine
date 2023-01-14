@@ -17,7 +17,7 @@ public:
     Scene& operator=(Scene&& rhs) = delete;
     ~Scene();
 
-    engine_result_code_t update(RenderContext& rdx, float dt, std::span<const class Texture2D> textures, std::span<const Geometry> geometries);
+    engine_result_code_t update(RenderContext& rdx, float dt, std::span<const class Texture2D> textures, std::span<const Geometry> geometries, class TextManager* text_mgn);
 
     entt::entity create_new_entity();
     void destroy_entity(entt::entity entity);
@@ -55,6 +55,6 @@ public:
 
 private:
     entt::registry entity_registry_;
-    Shader shader_;
+    Shader shader_simple_;
 };
 }  // namespace engine

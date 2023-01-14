@@ -1,9 +1,13 @@
 #pragma once
 
+#ifdef _WIN32
 #ifdef engine_EXPORTS
 #define ENGINE_API __declspec(dllexport)
 #else
 #define ENGINE_API __declspec(dllimport)
+#endif
+#else
+#define ENGINE_API
 #endif
 
 #define ENGINE_BIT_MASK(id) 1 << id
@@ -19,17 +23,22 @@ extern "C"
 #include "components/camera_component.h"
 #include "components/light_component.h"
 #include "components/transform_component.h"
+#include "components/rect_transform_component.h"
 #include "components/name_component.h"
 #include "components/mesh_component.h"
 #include "components/material_component.h"
+#include "components/text_component.h"
 
 #include <stdint.h>
 
 typedef uint32_t engine_game_object_t;
+#define ENGINE_INVALID_GAME_OBJECT_ID 0
+#define ENGINE_INVALID_OBJECT_HANDLE 0
 typedef struct _engine_application_t* engine_application_t;
 typedef struct _engine_scene_t* engine_scene_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
+typedef uint32_t engine_font_t;
 
 typedef struct _engine_application_create_desc_t
 {
@@ -37,18 +46,41 @@ typedef struct _engine_application_create_desc_t
     const char* asset_store_path;
     uint32_t width;
     uint32_t height;
+    bool fullscreen;
 } engine_application_create_desc_t;
+
+typedef enum _engine_begin_frame_event_flags_
+{
+    ENGINE_EVENT_NONE = 0x0,
+    ENGINE_EVENT_QUIT = 0x2,
+    ENGINE_EVENT_WINDOW_MOVED = 0x4,
+    ENGINE_EVENT_WINDOW_RESIZED = 0x8,
+} engine_begin_frame_event_flags_;
+typedef uint32_t engine_begin_frame_events_mask_t;
 
 typedef struct _engine_application_frame_begine_info_t
 {
     float delta_time;
+    engine_begin_frame_events_mask_t events;
 } engine_application_frame_begine_info_t;
-
 
 typedef struct _engine_application_frame_end_info_t
 {
     bool success;
 } engine_application_frame_end_info_t;
+
+typedef enum _engine_data_layout_t
+{
+    ENGINE_DATA_LAYOUT_RGBA_U8 = 0,
+    ENGINE_DATA_LAYOUT_RGB_U8 = 1,
+    ENGINE_DATA_LAYOUT_R_U8 = 2,
+    // ..
+    // ..
+    // ..
+    ENGINE_DATA_LAYOUT_RGBA_FP32,
+    ENGINE_DATA_LAYOUT_R_FP32,
+    ENGINE_DATA_LAYOUT_COUNT
+} engine_data_layout_t;
 
 typedef struct _engine_mouse_coords_t
 {
@@ -58,142 +90,73 @@ typedef struct _engine_mouse_coords_t
 
 typedef enum _engine_mouse_button_t
 {
-    ENGINE_MOUSE_BUTTON_1        =  0,
-    ENGINE_MOUSE_BUTTON_2        =  1,
-    ENGINE_MOUSE_BUTTON_3        =  2,
-    ENGINE_MOUSE_BUTTON_4        =  3,
-    ENGINE_MOUSE_BUTTON_5        =  4,
-    ENGINE_MOUSE_BUTTON_6        =  5,
-    ENGINE_MOUSE_BUTTON_7        =  6,
-    ENGINE_MOUSE_BUTTON_8        =  7,
-    ENGINE_MOUSE_BUTTON_LAST     = ENGINE_MOUSE_BUTTON_8,
-    ENGINE_MOUSE_BUTTON_LEFT     = ENGINE_MOUSE_BUTTON_1,
-    ENGINE_MOUSE_BUTTON_RIGHT    = ENGINE_MOUSE_BUTTON_2,
-    ENGINE_MOUSE_BUTTON_MIDDLE   = ENGINE_MOUSE_BUTTON_3,
+    ENGINE_MOUSE_BUTTON_LEFT     = 0,
+    ENGINE_MOUSE_BUTTON_MIDDLE   = 1,
+    ENGINE_MOUSE_BUTTON_RIGHT    = 2,
 } engine_mouse_button_t;
 
 typedef enum _engine_platform_keys_t
 {
-    ENGINE_KEYBOARD_KEY_SPACE              = 32,
-    ENGINE_KEYBOARD_KEY_APOSTROPHE         = 39,  /* ' */
-    ENGINE_KEYBOARD_KEY_COMMA              = 44,  /* , */
-    ENGINE_KEYBOARD_KEY_MINUS              = 45,  /* - */
-    ENGINE_KEYBOARD_KEY_PERIOD             = 46,  /* . */
-    ENGINE_KEYBOARD_KEY_SLASH              = 47,  /* / */
-    ENGINE_KEYBOARD_KEY_0                  = 48,
-    ENGINE_KEYBOARD_KEY_1                  = 49,
-    ENGINE_KEYBOARD_KEY_2                  = 50,
-    ENGINE_KEYBOARD_KEY_3                  = 51,
-    ENGINE_KEYBOARD_KEY_4                  = 52,
-    ENGINE_KEYBOARD_KEY_5                  = 53,
-    ENGINE_KEYBOARD_KEY_6                  = 54,
-    ENGINE_KEYBOARD_KEY_7                  = 55,
-    ENGINE_KEYBOARD_KEY_8                  = 56,
-    ENGINE_KEYBOARD_KEY_9                  = 57,
-    ENGINE_KEYBOARD_KEY_SEMICOLON          = 59,  /* ; */
-    ENGINE_KEYBOARD_KEY_EQUAL              = 61,  /* = */
-    ENGINE_KEYBOARD_KEY_A                  = 65,
-    ENGINE_KEYBOARD_KEY_B                  = 66,
-    ENGINE_KEYBOARD_KEY_C                  = 67,
-    ENGINE_KEYBOARD_KEY_D                  = 68,
-    ENGINE_KEYBOARD_KEY_E                  = 69,
-    ENGINE_KEYBOARD_KEY_F                  = 70,
-    ENGINE_KEYBOARD_KEY_G                  = 71,
-    ENGINE_KEYBOARD_KEY_H                  = 72,
-    ENGINE_KEYBOARD_KEY_I                  = 73,
-    ENGINE_KEYBOARD_KEY_J                  = 74,
-    ENGINE_KEYBOARD_KEY_K                  = 75,
-    ENGINE_KEYBOARD_KEY_L                  = 76,
-    ENGINE_KEYBOARD_KEY_M                  = 77,
-    ENGINE_KEYBOARD_KEY_N                  = 78,
-    ENGINE_KEYBOARD_KEY_O                  = 79,
-    ENGINE_KEYBOARD_KEY_P                  = 80,
-    ENGINE_KEYBOARD_KEY_Q                  = 81,
-    ENGINE_KEYBOARD_KEY_R                  = 82,
-    ENGINE_KEYBOARD_KEY_S                  = 83,
-    ENGINE_KEYBOARD_KEY_T                  = 84,
-    ENGINE_KEYBOARD_KEY_U                  = 85,
-    ENGINE_KEYBOARD_KEY_V                  = 86,
-    ENGINE_KEYBOARD_KEY_W                  = 87,
-    ENGINE_KEYBOARD_KEY_X                  = 88,
-    ENGINE_KEYBOARD_KEY_Y                  = 89,
-    ENGINE_KEYBOARD_KEY_Z                  = 90,
-    ENGINE_KEYBOARD_KEY_LEFT_BRACKET       = 91,  /* [ */
-    ENGINE_KEYBOARD_KEY_BACKSLASH          = 92,  /* \ */
-    ENGINE_KEYBOARD_KEY_RIGHT_BRACKET      = 93,  /* ] */
-    ENGINE_KEYBOARD_KEY_GRAVE_ACCENT       = 96,  /* ` */
-    ENGINE_KEYBOARD_KEY_WORLD_1            = 161, /* non-US #1 */
-    ENGINE_KEYBOARD_KEY_WORLD_2            = 162, /* non-US #2 */
-    ENGINE_KEYBOARD_KEY_ESCAPE             = 256,
-    ENGINE_KEYBOARD_KEY_ENTER              = 257,
-    ENGINE_KEYBOARD_KEY_TAB                = 258,
-    ENGINE_KEYBOARD_KEY_BACKSPACE          = 259,
-    ENGINE_KEYBOARD_KEY_INSERT             = 260,
-    ENGINE_KEYBOARD_KEY_DELETE             = 261,
-    ENGINE_KEYBOARD_KEY_RIGHT              = 262,
-    ENGINE_KEYBOARD_KEY_LEFT               = 263,
-    ENGINE_KEYBOARD_KEY_DOWN               = 264,
-    ENGINE_KEYBOARD_KEY_UP                 = 265,
-    ENGINE_KEYBOARD_KEY_PAGE_UP            = 266,
-    ENGINE_KEYBOARD_KEY_PAGE_DOWN          = 267,
-    ENGINE_KEYBOARD_KEY_HOME               = 268,
-    ENGINE_KEYBOARD_KEY_END                = 269,
-    ENGINE_KEYBOARD_KEY_CAPS_LOCK          = 280,
-    ENGINE_KEYBOARD_KEY_SCROLL_LOCK        = 281,
-    ENGINE_KEYBOARD_KEY_NUM_LOCK           = 282,
-    ENGINE_KEYBOARD_KEY_PRINT_SCREEN       = 283,
-    ENGINE_KEYBOARD_KEY_PAUSE              = 284,
-    ENGINE_KEYBOARD_KEY_F1                 = 290,
-    ENGINE_KEYBOARD_KEY_F2                 = 291,
-    ENGINE_KEYBOARD_KEY_F3                 = 292,
-    ENGINE_KEYBOARD_KEY_F4                 = 293,
-    ENGINE_KEYBOARD_KEY_F5                 = 294,
-    ENGINE_KEYBOARD_KEY_F6                 = 295,
-    ENGINE_KEYBOARD_KEY_F7                 = 296,
-    ENGINE_KEYBOARD_KEY_F8                 = 297,
-    ENGINE_KEYBOARD_KEY_F9                 = 298,
-    ENGINE_KEYBOARD_KEY_F10                = 299,
-    ENGINE_KEYBOARD_KEY_F11                = 300,
-    ENGINE_KEYBOARD_KEY_F12                = 301,
-    ENGINE_KEYBOARD_KEY_F13                = 302,
-    ENGINE_KEYBOARD_KEY_F14                = 303,
-    ENGINE_KEYBOARD_KEY_F15                = 304,
-    ENGINE_KEYBOARD_KEY_F16                = 305,
-    ENGINE_KEYBOARD_KEY_F17                = 306,
-    ENGINE_KEYBOARD_KEY_F18                = 307,
-    ENGINE_KEYBOARD_KEY_F19                = 308,
-    ENGINE_KEYBOARD_KEY_F20                = 309,
-    ENGINE_KEYBOARD_KEY_F21                = 310,
-    ENGINE_KEYBOARD_KEY_F22                = 311,
-    ENGINE_KEYBOARD_KEY_F23                = 312,
-    ENGINE_KEYBOARD_KEY_F24                = 313,
-    ENGINE_KEYBOARD_KEY_F25                = 314,
-    ENGINE_KEYBOARD_KEY_KP_0               = 320,
-    ENGINE_KEYBOARD_KEY_KP_1               = 321,
-    ENGINE_KEYBOARD_KEY_KP_2               = 322,
-    ENGINE_KEYBOARD_KEY_KP_3               = 323,
-    ENGINE_KEYBOARD_KEY_KP_4               = 324,
-    ENGINE_KEYBOARD_KEY_KP_5               = 325,
-    ENGINE_KEYBOARD_KEY_KP_6               = 326,
-    ENGINE_KEYBOARD_KEY_KP_7               = 327,
-    ENGINE_KEYBOARD_KEY_KP_8               = 328,
-    ENGINE_KEYBOARD_KEY_KP_9               = 329,
-    ENGINE_KEYBOARD_KEY_KP_DECIMAL         = 330,
-    ENGINE_KEYBOARD_KEY_KP_DIVIDE          = 331,
-    ENGINE_KEYBOARD_KEY_KP_MULTIPLY        = 332,
-    ENGINE_KEYBOARD_KEY_KP_SUBTRACT        = 333,
-    ENGINE_KEYBOARD_KEY_KP_ADD             = 334,
-    ENGINE_KEYBOARD_KEY_KP_ENTER           = 335,
-    ENGINE_KEYBOARD_KEY_KP_EQUAL           = 336,
-    ENGINE_KEYBOARD_KEY_LEFT_SHIFT         = 340,
-    ENGINE_KEYBOARD_KEY_LEFT_CONTROL       = 341,
-    ENGINE_KEYBOARD_KEY_LEFT_ALT           = 342,
-    ENGINE_KEYBOARD_KEY_LEFT_SUPER         = 343,
-    ENGINE_KEYBOARD_KEY_RIGHT_SHIFT        = 344,
-    ENGINE_KEYBOARD_KEY_RIGHT_CONTROL      = 345,
-    ENGINE_KEYBOARD_KEY_RIGHT_ALT          = 346,
-    ENGINE_KEYBOARD_KEY_RIGHT_SUPER        = 347,
-    ENGINE_KEYBOARD_KEY_MENU               = 348,
+    ENGINE_KEYBOARD_KEY_UNKNOWN = 0,
+    ENGINE_KEYBOARD_KEY_A = 4,
+    ENGINE_KEYBOARD_KEY_B = 5,
+    ENGINE_KEYBOARD_KEY_C = 6,
+    ENGINE_KEYBOARD_KEY_D = 7,
+    ENGINE_KEYBOARD_KEY_E = 8,
+    ENGINE_KEYBOARD_KEY_F = 9,
+    ENGINE_KEYBOARD_KEY_G = 10,
+    ENGINE_KEYBOARD_KEY_H = 11,
+    ENGINE_KEYBOARD_KEY_I = 12,
+    ENGINE_KEYBOARD_KEY_J = 13,
+    ENGINE_KEYBOARD_KEY_K = 14,
+    ENGINE_KEYBOARD_KEY_L = 15,
+    ENGINE_KEYBOARD_KEY_M = 16,
+    ENGINE_KEYBOARD_KEY_N = 17,
+    ENGINE_KEYBOARD_KEY_O = 18,
+    ENGINE_KEYBOARD_KEY_P = 19,
+    ENGINE_KEYBOARD_KEY_Q = 20,
+    ENGINE_KEYBOARD_KEY_R = 21,
+    ENGINE_KEYBOARD_KEY_S = 22,
+    ENGINE_KEYBOARD_KEY_T = 23,
+    ENGINE_KEYBOARD_KEY_U = 24,
+    ENGINE_KEYBOARD_KEY_V = 25,
+    ENGINE_KEYBOARD_KEY_W = 26,
+    ENGINE_KEYBOARD_KEY_X = 27,
+    ENGINE_KEYBOARD_KEY_Y = 28,
+    ENGINE_KEYBOARD_KEY_Z = 29,
+    ENGINE_KEYBOARD_KEY_1 = 30,
+    ENGINE_KEYBOARD_KEY_2 = 31,
+    ENGINE_KEYBOARD_KEY_3 = 32,
+    ENGINE_KEYBOARD_KEY_4 = 33,
+    ENGINE_KEYBOARD_KEY_5 = 34,
+    ENGINE_KEYBOARD_KEY_6 = 35,
+    ENGINE_KEYBOARD_KEY_7 = 36,
+    ENGINE_KEYBOARD_KEY_8 = 37,
+    ENGINE_KEYBOARD_KEY_9 = 38,
+    ENGINE_KEYBOARD_KEY_0 = 39,
+    ENGINE_KEYBOARD_KEY_ENTER = 40,
+    ENGINE_KEYBOARD_KEY_ESCAPE = 41,
+    ENGINE_KEYBOARD_KEY_BACKSPACE = 42,
+    ENGINE_KEYBOARD_KEY_TAB = 43,
+    ENGINE_KEYBOARD_KEY_SPACE = 44,
+    ENGINE_KEYBOARD_KEY_PAGEDOWN = 78,
+    ENGINE_KEYBOARD_KEY_RIGHT = 79,
+    ENGINE_KEYBOARD_KEY_LEFT = 80,
+    ENGINE_KEYBOARD_KEY_DOWN = 81,
+    ENGINE_KEYBOARD_KEY_UP = 82,
+    ENGINE_KEYBOARD_KEY_NUMLOCKCLEAR = 83,
+    ENGINE_KEYBOARD_KEY_KP_DIVIDE = 84,
+    ENGINE_KEYBOARD_KEY_KP_MULTIPLY = 85,
+    ENGINE_KEYBOARD_KEY_KP_MINUS = 86,
+    ENGINE_KEYBOARD_KEY_KP_PLUS = 87,
+    ENGINE_KEYBOARD_KEY_KP_ENTER = 88,
+    ENGINE_KEYBOARD_KEY_LCTRL = 224,
+    ENGINE_KEYBOARD_KEY_LSHIFT = 225,
+    ENGINE_KEYBOARD_KEY_LALT = 226, /**< alt, option */
+    ENGINE_KEYBOARD_KEY_LGUI = 227, /**< windows, command (apple), meta */
+    ENGINE_KEYBOARD_KEY_RCTRL = 228,
+    ENGINE_KEYBOARD_KEY_RSHIFT = 229,
+    ENGINE_KEYBOARD_KEY_RALT = 230, /**< alt gr, option */
 } engine_keyboard_keys_t;
 
 typedef enum _engine_texture_color_space_t
@@ -206,9 +169,8 @@ typedef struct _texture_2d_create_from_data_desc_t
 {
     uint32_t width;
     uint32_t height;
-    uint32_t channels;
+    engine_data_layout_t data_layout;
     const void* data;
-    engine_texture_color_space_t color_space;
 } engine_texture_2d_create_from_memory_desc_t;
 
 typedef enum _engine_result_code_t
@@ -237,6 +199,8 @@ ENGINE_API engine_application_frame_begine_info_t engineApplicationFrameBegine(e
 ENGINE_API engine_result_code_t                   engineApplicationFrameRunScene(engine_application_t handle, engine_scene_t scene, float delta_time);
 ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engine_application_t handle);
 
+ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* name, engine_font_t* out);
+
 ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, const engine_vertex_attribute_t* verts, size_t verts_count, uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
 
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t& info, const char* name, engine_texture2d_t* out);
@@ -259,6 +223,11 @@ ENGINE_API engine_tranform_component_t* engineSceneGetTransformComponent(engine_
 ENGINE_API void                  engineSceneRemoveTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool                  engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
 
+ENGINE_API engine_rect_tranform_component_t* engineSceneAddRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_rect_tranform_component_t* engineSceneGetRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void                  engineSceneRemoveRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool                  engineSceneHasRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+
 ENGINE_API engine_mesh_component_t* engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_mesh_component_t* engineSceneGetMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void              engineSceneRemoveMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
@@ -278,6 +247,16 @@ ENGINE_API engine_camera_component_t* engineSceneAddCameraComponent(engine_scene
 ENGINE_API engine_camera_component_t* engineSceneGetCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void                engineSceneRemoveCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool                engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+ENGINE_API engine_text_component_t* engineSceneAddTextComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_text_component_t* engineSceneGetTextComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void                engineSceneRemoveTextComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool                engineSceneHasTextComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+typedef struct _engine_native_script_component_t
+{
+    void (*update_function)(float);
+} engine_native_script_component_t;
 
 #ifdef __cplusplus
 }

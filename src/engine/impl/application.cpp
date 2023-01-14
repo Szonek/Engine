@@ -3,11 +3,12 @@
 #include "asset_store.h"
 #include "scene.h"
 
-#include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_events.h>
 
 #include <span>
 #include <iostream>
-#include <ranges>
 
 namespace
 {
@@ -23,7 +24,7 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_tightly_packed_v
 	std::vector<std::uint32_t> offsets;
 	offsets.reserve(simple_attribs.size()); // we will use push_back();
 
-	std::ranges::for_each(simple_attribs, [&stride, &offsets](const vertex_attribute_simple_t& attrib)
+	std::for_each(simple_attribs.begin(), simple_attribs.end(), [&stride, &offsets](const vertex_attribute_simple_t& attrib)
 		{
 			offsets.push_back(stride);
 	std::uint32_t bytes_size = 0;
@@ -58,27 +59,23 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layou
 	vertex_layout_simple.push_back({ 2,  engine::Geometry::vertex_attribute_t::Type::eFloat });
 	return create_tightly_packed_vertex_layout(vertex_layout_simple);
 }
+
 }  // namespace annoymous
 
 engine::Application::Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
-	: rdx_(std::move(RenderContext(desc.name, {0, 0, desc.width, desc.height})))
+	: rdx_(std::move(RenderContext(desc.name, {0, 0, desc.width, desc.height}, desc.fullscreen)))
 {
-	if (desc.asset_store_path)
-	{
-		//ToDo: make this per application. Multiple application would overwrite this singletons configurables.
-		engine::AssetStore::get_instance().configure_base_path(desc.asset_store_path);
-	}
-
 	{
 		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 160, 50, 168 };
 		engine_texture_2d_create_from_memory_desc_t desc{};
 		desc.width = 1;
 		desc.height = 1;
-		desc.channels = 3;
-		desc.color_space = ENGINE_TEXTURE_COLOR_SPACE_LINEAR;
+        desc.data_layout = ENGINE_DATA_LAYOUT_RGB_U8;
 		desc.data = default_texture_color.data();
 		add_texture_from_memory(desc, "default_1x1_texutre");
 	}
+
+    rdx_.set_clear_color(0.05f, 0.0f, 0.2f, 1.0f);
 
 	timer_.tick();
 	out_code = ENGINE_RESULT_CODE_OK;
@@ -86,25 +83,51 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
 
 engine::Application::~Application()
 {
-	glfwTerminate();
+	//glfwTerminate();
 }
 
 engine_result_code_t engine::Application::run_scene(Scene* scene, float delta_time)
 {
 	return scene->update(rdx_, delta_time,
 		textures_atlas_.get_objects_view(),
-		geometries_atlas_.get_objects_view());
+		geometries_atlas_.get_objects_view(),
+        &text_mng_);
 }
 
 engine_application_frame_begine_info_t engine::Application::begine_frame()
 {
 	timer_.tick();
-	glfwPollEvents();
 
+    engine_application_frame_begine_info_t ret{};
+    ret.delta_time = static_cast<float>(timer_.delta_time().count()) / 1000.0f;
+    ret.events = ENGINE_EVENT_NONE;
+
+    //Handle events on queue
+    SDL_Event e;
+    while (SDL_PollEvent(&e) != 0)
+    {
+        if (e.type == SDL_EVENT_QUIT)
+        {
+            ret.events |= ENGINE_EVENT_QUIT;
+        }
+        else if (e.type == SDL_EVENT_WINDOW_RESIZED)
+        {
+            ret.events |= ENGINE_EVENT_WINDOW_RESIZED;
+            //log("Window %d resized to %dx%d", e.window.windowID, e.window.data1, e.window.data2);
+        }
+		else if(e.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+		{
+			viewport_t vp{};
+			vp.width = e.window.data1;
+			vp.height = e.window.data2;
+			rdx_.set_viewport(vp);
+		}
+        else if (e.type = SDL_EVENT_WINDOW_MOVED)
+        {
+            ret.events |= ENGINE_EVENT_WINDOW_MOVED;
+        }
+    }
 	rdx_.begin_frame();
-
-	engine_application_frame_begine_info_t ret{};
-	ret.delta_time = timer_.delta_time();
 	return ret;
 }
 
@@ -112,13 +135,28 @@ engine_application_frame_end_info_t engine::Application::end_frame()
 {
 	rdx_.end_frame();
 	engine_application_frame_end_info_t ret{};
-	ret.success = !glfwWindowShouldClose(rdx_.get_glfw_window());;
+	//ret.success = !glfwWindowShouldClose(rdx_.get_glfw_window());;
+    ret.success = true;
 	return ret;
 }
 
 std::uint32_t engine::Application::add_texture_from_memory(const engine_texture_2d_create_from_memory_desc_t& desc, std::string_view texture_name)
 {
-	return textures_atlas_.add_object(texture_name, Texture2D(desc.width, desc.height, desc.channels, true, desc.data));
+    const auto data_layout = [](const auto engine_api_layout)
+    {
+        switch (engine_api_layout)
+        {
+        case ENGINE_DATA_LAYOUT_RGBA_FP32: return DataLayout::eRGBA_FP32;
+        case ENGINE_DATA_LAYOUT_R_FP32: return DataLayout::eR_FP32;
+
+        case ENGINE_DATA_LAYOUT_RGBA_U8: return DataLayout::eRGBA_U8;
+        case ENGINE_DATA_LAYOUT_RGB_U8: return DataLayout::eRGB_U8;
+        case ENGINE_DATA_LAYOUT_R_U8: return DataLayout::eR_U8;
+        default:
+            return DataLayout::eCount;
+        }
+    }(desc.data_layout);
+	return textures_atlas_.add_object(texture_name, Texture2D(desc.width, desc.height, true, desc.data, data_layout, TextureAddressClampMode::eClampToEdge));
 }
 
 std::uint32_t engine::Application::add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space)
@@ -126,22 +164,30 @@ std::uint32_t engine::Application::add_texture_from_file(std::string_view file_n
 	return textures_atlas_.add_object(texture_name, Texture2D(file_name, true));
 }
 
+std::uint32_t engine::Application::add_font_from_file(std::string_view file_name)
+{
+    const auto res = text_mng_.load_font_from_file(std::move(file_name));
+    assert(res.first == true && "Failed loading font from file!");
+    return res.second;
+}
+
 std::uint32_t engine::Application::add_geometry_from_memory(std::span<const engine_vertex_attribute_t> verts, std::span<const uint32_t> inds, std::string_view name)
 {
 	const static auto vertex_layout = create_engine_api_layout();
-	return geometries_atlas_.add_object(name, Geometry(vertex_layout, { reinterpret_cast<const std::byte*>(verts.data()), verts.size_bytes() }, verts.size(), inds));
+	return geometries_atlas_.add_object(name, std::move(Geometry(vertex_layout, { reinterpret_cast<const std::byte*>(verts.data()), verts.size_bytes() }, verts.size(), inds)));
 }
 
 bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
 {
-	return GLFW_PRESS == glfwGetKey(rdx_.get_glfw_window(), key);
+    const auto state = SDL_GetKeyboardState(nullptr);
+    return static_cast<bool>(state[key]);
 }
 
 engine_mouse_coords_t engine::Application::mouse_get_coords()
 {
-	double coord_x = 0.;
-	double coord_y = 0.;
-	glfwGetCursorPos(rdx_.get_glfw_window(), &coord_x, &coord_y);
+	float coord_x = 0.;
+	float coord_y = 0.;
+    SDL_GetMouseState(&coord_x, &coord_y);
 	engine_mouse_coords_t ret{};
 	ret.x = static_cast<std::int32_t>(std::floor(coord_x));
 	ret.y = static_cast<std::int32_t>(std::floor(coord_y));
@@ -150,5 +196,6 @@ engine_mouse_coords_t engine::Application::mouse_get_coords()
 
 bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
 {
-	return GLFW_PRESS == glfwGetMouseButton(rdx_.get_glfw_window(), button);
+    const auto state = SDL_GetMouseState(nullptr, nullptr);
+    return state & SDL_BUTTON(button);
 }

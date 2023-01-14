@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20.0)
 
 set(TARGET_NAME "OpenGLPlayground")
-project(${TARGET_NAME} CXX)
+project(${TARGET_NAME} CXX C)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)

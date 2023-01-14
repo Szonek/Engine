@@ -2,6 +2,7 @@
 
 #include "application.h"
 #include "scene.h"
+#include "asset_store.h"
 
 namespace
 {
@@ -15,7 +16,6 @@ inline entt::entity entity_cast(engine_game_object_t go)
     return static_cast<entt::entity>(go);
 }
 
-
 inline void transform_component_init(engine_tranform_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_tranform_component_t));
@@ -24,6 +24,12 @@ inline void transform_component_init(engine_tranform_component_t* comp)
     comp->scale[2] = 1.0f;
 }
 
+inline void rect_transform_component_init(engine_rect_tranform_component_t* comp)
+{
+    std::memset(comp, 0, sizeof(engine_rect_tranform_component_t));
+    comp->scale[0] = 1.0f;
+    comp->scale[1] = 1.0f;
+}
 
 inline void camera_component_init(engine_camera_component_t* comp)
 {
@@ -59,7 +65,7 @@ inline void default_init(T*)
 }
 
 
-template<typename T, typename void(*F)(T*) = default_init>
+template<typename T, void(*F)(T*) = default_init>
 inline T* add_component(engine_scene_t scene, engine_game_object_t engine_game_object_t)
 {
     auto sc = scene_cast(scene);
@@ -98,6 +104,11 @@ inline bool has_component(engine_scene_t scene, engine_game_object_t game_object
 
 engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc)
 {
+    if (create_desc.asset_store_path)
+    {
+        //ToDo: make this per application. Multiple application would overwrite this singletons configurables.
+        engine::AssetStore::get_instance().configure_base_path(create_desc.asset_store_path);
+    }
 	engine_result_code_t ret = ENGINE_RESULT_CODE_FAIL;
 	*handle = reinterpret_cast<engine_application_t>(new engine::Application(create_desc, ret));
 
@@ -161,6 +172,13 @@ engine_application_frame_end_info_t engineApplicationFrameEnd(engine_application
 	return app->end_frame();
 }
 
+ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* name, engine_font_t* out)
+{
+    auto* app = reinterpret_cast<engine::Application*>(handle);
+    *out = app->add_font_from_file(name);
+    return ENGINE_RESULT_CODE_OK;
+}
+
 engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, const engine_vertex_attribute_t* verts, size_t verts_count, uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out)
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
@@ -186,6 +204,7 @@ engine_result_code_t engineSceneCreate(engine_scene_t* out)
 {
     engine_result_code_t ret;
     *out = reinterpret_cast<engine_scene_t>(new engine::Scene(ret));
+    assert(ENGINE_INVALID_GAME_OBJECT_ID == engineSceneCreateGameObject(*out)); // add invalid game object id
     return ret;
 }
 
@@ -251,6 +270,26 @@ void engineSceneRemoveTransformComponent(engine_scene_t scene, engine_game_objec
 bool engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return has_component<engine_tranform_component_t>(scene, game_object);
+}
+
+engine_rect_tranform_component_t* engineSceneAddRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_rect_tranform_component_t, rect_transform_component_init>(scene, game_object);
+}
+
+engine_rect_tranform_component_t* engineSceneGetRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_rect_tranform_component_t>(scene, game_object);
+}
+
+void engineSceneRemoveRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_rect_tranform_component_t>(scene, game_object);
+}
+
+bool engineSceneHasRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_rect_tranform_component_t>(scene, game_object);
 }
 
 engine_mesh_component_t* engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
@@ -331,4 +370,24 @@ void engineSceneRemoveCameraComponent(engine_scene_t scene, engine_game_object_t
 bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return has_component<engine_camera_component_t>(scene, game_object);
+}
+
+engine_text_component_t* engineSceneAddTextComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_text_component_t>(scene, game_object);
+}
+
+engine_text_component_t* engineSceneGetTextComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_text_component_t>(scene, game_object);
+}
+
+void engineSceneRemoveTextComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_text_component_t>(scene, game_object);
+}
+
+bool engineSceneHasTextComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_text_component_t>(scene, game_object);
 }

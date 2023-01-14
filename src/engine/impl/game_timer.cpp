@@ -6,19 +6,19 @@ engine::GameTimer::GameTimer()
 {
 }
 
-float engine::GameTimer::delta_time() const
+engine::GameTimer::timestamp_type engine::GameTimer::delta_time() const
 {
-    return static_cast<float>(_delta_time.count());
+    return _delta_time;
 }
 
-float engine::GameTimer::playing_time() const
+engine::GameTimer::timestamp_type engine::GameTimer::playing_time() const
 {
-    return static_cast<float>(std::chrono::duration_cast<timestamp_ms>(_current_time - _stop_time).count());
+    return std::chrono::duration_cast<timestamp_type>(_current_time - _stop_time);
 }
 
 void engine::GameTimer::tick()
 {
     _previous_time = _current_time;
     _current_time = clock_type::now();
-    _delta_time = std::chrono::duration_cast<timestamp_ms>(_current_time - _previous_time);
+    _delta_time = std::chrono::duration_cast<timestamp_type>(_current_time - _previous_time);
 }
