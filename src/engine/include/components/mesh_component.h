@@ -6,9 +6,11 @@ extern "C"
 #endif // cpp
 
 #include <stdint.h>
+
+typedef uint32_t engine_geometry_t;
 typedef struct _engine_mesh_component_t
 {
-	uint32_t temp;
+	engine_geometry_t geometry;
 } engine_mesh_component_t;
 
 #ifdef __cplusplus

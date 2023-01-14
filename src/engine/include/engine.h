@@ -28,6 +28,8 @@ extern "C"
 typedef uint32_t engine_game_object_t;
 typedef struct _engine_application_t* engine_application_t;
 typedef struct _engine_scene_t* engine_scene_t;
+typedef uint32_t engine_texture2d_t;
+typedef uint32_t engine_geometry_t;
 
 typedef struct _engine_application_create_desc_t
 {
@@ -126,11 +128,32 @@ typedef enum _engine_platform_keys_t
     ENGINE_KEYBOARD_KEY_RALT = 230, /**< alt gr, option */
 } engine_keyboard_keys_t;
 
+typedef enum _engine_texture_color_space_t
+{
+    ENGINE_TEXTURE_COLOR_SPACE_SRGB = 0,
+    ENGINE_TEXTURE_COLOR_SPACE_LINEAR,
+} engine_texture_color_space_t;
+
+typedef struct _texture_2d_create_from_data_desc_t
+{
+    uint32_t width;
+    uint32_t height;
+    uint32_t channels;
+    const void* data;
+    engine_texture_color_space_t color_space;
+} engine_texture_2d_create_from_memory_desc_t;
+
 typedef enum _engine_result_code_t
 {
     ENGINE_RESULT_CODE_OK = 0,
     ENGINE_RESULT_CODE_FAIL = -1
 } engine_result_code_t;
+
+typedef struct _engine_vertex_attribute_t
+{
+    float position[3];
+    float uv[2];
+} engine_vertex_attribute_t;
 
 ENGINE_API engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc);
 ENGINE_API void engineApplicationDestroy(engine_application_t handle);
@@ -146,13 +169,10 @@ ENGINE_API engine_application_frame_begine_info_t engineApplicationFrameBegine(e
 ENGINE_API engine_result_code_t                   engineApplicationFrameRunScene(engine_application_t handle, engine_scene_t scene, float delta_time);
 ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engine_application_t handle);
 
-//ENGINE_API engine_geometry_t   engineApplicationGetDefaultGeometry(engine_application_handle_t handle, engine_default_geometry_type_t shape_type);
-//ENGINE_API engine_program_t    engineApplicationGetDefaultProgram(engine_application_handle_t handle, engine_default_program_t program_type);
-//ENGINE_API engine_texture_2d_t engineApplicationGetDefaultTexture2D(engine_application_handle_t handle);
+ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, const engine_vertex_attribute_t* verts, size_t verts_count, uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
 
-//ENGINE_API engine_texture_2d_t engineApplicationAddTexture2DFromData(engine_application_handle_t handle, const engine_texture_2d_create_from_data_desc_t& info, const char* name);
-//ENGINE_API engine_texture_2d_t engineApplicationAddTexture2DFromFile(engine_application_handle_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name);
-
+ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t& info, const char* name, engine_texture2d_t* out);
+ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 
 ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_t* out);
 ENGINE_API void engineSceneDestroy(engine_scene_t scene);

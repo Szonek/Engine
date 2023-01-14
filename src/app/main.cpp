@@ -37,8 +37,65 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	auto camera_go = engineSceneCreateGameObject(scene);
-	auto camera_comp = engineSceneAddCameraComponent(scene, camera_go);
+	const float cube_vertices[] = {
+		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+		 0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		 0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+	};
+	engine_geometry_t cube_geometry{};
+	engineApplicationAddGeometryFromMemory(app, reinterpret_cast<const engine_vertex_attribute_t*>(cube_vertices), 36, nullptr, 0, "cube", &cube_geometry);
+
+	{
+		auto camera_go = engineSceneCreateGameObject(scene);
+		auto camera_comp = engineSceneAddCameraComponent(scene, camera_go);
+		auto camera_transform_comp = engineSceneAddTransformComponent(scene, camera_go);
+		camera_comp->enabled = true;
+		camera_comp->clip_plane_near = 0.1f;
+		camera_comp->clip_plane_far = 100.0f;
+		camera_comp->type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
+		camera_comp->type_union.perspective_fov = 45.0f;
+		camera_transform_comp->position[0] = 0.0f;
+		camera_transform_comp->position[1] = 0.0f;
+		camera_transform_comp->position[2] = 3.0f;
+	}
 
 	const std::vector<std::array<float, 3>> cubes_positions =
 	{
@@ -54,10 +111,15 @@ int main(int argc, char** argv)
 		{ -1.3f,  1.0f, -1.5f},
 	};
 
+	engine_texture2d_t texture_container{};
+	engineApplicationAddTexture2DFromFile(app, "container.jpg", ENGINE_TEXTURE_COLOR_SPACE_LINEAR, "container", &texture_container);
+
 	for (auto i = 0; i < cubes_positions.size(); i++)
 	{
 		const auto cube = engineSceneCreateGameObject(scene);
 		auto mesh_comp = engineSceneAddMeshComponent(scene, cube);
+		mesh_comp->geometry = cube_geometry;
+
 		auto tc = engineSceneAddTransformComponent(scene, cube);
 		tc->position[0] = cubes_positions[i][0];
 		tc->position[1] = cubes_positions[i][1];
@@ -67,6 +129,13 @@ int main(int argc, char** argv)
 		tc->rotation[0] = angle;
 		tc->rotation[1] = 0.3f * angle;
 		tc->rotation[2] = 0.5f * angle;
+
+		auto material_comp = engineSceneAddMaterialComponent(scene, cube);
+		if (i % 2 == 0) // to test default texture
+		{
+			material_comp->diffuse_texture = texture_container;
+		}
+
 
 		auto nc = engineSceneAddNameComponent(scene, cube);
 		const std::string name = std::format("cube_{}", i);

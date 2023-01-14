@@ -4,6 +4,9 @@
 #include "game_timer.h"
 #include "graphics.h"
 
+#include <array>
+#include <string>
+
 namespace engine
 {
 class Application
@@ -17,9 +20,13 @@ public:
     ~Application();
 
     engine_result_code_t run_scene(class Scene* scene, float delta_time);
-
     engine_application_frame_begine_info_t begine_frame();
     engine_application_frame_end_info_t end_frame();
+
+    std::uint32_t add_texture_from_memory(const engine_texture_2d_create_from_memory_desc_t& desc, std::string_view texture_name);
+    std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
+
+    std::uint32_t add_geometry_from_memory(std::span<const engine_vertex_attribute_t> verts, std::span<const uint32_t> inds, std::string_view name);
 
     bool keyboard_is_key_down(engine_keyboard_keys_t key) const;
 
@@ -29,6 +36,36 @@ public:
 private:
     RenderContext rdx_;
     GameTimer timer_;
+
+    template<typename T>
+    class Atlas
+    {
+        static constexpr const size_t SIZE = 1024;
+        using ArrayType = std::array<T, SIZE>;
+    public:
+        Atlas() = default;
+        Atlas(const Atlas& rhs) = delete;
+        Atlas(Atlas&& rhs) = delete;
+        Atlas& operator=(const Atlas& rhs) = delete;
+        Atlas& operator=(Atlas&& rhs) = delete;
+        ~Atlas() = default;
+
+        std::uint32_t add_object(std::string_view name, T&& t)
+        {
+            objects_[current_idx_] = std::move(t);
+            names_[current_idx_] = name.data();
+            return current_idx_++;
+        }
+
+        const ArrayType& get_objects_view() const { return objects_; }
+    private:
+        ArrayType objects_;
+        std::array<std::string, SIZE> names_;
+        std::uint32_t current_idx_ = 0;
+    };
+
+    Atlas<Texture2D> textures_atlas_;
+    Atlas<Geometry> geometries_atlas_;
 };
 
 }  // namespace engine

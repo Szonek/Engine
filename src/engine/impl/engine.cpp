@@ -161,6 +161,27 @@ engine_application_frame_end_info_t engineApplicationFrameEnd(engine_application
 	return app->end_frame();
 }
 
+engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, const engine_vertex_attribute_t* verts, size_t verts_count, uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out)
+{
+    auto* app = reinterpret_cast<engine::Application*>(handle);
+    *out = app->add_geometry_from_memory({ verts, verts_count}, {inds, inds_count}, name);
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t& info, const char* name, engine_texture2d_t* out)
+{
+    auto* app = reinterpret_cast<engine::Application*>(handle);
+    *out = app->add_texture_from_memory(info, name);
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_name, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out)
+{
+    auto* app = reinterpret_cast<engine::Application*>(handle);
+    *out = app->add_texture_from_file(file_name, name, color_space);
+    return ENGINE_RESULT_CODE_OK;
+}
+
 engine_result_code_t engineSceneCreate(engine_scene_t* out)
 {
     engine_result_code_t ret;

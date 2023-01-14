@@ -112,26 +112,23 @@ void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::st
 	glAttachShader(program_, shader);
 }
 
-engine::Texture2D::Texture2D(std::string_view texture_name, bool generate_mipmaps)
-	: texture_(0)
-{
-	const auto texture_data = AssetStore::get_instance().get_texture_data(texture_name);
-	assert(texture_data.get_width() != 0);
-	assert(texture_data.get_height() != 0);
-	assert(texture_data.get_channels() != 0);
-	assert(texture_data.get_data_ptr() != nullptr);
 
-	glGenTextures(1, &texture_);
-	glBindTexture(GL_TEXTURE_2D, texture_);
+inline auto generate_opengl_texture(std::uint32_t width, std::uint32_t height, std::uint32_t channels, GLenum gl_data_type, bool generate_mipmaps, const void* data)
+{
+	assert(width != 0);
+	assert(height != 0);
+	assert(channels != 0);
+	assert(data != nullptr);
+
 
 	std::int32_t gl_internal_format = 0;
 	std::int32_t gl_host_format = 0;
-	if (texture_data.get_channels() == 4)
+	if (channels == 4)
 	{
 		gl_host_format = GL_RGBA;
 		gl_internal_format = GL_RGBA;
 	}
-	else if (texture_data.get_channels() == 3)
+	else if (channels == 3)
 	{
 		gl_host_format = GL_RGB;
 		gl_internal_format = GL_RGB;
@@ -140,6 +137,42 @@ engine::Texture2D::Texture2D(std::string_view texture_name, bool generate_mipmap
 	{
 		assert(false && "Not supported number of texture channels.");
 	}
+
+	std::uint32_t tex_id{ 0 };
+	glGenTextures(1, &tex_id);
+	glBindTexture(GL_TEXTURE_2D, tex_id);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format, width, height,
+		0, gl_host_format, gl_data_type, data);
+
+	if (generate_mipmaps)
+	{
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	return tex_id;
+}
+
+
+engine::Texture2D::Texture2D(std::uint32_t width, std::uint32_t height, std::uint32_t channels, bool generate_mipmaps, const void* data)
+	: texture_(generate_opengl_texture(width, height, channels, GL_UNSIGNED_BYTE, generate_mipmaps, data))
+{
+	
+}
+
+engine::Texture2D::Texture2D(std::string_view texture_name, bool generate_mipmaps)
+	: texture_(0)
+{
+	const auto texture_data = AssetStore::get_instance().get_texture_data(texture_name);
+	assert(texture_data.get_width() != 0);
+	assert(texture_data.get_height() != 0);
+	assert(texture_data.get_channels() != 0);
+	assert(texture_data.get_data_ptr() != nullptr);
 
 	std::int32_t gl_data_type = 0;
 	switch (texture_data.get_type())
@@ -151,18 +184,22 @@ engine::Texture2D::Texture2D(std::string_view texture_name, bool generate_mipmap
 		assert(false && "Unknown texture data type.");
 		break;
 	}
+	texture_ = generate_opengl_texture(texture_data.get_width(), texture_data.get_height(), texture_data.get_channels(),
+		gl_data_type, generate_mipmaps, texture_data.get_data_ptr());
+}
 
-	glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format, texture_data.get_width(), texture_data.get_height(),
-		0, gl_host_format, gl_data_type, texture_data.get_data_ptr());
+engine::Texture2D::Texture2D(Texture2D&& rhs) noexcept
+{
+	std::swap(texture_, rhs.texture_);
+}
 
-	if (generate_mipmaps)
+engine::Texture2D& engine::Texture2D::operator=(Texture2D&& rhs) noexcept
+{
+	if (this != &rhs)
 	{
-		glGenerateMipmap(GL_TEXTURE_2D);
+		std::swap(texture_, rhs.texture_);
 	}
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	return *this;
 }
 
 engine::Texture2D::~Texture2D()
@@ -173,17 +210,18 @@ engine::Texture2D::~Texture2D()
 	}
 }
 
-void engine::Texture2D::bind(std::uint32_t slot)
+void engine::Texture2D::bind(std::uint32_t slot) const
 {
+	assert(texture_ != 0);
 	glActiveTexture(GL_TEXTURE0 + slot);
 	glBindTexture(GL_TEXTURE_2D, texture_);
 }
 
-engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const float> vertex_data, std::span<const std::uint32_t> index_data)
+engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const std::byte> vertex_data, std::size_t vertex_count, std::span<const std::uint32_t> index_data)
 	: vbo_(0)
 	, vao_(0)
 	, ibo_(0)
-	, vertex_count_(0)
+	, vertex_count_(vertex_count)
 	, index_count_(0)
 {
 	// vertex array object (buffer)
@@ -194,7 +232,6 @@ engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, st
 	// vertex buffer
 	glBindBuffer(GL_ARRAY_BUFFER, vbo_);
 	glBufferData(GL_ARRAY_BUFFER, vertex_data.size_bytes(), vertex_data.data(), GL_STATIC_DRAW);
-	vertex_count_ = vertex_data.size();
 
 	// vertex layout 
 	std::ranges::for_each(vertex_layout, [](const vertex_attribute_t& vl)
@@ -225,6 +262,28 @@ engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, st
 
 	// unbind at the end so both vbo_ and ibo_ are part of VAO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+engine::Geometry::Geometry(Geometry&& rhs) noexcept
+{
+	std::swap(vbo_, rhs.vbo_);
+	std::swap(ibo_, rhs.ibo_);
+	std::swap(vao_, rhs.vao_);
+	std::swap(vertex_count_, rhs.vertex_count_);
+	std::swap(index_count_, rhs.index_count_);
+}
+
+engine::Geometry& engine::Geometry::operator=(Geometry&& rhs) noexcept
+{
+	if (this != &rhs)
+	{
+		std::swap(vbo_, rhs.vbo_);
+		std::swap(ibo_, rhs.ibo_);
+		std::swap(vao_, rhs.vao_);
+		std::swap(vertex_count_, rhs.vertex_count_);
+		std::swap(index_count_, rhs.index_count_);
+	}
+	return *this;
 }
 
 engine::Geometry::~Geometry()

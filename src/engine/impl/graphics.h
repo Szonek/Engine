@@ -56,19 +56,21 @@ private:
 class Texture2D
 {
 public:
+	Texture2D() = default;
+	Texture2D(std::uint32_t width, std::uint32_t height, std::uint32_t channels, bool generate_mipmaps, const void* data);
 	Texture2D(std::string_view texture_name, bool generate_mipmaps);
 
 	Texture2D(const Texture2D& rhs) = delete;
-	Texture2D(Texture2D&& rhs) noexcept = default;
+	Texture2D(Texture2D&& rhs) noexcept;
 	Texture2D& operator=(const Texture2D& rhs) = delete;
-	Texture2D& operator=(Texture2D&& rhs)  noexcept = default;
+	Texture2D& operator=(Texture2D&& rhs)  noexcept;
 
 	~Texture2D();
 
-	void bind(std::uint32_t slot);
+	void bind(std::uint32_t slot) const;
 
 private:
-	std::uint32_t texture_;
+	std::uint32_t texture_ = 0;
 };
 
 class Geometry
@@ -95,11 +97,12 @@ public:
 	};
 
 public:
-	Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const float> vertex_data, std::span<const std::uint32_t> index_data = {});
+	Geometry() = default;
+	Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const std::byte> vertex_data, std::size_t vertex_count, std::span<const std::uint32_t> index_data = {});
 	Geometry(const Geometry& rhs) = delete;
-	Geometry(Geometry&& rhs) noexcept = default;
+	Geometry(Geometry&& rhs) noexcept;
 	Geometry& operator=(const Geometry& rhs) = delete;
-	Geometry& operator=(Geometry&& rhs)  noexcept = default;
+	Geometry& operator=(Geometry&& rhs) noexcept;
 
 	~Geometry();
 
@@ -107,11 +110,11 @@ public:
 	void draw(Mode mode) const;
 
 private:
-	std::uint32_t vbo_; // vertex buffer
-	std::uint32_t ibo_; // index buffer
-	std::uint32_t vao_;
-	std::uint32_t vertex_count_;
-	std::uint32_t index_count_;
+	std::uint32_t vbo_{0}; // vertex buffer
+	std::uint32_t ibo_{0}; // index buffer
+	std::uint32_t vao_{0};
+	std::uint32_t vertex_count_{0};
+	std::uint32_t index_count_{0};
 };
 
 class RenderContext
