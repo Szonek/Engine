@@ -29,12 +29,6 @@ public:
 private:
     RenderContext rdx_;
     GameTimer timer_;
-
-    Shader shader_;
-    Geometry geometry_;
-
-    Texture2D texture_container_;
-    Texture2D texture_face_;
 };
 
 }  // namespace engine

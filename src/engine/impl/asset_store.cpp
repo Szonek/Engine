@@ -28,7 +28,8 @@ engine::TextureAssetContext::TextureAssetContext(TextureAssetContext&& rhs)
 	, channels_(rhs.channels_)
 	, data_(rhs.data_)
 	, type_(rhs.type_)
-{
+{ 
+
 	rhs.width_ = 0;
 	rhs.height_ = 0;
 	rhs.channels_ = 0;

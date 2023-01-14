@@ -275,6 +275,44 @@ inline void framebuffer_size_callback(struct GLFWwindow* window, std::int32_t wi
 	glViewport(0, 0, width, height);
 }
 
+inline void GLAPIENTRY
+message_callback(GLenum source,
+	GLenum type,
+	GLuint id,
+	GLenum severity,
+	GLsizei length,
+	const GLchar* message,
+	const void* userParam)
+{
+	std::string type_str = "";
+	switch (type)
+	{
+	case GL_DEBUG_TYPE_ERROR: type_str = "GL_DEBUG_TYPE_ERROR";  break;
+	case GL_DEBUG_TYPE_MARKER: type_str = "GL_DEBUG_TYPE_MARKER";  break;
+	case GL_DEBUG_TYPE_OTHER: type_str = "GL_DEBUG_TYPE_OTHER";  break;
+	case GL_DEBUG_TYPE_PERFORMANCE: type_str = "GL_DEBUG_TYPE_PERFORMANCE";  break;
+	case GL_DEBUG_TYPE_POP_GROUP: type_str = "GL_DEBUG_TYPE_POP_GROUP";  break;
+	case GL_DEBUG_TYPE_PORTABILITY: type_str = "GL_DEBUG_TYPE_PORTABILITY";  break;
+	case GL_DEBUG_TYPE_PUSH_GROUP: type_str = "GL_DEBUG_TYPE_PUSH_GROUP";  break;
+	case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: type_str = "GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR";  break;
+	default:
+		type_str = "";
+	}
+
+	std::string severity_str = "";
+	switch (severity)
+	{
+	case GL_DEBUG_SEVERITY_HIGH: severity_str = "GL_DEBUG_SEVERITY_HIGH";  break;
+	case GL_DEBUG_SEVERITY_LOW: severity_str = "GL_DEBUG_SEVERITY_LOW";  break;
+	case GL_DEBUG_SEVERITY_MEDIUM: severity_str = "GL_DEBUG_SEVERITY_MEDIUM";  break;
+	case GL_DEBUG_SEVERITY_NOTIFICATION: severity_str = "GL_DEBUG_SEVERITY_NOTIFICATION";  break;
+	default:
+		severity_str = "";
+	}
+	std::cerr << std::format("[OpenGL] Type: {}, severity: {}, message: {} \n",
+		type_str, severity_str, message);
+}
+
 engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size)
 {
 	glfwInit();
@@ -282,7 +320,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #if _DEBUG
-	std::cout << "[INFO] Debug build. Building with debug context.\n";
+
 	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 #endif
 	window_ = glfwCreateWindow(init_size.width, init_size.height, window_name.data(), nullptr, nullptr);
@@ -306,6 +344,11 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 		std::cout << std::format("Sucesfully loaded Opengl ver: {0}, {1}.\n",
 			GLAD_VERSION_MAJOR(gl_version), GLAD_VERSION_MINOR(gl_version));
 	}
+#if _DEBUG
+	std::cout << "[INFO] Debug build. Building with debug context.\n";
+	glEnable(GL_DEBUG_OUTPUT);
+	glDebugMessageCallback(message_callback, 0);
+#endif
 
 	int32_t vertex_attributes_limit = 0;
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &vertex_attributes_limit);
@@ -388,4 +431,13 @@ void engine::RenderContext::begin_frame()
 void engine::RenderContext::end_frame()
 {
 	glfwSwapBuffers(window_);
+
+	// process errors
+#if _DEBUG
+	//GLenum err;
+	//while ((err = glGetError()) != GL_NO_ERROR)
+	//{
+	//	// Process/log the error.
+	//}
+#endif
 }

@@ -16,8 +16,16 @@ extern "C"
 {
 #endif  // #ifndef __cplusplus
 
+#include "components/camera_component.h"
+#include "components/light_component.h"
+#include "components/transform_component.h"
+#include "components/name_component.h"
+#include "components/mesh_component.h"
+#include "components/material_component.h"
+
 #include <stdint.h>
 
+typedef uint32_t engine_game_object_t;
 typedef struct _engine_application_t* engine_application_t;
 typedef struct _engine_scene_t* engine_scene_t;
 
@@ -138,12 +146,50 @@ ENGINE_API engine_application_frame_begine_info_t engineApplicationFrameBegine(e
 ENGINE_API engine_result_code_t                   engineApplicationFrameRunScene(engine_application_t handle, engine_scene_t scene, float delta_time);
 ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engine_application_t handle);
 
-//ENGINE_API engine_geometry_t   jullApplicationGetDefaultGeometry(jull_application_handle_t handle, jull_default_geometry_type_t shape_type);
-//ENGINE_API engine_program_t    jullApplicationGetDefaultProgram(jull_application_handle_t handle, jull_default_program_t program_type);
-//ENGINE_API engine_texture_2d_t jullApplicationGetDefaultTexture2D(jull_application_handle_t handle);
+//ENGINE_API engine_geometry_t   engineApplicationGetDefaultGeometry(engine_application_handle_t handle, engine_default_geometry_type_t shape_type);
+//ENGINE_API engine_program_t    engineApplicationGetDefaultProgram(engine_application_handle_t handle, engine_default_program_t program_type);
+//ENGINE_API engine_texture_2d_t engineApplicationGetDefaultTexture2D(engine_application_handle_t handle);
 
-//ENGINE_API jull_texture_2d_t jullApplicationAddTexture2DFromData(jull_application_handle_t handle, const jull_texture_2d_create_from_data_desc_t& info, const char* name);
-//ENGINE_API jull_texture_2d_t jullApplicationAddTexture2DFromFile(jull_application_handle_t handle, const char* file_path, jull_texture_color_space_t color_space, const char* name);
+//ENGINE_API engine_texture_2d_t engineApplicationAddTexture2DFromData(engine_application_handle_t handle, const engine_texture_2d_create_from_data_desc_t& info, const char* name);
+//ENGINE_API engine_texture_2d_t engineApplicationAddTexture2DFromFile(engine_application_handle_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name);
+
+
+ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_t* out);
+ENGINE_API void engineSceneDestroy(engine_scene_t scene);
+
+ENGINE_API engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene);
+ENGINE_API void                     engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object);
+
+ENGINE_API engine_name_component_t* engineSceneAddNameComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_name_component_t* engineSceneGetNameComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void                engineSceneRemoveNameComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool                engineSceneHasNameComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+
+ENGINE_API engine_tranform_component_t* engineSceneAddTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_tranform_component_t* engineSceneGetTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void                  engineSceneRemoveTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool                  engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+ENGINE_API engine_mesh_component_t* engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_mesh_component_t* engineSceneGetMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void              engineSceneRemoveMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool              engineSceneHasMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+ENGINE_API engine_material_component_t* engineSceneAddMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_material_component_t* engineSceneGetMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void                             engineSceneRemoveMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool                             engineSceneHasMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+ENGINE_API engine_light_component_t* engineSceneAddLightComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_light_component_t* engineSceneGetLightComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void                          engineSceneRemoveLightComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool                          engineSceneHasLightComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+ENGINE_API engine_camera_component_t* engineSceneAddCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_camera_component_t* engineSceneGetCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void                engineSceneRemoveCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool                engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
 
 #ifdef __cplusplus
 }
