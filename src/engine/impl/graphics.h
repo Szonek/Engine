@@ -3,6 +3,7 @@
 #include <string>
 #include <unordered_map>
 #include <span>
+#include <vector>
 
 struct GLFWwindow;
 
@@ -94,7 +95,7 @@ public:
 	};
 
 public:
-	Geometry(std::span<vertex_attribute_t> vertex_layout, std::span<float> vertex_data, std::span<std::uint32_t> index_data = {});
+	Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const float> vertex_data, std::span<const std::uint32_t> index_data = {});
 	Geometry(const Geometry& rhs) = delete;
 	Geometry(Geometry&& rhs) noexcept = default;
 	Geometry& operator=(const Geometry& rhs) = delete;
@@ -112,7 +113,6 @@ private:
 	std::uint32_t vertex_count_;
 	std::uint32_t index_count_;
 };
-
 
 class RenderContext
 {

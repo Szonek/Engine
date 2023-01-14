@@ -179,7 +179,7 @@ void engine::Texture2D::bind(std::uint32_t slot)
 	glBindTexture(GL_TEXTURE_2D, texture_);
 }
 
-engine::Geometry::Geometry(std::span<vertex_attribute_t> vertex_layout, std::span<float> vertex_data, std::span<std::uint32_t> index_data)
+engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const float> vertex_data, std::span<const std::uint32_t> index_data)
 	: vbo_(0)
 	, vao_(0)
 	, ibo_(0)
@@ -197,20 +197,21 @@ engine::Geometry::Geometry(std::span<vertex_attribute_t> vertex_layout, std::spa
 	vertex_count_ = vertex_data.size();
 
 	// vertex layout 
-	std::for_each(vertex_layout.begin(), vertex_layout.end(), [](const vertex_attribute_t& vl)
+	std::ranges::for_each(vertex_layout, [](const vertex_attribute_t& vl)
 		{
 			std::uint32_t gl_type = 0;
-	switch (vl.type)
-	{
-	case vertex_attribute_t::Type::eFloat:
-		gl_type = GL_FLOAT;
-		break;
-	default:
-		assert("Unknown vertex attirubute tpye!");
-	}
-	glVertexAttribPointer(vl.index, vl.size, gl_type, GL_FALSE, vl.stride, (void*)vl.offset);
-	glEnableVertexAttribArray(vl.index);
-		});
+			switch (vl.type)
+			{
+			case vertex_attribute_t::Type::eFloat:
+				gl_type = GL_FLOAT;
+				break;
+			default:
+				assert("Unknown vertex attirubute tpye!");
+			}
+			glVertexAttribPointer(vl.index, vl.size, gl_type, GL_FALSE, vl.stride, (void*)vl.offset);
+			glEnableVertexAttribArray(vl.index);
+		}
+	);
 
 	// index buffer
 	if (!index_data.empty())
@@ -309,6 +310,9 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 	int32_t vertex_attributes_limit = 0;
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &vertex_attributes_limit);
 	std::cout << "Maximum nr of vertex attributes supported: " << vertex_attributes_limit << std::endl;
+
+	// enable depth test
+	glEnable(GL_DEPTH_TEST);
 }
 
 engine::RenderContext::RenderContext(RenderContext&& rhs) noexcept
@@ -378,7 +382,7 @@ void engine::RenderContext::set_polygon_mode(PolygonFaceType face, PolygonMode m
 
 void engine::RenderContext::begin_frame()
 {
-	glClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void engine::RenderContext::end_frame()
