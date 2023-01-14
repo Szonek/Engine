@@ -1,17 +1,34 @@
 set(ENGINE "engine")
 
+set(ENGINE_SOURCES_DIR "impl")
 set(ENGINE_SOURCES
-	impl/graphics.cpp
-	impl/graphics.h
-	impl/scene.cpp
-	impl/scene.h
-	impl/asset_store.cpp
-	impl/asset_store.h
-	impl/game_timer.cpp
-	impl/game_timer.h
-	impl/application.cpp
-	impl/application.h
-	impl/engine.cpp
+	${ENGINE_SOURCES_DIR}/graphics.cpp
+	${ENGINE_SOURCES_DIR}/graphics.h
+	${ENGINE_SOURCES_DIR}/scene.cpp
+	${ENGINE_SOURCES_DIR}/scene.h
+	${ENGINE_SOURCES_DIR}/asset_store.cpp
+	${ENGINE_SOURCES_DIR}/asset_store.h
+	${ENGINE_SOURCES_DIR}/game_timer.cpp
+	${ENGINE_SOURCES_DIR}/game_timer.h
+	${ENGINE_SOURCES_DIR}/application.cpp
+	${ENGINE_SOURCES_DIR}/application.h
+	${ENGINE_SOURCES_DIR}/engine.cpp
+	${ENGINE_SOURCES_DIR}/ui_manager.cpp
+	${ENGINE_SOURCES_DIR}/ui_manager.h
+	${ENGINE_SOURCES_DIR}/ui_document.cpp
+	${ENGINE_SOURCES_DIR}/ui_document.h
+	${ENGINE_SOURCES_DIR}/logger.cpp
+	${ENGINE_SOURCES_DIR}/logger.h
+	${ENGINE_SOURCES_DIR}/gltf_parser.h
+	${ENGINE_SOURCES_DIR}/gltf_parser.cpp
+	${ENGINE_SOURCES_DIR}/physics_world.h
+	${ENGINE_SOURCES_DIR}/physics_world.cpp
+	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.h
+	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.cpp
+	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Backend.h
+	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Renderer_GL3.h
+	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Renderer_GL3.cpp
+	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Include_GL3.h
 )
 
 set(ENGINE_API "include")
@@ -23,15 +40,26 @@ set(ENGINE_API_SOURCES
 	${ENGINE_API_COMPONENTS}/material_component.h
 	${ENGINE_API_COMPONENTS}/mesh_component.h
 	${ENGINE_API_COMPONENTS}/transform_component.h
+	${ENGINE_API_COMPONENTS}/rect_transform_component.h
 	${ENGINE_API_COMPONENTS}/name_component.h
+	${ENGINE_API_COMPONENTS}/text_component.h
+	${ENGINE_API_COMPONENTS}/rigid_body_component.h
+	${ENGINE_API_COMPONENTS}/collider_component.h
+      ${ENGINE_API_COMPONENTS}/image_component.h
 )
 
 set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})
 
 add_library(${ENGINE} SHARED ${ENGINE_ALL_SOURCES})
 set_property(TARGET ${ENGINE} PROPERTY CXX_STANDARD 20)
-target_include_directories(${ENGINE} PUBLIC ${ENGINE_API})
-target_link_libraries(${ENGINE} stb glad glfw glm EnTT::EnTT ${GLFW_LIBRARIES})
 
+
+target_include_directories(${ENGINE} PUBLIC ${ENGINE_API} PRIVATE ${BULLET_INCLUDE_DIRS})
+target_link_libraries(${ENGINE} PRIVATE stb tinygltf glad glm EnTT::EnTT freetype SDL3::SDL3-static fmt::fmt-header-only RmlCore ${BULLET_LIBRARIES})
+
+get_target_property(target_type RmlCore TYPE)
+if (target_type STREQUAL "STATIC_LIBRARY")
+	target_compile_definitions(${ENGINE} PRIVATE RMLUI_STATIC_LIB)
+endif ()
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_ALL_SOURCES})

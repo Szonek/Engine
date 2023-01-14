@@ -1,0 +1,46 @@
+body {
+	font-family: Tahoma;
+	font-size: 18px;
+	color: #02475e;
+	background: #fefecc;
+	text-align: center;
+	
+	position: absolute;
+	border: 2px #ccc;
+	width: 100%;
+	height: 100%;
+	margin: auto;
+}
+
+.div_pve {
+	background-color: green; 
+ 	position: absolute;
+	height: 10%;
+	width: 20%;
+	text-align: center;
+	/* Center horizontally*/
+	margin: 10% auto;
+}
+.div_pve:hover
+{
+	background-color: red; 
+	height: 12%;
+	width: 22%;
+	font-weight: bold;
+}
+	
+#id_start_pvp_scene
+{
+    margin-top: 40%
+}	
+
+h1 {
+	color: #f6470a;
+	font-size: 1.5em;
+	text-align: center;
+}
+		
+p { 
+	font-size: 1.5em;
+	font-weight: bold;
+}

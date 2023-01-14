@@ -5,7 +5,13 @@
 #include <span>
 #include <vector>
 
-struct GLFWwindow;
+
+#include <RmlUi/Core.h>
+#include "RmlUI_backend/RmlUi_Platform_SDL.h"
+#include "RmlUI_backend/RmlUi_Renderer_GL3.h"
+
+struct SDL_Window;
+typedef void* SDL_GLContext;
 
 namespace engine
 {
@@ -15,6 +21,28 @@ struct viewport_t
 	std::uint32_t y;
 	std::uint32_t width;
 	std::uint32_t height;
+};
+
+enum class DataLayout
+{
+    eRGBA_U8 = 0,
+    eRGB_U8 = 1,
+    eR_U8 = 2,
+
+    // ..
+    // ..
+    // ..
+    eRGBA_FP32,
+    eR_FP32,
+    eCount
+};
+
+enum class TextureAddressClampMode
+{
+    eClampToEdge = 0,
+    //eClampToBorder = 1,
+    // ...
+    eCount
 };
 
 class Shader
@@ -37,7 +65,12 @@ public:
 
 	void bind() const;
 	void set_uniform_f4(std::string_view name, std::span<const float> host_data);
-	void set_uniform_mat4f(std::string_view name, std::span<const float> host_data);
+	void set_uniform_f2(std::string_view name, std::span<const float> host_data);
+	void set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data);
+	void set_uniform_mat_f4(std::string_view name, std::span<const float> host_data);
+
+    void set_texture(std::string_view name, const class Texture2D* textur);
+
 
 private:
 	std::int32_t get_uniform_location(std::string_view name);
@@ -57,7 +90,7 @@ class Texture2D
 {
 public:
 	Texture2D() = default;
-	Texture2D(std::uint32_t width, std::uint32_t height, std::uint32_t channels, bool generate_mipmaps, const void* data);
+	Texture2D(std::uint32_t width, std::uint32_t height, bool generate_mipmaps, const void* data, DataLayout layout, TextureAddressClampMode clamp_mode);
 	Texture2D(std::string_view texture_name, bool generate_mipmaps);
 
 	Texture2D(const Texture2D& rhs) = delete;
@@ -66,6 +99,10 @@ public:
 	Texture2D& operator=(Texture2D&& rhs)  noexcept;
 
 	~Texture2D();
+
+    bool is_valid() const;
+
+    bool upload_region(std::uint32_t x_pos, std::uint32_t y_pos, std::uint32_t width, std::uint32_t height, const void* data, DataLayout layout);
 
 	void bind(std::uint32_t slot) const;
 
@@ -132,8 +169,24 @@ public:
 		eLine = 1,
 		eCount
 	};
+
+    enum class BlendFactor
+    {
+        eZero = 0,
+        eOne = 1,
+        eSrcAlpha,
+        eOneMinusSrcAlpha,
+        eCount
+    };
+
+    struct window_size_t
+    {
+        std::int32_t width;
+        std::int32_t height;
+    };
+
 public:
-	RenderContext(std::string_view window_name, viewport_t init_size);
+	RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen);
 	
 	RenderContext(const RenderContext&) = delete;
 	RenderContext(RenderContext&& rhs) noexcept;
@@ -141,16 +194,28 @@ public:
 	RenderContext& operator=(RenderContext&& rhs) noexcept;
 	~RenderContext();
 
-	GLFWwindow* get_glfw_window();
+    window_size_t get_window_size_in_pixels() const;
 
 	void set_viewport(const viewport_t& viewport);
 	void set_clear_color(float r, float g, float b, float a);
 	void set_polygon_mode(PolygonFaceType face, PolygonMode mode);
+    void set_depth_test(bool flag);
+
+    void set_blend_mode(bool enable, BlendFactor src_rgb = BlendFactor::eOne, BlendFactor dst_rgb = BlendFactor::eZero, BlendFactor src_a = BlendFactor::eOne, BlendFactor dst_a = BlendFactor::eZero);
+
 	void begin_frame();
 	void end_frame();
 
+    void begin_frame_ui_rendering();
+    void end_frame_ui_rendering();
+
 private:
-	GLFWwindow* window_ = nullptr;
+    SDL_Window* window_ = nullptr;
+    SDL_GLContext context_ = nullptr;
+
+    // this 2 are used for UI render
+    SystemInterface_SDL* ui_rml_sdl_interface_ = nullptr;
+    RenderInterface_GL3* ui_rml_gl3_renderer_ = nullptr;
 };
 
 } // namespace engine

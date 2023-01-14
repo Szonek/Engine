@@ -1,0 +1,43 @@
+set(APP_TOOLKIT "engine_app_toolkit")
+
+
+
+set(APP_TOOLKIT_SOURCES_API "include")
+set(APP_TOOLKIT_SOURCES_API_SOURCES
+	${APP_TOOLKIT_SOURCES_API}/utils.h
+	${APP_TOOLKIT_SOURCES_API}/iscene.h
+	${APP_TOOLKIT_SOURCES_API}/iscript.h
+	${APP_TOOLKIT_SOURCES_API}/event_system.h
+	${APP_TOOLKIT_SOURCES_API}/scene_manager.h
+	${APP_TOOLKIT_SOURCES_API}/event_types_defs.h
+	
+	${APP_TOOLKIT_SOURCES_API}/network/net_client.h
+	${APP_TOOLKIT_SOURCES_API}/network/net_common.h
+	${APP_TOOLKIT_SOURCES_API}/network/net_connection.h
+	${APP_TOOLKIT_SOURCES_API}/network/net_message.h
+	${APP_TOOLKIT_SOURCES_API}/network/net_server.h
+	${APP_TOOLKIT_SOURCES_API}/network/net_tsqueue.h
+)
+
+set(APP_TOOLKIT_SOURCES_IMPL "impl")
+set(APP_TOOLKIT_SOURCES
+	${APP_TOOLKIT_SOURCES_IMPL}/iscript.cpp
+	${APP_TOOLKIT_SOURCES_IMPL}/iscene.cpp
+	${APP_TOOLKIT_SOURCES_IMPL}/event_system.cpp
+	${APP_TOOLKIT_SOURCES_IMPL}/scene_manager.cpp
+)
+
+set(APP_TOOLKIT_ALL_SOURCES ${APP_TOOLKIT_SOURCES_API_SOURCES} ${APP_TOOLKIT_SOURCES})
+
+add_library(${APP_TOOLKIT} SHARED ${APP_TOOLKIT_ALL_SOURCES})
+set_property(TARGET ${APP_TOOLKIT} PROPERTY CXX_STANDARD 20)
+set_target_properties(
+  ${APP_TOOLKIT}
+  PROPERTIES
+  DEBUG_POSTFIX ""
+)
+
+target_include_directories(${APP_TOOLKIT} PUBLIC ${APP_TOOLKIT_SOURCES_API})
+target_link_libraries(${APP_TOOLKIT} PRIVATE engine fmt::fmt-header-only PUBLIC asio)
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${APP_TOOLKIT_ALL_SOURCES})
