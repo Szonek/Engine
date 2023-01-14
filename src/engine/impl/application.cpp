@@ -80,7 +80,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
 		add_texture_from_memory(desc, "default_1x1_texutre");
 	}
 
-
+	timer_.tick();
 	out_code = ENGINE_RESULT_CODE_OK;
 }
 

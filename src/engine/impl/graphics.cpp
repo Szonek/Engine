@@ -392,6 +392,9 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 	glfwMakeContextCurrent(window_);
 	glfwSetFramebufferSizeCallback(window_, framebuffer_size_callback);
 
+	//vsync
+	glfwSwapInterval(1);
+
 	const auto gl_version = gladLoadGL(glfwGetProcAddress);
 	if (gl_version == 0)
 	{

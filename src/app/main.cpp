@@ -3,6 +3,93 @@
 #include <format>
 #include <vector>
 #include <array>
+#include <cmath>
+
+inline auto get_spherical_coordinates(const auto& cartesian)
+{
+	const float r = std::sqrt(
+		std::pow(cartesian[0], 2) +
+		std::pow(cartesian[1], 2) +
+		std::pow(cartesian[2], 2)
+	);
+
+
+	float phi = std::atan2(cartesian[2] / cartesian[0], cartesian[0]);
+	const float theta = std::acos(cartesian[1] / r);
+
+	if (cartesian[0] < 0)
+		phi += 3.1415f;
+
+	std::array<float, 3> ret{ 0.0f };
+	ret[0] = r;
+	ret[1] = phi;
+	ret[2] = theta;
+	return ret;
+}
+
+
+inline auto get_cartesian_coordinates(const auto& spherical)
+{
+	std::array<float, 3> ret{ 0.0f };
+
+	ret[0] = spherical[0] * std::cos(spherical[2]) * std::cos(spherical[1]);
+	ret[1] = spherical[0] * std::sin(spherical[2]);
+	ret[2] = spherical[0] * std::cos(spherical[2]) * std::sin(spherical[1]);
+
+	return ret;
+}
+
+class OribitingCamera
+{
+public:
+	// https://nerdhut.de/2020/05/09/unity-arcball-camera-spherical-coordinates/
+	void update(engine_game_object_t entt, engine_application_t app, float dt, engine_scene_t scene)
+	{
+		if (engineSceneHasCameraComponent(scene, entt))
+		{
+			auto tc = engineSceneGetTransformComponent(scene, entt);
+			auto cc = engineSceneGetCameraComponent(scene, entt);
+
+			if (engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT))
+			{
+				auto coords = engineApplicationGetMouseCoords(app);
+
+				engine_mouse_coords_t d = coords;
+				d.x -= prev_mouse_coords_.x;
+				d.y -= prev_mouse_coords_.y;
+
+				if (d.x != 0 || d.y != 0)
+				{
+					// Rotate the camera left and right
+					sc_[1] += d.x * dt * 0.0001f;
+
+					// Rotate the camera up and down
+					// Prevent the camera from turning upside down (1.5f = approx. Pi / 2)
+					sc_[2] = std::clamp(sc_[2] + d.y * dt * 0.0001f, -1.5f, 1.5f);
+
+					const auto new_position = get_cartesian_coordinates(sc_);
+					tc->position[0] = new_position[0] + cc->target[0];
+					tc->position[1] = new_position[1] + cc->target[1];
+					tc->position[2] = new_position[2] + cc->target[2];
+
+				}
+
+
+			}
+
+			if (prev_mouse_coords_.x == -1)
+			{
+				sc_ = get_spherical_coordinates(tc->position);
+			}
+			prev_mouse_coords_ = engineApplicationGetMouseCoords(app);
+		}
+	}
+
+private:
+	std::array<float, 3> sc_;
+
+	engine_mouse_coords_t prev_mouse_coords_{ -1, -1 };
+};
 
 
 int main(int argc, char** argv)
@@ -84,8 +171,8 @@ int main(int argc, char** argv)
 	engine_geometry_t cube_geometry{};
 	engineApplicationAddGeometryFromMemory(app, reinterpret_cast<const engine_vertex_attribute_t*>(cube_vertices), 36, nullptr, 0, "cube", &cube_geometry);
 
+	auto camera_go = engineSceneCreateGameObject(scene);
 	{
-		auto camera_go = engineSceneCreateGameObject(scene);
 		auto camera_comp = engineSceneAddCameraComponent(scene, camera_go);
 		auto camera_transform_comp = engineSceneAddTransformComponent(scene, camera_go);
 		camera_comp->enabled = true;
@@ -94,8 +181,8 @@ int main(int argc, char** argv)
 		camera_comp->type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
 		camera_comp->type_union.perspective_fov = 45.0f;
 		camera_transform_comp->position[0] = 0.0f;
-		camera_transform_comp->position[1] = 0.0f;
-		camera_transform_comp->position[2] = 3.0f;
+		camera_transform_comp->position[1] = 10.0f;
+		camera_transform_comp->position[2] = 10.0f;
 	}
 
 	const std::vector<std::array<float, 3>> cubes_positions =
@@ -143,6 +230,7 @@ int main(int argc, char** argv)
 		std::strcpy(nc->name, name.c_str());
 	}
 
+	OribitingCamera oribiting_camera_system;
 	while (true)
 	{
 		const auto frame_begin = engineApplicationFrameBegine(app);
@@ -159,6 +247,8 @@ int main(int argc, char** argv)
 			std::cout << std::format("User pressed LEFT mouse button."
 				"Mouse position [x,y]: {},{}\n", mouse_coords.x, mouse_coords.y);
 		}
+
+		oribiting_camera_system.update(camera_go, app, frame_begin.delta_time, scene);
 
 		engine_error_code = engineApplicationFrameRunScene(app, scene, frame_begin.delta_time);
 		if (engine_error_code != ENGINE_RESULT_CODE_OK)
