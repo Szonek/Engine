@@ -8,6 +8,7 @@ namespace log
 enum class LogLevel
 {
     eTrace = 0,
+    eError = 0,
     eCritical
 };
 

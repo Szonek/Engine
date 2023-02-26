@@ -36,6 +36,12 @@ inline std::array<T, S>  to_array(const T (&data)[S])
     return ret;
 }
 
+inline void log(std::string_view str)
+{
+    engineLog(str.data());
+}
+
+
 template<typename T>
 inline auto get_spherical_coordinates(const T& cartesian)
 {
@@ -573,7 +579,7 @@ int main(int argc, char** argv)
 	{
 		assets_path = argv[1];
 	}
-	std::cout << fmt::format("Reading assets from path: {}\n", assets_path);
+    log(fmt::format("Reading assets from path: {}\n", assets_path));
 
 	engine_application_t app{};
 	engine_application_create_desc_t app_cd{};
@@ -588,7 +594,7 @@ int main(int argc, char** argv)
 	if (engine_error_code != ENGINE_RESULT_CODE_OK)
 	{
 		engineApplicationDestroy(app);
-		std::cout << fmt::format("Couldnt create engine application!\n");
+        log(fmt::format("Couldnt create engine application!\n"));
 		return -1;
 	}
 
@@ -599,7 +605,7 @@ int main(int argc, char** argv)
 	{
 		engineSceneDestroy(scene);
 		engineApplicationDestroy(app);
-		std::cout << fmt::format("Couldnt create scene!\n");
+        log(fmt::format("Couldnt create scene!\n"));
 		return -1;
 	}
 
@@ -668,7 +674,8 @@ int main(int argc, char** argv)
     engine_font_t font_handle{};
     if (engineApplicationAddFontFromFile(app, "tahoma.ttf", &font_handle) != ENGINE_RESULT_CODE_OK)
     {
-        std::cout << fmt::format("Couldnt load font!\n");
+        log(fmt::format("Couldnt load font!\n"));
+        return -1;
     }
 
     std::array<ObsctaleScript, 2> obstacles;
@@ -690,21 +697,21 @@ int main(int argc, char** argv)
 
         if (frame_begin.events & ENGINE_EVENT_QUIT)
         {
-            std::cout << fmt::format("Engine requested app quit. Exiting.\n");
+            log(fmt::format("Engine requested app quit. Exiting.\n"));
             break;
         }
 
 		if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_ESCAPE))
 		{
-			std::cout << fmt::format("User pressed ESCAPE key. Exiting.\n");
+			log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
 			break;
 		}
 
 		if (engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT))
 		{
 			const auto mouse_coords = engineApplicationGetMouseCoords(app);
-			std::cout << fmt::format("User pressed LEFT mouse button."
-				"Mouse position [x,y]: {},{}\n", mouse_coords.x, mouse_coords.y);
+			log(fmt::format("User pressed LEFT mouse button."
+				"Mouse position [x,y]: {},{}\n", mouse_coords.x, mouse_coords.y));
 		}
 
         const float dt = frame_begin.delta_time;
@@ -726,21 +733,21 @@ int main(int argc, char** argv)
 
         if (fps_counter.frames_total_time > 1000.0f)
         {
-            std::cout << fmt::format("FPS: {}, latency: {} ms. \n", fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count);
+            log(fmt::format("FPS: {}, latency: {} ms. \n", 
+                fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count));
             fps_counter = {};
         }
 
 		engine_error_code = engineApplicationFrameRunScene(app, scene, frame_begin.delta_time);
 		if (engine_error_code != ENGINE_RESULT_CODE_OK)
 		{
-			std::cout << fmt::format("Scene update failed. Exiting.\n");
+			log(fmt::format("Scene update failed. Exiting.\n"));
 			break;
 		}
 		const auto frame_end = engineApplicationFrameEnd(app);
 		if (!frame_end.success)
 		{
-			std::cout << fmt::format("Frame not finished sucesfully. Exiting.\n");
-
+			log(fmt::format("Frame not finished sucesfully. Exiting.\n"));
 			break;
 		}
 	}

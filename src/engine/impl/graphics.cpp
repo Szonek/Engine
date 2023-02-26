@@ -114,8 +114,7 @@ engine::Shader::Shader(std::string_view vertex_shader_name, std::string fragment
 	{
 		std::array<char, 512> info_log;
 		glGetProgramInfoLog(program_, 512, nullptr, info_log.data());
-		std::cout << "[Error][Program] Failed program linking: \n\t" <<
-			info_log.data();
+		log::log(log::LogLevel::eCritical, fmt::format("[Error][Program] Failed program linking: \n\t", info_log.data()));
 	}
 }
 
@@ -200,8 +199,7 @@ void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::st
 	{
 		std::array<char, 512> info_log;
 		glGetShaderInfoLog(shader, info_log.size(), nullptr, info_log.data());
-		std::cout << "[Error][Shader] Failed compilation: \n\t" <<
-			info_log.data();
+        log::log(log::LogLevel::eError, fmt::format("[Error][Shader] Failed compilation: \n\t", info_log.data()));
 	}
 	// attach to program
 	glAttachShader(program_, shader);
@@ -502,7 +500,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     if(result_code < 0)
     {
         const auto err_msg = SDL_GetError();
-        std::cout << fmt::format("Cant init sdl: %s\n", err_msg);
+        log::log(log::LogLevel::eCritical, fmt::format("Cant init sdl: %s\n", err_msg));
         return;
     }
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
@@ -525,7 +523,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     if(displays.empty())
     {
         const auto err_msg = SDL_GetError();
-        std::cout << fmt::format("Cant create sdl window: %s\n", err_msg);
+        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: %s\n", err_msg));
         return;
     }
 
@@ -533,7 +531,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     if(!display_mode)
     {
         const auto err_msg = SDL_GetError();
-        std::cout << fmt::format("Cant create sdl window: %s\n", err_msg);
+        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: %s\n", err_msg));
         return;
     }
 
@@ -554,7 +552,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     if(!window_)
     {
         const auto err_msg = SDL_GetError();
-        std::cout << fmt::format("Cant create sdl window: %s\n", err_msg);
+        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: %s\n", err_msg));
         return;
     }
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -563,14 +561,14 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     context_ = SDL_GL_CreateContext(window_);
     if (!context_)
     {
-        std::cout << fmt::format("Failed to create OGL context: Error: {}\n", SDL_GetError());
+        log::log(log::LogLevel::eCritical, fmt::format("Failed to create OGL context: Error: {}\n", SDL_GetError()));
         return;
     }
     SDL_GL_MakeCurrent(window_, context_);
     const auto set_swap_result = SDL_GL_SetSwapInterval(1);
     if (set_swap_result < 0)
     {
-        std::cout << "Failed to set swap interval\n";
+        log::log(log::LogLevel::eCritical, "Failed to set swap interval\n");
         return;
     }
 
@@ -581,7 +579,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 #endif
 	if (gl_version == 0)
 	{
-		std::cout << "Failed to initialize GLAD\n";
+        log::log(log::LogLevel::eCritical, "Failed to initialize GLAD\n");
 		return;
 	}
 	else
@@ -590,7 +588,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
             GLAD_VERSION_MAJOR(gl_version), GLAD_VERSION_MINOR(gl_version)));
 	}
 #if _DEBUG && defined(GLAD_GL_IMPLEMENTATION)
-	std::cout << "[INFO] Debug build. Building with debug context.\n";
+    log::log(log::LogLevel::eCritical, "[INFO] Debug build. Building with debug context.\n");
 	glEnable(GL_DEBUG_OUTPUT);
 	glDebugMessageCallback(message_callback, 0);
 #endif

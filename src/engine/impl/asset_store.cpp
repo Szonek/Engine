@@ -5,6 +5,7 @@
 #include <array>
 
 #include "asset_store.h"
+#include "logger.h"
 
 #include <fmt/format.h>
 
@@ -107,7 +108,7 @@ engine::FontAssetContext::FontAssetContext(const std::filesystem::path &file_pat
 			}
 			else if (bytes_read < 0)
 			{
-				std::cout << fmt::format("Error parsing file: {}. Error msg: {}\n", file_path.string(), SDL_GetError());
+				log::log(log::LogLevel::eCritical, fmt::format("Error parsing file: {}. Error msg: {}\n", file_path.string(), SDL_GetError()));
 				break;
 			}
 			data_.insert(data_.end(), buffer.begin(), buffer.begin() + bytes_read);
@@ -146,7 +147,7 @@ std::string engine::AssetStore::get_shader_source(std::string_view name)
             }
             else if (bytes_read < 0)
             {
-                std::cout << fmt::format("Error parsing file: {}. Error msg: {}\n", shaders_assets_path.string(), SDL_GetError());
+                log::log(log::LogLevel::eCritical, fmt::format("Error parsing file: {}. Error msg: {}\n", file_path.string(), SDL_GetError()));
                 break;
             }
             ret += std::string (buffer.data(), buffer.data() + bytes_read);

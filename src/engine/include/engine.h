@@ -185,6 +185,9 @@ typedef struct _engine_vertex_attribute_t
     float uv[2];
 } engine_vertex_attribute_t;
 
+// cross platform log
+ENGINE_API void engineLog(const char* str);
+
 ENGINE_API engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc);
 ENGINE_API void engineApplicationDestroy(engine_application_t handle);
 

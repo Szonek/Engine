@@ -4,6 +4,8 @@
 #include "scene.h"
 #include "asset_store.h"
 
+#include "logger.h"
+
 namespace
 {
 inline engine::Scene* scene_cast(engine_scene_t engine_scene_t)
@@ -101,6 +103,11 @@ inline bool has_component(engine_scene_t scene, engine_game_object_t game_object
 
 } // namespace annonymous
 
+
+void engineLog(const char* str)
+{
+    engine::log::log(engine::log::LogLevel::eTrace, str);
+}
 
 engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc)
 {

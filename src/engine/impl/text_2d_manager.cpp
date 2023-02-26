@@ -1,6 +1,7 @@
 #include "text_2d_manager.h"
 #include "asset_store.h"
 #include "engine.h"
+#include "logger.h"
 
 #include <ft2build.h>
 #include FT_FREETYPE_H  
@@ -10,6 +11,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/matrix_access.hpp>
+
+#include <fmt/format.h>
 
 #include <cassert>
 #include <iostream>
@@ -21,7 +24,7 @@ engine::TextManager::TextManager()
     FT_Library ft_handle;
     if (FT_Init_FreeType(&ft_handle))
     {
-        std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
+        log::log(log::LogLevel::eCritical, "Could not init FreeType Library");
         return;
     }
     font_handle_ = reinterpret_cast<FontImplHandle*>(ft_handle);
@@ -82,7 +85,7 @@ std::pair<bool, std::uint32_t> engine::TextManager::load_font_from_file(std::str
 
     if (FT_New_Memory_Face(ft_lib, font_asset_data.get_data_ptr(), font_asset_data.get_size(), 0, &face_handle))
     {
-        std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
+        log::log(log::LogLevel::eError, fmt::format("Failed to load font {}\n", file_name));
         return { false, ENGINE_INVALID_OBJECT_HANDLE };
     }
     else
