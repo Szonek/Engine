@@ -18,7 +18,7 @@ add_subdirectory(glm)
 add_subdirectory(entt)
 
 #bullet3
-#add_subdirectory(bullet3)
+add_subdirectory(bullet3)
 
 # font library
 add_subdirectory(freetype)

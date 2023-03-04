@@ -9,6 +9,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/install)
 
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
 
 add_subdirectory(thirdparty)
 add_subdirectory(src)

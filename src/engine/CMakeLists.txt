@@ -37,8 +37,7 @@ set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})
 
 add_library(${ENGINE} SHARED ${ENGINE_ALL_SOURCES})
 set_property(TARGET ${ENGINE} PROPERTY CXX_STANDARD 20)
-target_include_directories(${ENGINE} PUBLIC ${ENGINE_API})
-target_link_libraries(${ENGINE} stb glad glm EnTT::EnTT freetype SDL3::SDL3-static fmt::fmt-header-only)
-
+target_include_directories(${ENGINE} PUBLIC ${ENGINE_API} PRIVATE ${BULLET_INCLUDE_DIRS})
+target_link_libraries(${ENGINE} stb glad glm EnTT::EnTT freetype SDL3::SDL3-static fmt::fmt-header-only ${BULLET_LIBRARIES})
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_ALL_SOURCES})
