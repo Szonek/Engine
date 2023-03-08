@@ -629,6 +629,13 @@ engine::RenderContext::~RenderContext()
     }
 }
 
+engine::RenderContext::window_size_t engine::RenderContext::get_window_size_in_pixels() const
+{
+    window_size_t ret{};
+    SDL_GetWindowSizeInPixels(window_, &ret.width, &ret.height);
+    return ret;
+}
+
 void engine::RenderContext::set_viewport(const viewport_t& viewport)
 {
 	glViewport(0, 0, viewport.width, viewport.height);

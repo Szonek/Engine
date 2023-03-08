@@ -7,6 +7,7 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/matrix_access.hpp>
 
+#include <SDL3/SDL.h>
 
 namespace
 {
@@ -56,18 +57,15 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
             continue;
         }
 
-        std::int32_t width = -1;
-        std::int32_t height = -1;
-        //glfwGetWindowSize(rdx.get_glfw_window(), &width, &height);
-        width = 800;
-        height = 600;
+        const auto window_size_pixels = rdx.get_window_size_in_pixels();
+
         // update camera: view and projection
         {
             const auto z_near = camera.clip_plane_near;
             const auto z_far = camera.clip_plane_far;
 
-            const auto adjusted_width = width * (camera.viewport_rect.width - camera.viewport_rect.x);
-            const auto adjusted_height = height * (camera.viewport_rect.height - camera.viewport_rect.y);
+            const auto adjusted_width = window_size_pixels.width * (camera.viewport_rect.width - camera.viewport_rect.x);
+            const auto adjusted_height = window_size_pixels.height * (camera.viewport_rect.height - camera.viewport_rect.y);
             const float aspect = adjusted_width / adjusted_height;
             glm::mat4 projection;
 
@@ -101,15 +99,15 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
 			}
 		);
 
-        text_renderer.each([this, &rdx, &width, &height, &text_mgn](const engine_rect_tranform_component_t& transform, const engine_material_component_t& material, const engine_text_component_t& text)
+        text_renderer.each([this, &rdx, &window_size_pixels, &text_mgn](const engine_rect_tranform_component_t& transform, const engine_material_component_t& material, const engine_text_component_t& text)
             {
 
-                const auto glm_pos = glm::vec3(transform.position[0] * width, transform.position[1] * height, 0.0f);
+                const auto glm_pos = glm::vec3(transform.position[0] * window_size_pixels.width, transform.position[1] * window_size_pixels.height, 0.0f);
                 const auto glm_rot = glm::vec3(0.0f, 0.0f, 0.0f);
                 const auto glm_scl = glm::vec3(transform.scale[0], transform.scale[1], 1.0f);
                 const auto model_matrix = compute_model_matirx(glm_pos, glm_rot, glm_scl);
 
-                text_mgn->render_text(rdx, text.text, text.font_handle, { glm::value_ptr(model_matrix), sizeof(model_matrix) / sizeof(float) }, width, height);
+                text_mgn->render_text(rdx, text.text, text.font_handle, { glm::value_ptr(model_matrix), sizeof(model_matrix) / sizeof(float) }, window_size_pixels.width, window_size_pixels.height);
             }
         );
     }

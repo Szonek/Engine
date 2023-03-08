@@ -170,6 +170,13 @@ public:
         eOneMinusSrcAlpha,
         eCount
     };
+
+    struct window_size_t
+    {
+        std::int32_t width;
+        std::int32_t height;
+    };
+
 public:
 	RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen);
 	
@@ -178,6 +185,8 @@ public:
 	RenderContext& operator=(const RenderContext&) = delete;
 	RenderContext& operator=(RenderContext&& rhs) noexcept;
 	~RenderContext();
+
+    window_size_t get_window_size_in_pixels() const;
 
 	void set_viewport(const viewport_t& viewport);
 	void set_clear_color(float r, float g, float b, float a);
