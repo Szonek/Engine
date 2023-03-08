@@ -61,6 +61,27 @@ inline void material_component_init(engine_material_component_t* comp)
     comp->shiness = 32;
 }
 
+inline void rigid_body_component_init(engine_rigid_body_component_t* comp)
+{
+    std::memset(comp, 0, sizeof(engine_rigid_body_component_t));
+    comp->mass = 1.0f;
+    comp->use_gravity = true;
+}
+
+inline void collider_component_init(engine_collider_component_t* comp)
+{
+    std::memset(comp, 0, sizeof(engine_collider_component_t));
+    comp->type = ENGINE_COLLIDER_TYPE_BOX;
+
+    comp->collider.box.center[0] = 0.0f;
+    comp->collider.box.center[1] = 0.0f;
+    comp->collider.box.center[2] = 0.0f;
+
+    comp->collider.box.size[0] = 1.0f;
+    comp->collider.box.size[1] = 1.0f;
+    comp->collider.box.size[2] = 1.0f;
+}
+
 template<typename T>
 inline void default_init(T*)
 {
@@ -397,4 +418,44 @@ void engineSceneRemoveTextComponent(engine_scene_t scene, engine_game_object_t g
 bool engineSceneHasTextComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return has_component<engine_text_component_t>(scene, game_object);
+}
+
+engine_rigid_body_component_t* engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_rigid_body_component_t, rigid_body_component_init>(scene, game_object);
+}
+
+engine_rigid_body_component_t* engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_rigid_body_component_t>(scene, game_object);
+}
+
+void engineSceneRemoveRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_rigid_body_component_t>(scene, game_object);
+}
+
+bool engineSceneHasRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_rigid_body_component_t>(scene, game_object);
+}
+
+engine_collider_component_t* engineSceneAddColliderComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_collider_component_t, collider_component_init>(scene, game_object);
+}
+
+engine_collider_component_t* engineSceneGetColliderComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_collider_component_t>(scene, game_object);
+}
+
+void engineSceneRemoveColliderComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_collider_component_t>(scene, game_object);
+}
+
+bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_collider_component_t>(scene, game_object);
 }

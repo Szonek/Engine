@@ -28,6 +28,8 @@ extern "C"
 #include "components/mesh_component.h"
 #include "components/material_component.h"
 #include "components/text_component.h"
+#include "components/rigid_body_component.h"
+#include "components/collider_component.h"
 
 #include <stdint.h>
 
@@ -256,10 +258,15 @@ ENGINE_API engine_text_component_t* engineSceneGetTextComponent(engine_scene_t s
 ENGINE_API void                engineSceneRemoveTextComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool                engineSceneHasTextComponent(engine_scene_t scene, engine_game_object_t game_object);
 
-typedef struct _engine_native_script_component_t
-{
-    void (*update_function)(float);
-} engine_native_script_component_t;
+ENGINE_API engine_rigid_body_component_t* engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_rigid_body_component_t* engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void                engineSceneRemoveRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool                engineSceneHasRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+ENGINE_API engine_collider_component_t* engineSceneAddColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_collider_component_t* engineSceneGetColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void                engineSceneRemoveColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool                engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
 
 #ifdef __cplusplus
 }

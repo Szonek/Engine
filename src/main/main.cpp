@@ -207,6 +207,13 @@ public:
             tc->scale[1] = 0.1f;
             tc->scale[2] = 1.1f;
 
+            auto rb = engineSceneAddRigidBodyComponent(scene, player_left_go_);
+            rb->mass = 1.0f;
+            rb->use_gravity = false;
+
+            auto bc = engineSceneAddColliderComponent(scene, player_left_go_);
+            bc->type = ENGINE_COLLIDER_TYPE_BOX;
+
             auto material_comp = engineSceneAddMaterialComponent(scene, player_left_go_);
             set_c_array(material_comp->diffuse_color, std::array<float, 4>{ 0.4f, 0.3f, 1.0f, 0.2f });
 
@@ -227,6 +234,13 @@ public:
             tc->scale[0] = 0.1f;
             tc->scale[1] = 0.1f;
             tc->scale[2] = 1.1f;
+
+            auto rb = engineSceneAddRigidBodyComponent(scene, player_right_go_);
+            rb->mass = 1.0f;
+            rb->use_gravity = false;
+
+            auto bc = engineSceneAddColliderComponent(scene, player_right_go_);
+            bc->type = ENGINE_COLLIDER_TYPE_BOX;
 
             auto material_comp = engineSceneAddMaterialComponent(scene, player_right_go_);
             set_c_array(material_comp->diffuse_color, std::array<float, 4>{ 0.4f, 0.3f, 1.0f, 0.2f });
@@ -379,7 +393,7 @@ private:
         }
 
         tc_pl0->position[0] += velocity_left_[0] * dt;
-        tc_pl0->position[1] += velocity_left_[1] * dt;
+        tc_pl0->position[1] += velocity_left_[1] * dt; 
         tc_pl0->position[2] += velocity_left_[2] * dt;
 
         tc_pl1->position[0] += velocity_right_[0] * dt;
@@ -489,6 +503,13 @@ public:
             tc->scale[0] = 0.1f;
             tc->scale[1] = 0.1f;
             tc->scale[2] = 0.1f;
+
+            auto rb = engineSceneAddRigidBodyComponent(scene, ball_go_);
+            rb->mass = 1.0f;
+            rb->use_gravity = false;
+
+            auto bc = engineSceneAddColliderComponent(scene, ball_go_);
+            bc->type = ENGINE_COLLIDER_TYPE_BOX;
 
             auto material_comp = engineSceneAddMaterialComponent(scene, ball_go_);
             set_c_array(material_comp->diffuse_color, std::array<float, 4>{ 0.4f, 0.3f, 1.0f, 0.2f });
@@ -662,13 +683,14 @@ int main(int argc, char** argv)
 		camera_comp->enabled = true;
 		camera_comp->clip_plane_near = 0.1f;
 		camera_comp->clip_plane_far = 100.0f;
-        //camera_comp->type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
-        //camera_comp->type_union.perspective_fov = 45.0f;
-        camera_comp->type = ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC;
-        camera_comp->type_union.orthographics_scale = 4.0f;
+        camera_comp->type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
+        camera_comp->type_union.perspective_fov = 45.0f;
+        //camera_comp->type = ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC;
+        //camera_comp->type_union.orthographics_scale = 4.0f;
 		camera_transform_comp->position[0] = 0.0f;
-		camera_transform_comp->position[1] = 10.0f;
-		camera_transform_comp->position[2] = 2.0f;
+		//camera_transform_comp->position[1] = 10.0f;
+		camera_transform_comp->position[1] = 3.0f;
+		camera_transform_comp->position[2] = 3.0f;
 	}
     
     engine_font_t font_handle{};
@@ -679,10 +701,10 @@ int main(int argc, char** argv)
     }
 
     std::array<ObsctaleScript, 2> obstacles;
-    obstacles.at(0) = ObsctaleScript(app, scene, cube_geometry, {0.0f, 0.0f, 2.0f}, {6.0f, 0.1, 0.05f});
-    obstacles.at(1) = ObsctaleScript(app, scene, cube_geometry, {0.0f, 0.0f, -2.0f}, {6.0f, 0.1, 0.05f});
-    auto players = PlayersScript(app, scene, cube_geometry, font_handle);
-    auto balls = BallScript(app, scene, cube_geometry, players, obstacles[0], obstacles[1]);
+    //obstacles.at(0) = ObsctaleScript(app, scene, cube_geometry, {0.0f, 0.0f, 2.0f}, {6.0f, 0.1, 0.05f});
+    //obstacles.at(1) = ObsctaleScript(app, scene, cube_geometry, {0.0f, 0.0f, -2.0f}, {6.0f, 0.1, 0.05f});
+    //auto players = PlayersScript(app, scene, cube_geometry, font_handle);
+    //auto balls = BallScript(app, scene, cube_geometry, players, obstacles[0], obstacles[1]);
 
     struct fps_counter_t
     {
@@ -690,6 +712,54 @@ int main(int argc, char** argv)
         std::uint32_t frames_count = 0;
     };
     fps_counter_t fps_counter{};
+
+    auto floor_go = engineSceneCreateGameObject(scene);
+    {
+        auto mesh_comp = engineSceneAddMeshComponent(scene, floor_go);
+        mesh_comp->geometry = cube_geometry;
+
+        auto material_comp = engineSceneAddMaterialComponent(scene, floor_go);
+        set_c_array(material_comp->diffuse_color, std::array<float, 4>{ 0.4f, 0.3f, 1.0f, 0.2f });
+
+        auto tc = engineSceneAddTransformComponent(scene, floor_go);
+        tc->position[0] = 0.0f;
+        tc->position[1] = 0.0f;
+        tc->position[2] = 0.0f;
+
+        tc->scale[0] = 2.0f;
+        tc->scale[1] = 0.1f;
+        tc->scale[2] = 2.0f;
+
+        auto collider_comp = engineSceneAddColliderComponent(scene, floor_go);
+        collider_comp->type = ENGINE_COLLIDER_TYPE_BOX;
+    }
+
+    auto box_go = engineSceneCreateGameObject(scene);
+    {
+        auto mesh_comp = engineSceneAddMeshComponent(scene, box_go);
+        mesh_comp->geometry = cube_geometry;
+
+        auto material_comp = engineSceneAddMaterialComponent(scene, box_go);
+        set_c_array(material_comp->diffuse_color, std::array<float, 4>{ 0.9f, 0.8f, 0.9f, 1.0f });
+
+        auto tc = engineSceneAddTransformComponent(scene, box_go);
+        tc->position[0] = 0.0f;
+        tc->position[1] = 1.0f;
+        tc->position[2] = 0.0f;
+
+        tc->rotation[1] = 45.0f;
+
+        tc->scale[0] = 0.2f;
+        tc->scale[1] = 0.2f;
+        tc->scale[2] = 0.2f;
+
+        auto rigidbody_comp = engineSceneAddRigidBodyComponent(scene, box_go);
+        rigidbody_comp->mass = 1.0f;
+        rigidbody_comp->use_gravity = true;
+
+        auto collider_comp = engineSceneAddColliderComponent(scene, box_go);
+        collider_comp->type = ENGINE_COLLIDER_TYPE_BOX;
+    }
 
 	while (true)
 	{
@@ -722,12 +792,12 @@ int main(int argc, char** argv)
         //if (fixed_update_counter >= fixed_update_interval)
         {
             //printf("%f  --- %f\n", fixed_update_counter, dt);
-            players.update(dt);
-            balls.update(dt);
-            for (auto& o : obstacles)
-            {
-                o.update(dt);
-            }
+            //players.update(dt);
+            //balls.update(dt);
+            //for (auto& o : obstacles)
+            //{
+            //    o.update(dt);
+            //}
             //fixed_update_counter = 0.0f;
         }
 
