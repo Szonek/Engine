@@ -723,12 +723,15 @@ int main(int argc, char** argv)
 
         auto tc = engineSceneAddTransformComponent(scene, floor_go);
         tc->position[0] = 0.0f;
-        tc->position[1] = 0.0f;
+        tc->position[1] = -0.5f;
         tc->position[2] = 0.0f;
 
         tc->scale[0] = 2.0f;
-        tc->scale[1] = 0.1f;
+        tc->scale[1] = 0.3f;
         tc->scale[2] = 2.0f;
+
+        auto rigidbody_comp = engineSceneAddRigidBodyComponent(scene, floor_go);
+        rigidbody_comp->mass = 0.0f;
 
         auto collider_comp = engineSceneAddColliderComponent(scene, floor_go);
         collider_comp->type = ENGINE_COLLIDER_TYPE_BOX;
@@ -747,7 +750,8 @@ int main(int argc, char** argv)
         tc->position[1] = 1.0f;
         tc->position[2] = 0.0f;
 
-        tc->rotation[1] = 45.0f;
+        tc->rotation[1] = 15.0f;
+        tc->rotation[2] = 15.0f;
 
         tc->scale[0] = 0.2f;
         tc->scale[1] = 0.2f;
@@ -755,7 +759,6 @@ int main(int argc, char** argv)
 
         auto rigidbody_comp = engineSceneAddRigidBodyComponent(scene, box_go);
         rigidbody_comp->mass = 1.0f;
-        rigidbody_comp->use_gravity = true;
 
         auto collider_comp = engineSceneAddColliderComponent(scene, box_go);
         collider_comp->type = ENGINE_COLLIDER_TYPE_BOX;

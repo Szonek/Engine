@@ -19,6 +19,8 @@ add_subdirectory(entt)
 
 #bullet3
 add_subdirectory(bullet3)
+set(BULLET_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/bullet3/src  CACHE STRING "Include headers of bullet dependency")
+set(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath CACHE STRING "Include libraries of bullet dependency")
 
 # font library
 add_subdirectory(freetype)

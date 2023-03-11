@@ -17,6 +17,7 @@ public:
     Scene& operator=(Scene&& rhs) = delete;
     ~Scene();
 
+    engine_result_code_t physics_update(float dt);
     engine_result_code_t update(RenderContext& rdx, float dt, std::span<const class Texture2D> textures, std::span<const Geometry> geometries, class TextManager* text_mgn);
 
     entt::entity create_new_entity();
