@@ -629,6 +629,8 @@ int main(int argc, char** argv)
         log(fmt::format("Couldnt create scene!\n"));
 		return -1;
 	}
+    const float gravity[3] = { 0.0f, 0.0f, 0.0f };
+    engineSceneSetGravityVector(scene, gravity);
 
 	const float cube_vertices[] = {
 		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,

@@ -54,6 +54,8 @@ public:
         return entity_registry_.any_of<T>(entity);
     }
 
+    void set_physcis_gravity(std::array<float, 3> g);
+
 private:
     entt::registry entity_registry_;
     Shader shader_simple_;

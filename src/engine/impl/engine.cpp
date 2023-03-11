@@ -259,6 +259,12 @@ void engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t gam
     sc->destroy_entity(entity_cast(game_object));
 }
 
+void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3])
+{
+    auto sc = scene_cast(scene);
+    sc->set_physcis_gravity(std::array<float, 3>{gravity[0], gravity[1], gravity[2]});
+}
+
 engine_name_component_t* engineSceneAddNameComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return add_component<engine_name_component_t>(scene, game_object);

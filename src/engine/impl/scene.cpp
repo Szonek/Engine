@@ -51,7 +51,7 @@ public:
 
         dynamics_world_ = std::make_unique<btDiscreteDynamicsWorld>(dispatcher_.get(), overlapping_pair_cache_.get(), solver_.get(), collision_config_.get());
 
-        dynamics_world_->setGravity(btVector3(0.0f, -10.0f, 0.0f));
+        set_gravity(std::array<float, 3>{ 0.0f, -10.0f, 0.0f });
 
 
         //keep track of the shapes, we release memory at exit.
@@ -113,6 +113,10 @@ public:
         dynamics_world_->stepSimulation(dt, 10);
     }
 
+    void set_gravity(std::span<const float> g)
+    {
+        dynamics_world_->setGravity(btVector3(g[0], g[1], g[2]));
+    }
 
     ~physics_world_t()
     {
@@ -268,5 +272,10 @@ entt::entity engine::Scene::create_new_entity()
 void engine::Scene::destroy_entity(entt::entity entity)
 {
     entity_registry_.destroy(entity);
+}
+
+void engine::Scene::set_physcis_gravity(std::array<float, 3> g)
+{
+    physics_world_.set_gravity(g);
 }
 

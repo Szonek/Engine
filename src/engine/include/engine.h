@@ -216,6 +216,7 @@ ENGINE_API void engineSceneDestroy(engine_scene_t scene);
 
 ENGINE_API engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene);
 ENGINE_API void                     engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void                     engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);
 
 ENGINE_API engine_name_component_t* engineSceneAddNameComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_name_component_t* engineSceneGetNameComponent(engine_scene_t scene, engine_game_object_t game_object);
