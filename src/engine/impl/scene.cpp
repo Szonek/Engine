@@ -62,8 +62,30 @@ public:
     physcic_internal_component_t create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform)
     {
         physcic_internal_component_t ret{};
+        if (collider.type == ENGINE_COLLIDER_TYPE_BOX)
+        {
+            const btVector3 box_bounds{
+                collider.collider.box.size[0] * transform.scale[0] * 0.5f,
+                collider.collider.box.size[1] * transform.scale[1] * 0.5f,
+                collider.collider.box.size[2] * transform.scale[2] * 0.5f,
+            };
+            ret.collision_shape = new btBoxShape(box_bounds);     
+        } 
+        else if (collider.type == ENGINE_COLLIDER_TYPE_SPHERE)
+        {
+            ret.collision_shape = new btSphereShape(collider.collider.sphere.radius * transform.scale[0]);
+        }
+        else
+        {
+            assert(false && "Unknown collider type in physisc world!");
+            return ret;
+        }
 
         btVector3 local_inertia(0, 0, 0);
+        if (rigid_body.mass)
+        {
+            ret.collision_shape->calculateLocalInertia(rigid_body.mass, local_inertia);
+        }
 
         const auto glm_pos = glm::make_vec3(transform.position);
         const auto glm_rot = glm::make_vec3(transform.rotation);
@@ -75,21 +97,6 @@ public:
         //transform_init.setIdentity();
         //transform_init.setOrigin(btVector3(transform.position[0], transform.position[1], transform.position[2]));
         //transform_init.setRotation()
-        if (collider.type == ENGINE_COLLIDER_TYPE_BOX)
-        {
-            const btVector3 box_bounds{
-                collider.collider.box.size[0] * transform.scale[0] * 0.5f,
-                collider.collider.box.size[1] * transform.scale[1] * 0.5f,
-                collider.collider.box.size[2] * transform.scale[2] * 0.5f,
-            };
-            ret.collision_shape = new btBoxShape(box_bounds);
-
-
-            if (rigid_body.mass)
-            {
-                ret.collision_shape->calculateLocalInertia(rigid_body.mass, local_inertia);
-            }        
-        }
 
         //using motionstate is optional, it provides interpolation capabilities, and only synchronizes 'active' objects
         btDefaultMotionState* my_motion_state = new btDefaultMotionState(transform_init);

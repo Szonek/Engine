@@ -750,8 +750,8 @@ int main(int argc, char** argv)
         tc->position[1] = 1.0f;
         tc->position[2] = 0.0f;
 
-        tc->rotation[1] = 15.0f;
-        tc->rotation[2] = 15.0f;
+        tc->rotation[1] = 0.0f;
+        tc->rotation[2] = 0.0f;
 
         tc->scale[0] = 0.2f;
         tc->scale[1] = 0.2f;
@@ -761,7 +761,7 @@ int main(int argc, char** argv)
         rigidbody_comp->mass = 1.0f;
 
         auto collider_comp = engineSceneAddColliderComponent(scene, box_go);
-        collider_comp->type = ENGINE_COLLIDER_TYPE_BOX;
+        collider_comp->type = ENGINE_COLLIDER_TYPE_SPHERE;
     }
 
 	while (true)
