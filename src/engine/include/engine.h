@@ -187,6 +187,21 @@ typedef struct _engine_vertex_attribute_t
     float uv[2];
 } engine_vertex_attribute_t;
 
+typedef struct _engine_collision_contact_t
+{
+    float point[3];
+} engine_collision_contact_point_t;
+
+typedef struct _engine_collision_info_t
+{
+    engine_game_object_t object_a;
+    engine_game_object_t object_b;
+
+    size_t contact_points_count;
+    const engine_collision_contact_point_t* contact_points;
+
+} engine_collision_info_t;
+
 // cross platform log
 ENGINE_API void engineLog(const char* str);
 
@@ -201,7 +216,8 @@ ENGINE_API bool engineApplicationIsMouseButtonDown(engine_application_t handle, 
 ENGINE_API bool engineApplicationIsMouseButtonUp(engine_application_t handle, engine_mouse_button_t);
 
 ENGINE_API engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_application_t handle);
-ENGINE_API engine_result_code_t                   engineApplicationFrameRunScene(engine_application_t handle, engine_scene_t scene, float delta_time);
+ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpdatePhysics(engine_application_t handle, engine_scene_t scene, float delta_time);
+ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpdateGraphics(engine_application_t handle, engine_scene_t scene, float delta_time);
 ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engine_application_t handle);
 
 ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* name, engine_font_t* out);
@@ -216,7 +232,9 @@ ENGINE_API void engineSceneDestroy(engine_scene_t scene);
 
 ENGINE_API engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene);
 ENGINE_API void                     engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object);
+
 ENGINE_API void                     engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);
+ENGINE_API void                     engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
 
 ENGINE_API engine_name_component_t* engineSceneAddNameComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_name_component_t* engineSceneGetNameComponent(engine_scene_t scene, engine_game_object_t game_object);

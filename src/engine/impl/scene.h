@@ -55,6 +55,7 @@ public:
     }
 
     void set_physcis_gravity(std::array<float, 3> g);
+    void get_physcis_collisions_list(const engine_collision_info_t*& ptr_first, size_t* count);
 
 private:
     entt::registry entity_registry_;

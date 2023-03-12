@@ -86,9 +86,8 @@ engine::Application::~Application()
 	//glfwTerminate();
 }
 
-engine_result_code_t engine::Application::run_scene(Scene* scene, float delta_time)
+engine_result_code_t engine::Application::update_scene(Scene* scene, float delta_time)
 {
-    scene->physics_update(delta_time);
 	return scene->update(rdx_, delta_time,
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),

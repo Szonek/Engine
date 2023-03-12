@@ -1,5 +1,8 @@
 #include "scene.h"
 #include "text_2d_manager.h"
+#include "logger.h"
+
+#include <fmt/format.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -31,6 +34,9 @@ inline glm::mat4 compute_model_matirx(const glm::vec3& glm_pos, const glm::vec3&
 }
 }
 
+namespace engine 
+{
+
 struct physics_world_t
 {
 public:
@@ -39,11 +45,12 @@ public:
         btCollisionShape* collision_shape = nullptr;
         btRigidBody* rigid_body = nullptr;
     };
-    
-
 public:
     physics_world_t()
     {
+        collisions_info_buffer_.reserve(1024 * 2);
+        collisions_contact_points_buffer_.reserve(1024 * 16);
+
         collision_config_ = std::make_unique<btDefaultCollisionConfiguration>();
         dispatcher_ = std::make_unique<btCollisionDispatcher>(collision_config_.get());
         overlapping_pair_cache_ = std::make_unique<btDbvtBroadphase>();
@@ -59,7 +66,7 @@ public:
         //btAlignedObjectArray<btCollisionShape*> collisionShapes;
     }
 
-    physcic_internal_component_t create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform)
+    physcic_internal_component_t create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform, std::int32_t body_index)
     {
         physcic_internal_component_t ret{};
         if (collider.type == ENGINE_COLLIDER_TYPE_BOX)
@@ -102,7 +109,7 @@ public:
         btDefaultMotionState* my_motion_state = new btDefaultMotionState(transform_init);
         btRigidBody::btRigidBodyConstructionInfo rbInfo(rigid_body.mass, my_motion_state, ret.collision_shape, local_inertia);
         ret.rigid_body = new btRigidBody(rbInfo);
-
+        ret.rigid_body->setUserIndex(body_index);
         dynamics_world_->addRigidBody(ret.rigid_body);
 
         return ret;
@@ -113,9 +120,49 @@ public:
         dynamics_world_->stepSimulation(dt, 10);
     }
 
+    const std::vector<engine_collision_info_t>& get_collisions()
+    {
+        collisions_info_buffer_.clear();
+        collisions_contact_points_buffer_.clear();
+
+        const auto num_manifolds = dynamics_world_->getDispatcher()->getNumManifolds();
+        //log::log(log::LogLevel::eTrace, fmt::format("Collisions: {}\n", num_manifolds));
+
+        for (auto i = 0; i < num_manifolds; i++)
+        {
+            const auto manifold = dynamics_world_->getDispatcher()->getManifoldByIndexInternal(i);
+            const auto num_contacts = manifold->getNumContacts();
+            //log::log(log::LogLevel::eTrace, fmt::format("Num contacts: {}\n", num_contacts));
+            if (num_contacts == 0)
+            {
+                continue;
+            }
+            engine_collision_info_t new_collision{};
+            new_collision.contact_points_count = num_contacts;
+            new_collision.contact_points = collisions_contact_points_buffer_.data() + collisions_contact_points_buffer_.size();
+            for (auto j = 0; j < num_contacts; j++)
+            {
+                const auto pt = manifold->getContactPoint(j);
+                const auto position = pt.getPositionWorldOnA();
+
+                engine_collision_contact_point_t new_contact_point{};
+                new_contact_point.point[0] = position.getX();
+                new_contact_point.point[1] = position.getY();
+                new_contact_point.point[2] = position.getZ();
+                collisions_contact_points_buffer_.push_back(new_contact_point);
+                //log::log(log::LogLevel::eTrace, fmt::format("PT: {}\n", pt.getDistance()));
+            }
+
+            collisions_info_buffer_.push_back(new_collision);
+        }
+
+        return collisions_info_buffer_;
+    }
+
     void set_gravity(std::span<const float> g)
     {
         dynamics_world_->setGravity(btVector3(g[0], g[1], g[2]));
+
     }
 
     ~physics_world_t()
@@ -130,9 +177,13 @@ private:
     std::unique_ptr<btSequentialImpulseConstraintSolver> solver_;
 
     std::unique_ptr<btDiscreteDynamicsWorld> dynamics_world_;
+
+    std::vector<engine_collision_info_t> collisions_info_buffer_;
+    std::vector<engine_collision_contact_point_t> collisions_contact_points_buffer_;
 };
 
-inline physics_world_t physics_world_;
+} // namespace engine
+inline engine::physics_world_t physics_world_;
 
 
 
@@ -150,19 +201,20 @@ engine::Scene::~Scene()
 engine_result_code_t engine::Scene::physics_update(float dt)
 {
 
-    auto physcis_view = entity_registry_.view<physics_world_t::physcic_internal_component_t, engine_tranform_component_t, const engine_rigid_body_component_t, const engine_collider_component_t>();
-    physcis_view.each([](physics_world_t::physcic_internal_component_t& physics, engine_tranform_component_t& transform, const engine_rigid_body_component_t rigidbody, const engine_collider_component_t collider)
+    auto physcis_view = entity_registry_.view<physics_world_t::physcic_internal_component_t, engine_tranform_component_t, engine_rigid_body_component_t, const engine_collider_component_t>();
+    physcis_view.each([](physics_world_t::physcic_internal_component_t& physics, engine_tranform_component_t& transform, engine_rigid_body_component_t rigidbody, const engine_collider_component_t collider)
         {
             // requires update or init
             if (!physics.rigid_body)
             {
-                physics = physics_world_.create_rigid_body(collider, rigidbody, transform);
+                physics = physics_world_.create_rigid_body(collider, rigidbody, transform, 0 /*entity idx*/);
             }
 
+            physics.rigid_body->setLinearVelocity(btVector3(rigidbody.linear_velocity[0], rigidbody.linear_velocity[1], rigidbody.linear_velocity[2]));
         }
     );
-    //physics_world_.update(dt);
-    physics_world_.update(1.f / 120.f);
+    physics_world_.update(1.0f / dt);
+    //physics_world_.update(1.f / 30.f);
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -184,6 +236,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
     auto transform_physcis_view = entity_registry_.view<engine_tranform_component_t, const physics_world_t::physcic_internal_component_t>();
     transform_physcis_view.each([](engine_tranform_component_t& transform, const physics_world_t::physcic_internal_component_t physcics)
         {
+            assert(physcics.rigid_body);
             btTransform transform_phsycics{};
             physcics.rigid_body->getMotionState()->getWorldTransform(transform_phsycics);   
 
@@ -277,5 +330,13 @@ void engine::Scene::destroy_entity(entt::entity entity)
 void engine::Scene::set_physcis_gravity(std::array<float, 3> g)
 {
     physics_world_.set_gravity(g);
+}
+
+void engine::Scene::get_physcis_collisions_list(const engine_collision_info_t*& ptr_first, size_t* count)
+{
+    assert(count != nullptr);
+    const auto& collisions = physics_world_.get_collisions();
+    ptr_first = collisions.data();
+    *count = collisions.size();
 }
 

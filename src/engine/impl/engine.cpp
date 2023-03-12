@@ -8,6 +8,11 @@
 
 namespace
 {
+inline engine::Application* application_cast(engine_application_t engine_app)
+{
+    return reinterpret_cast<engine::Application*>(engine_app);
+}
+
 inline engine::Scene* scene_cast(engine_scene_t engine_scene_t)
 {
     return reinterpret_cast<engine::Scene*>(engine_scene_t);
@@ -64,8 +69,6 @@ inline void material_component_init(engine_material_component_t* comp)
 inline void rigid_body_component_init(engine_rigid_body_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_rigid_body_component_t));
-    comp->mass = 1.0f;
-    comp->use_gravity = true;
 }
 
 inline void collider_component_init(engine_collider_component_t* comp)
@@ -183,7 +186,18 @@ engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_appli
 	return app->begine_frame();
 }
 
-engine_result_code_t engineApplicationFrameRunScene(engine_application_t handle, engine_scene_t scene, float delta_time)
+engine_result_code_t engineApplicationFrameSceneUpdatePhysics(engine_application_t handle, engine_scene_t scene, float delta_time)
+{
+    if (!handle && !scene)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    auto* app = application_cast(handle);
+    auto* scene_typed = scene_cast(scene);
+    return scene_typed->physics_update(delta_time);
+}
+
+engine_result_code_t engineApplicationFrameSceneUpdateGraphics(engine_application_t handle, engine_scene_t scene, float delta_time)
 {
     if (!handle && !scene)
     {
@@ -191,7 +205,7 @@ engine_result_code_t engineApplicationFrameRunScene(engine_application_t handle,
     }
 	auto* app = reinterpret_cast<engine::Application*>(handle);
 	auto* scene_typed = reinterpret_cast<engine::Scene*>(scene);
-	return app->run_scene(scene_typed, delta_time);
+	return app->update_scene(scene_typed, delta_time);
 }
 
 engine_application_frame_end_info_t engineApplicationFrameEnd(engine_application_t handle)
@@ -263,6 +277,12 @@ void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3])
 {
     auto sc = scene_cast(scene);
     sc->set_physcis_gravity(std::array<float, 3>{gravity[0], gravity[1], gravity[2]});
+}
+
+void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions)
+{
+    auto sc = scene_cast(scene);
+    sc->get_physcis_collisions_list(*collisions, num_collision);
 }
 
 engine_name_component_t* engineSceneAddNameComponent(engine_scene_t scene, engine_game_object_t game_object)

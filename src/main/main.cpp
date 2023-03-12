@@ -209,7 +209,6 @@ public:
 
             auto rb = engineSceneAddRigidBodyComponent(scene, player_left_go_);
             rb->mass = 1.0f;
-            rb->use_gravity = false;
 
             auto bc = engineSceneAddColliderComponent(scene, player_left_go_);
             bc->type = ENGINE_COLLIDER_TYPE_BOX;
@@ -237,7 +236,6 @@ public:
 
             auto rb = engineSceneAddRigidBodyComponent(scene, player_right_go_);
             rb->mass = 1.0f;
-            rb->use_gravity = false;
 
             auto bc = engineSceneAddColliderComponent(scene, player_right_go_);
             bc->type = ENGINE_COLLIDER_TYPE_BOX;
@@ -506,7 +504,6 @@ public:
 
             auto rb = engineSceneAddRigidBodyComponent(scene, ball_go_);
             rb->mass = 1.0f;
-            rb->use_gravity = false;
 
             auto bc = engineSceneAddColliderComponent(scene, ball_go_);
             bc->type = ENGINE_COLLIDER_TYPE_BOX;
@@ -761,6 +758,7 @@ int main(int argc, char** argv)
 
         auto rigidbody_comp = engineSceneAddRigidBodyComponent(scene, box_go);
         rigidbody_comp->mass = 1.0f;
+        rigidbody_comp->linear_velocity[1] = -1.0f;
 
         auto collider_comp = engineSceneAddColliderComponent(scene, box_go);
         collider_comp->type = ENGINE_COLLIDER_TYPE_SPHERE;
@@ -813,7 +811,26 @@ int main(int argc, char** argv)
             fps_counter = {};
         }
 
-		engine_error_code = engineApplicationFrameRunScene(app, scene, frame_begin.delta_time);
+		engine_error_code = engineApplicationFrameSceneUpdatePhysics(app, scene, frame_begin.delta_time);
+        if (engine_error_code != ENGINE_RESULT_CODE_OK)
+        {
+            log(fmt::format("Scene physcis update failed. Exiting.\n"));
+            break;
+        }
+
+        size_t num_collisions = 0;
+        const engine_collision_info_t* collisions_list = nullptr;
+        engineSceneGetCollisions(scene, &num_collisions, &collisions_list);
+        if (num_collisions)
+        {
+            
+            log(fmt::format("Num collisions: {}, num cp: {} \n", num_collisions, collisions_list[0].contact_points_count));
+            log(fmt::format("Pt: {}, {}, {}\n", collisions_list[0].contact_points->point[0], collisions_list[0].contact_points->point[1], collisions_list[0].contact_points->point[2]));
+        }
+
+
+
+		engine_error_code = engineApplicationFrameSceneUpdateGraphics(app, scene, frame_begin.delta_time);
 		if (engine_error_code != ENGINE_RESULT_CODE_OK)
 		{
 			log(fmt::format("Scene update failed. Exiting.\n"));

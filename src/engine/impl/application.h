@@ -20,7 +20,7 @@ public:
     Application& operator=(Application&&) = default;
     ~Application();
 
-    engine_result_code_t run_scene(class Scene* scene, float delta_time);
+    engine_result_code_t update_scene(class Scene* scene, float delta_time);
     engine_application_frame_begine_info_t begine_frame();
     engine_application_frame_end_info_t end_frame();
 
