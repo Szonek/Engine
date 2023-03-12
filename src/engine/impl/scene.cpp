@@ -140,6 +140,9 @@ public:
             engine_collision_info_t new_collision{};
             new_collision.contact_points_count = num_contacts;
             new_collision.contact_points = collisions_contact_points_buffer_.data() + collisions_contact_points_buffer_.size();
+            new_collision.object_a = static_cast<engine_game_object_t>(manifold->getBody0()->getUserIndex());
+            new_collision.object_b = static_cast<engine_game_object_t>(manifold->getBody1()->getUserIndex());
+
             for (auto j = 0; j < num_contacts; j++)
             {
                 const auto pt = manifold->getContactPoint(j);
@@ -200,28 +203,53 @@ engine::Scene::~Scene()
 
 engine_result_code_t engine::Scene::physics_update(float dt)
 {
-
     auto physcis_view = entity_registry_.view<physics_world_t::physcic_internal_component_t, engine_tranform_component_t, engine_rigid_body_component_t, const engine_collider_component_t>();
-    physcis_view.each([](physics_world_t::physcic_internal_component_t& physics, engine_tranform_component_t& transform, engine_rigid_body_component_t rigidbody, const engine_collider_component_t collider)
+    physcis_view.each([](auto entity, physics_world_t::physcic_internal_component_t& physics, engine_tranform_component_t& transform, engine_rigid_body_component_t rigidbody, const engine_collider_component_t collider)
         {
             // requires update or init
             if (!physics.rigid_body)
             {
-                physics = physics_world_.create_rigid_body(collider, rigidbody, transform, 0 /*entity idx*/);
+                physics = physics_world_.create_rigid_body(collider, rigidbody, transform, static_cast<std::int32_t>(entity));
             }
 
             physics.rigid_body->setLinearVelocity(btVector3(rigidbody.linear_velocity[0], rigidbody.linear_velocity[1], rigidbody.linear_velocity[2]));
+            physics.rigid_body->setAngularVelocity(btVector3(rigidbody.angular_velocity[0], rigidbody.angular_velocity[1], rigidbody.angular_velocity[2]));
+
+            //if (physics.rigid_body->getTotalTorque()[1] == 0.0f && rigidbody.angular_velocity[1] != 0.0f)
+            {
+                //physics.rigid_body->applyTorque(btVector3(300.0f, 0.0f, 3.0f));
+            }
+
         }
     );
     physics_world_.update(1.0f / dt);
     //physics_world_.update(1.f / 30.f);
+
+    // sync physcis to graphics world
+    auto transform_physcis_view = entity_registry_.view<engine_tranform_component_t, const physics_world_t::physcic_internal_component_t>();
+    transform_physcis_view.each([](engine_tranform_component_t& transform, const physics_world_t::physcic_internal_component_t physcics)
+        {
+            assert(physcics.rigid_body);
+            btTransform transform_phsycics{};
+            physcics.rigid_body->getMotionState()->getWorldTransform(transform_phsycics);   
+
+            const auto origin = transform_phsycics.getOrigin();
+            transform.position[0] = origin.getX();
+            transform.position[1] = origin.getY();
+            transform.position[2] = origin.getZ();
+
+            const auto euler_rotation = transform_phsycics.getRotation();
+            euler_rotation.getEulerZYX(transform.rotation[2], transform.rotation[1], transform.rotation[0]);
+        }
+    );
+
     return ENGINE_RESULT_CODE_OK;
 }
 
 engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::span<const Texture2D> textures, std::span<const Geometry> geometries, TextManager* text_mgn)
 {
     // TRANSFORM SYSTEM
-    auto transform_view = entity_registry_.view<engine_tranform_component_t>(entt::exclude<engine_rigid_body_component_t>);
+    auto transform_view = entity_registry_.view<engine_tranform_component_t>(/*entt::exclude<engine_rigid_body_component_t>*/);
     transform_view.each([](engine_tranform_component_t& transform)
         {
             const auto glm_pos = glm::make_vec3(transform.position);
@@ -233,21 +261,21 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         }
     );
 
-    auto transform_physcis_view = entity_registry_.view<engine_tranform_component_t, const physics_world_t::physcic_internal_component_t>();
-    transform_physcis_view.each([](engine_tranform_component_t& transform, const physics_world_t::physcic_internal_component_t physcics)
-        {
-            assert(physcics.rigid_body);
-            btTransform transform_phsycics{};
-            physcics.rigid_body->getMotionState()->getWorldTransform(transform_phsycics);   
+    //auto transform_physcis_view = entity_registry_.view<engine_tranform_component_t, const physics_world_t::physcic_internal_component_t>();
+    //transform_physcis_view.each([](engine_tranform_component_t& transform, const physics_world_t::physcic_internal_component_t physcics)
+    //    {
+    //        assert(physcics.rigid_body);
+    //        btTransform transform_phsycics{};
+    //        physcics.rigid_body->getMotionState()->getWorldTransform(transform_phsycics);   
 
-            glm::mat4 model_matrix;
-            transform_phsycics.getOpenGLMatrix(glm::value_ptr(model_matrix));
+    //        glm::mat4 model_matrix;
+    //        transform_phsycics.getOpenGLMatrix(glm::value_ptr(model_matrix));
 
-            const auto glm_scl = glm::make_vec3(transform.scale);
-            model_matrix = glm::scale(model_matrix, glm_scl);
-            std::memcpy(transform.local_to_world, &model_matrix, sizeof(model_matrix));
-        }
-    );
+    //        const auto glm_scl = glm::make_vec3(transform.scale);
+    //        model_matrix = glm::scale(model_matrix, glm_scl);
+    //        std::memcpy(transform.local_to_world, &model_matrix, sizeof(model_matrix));
+    //    }
+    //);
 
 	auto geometry_renderet = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>();
 	auto text_renderer = entity_registry_.view<const engine_rect_tranform_component_t, const engine_material_component_t, const engine_text_component_t>();

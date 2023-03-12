@@ -761,7 +761,8 @@ int main(int argc, char** argv)
         rigidbody_comp->linear_velocity[1] = -1.0f;
 
         auto collider_comp = engineSceneAddColliderComponent(scene, box_go);
-        collider_comp->type = ENGINE_COLLIDER_TYPE_SPHERE;
+        //collider_comp->type = ENGINE_COLLIDER_TYPE_SPHERE;
+        collider_comp->type = ENGINE_COLLIDER_TYPE_BOX;
     }
 
 	while (true)
@@ -824,6 +825,15 @@ int main(int argc, char** argv)
         if (num_collisions)
         {
             
+            auto rigidbody = engineSceneGetRigidBodyComponent(scene, box_go);
+            rigidbody->linear_velocity[0] *= -1.0f;
+            rigidbody->linear_velocity[1] *= -1.0f;
+            rigidbody->linear_velocity[2] *= -1.0f;
+
+            rigidbody->angular_velocity[0] = 3.0f;
+            rigidbody->angular_velocity[1] = 3.0f;
+            rigidbody->angular_velocity[2] = 3.0f;
+
             log(fmt::format("Num collisions: {}, num cp: {} \n", num_collisions, collisions_list[0].contact_points_count));
             log(fmt::format("Pt: {}, {}, {}\n", collisions_list[0].contact_points->point[0], collisions_list[0].contact_points->point[1], collisions_list[0].contact_points->point[2]));
         }
