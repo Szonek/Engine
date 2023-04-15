@@ -15,7 +15,8 @@ public:
     TextManager& operator=(TextManager&& rhs);
     ~TextManager();
 
-    std::pair<bool, std::uint32_t> load_font_from_file(std::string_view file_name);
+    std::uint32_t load_font_from_file(std::string_view file_name, std::string_view handle_name);
+    std::uint32_t get_font(std::string_view name) const;
 
     void render_text(RenderContext& rdx, std::string_view text, std::uint32_t font_idx, std::span<const float> parent_model_matrix, std::uint32_t screen_width, std::uint32_t screen_height);
 
@@ -28,6 +29,7 @@ private:
         std::uint32_t height{ 0u };
         std::uint32_t padding{ 0u };
         Texture2D texture;
+        std::string font_name;
     };
 
     struct character_t

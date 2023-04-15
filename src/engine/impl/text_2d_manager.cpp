@@ -19,8 +19,10 @@
 
 engine::TextManager::TextManager()
     : shader_font_(Shader("font.vs", "font.fs"))
-    , current_font_idx_(1) // start with, since 0 is invalid index
+    , current_font_idx_(ENGINE_INVALID_OBJECT_HANDLE) // start with, since 0 is invalid index
 {
+    current_font_idx_++;
+
     FT_Library ft_handle;
     if (FT_Init_FreeType(&ft_handle))
     {
@@ -71,11 +73,11 @@ engine::TextManager::~TextManager()
     }
 }
 
-std::pair<bool, std::uint32_t> engine::TextManager::load_font_from_file(std::string_view file_name)
+std::uint32_t engine::TextManager::load_font_from_file(std::string_view file_name, std::string_view handle_name)
 {
     if (!font_handle_)
     {
-        return { false, ENGINE_INVALID_OBJECT_HANDLE};
+        return ENGINE_INVALID_OBJECT_HANDLE;
     }
     auto ft_lib = reinterpret_cast<FT_Library>(font_handle_);
     FT_Face face_handle;
@@ -86,7 +88,7 @@ std::pair<bool, std::uint32_t> engine::TextManager::load_font_from_file(std::str
     if (FT_New_Memory_Face(ft_lib, font_asset_data.get_data_ptr(), font_asset_data.get_size(), 0, &face_handle))
     {
         log::log(log::LogLevel::eError, fmt::format("Failed to load font {}\n", file_name));
-        return { false, ENGINE_INVALID_OBJECT_HANDLE };
+        return ENGINE_INVALID_OBJECT_HANDLE;
     }
     else
     {
@@ -117,7 +119,7 @@ std::pair<bool, std::uint32_t> engine::TextManager::load_font_from_file(std::str
                 ret.width,
                 ret.height,
                 false, nullptr, DataLayout::eR_U8, TextureAddressClampMode::eClampToEdge);
-
+            ret.font_name = handle_name;
             return ret;
         }();
 
@@ -147,9 +149,23 @@ std::pair<bool, std::uint32_t> engine::TextManager::load_font_from_file(std::str
         }
         atlases_[current_font_idx_] = std::move(atlas);
         fonts_[current_font_idx_] = std::move(fonts);
-        return {true, current_font_idx_++};
+
+        return current_font_idx_++;
     }
 
+}
+
+std::uint32_t engine::TextManager::get_font(std::string_view name) const
+{
+    for (std::uint32_t i = 0; const auto& a : atlases_)
+    {
+        if (a.font_name.compare(name) == 0)
+        {
+            return i;
+        }
+        i++;
+    }
+    return ENGINE_INVALID_OBJECT_HANDLE;
 }
 
 void engine::TextManager::render_text(RenderContext& rdx, std::string_view text, std::uint32_t font_idx, std::span<const float> parent_model_matrix, std::uint32_t screen_width, std::uint32_t screen_height)

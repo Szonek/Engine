@@ -26,9 +26,11 @@ public:
 
     std::uint32_t add_texture_from_memory(const engine_texture_2d_create_from_memory_desc_t& desc, std::string_view texture_name);
     std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
-    std::uint32_t add_font_from_file(std::string_view file_name);
+    std::uint32_t add_font_from_file(std::string_view file_name, std::string_view handle_name);
+    std::uint32_t get_font(std::string_view name) const;
 
     std::uint32_t add_geometry_from_memory(std::span<const engine_vertex_attribute_t> verts, std::span<const uint32_t> inds, std::string_view name);
+    std::uint32_t get_geometry(std::string_view name) const;
 
     bool keyboard_is_key_down(engine_keyboard_keys_t key);
 
@@ -45,7 +47,12 @@ private:
         static constexpr const size_t SIZE = 1024;
         using ArrayType = std::array<T, SIZE>;
     public:
-        Atlas() = default;
+        Atlas()
+            : current_idx_(ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            // move to next so it dont point to invalid obj
+            current_idx_++;
+        }
         Atlas(const Atlas& rhs) = delete;
         Atlas(Atlas&& rhs) = delete;
         Atlas& operator=(const Atlas& rhs) = delete;
@@ -59,11 +66,24 @@ private:
             return current_idx_++;
         }
 
+        std::uint32_t get_object(std::string_view name) const
+        {
+            for (std::uint32_t i = 0; const auto & n : names_)
+            {
+                if (n.compare(name) == 0)
+                {
+                    return i;
+                }
+                i++;
+            }
+            return 0;
+        }
+
         const ArrayType& get_objects_view() const { return objects_; }
     private:
         ArrayType objects_;
         std::array<std::string, SIZE> names_;
-        std::uint32_t current_idx_ = 0;
+        std::uint32_t current_idx_;
     };
 
     Atlas<Texture2D> textures_atlas_;

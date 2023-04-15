@@ -164,11 +164,16 @@ std::uint32_t engine::Application::add_texture_from_file(std::string_view file_n
 	return textures_atlas_.add_object(texture_name, Texture2D(file_name, true));
 }
 
-std::uint32_t engine::Application::add_font_from_file(std::string_view file_name)
+std::uint32_t engine::Application::add_font_from_file(std::string_view file_name, std::string_view handle_name)
 {
-    const auto res = text_mng_.load_font_from_file(std::move(file_name));
-    assert(res.first == true && "Failed loading font from file!");
-    return res.second;
+    const auto res = text_mng_.load_font_from_file(file_name, handle_name);
+    assert(res != ENGINE_INVALID_OBJECT_HANDLE && "Failed loading font from file!");
+    return res;
+}
+
+std::uint32_t engine::Application::get_font(std::string_view name) const
+{
+    return text_mng_.get_font(name);
 }
 
 std::uint32_t engine::Application::add_geometry_from_memory(std::span<const engine_vertex_attribute_t> verts, std::span<const uint32_t> inds, std::string_view name)
@@ -176,6 +181,11 @@ std::uint32_t engine::Application::add_geometry_from_memory(std::span<const engi
 	const static auto vertex_layout = create_engine_api_layout();
 	return geometries_atlas_.add_object(name, std::move(Geometry(vertex_layout, { reinterpret_cast<const std::byte*>(verts.data()), verts.size_bytes() }, verts.size(), inds)));
 }
+
+std::uint32_t engine::Application::get_geometry(std::string_view name) const
+{
+    return geometries_atlas_.get_object(name);
+;}
 
 bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
 {

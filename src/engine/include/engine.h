@@ -189,7 +189,9 @@ typedef struct _engine_vertex_attribute_t
 
 typedef struct _engine_collision_contact_t
 {
-    float point[3];
+    float point_object_a[3];
+    float point_object_b[3];
+    int32_t lifetime;
 } engine_collision_contact_point_t;
 
 typedef struct _engine_collision_info_t
@@ -220,9 +222,11 @@ ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpd
 ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpdateGraphics(engine_application_t handle, engine_scene_t scene, float delta_time);
 ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engine_application_t handle);
 
-ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* name, engine_font_t* out);
+ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name, engine_font_t* out);
+ENGINE_API engine_font_t engineApplicationGetFontByName(engine_application_t handle, const char* name);
 
 ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, const engine_vertex_attribute_t* verts, size_t verts_count, uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
+ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t& info, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
