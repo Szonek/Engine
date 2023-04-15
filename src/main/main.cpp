@@ -709,24 +709,30 @@ public:
     void on_collision(const collision_t& info) override
     {
         assert(ball_script_);
-        return;
+
         if (info.other == ball_script_->get_game_object())
         {
+            const auto paddle_tc = engineSceneGetTransformComponent(scene_, go_);
+            const auto paddle_current_y = paddle_tc->position[1];
+
+            auto ball_tc = engineSceneGetTransformComponent(scene_, info.other);
+            const auto ball_current_y = ball_tc->position[1];
+
+            const auto interct_pos = -1.0f * ((paddle_current_y - ball_current_y)) / 0.55f;
+            //std::cout << interct_pos << std::endl;
             auto rb = engineSceneGetRigidBodyComponent(scene_, info.other);
             rb->linear_velocity[0] *= -1.0f;
-            rb->linear_velocity[1] *= -1.0f;
-            rb->linear_velocity[2] *= -1.0f;
+            rb->linear_velocity[1] = interct_pos;
 
-            auto tc = engineSceneGetTransformComponent(scene_, info.other);
 
             // hack to move ball a bit to not trigger continous collision
-            if (tc->position[0] > 0.0f)
+            if (ball_tc->position[0] > 0.0f)
             {
-                tc->position[0] -= 0.07f;
+                ball_tc->position[0] -= 0.1f;
             }
             else
             {
-                tc->position[0] += 0.07f;
+                ball_tc->position[0] += 0.1f;
             }
         }
     }

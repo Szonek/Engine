@@ -152,7 +152,6 @@ public:
             {
                 const auto pt = manifold->getContactPoint(j);
                 
-
                 const auto position_a = pt.getPositionWorldOnA();
                 const auto position_b = pt.getPositionWorldOnA();
 
@@ -239,8 +238,18 @@ engine_result_code_t engine::Scene::physics_update(float dt)
                 origin.setZ(transform.position[2]);
                 physics.rigid_body->setWorldTransform(world_transform);
             }
-            physics.rigid_body->setLinearVelocity(btVector3(rigidbody.linear_velocity[0], rigidbody.linear_velocity[1], rigidbody.linear_velocity[2]));
-            physics.rigid_body->setAngularVelocity(btVector3(rigidbody.angular_velocity[0], rigidbody.angular_velocity[1], rigidbody.angular_velocity[2]));
+            if (physics.rigid_body->getLinearVelocity().getX() != rigidbody.linear_velocity[0]
+                || physics.rigid_body->getLinearVelocity().getY() != rigidbody.linear_velocity[1]
+                || physics.rigid_body->getLinearVelocity().getZ() != rigidbody.linear_velocity[2])
+            {
+                physics.rigid_body->setLinearVelocity(btVector3(rigidbody.linear_velocity[0], rigidbody.linear_velocity[1], rigidbody.linear_velocity[2]));
+            }
+            if (physics.rigid_body->getAngularVelocity().getX() != rigidbody.angular_velocity[0]
+                || physics.rigid_body->getAngularVelocity().getY() != rigidbody.angular_velocity[1]
+                || physics.rigid_body->getAngularVelocity().getZ() != rigidbody.angular_velocity[2])
+            {
+                physics.rigid_body->setAngularVelocity(btVector3(rigidbody.angular_velocity[0], rigidbody.angular_velocity[1], rigidbody.angular_velocity[2]));
+            }
         }
     );
 
