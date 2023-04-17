@@ -22,7 +22,7 @@ constexpr const bool K_IS_ANDROID = true;
 constexpr const bool K_IS_ANDROID = false;
 #endif
 
-constexpr const bool K_IS_GOAL_NET_VISIBLE = false;
+constexpr const bool K_IS_GOAL_NET_DISABLE_RENDER = true;
 
 template<typename T>
 inline void set_c_array(std::span<float> in, const T& data)
@@ -786,9 +786,21 @@ public:
         handle_input(dt);
     }
 
+    virtual void set_score(std::size_t new_score)
+    {
+        score_ = new_score;
+    }
+
+    virtual std::size_t get_score() const
+    {
+        return score_;
+    }
+
 protected:
     virtual void handle_input(float dt) = 0;
 
+protected:
+    std::size_t score_ = 0;
 };
 
 class RightPlayerPaddleScript : public PlayerPaddleScript
@@ -949,6 +961,7 @@ class GoalNetScript : public IScript
 {
 public:
     BallScript* ball_script_ = nullptr;
+    PlayerPaddleScript* player_paddel_script_ = nullptr;
 
 public:
     GoalNetScript(engine_application_t& app, engine_scene_t& scene, float init_pos_x, const char* name)
@@ -957,7 +970,7 @@ public:
         auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
         mesh_comp->geometry = engineApplicationGetGeometryByName(app_, "cube");
         assert(mesh_comp->geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for player goal net script!");
-        mesh_comp->disable = K_IS_GOAL_NET_VISIBLE;
+        mesh_comp->disable = K_IS_GOAL_NET_DISABLE_RENDER;
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
         tc->position[0] = init_pos_x;
@@ -979,6 +992,17 @@ public:
         std::strcpy(nc->name, name);
     }
 
+    void on_collision(const collision_t& info) override
+    {
+        assert(ball_script_ != nullptr);
+        assert(player_paddel_script_ != nullptr);
+        if (info.other == ball_script_->get_game_object())
+        {
+            ball_script_->reset_state();
+            player_paddel_script_->set_score(player_paddel_script_->get_score() + 1);
+        }
+    }
+
 protected:
     std::uint32_t score_;
 };
@@ -989,17 +1013,7 @@ public:
     LeftGoalNetScript(engine_application_t& app, engine_scene_t& scene)
         : GoalNetScript(app, scene, -3.75f, "left_goal_net")
     {
-    }
-    
-    void on_collision(const collision_t& info) override
-    {
-        assert(ball_script_ != nullptr);
-        if (info.other == ball_script_->get_game_object())
-        {
-            ball_script_->reset_state();
-        }
-    }
-
+    }  
 };
 
 class RightGoalNetScript : public GoalNetScript
@@ -1009,16 +1023,6 @@ public:
         : GoalNetScript(app, scene, 3.75f, "left_goal_net")
     {
     }
-
-    void on_collision(const collision_t& info) override
-    {
-        assert(ball_script_ != nullptr);
-        if (info.other == ball_script_->get_game_object())
-        {
-            ball_script_->reset_state();
-        }
-    }
-
 };
 
 int main(int argc, char** argv)
@@ -1149,7 +1153,9 @@ int main(int argc, char** argv)
     LeftGoalNetScript left_goal_net_script(app, scene);
     RightGoalNetScript right_goal_net_script(app, scene);
     left_goal_net_script.ball_script_ = &ball_script;
+    left_goal_net_script.player_paddel_script_ = &right_player_script;
     right_goal_net_script.ball_script_ = &ball_script;
+    right_goal_net_script.player_paddel_script_ = &left_player_script;
 
     std::unordered_map<engine_game_object_t, IScript*> scene_manager;
     scene_manager.reserve(1024);
@@ -1188,13 +1194,16 @@ int main(int argc, char** argv)
         fps_counter.frames_count += 1;
         fps_counter.frames_total_time += dt;
 
-        
+
 
         if (fps_counter.frames_total_time > 1000.0f)
         {
             log(fmt::format("FPS: {}, latency: {} ms. \n", 
                 fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count));
             fps_counter = {};
+
+            const auto log_score = fmt::format("Left: {}, Right: {}\n", left_player_script.get_score(), right_player_script.get_score());
+            engineLog(log_score.c_str());
         }
 
 		engine_error_code = engineApplicationFrameSceneUpdatePhysics(app, scene, frame_begin.delta_time);
