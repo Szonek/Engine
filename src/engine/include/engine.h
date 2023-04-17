@@ -1,5 +1,19 @@
 #pragma once
 
+#include "components/camera_component.h"
+#include "components/light_component.h"
+#include "components/transform_component.h"
+#include "components/rect_transform_component.h"
+#include "components/name_component.h"
+#include "components/mesh_component.h"
+#include "components/material_component.h"
+#include "components/text_component.h"
+#include "components/rigid_body_component.h"
+#include "components/collider_component.h"
+#include "components/image_component.h"
+
+#include <stdint.h>
+
 #ifdef _WIN32
 #ifdef engine_EXPORTS
 #define ENGINE_API __declspec(dllexport)
@@ -20,18 +34,7 @@ extern "C"
 {
 #endif  // #ifndef __cplusplus
 
-#include "components/camera_component.h"
-#include "components/light_component.h"
-#include "components/transform_component.h"
-#include "components/rect_transform_component.h"
-#include "components/name_component.h"
-#include "components/mesh_component.h"
-#include "components/material_component.h"
-#include "components/text_component.h"
-#include "components/rigid_body_component.h"
-#include "components/collider_component.h"
 
-#include <stdint.h>
 
 typedef uint32_t engine_game_object_t;
 #define ENGINE_INVALID_GAME_OBJECT_ID 0
@@ -84,6 +87,22 @@ typedef enum _engine_data_layout_t
     ENGINE_DATA_LAYOUT_COUNT
 } engine_data_layout_t;
 
+typedef enum _engine_finger_event_t
+{
+    ENGINE_FINGER_UNKNOWN = 0,
+    ENGINE_FINGER_DOWN = 1,
+    ENGINE_FINGER_UP
+} engine_finger_event_t;
+
+typedef struct _engine_finger_info_t
+{
+    engine_finger_event_t event_type;
+    float x;  // pos normalized (0, 1)
+    float y;  // pos normalized (0, 1)
+    float dx; // normalized (-1, 1) delta of movment (if motion detected)
+    float dy; // normalized (-1, 1) delta of movment (if motion detected)
+} engine_finger_info_t;
+
 typedef struct _engine_mouse_coords_t
 {
     int32_t x;
@@ -97,7 +116,7 @@ typedef enum _engine_mouse_button_t
     ENGINE_MOUSE_BUTTON_RIGHT    = 2,
 } engine_mouse_button_t;
 
-typedef enum _engine_platform_keys_t
+typedef enum _engine_keyboard_keys_t
 {
     ENGINE_KEYBOARD_KEY_UNKNOWN = 0,
     ENGINE_KEYBOARD_KEY_A = 4,
@@ -217,6 +236,8 @@ ENGINE_API engine_mouse_coords_t engineApplicationGetMouseCoords(engine_applicat
 ENGINE_API bool engineApplicationIsMouseButtonDown(engine_application_t handle, engine_mouse_button_t);
 ENGINE_API bool engineApplicationIsMouseButtonUp(engine_application_t handle, engine_mouse_button_t);
 
+ENGINE_API bool engineApplicationGetFingerInfo(engine_application_t handle, const engine_finger_info_t** infos_list, size_t* infos_count);
+
 ENGINE_API engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_application_t handle);
 ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpdatePhysics(engine_application_t handle, engine_scene_t scene, float delta_time);
 ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpdateGraphics(engine_application_t handle, engine_scene_t scene, float delta_time);
@@ -280,6 +301,11 @@ ENGINE_API engine_text_component_t* engineSceneAddTextComponent(engine_scene_t s
 ENGINE_API engine_text_component_t* engineSceneGetTextComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void                engineSceneRemoveTextComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool                engineSceneHasTextComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+ENGINE_API engine_image_component_t* engineSceneAddImageComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_image_component_t* engineSceneGetImageComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void                engineSceneRemoveImageComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool                engineSceneHasImageComponent(engine_scene_t scene, engine_game_object_t game_object);
 
 ENGINE_API engine_rigid_body_component_t* engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_rigid_body_component_t* engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);

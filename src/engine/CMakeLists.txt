@@ -13,8 +13,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/application.cpp
 	${ENGINE_SOURCES_DIR}/application.h
 	${ENGINE_SOURCES_DIR}/engine.cpp
-	${ENGINE_SOURCES_DIR}/text_2d_manager.cpp
-	${ENGINE_SOURCES_DIR}/text_2d_manager.h
+	${ENGINE_SOURCES_DIR}/ui_manager.cpp
+	${ENGINE_SOURCES_DIR}/ui_manager.h
 	${ENGINE_SOURCES_DIR}/logger.cpp
 	${ENGINE_SOURCES_DIR}/logger.h
 )
@@ -33,16 +33,13 @@ set(ENGINE_API_SOURCES
 	${ENGINE_API_COMPONENTS}/text_component.h
 	${ENGINE_API_COMPONENTS}/rigid_body_component.h
 	${ENGINE_API_COMPONENTS}/collider_component.h
+      ${ENGINE_API_COMPONENTS}/image_component.h
 )
 
 set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})
 
 add_library(${ENGINE} SHARED ${ENGINE_ALL_SOURCES})
 set_property(TARGET ${ENGINE} PROPERTY CXX_STANDARD 20)
-
-message(STATUS "!!! --- !!! bullet found " ${BULLET_FOUND})
-message(STATUS "!!! --- !!! bullet include dirs: " ${BULLET_INCLUDE_DIRS})
-message(STATUS "!!! --- !!! bullet src dirs: " ${${BULLET_PHYSICS_SOURCE_DIR}/src})
 
 
 target_include_directories(${ENGINE} PUBLIC ${ENGINE_API} PRIVATE ${BULLET_INCLUDE_DIRS})

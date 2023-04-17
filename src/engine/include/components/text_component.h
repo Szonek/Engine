@@ -11,6 +11,8 @@ typedef struct _engine_text_component_t
 {
     engine_font_t font_handle;
     const char* text;
+
+    float color[4];
 } engine_text_component_t;
 
 #ifdef __cplusplus

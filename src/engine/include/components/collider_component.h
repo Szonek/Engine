@@ -27,6 +27,7 @@ typedef struct _engine_sphere_collider_t
 typedef struct _engine_collider_component_t
 {
     engine_collider_type_t type;
+    bool is_trigger;
     union 
     {
         engine_box_collider_t box;

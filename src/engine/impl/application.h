@@ -3,7 +3,7 @@
 
 #include "game_timer.h"
 #include "graphics.h"
-#include "text_2d_manager.h"
+#include "ui_manager.h"
 
 #include <array>
 #include <string>
@@ -37,6 +37,7 @@ public:
     engine_mouse_coords_t mouse_get_coords();
     bool mouse_is_button_down(engine_mouse_button_t button);
 
+    std::span<const engine_finger_info_t> get_finger_info_events() const;
 private:
     RenderContext rdx_;
     GameTimer timer_;
@@ -88,7 +89,9 @@ private:
 
     Atlas<Texture2D> textures_atlas_;
     Atlas<Geometry> geometries_atlas_;
-    TextManager text_mng_;
+    UiManager ui_manager_;
+
+    std::array<engine_finger_info_t, 10> finger_info_buffer;
 };
 
 }  // namespace engine

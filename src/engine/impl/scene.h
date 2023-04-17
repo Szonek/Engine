@@ -18,7 +18,7 @@ public:
     ~Scene();
 
     engine_result_code_t physics_update(float dt);
-    engine_result_code_t update(RenderContext& rdx, float dt, std::span<const class Texture2D> textures, std::span<const Geometry> geometries, class TextManager* text_mgn);
+    engine_result_code_t update(RenderContext& rdx, float dt, std::span<const class Texture2D> textures, std::span<const Geometry> geometries, class UiManager* text_mgn);
 
     entt::entity create_new_entity();
     void destroy_entity(entt::entity entity);

@@ -1,5 +1,5 @@
 #include "scene.h"
-#include "text_2d_manager.h"
+#include "ui_manager.h"
 #include "logger.h"
 
 #include <fmt/format.h>
@@ -109,6 +109,10 @@ public:
         btDefaultMotionState* my_motion_state = new btDefaultMotionState(transform_init);
         btRigidBody::btRigidBodyConstructionInfo rbInfo(rigid_body.mass, my_motion_state, ret.collision_shape, local_inertia);
         ret.rigid_body = new btRigidBody(rbInfo);
+        if (collider.is_trigger)
+        {
+            ret.rigid_body->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
+        }
         ret.rigid_body->setUserIndex(body_index);
         //ret.rigid_body->setCcdMotionThreshold(1e-7f);
         //ret.rigid_body->setCcdSweptSphereRadius(transform.scale[0]);
@@ -301,7 +305,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::span<const Texture2D> textures, std::span<const Geometry> geometries, TextManager* text_mgn)
+engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::span<const Texture2D> textures, std::span<const Geometry> geometries, UiManager* ui_manager)
 {
     // TRANSFORM SYSTEM
     auto transform_view = entity_registry_.view<engine_tranform_component_t>(/*entt::exclude<engine_rigid_body_component_t>*/);
@@ -317,8 +321,11 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
     );
 
 	auto geometry_renderet = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>();
-	auto text_renderer = entity_registry_.view<const engine_rect_tranform_component_t, const engine_material_component_t, const engine_text_component_t>();
+	auto ui_text_renderer = entity_registry_.view<const engine_rect_tranform_component_t , const engine_text_component_t>();
+	auto ui_image_renderer = entity_registry_.view<const engine_rect_tranform_component_t , const engine_image_component_t>();
     auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
+
+
     for (auto [entity, camera, transform] : camera_view.each()) 
     {
         if (!camera.enabled)
@@ -332,6 +339,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         {
             const auto z_near = camera.clip_plane_near;
             const auto z_far = camera.clip_plane_far;
+            // ToD: multi camera - this should use resolution of camera!!!
 
             const auto adjusted_width = window_size_pixels.width * (camera.viewport_rect.width - camera.viewport_rect.x);
             const auto adjusted_height = window_size_pixels.height * (camera.viewport_rect.height - camera.viewport_rect.y);
@@ -359,6 +367,10 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
 
         geometry_renderet.each([this, &textures, &geometries](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material)
             {
+                if (mesh.disable)
+                {
+                    return;
+                }
                 shader_simple_.bind();
                 shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
                 shader_simple_.set_uniform_mat_f4("model", transform.local_to_world);
@@ -368,16 +380,26 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
 			}
 		);
 
-        text_renderer.each([this, &rdx, &window_size_pixels, &text_mgn](const engine_rect_tranform_component_t& transform, const engine_material_component_t& material, const engine_text_component_t& text)
+        ui_text_renderer.each([this, &rdx, &window_size_pixels, &ui_manager](const engine_rect_tranform_component_t& transform, const engine_text_component_t& text)
             {
-
                 const auto glm_pos = glm::vec3(transform.position[0] * window_size_pixels.width, transform.position[1] * window_size_pixels.height, 0.0f);
                 const auto glm_rot = glm::vec3(0.0f, 0.0f, 0.0f);
                 const auto glm_scl = glm::vec3(transform.scale[0], transform.scale[1], 1.0f);
                 const auto model_matrix = compute_model_matirx(glm_pos, glm_rot, glm_scl);
 
-                text_mgn->render_text(rdx, text.text, text.font_handle, { glm::value_ptr(model_matrix), sizeof(model_matrix) / sizeof(float) }, window_size_pixels.width, window_size_pixels.height);
+                ui_manager->render_text(rdx, text.text, text.font_handle, { glm::value_ptr(model_matrix), sizeof(model_matrix) / sizeof(float) });
             }
+        );
+
+        ui_image_renderer.each([this, &rdx, &window_size_pixels, &ui_manager](const engine_rect_tranform_component_t& transform, const engine_image_component_t& img)
+           {
+               const auto glm_pos = glm::vec3(transform.position[0] * window_size_pixels.width, transform.position[1] * window_size_pixels.height, 0.0f);
+               const auto glm_rot = glm::vec3(0.0f, 0.0f, 0.0f);
+               const auto glm_scl = glm::vec3(transform.scale[0] * window_size_pixels.width, transform.scale[1] * window_size_pixels.height, 1.0f);
+               const auto model_matrix = compute_model_matirx(glm_pos, glm_rot, glm_scl);
+
+               ui_manager->render_image(rdx, { glm::value_ptr(model_matrix), sizeof(model_matrix) / sizeof(float) });
+           }
         );
     }
 

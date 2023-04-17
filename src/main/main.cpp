@@ -22,6 +22,8 @@ constexpr const bool K_IS_ANDROID = true;
 constexpr const bool K_IS_ANDROID = false;
 #endif
 
+constexpr const bool K_IS_GOAL_NET_VISIBLE = false;
+
 template<typename T>
 inline void set_c_array(std::span<float> in, const T& data)
 {
@@ -642,7 +644,6 @@ public:
 
         auto rb = engineSceneAddRigidBodyComponent(scene, go_);
         rb->mass = 1.0f;
-        rb->linear_velocity[0] = 6.5f;
         auto bc = engineSceneAddColliderComponent(scene, go_);
         bc->type = ENGINE_COLLIDER_TYPE_SPHERE;
 
@@ -652,8 +653,23 @@ public:
         auto nc = engineSceneAddNameComponent(scene, go_);
         const std::string name = fmt::format("ball");
         std::strcpy(nc->name, name.c_str());
+
+        reset_state();
     }
 
+
+    void reset_state()
+    {
+        auto tc = engineSceneGetTransformComponent(scene_, go_);
+        tc->position[0] = 0.0f;
+        tc->position[1] = 0.0f;
+        tc->position[2] = 0.0f;
+
+        auto rb = engineSceneGetRigidBodyComponent(scene_, go_);
+        rb->linear_velocity[0] = 6.5f;
+        rb->linear_velocity[1] = 0.0f;
+        rb->linear_velocity[2] = 0.0f;
+    }
 
     void update(float dt) override
     {
@@ -664,13 +680,40 @@ private:
     void handle_input(float dt)
     {
         auto tc = engineSceneGetTransformComponent(scene_, go_);
-        if (engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_SPACE))
+
+        const engine_finger_info_t* finger_infos = nullptr;
+        std::size_t fingers_info_count = 0;
+        const auto has_finger_info = engineApplicationGetFingerInfo(app_, &finger_infos, &fingers_info_count);
+
+        bool should_reset_state = false;
+
+        if constexpr (K_IS_ANDROID)
         {
-            auto tc = engineSceneGetTransformComponent(scene_, go_);
-            tc->position[0] = 0.0f;
-            tc->position[1] = 0.0f;
-            tc->position[2] = 0.0f;
+            if(has_finger_info)
+            {
+                for(std::size_t i = 0; i < fingers_info_count; i++)
+                {
+                    const auto f = finger_infos[i];
+                    if(f.x > 0.35f && f.x < 0.65 && f.y < 0.2f)
+                    {
+                        should_reset_state = true;
+                    }
+                }
+            }
         }
+        else
+        {
+            if (engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_SPACE))
+            {
+                should_reset_state = true;
+            }
+        }
+
+        if(should_reset_state)
+        {
+            reset_state();
+        }
+
     }
 };
 
@@ -692,7 +735,7 @@ public:
         tc->position[1] = 0.0f;
         tc->position[2] = 0.0f;
         
-        tc->scale[0] = 0.1f;
+        tc->scale[0] = 0.15f;
         tc->scale[1] = 1.1f;
         tc->scale[2] = 1.0f;
         
@@ -720,6 +763,7 @@ public:
 
             const auto interct_pos = -1.0f * ((paddle_current_y - ball_current_y)) / 0.55f;
             //std::cout << interct_pos << std::endl;
+            engineLog(fmt::format("{} \n", interct_pos).c_str());
             auto rb = engineSceneGetRigidBodyComponent(scene_, info.other);
             rb->linear_velocity[0] *= -1.0f;
             rb->linear_velocity[1] = interct_pos;
@@ -753,35 +797,74 @@ public:
     RightPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
         : PlayerPaddleScript(app, scene, 3.0f, "right_player")
     {
-        const auto text_go = engineSceneCreateGameObject(scene);
-        auto text_component = engineSceneAddTextComponent(scene, text_go);
-        text_component->font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
-        assert(text_component->font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
-        text_component->text = "Player 2";
+        // text component
+        {
+            const auto text_go = engineSceneCreateGameObject(scene);
+            auto text_component = engineSceneAddTextComponent(scene, text_go);
+            text_component->font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
+            assert(text_component->font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
+            text_component->text = "Player 2";
+            set_c_array(text_component->color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
 
-        auto tc = engineSceneAddRectTransformComponent(scene, text_go);
-        tc->position[0] = 0.75f;
-        tc->position[1] = 0.15f;
+            auto tc = engineSceneAddRectTransformComponent(scene, text_go);
+            tc->position[0] = 0.75f;
+            tc->position[1] = 0.15f;
 
-        tc->scale[0] = 0.5f;
-        tc->scale[1] = 0.5f;
+            tc->scale[0] = 0.5f;
+            tc->scale[1] = 0.5f;
+        }
 
-        auto material_comp = engineSceneAddMaterialComponent(scene, text_go);
-        set_c_array(material_comp->diffuse_color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
+        // touchable area component
+        {
+            const auto touch_area_go = engineSceneCreateGameObject(scene);
+            auto tc = engineSceneAddRectTransformComponent(scene, touch_area_go);
+            tc->position[0] = 0.8f;
+            tc->position[1] = 0.0f;
+
+            tc->scale[0] = 1.0f;
+            tc->scale[1] = 1.0f;
+
+            const auto ic = engineSceneAddImageComponent(scene, touch_area_go);
+            set_c_array(ic->color, std::array<float, 4>{0.0f, 0.3f, 0.8f, 0.0f});
+        }
     }
+
 
 protected:
     void handle_input(float dt) override
     {
         auto tc = engineSceneGetTransformComponent(scene_, go_);
-        if (engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_UP))
+
+        const engine_finger_info_t* finger_infos = nullptr;
+        std::size_t fingers_info_count = 0;
+        const auto has_finger_info = engineApplicationGetFingerInfo(app_, &finger_infos, &fingers_info_count);
+
+        if constexpr (K_IS_ANDROID)
         {
-            auto tc = engineSceneGetTransformComponent(scene_, go_);
-            tc->position[1] += 0.01f * dt;
+            if(has_finger_info)
+            {
+                for(std::size_t i = 0; i < fingers_info_count; i++)
+                {
+                    const auto f = finger_infos[i];
+                    if(f.x > 0.8f && f.x <= 1.0f)
+                    {
+                        const auto y_delta = -1.0f * ((f.y - 0.5f) / 0.5f);
+                        tc->position[1] = y_delta * 2.0f;
+                    }
+                }
+            }
         }
-        else if (engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_DOWN))
+        else
         {
-            tc->position[1] -= 0.01f * dt;
+            // KEYBOARD
+            if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_UP))
+            {
+                tc->position[1] += 0.01f * dt;
+            }
+            if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_DOWN))
+            {
+                tc->position[1] -= 0.01f * dt;
+            }
         }
     }
 };
@@ -792,37 +875,150 @@ public:
     LeftPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
         : PlayerPaddleScript(app, scene, -3.0f, "left_player")
     {
-        const auto text_go = engineSceneCreateGameObject(scene);
-        auto text_component = engineSceneAddTextComponent(scene, text_go);
-        text_component->font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
-        assert(text_component->font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
-        text_component->text = "Player 1";
+        // text component
+        {
+            const auto text_go = engineSceneCreateGameObject(scene);
+            auto text_component = engineSceneAddTextComponent(scene, text_go);
+            text_component->font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
+            assert(text_component->font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
+            text_component->text = "Player 1";
+            set_c_array(text_component->color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
 
-        auto tc = engineSceneAddRectTransformComponent(scene, text_go);
-        tc->position[0] = 0.15f;
-        tc->position[1] = 0.15f;
+            auto tc = engineSceneAddRectTransformComponent(scene, text_go);
+            tc->position[0] = 0.25f;
+            tc->position[1] = 0.15f;
 
-        tc->scale[0] = 0.5f;
-        tc->scale[1] = 0.5f;
+            tc->scale[0] = 0.5f;
+            tc->scale[1] = 0.5f;
+        }
 
-        auto material_comp = engineSceneAddMaterialComponent(scene, text_go);
-        set_c_array(material_comp->diffuse_color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
+        // touchable area component
+        {
+            const auto touch_area_go = engineSceneCreateGameObject(scene);
+            auto tc = engineSceneAddRectTransformComponent(scene, touch_area_go);
+            tc->position[0] = 0.0f;
+            tc->position[1] = 0.0f;
+
+            tc->scale[0] = 0.2f;
+            tc->scale[1] = 1.0f;
+
+            const auto ic = engineSceneAddImageComponent(scene, touch_area_go);
+            set_c_array(ic->color, std::array<float, 4>{0.0f, 0.3f, 0.8f, 0.0f});
+        }
     }
 
 protected:
     void handle_input(float dt) override
     {
         auto tc = engineSceneGetTransformComponent(scene_, go_);
-        if (engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_W))
+        const engine_finger_info_t* finger_infos = nullptr;
+        std::size_t fingers_info_count = 0;
+        const auto has_finger_info = engineApplicationGetFingerInfo(app_, &finger_infos, &fingers_info_count);
+
+        if constexpr (K_IS_ANDROID)
         {
-            auto tc = engineSceneGetTransformComponent(scene_, go_);
-            tc->position[1] += 0.01f * dt;
+            if(has_finger_info)
+            {
+                for(std::size_t i = 0; i < fingers_info_count; i++)
+                {
+                    const auto f = finger_infos[i];
+                    if(f.x < 0.2f && f.x >= 0.0f)
+                    {
+                        const auto y_delta = -1.0f * ((f.y - 0.5f) / 0.5f);
+                        tc->position[1] = y_delta * 2.0f;
+                    }
+                }
+            }
         }
-        else if (engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_S))
+        else
         {
-            tc->position[1] -= 0.01f * dt;
+            // KEYBOARD
+            if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_W))
+            {
+                tc->position[1] += 0.01f * dt;
+            }
+            if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_S))
+            {
+                tc->position[1] -= 0.01f * dt;
+            }
         }
     }
+};
+
+class GoalNetScript : public IScript
+{
+public:
+    BallScript* ball_script_ = nullptr;
+
+public:
+    GoalNetScript(engine_application_t& app, engine_scene_t& scene, float init_pos_x, const char* name)
+        : IScript(app, scene)
+    {
+        auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
+        mesh_comp->geometry = engineApplicationGetGeometryByName(app_, "cube");
+        assert(mesh_comp->geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for player goal net script!");
+        mesh_comp->disable = K_IS_GOAL_NET_VISIBLE;
+
+        auto tc = engineSceneAddTransformComponent(scene, go_);
+        tc->position[0] = init_pos_x;
+        tc->position[1] = 0.0f;
+        tc->position[2] = 0.0f;
+
+        tc->scale[0] = 1.0f;
+        tc->scale[1] = 6.0f;
+        tc->scale[2] = 1.0f;
+
+        auto bc = engineSceneAddColliderComponent(scene, go_);
+        bc->type = ENGINE_COLLIDER_TYPE_BOX;
+        bc->is_trigger = true;
+
+        auto material_comp = engineSceneAddMaterialComponent(scene, go_);
+        set_c_array(material_comp->diffuse_color, std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 0.2f });
+
+        auto nc = engineSceneAddNameComponent(scene, go_);
+        std::strcpy(nc->name, name);
+    }
+
+protected:
+    std::uint32_t score_;
+};
+
+class LeftGoalNetScript : public GoalNetScript
+{
+public:
+    LeftGoalNetScript(engine_application_t& app, engine_scene_t& scene)
+        : GoalNetScript(app, scene, -3.75f, "left_goal_net")
+    {
+    }
+    
+    void on_collision(const collision_t& info) override
+    {
+        assert(ball_script_ != nullptr);
+        if (info.other == ball_script_->get_game_object())
+        {
+            ball_script_->reset_state();
+        }
+    }
+
+};
+
+class RightGoalNetScript : public GoalNetScript
+{
+public:
+    RightGoalNetScript(engine_application_t& app, engine_scene_t& scene)
+        : GoalNetScript(app, scene, 3.75f, "left_goal_net")
+    {
+    }
+
+    void on_collision(const collision_t& info) override
+    {
+        assert(ball_script_ != nullptr);
+        if (info.other == ball_script_->get_game_object())
+        {
+            ball_script_->reset_state();
+        }
+    }
+
 };
 
 int main(int argc, char** argv)
@@ -950,11 +1146,18 @@ int main(int argc, char** argv)
     right_player_script.ball_script_ = &ball_script;
     left_player_script.ball_script_ = &ball_script;
 
+    LeftGoalNetScript left_goal_net_script(app, scene);
+    RightGoalNetScript right_goal_net_script(app, scene);
+    left_goal_net_script.ball_script_ = &ball_script;
+    right_goal_net_script.ball_script_ = &ball_script;
+
     std::unordered_map<engine_game_object_t, IScript*> scene_manager;
     scene_manager.reserve(1024);
     scene_manager[ball_script.get_game_object()] = &ball_script;
     scene_manager[right_player_script.get_game_object()] = &right_player_script;
     scene_manager[left_player_script.get_game_object()] = &left_player_script;
+    scene_manager[left_goal_net_script.get_game_object()] = &left_goal_net_script;
+    scene_manager[right_goal_net_script.get_game_object()] = &right_goal_net_script;
 
     
 	while (true)

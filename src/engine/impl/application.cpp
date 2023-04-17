@@ -2,10 +2,12 @@
 #include "graphics.h"
 #include "asset_store.h"
 #include "scene.h"
+#include "logger.h"
 
 #include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_events.h>
+#include <fmt/format.h>
 
 #include <span>
 #include <iostream>
@@ -32,6 +34,9 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_tightly_packed_v
 	{
 	case Geometry::vertex_attribute_t::Type::eFloat:
 		bytes_size = sizeof(float) * attrib.size;
+        break;
+    default:
+        assert(false && "Unhandled case.");
 	}
 	stride += bytes_size;
 		}
@@ -88,10 +93,11 @@ engine::Application::~Application()
 
 engine_result_code_t engine::Application::update_scene(Scene* scene, float delta_time)
 {
-	return scene->update(rdx_, delta_time,
+	const auto ret_code = scene->update(rdx_, delta_time,
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
-        &text_mng_);
+        &ui_manager_);
+    return ret_code;
 }
 
 engine_application_frame_begine_info_t engine::Application::begine_frame()
@@ -101,6 +107,15 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     engine_application_frame_begine_info_t ret{};
     ret.delta_time = static_cast<float>(timer_.delta_time().count()) / 1000.0f;
     ret.events = ENGINE_EVENT_NONE;
+
+	for(auto& f : finger_info_buffer)
+	{
+		f.event_type = ENGINE_FINGER_UNKNOWN;
+		f.x = -1.0f;
+		f.y = -1.0f;
+		f.dx = 0.0f;
+		f.dy = 0.0f;
+	}
 
     //Handle events on queue
     SDL_Event e;
@@ -122,18 +137,52 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
 			vp.height = e.window.data2;
 			rdx_.set_viewport(vp);
 		}
-        else if (e.type = SDL_EVENT_WINDOW_MOVED)
+        else if (e.type == SDL_EVENT_WINDOW_MOVED)
         {
             ret.events |= ENGINE_EVENT_WINDOW_MOVED;
         }
+		else if(e.type == SDL_EVENT_FINGER_UP)
+		{
+			//const auto str = fmt::format("[SDL_EVENT_FINGER_UP]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
+			//log::log(log::LogLevel::eTrace, str.c_str());
+			auto& f = finger_info_buffer[e.tfinger.fingerId];
+			f.event_type = ENGINE_FINGER_UP;
+			f.x = e.tfinger.x;
+			f.y = e.tfinger.y;
+		}
+		else if(e.type == SDL_EVENT_FINGER_DOWN)
+		{
+			//const auto str = fmt::format("[SDL_EVENT_FINGER_DOWN]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
+			//log::log(log::LogLevel::eTrace, str.c_str());
+			auto& f = finger_info_buffer[e.tfinger.fingerId];
+			f.event_type = ENGINE_FINGER_DOWN;
+			f.x = e.tfinger.x;
+			f.y = e.tfinger.y;
+		}
+		else if(e.type == SDL_EVENT_FINGER_MOTION)
+		{
+			auto& f = finger_info_buffer[e.tfinger.fingerId];
+			f.event_type = ENGINE_FINGER_DOWN;
+			f.x = e.tfinger.x;
+			f.y = e.tfinger.y;
+			f.dx += e.tfinger.dx;
+			f.dy += e.tfinger.dy;
+
+			//const auto str = fmt::format("[SDL_EVENT_FINGER_MOTION]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
+			//log::log(log::LogLevel::eTrace, str.c_str());
+		}
     }
+
 	rdx_.begin_frame();
+    const auto window_size_pixels = rdx_.get_window_size_in_pixels();
+    ui_manager_.begin_frame(static_cast<float>(window_size_pixels.width), static_cast<float>(window_size_pixels.height));
 	return ret;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
-	rdx_.end_frame();
+    ui_manager_.end_frame();
+    rdx_.end_frame();
 	engine_application_frame_end_info_t ret{};
 	//ret.success = !glfwWindowShouldClose(rdx_.get_glfw_window());;
     ret.success = true;
@@ -166,14 +215,14 @@ std::uint32_t engine::Application::add_texture_from_file(std::string_view file_n
 
 std::uint32_t engine::Application::add_font_from_file(std::string_view file_name, std::string_view handle_name)
 {
-    const auto res = text_mng_.load_font_from_file(file_name, handle_name);
+    const auto res = ui_manager_.load_font_from_file(file_name, handle_name);
     assert(res != ENGINE_INVALID_OBJECT_HANDLE && "Failed loading font from file!");
     return res;
 }
 
 std::uint32_t engine::Application::get_font(std::string_view name) const
 {
-    return text_mng_.get_font(name);
+    return ui_manager_.get_font(name);
 }
 
 std::uint32_t engine::Application::add_geometry_from_memory(std::span<const engine_vertex_attribute_t> verts, std::span<const uint32_t> inds, std::string_view name)
@@ -208,4 +257,17 @@ bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
 {
     const auto state = SDL_GetMouseState(nullptr, nullptr);
     return state & SDL_BUTTON(button);
+}
+
+std::span<const engine_finger_info_t> engine::Application::get_finger_info_events() const
+{
+	std::size_t count = 0;
+	for(const auto& f : finger_info_buffer)
+	{
+		if(f.event_type != ENGINE_FINGER_UNKNOWN)
+		{
+			count++;
+		}
+	}
+	return {finger_info_buffer.data(), count};
 }

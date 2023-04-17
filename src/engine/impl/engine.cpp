@@ -180,6 +180,21 @@ bool engineApplicationIsMouseButtonUp(engine_application_t handle, engine_mouse_
 	return !engineApplicationIsMouseButtonDown(handle, button);
 }
 
+bool engineApplicationGetFingerInfo(engine_application_t handle, const engine_finger_info_t** infos_list, size_t* infos_count)
+{
+    auto* app = reinterpret_cast<engine::Application*>(handle);
+    const auto finger_list = app->get_finger_info_events();
+    if(finger_list.empty())
+    {
+        *infos_list = nullptr;
+        *infos_count = 0;
+        return false;
+    }
+    *infos_list = finger_list.data();
+    *infos_count = finger_list.size();
+    return true;
+}
+
 engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_application_t handle)
 {
 	auto* app = reinterpret_cast<engine::Application*>(handle);
@@ -496,4 +511,24 @@ void engineSceneRemoveColliderComponent(engine_scene_t scene, engine_game_object
 bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return has_component<engine_collider_component_t>(scene, game_object);
+}
+
+engine_image_component_t* engineSceneAddImageComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_image_component_t>(scene, game_object);
+}
+
+engine_image_component_t* engineSceneGetImageComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_image_component_t>(scene, game_object);
+}
+
+void engineSceneRemoveImageComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_image_component_t>(scene, game_object);
+}
+
+bool engineSceneHasImageComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_image_component_t>(scene, game_object);
 }
