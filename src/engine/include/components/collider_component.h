@@ -33,6 +33,9 @@ typedef struct _engine_collider_component_t
         engine_box_collider_t box;
         engine_sphere_collider_t sphere;
     } collider;
+
+    float bounciness;
+    float friction_static;
 } engine_collider_component_t;
 
 #ifdef __cplusplus

@@ -114,6 +114,9 @@ public:
             ret.rigid_body->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
         }
         ret.rigid_body->setUserIndex(body_index);
+        ret.rigid_body->setRestitution(collider.bounciness);
+        ret.rigid_body->setFriction(collider.friction_static);
+        ret.rigid_body->setLinearVelocity(btVector3(rigid_body.linear_velocity[0], rigid_body.linear_velocity[1], rigid_body.linear_velocity[2]));
         //ret.rigid_body->setCcdMotionThreshold(1e-7f);
         //ret.rigid_body->setCcdSweptSphereRadius(transform.scale[0]);
         dynamics_world_->addRigidBody(ret.rigid_body);
@@ -246,7 +249,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
                 || physics.rigid_body->getLinearVelocity().getY() != rigidbody.linear_velocity[1]
                 || physics.rigid_body->getLinearVelocity().getZ() != rigidbody.linear_velocity[2])
             {
-                physics.rigid_body->setLinearVelocity(btVector3(rigidbody.linear_velocity[0], rigidbody.linear_velocity[1], rigidbody.linear_velocity[2]));
+                //physics.rigid_body->setLinearVelocity(btVector3(rigidbody.linear_velocity[0], rigidbody.linear_velocity[1], rigidbody.linear_velocity[2]));
             }
             if (physics.rigid_body->getAngularVelocity().getX() != rigidbody.angular_velocity[0]
                 || physics.rigid_body->getAngularVelocity().getY() != rigidbody.angular_velocity[1]

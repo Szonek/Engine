@@ -646,6 +646,8 @@ public:
         rb->mass = 1.0f;
         auto bc = engineSceneAddColliderComponent(scene, go_);
         bc->type = ENGINE_COLLIDER_TYPE_SPHERE;
+        bc->friction_static = 0.0f;
+        bc->bounciness = 1.0f;
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
         set_c_array(material_comp->diffuse_color, std::array<float, 4>{ 0.4f, 0.3f, 1.0f, 0.2f });
@@ -656,7 +658,6 @@ public:
 
         reset_state();
     }
-
 
     void reset_state()
     {
@@ -735,13 +736,15 @@ public:
         tc->position[1] = 0.0f;
         tc->position[2] = 0.0f;
         
-        tc->scale[0] = 0.15f;
+        tc->scale[0] = 0.3f;
         tc->scale[1] = 1.1f;
         tc->scale[2] = 1.0f;
         
         auto bc = engineSceneAddColliderComponent(scene, go_);
         bc->type = ENGINE_COLLIDER_TYPE_BOX;
-        
+        bc->bounciness = 1.0f;
+        bc->friction_static = 0.0f;
+
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
         set_c_array(material_comp->diffuse_color, std::array<float, 4>{ 0.4f, 0.3f, 1.0f, 0.2f });
         
@@ -754,7 +757,7 @@ public:
         assert(ball_script_);
 
         if (info.other == ball_script_->get_game_object())
-        {
+        {            
             const auto paddle_tc = engineSceneGetTransformComponent(scene_, go_);
             const auto paddle_current_y = paddle_tc->position[1];
 
@@ -765,19 +768,8 @@ public:
             //std::cout << interct_pos << std::endl;
             engineLog(fmt::format("{} \n", interct_pos).c_str());
             auto rb = engineSceneGetRigidBodyComponent(scene_, info.other);
-            rb->linear_velocity[0] *= -1.0f;
-            rb->linear_velocity[1] = interct_pos;
-
-
-            // hack to move ball a bit to not trigger continous collision
-            if (ball_tc->position[0] > 0.0f)
-            {
-                ball_tc->position[0] -= 0.1f;
-            }
-            else
-            {
-                ball_tc->position[0] += 0.1f;
-            }
+            //rb->linear_velocity[0] = 0.0f;
+            //rb->linear_velocity[1] = interct_pos;
         }
     }
 

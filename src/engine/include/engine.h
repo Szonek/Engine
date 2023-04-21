@@ -307,10 +307,11 @@ ENGINE_API engine_image_component_t* engineSceneGetImageComponent(engine_scene_t
 ENGINE_API void                engineSceneRemoveImageComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool                engineSceneHasImageComponent(engine_scene_t scene, engine_game_object_t game_object);
 
-ENGINE_API engine_rigid_body_component_t* engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_rigid_body_component_t* engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void                engineSceneRemoveRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool                engineSceneHasRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API const engine_rigid_body_component_t* engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API const engine_rigid_body_component_t* engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object, engine_rigid_body_component_t* comp);
+ENGINE_API void engineSceneRemoveRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
 
 ENGINE_API engine_collider_component_t* engineSceneAddColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_collider_component_t* engineSceneGetColliderComponent(engine_scene_t scene, engine_game_object_t game_object);

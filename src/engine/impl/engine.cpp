@@ -76,6 +76,9 @@ inline void collider_component_init(engine_collider_component_t* comp)
     std::memset(comp, 0, sizeof(engine_collider_component_t));
     comp->type = ENGINE_COLLIDER_TYPE_BOX;
 
+    comp->friction_static = 0.5f;
+    comp->bounciness = 0.0f;
+
     comp->collider.box.center[0] = 0.0f;
     comp->collider.box.center[1] = 0.0f;
     comp->collider.box.center[2] = 0.0f;
@@ -473,14 +476,19 @@ bool engineSceneHasTextComponent(engine_scene_t scene, engine_game_object_t game
     return has_component<engine_text_component_t>(scene, game_object);
 }
 
-engine_rigid_body_component_t* engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_rigid_body_component_t, rigid_body_component_init>(scene, game_object);
+    return *add_component<engine_rigid_body_component_t, rigid_body_component_init>(scene, game_object);
 }
 
-engine_rigid_body_component_t* engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_rigid_body_component_t engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return get_component<engine_rigid_body_component_t>(scene, game_object);
+    return *get_component<engine_rigid_body_component_t>(scene, game_object);
+}
+
+void engineSceneUpdateRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object, engine_rigid_body_component_t* comp)
+{
+
 }
 
 void engineSceneRemoveRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
