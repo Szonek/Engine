@@ -95,21 +95,21 @@ inline void default_init(T*)
 
 
 template<typename T, void(*F)(T*) = default_init>
-inline T* add_component(engine_scene_t scene, engine_game_object_t engine_game_object_t)
+inline T add_component(engine_scene_t scene, engine_game_object_t engine_game_object_t)
 {
     auto sc = scene_cast(scene);
     auto entity = entity_cast(engine_game_object_t);
     auto ret = sc->add_component<T>(entity);
     F(ret);
-    return ret;
+    return *ret;
 }
 
 template<typename T>
-inline T* get_component(engine_scene_t scene, engine_game_object_t game_object)
+inline T get_component(engine_scene_t scene, engine_game_object_t game_object)
 {
     auto sc = scene_cast(scene);
     auto entity = entity_cast(game_object);
-    return sc->get_component<T>(entity);
+    return *sc->get_component<T>(entity);
 }
 
 template<typename T>
@@ -325,15 +325,15 @@ void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const
 
 engine_name_component_t engineSceneAddNameComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *add_component<engine_name_component_t>(scene, game_object);
+    return add_component<engine_name_component_t>(scene, game_object);
 }
 
 engine_name_component_t engineSceneGetNameComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *get_component<engine_name_component_t>(scene, game_object);
+    return get_component<engine_name_component_t>(scene, game_object);
 }
 
-ENGINE_API void engineSceneUpdateNameComponent(engine_scene_t scene, engine_game_object_t game_object, engine_name_component_t* comp)
+ENGINE_API void engineSceneUpdateNameComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_name_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }
@@ -351,15 +351,15 @@ bool engineSceneHasNameComponent(engine_scene_t scene, engine_game_object_t game
 
 engine_tranform_component_t engineSceneAddTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *add_component<engine_tranform_component_t, transform_component_init>(scene, game_object);
+    return add_component<engine_tranform_component_t, transform_component_init>(scene, game_object);
 }
 
 engine_tranform_component_t engineSceneGetTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *get_component<engine_tranform_component_t>(scene, game_object);
+    return get_component<engine_tranform_component_t>(scene, game_object);
 }
 
-void engineSceneUpdateTransformComponent(engine_scene_t scene, engine_game_object_t game_object, engine_tranform_component_t* comp)
+void engineSceneUpdateTransformComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_tranform_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }
@@ -376,15 +376,15 @@ bool engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t
 
 engine_rect_tranform_component_t engineSceneAddRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *add_component<engine_rect_tranform_component_t, rect_transform_component_init>(scene, game_object);
+    return add_component<engine_rect_tranform_component_t, rect_transform_component_init>(scene, game_object);
 }
 
 engine_rect_tranform_component_t engineSceneGetRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *get_component<engine_rect_tranform_component_t>(scene, game_object);
+    return get_component<engine_rect_tranform_component_t>(scene, game_object);
 }
 
-void engineSceneUpdateRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object, engine_rect_tranform_component_t* comp)
+void engineSceneUpdateRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_rect_tranform_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }
@@ -401,15 +401,15 @@ bool engineSceneHasRectTransformComponent(engine_scene_t scene, engine_game_obje
 
 engine_mesh_component_t engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *add_component<engine_mesh_component_t>(scene, game_object);
+    return add_component<engine_mesh_component_t>(scene, game_object);
 }
 
 engine_mesh_component_t engineSceneGetMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *get_component<engine_mesh_component_t>(scene, game_object);
+    return get_component<engine_mesh_component_t>(scene, game_object);
 }
 
-void engineSceneUpdateMeshComponent(engine_scene_t scene, engine_game_object_t game_object, engine_mesh_component_t* comp)
+void engineSceneUpdateMeshComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_mesh_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }
@@ -426,15 +426,15 @@ bool engineSceneHasMeshComponent(engine_scene_t scene, engine_game_object_t game
 
 engine_material_component_t engineSceneAddMaterialComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *add_component<engine_material_component_t, material_component_init>(scene, game_object);
+    return add_component<engine_material_component_t, material_component_init>(scene, game_object);
 }
 
 engine_material_component_t engineSceneGetMaterialComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *get_component<engine_material_component_t>(scene, game_object);
+    return get_component<engine_material_component_t>(scene, game_object);
 }
 
-void engineSceneUpdateMaterialComponent(engine_scene_t scene, engine_game_object_t game_object, engine_material_component_t* comp)
+void engineSceneUpdateMaterialComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_material_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }
@@ -451,15 +451,15 @@ bool engineSceneHasMaterialComponent(engine_scene_t scene, engine_game_object_t 
 
 engine_light_component_t engineSceneAddLightComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *add_component<engine_light_component_t>(scene, game_object);
+    return add_component<engine_light_component_t>(scene, game_object);
 }
 
 engine_light_component_t engineSceneGetLightComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *get_component<engine_light_component_t>(scene, game_object);
+    return get_component<engine_light_component_t>(scene, game_object);
 }
 
-void engineSceneUpdateLightComponent(engine_scene_t scene, engine_game_object_t game_object, engine_light_component_t* comp)
+void engineSceneUpdateLightComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_light_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }
@@ -476,15 +476,15 @@ bool engineSceneHasLightComponent(engine_scene_t scene, engine_game_object_t gam
 
 engine_camera_component_t engineSceneAddCameraComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *add_component<engine_camera_component_t, camera_component_init>(scene, game_object);
+    return add_component<engine_camera_component_t, camera_component_init>(scene, game_object);
 }
 
 engine_camera_component_t engineSceneGetCameraComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *get_component<engine_camera_component_t>(scene, game_object);
+    return get_component<engine_camera_component_t>(scene, game_object);
 }
 
-void engineSceneUpdateCameraComponent(engine_scene_t scene, engine_game_object_t game_object, engine_camera_component_t* comp)
+void engineSceneUpdateCameraComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_camera_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }
@@ -501,15 +501,15 @@ bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t ga
 
 engine_text_component_t engineSceneAddTextComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *add_component<engine_text_component_t>(scene, game_object);
+    return add_component<engine_text_component_t>(scene, game_object);
 }
 
 engine_text_component_t engineSceneGetTextComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *get_component<engine_text_component_t>(scene, game_object);
+    return get_component<engine_text_component_t>(scene, game_object);
 }
 
-void engineSceneUpdateTextComponent(engine_scene_t scene, engine_game_object_t game_object, engine_text_component_t* comp)
+void engineSceneUpdateTextComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_text_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }
@@ -526,15 +526,15 @@ bool engineSceneHasTextComponent(engine_scene_t scene, engine_game_object_t game
 
 engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *add_component<engine_rigid_body_component_t, rigid_body_component_init>(scene, game_object);
+    return add_component<engine_rigid_body_component_t, rigid_body_component_init>(scene, game_object);
 }
 
 engine_rigid_body_component_t engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *get_component<engine_rigid_body_component_t>(scene, game_object);
+    return get_component<engine_rigid_body_component_t>(scene, game_object);
 }
 
-void engineSceneUpdateRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object, engine_rigid_body_component_t* comp)
+void engineSceneUpdateRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_rigid_body_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }
@@ -551,12 +551,12 @@ bool engineSceneHasRigidBodyComponent(engine_scene_t scene, engine_game_object_t
 
 engine_collider_component_t engineSceneAddColliderComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *add_component<engine_collider_component_t, collider_component_init>(scene, game_object);
+    return add_component<engine_collider_component_t, collider_component_init>(scene, game_object);
 }
 
 engine_collider_component_t engineSceneGetColliderComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *get_component<engine_collider_component_t>(scene, game_object);
+    return get_component<engine_collider_component_t>(scene, game_object);
 }
 
 void engineSceneUpdateColliderComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_collider_component_t* comp)
@@ -576,15 +576,15 @@ bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t 
 
 engine_image_component_t engineSceneAddImageComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *add_component<engine_image_component_t>(scene, game_object);
+    return add_component<engine_image_component_t>(scene, game_object);
 }
 
 engine_image_component_t engineSceneGetImageComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return *get_component<engine_image_component_t>(scene, game_object);
+    return get_component<engine_image_component_t>(scene, game_object);
 }
 
-void engineSceneUpdateImageComponent(engine_scene_t scene, engine_game_object_t game_object, engine_image_component_t* comp)
+void engineSceneUpdateImageComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_image_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }
