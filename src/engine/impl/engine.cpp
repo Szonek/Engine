@@ -113,6 +113,14 @@ inline T* get_component(engine_scene_t scene, engine_game_object_t game_object)
 }
 
 template<typename T>
+inline void update_component(engine_scene_t scene, engine_game_object_t game_object, const T* comp)
+{
+    auto sc = scene_cast(scene);
+    auto entity = entity_cast(game_object);
+    sc->update_component<T>(entity, *comp);
+}
+
+template<typename T>
 inline void remove_component(engine_scene_t scene, engine_game_object_t game_object)
 {
     auto sc = scene_cast(scene);
@@ -336,14 +344,19 @@ bool engineSceneHasNameComponent(engine_scene_t scene, engine_game_object_t game
 }
 
 
-engine_tranform_component_t* engineSceneAddTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_tranform_component_t engineSceneAddTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_tranform_component_t, transform_component_init>(scene, game_object);
+    return *add_component<engine_tranform_component_t, transform_component_init>(scene, game_object);
 }
 
-engine_tranform_component_t* engineSceneGetTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_tranform_component_t engineSceneGetTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return get_component<engine_tranform_component_t>(scene, game_object);
+    return *get_component<engine_tranform_component_t>(scene, game_object);
+}
+
+void engineSceneUpdateTransformComponent(engine_scene_t scene, engine_game_object_t game_object, engine_tranform_component_t* comp)
+{
+    update_component(scene, game_object, comp);
 }
 
 void engineSceneRemoveTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
@@ -488,7 +501,7 @@ engine_rigid_body_component_t engineSceneGetRigidBodyComponent(engine_scene_t sc
 
 void engineSceneUpdateRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object, engine_rigid_body_component_t* comp)
 {
-
+    update_component(scene, game_object, comp);
 }
 
 void engineSceneRemoveRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)

@@ -267,10 +267,11 @@ ENGINE_API void                engineSceneRemoveNameComponent(engine_scene_t sce
 ENGINE_API bool                engineSceneHasNameComponent(engine_scene_t scene, engine_game_object_t game_object);
 
 
-ENGINE_API engine_tranform_component_t* engineSceneAddTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_tranform_component_t* engineSceneGetTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void                  engineSceneRemoveTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool                  engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_tranform_component_t engineSceneAddTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_tranform_component_t engineSceneGetTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateTransformComponent(engine_scene_t scene, engine_game_object_t game_object, engine_tranform_component_t* comp);
+ENGINE_API void engineSceneRemoveTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
 
 ENGINE_API engine_rect_tranform_component_t* engineSceneAddRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_rect_tranform_component_t* engineSceneGetRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
@@ -307,8 +308,8 @@ ENGINE_API engine_image_component_t* engineSceneGetImageComponent(engine_scene_t
 ENGINE_API void                engineSceneRemoveImageComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool                engineSceneHasImageComponent(engine_scene_t scene, engine_game_object_t game_object);
 
-ENGINE_API const engine_rigid_body_component_t* engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API const engine_rigid_body_component_t* engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_rigid_body_component_t engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void engineSceneUpdateRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object, engine_rigid_body_component_t* comp);
 ENGINE_API void engineSceneRemoveRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);

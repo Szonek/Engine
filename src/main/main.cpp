@@ -109,10 +109,10 @@ public:
 					sc_[2] = std::clamp(sc_[2] + d.y * dt * 0.0001f, -1.5f, 1.5f);
 
 					const auto new_position = get_cartesian_coordinates(sc_);
-					tc->position[0] = new_position[0] + cc->target[0];
-					tc->position[1] = new_position[1] + cc->target[1];
-					tc->position[2] = new_position[2] + cc->target[2];
-
+					tc.position[0] = new_position[0] + cc->target[0];
+					tc.position[1] = new_position[1] + cc->target[1];
+					tc.position[2] = new_position[2] + cc->target[2];
+                    engineSceneUpdateTransformComponent(scene, entt, &tc);
 				}
 
 
@@ -120,7 +120,7 @@ public:
 
 			if (prev_mouse_coords_.x == -1)
 			{
-				sc_ = get_spherical_coordinates(tc->position);
+				sc_ = get_spherical_coordinates(tc.position);
 			}
 			prev_mouse_coords_ = engineApplicationGetMouseCoords(app);
 		}
@@ -638,12 +638,14 @@ public:
         assert(mesh_comp->geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for ball script!");
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
-        tc->scale[0] = 0.1f;
-        tc->scale[1] = 0.1f;
-        tc->scale[2] = 0.1f;
+        tc.scale[0] = 0.1f;
+        tc.scale[1] = 0.1f;
+        tc.scale[2] = 0.1f;
+        engineSceneUpdateTransformComponent(scene_, go_, &tc);
 
         auto rb = engineSceneAddRigidBodyComponent(scene, go_);
-        rb->mass = 1.0f;
+        rb.mass = 1.0f;
+        engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
         auto bc = engineSceneAddColliderComponent(scene, go_);
         bc->type = ENGINE_COLLIDER_TYPE_SPHERE;
         bc->friction_static = 0.0f;
@@ -662,14 +664,16 @@ public:
     void reset_state()
     {
         auto tc = engineSceneGetTransformComponent(scene_, go_);
-        tc->position[0] = 0.0f;
-        tc->position[1] = 0.0f;
-        tc->position[2] = 0.0f;
+        tc.position[0] = 0.0f;
+        tc.position[1] = 0.0f;
+        tc.position[2] = 0.0f;
+        engineSceneUpdateTransformComponent(scene_, go_, &tc);
 
         auto rb = engineSceneGetRigidBodyComponent(scene_, go_);
-        rb->linear_velocity[0] = 6.5f;
-        rb->linear_velocity[1] = 0.0f;
-        rb->linear_velocity[2] = 0.0f;
+        rb.linear_velocity[0] = 6.5f;
+        rb.linear_velocity[1] = 0.0f;
+        rb.linear_velocity[2] = 0.0f;
+        engineSceneUpdateRigidBodyComponent(scene_, go_, &rb);
     }
 
     void update(float dt) override
@@ -732,14 +736,15 @@ public:
         assert(mesh_comp->geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for player paddle script!");
         
         auto tc = engineSceneAddTransformComponent(scene, go_);
-        tc->position[0] = init_pos_x;
-        tc->position[1] = 0.0f;
-        tc->position[2] = 0.0f;
+        tc.position[0] = init_pos_x;
+        tc.position[1] = 0.0f;
+        tc.position[2] = 0.0f;
         
-        tc->scale[0] = 0.3f;
-        tc->scale[1] = 1.1f;
-        tc->scale[2] = 1.0f;
-        
+        tc.scale[0] = 0.3f;
+        tc.scale[1] = 1.1f;
+        tc.scale[2] = 1.0f;
+        engineSceneUpdateTransformComponent(scene_, go_, &tc);
+
         auto bc = engineSceneAddColliderComponent(scene, go_);
         bc->type = ENGINE_COLLIDER_TYPE_BOX;
         bc->bounciness = 1.0f;
@@ -759,10 +764,10 @@ public:
         if (info.other == ball_script_->get_game_object())
         {            
             const auto paddle_tc = engineSceneGetTransformComponent(scene_, go_);
-            const auto paddle_current_y = paddle_tc->position[1];
+            const auto paddle_current_y = paddle_tc.position[1];
 
             auto ball_tc = engineSceneGetTransformComponent(scene_, info.other);
-            const auto ball_current_y = ball_tc->position[1];
+            const auto ball_current_y = ball_tc.position[1];
 
             const auto interct_pos = -1.0f * ((paddle_current_y - ball_current_y)) / 0.55f;
             //std::cout << interct_pos << std::endl;
@@ -853,7 +858,7 @@ protected:
                     if(f.x > 0.8f && f.x <= 1.0f)
                     {
                         const auto y_delta = -1.0f * ((f.y - 0.5f) / 0.5f);
-                        tc->position[1] = y_delta * 2.0f;
+                        tc.position[1] = y_delta * 2.0f;
                     }
                 }
             }
@@ -863,13 +868,14 @@ protected:
             // KEYBOARD
             if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_UP))
             {
-                tc->position[1] += 0.01f * dt;
+                tc.position[1] += 0.01f * dt;
             }
             if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_DOWN))
             {
-                tc->position[1] -= 0.01f * dt;
+                tc.position[1] -= 0.01f * dt;
             }
         }
+        engineSceneUpdateTransformComponent(scene_, go_, &tc);
     }
 };
 
@@ -929,7 +935,7 @@ protected:
                     if(f.x < 0.2f && f.x >= 0.0f)
                     {
                         const auto y_delta = -1.0f * ((f.y - 0.5f) / 0.5f);
-                        tc->position[1] = y_delta * 2.0f;
+                        tc.position[1] = y_delta * 2.0f;
                     }
                 }
             }
@@ -939,13 +945,14 @@ protected:
             // KEYBOARD
             if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_W))
             {
-                tc->position[1] += 0.01f * dt;
+                tc.position[1] += 0.01f * dt;
             }
             if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_S))
             {
-                tc->position[1] -= 0.01f * dt;
+                tc.position[1] -= 0.01f * dt;
             }
         }
+        engineSceneUpdateTransformComponent(scene_, go_, &tc);
     }
 };
 
@@ -965,13 +972,14 @@ public:
         mesh_comp->disable = K_IS_GOAL_NET_DISABLE_RENDER;
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
-        tc->position[0] = init_pos_x;
-        tc->position[1] = 0.0f;
-        tc->position[2] = 0.0f;
+        tc.position[0] = init_pos_x;
+        tc.position[1] = 0.0f;
+        tc.position[2] = 0.0f;
 
-        tc->scale[0] = 1.0f;
-        tc->scale[1] = 6.0f;
-        tc->scale[2] = 1.0f;
+        tc.scale[0] = 1.0f;
+        tc.scale[1] = 6.0f;
+        tc.scale[2] = 1.0f;
+        engineSceneUpdateTransformComponent(scene_, go_, &tc);
 
         auto bc = engineSceneAddColliderComponent(scene, go_);
         bc->type = ENGINE_COLLIDER_TYPE_BOX;
@@ -1106,7 +1114,6 @@ int main(int argc, char** argv)
 	auto camera_go = engineSceneCreateGameObject(scene);
 	{
 		auto camera_comp = engineSceneAddCameraComponent(scene, camera_go);
-		auto camera_transform_comp = engineSceneAddTransformComponent(scene, camera_go);
 		camera_comp->enabled = true;
 		camera_comp->clip_plane_near = 0.1f;
 		camera_comp->clip_plane_far = 100.0f;
@@ -1117,7 +1124,10 @@ int main(int argc, char** argv)
 		//camera_transform_comp->position[0] = 0.0f;
 		//camera_transform_comp->position[1] = 10.0f;
 		//camera_transform_comp->position[1] = 3.0f;
-		camera_transform_comp->position[2] = 3.0f;
+
+        auto camera_transform_comp = engineSceneAddTransformComponent(scene, camera_go);
+        camera_transform_comp.position[2] = 3.0f;
+        engineSceneUpdateTransformComponent(scene, camera_go, &camera_transform_comp);
 	}
     
     engine_font_t font_handle{};
@@ -1182,7 +1192,7 @@ int main(int argc, char** argv)
 		}
 
         const float dt = frame_begin.delta_time;
-        //const float dt = 16.0f;
+        //const float dt = 50.0f;
         fps_counter.frames_count += 1;
         fps_counter.frames_total_time += dt;
 
@@ -1239,7 +1249,7 @@ int main(int argc, char** argv)
             script->update(dt);
         }
 
-		engine_error_code = engineApplicationFrameSceneUpdateGraphics(app, scene, frame_begin.delta_time);
+		engine_error_code = engineApplicationFrameSceneUpdateGraphics(app, scene, dt);
 		if (engine_error_code != ENGINE_RESULT_CODE_OK)
 		{
 			log(fmt::format("Scene update failed. Exiting.\n"));

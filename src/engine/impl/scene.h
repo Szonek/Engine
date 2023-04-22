@@ -42,6 +42,13 @@ public:
     }
 
     template<typename T>
+    void update_component(entt::entity entity, const T& t)
+    {
+        //entity_registry_.patch<T>(entity, [&t](auto& p) { [p = t; ] });
+        entity_registry_.replace<T>(entity, t);
+    }
+
+    template<typename T>
     void remove_component(entt::entity entity)
     {
         //ToDo: use .remove(entity) instead of erase?
@@ -59,6 +66,11 @@ public:
 
 private:
     entt::registry entity_registry_;
+    entt::observer transform_model_matrix_update_observer;
+    entt::observer collider_create_observer;
+    entt::observer transform_update_collider_observer;
+    entt::observer rigid_body_create_observer;
+    entt::observer rigid_body_update_observer;
     Shader shader_simple_;
 };
 }  // namespace engine
