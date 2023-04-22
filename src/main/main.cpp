@@ -109,9 +109,9 @@ public:
 					sc_[2] = std::clamp(sc_[2] + d.y * dt * 0.0001f, -1.5f, 1.5f);
 
 					const auto new_position = get_cartesian_coordinates(sc_);
-					tc.position[0] = new_position[0] + cc->target[0];
-					tc.position[1] = new_position[1] + cc->target[1];
-					tc.position[2] = new_position[2] + cc->target[2];
+					tc.position[0] = new_position[0] + cc.target[0];
+					tc.position[1] = new_position[1] + cc.target[1];
+					tc.position[2] = new_position[2] + cc.target[2];
                     engineSceneUpdateTransformComponent(scene, entt, &tc);
 				}
 
@@ -634,8 +634,9 @@ public:
         : IScript(app, scene)
     {
         auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-        mesh_comp->geometry = engineApplicationGetGeometryByName(app_, "cube");
-        assert(mesh_comp->geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for ball script!");
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app_, "cube");
+        assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for ball script!");
+        engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
         tc.scale[0] = 0.1f;
@@ -647,16 +648,19 @@ public:
         rb.mass = 1.0f;
         engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
         auto bc = engineSceneAddColliderComponent(scene, go_);
-        bc->type = ENGINE_COLLIDER_TYPE_SPHERE;
-        bc->friction_static = 0.0f;
-        bc->bounciness = 1.0f;
+        bc.type = ENGINE_COLLIDER_TYPE_SPHERE;
+        bc.friction_static = 0.0f;
+        bc.bounciness = 1.0f;
+        engineSceneUpdateColliderComponent(scene, go_, &bc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-        set_c_array(material_comp->diffuse_color, std::array<float, 4>{ 0.4f, 0.3f, 1.0f, 0.2f });
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.4f, 0.3f, 1.0f, 0.2f });
+        engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
 
         auto nc = engineSceneAddNameComponent(scene, go_);
         const std::string name = fmt::format("ball");
-        std::strcpy(nc->name, name.c_str());
+        std::strcpy(nc.name, name.c_str());
+        engineSceneUpdateNameComponent(scene, go_, &nc);
 
         reset_state();
     }
@@ -732,9 +736,10 @@ public:
         : IScript(app, scene)
     {
         auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-        mesh_comp->geometry = engineApplicationGetGeometryByName(app_, "cube");
-        assert(mesh_comp->geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for player paddle script!");
-        
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app_, "cube");
+        assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for player paddle script!");
+        engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
+
         auto tc = engineSceneAddTransformComponent(scene, go_);
         tc.position[0] = init_pos_x;
         tc.position[1] = 0.0f;
@@ -746,15 +751,18 @@ public:
         engineSceneUpdateTransformComponent(scene_, go_, &tc);
 
         auto bc = engineSceneAddColliderComponent(scene, go_);
-        bc->type = ENGINE_COLLIDER_TYPE_BOX;
-        bc->bounciness = 1.0f;
-        bc->friction_static = 0.0f;
+        bc.type = ENGINE_COLLIDER_TYPE_BOX;
+        bc.bounciness = 1.0f;
+        bc.friction_static = 0.0f;
+        engineSceneUpdateColliderComponent(scene, go_, &bc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-        set_c_array(material_comp->diffuse_color, std::array<float, 4>{ 0.4f, 0.3f, 1.0f, 0.2f });
-        
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.4f, 0.3f, 1.0f, 0.2f });
+        engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+
         auto nc = engineSceneAddNameComponent(scene, go_);
-        std::strcpy(nc->name, name);
+        std::strcpy(nc.name, name);
+        engineSceneUpdateNameComponent(scene, go_, &nc);
     }
 
     void on_collision(const collision_t& info) override
@@ -810,31 +818,35 @@ public:
         {
             const auto text_go = engineSceneCreateGameObject(scene);
             auto text_component = engineSceneAddTextComponent(scene, text_go);
-            text_component->font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
-            assert(text_component->font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
-            text_component->text = "Player 2";
-            set_c_array(text_component->color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
+            text_component.font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
+            assert(text_component.font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
+            text_component.text = "Player 2";
+            set_c_array(text_component.color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
+            engineSceneUpdateTextComponent(scene, text_go, &text_component);
 
             auto tc = engineSceneAddRectTransformComponent(scene, text_go);
-            tc->position[0] = 0.75f;
-            tc->position[1] = 0.15f;
+            tc.position[0] = 0.75f;
+            tc.position[1] = 0.15f;
 
-            tc->scale[0] = 0.5f;
-            tc->scale[1] = 0.5f;
+            tc.scale[0] = 0.5f;
+            tc.scale[1] = 0.5f;
+            engineSceneUpdateRectTransformComponent(scene, text_go, &tc);
         }
 
         // touchable area component
         {
             const auto touch_area_go = engineSceneCreateGameObject(scene);
             auto tc = engineSceneAddRectTransformComponent(scene, touch_area_go);
-            tc->position[0] = 0.8f;
-            tc->position[1] = 0.0f;
+            tc.position[0] = 0.8f;
+            tc.position[1] = 0.0f;
 
-            tc->scale[0] = 1.0f;
-            tc->scale[1] = 1.0f;
+            tc.scale[0] = 1.0f;
+            tc.scale[1] = 1.0f;
+            engineSceneUpdateRectTransformComponent(scene, touch_area_go, &tc);
 
-            const auto ic = engineSceneAddImageComponent(scene, touch_area_go);
-            set_c_array(ic->color, std::array<float, 4>{0.0f, 0.3f, 0.8f, 0.0f});
+            auto ic = engineSceneAddImageComponent(scene, touch_area_go);
+            set_c_array(ic.color, std::array<float, 4>{0.0f, 0.3f, 0.8f, 0.0f});
+            engineSceneUpdateImageComponent(scene, touch_area_go, &ic);
         }
     }
 
@@ -889,31 +901,35 @@ public:
         {
             const auto text_go = engineSceneCreateGameObject(scene);
             auto text_component = engineSceneAddTextComponent(scene, text_go);
-            text_component->font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
-            assert(text_component->font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
-            text_component->text = "Player 1";
-            set_c_array(text_component->color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
+            text_component.font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
+            assert(text_component.font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
+            text_component.text = "Player 1";
+            set_c_array(text_component.color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
+            engineSceneUpdateTextComponent(scene, text_go, &text_component);
 
             auto tc = engineSceneAddRectTransformComponent(scene, text_go);
-            tc->position[0] = 0.25f;
-            tc->position[1] = 0.15f;
+            tc.position[0] = 0.25f;
+            tc.position[1] = 0.15f;
 
-            tc->scale[0] = 0.5f;
-            tc->scale[1] = 0.5f;
+            tc.scale[0] = 0.5f;
+            tc.scale[1] = 0.5f;
+            engineSceneUpdateRectTransformComponent(scene, text_go, &tc);
         }
 
         // touchable area component
         {
             const auto touch_area_go = engineSceneCreateGameObject(scene);
             auto tc = engineSceneAddRectTransformComponent(scene, touch_area_go);
-            tc->position[0] = 0.0f;
-            tc->position[1] = 0.0f;
+            tc.position[0] = 0.0f;
+            tc.position[1] = 0.0f;
 
-            tc->scale[0] = 0.2f;
-            tc->scale[1] = 1.0f;
+            tc.scale[0] = 0.2f;
+            tc.scale[1] = 1.0f;
+            engineSceneUpdateRectTransformComponent(scene, touch_area_go, &tc);
 
-            const auto ic = engineSceneAddImageComponent(scene, touch_area_go);
-            set_c_array(ic->color, std::array<float, 4>{0.0f, 0.3f, 0.8f, 0.0f});
+            auto ic = engineSceneAddImageComponent(scene, touch_area_go);
+            set_c_array(ic.color, std::array<float, 4>{0.0f, 0.3f, 0.8f, 0.0f});
+            engineSceneUpdateImageComponent(scene, touch_area_go, &ic);
         }
     }
 
@@ -967,9 +983,10 @@ public:
         : IScript(app, scene)
     {
         auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-        mesh_comp->geometry = engineApplicationGetGeometryByName(app_, "cube");
-        assert(mesh_comp->geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for player goal net script!");
-        mesh_comp->disable = K_IS_GOAL_NET_DISABLE_RENDER;
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app_, "cube");
+        assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for player goal net script!");
+        mesh_comp.disable = K_IS_GOAL_NET_DISABLE_RENDER;
+        engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
         tc.position[0] = init_pos_x;
@@ -982,14 +999,17 @@ public:
         engineSceneUpdateTransformComponent(scene_, go_, &tc);
 
         auto bc = engineSceneAddColliderComponent(scene, go_);
-        bc->type = ENGINE_COLLIDER_TYPE_BOX;
-        bc->is_trigger = true;
+        bc.type = ENGINE_COLLIDER_TYPE_BOX;
+        bc.is_trigger = true;
+        engineSceneUpdateColliderComponent(scene, go_, &bc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-        set_c_array(material_comp->diffuse_color, std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 0.2f });
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 0.2f });
+        engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
 
         auto nc = engineSceneAddNameComponent(scene, go_);
-        std::strcpy(nc->name, name);
+        std::strcpy(nc.name, name);
+        engineSceneUpdateNameComponent(scene, go_, &nc);
     }
 
     void on_collision(const collision_t& info) override
@@ -1114,16 +1134,17 @@ int main(int argc, char** argv)
 	auto camera_go = engineSceneCreateGameObject(scene);
 	{
 		auto camera_comp = engineSceneAddCameraComponent(scene, camera_go);
-		camera_comp->enabled = true;
-		camera_comp->clip_plane_near = 0.1f;
-		camera_comp->clip_plane_far = 100.0f;
+		camera_comp.enabled = true;
+		camera_comp.clip_plane_near = 0.1f;
+		camera_comp.clip_plane_far = 100.0f;
         //camera_comp->type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
         //camera_comp->type_union.perspective_fov = 45.0f;
-        camera_comp->type = ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC;
-        camera_comp->type_union.orthographics_scale = 4.0f;
+        camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC;
+        camera_comp.type_union.orthographics_scale = 4.0f;
 		//camera_transform_comp->position[0] = 0.0f;
 		//camera_transform_comp->position[1] = 10.0f;
 		//camera_transform_comp->position[1] = 3.0f;
+        engineSceneUpdateCameraComponent(scene, camera_go, &camera_comp);
 
         auto camera_transform_comp = engineSceneAddTransformComponent(scene, camera_go);
         camera_transform_comp.position[2] = 3.0f;
