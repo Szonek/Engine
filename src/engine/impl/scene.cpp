@@ -113,6 +113,8 @@ public:
         {
             ret.rigid_body->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
         }
+        ret.rigid_body->setLinearFactor(btVector3(1.0f, 1.0f, 0.0f));
+        ret.rigid_body->setAngularFactor(btVector3(1.0f, 0.0f, 0.0f));
         ret.rigid_body->setUserIndex(body_index);
         ret.rigid_body->setRestitution(collider.bounciness);
         ret.rigid_body->setFriction(collider.friction_static);
@@ -126,7 +128,7 @@ public:
 
     void update(float dt)
     {
-        dynamics_world_->stepSimulation(dt);
+        dynamics_world_->stepSimulation(dt, 10);
     }
 
     const std::vector<engine_collision_info_t>& get_collisions()
@@ -280,11 +282,12 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     }
 
     physics_world_.update(dt / 1000.0f);
-    
+    //physics_world_.update(10.0f / 1000.0f);
+
     // sync physcis to graphics world
     // ToDo: this could be seperate function or called at the beggning of the graphics update function?
-    auto transform_physcis_view = entity_registry_.view<engine_tranform_component_t, const physics_world_t::physcic_internal_component_t, const engine_rigid_body_component_t>();
-    transform_physcis_view.each([this](auto entity, engine_tranform_component_t transform, const physics_world_t::physcic_internal_component_t physcics, const engine_rigid_body_component_t rigidbody)
+    auto transform_physcis_view = entity_registry_.view<engine_tranform_component_t, const physics_world_t::physcic_internal_component_t, engine_rigid_body_component_t>();
+    transform_physcis_view.each([this](auto entity, engine_tranform_component_t transform, const physics_world_t::physcic_internal_component_t physcics, engine_rigid_body_component_t rigidbody)
         {
             assert(physcics.rigid_body);
             btTransform transform_phsycics{};
@@ -298,13 +301,24 @@ engine_result_code_t engine::Scene::physics_update(float dt)
             const auto euler_rotation = transform_phsycics.getRotation();
             euler_rotation.getEulerZYX(transform.rotation[2], transform.rotation[1], transform.rotation[0]);
             update_component(entity, transform);
+
+            const auto lin_vel = physcics.rigid_body->getLinearVelocity();
+            rigidbody.linear_velocity[0] = lin_vel.getX();
+            rigidbody.linear_velocity[1] = lin_vel.getY();
+            rigidbody.linear_velocity[2] = lin_vel.getZ();
+
+            const auto ang_vel = physcics.rigid_body->getAngularVelocity();
+            rigidbody.angular_velocity[0] = ang_vel.getX();
+            rigidbody.angular_velocity[1] = ang_vel.getY();
+            rigidbody.angular_velocity[2] = ang_vel.getZ();
+            update_component(entity, rigidbody);
         }
     );
 
     collider_create_observer.clear();
     rigid_body_create_observer.clear();
-    rigid_body_update_observer.clear();
     transform_update_collider_observer.clear();
+    rigid_body_update_observer.clear();
 
     return ENGINE_RESULT_CODE_OK;
 }

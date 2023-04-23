@@ -639,16 +639,18 @@ public:
         engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
-        tc.scale[0] = 0.1f;
-        tc.scale[1] = 0.1f;
-        tc.scale[2] = 0.1f;
+        tc.scale[0] = 1.0f;
+        tc.scale[1] = 1.0f;
+        tc.scale[2] = 1.0f;
         engineSceneUpdateTransformComponent(scene_, go_, &tc);
 
         auto rb = engineSceneAddRigidBodyComponent(scene, go_);
         rb.mass = 1.0f;
         engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
         auto bc = engineSceneAddColliderComponent(scene, go_);
-        bc.type = ENGINE_COLLIDER_TYPE_SPHERE;
+        //bc.type = ENGINE_COLLIDER_TYPE_SPHERE;
+        //bc.collider.sphere.radius = 1.0f;
+        bc.type = ENGINE_COLLIDER_TYPE_BOX;
         bc.friction_static = 0.0f;
         bc.bounciness = 1.0f;
         engineSceneUpdateColliderComponent(scene, go_, &bc);
@@ -674,7 +676,7 @@ public:
         engineSceneUpdateTransformComponent(scene_, go_, &tc);
 
         auto rb = engineSceneGetRigidBodyComponent(scene_, go_);
-        rb.linear_velocity[0] = 6.5f;
+        rb.linear_velocity[0] = 2.0f * 10.0f;
         rb.linear_velocity[1] = 0.0f;
         rb.linear_velocity[2] = 0.0f;
         engineSceneUpdateRigidBodyComponent(scene_, go_, &rb);
@@ -682,6 +684,11 @@ public:
 
     void update(float dt) override
     {
+        auto rb = engineSceneGetRigidBodyComponent(scene_, go_);
+        //const auto str = fmt::format("velocity vector: [{}, {}, {}]\n", rb.linear_velocity[0], rb.linear_velocity[1], rb.linear_velocity[2]);
+        auto tc = engineSceneGetTransformComponent(scene_, go_);
+        const auto str = fmt::format("position: [{}, {}, {}]\n", tc.position[0], tc.position[1], tc.position[2]);
+        engineLog(str.c_str());
         handle_input(dt);
     }
 
@@ -745,9 +752,9 @@ public:
         tc.position[1] = 0.0f;
         tc.position[2] = 0.0f;
         
-        tc.scale[0] = 0.3f;
-        tc.scale[1] = 1.1f;
-        tc.scale[2] = 1.0f;
+        tc.scale[0] = 1.0f;
+        tc.scale[1] = 5.0f;
+        tc.scale[2] = 2.0f;
         engineSceneUpdateTransformComponent(scene_, go_, &tc);
 
         auto bc = engineSceneAddColliderComponent(scene, go_);
@@ -777,7 +784,7 @@ public:
             auto ball_tc = engineSceneGetTransformComponent(scene_, info.other);
             const auto ball_current_y = ball_tc.position[1];
 
-            const auto interct_pos = -1.0f * ((paddle_current_y - ball_current_y)) / 0.55f;
+            const auto interct_pos = -1.0f * ((paddle_current_y - ball_current_y)) / 2.5f;
             //std::cout << interct_pos << std::endl;
             engineLog(fmt::format("{} \n", interct_pos).c_str());
             auto rb = engineSceneGetRigidBodyComponent(scene_, info.other);
@@ -812,7 +819,7 @@ class RightPlayerPaddleScript : public PlayerPaddleScript
 {
 public:
     RightPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
-        : PlayerPaddleScript(app, scene, 3.0f, "right_player")
+        : PlayerPaddleScript(app, scene, 12.0f, "right_player")
     {
         // text component
         {
@@ -895,7 +902,7 @@ class LeftPlayerPaddleScript : public PlayerPaddleScript
 {
 public:
     LeftPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
-        : PlayerPaddleScript(app, scene, -3.0f, "left_player")
+        : PlayerPaddleScript(app, scene, -12.0f, "left_player")
     {
         // text component
         {
@@ -994,7 +1001,7 @@ public:
         tc.position[2] = 0.0f;
 
         tc.scale[0] = 1.0f;
-        tc.scale[1] = 6.0f;
+        tc.scale[1] = 15.0f;
         tc.scale[2] = 1.0f;
         engineSceneUpdateTransformComponent(scene_, go_, &tc);
 
@@ -1031,7 +1038,7 @@ class LeftGoalNetScript : public GoalNetScript
 {
 public:
     LeftGoalNetScript(engine_application_t& app, engine_scene_t& scene)
-        : GoalNetScript(app, scene, -3.75f, "left_goal_net")
+        : GoalNetScript(app, scene, -12.75f, "left_goal_net")
     {
     }  
 };
@@ -1040,7 +1047,7 @@ class RightGoalNetScript : public GoalNetScript
 {
 public:
     RightGoalNetScript(engine_application_t& app, engine_scene_t& scene)
-        : GoalNetScript(app, scene, 3.75f, "left_goal_net")
+        : GoalNetScript(app, scene, 12.75f, "right_goal_net")
     {
     }
 };
@@ -1140,14 +1147,14 @@ int main(int argc, char** argv)
         //camera_comp->type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
         //camera_comp->type_union.perspective_fov = 45.0f;
         camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC;
-        camera_comp.type_union.orthographics_scale = 4.0f;
+        camera_comp.type_union.orthographics_scale = 16.0f;
 		//camera_transform_comp->position[0] = 0.0f;
 		//camera_transform_comp->position[1] = 10.0f;
 		//camera_transform_comp->position[1] = 3.0f;
         engineSceneUpdateCameraComponent(scene, camera_go, &camera_comp);
 
         auto camera_transform_comp = engineSceneAddTransformComponent(scene, camera_go);
-        camera_transform_comp.position[2] = 3.0f;
+        camera_transform_comp.position[2] = 15.0f;
         engineSceneUpdateTransformComponent(scene, camera_go, &camera_transform_comp);
 	}
     
