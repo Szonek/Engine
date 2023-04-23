@@ -22,6 +22,7 @@ constexpr const bool K_IS_ANDROID = true;
 constexpr const bool K_IS_ANDROID = false;
 #endif
 
+constexpr const float K_WALL_Y_OFFSET = 8.0f;
 constexpr const bool K_IS_GOAL_NET_DISABLE_RENDER = true;
 
 template<typename T>
@@ -675,19 +676,32 @@ public:
         tc.position[2] = 0.0f;
         engineSceneUpdateTransformComponent(scene_, go_, &tc);
 
+        update_linear_velocity(1.0f, 0.0f);
+    }
+
+    void update_linear_velocity(float dir_x, float dir_y)
+    {
         auto rb = engineSceneGetRigidBodyComponent(scene_, go_);
-        rb.linear_velocity[0] = 2.0f * 10.0f;
-        rb.linear_velocity[1] = 0.0f;
-        rb.linear_velocity[2] = 0.0f;
+        rb.linear_velocity[0] = dir_x * ball_speed_x_;
+        rb.linear_velocity[1] = dir_y * ball_speed_y_;
         engineSceneUpdateRigidBodyComponent(scene_, go_, &rb);
+    }
+
+    std::array<float, 2> get_direction_vector() const
+    {
+        auto rb = engineSceneGetRigidBodyComponent(scene_, go_);
+        return {
+            rb.linear_velocity[0] / ball_speed_x_,
+            rb.linear_velocity[1] / ball_speed_y_,
+        };
     }
 
     void update(float dt) override
     {
         auto rb = engineSceneGetRigidBodyComponent(scene_, go_);
-        //const auto str = fmt::format("velocity vector: [{}, {}, {}]\n", rb.linear_velocity[0], rb.linear_velocity[1], rb.linear_velocity[2]);
+        const auto str = fmt::format("velocity vector: [{}, {}, {}]\n", rb.linear_velocity[0], rb.linear_velocity[1], rb.linear_velocity[2]);
         auto tc = engineSceneGetTransformComponent(scene_, go_);
-        const auto str = fmt::format("position: [{}, {}, {}]\n", tc.position[0], tc.position[1], tc.position[2]);
+        //const auto str = fmt::format("position: [{}, {}, {}]\n", tc.position[0], tc.position[1], tc.position[2]);
         engineLog(str.c_str());
         handle_input(dt);
     }
@@ -729,8 +743,11 @@ private:
         {
             reset_state();
         }
-
     }
+
+private:
+    float ball_speed_x_ = 20.0f;
+    float ball_speed_y_ = 20.0f;
 };
 
 class PlayerPaddleScript : public IScript
@@ -787,9 +804,14 @@ public:
             const auto interct_pos = -1.0f * ((paddle_current_y - ball_current_y)) / 2.5f;
             //std::cout << interct_pos << std::endl;
             engineLog(fmt::format("{} \n", interct_pos).c_str());
-            auto rb = engineSceneGetRigidBodyComponent(scene_, info.other);
+            auto ball_dir = ball_script_->get_direction_vector();
+            ball_dir[1] = interct_pos;
+            const auto ball_dir_normalized = glm::normalize(glm::make_vec2(ball_dir.data()));
+            ball_script_->update_linear_velocity(ball_dir_normalized[0], ball_dir_normalized[1]);
+            //auto rb = engineSceneGetRigidBodyComponent(scene_, info.other);
             //rb->linear_velocity[0] = 0.0f;
-            //rb->linear_velocity[1] = interct_pos;
+            //rb.linear_velocity[1] = 10.0f * interct_pos;
+            //engineSceneUpdateRigidBodyComponent(scene_, info.other, &rb);
         }
     }
 
@@ -887,11 +909,11 @@ protected:
             // KEYBOARD
             if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_UP))
             {
-                tc.position[1] += 0.01f * dt;
+                tc.position[1] += 0.05f * dt;
             }
             if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_DOWN))
             {
-                tc.position[1] -= 0.01f * dt;
+                tc.position[1] -= 0.05f * dt;
             }
         }
         engineSceneUpdateTransformComponent(scene_, go_, &tc);
@@ -968,11 +990,11 @@ protected:
             // KEYBOARD
             if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_W))
             {
-                tc.position[1] += 0.01f * dt;
+                tc.position[1] += 0.05f * dt;
             }
             if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_S))
             {
-                tc.position[1] -= 0.01f * dt;
+                tc.position[1] -= 0.05f * dt;
             }
         }
         engineSceneUpdateTransformComponent(scene_, go_, &tc);
@@ -1075,7 +1097,8 @@ public:
 
         auto bc = engineSceneAddColliderComponent(scene, go_);
         bc.type = ENGINE_COLLIDER_TYPE_BOX;
-        bc.is_trigger = true;
+        bc.bounciness = 1.0f;
+        bc.friction_static = 0.0f;
         engineSceneUpdateColliderComponent(scene, go_, &bc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
@@ -1087,8 +1110,6 @@ public:
         engineSceneUpdateNameComponent(scene, go_, &nc);
     }
 };
-
-constexpr const float K_WALL_Y_OFFSET = 8.0f;
 
 class WallTopScript : public WallScript
 {

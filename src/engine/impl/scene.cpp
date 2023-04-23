@@ -114,7 +114,7 @@ public:
             ret.rigid_body->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
         }
         ret.rigid_body->setLinearFactor(btVector3(1.0f, 1.0f, 0.0f));
-        ret.rigid_body->setAngularFactor(btVector3(1.0f, 0.0f, 0.0f));
+        ret.rigid_body->setAngularFactor(btVector3(0.0f, 0.0f, 0.0f));
         ret.rigid_body->setUserIndex(body_index);
         ret.rigid_body->setRestitution(collider.bounciness);
         ret.rigid_body->setFriction(collider.friction_static);
