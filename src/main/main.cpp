@@ -1052,6 +1052,64 @@ public:
     }
 };
 
+class WallScript : public IScript
+{
+public:
+    WallScript(engine_application_t& app, engine_scene_t& scene, float init_pos_y, const char* name)
+        : IScript(app, scene)
+    {
+        auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app_, "cube");
+        assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for player goal net script!");
+        engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
+
+        auto tc = engineSceneAddTransformComponent(scene, go_);
+        tc.position[0] = 0.0f;
+        tc.position[1] = init_pos_y;
+        tc.position[2] = 0.0f;
+
+        tc.scale[0] = 24.0f;
+        tc.scale[1] = 0.2f;
+        tc.scale[2] = 2.0f;
+        engineSceneUpdateTransformComponent(scene_, go_, &tc);
+
+        auto bc = engineSceneAddColliderComponent(scene, go_);
+        bc.type = ENGINE_COLLIDER_TYPE_BOX;
+        bc.is_trigger = true;
+        engineSceneUpdateColliderComponent(scene, go_, &bc);
+
+        auto material_comp = engineSceneAddMaterialComponent(scene, go_);
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 0.2f });
+        engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+
+        auto nc = engineSceneAddNameComponent(scene, go_);
+        std::strcpy(nc.name, name);
+        engineSceneUpdateNameComponent(scene, go_, &nc);
+    }
+};
+
+constexpr const float K_WALL_Y_OFFSET = 8.0f;
+
+class WallTopScript : public WallScript
+{
+public:
+    WallTopScript(engine_application_t& app, engine_scene_t& scene)
+        : WallScript(app, scene, K_WALL_Y_OFFSET, "top_wall")
+    {
+
+    }
+};
+
+class BottomTopScript : public WallScript
+{
+public:
+    BottomTopScript(engine_application_t& app, engine_scene_t& scene)
+        : WallScript(app, scene, -1.0f * K_WALL_Y_OFFSET, "bottom_wall")
+    {
+
+    }
+};
+
 int main(int argc, char** argv)
 {
 
@@ -1187,6 +1245,9 @@ int main(int argc, char** argv)
     right_goal_net_script.ball_script_ = &ball_script;
     right_goal_net_script.player_paddel_script_ = &left_player_script;
 
+    WallTopScript top_wall(app, scene);
+    BottomTopScript bottom_wall(app, scene);
+
     std::unordered_map<engine_game_object_t, IScript*> scene_manager;
     scene_manager.reserve(1024);
     scene_manager[ball_script.get_game_object()] = &ball_script;
@@ -1194,6 +1255,8 @@ int main(int argc, char** argv)
     scene_manager[left_player_script.get_game_object()] = &left_player_script;
     scene_manager[left_goal_net_script.get_game_object()] = &left_goal_net_script;
     scene_manager[right_goal_net_script.get_game_object()] = &right_goal_net_script;
+    scene_manager[top_wall.get_game_object()] = &top_wall;
+    scene_manager[bottom_wall.get_game_object()] = &bottom_wall;
 
     
 	while (true)
