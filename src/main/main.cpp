@@ -699,10 +699,10 @@ public:
     void update(float dt) override
     {
         auto rb = engineSceneGetRigidBodyComponent(scene_, go_);
-        const auto str = fmt::format("velocity vector: [{}, {}, {}]\n", rb.linear_velocity[0], rb.linear_velocity[1], rb.linear_velocity[2]);
+        //const auto str = fmt::format("velocity vector: [{}, {}, {}]\n", rb.linear_velocity[0], rb.linear_velocity[1], rb.linear_velocity[2]);
         auto tc = engineSceneGetTransformComponent(scene_, go_);
         //const auto str = fmt::format("position: [{}, {}, {}]\n", tc.position[0], tc.position[1], tc.position[2]);
-        engineLog(str.c_str());
+        //engineLog(str.c_str());
         handle_input(dt);
     }
 
@@ -756,8 +756,10 @@ public:
     BallScript* ball_script_ = nullptr;
 
 public:
-    PlayerPaddleScript(engine_application_t& app, engine_scene_t& scene, float init_pos_x, const char* name)
+    PlayerPaddleScript(engine_application_t& app, engine_scene_t& scene, float init_pos_x, float score_init_pos_x, const char* name)
         : IScript(app, scene)
+        , score_(0)
+        , score_str_(std::to_string(score_))
     {
         auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
         mesh_comp.geometry = engineApplicationGetGeometryByName(app_, "cube");
@@ -787,6 +789,25 @@ public:
         auto nc = engineSceneAddNameComponent(scene, go_);
         std::strcpy(nc.name, name);
         engineSceneUpdateNameComponent(scene, go_, &nc);
+
+        // text component for the SCORE
+        {
+            score_go_ = engineSceneCreateGameObject(scene);
+            auto text_component = engineSceneAddTextComponent(scene, score_go_);
+            text_component.font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
+            assert(text_component.font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
+            text_component.text = score_str_.c_str();
+            set_c_array(text_component.color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
+            engineSceneUpdateTextComponent(scene, score_go_, &text_component);
+
+            auto tc = engineSceneAddRectTransformComponent(scene, score_go_);
+            tc.position[0] = score_init_pos_x;
+            tc.position[1] = 0.85f;
+
+            tc.scale[0] = 0.5f;
+            tc.scale[1] = 0.5f;
+            engineSceneUpdateRectTransformComponent(scene, score_go_, &tc);
+        }
     }
 
     void on_collision(const collision_t& info) override
@@ -818,6 +839,7 @@ public:
     void update(float dt) override
     {
         handle_input(dt);
+        score_str_ = std::to_string(score_);
     }
 
     virtual void set_score(std::size_t new_score)
@@ -834,14 +856,16 @@ protected:
     virtual void handle_input(float dt) = 0;
 
 protected:
+    engine_game_object_t score_go_;
     std::size_t score_ = 0;
+    std::string score_str_ = "";
 };
 
 class RightPlayerPaddleScript : public PlayerPaddleScript
 {
 public:
     RightPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
-        : PlayerPaddleScript(app, scene, 12.0f, "right_player")
+        : PlayerPaddleScript(app, scene, 12.0f, 0.75f, "right_player")
     {
         // text component
         {
@@ -888,6 +912,7 @@ protected:
         const engine_finger_info_t* finger_infos = nullptr;
         std::size_t fingers_info_count = 0;
         const auto has_finger_info = engineApplicationGetFingerInfo(app_, &finger_infos, &fingers_info_count);
+        bool update_component = false;
 
         if constexpr (K_IS_ANDROID)
         {
@@ -900,6 +925,7 @@ protected:
                     {
                         const auto y_delta = -1.0f * ((f.y - 0.5f) / 0.5f);
                         tc.position[1] = y_delta * 2.0f;
+                        update_component = true;
                     }
                 }
             }
@@ -910,13 +936,18 @@ protected:
             if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_UP))
             {
                 tc.position[1] += 0.05f * dt;
+                update_component = true;
             }
             if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_DOWN))
             {
                 tc.position[1] -= 0.05f * dt;
+                update_component = true;
             }
         }
-        engineSceneUpdateTransformComponent(scene_, go_, &tc);
+        if (update_component)
+        {
+            engineSceneUpdateTransformComponent(scene_, go_, &tc);
+        }
     }
 };
 
@@ -924,9 +955,9 @@ class LeftPlayerPaddleScript : public PlayerPaddleScript
 {
 public:
     LeftPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
-        : PlayerPaddleScript(app, scene, -12.0f, "left_player")
+        : PlayerPaddleScript(app, scene, -12.0f, 0.25f, "left_player")
     {
-        // text component
+        // text component for the NAME
         {
             const auto text_go = engineSceneCreateGameObject(scene);
             auto text_component = engineSceneAddTextComponent(scene, text_go);
@@ -970,6 +1001,7 @@ protected:
         std::size_t fingers_info_count = 0;
         const auto has_finger_info = engineApplicationGetFingerInfo(app_, &finger_infos, &fingers_info_count);
 
+        bool update_component = false;
         if constexpr (K_IS_ANDROID)
         {
             if(has_finger_info)
@@ -981,6 +1013,7 @@ protected:
                     {
                         const auto y_delta = -1.0f * ((f.y - 0.5f) / 0.5f);
                         tc.position[1] = y_delta * 2.0f;
+                        update_component = true;
                     }
                 }
             }
@@ -991,13 +1024,19 @@ protected:
             if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_W))
             {
                 tc.position[1] += 0.05f * dt;
+                update_component = true;
             }
             if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_S))
             {
                 tc.position[1] -= 0.05f * dt;
+                update_component = true;
             }
         }
-        engineSceneUpdateTransformComponent(scene_, go_, &tc);
+        if (update_component)
+        {
+            engineSceneUpdateTransformComponent(scene_, go_, &tc);
+        }
+
     }
 };
 
@@ -1045,10 +1084,23 @@ public:
     {
         assert(ball_script_ != nullptr);
         assert(player_paddel_script_ != nullptr);
-        if (info.other == ball_script_->get_game_object())
+        static std::int32_t frame_counter = 0;
+        static bool was_score = false;
+        if (info.other == ball_script_->get_game_object() && frame_counter == 0)
         {
+            std::cout << "lifetime: " << info.contact_points[0].lifetime << std::endl;
             ball_script_->reset_state();
             player_paddel_script_->set_score(player_paddel_script_->get_score() + 1);
+            was_score = true;
+        }
+        if (was_score)
+        {
+            frame_counter++;
+        }
+        if (frame_counter == 10)
+        {
+            frame_counter = 0;
+            was_score = false;
         }
     }
 
@@ -1262,9 +1314,9 @@ int main(int argc, char** argv)
     LeftGoalNetScript left_goal_net_script(app, scene);
     RightGoalNetScript right_goal_net_script(app, scene);
     left_goal_net_script.ball_script_ = &ball_script;
-    left_goal_net_script.player_paddel_script_ = &right_player_script;
+    left_goal_net_script.player_paddel_script_ = &left_player_script;
     right_goal_net_script.ball_script_ = &ball_script;
-    right_goal_net_script.player_paddel_script_ = &left_player_script;
+    right_goal_net_script.player_paddel_script_ = &right_player_script;
 
     WallTopScript top_wall(app, scene);
     BottomTopScript bottom_wall(app, scene);
