@@ -819,8 +819,8 @@ public:
             tc.position[0] = score_init_pos_x;
             tc.position[1] = 0.85f;
 
-            tc.scale[0] = 0.5f;
-            tc.scale[1] = 0.5f;
+            tc.scale[0] = 1.5f;
+            tc.scale[1] = 1.5f;
             engineSceneUpdateRectTransformComponent(scene, score_go_, &tc);
         }
     }
