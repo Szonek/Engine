@@ -868,7 +868,8 @@ protected:
                 for(std::size_t i = 0; i < fingers_info_count; i++)
                 {
                     const auto f = finger_infos[i];
-                    if(is_finger_in_controller_area_impl(f))
+                    if((f.event_type_flags & ENGINE_FINGER_DOWN || f.event_type_flags & ENGINE_FINGER_MOTION)
+                        && is_finger_in_controller_area_impl(f))
                     {
                         const auto y_delta = -1.0f * ((f.y * 2.0f) - 1.0f);
                         tc.position[1] = y_delta * 8.0f;

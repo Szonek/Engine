@@ -89,18 +89,19 @@ typedef enum _engine_data_layout_t
 
 typedef enum _engine_finger_event_t
 {
-    ENGINE_FINGER_UNKNOWN = 0,
-    ENGINE_FINGER_DOWN = 1,
-    ENGINE_FINGER_UP
+    ENGINE_FINGER_UNKNOWN = 0x0,
+    ENGINE_FINGER_DOWN = 0x1,
+    ENGINE_FINGER_MOTION = 0x2,
+    ENGINE_FINGER_UP = 0x4
 } engine_finger_event_t;
 
 typedef struct _engine_finger_info_t
 {
-    engine_finger_event_t event_type;
+    uint32_t event_type_flags;
     float x;  // pos normalized (0, 1)
     float y;  // pos normalized (0, 1)
-    float dx; // normalized (-1, 1) delta of movment (if motion detected)
-    float dy; // normalized (-1, 1) delta of movment (if motion detected)
+    float dx; // normalized (-1, 1) delta of movement (if motion detected)
+    float dy; // normalized (-1, 1) delta of movement (if motion detected)
 } engine_finger_info_t;
 
 typedef struct _engine_mouse_coords_t
