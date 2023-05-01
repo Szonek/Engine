@@ -853,7 +853,51 @@ public:
     }
 
 protected:
-    virtual void handle_input(float dt) = 0;
+    void handle_input(float dt)
+    {
+        auto tc = engineSceneGetTransformComponent(scene_, go_);
+        const engine_finger_info_t* finger_infos = nullptr;
+        std::size_t fingers_info_count = 0;
+        const auto has_finger_info = engineApplicationGetFingerInfo(app_, &finger_infos, &fingers_info_count);
+
+        bool update_component = false;
+        if constexpr (K_IS_ANDROID)
+        {
+            if(has_finger_info)
+            {
+                for(std::size_t i = 0; i < fingers_info_count; i++)
+                {
+                    const auto f = finger_infos[i];
+                    if(is_finger_in_controller_area_impl(f))
+                    {
+                        const auto y_delta = -1.0f * ((f.y * 2.0f) - 1.0f);
+                        tc.position[1] = y_delta * 8.0f;
+                        update_component = true;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // KEYBOARD
+            if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_W))
+            {
+                tc.position[1] += 0.05f * dt;
+                update_component = true;
+            }
+            if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_S))
+            {
+                tc.position[1] -= 0.05f * dt;
+                update_component = true;
+            }
+        }
+        if (update_component)
+        {
+            engineSceneUpdateTransformComponent(scene_, go_, &tc);
+        }
+    }
+
+    virtual bool is_finger_in_controller_area_impl(const engine_finger_info_t& f) = 0;
 
 protected:
     engine_game_object_t score_go_;
@@ -905,50 +949,11 @@ public:
 
 
 protected:
-    void handle_input(float dt) override
+    bool is_finger_in_controller_area_impl(const engine_finger_info_t& f) override
     {
-        auto tc = engineSceneGetTransformComponent(scene_, go_);
-
-        const engine_finger_info_t* finger_infos = nullptr;
-        std::size_t fingers_info_count = 0;
-        const auto has_finger_info = engineApplicationGetFingerInfo(app_, &finger_infos, &fingers_info_count);
-        bool update_component = false;
-
-        if constexpr (K_IS_ANDROID)
-        {
-            if(has_finger_info)
-            {
-                for(std::size_t i = 0; i < fingers_info_count; i++)
-                {
-                    const auto f = finger_infos[i];
-                    if(f.x > 0.8f && f.x <= 1.0f)
-                    {
-                        const auto y_delta = -1.0f * ((f.y - 0.5f) / 0.5f);
-                        tc.position[1] = y_delta * 2.0f;
-                        update_component = true;
-                    }
-                }
-            }
-        }
-        else
-        {
-            // KEYBOARD
-            if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_UP))
-            {
-                tc.position[1] += 0.05f * dt;
-                update_component = true;
-            }
-            if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_DOWN))
-            {
-                tc.position[1] -= 0.05f * dt;
-                update_component = true;
-            }
-        }
-        if (update_component)
-        {
-            engineSceneUpdateTransformComponent(scene_, go_, &tc);
-        }
+        return (f.x > 0.8f && f.x <= 1.0f);
     }
+
 };
 
 class LeftPlayerPaddleScript : public PlayerPaddleScript
@@ -994,49 +999,9 @@ public:
     }
 
 protected:
-    void handle_input(float dt) override
+    bool is_finger_in_controller_area_impl(const engine_finger_info_t& f) override
     {
-        auto tc = engineSceneGetTransformComponent(scene_, go_);
-        const engine_finger_info_t* finger_infos = nullptr;
-        std::size_t fingers_info_count = 0;
-        const auto has_finger_info = engineApplicationGetFingerInfo(app_, &finger_infos, &fingers_info_count);
-
-        bool update_component = false;
-        if constexpr (K_IS_ANDROID)
-        {
-            if(has_finger_info)
-            {
-                for(std::size_t i = 0; i < fingers_info_count; i++)
-                {
-                    const auto f = finger_infos[i];
-                    if(f.x < 0.2f && f.x >= 0.0f)
-                    {
-                        const auto y_delta = -1.0f * ((f.y - 0.5f) / 0.5f);
-                        tc.position[1] = y_delta * 2.0f;
-                        update_component = true;
-                    }
-                }
-            }
-        }
-        else
-        {
-            // KEYBOARD
-            if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_W))
-            {
-                tc.position[1] += 0.05f * dt;
-                update_component = true;
-            }
-            if(engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_S))
-            {
-                tc.position[1] -= 0.05f * dt;
-                update_component = true;
-            }
-        }
-        if (update_component)
-        {
-            engineSceneUpdateTransformComponent(scene_, go_, &tc);
-        }
-
+        return (f.x < 0.2f && f.x >= 0.0f);
     }
 };
 
