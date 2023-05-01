@@ -670,6 +670,9 @@ public:
 
     void reset_state()
     {
+        ball_speed_x_ = 20.0f;
+        ball_speed_y_ = 20.0f;
+
         auto tc = engineSceneGetTransformComponent(scene_, go_);
         tc.position[0] = 0.0f;
         tc.position[1] = 0.0f;
@@ -686,6 +689,11 @@ public:
         rb.linear_velocity[1] = dir_y * ball_speed_y_;
         engineSceneUpdateRigidBodyComponent(scene_, go_, &rb);
     }
+    void update_linear_velocity(std::span<const float> dir)
+    {
+        assert(dir.size() == 2);
+        update_linear_velocity(dir[0], dir[1]);
+    }
 
     std::array<float, 2> get_direction_vector() const
     {
@@ -698,12 +706,18 @@ public:
 
     void update(float dt) override
     {
-        auto rb = engineSceneGetRigidBodyComponent(scene_, go_);
-        //const auto str = fmt::format("velocity vector: [{}, {}, {}]\n", rb.linear_velocity[0], rb.linear_velocity[1], rb.linear_velocity[2]);
-        auto tc = engineSceneGetTransformComponent(scene_, go_);
-        //const auto str = fmt::format("position: [{}, {}, {}]\n", tc.position[0], tc.position[1], tc.position[2]);
-        //engineLog(str.c_str());
         handle_input(dt);
+
+        timer_accu += dt;
+
+        // update speed every 2 seconds
+        if(timer_accu >= 2000.0f)
+        {
+            ball_speed_x_ += 2.0f;
+            ball_speed_y_ += 2.0f;
+            timer_accu = 0.0f;
+            update_linear_velocity(get_direction_vector());
+        }
     }
 
 private:
@@ -746,8 +760,9 @@ private:
     }
 
 private:
-    float ball_speed_x_ = 20.0f;
-    float ball_speed_y_ = 20.0f;
+    float ball_speed_x_ = 0.0f;
+    float ball_speed_y_ = 0.0f;
+    float timer_accu = 0.0f;
 };
 
 class PlayerPaddleScript : public IScript
@@ -1028,7 +1043,7 @@ public:
         tc.position[2] = 0.0f;
 
         tc.scale[0] = 1.0f;
-        tc.scale[1] = 15.0f;
+        tc.scale[1] = 50.0f;
         tc.scale[2] = 1.0f;
         engineSceneUpdateTransformComponent(scene_, go_, &tc);
 
@@ -1046,39 +1061,52 @@ public:
         engineSceneUpdateNameComponent(scene, go_, &nc);
     }
 
+    void update(float dt) override
+    {
+        if (score_fence_.was_score)
+        {
+            score_fence_.frame_counter++;
+        }
+        if (score_fence_.frame_counter == score_collision_fence::COUNTER_LIMIT)
+        {
+            score_fence_.frame_counter = 0;
+            score_fence_.was_score = false;
+        }
+    }
+
     void on_collision(const collision_t& info) override
     {
         assert(ball_script_ != nullptr);
         assert(player_paddel_script_ != nullptr);
-        static std::int32_t frame_counter = 0;
-        static bool was_score = false;
-        if (info.other == ball_script_->get_game_object() && frame_counter == 0)
+
+        if (info.other == ball_script_->get_game_object() && score_fence_.frame_counter == 0)
         {
-            std::cout << "lifetime: " << info.contact_points[0].lifetime << std::endl;
             ball_script_->reset_state();
             player_paddel_script_->set_score(player_paddel_script_->get_score() + 1);
-            was_score = true;
+            score_fence_.was_score = true;
         }
-        if (was_score)
-        {
-            frame_counter++;
-        }
-        if (frame_counter == 10)
-        {
-            frame_counter = 0;
-            was_score = false;
-        }
+
     }
 
 protected:
+    struct score_collision_fence
+    {
+        bool was_score = false;
+        std::int32_t frame_counter = 0;
+        constexpr static const std::int32_t COUNTER_LIMIT = 10;
+    };
+
+protected:
     std::uint32_t score_;
+    score_collision_fence score_fence_;
+
 };
 
 class LeftGoalNetScript : public GoalNetScript
 {
 public:
     LeftGoalNetScript(engine_application_t& app, engine_scene_t& scene)
-        : GoalNetScript(app, scene, -12.75f, "left_goal_net")
+        : GoalNetScript(app, scene, -14.0f, "left_goal_net")
     {
     }  
 };
@@ -1087,7 +1115,7 @@ class RightGoalNetScript : public GoalNetScript
 {
 public:
     RightGoalNetScript(engine_application_t& app, engine_scene_t& scene)
-        : GoalNetScript(app, scene, 12.75f, "right_goal_net")
+        : GoalNetScript(app, scene, 14.0f, "right_goal_net")
     {
     }
 };
