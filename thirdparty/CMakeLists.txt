@@ -17,9 +17,15 @@ add_subdirectory(glm)
 # entt
 add_subdirectory(entt)
 
+# cgltf
+add_library(cgltf INTERFACE)
+target_include_directories(cgltf INTERFACE "cgltf")
+
 #bullet3
 if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+set(BUILD_OPENGL3_DEMOS OFF)
 set(BUILD_BULLET2_DEMOS OFF)
+set(BUILD_CPU_DEMOS OFF)
 set(BUILD_UNIT_TESTS OFF)
 endif()
 add_subdirectory(bullet3)

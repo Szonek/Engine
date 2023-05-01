@@ -649,9 +649,9 @@ public:
         rb.mass = 1.0f;
         engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
         auto bc = engineSceneAddColliderComponent(scene, go_);
-        //bc.type = ENGINE_COLLIDER_TYPE_SPHERE;
-        //bc.collider.sphere.radius = 1.0f;
-        bc.type = ENGINE_COLLIDER_TYPE_BOX;
+        bc.type = ENGINE_COLLIDER_TYPE_SPHERE;
+        bc.collider.sphere.radius = 1.0f;
+        //bc.type = ENGINE_COLLIDER_TYPE_BOX;
         bc.friction_static = 0.0f;
         bc.bounciness = 1.0f;
         engineSceneUpdateColliderComponent(scene, go_, &bc);
