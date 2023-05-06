@@ -19,6 +19,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/logger.h
 	${ENGINE_SOURCES_DIR}/gltf_parser.h
 	${ENGINE_SOURCES_DIR}/gltf_parser.cpp
+	${ENGINE_SOURCES_DIR}/physics_world.h
+	${ENGINE_SOURCES_DIR}/physics_world.cpp
 )
 
 set(ENGINE_API "include")

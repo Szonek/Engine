@@ -2,6 +2,8 @@
 #include <engine.h>
 #include "graphics.h"
 
+#include "physics_world.h"
+
 #include <entt/entt.hpp>
 
 namespace engine
@@ -79,6 +81,9 @@ private:
     entt::observer transform_update_collider_observer;
     entt::observer rigid_body_create_observer;
     entt::observer rigid_body_update_observer;
+
+    PhysicsWorld physics_world_;
+
     Shader shader_simple_;
 };
 }  // namespace engine

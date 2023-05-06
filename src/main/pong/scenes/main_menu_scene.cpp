@@ -1,5 +1,6 @@
 #pragma once
 #include "main_menu_scene.h"
+#include "../scripts/camera_script.h"
 #include "../scripts/wall_script.h"
 
 
@@ -18,7 +19,8 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine_resul
 {
     if (engine_error_code == ENGINE_RESULT_CODE_OK)
     {
-        auto camera_script = register_script<RandomWallScript>();
+        auto camera_script = register_script<CameraScript>();
+        auto random_wall_script = register_script<RandomWallScript>();
 
     }
 }
