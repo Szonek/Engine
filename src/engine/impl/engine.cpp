@@ -25,6 +25,16 @@ inline entt::entity entity_cast(engine_game_object_t go)
     return static_cast<entt::entity>(go);
 }
 
+inline entt::runtime_view* runtime_view_cast(engine_component_view_t comp_view)
+{
+    return reinterpret_cast<entt::runtime_view*>(comp_view);
+}
+
+inline auto component_iterator_cast(engine_component_iterator_t it)
+{
+    return reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(it);
+}
+
 inline void transform_component_init(engine_tranform_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_tranform_component_t));
@@ -349,23 +359,22 @@ void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const
     sc->get_physcis_collisions_list(*collisions, num_collision);
 }
 
-engine_result_code_t engineSceneCreateComponentView(engine_scene_t scene, engine_component_view_t* out)
+engine_result_code_t engineCreateComponentView(engine_component_view_t* out)
 {
-    auto sc = scene_cast(scene);
     if (out)
     {
-        *out = reinterpret_cast<engine_component_view_t>(new entt::runtime_view(sc->create_runtime_view()));
+        *out = reinterpret_cast<engine_component_view_t>(new entt::runtime_view());
         return ENGINE_RESULT_CODE_OK;
     }
 
     return ENGINE_RESULT_CODE_FAIL;
 }
 
-void engineSceneDestroyComponentView(engine_component_view_t* view)
+void engineDestroyComponentView(engine_component_view_t view)
 {
     if (view)
     {
-        auto rv = reinterpret_cast<entt::runtime_view*>(*view);
+        auto rv = runtime_view_cast(view);
         delete rv;
     }
 }
@@ -374,7 +383,7 @@ engine_result_code_t engineComponentViewCreateBeginComponentIterator(engine_comp
 {
     if (view && out)
     {
-        auto rv = reinterpret_cast<entt::runtime_view*>(view);
+        auto rv = runtime_view_cast(view);
         *out = reinterpret_cast<engine_component_iterator_t>(new decltype(rv->begin())(rv->begin()));
         return ENGINE_RESULT_CODE_OK;
     }
@@ -385,7 +394,7 @@ engine_result_code_t engineComponentViewCreateEndComponentIterator(engine_compon
 {
     if (view && out)
     {
-        auto rv = reinterpret_cast<entt::runtime_view*>(view);
+        auto rv = runtime_view_cast(view);
         *out = reinterpret_cast<engine_component_iterator_t>(new decltype(rv->end())(rv->end()));
         return ENGINE_RESULT_CODE_OK;
     }
@@ -396,7 +405,7 @@ void engineComponentIteratorNext(engine_component_iterator_t iterator)
 {
     if (iterator)
     {
-        auto it_typed = reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(iterator);
+        auto it_typed = component_iterator_cast(iterator);
         (*it_typed)++;
     }
 }
@@ -405,7 +414,7 @@ engine_game_object_t engineComponentIteratorGetGameObject(engine_component_itera
 {
     if (iterator)
     {
-        auto it_typed = reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(iterator);
+        auto it_typed = component_iterator_cast(iterator);
         return static_cast<engine_game_object_t>(**it_typed);
     }
     return ENGINE_INVALID_GAME_OBJECT_ID;
@@ -416,27 +425,20 @@ bool engineComponentIteratorCheckEqual(engine_component_iterator_t lhs, engine_c
     bool ret = false;
     if (lhs && rhs)
     {
-        auto lhs_typed = reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(lhs);
-        auto rhs_typed = reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(rhs);
+        auto lhs_typed = component_iterator_cast(lhs);
+        auto rhs_typed = component_iterator_cast(rhs);
         ret = (*lhs_typed == *rhs_typed);
     }
     return ret;
 }
 
-void engineComponentViewDeleteIterator(engine_component_iterator_t iterator)
+void engineDeleteComponentIterator(engine_component_iterator_t iterator)
 {
     if (iterator)
     {
-        auto it = reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(iterator);
+        auto it = component_iterator_cast(iterator);
         delete it;
     }
-}
-
-void engineSceneComponentViewAttachRectTransformComponent(engine_scene_t scene, engine_component_view_t view)
-{
-    auto sc = scene_cast(scene);
-    auto rv = reinterpret_cast<entt::runtime_view*>(view);
-    sc->attach_component_to_runtime_view<engine_rect_tranform_component_t>(*rv);
 }
 
 engine_name_component_t engineSceneAddNameComponent(engine_scene_t scene, engine_game_object_t game_object)
@@ -513,6 +515,13 @@ void engineSceneRemoveRectTransformComponent(engine_scene_t scene, engine_game_o
 bool engineSceneHasRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return has_component<engine_rect_tranform_component_t>(scene, game_object);
+}
+
+void engineSceneComponentViewAttachRectTransformComponent(engine_scene_t scene, engine_component_view_t view)
+{
+    auto sc = scene_cast(scene);
+    auto rv = runtime_view_cast(view);
+    sc->attach_component_to_runtime_view<engine_rect_tranform_component_t>(*rv);
 }
 
 engine_mesh_component_t engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object)

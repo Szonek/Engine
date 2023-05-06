@@ -299,15 +299,14 @@ ENGINE_API void                     engineSceneSetGravityVector(engine_scene_t s
 ENGINE_API void                     engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
 
 // ECS 
-ENGINE_API engine_result_code_t engineSceneCreateComponentView(engine_scene_t scene, engine_component_view_t* out);
-ENGINE_API void engineSceneDestroyComponentView(engine_component_view_t* iterator);
+ENGINE_API engine_result_code_t engineCreateComponentView(engine_component_view_t* out);
+ENGINE_API void engineDestroyComponentView(engine_component_view_t view);
 ENGINE_API engine_result_code_t engineComponentViewCreateBeginComponentIterator(engine_component_view_t view, engine_component_iterator_t* out);
 ENGINE_API engine_result_code_t engineComponentViewCreateEndComponentIterator(engine_component_view_t view, engine_component_iterator_t* out);
 ENGINE_API bool engineComponentIteratorCheckEqual(engine_component_iterator_t lhs, engine_component_iterator_t rhs);
 ENGINE_API void engineComponentIteratorNext(engine_component_iterator_t iterator);
 ENGINE_API engine_game_object_t engineComponentIteratorGetGameObject(engine_component_iterator_t iterator);
-ENGINE_API void engineSceneComponentViewDeleteIterator(engine_component_iterator_t iterator);
-ENGINE_API void engineSceneComponentViewAttachRectTransformComponent(engine_scene_t scene, engine_component_view_t view);
+ENGINE_API void engineDeleteComponentIterator(engine_component_iterator_t iterator);
 
 
 ENGINE_API engine_name_component_t engineSceneAddNameComponent(engine_scene_t scene, engine_game_object_t game_object);
@@ -328,6 +327,7 @@ ENGINE_API engine_rect_tranform_component_t engineSceneGetRectTransformComponent
 ENGINE_API void engineSceneUpdateRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_rect_tranform_component_t* comp);
 ENGINE_API void engineSceneRemoveRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneComponentViewAttachRectTransformComponent(engine_scene_t scene, engine_component_view_t view);
 
 ENGINE_API engine_mesh_component_t engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_mesh_component_t engineSceneGetMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
