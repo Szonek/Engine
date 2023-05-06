@@ -33,4 +33,7 @@ pong::MainScene::MainScene(engine_application_t app_handle, engine_result_code_t
         right_goal_net_script->ball_script_ = ball_script;
         right_goal_net_script->player_paddel_script_ = right_player_script;
     }
+
+    // deactivate at start
+    deactivate();
 }
