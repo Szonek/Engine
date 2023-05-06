@@ -7,6 +7,13 @@
 #include <cassert>
 #include <fmt/format.h>
 
+
+#if __ANDROID__
+constexpr const bool K_IS_ANDROID = true;
+#else  
+constexpr const bool K_IS_ANDROID = false;
+#endif
+
 template<typename T>
 inline void set_c_array(std::span<float> in, const T& data)
 {
