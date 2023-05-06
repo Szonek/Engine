@@ -141,6 +141,36 @@ int main(int argc, char** argv)
 			break;
 		}
 
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_1))
+        {
+            if (scenes.size() > 0)
+            {
+                scenes.at(0)->deactivate();
+            }
+        }
+        else
+        {
+            if (scenes.size() > 0)
+            {
+                scenes.at(0)->activate();
+            }
+        }
+
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_2))
+        {
+            if (scenes.size() > 1)
+            {
+                scenes.at(1)->deactivate();
+            }
+        }
+        else
+        {
+            if (scenes.size() > 1)
+            {
+                scenes.at(1)->activate();
+            }
+        }
+
         fps_counter.frames_count += 1;
         fps_counter.frames_total_time += frame_begin.delta_time;
         if (fps_counter.frames_total_time > 1000.0f)

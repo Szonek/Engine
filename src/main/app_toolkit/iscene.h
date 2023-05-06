@@ -25,6 +25,9 @@ public:
         return (T*)scripts_[game_object].get();
     }
 
+    virtual void activate();
+    virtual void deactivate();
+    virtual bool is_active() const;
     virtual engine_result_code_t update(float dt);
 
 private:
@@ -34,5 +37,6 @@ private:
 
 protected:
     engine_scene_t scene_{};
+    bool is_activate_ = true;
 };
 }

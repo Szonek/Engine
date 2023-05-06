@@ -83,8 +83,27 @@ engine::IScene::~IScene()
     }
 }
 
+void engine::IScene::activate()
+{
+    is_activate_ = true;
+}
+
+void engine::IScene::deactivate()
+{
+    is_activate_ = false;
+}
+
+bool engine::IScene::is_active() const
+{
+    return is_activate_;
+}
+
 engine_result_code_t engine::IScene::update(float dt)
 {
+    if (!is_active())
+    {
+        return ENGINE_RESULT_CODE_OK;
+    }
     update_physics(app_, scene_, dt);
     propagate_collisions_events(app_, scene_, scripts_);
 
