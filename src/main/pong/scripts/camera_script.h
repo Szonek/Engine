@@ -3,8 +3,11 @@
 
 #include "iscript.h"
 
-class CameraScript : public IScript
+namespace pong
+{
+class CameraScript : public engine::IScript
 {
 public:
     CameraScript(engine_application_t& app, engine_scene_t& scene);
 };
+}

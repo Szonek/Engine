@@ -9,7 +9,7 @@
 
 #include <cassert>
 
-PlayerPaddleScript::PlayerPaddleScript(engine_application_t& app, engine_scene_t& scene, float init_pos_x, float score_init_pos_x, const char* name)
+pong::PlayerPaddleScript::PlayerPaddleScript(engine_application_t& app, engine_scene_t& scene, float init_pos_x, float score_init_pos_x, const char* name)
     : IScript(app, scene)
     , score_(0)
     , score_str_(std::to_string(score_))
@@ -63,7 +63,7 @@ PlayerPaddleScript::PlayerPaddleScript(engine_application_t& app, engine_scene_t
     }
 }
 
-void PlayerPaddleScript::on_collision(const collision_t& info)
+void pong::PlayerPaddleScript::on_collision(const collision_t& info)
 {
     assert(ball_script_);
 
@@ -89,23 +89,23 @@ void PlayerPaddleScript::on_collision(const collision_t& info)
     }
 }
 
-void PlayerPaddleScript::update(float dt)
+void pong::PlayerPaddleScript::update(float dt)
 {
     handle_input(dt);
     score_str_ = std::to_string(score_);
 }
 
-void PlayerPaddleScript::set_score(std::size_t new_score)
+void pong::PlayerPaddleScript::set_score(std::size_t new_score)
 {
     score_ = new_score;
 }
 
-std::size_t PlayerPaddleScript::get_score() const
+std::size_t pong::PlayerPaddleScript::get_score() const
 {
     return score_;
 }
 
-void PlayerPaddleScript::handle_input(float dt)
+void pong::PlayerPaddleScript::handle_input(float dt)
 {
     auto tc = engineSceneGetTransformComponent(scene_, go_);
     const engine_finger_info_t* finger_infos = nullptr;
@@ -154,7 +154,7 @@ void PlayerPaddleScript::handle_input(float dt)
 // --- RIGHT PLAYER ---
 //
 
-RightPlayerPaddleScript::RightPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
+pong::RightPlayerPaddleScript::RightPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
     : PlayerPaddleScript(app, scene, 12.0f, 0.75f, "right_player")
 {
     // text component
@@ -193,7 +193,7 @@ RightPlayerPaddleScript::RightPlayerPaddleScript(engine_application_t& app, engi
     }
 }
 
-bool RightPlayerPaddleScript::is_finger_in_controller_area_impl(const engine_finger_info_t& f)
+bool pong::RightPlayerPaddleScript::is_finger_in_controller_area_impl(const engine_finger_info_t& f)
 {
     return (f.x > 0.8f && f.x <= 1.0f);
 }
@@ -201,7 +201,7 @@ bool RightPlayerPaddleScript::is_finger_in_controller_area_impl(const engine_fin
 // 
 // --- LEFT PLAYER ---
 //
-LeftPlayerPaddleScript::LeftPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
+pong::LeftPlayerPaddleScript::LeftPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
     : PlayerPaddleScript(app, scene, -12.0f, 0.25f, "left_player")
 {
     // text component for the NAME
@@ -240,7 +240,7 @@ LeftPlayerPaddleScript::LeftPlayerPaddleScript(engine_application_t& app, engine
     }
 }
 
-bool LeftPlayerPaddleScript::is_finger_in_controller_area_impl(const engine_finger_info_t& f)
+bool pong::LeftPlayerPaddleScript::is_finger_in_controller_area_impl(const engine_finger_info_t& f)
 {
     return (f.x < 0.2f && f.x >= 0.0f);
 }

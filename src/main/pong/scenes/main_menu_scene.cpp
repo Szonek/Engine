@@ -5,7 +5,7 @@
 
 
 
-class RandomWallScript : public WallScript
+class RandomWallScript : public pong::WallScript
 {
 public:
     RandomWallScript(engine_application_t& app, engine_scene_t& scene)

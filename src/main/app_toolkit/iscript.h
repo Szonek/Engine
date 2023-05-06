@@ -3,6 +3,9 @@
 
 #include <vector>
 
+namespace engine
+{
+
 class IScript
 {
 public:
@@ -28,6 +31,9 @@ public:
     virtual void update(float dt) {}
     virtual void on_collision(const collision_t& info) {}
 
+    // if the button/touch is pressed and released on the same object 
+    virtual void on_pointer_click(struct PointerEventData* ped) {};
+
     virtual engine_game_object_t get_game_object() const { return go_; }
 
 protected:
@@ -35,3 +41,5 @@ protected:
     engine_scene_t& scene_;
     const engine_game_object_t go_;
 };
+
+} // namespace engine

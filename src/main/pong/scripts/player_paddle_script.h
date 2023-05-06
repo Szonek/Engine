@@ -5,7 +5,9 @@
 
 #include <string>
 
-class PlayerPaddleScript : public IScript
+namespace pong
+{
+class PlayerPaddleScript : public engine::IScript
 {
 public:
     class BallScript* ball_script_ = nullptr;
@@ -47,3 +49,4 @@ public:
 protected:
     bool is_finger_in_controller_area_impl(const engine_finger_info_t& f) override;
 };
+} // namespace pong

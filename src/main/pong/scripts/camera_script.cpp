@@ -2,7 +2,7 @@
 
 #include "global_constants.h"
 
-CameraScript::CameraScript(engine_application_t& app, engine_scene_t& scene)
+pong::CameraScript::CameraScript(engine_application_t& app, engine_scene_t& scene)
     : IScript(app, scene)
 {
     auto camera_comp = engineSceneAddCameraComponent(scene, go_);

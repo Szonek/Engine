@@ -5,7 +5,7 @@
 
 #include <cassert>
 
-BallScript::BallScript(engine_application_t& app, engine_scene_t& scene) 
+pong::BallScript::BallScript(engine_application_t& app, engine_scene_t& scene) 
     : IScript(app, scene)
 {
     auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
@@ -41,7 +41,7 @@ BallScript::BallScript(engine_application_t& app, engine_scene_t& scene)
     reset_state();
 }
 
-void BallScript::reset_state()
+void pong::BallScript::reset_state()
 {
     ball_speed_x_ = 20.0f;
     ball_speed_y_ = 20.0f;
@@ -55,7 +55,7 @@ void BallScript::reset_state()
     update_linear_velocity(1.0f, 0.0f);
 }
 
-void BallScript::update_linear_velocity(float dir_x, float dir_y)
+void pong::BallScript::update_linear_velocity(float dir_x, float dir_y)
 {
     auto rb = engineSceneGetRigidBodyComponent(scene_, go_);
     rb.linear_velocity[0] = dir_x * ball_speed_x_;
@@ -63,13 +63,13 @@ void BallScript::update_linear_velocity(float dir_x, float dir_y)
     engineSceneUpdateRigidBodyComponent(scene_, go_, &rb);
 }
 
-void BallScript::update_linear_velocity(std::span<const float> dir)
+void pong::BallScript::update_linear_velocity(std::span<const float> dir)
 {
     assert(dir.size() == 2);
     update_linear_velocity(dir[0], dir[1]);
 }
 
-std::array<float, 2> BallScript::get_direction_vector() const
+std::array<float, 2> pong::BallScript::get_direction_vector() const
 {
     auto rb = engineSceneGetRigidBodyComponent(scene_, go_);
     return {
@@ -78,7 +78,7 @@ std::array<float, 2> BallScript::get_direction_vector() const
     };
 }
 
-void BallScript::update(float dt)
+void pong::BallScript::update(float dt)
 {
     handle_input(dt);
 
@@ -94,7 +94,7 @@ void BallScript::update(float dt)
     }
 }
 
-void BallScript::handle_input(float dt)
+void pong::BallScript::handle_input(float dt)
 {
     auto tc = engineSceneGetTransformComponent(scene_, go_);
 

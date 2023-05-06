@@ -5,7 +5,7 @@
 
 #include <cassert>
 
-WallScript::WallScript(engine_application_t& app, engine_scene_t& scene, float init_pos_y, const char* name)
+pong::WallScript::WallScript(engine_application_t& app, engine_scene_t& scene, float init_pos_y, const char* name)
     : IScript(app, scene)
 {
     auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
@@ -38,13 +38,13 @@ WallScript::WallScript(engine_application_t& app, engine_scene_t& scene, float i
     engineSceneUpdateNameComponent(scene, go_, &nc);
 }
 
-WallTopScript::WallTopScript(engine_application_t& app, engine_scene_t& scene)
+pong::WallTopScript::WallTopScript(engine_application_t& app, engine_scene_t& scene)
     : WallScript(app, scene, K_WALL_Y_OFFSET, "top_wall")
 {
 
 }
 
-BottomTopScript::BottomTopScript(engine_application_t& app, engine_scene_t& scene)
+pong::BottomTopScript::BottomTopScript(engine_application_t& app, engine_scene_t& scene)
 : WallScript(app, scene, -1.0f * K_WALL_Y_OFFSET, "bottom_wall")
 {
 

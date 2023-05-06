@@ -3,7 +3,9 @@
 
 #include "iscript.h"
 
-class GoalNetScript : public IScript
+namespace pong
+{
+class GoalNetScript : public engine::IScript
 {
 public:
     class BallScript* ball_script_ = nullptr;
@@ -41,3 +43,4 @@ class RightGoalNetScript : public GoalNetScript
 public:
     RightGoalNetScript(engine_application_t& app, engine_scene_t& scene);
 };
+} // namespace pong

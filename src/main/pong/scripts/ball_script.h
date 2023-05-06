@@ -5,7 +5,9 @@
 
 #include <span>
 
-class BallScript : public IScript
+namespace pong
+{
+class BallScript : public engine::IScript
 {
 public:
     BallScript(engine_application_t& app, engine_scene_t& scene);
@@ -25,3 +27,4 @@ private:
     float ball_speed_y_ = 0.0f;
     float timer_accu = 0.0f;
 };
+} // namespace pong

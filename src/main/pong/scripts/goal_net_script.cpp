@@ -8,7 +8,7 @@
 
 #include <cassert>
 
-GoalNetScript::GoalNetScript(engine_application_t& app, engine_scene_t& scene, float init_pos_x, const char* name)
+pong::GoalNetScript::GoalNetScript(engine_application_t& app, engine_scene_t& scene, float init_pos_x, const char* name)
     : IScript(app, scene)
 {
     auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
@@ -41,7 +41,7 @@ GoalNetScript::GoalNetScript(engine_application_t& app, engine_scene_t& scene, f
     engineSceneUpdateNameComponent(scene, go_, &nc);
 }
 
-void GoalNetScript::update(float dt)
+void pong::GoalNetScript::update(float dt)
 {
     if (score_fence_.was_score)
     {
@@ -54,7 +54,7 @@ void GoalNetScript::update(float dt)
     }
 }
 
-void GoalNetScript::on_collision(const collision_t& info)
+void pong::GoalNetScript::on_collision(const collision_t& info)
 {
     assert(ball_script_ != nullptr);
     assert(player_paddel_script_ != nullptr);
@@ -68,12 +68,12 @@ void GoalNetScript::on_collision(const collision_t& info)
 
 }
 
-LeftGoalNetScript::LeftGoalNetScript(engine_application_t& app, engine_scene_t& scene)
+pong::LeftGoalNetScript::LeftGoalNetScript(engine_application_t& app, engine_scene_t& scene)
     : GoalNetScript(app, scene, -14.0f, "left_goal_net")
 {
 }
 
-RightGoalNetScript::RightGoalNetScript(engine_application_t& app, engine_scene_t& scene)
+pong::RightGoalNetScript::RightGoalNetScript(engine_application_t& app, engine_scene_t& scene)
      : GoalNetScript(app, scene, 14.0f, "right_goal_net")
 {
 }

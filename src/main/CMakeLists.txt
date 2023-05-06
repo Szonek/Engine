@@ -12,6 +12,7 @@ set(APP_TOOLKIT_SOURCES
 	${APP_TOOLKIT_DIR}/iscene.cpp
 	${APP_TOOLKIT_DIR}/gui_event_system.h
 	${APP_TOOLKIT_DIR}/gui_event_system.cpp
+	${APP_TOOLKIT_DIR}/gui_event_types_defs.h
 )
 
 set(GAME_DIR "pong")
