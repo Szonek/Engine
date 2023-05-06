@@ -72,9 +72,9 @@ public:
         if (collider.type == ENGINE_COLLIDER_TYPE_BOX)
         {
             const btVector3 box_bounds{
-                collider.collider.box.size[0] * transform.scale[0] * 0.5f,
-                collider.collider.box.size[1] * transform.scale[1] * 0.5f,
-                collider.collider.box.size[2] * transform.scale[2] * 0.5f,
+                collider.collider.box.size[0] * transform.scale[0],
+                collider.collider.box.size[1] * transform.scale[1],
+                collider.collider.box.size[2] * transform.scale[2],
             };
             ret.collision_shape = new btBoxShape(box_bounds);     
         } 

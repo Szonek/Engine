@@ -281,10 +281,19 @@ engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t 
 }
 
 
-engine_model_info_t engineApplicationAllocateModelInfoAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name)
+engine_result_code_t engineApplicationAllocateModelInfoAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, engine_model_info_t* out)
 {
+    if (!out)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
     auto* app = application_cast(handle);
-    return app->load_model_info_from_file(spec, file_name);
+    *out = app->load_model_info_from_file(spec, file_name);
+    if (!out->internal_handle)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    return ENGINE_RESULT_CODE_OK;
 }
 
 
