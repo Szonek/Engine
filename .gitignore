@@ -1,5 +1,5 @@
 buildtree
 build
-android_project/.gradle/
-android_project/.idea/
-android_project/app/.cxx/
+android-project/.gradle/
+android-project/.idea/
+android-project/app/.cxx/
