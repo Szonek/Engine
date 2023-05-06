@@ -3,7 +3,10 @@
 #include "iscript.h"
 #include "utils.h"
 
+#include "gui_event_system.h"
+
 #include <unordered_map>
+
 namespace engine
 {
 class IScene
@@ -16,6 +19,8 @@ public:
     IScene& operator=(IScene&& rhs)  noexcept = default;
     ~IScene();
 
+    engine_scene_t get_handle() { return scene_; }
+
     template<typename T>
     T* register_script()
     {
@@ -24,6 +29,7 @@ public:
         scripts_[game_object] = std::move(script);
         return (T*)scripts_[game_object].get();
     }
+
 
     virtual void activate();
     virtual void deactivate();
@@ -38,5 +44,7 @@ private:
 protected:
     engine_scene_t scene_{};
     bool is_activate_ = true;
+
+    GuiEventSystem gui_event_system_;
 };
 }

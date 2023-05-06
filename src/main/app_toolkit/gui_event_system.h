@@ -1,19 +1,14 @@
 #pragma once
-#include "engine.h"
 
-#include <unordered_map>
-
-namespace engine_systems
+namespace engine
 {
 class GuiEventSystem
 {
 public:
-    GuiEventSystem(engine_scene_t scene, std::unordered_map<engine_game_object_t, class IScript*>& scripts);
-    ~GuiEventSystem();
+    GuiEventSystem() {}
+    ~GuiEventSystem() {}
 
-    void update(float dt);
+    void update(class IScene* scene );
 
-private:
-    engine_component_view_t view_{};
 };
 }

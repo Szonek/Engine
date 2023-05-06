@@ -104,8 +104,12 @@ engine_result_code_t engine::IScene::update(float dt)
     {
         return ENGINE_RESULT_CODE_OK;
     }
-    update_physics(app_, scene_, dt);
+
+   // gui_event_system_.update(this);
     propagate_collisions_events(app_, scene_, scripts_);
+
+    update_physics(app_, scene_, dt);
+
 
     update_scripts(scripts_, dt);
 
