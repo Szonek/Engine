@@ -91,25 +91,6 @@ int main(int argc, char** argv)
         model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "sphere", &sphere_geometry);
     engineApplicationReleaseModelInfo(app, &model_info);
 
-	auto camera_go = engineSceneCreateGameObject(scene);
-	{
-		auto camera_comp = engineSceneAddCameraComponent(scene, camera_go);
-		camera_comp.enabled = true;
-		camera_comp.clip_plane_near = 0.1f;
-		camera_comp.clip_plane_far = 100.0f;
-        //camera_comp->type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
-        //camera_comp->type_union.perspective_fov = 45.0f;
-        camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC;
-        camera_comp.type_union.orthographics_scale = 16.0f;
-		//camera_transform_comp->position[0] = 0.0f;
-		//camera_transform_comp->position[1] = 10.0f;
-		//camera_transform_comp->position[1] = 3.0f;
-        engineSceneUpdateCameraComponent(scene, camera_go, &camera_comp);
-
-        auto camera_transform_comp = engineSceneAddTransformComponent(scene, camera_go);
-        camera_transform_comp.position[2] = 15.0f;
-        engineSceneUpdateTransformComponent(scene, camera_go, &camera_transform_comp);
-	}
     
     engine_font_t font_handle{};
     if (engineApplicationAddFontFromFile(app, "tahoma.ttf", "tahoma_font", &font_handle) != ENGINE_RESULT_CODE_OK)
@@ -126,6 +107,7 @@ int main(int argc, char** argv)
     fps_counter_t fps_counter{};
 
 
+    CameraScript camera_script(app, scene);
     BallScript ball_script(app, scene);
     LeftPlayerPaddleScript right_player_script(app, scene);
     RightPlayerPaddleScript left_player_script(app, scene);
@@ -145,6 +127,7 @@ int main(int argc, char** argv)
 
     std::unordered_map<engine_game_object_t, IScript*> scene_manager;
     scene_manager.reserve(1024);
+    scene_manager[camera_script.get_game_object()] = &camera_script;
     scene_manager[ball_script.get_game_object()] = &ball_script;
     scene_manager[right_player_script.get_game_object()] = &right_player_script;
     scene_manager[left_player_script.get_game_object()] = &left_player_script;
