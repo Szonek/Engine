@@ -34,6 +34,8 @@ set(GAME_SCENES_DIR ${GAME_DIR}/scenes)
 set(GAME_SCENES_SOURCES
 	${GAME_SCENES_DIR}/main_scene.h
 	${GAME_SCENES_DIR}/main_scene.cpp
+	${GAME_SCENES_DIR}/main_menu_scene.h
+	${GAME_SCENES_DIR}/main_menu_scene.cpp
 )
 
 set(APP_ALL_SOURCES ${APP_SOURCES} ${APP_TOOLKIT_SOURCES} ${GAME_SCRIPTS_SOURCES} ${GAME_SCENES_SOURCES})

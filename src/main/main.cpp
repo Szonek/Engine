@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "iscript.h"
 
+#include "pong/scenes/main_menu_scene.h"
 #include "pong/scenes/main_scene.h"
 
 #include <SDL_system.h>
@@ -80,6 +81,7 @@ int main(int argc, char** argv)
     }
 
     std::deque<std::unique_ptr<engine::IScene>> scenes;
+    scenes.push_back(std::make_unique<pong::MainMenuScene>(app, engine_error_code));
     scenes.push_back(std::make_unique<pong::MainScene>(app, engine_error_code));
 
 
@@ -116,6 +118,12 @@ int main(int argc, char** argv)
     //{
     //    engineDestroyComponentView(rect_tranform_view);
     //}
+    struct fps_counter_t
+    {
+        float frames_total_time = 0.0f;
+        std::uint32_t frames_count = 0;
+    };
+    fps_counter_t fps_counter{};
 
 	while (true)
 	{
@@ -132,6 +140,15 @@ int main(int argc, char** argv)
 			log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
 			break;
 		}
+
+        fps_counter.frames_count += 1;
+        fps_counter.frames_total_time += frame_begin.delta_time;
+        if (fps_counter.frames_total_time > 1000.0f)
+        {
+            log(fmt::format("FPS: {}, latency: {} ms. \n",
+                fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count));
+            fps_counter = {};
+        }
 
         for (auto& scene : scenes)
         {

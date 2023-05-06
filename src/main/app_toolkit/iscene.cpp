@@ -85,15 +85,6 @@ engine::IScene::~IScene()
 
 engine_result_code_t engine::IScene::update(float dt)
 {
-    fps_counter_.frames_count += 1;
-    fps_counter_.frames_total_time += dt;
-    if (fps_counter_.frames_total_time > 1000.0f)
-    {
-        log(fmt::format("FPS: {}, latency: {} ms. \n",
-            fps_counter_.frames_count, fps_counter_.frames_total_time / fps_counter_.frames_count));
-        fps_counter_ = {};
-    }
-
     update_physics(app_, scene_, dt);
     propagate_collisions_events(app_, scene_, scripts_);
 

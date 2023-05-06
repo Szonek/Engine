@@ -28,16 +28,9 @@ public:
     virtual engine_result_code_t update(float dt);
 
 private:
-    struct fps_counter_t
-    {
-        float frames_total_time = 0.0f;
-        std::uint32_t frames_count = 0;
-    };
-
-private:
     engine_application_t app_{};
     std::unordered_map<engine_game_object_t, std::unique_ptr<IScript>> scripts_;
-    fps_counter_t fps_counter_{};
+
 
 protected:
     engine_scene_t scene_{};
