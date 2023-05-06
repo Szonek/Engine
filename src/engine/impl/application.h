@@ -32,6 +32,9 @@ public:
     std::uint32_t add_geometry_from_memory(std::span<const engine_vertex_attribute_t> verts, std::span<const uint32_t> inds, std::string_view name);
     std::uint32_t get_geometry(std::string_view name) const;
 
+    engine_model_info_t load_model_info_from_file(engine_model_specification_t spec, std::string_view name);
+    void release_model_info(engine_model_info_t* info);
+
     bool keyboard_is_key_down(engine_keyboard_keys_t key);
 
     engine_mouse_coords_t mouse_get_coords();

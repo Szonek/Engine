@@ -16,6 +16,39 @@
 
 #include <SDL_rwops.h>
 
+namespace
+{
+template<typename T>
+T load_data_from_file(std::string_view path)
+{
+	auto* file_handle = SDL_RWFromFile(path.data(), "r");
+	T ret;
+	if(file_handle)
+	{
+		std::array<char8_t, 1024> buffer{0};
+		while(true)
+		{
+			const auto bytes_read = SDL_RWread( file_handle, buffer.data(), sizeof(buffer[0]) * buffer.size() );
+			if(bytes_read == 0)
+			{
+				// end of file
+				break;
+			}
+			else if (bytes_read < 0)
+			{
+				engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Error parsing file: {}. Error msg: {}\n", path, SDL_GetError()));
+				break;
+			}
+			ret.insert(ret.end(), buffer.begin(), buffer.begin() + bytes_read);
+		}
+
+		//Close file handler
+		SDL_RWclose( file_handle );
+	}
+	return ret;
+}
+
+}  // namespace anonymous
 
 engine::TextureAssetContext::TextureAssetContext(const std::filesystem::path& file_path)
 	: width_(0)
@@ -88,33 +121,16 @@ engine::TextureAssetContext engine::AssetStore::get_texture_data(std::string_vie
 	const auto textures_assets_path = base_path_ / textures_folder;
 	const auto full_path = textures_assets_path / name.data();
 
-	return std::move(TextureAssetContext(full_path));
+	return TextureAssetContext(full_path);
 }
 
 
-engine::FontAssetContext::FontAssetContext(const std::filesystem::path &file_path)
+engine::RawDataFileContext::RawDataFileContext(const std::filesystem::path &file_path)
 {
-	auto* file_handle = SDL_RWFromFile(file_path.string().c_str(), "r");
-	if(file_handle)
+	data_ = load_data_from_file<std::vector<std::uint8_t>>(file_path.string().c_str());
+	if(data_.empty())
 	{
-		std::array<char8_t, 1024> buffer{0};
-		while(true)
-		{
-			const auto bytes_read = SDL_RWread( file_handle, buffer.data(), sizeof(buffer[0]) * buffer.size() );
-			if(bytes_read == 0)
-			{
-				// end of file
-				break;
-			}
-			else if (bytes_read < 0)
-			{
-				log::log(log::LogLevel::eCritical, fmt::format("Error parsing file: {}. Error msg: {}\n", file_path.string(), SDL_GetError()));
-				break;
-			}
-			data_.insert(data_.end(), buffer.begin(), buffer.begin() + bytes_read);
-		}
-		//Close file handler
-		SDL_RWclose( file_handle );
+		log::log(log::LogLevel::eCritical, fmt::format("Couldnt load file {}\n", file_path.string().c_str()));
 	}
 }
 
@@ -131,39 +147,25 @@ std::string engine::AssetStore::get_shader_source(std::string_view name)
 	const std::filesystem::path shaders_folder = "shaders";
 	const auto shaders_assets_path = base_path_ / shaders_folder;
     const auto file_path = shaders_assets_path / name.data();
-    std::string ret = "";
-    auto* file_handle = SDL_RWFromFile(file_path.string().c_str(), "r");
-    if(file_handle)
-    {
-
-        std::array<char8_t, 1024> buffer{0};
-        while(true)
-        {
-            const auto bytes_read = SDL_RWread( file_handle, buffer.data(), sizeof(buffer[0]) * buffer.size() );
-            if(bytes_read == 0)
-            {
-                // end of file
-                break;
-            }
-            else if (bytes_read < 0)
-            {
-                log::log(log::LogLevel::eCritical, fmt::format("Error parsing file: {}. Error msg: {}\n", file_path.string(), SDL_GetError()));
-                break;
-            }
-            ret += std::string (buffer.data(), buffer.data() + bytes_read);
-        }
-
-        //Close file handler
-        SDL_RWclose( file_handle );
-    }
+    std::string ret = load_data_from_file<std::string>(file_path.string().c_str());
     return ret;
 }
 
-engine::FontAssetContext engine::AssetStore::get_font_data(std::string_view name) const
+engine::RawDataFileContext engine::AssetStore::get_font_data(std::string_view name) const
 {
-	const std::filesystem::path textures_folder = "fonts";
-	const auto textures_assets_path = base_path_ / textures_folder;
-	const auto full_path = textures_assets_path / name.data();
+	const std::filesystem::path fonts_folder = "fonts";
+	const auto fonts_assets_path = base_path_ / fonts_folder;
+	const auto full_path = fonts_assets_path / name.data();
 
-	return engine::FontAssetContext(full_path);
+	return RawDataFileContext(full_path);
 }
+
+engine::RawDataFileContext engine::AssetStore::get_model_data(std::string_view name) const
+{
+	const std::filesystem::path models_folder = "models";
+	const auto models_assets_path = base_path_ / models_folder;
+	const auto full_path = models_assets_path / name.data();
+
+	return RawDataFileContext(full_path);
+}
+

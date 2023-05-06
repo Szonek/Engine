@@ -38,20 +38,21 @@ private:
 	std::uint8_t* data_;
 };
 
-class FontAssetContext
+class RawDataFileContext
 {
 public:
-	FontAssetContext(const std::filesystem::path& file_path);
+	RawDataFileContext(const std::filesystem::path& file_path);
 
-	FontAssetContext(const FontAssetContext&) = delete;
-	FontAssetContext(FontAssetContext&& rhs) = default;
-	FontAssetContext& operator=(const FontAssetContext&) = delete;
-	FontAssetContext& operator=(FontAssetContext&& rhs) = default;
+	RawDataFileContext(const RawDataFileContext&) = delete;
+	RawDataFileContext(RawDataFileContext&& rhs) = default;
+	RawDataFileContext& operator=(const RawDataFileContext&) = delete;
+	RawDataFileContext& operator=(RawDataFileContext&& rhs) = default;
 
-	~FontAssetContext() = default;
+	~RawDataFileContext() = default;
 
 	std::size_t get_size() const { return data_.size(); }
 	const std::uint8_t* get_data_ptr() const { return data_.data(); }
+    const std::vector<std::uint8_t>& get_vector() const {return data_;}
 
 private:
 	std::vector<std::uint8_t> data_;
@@ -73,8 +74,9 @@ public:
 	AssetStore& operator=(AssetStore&&) = delete;
 
 	void configure_base_path(std::string_view path);
-    FontAssetContext get_font_data(std::string_view name) const;
+	RawDataFileContext get_font_data(std::string_view name) const;
 	TextureAssetContext get_texture_data(std::string_view name) const;
+	RawDataFileContext get_model_data(std::string_view name) const;
     void save_texture(std::string_view name, const void* data, std::uint32_t width, std::uint32_t height, std::uint32_t channels);
 	std::string get_shader_source(std::string_view name);
 

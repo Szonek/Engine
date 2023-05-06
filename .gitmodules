@@ -34,6 +34,6 @@
 [submodule "thirdparty/fmt"]
 	path = thirdparty/fmt
 	url = https://github.com/fmtlib/fmt.git
-[submodule "thirdparty/cgltf"]
-	path = thirdparty/cgltf
-	url = https://github.com/jkuhlmann/cgltf.git
+[submodule "thirdparty/tinygltf"]
+	path = thirdparty/tinygltf
+	url = https://github.com/syoyo/tinygltf.git

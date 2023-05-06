@@ -338,13 +338,12 @@ engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, st
 {
 	// vertex array object (buffer)
 	glGenVertexArrays(1, &vao_);
-	glGenBuffers(1, &vbo_);
 	glBindVertexArray(vao_);
 
 	// vertex buffer
+    glGenBuffers(1, &vbo_);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-	//glBufferData(GL_ARRAY_BUFFER, vertex_data.size_bytes(), vertex_data.data(), GL_STATIC_DRAW);
-	glBufferData(GL_ARRAY_BUFFER, vertex_data.size_bytes(), vertex_data.data(), GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vertex_data.size_bytes(), vertex_data.data(), GL_STATIC_DRAW);
 
 	// vertex layout 
 	std::for_each(vertex_layout.begin(), vertex_layout.end(), [](const vertex_attribute_t& vl)

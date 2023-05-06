@@ -17,9 +17,14 @@ add_subdirectory(glm)
 # entt
 add_subdirectory(entt)
 
-# cgltf
-add_library(cgltf INTERFACE)
-target_include_directories(cgltf INTERFACE "cgltf")
+# gltf 2.0
+set(TINYGLTF_BUILD_LOADER_EXAMPLE OFF)
+set(TINYGLTF_BUILD_GL_EXAMPLES OFF)
+set(TINYGLTF_BUILD_VALIDATOR_EXAMPLE OFF)
+set(TINYGLTF_BUILD_BUILDER_EXAMPLE OFF)
+set(TINYGLTF_INSTALL OFF)
+set(TINYGLTF_HEADER_ONLY ON)
+add_subdirectory(tinygltf)
 
 #bullet3
 if(CMAKE_SYSTEM_NAME STREQUAL "Android")

@@ -224,6 +224,26 @@ typedef struct _engine_collision_info_t
 
 } engine_collision_info_t;
 
+typedef enum _engine_model_specification_t
+{
+    ENGINE_MODEL_SPECIFICATION_GLTF_2
+} engine_model_specification_t;
+
+typedef struct _engine_geometry_info_t
+{
+    const engine_vertex_attribute_t* verts;
+    size_t verts_count;
+    const uint32_t* inds;
+    size_t inds_count;
+} engine_geometry_info_t;
+
+typedef struct _engine_model_info_t
+{
+    const void* internal_handle = nullptr;
+    engine_geometry_info_t* geometries_array = nullptr;
+    size_t geometries_count = 0;
+} engine_model_info_t;
+
 // cross platform log
 ENGINE_API void engineLog(const char* str);
 
@@ -247,7 +267,10 @@ ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engi
 ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name, engine_font_t* out);
 ENGINE_API engine_font_t engineApplicationGetFontByName(engine_application_t handle, const char* name);
 
-ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, const engine_vertex_attribute_t* verts, size_t verts_count, uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
+ENGINE_API engine_model_info_t engineApplicationAllocateModelInfoAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name);
+ENGINE_API void engineApplicationReleaseModelInfo(engine_application_t handle, engine_model_info_t* model_info);
+
+ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, const engine_vertex_attribute_t* verts, size_t verts_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t& info, const char* name, engine_texture2d_t* out);

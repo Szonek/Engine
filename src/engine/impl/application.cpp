@@ -3,6 +3,7 @@
 #include "asset_store.h"
 #include "scene.h"
 #include "logger.h"
+#include "gltf_parser.h"
 
 #include <glm/glm.hpp>
 #include <SDL3/SDL.h>
@@ -235,6 +236,46 @@ std::uint32_t engine::Application::get_geometry(std::string_view name) const
 {
     return geometries_atlas_.get_object(name);
 ;}
+
+
+engine_model_info_t engine::Application::load_model_info_from_file(engine_model_specification_t spec, std::string_view name)
+{
+    const auto file_data = engine::AssetStore::get_instance().get_model_data(name);
+    if(file_data.get_size() == 0)
+    {
+        return {};
+    }
+    const auto model_info = new engine::ModelInfo(parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }));
+
+    engine_model_info_t ret{};
+    ret.internal_handle = reinterpret_cast<const void*>(model_info);
+    ret.geometries_count = model_info->geometries.size();
+    ret.geometries_array = new engine_geometry_info_t[ret.geometries_count];
+
+    for (std::size_t i = 0; i < ret.geometries_count; i++)
+    {
+        const auto& int_g = model_info->geometries[i];
+        auto& ret_g = ret.geometries_array[i];
+
+        ret_g.inds_count = int_g.indicies.size();
+        ret_g.inds = int_g.indicies.data();
+
+        ret_g.verts_count = int_g.verticies.size();
+        ret_g.verts = int_g.verticies.data();
+    }
+
+    return ret;
+}
+
+void engine::Application::release_model_info(engine_model_info_t* info)
+{
+    if (info)
+    {
+        const auto model_info = reinterpret_cast<const engine::ModelInfo*>(info->internal_handle);
+        delete model_info;
+        std::memset(info, 0, sizeof(engine_model_info_t));
+    }
+}
 
 bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
 {

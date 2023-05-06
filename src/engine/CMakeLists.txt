@@ -17,6 +17,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/ui_manager.h
 	${ENGINE_SOURCES_DIR}/logger.cpp
 	${ENGINE_SOURCES_DIR}/logger.h
+	${ENGINE_SOURCES_DIR}/gltf_parser.h
+	${ENGINE_SOURCES_DIR}/gltf_parser.cpp
 )
 
 set(ENGINE_API "include")
@@ -43,6 +45,6 @@ set_property(TARGET ${ENGINE} PROPERTY CXX_STANDARD 20)
 
 
 target_include_directories(${ENGINE} PUBLIC ${ENGINE_API} PRIVATE ${BULLET_INCLUDE_DIRS})
-target_link_libraries(${ENGINE} PRIVATE stb glad glm EnTT::EnTT freetype SDL3::SDL3-static fmt::fmt-header-only ${BULLET_LIBRARIES})
+target_link_libraries(${ENGINE} PRIVATE stb tinygltf glad glm EnTT::EnTT freetype SDL3::SDL3-static fmt::fmt-header-only ${BULLET_LIBRARIES})
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_ALL_SOURCES})
