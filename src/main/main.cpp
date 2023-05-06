@@ -3,12 +3,12 @@
 #include "utils.h"
 #include "iscript.h"
 
-#include "pong/global_constants.h"
-#include "pong/ball_script.h"
-#include "pong/player_paddle_script.h"
-#include "pong/goal_net_script.h"
-#include "pong/wall_script.h"
-#include "pong/camera_script.h"
+#include "pong/scripts/global_constants.h"
+#include "pong/scripts/ball_script.h"
+#include "pong/scripts/player_paddle_script.h"
+#include "pong/scripts/goal_net_script.h"
+#include "pong/scripts/wall_script.h"
+#include "pong/scripts/camera_script.h"
 
 #include <iostream>
 #include <vector>

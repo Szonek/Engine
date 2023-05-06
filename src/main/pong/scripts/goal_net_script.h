@@ -1,7 +1,7 @@
 #pragma once
 #include "engine.h"
 
-#include "../iscript.h"
+#include "iscript.h"
 
 class GoalNetScript : public IScript
 {

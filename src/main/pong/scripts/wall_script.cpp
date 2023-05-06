@@ -1,7 +1,7 @@
 #include "wall_script.h"
 #include "global_constants.h"
 
-#include "../utils.h"
+#include "utils.h"
 
 #include <cassert>
 

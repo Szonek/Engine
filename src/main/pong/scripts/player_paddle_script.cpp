@@ -1,6 +1,7 @@
 #include "player_paddle_script.h"
 #include "ball_script.h"
-#include "../utils.h"
+
+#include "utils.h"
 #include "global_constants.h"
 
 #include <glm/glm.hpp>

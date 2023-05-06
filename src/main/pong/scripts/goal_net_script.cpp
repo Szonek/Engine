@@ -4,7 +4,7 @@
 #include "ball_script.h"
 #include "player_paddle_script.h"
 
-#include "../utils.h"
+#include "utils.h"
 
 #include <cassert>
 
