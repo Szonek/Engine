@@ -148,3 +148,98 @@ void PlayerPaddleScript::handle_input(float dt)
         engineSceneUpdateTransformComponent(scene_, go_, &tc);
     }
 }
+
+// 
+// --- RIGHT PLAYER ---
+//
+
+RightPlayerPaddleScript::RightPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
+    : PlayerPaddleScript(app, scene, 12.0f, 0.75f, "right_player")
+{
+    // text component
+    {
+        const auto text_go = engineSceneCreateGameObject(scene);
+        auto text_component = engineSceneAddTextComponent(scene, text_go);
+        text_component.font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
+        assert(text_component.font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
+        text_component.text = "Player 2";
+        set_c_array(text_component.color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
+        engineSceneUpdateTextComponent(scene, text_go, &text_component);
+
+        auto tc = engineSceneAddRectTransformComponent(scene, text_go);
+        tc.position[0] = 0.75f;
+        tc.position[1] = 0.15f;
+
+        tc.scale[0] = 0.5f;
+        tc.scale[1] = 0.5f;
+        engineSceneUpdateRectTransformComponent(scene, text_go, &tc);
+    }
+
+    // touchable area component
+    {
+        const auto touch_area_go = engineSceneCreateGameObject(scene);
+        auto tc = engineSceneAddRectTransformComponent(scene, touch_area_go);
+        tc.position[0] = 0.8f;
+        tc.position[1] = 0.0f;
+
+        tc.scale[0] = 1.0f;
+        tc.scale[1] = 1.0f;
+        engineSceneUpdateRectTransformComponent(scene, touch_area_go, &tc);
+
+        auto ic = engineSceneAddImageComponent(scene, touch_area_go);
+        set_c_array(ic.color, std::array<float, 4>{0.0f, 0.3f, 0.8f, 0.0f});
+        engineSceneUpdateImageComponent(scene, touch_area_go, &ic);
+    }
+}
+
+bool RightPlayerPaddleScript::is_finger_in_controller_area_impl(const engine_finger_info_t& f)
+{
+    return (f.x > 0.8f && f.x <= 1.0f);
+}
+
+// 
+// --- LEFT PLAYER ---
+//
+LeftPlayerPaddleScript::LeftPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
+    : PlayerPaddleScript(app, scene, -12.0f, 0.25f, "left_player")
+{
+    // text component for the NAME
+    {
+        const auto text_go = engineSceneCreateGameObject(scene);
+        auto text_component = engineSceneAddTextComponent(scene, text_go);
+        text_component.font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
+        assert(text_component.font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
+        text_component.text = "Player 1";
+        set_c_array(text_component.color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
+        engineSceneUpdateTextComponent(scene, text_go, &text_component);
+
+        auto tc = engineSceneAddRectTransformComponent(scene, text_go);
+        tc.position[0] = 0.25f;
+        tc.position[1] = 0.15f;
+
+        tc.scale[0] = 0.5f;
+        tc.scale[1] = 0.5f;
+        engineSceneUpdateRectTransformComponent(scene, text_go, &tc);
+    }
+
+    // touchable area component
+    {
+        const auto touch_area_go = engineSceneCreateGameObject(scene);
+        auto tc = engineSceneAddRectTransformComponent(scene, touch_area_go);
+        tc.position[0] = 0.0f;
+        tc.position[1] = 0.0f;
+
+        tc.scale[0] = 0.2f;
+        tc.scale[1] = 1.0f;
+        engineSceneUpdateRectTransformComponent(scene, touch_area_go, &tc);
+
+        auto ic = engineSceneAddImageComponent(scene, touch_area_go);
+        set_c_array(ic.color, std::array<float, 4>{0.0f, 0.3f, 0.8f, 0.0f});
+        engineSceneUpdateImageComponent(scene, touch_area_go, &ic);
+    }
+}
+
+bool LeftPlayerPaddleScript::is_finger_in_controller_area_impl(const engine_finger_info_t& f)
+{
+    return (f.x < 0.2f && f.x >= 0.0f);
+}

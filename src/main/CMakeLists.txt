@@ -15,9 +15,13 @@ set(GAME_SOURCES
 	${GAME_DIR}/ball_script.cpp
 	${GAME_DIR}/global_constants.h
 	${GAME_DIR}/goal_net_script.h
+	${GAME_DIR}/goal_net_script.cpp
 	${GAME_DIR}/player_paddle_script.h
 	${GAME_DIR}/player_paddle_script.cpp
 	${GAME_DIR}/wall_script.h
+	${GAME_DIR}/wall_script.cpp
+	${GAME_DIR}/camera_script.h
+	${GAME_DIR}/camera_script.cpp
 )
 
 set(ALL_SOURCES ${APP_SOURCES} ${GAME_SOURCES})
