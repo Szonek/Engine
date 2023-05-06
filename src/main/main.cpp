@@ -841,7 +841,25 @@ int main(int argc, char** argv)
     scene_manager[top_wall.get_game_object()] = &top_wall;
     scene_manager[bottom_wall.get_game_object()] = &bottom_wall;
 
-    
+
+    engine_component_view_t rect_tranform_view{};
+    engineSceneCreateComponentView(scene, &rect_tranform_view);
+    engineSceneComponentViewAttachRectTransformComponent(scene, rect_tranform_view);
+
+    engine_component_iterator_t begin_it{};
+    engineComponentViewCreateBeginComponentIterator(rect_tranform_view, &begin_it);
+    engine_component_iterator_t end_it{};
+    engineComponentViewCreateEndComponentIterator(rect_tranform_view, &end_it);
+
+    size_t idx = 0;
+    while (engineComponentIteratorCheckEqual(begin_it, end_it) == false)
+    {
+        std::cout << idx++ << std::endl;
+        const auto game_obj = engineComponentIteratorGetGameObject(begin_it);
+        const auto rect_transform = engineSceneGetRectTransformComponent(scene, game_obj);
+        std::cout << rect_transform.position[0] << ", " << rect_transform.position[1] << ", " << rect_transform.position[2] << std::endl;
+        engineComponentIteratorNext(begin_it);
+    }
 	while (true)
 	{
 		const auto frame_begin = engineApplicationFrameBegine(app);

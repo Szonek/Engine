@@ -433,6 +433,11 @@ void engine::Scene::destroy_entity(entt::entity entity)
     entity_registry_.destroy(entity);
 }
 
+entt::runtime_view engine::Scene::create_runtime_view()
+{
+    return entt::runtime_view{};
+}
+
 void engine::Scene::set_physcis_gravity(std::array<float, 3> g)
 {
     physics_world_.set_gravity(g);

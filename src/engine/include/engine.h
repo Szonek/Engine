@@ -41,9 +41,12 @@ typedef uint32_t engine_game_object_t;
 #define ENGINE_INVALID_OBJECT_HANDLE 0
 typedef struct _engine_application_t* engine_application_t;
 typedef struct _engine_scene_t* engine_scene_t;
+typedef struct _engine_component_view_t* engine_component_view_t;
+typedef struct _engine_component_iterator_t* engine_component_iterator_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_font_t;
+
 
 typedef struct _engine_application_create_desc_t
 {
@@ -250,6 +253,7 @@ ENGINE_API void engineLog(const char* str);
 ENGINE_API engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc);
 ENGINE_API void engineApplicationDestroy(engine_application_t handle);
 
+// user input hangling
 ENGINE_API bool engineApplicationIsKeyboardButtonDown(engine_application_t handle, engine_keyboard_keys_t key);
 ENGINE_API bool engineApplicationIsKeyboardButtonUp(engine_application_t handle, engine_keyboard_keys_t key);
 
@@ -259,20 +263,27 @@ ENGINE_API bool engineApplicationIsMouseButtonUp(engine_application_t handle, en
 
 ENGINE_API bool engineApplicationGetFingerInfo(engine_application_t handle, const engine_finger_info_t** infos_list, size_t* infos_count);
 
+//frame handling
 ENGINE_API engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_application_t handle);
 ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpdatePhysics(engine_application_t handle, engine_scene_t scene, float delta_time);
 ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpdateGraphics(engine_application_t handle, engine_scene_t scene, float delta_time);
 ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engine_application_t handle);
 
+// fonts
 ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name, engine_font_t* out);
 ENGINE_API engine_font_t engineApplicationGetFontByName(engine_application_t handle, const char* name);
+
+// model loading
 
 ENGINE_API engine_result_code_t engineApplicationAllocateModelInfoAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, engine_model_info_t* out);
 ENGINE_API void engineApplicationReleaseModelInfo(engine_application_t handle, engine_model_info_t* model_info);
 
+// geometry
 ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, const engine_vertex_attribute_t* verts, size_t verts_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 
+
+// textures 
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t& info, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 
@@ -282,8 +293,22 @@ ENGINE_API void engineSceneDestroy(engine_scene_t scene);
 ENGINE_API engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene);
 ENGINE_API void                     engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object);
 
+
+// physics 
 ENGINE_API void                     engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);
 ENGINE_API void                     engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
+
+// ECS 
+ENGINE_API engine_result_code_t engineSceneCreateComponentView(engine_scene_t scene, engine_component_view_t* out);
+ENGINE_API void engineSceneDestroyComponentView(engine_component_view_t* iterator);
+ENGINE_API engine_result_code_t engineComponentViewCreateBeginComponentIterator(engine_component_view_t view, engine_component_iterator_t* out);
+ENGINE_API engine_result_code_t engineComponentViewCreateEndComponentIterator(engine_component_view_t view, engine_component_iterator_t* out);
+ENGINE_API bool engineComponentIteratorCheckEqual(engine_component_iterator_t lhs, engine_component_iterator_t rhs);
+ENGINE_API void engineComponentIteratorNext(engine_component_iterator_t iterator);
+ENGINE_API engine_game_object_t engineComponentIteratorGetGameObject(engine_component_iterator_t iterator);
+ENGINE_API void engineSceneComponentViewDeleteIterator(engine_component_iterator_t iterator);
+ENGINE_API void engineSceneComponentViewAttachRectTransformComponent(engine_scene_t scene, engine_component_view_t view);
+
 
 ENGINE_API engine_name_component_t engineSceneAddNameComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_name_component_t engineSceneGetNameComponent(engine_scene_t scene, engine_game_object_t game_object);

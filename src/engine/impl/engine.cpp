@@ -6,6 +6,8 @@
 
 #include "logger.h"
 
+#include <utility>
+
 namespace
 {
 inline engine::Application* application_cast(engine_application_t engine_app)
@@ -326,7 +328,7 @@ engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene)
 {
     auto sc = scene_cast(scene);
     auto new_entity = sc->create_new_entity();
-    return static_cast<uint32_t>(new_entity);
+    return static_cast<engine_game_object_t>(new_entity);
 }
 
 void engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object)
@@ -347,6 +349,96 @@ void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const
     sc->get_physcis_collisions_list(*collisions, num_collision);
 }
 
+engine_result_code_t engineSceneCreateComponentView(engine_scene_t scene, engine_component_view_t* out)
+{
+    auto sc = scene_cast(scene);
+    if (out)
+    {
+        *out = reinterpret_cast<engine_component_view_t>(new entt::runtime_view(sc->create_runtime_view()));
+        return ENGINE_RESULT_CODE_OK;
+    }
+
+    return ENGINE_RESULT_CODE_FAIL;
+}
+
+void engineSceneDestroyComponentView(engine_component_view_t* view)
+{
+    if (view)
+    {
+        auto rv = reinterpret_cast<entt::runtime_view*>(*view);
+        delete rv;
+    }
+}
+
+engine_result_code_t engineComponentViewCreateBeginComponentIterator(engine_component_view_t view, engine_component_iterator_t* out)
+{
+    if (view && out)
+    {
+        auto rv = reinterpret_cast<entt::runtime_view*>(view);
+        *out = reinterpret_cast<engine_component_iterator_t>(new decltype(rv->begin())(rv->begin()));
+        return ENGINE_RESULT_CODE_OK;
+    }
+    return ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engineComponentViewCreateEndComponentIterator(engine_component_view_t view, engine_component_iterator_t* out)
+{
+    if (view && out)
+    {
+        auto rv = reinterpret_cast<entt::runtime_view*>(view);
+        *out = reinterpret_cast<engine_component_iterator_t>(new decltype(rv->end())(rv->end()));
+        return ENGINE_RESULT_CODE_OK;
+    }
+    return ENGINE_RESULT_CODE_FAIL;
+}
+
+void engineComponentIteratorNext(engine_component_iterator_t iterator)
+{
+    if (iterator)
+    {
+        auto it_typed = reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(iterator);
+        (*it_typed)++;
+    }
+}
+
+engine_game_object_t engineComponentIteratorGetGameObject(engine_component_iterator_t iterator)
+{
+    if (iterator)
+    {
+        auto it_typed = reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(iterator);
+        return static_cast<engine_game_object_t>(**it_typed);
+    }
+    return ENGINE_INVALID_GAME_OBJECT_ID;
+}
+
+bool engineComponentIteratorCheckEqual(engine_component_iterator_t lhs, engine_component_iterator_t rhs)
+{
+    bool ret = false;
+    if (lhs && rhs)
+    {
+        auto lhs_typed = reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(lhs);
+        auto rhs_typed = reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(rhs);
+        ret = (*lhs_typed == *rhs_typed);
+    }
+    return ret;
+}
+
+void engineComponentViewDeleteIterator(engine_component_iterator_t iterator)
+{
+    if (iterator)
+    {
+        auto it = reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(iterator);
+        delete it;
+    }
+}
+
+void engineSceneComponentViewAttachRectTransformComponent(engine_scene_t scene, engine_component_view_t view)
+{
+    auto sc = scene_cast(scene);
+    auto rv = reinterpret_cast<entt::runtime_view*>(view);
+    sc->attach_component_to_runtime_view<engine_rect_tranform_component_t>(*rv);
+}
+
 engine_name_component_t engineSceneAddNameComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return add_component<engine_name_component_t>(scene, game_object);
@@ -357,7 +449,7 @@ engine_name_component_t engineSceneGetNameComponent(engine_scene_t scene, engine
     return get_component<engine_name_component_t>(scene, game_object);
 }
 
-ENGINE_API void engineSceneUpdateNameComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_name_component_t* comp)
+void engineSceneUpdateNameComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_name_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }

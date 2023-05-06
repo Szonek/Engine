@@ -23,6 +23,14 @@ public:
     entt::entity create_new_entity();
     void destroy_entity(entt::entity entity);
 
+    entt::runtime_view create_runtime_view();
+
+    template<typename T>
+    void attach_component_to_runtime_view(entt::runtime_view& rv)
+    {
+        rv.iterate(entity_registry_.storage<T>());
+    }
+
     template<typename T>
     T* add_component(entt::entity entity, T&& component)
     {
