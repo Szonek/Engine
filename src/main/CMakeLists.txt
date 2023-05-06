@@ -9,6 +9,7 @@ set(APP_TOOLKIT_SOURCES
 	${APP_TOOLKIT_DIR}/utils.h
 	${APP_TOOLKIT_DIR}/iscript.h
 	${APP_TOOLKIT_DIR}/iscene.h
+	${APP_TOOLKIT_DIR}/iscene.cpp
 	${APP_TOOLKIT_DIR}/gui_event_system.h
 	${APP_TOOLKIT_DIR}/gui_event_system.cpp
 )
@@ -32,6 +33,7 @@ set(GAME_SCRIPTS_SOURCES
 set(GAME_SCENES_DIR ${GAME_DIR}/scenes)
 set(GAME_SCENES_SOURCES
 	${GAME_SCENES_DIR}/main_scene.h
+	${GAME_SCENES_DIR}/main_scene.cpp
 )
 
 set(APP_ALL_SOURCES ${APP_SOURCES} ${APP_TOOLKIT_SOURCES} ${GAME_SCRIPTS_SOURCES} ${GAME_SCENES_SOURCES})
