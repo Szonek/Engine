@@ -21,9 +21,6 @@ public:
     IScene& operator=(IScene&& rhs)  noexcept = default;
     ~IScene();
 
-    engine_scene_t get_handle() { return scene_; }
-    ScriptsMap& get_scripts_map() { return scripts_; }
-
     template<typename T>
     T* register_script()
     {
@@ -40,13 +37,12 @@ public:
     virtual bool is_active() const;
     virtual engine_result_code_t update(float dt);
 
-private:
+protected:
     engine_application_t app_{};
+    engine_scene_t scene_{};
+
     ScriptsMap scripts_{};
     InputEventSystem input_event_system_;
-
-protected:
-    engine_scene_t scene_{};
     bool is_activate_ = true;
 };
 }

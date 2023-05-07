@@ -19,15 +19,17 @@ public:
         PointerEventData event_data = {};
     };
 
-    InputEventSystem(engine_application_t app_handle)
+    InputEventSystem(engine_application_t& app_handle, engine_scene_t& scene)
         : app_(app_handle)
+        , scene_(scene)
     {
     }
 
     std::vector<UpdateResult> update();
 
 private:
-    engine_application_t app_;
+    engine_application_t& app_;
+    engine_scene_t& scene_;
 
     // mouse
     engine_coords_2d_t mouse_coords_prev_{};

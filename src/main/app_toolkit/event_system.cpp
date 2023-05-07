@@ -6,8 +6,8 @@
 std::vector<engine::InputEventSystem::UpdateResult> engine::InputEventSystem::update()
 {
     using UR = engine::InputEventSystem::UpdateResult;
-    std::vector<UR> ret{};
-    ret.reserve(64);
+    std::vector<UR> ur_candidates{};  // candidates to return, since we dont know if game object was found
+    ur_candidates.reserve(64);
 
     if(K_IS_ANDROID)
     {
@@ -30,19 +30,13 @@ std::vector<engine::InputEventSystem::UpdateResult> engine::InputEventSystem::up
             {
                 r.event_data.button = ENGINE_MOUSE_BUTTON_LEFT;
                 r.pointer_clicked_event = true;
-                ret.push_back(r);
+                ur_candidates.push_back(r);
             }
             else if(touch_info_current.infos[i].event_type_flags & ENGINE_FINGER_DOWN || touch_info_current.infos[i].event_type_flags & ENGINE_FINGER_MOTION)
             {
-                if(r.event_data.position[0] == 0.0f && r.event_data.position[1] == 0.0f)
-                {
-                    engineLog("debug\n");
-                }
-                const auto s = fmt::format("{}, {}\n", r.event_data.position[0], r.event_data.position[1]);
-                engineLog(s.c_str());
                 r.event_data.button = ENGINE_MOUSE_BUTTON_LEFT;
                 r.pointer_down_event = true;
-                ret.push_back(r);
+                ur_candidates.push_back(r);
             }
             touch_info_prev_.infos[i] = touch_info_current.infos[i];
         }
@@ -86,6 +80,72 @@ std::vector<engine::InputEventSystem::UpdateResult> engine::InputEventSystem::up
         //mouse_down_state_prev_ = mouse_down_state_current;
     }
 
-    // return result;
+    std::vector<UR> ret{};  // candidates to return, since we dont know if game object was found
+    ret.reserve(64);
+    if (!ur_candidates.empty())
+    {
+        engine_component_view_t rect_tranform_view{};
+        engineCreateComponentView(&rect_tranform_view);
+        engineSceneComponentViewAttachRectTransformComponent(scene_, rect_tranform_view);
+
+        engine_component_iterator_t begin_it{};
+        engineComponentViewCreateBeginComponentIterator(rect_tranform_view, &begin_it);
+        engine_component_iterator_t end_it{};
+        engineComponentViewCreateEndComponentIterator(rect_tranform_view, &end_it);
+
+        while (engineComponentIteratorCheckEqual(begin_it, end_it) == false)
+        {
+            const auto game_obj = engineComponentIteratorGetGameObject(begin_it);
+            const auto rect_transform = engineSceneGetRectTransformComponent(scene_, game_obj);
+
+            for (auto& input_event : ur_candidates)
+            {
+                // click event has to be finished within object
+                if (input_event.pointer_clicked_event)
+                {
+                    //ToDo: fix rect transform and change the scale to width/height in below condition
+                    if (input_event.event_data.position[0] >= rect_transform.position[0]    //x0
+                        && input_event.event_data.position[1] >= rect_transform.position[1] //y0
+                        && input_event.event_data.position[0] <= rect_transform.scale[0]
+                        && input_event.event_data.position[1] <= rect_transform.scale[1])
+                    {
+                        input_event.event_data.pointer_click_object = game_obj;
+                        ret.push_back(input_event);
+                    }
+                }
+
+                // down event - pointer is clicked (not released yet) on the object
+                if (input_event.pointer_down_event)
+                {
+                    //ToDo: fix rect transform and change the scale to width/height in below condition
+                    if (input_event.event_data.position[0] >= rect_transform.position[0]    //x0
+                        && input_event.event_data.position[1] >= rect_transform.position[1] //y0
+                        && input_event.event_data.position[0] <= rect_transform.scale[0]
+                        && input_event.event_data.position[1] <= rect_transform.scale[1])
+                    {
+                        input_event.event_data.pointer_down_object = game_obj;
+                        ret.push_back(input_event);
+                    }
+                }
+            }
+            engineComponentIteratorNext(begin_it);
+        }
+
+        if (begin_it)
+        {
+            engineDeleteComponentIterator(begin_it);
+        }
+
+        if (end_it)
+        {
+            engineDeleteComponentIterator(end_it);
+        }
+
+        if (rect_tranform_view)
+        {
+            engineDestroyComponentView(rect_tranform_view);
+        }
+
+    }
     return ret;
 }

@@ -58,82 +58,31 @@ engine_result_code_t propagate_collisions_events(engine_application_t app, engin
 void propagte_input_events(engine_application_t app, engine_scene_t scene, const std::vector<engine::InputEventSystem::UpdateResult>& input_events, engine::IScene::ScriptsMap& scripts)
 {
 
-    engine_component_view_t rect_tranform_view{};
-    engineCreateComponentView(&rect_tranform_view);
-    engineSceneComponentViewAttachRectTransformComponent(scene, rect_tranform_view);
-
-    engine_component_iterator_t begin_it{};
-    engineComponentViewCreateBeginComponentIterator(rect_tranform_view, &begin_it);
-    engine_component_iterator_t end_it{};
-    engineComponentViewCreateEndComponentIterator(rect_tranform_view, &end_it);
-
-    while (engineComponentIteratorCheckEqual(begin_it, end_it) == false)
+    for (const auto& input_event : input_events)
     {
-        const auto game_obj = engineComponentIteratorGetGameObject(begin_it);
-        const auto rect_transform = engineSceneGetRectTransformComponent(scene, game_obj);
-
-        for (const auto& input_event : input_events)
+        if (input_event.pointer_clicked_event)
         {
-            // click event has to be finished within object
-            if (input_event.pointer_clicked_event)
+            if (!scripts.contains(input_event.event_data.pointer_click_object))
             {
-                //ToDo: fix rect transform and change the scale to width/height in below condition
-                if (input_event.event_data.position[0] >= rect_transform.position[0]    //x0
-                    && input_event.event_data.position[1] >= rect_transform.position[1] //y0
-                    && input_event.event_data.position[0] <= rect_transform.scale[0]
-                    && input_event.event_data.position[1] <= rect_transform.scale[1])
-                {
-                    //const auto name_comp = engineSceneGetNameComponent(scene, game_obj);
-                    //std::cout << "GO: " << game_obj <<", " << name_comp.name << std::endl;
-                    if (!scripts.contains(game_obj))
-                    {
-                        engineLog(fmt::format("Bug!! Tried to send event to object without attached script, go id: {}\n", game_obj).c_str());
-                    }
-                    else
-                    {
-                        scripts[game_obj]->on_pointer_click(&input_event.event_data);
-                    }
-                }
+                engineLog(fmt::format("Bug!! Tried to send event to object without attached script, go id: {}\n", input_event.event_data.pointer_click_object).c_str());
             }
-
-            // down event - pointer is clicked (not released yet) on the object
-            if (input_event.pointer_down_event)
+            else
             {
-                //ToDo: fix rect transform and change the scale to width/height in below condition
-                if (input_event.event_data.position[0] >= rect_transform.position[0]    //x0
-                    && input_event.event_data.position[1] >= rect_transform.position[1] //y0
-                    && input_event.event_data.position[0] <= rect_transform.scale[0]
-                    && input_event.event_data.position[1] <= rect_transform.scale[1])
-                {
-                    //const auto name_comp = engineSceneGetNameComponent(scene, game_obj);
-                    //std::cout << "GO: " << game_obj <<", " << name_comp.name << std::endl;
-                    if (!scripts.contains(game_obj))
-                    {
-                        engineLog(fmt::format("Bug!! Tried to send event to object without attached script, go id: {}\n", game_obj).c_str());
-                    }
-                    else
-                    {
-                        scripts[game_obj]->on_pointer_down(&input_event.event_data);
-                    }
-                }
+                scripts[input_event.event_data.pointer_click_object]->on_pointer_click(&input_event.event_data);
             }
         }
-        engineComponentIteratorNext(begin_it);
-    }
 
-    if (begin_it)
-    {
-        engineDeleteComponentIterator(begin_it);
-    }
-
-    if (end_it)
-    {
-        engineDeleteComponentIterator(end_it);
-    }
-
-    if (rect_tranform_view)
-    {
-        engineDestroyComponentView(rect_tranform_view);
+        if (input_event.pointer_down_event)
+        {
+            if (!scripts.contains(input_event.event_data.pointer_down_object))
+            {
+                engineLog(fmt::format("Bug!! Tried to send event to object without attached script, go id: {}\n", input_event.event_data.pointer_down_object).c_str());
+            }
+            else
+            {
+                scripts[input_event.event_data.pointer_down_object]->on_pointer_down(&input_event.event_data);
+            }
+        }
     }
 }
 
@@ -146,17 +95,28 @@ engine_result_code_t update_scripts(std::unordered_map<engine_game_object_t, std
     return ENGINE_RESULT_CODE_OK;
 }
 
+inline engine_scene_t create_scene()
+{
+    engine_scene_t scene = nullptr;
+    auto engine_error_code = engineSceneCreate(&scene);
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        engineSceneDestroy(scene);
+        scene = nullptr;
+    }
+    return scene;
+}
+
 }  // namespace
 
 
 engine::IScene::IScene(engine_application_t app_handle, engine_result_code_t& engine_error_code)
     : app_(app_handle)
-    , input_event_system_(app_handle)
+    , scene_(create_scene())
+    , input_event_system_(app_, scene_)
 {
-    engine_error_code = engineSceneCreate(&scene_);
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    if (!scene_)
     {
-        engineSceneDestroy(scene_);
         log(fmt::format("Couldnt create scene!\n"));
         return;
     }
