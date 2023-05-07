@@ -32,7 +32,7 @@ public:
     virtual void on_collision(const collision_t& info) {}
 
     // if the button/touch is pressed and released on the same object 
-    virtual void on_pointer_click(struct PointerEventData* ped) {};
+    virtual void on_pointer_click(const struct PointerEventData* ped) {};
 
     virtual engine_game_object_t get_game_object() const { return go_; }
 

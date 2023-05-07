@@ -37,7 +37,7 @@ public:
 
     bool keyboard_is_key_down(engine_keyboard_keys_t key);
 
-    engine_mouse_coords_t mouse_get_coords();
+    engine_coords_2d_t mouse_get_coords();
     bool mouse_is_button_down(engine_mouse_button_t button);
 
     std::span<const engine_finger_info_t> get_finger_info_events() const;

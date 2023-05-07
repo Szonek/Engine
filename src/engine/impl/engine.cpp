@@ -186,7 +186,7 @@ bool engineApplicationIsKeyboardButtonUp(engine_application_t handle, engine_key
 	return !engineApplicationIsKeyboardButtonDown(handle, key);
 }
 
-engine_mouse_coords_t engineApplicationGetMouseCoords(engine_application_t handle)
+engine_coords_2d_t engineApplicationGetMouseCoords(engine_application_t handle)
 {
 	auto* app = reinterpret_cast<engine::Application*>(handle);
 	return app->mouse_get_coords();

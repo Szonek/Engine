@@ -10,9 +10,9 @@ set(APP_TOOLKIT_SOURCES
 	${APP_TOOLKIT_DIR}/iscript.h
 	${APP_TOOLKIT_DIR}/iscene.h
 	${APP_TOOLKIT_DIR}/iscene.cpp
-	${APP_TOOLKIT_DIR}/gui_event_system.h
-	${APP_TOOLKIT_DIR}/gui_event_system.cpp
-	${APP_TOOLKIT_DIR}/gui_event_types_defs.h
+	${APP_TOOLKIT_DIR}/event_system.h
+	${APP_TOOLKIT_DIR}/event_system.cpp
+	${APP_TOOLKIT_DIR}/event_types_defs.h
 )
 
 set(GAME_DIR "pong")
@@ -30,6 +30,8 @@ set(GAME_SCRIPTS_SOURCES
 	${GAME_SCRIPTS_DIR}/wall_script.cpp
 	${GAME_SCRIPTS_DIR}/camera_script.h
 	${GAME_SCRIPTS_DIR}/camera_script.cpp
+	${GAME_SCRIPTS_DIR}/ui_scripts.h
+	${GAME_SCRIPTS_DIR}/ui_scripts.cpp
 )
 set(GAME_SCENES_DIR ${GAME_DIR}/scenes)
 set(GAME_SCENES_SOURCES

@@ -7,6 +7,7 @@
 #include "../scripts/goal_net_script.h"
 #include "../scripts/wall_script.h"
 #include "../scripts/camera_script.h"
+#include "../scripts/ui_scripts.h"
 
 pong::MainScene::MainScene(engine_application_t app_handle, engine_result_code_t& engine_error_code)
     : IScene(app_handle, engine_error_code)
@@ -18,12 +19,17 @@ pong::MainScene::MainScene(engine_application_t app_handle, engine_result_code_t
 
         auto camera_script = register_script<CameraScript>();
         auto ball_script = register_script<BallScript>();
+        auto left_touch_area_script = register_script<LeftPlayerTouchAreaScript>();
+        auto right_touch_area_script = register_script<RightPlayerTouchAreaScript>();
         auto left_player_script = register_script<LeftPlayerPaddleScript>();
         auto right_player_script = register_script<RightPlayerPaddleScript>();
         auto left_goal_net_script = register_script<LeftGoalNetScript>();
         auto right_goal_net_script = register_script<RightGoalNetScript>();
         auto top_wall = register_script<WallTopScript>();
         auto bottom_wall = register_script<BottomTopScript>();
+
+        left_touch_area_script->player_script_ = left_player_script;
+        right_touch_area_script->player_script_ = right_player_script;
 
         right_player_script->ball_script_ = ball_script;
         left_player_script->ball_script_ = ball_script;

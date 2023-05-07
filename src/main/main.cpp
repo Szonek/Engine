@@ -36,8 +36,8 @@ int main(int argc, char** argv)
 	engine_application_create_desc_t app_cd{};
 	app_cd.name = "Pong";
 	app_cd.asset_store_path = assets_path.c_str();
-    app_cd.width = K_IS_ANDROID ? 0 : 2280;
-    app_cd.height = K_IS_ANDROID ? 0 : 1080;
+    app_cd.width = K_IS_ANDROID ? 0 : 2280 / 2;
+    app_cd.height = K_IS_ANDROID ? 0 : 1080 / 2;
     app_cd.fullscreen = K_IS_ANDROID;
 
 

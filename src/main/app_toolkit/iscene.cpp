@@ -1,6 +1,10 @@
 #include "iscene.h"
 
+#include "event_types_defs.h"
+
 #include <fmt/format.h>
+
+#include <iostream>
 
 namespace
 {
@@ -24,7 +28,7 @@ engine_result_code_t update_graphics(engine_application_t app, engine_scene_t sc
     return engine_error_code;
 }
 
-engine_result_code_t propagate_collisions_events(engine_application_t app, engine_scene_t scene, std::unordered_map<engine_game_object_t, std::unique_ptr<engine::IScript>>& scripts)
+engine_result_code_t propagate_collisions_events(engine_application_t app, engine_scene_t scene, engine::IScene::ScriptsMap& scripts)
 {
     std::size_t num_collisions = 0;
     const engine_collision_info_t* collisions_list = nullptr;
@@ -51,6 +55,64 @@ engine_result_code_t propagate_collisions_events(engine_application_t app, engin
     return ENGINE_RESULT_CODE_OK;
 }
 
+void propagte_input_events(engine_application_t app, engine_scene_t scene, const engine::InputEventSystem::UpdateResult& input_events, engine::IScene::ScriptsMap& scripts)
+{
+    const engine_finger_info_t* finger_infos = nullptr;
+    std::size_t fingers_info_count = 0;
+    const auto has_finger_info = engineApplicationGetFingerInfo(app, &finger_infos, &fingers_info_count);
+
+    const auto mouse_coords = engineApplicationGetMouseCoords(app);
+    //engineApplicationMosee
+
+    engine_component_view_t rect_tranform_view{};
+    engineCreateComponentView(&rect_tranform_view);
+    engineSceneComponentViewAttachRectTransformComponent(scene, rect_tranform_view);
+
+    engine_component_iterator_t begin_it{};
+    engineComponentViewCreateBeginComponentIterator(rect_tranform_view, &begin_it);
+    engine_component_iterator_t end_it{};
+    engineComponentViewCreateEndComponentIterator(rect_tranform_view, &end_it);
+
+    while (engineComponentIteratorCheckEqual(begin_it, end_it) == false)
+    {
+        const auto game_obj = engineComponentIteratorGetGameObject(begin_it);
+        const auto rect_transform = engineSceneGetRectTransformComponent(scene, game_obj);
+
+        if (input_events.pointer_clicked_event)
+        {
+            //ToDo: fix rect transform and change the scale to width/height in below condition
+            if (input_events.event_data.position[0] >= rect_transform.position[0]    //x0
+                && input_events.event_data.position[1] >= rect_transform.position[1] //y0
+                && input_events.event_data.position[0] <= rect_transform.scale[0]
+                && input_events.event_data.position[1] <= rect_transform.scale[1])
+            {
+                //const auto name_comp = engineSceneGetNameComponent(scene, game_obj);
+                //std::cout << "GO: " << game_obj <<", " << name_comp.name << std::endl;
+
+                scripts[game_obj]->on_pointer_click(&input_events.event_data);
+            }
+        }
+
+
+        engineComponentIteratorNext(begin_it);
+    }
+
+    if (begin_it)
+    {
+        engineDeleteComponentIterator(begin_it);
+    }
+
+    if (end_it)
+    {
+        engineDeleteComponentIterator(end_it);
+    }
+
+    if (rect_tranform_view)
+    {
+        engineDestroyComponentView(rect_tranform_view);
+    }
+}
+
 engine_result_code_t update_scripts(std::unordered_map<engine_game_object_t, std::unique_ptr<engine::IScript>>& scripts, float dt)
 {
     for (auto& [go, script] : scripts)
@@ -62,8 +124,54 @@ engine_result_code_t update_scripts(std::unordered_map<engine_game_object_t, std
 
 }  // namespace
 
+
+engine::InputEventSystem::UpdateResult engine::InputEventSystem::update()
+{
+    engine::InputEventSystem::UpdateResult ret{};
+
+    const auto mouse_coords_current = engineApplicationGetMouseCoords(app_);
+    std::array<bool, ENGINE_MOUSE_BUTTON_COUNT> mouse_down_state_current{};
+    for (auto i = 0; i < ENGINE_MOUSE_BUTTON_COUNT; i++)
+    {
+        mouse_down_state_current[i] = engineApplicationIsMouseButtonDown(app_, static_cast<engine_mouse_button_t>(i));
+    }
+
+    if (mouse_coords_prev_.x != mouse_coords_current.x
+        || mouse_coords_prev_.y != mouse_coords_current.y)
+    {
+        //std::cout << "Mouse moved! " << mouse_coords_current.x << ", "  << mouse_coords_current.y << std::endl;;
+        ret.pointer_moved_event = true;
+    }
+
+    if (mouse_down_state_prev_ != mouse_down_state_current)
+    {
+        for (auto i = 0; i < mouse_down_state_current.size(); i++)
+        {
+            if (mouse_down_state_prev_[i] && !mouse_down_state_current[i])
+            {
+                ret.event_data.button = static_cast<engine_mouse_button_t>(i);
+                ret.event_data.position[0] = mouse_coords_current.x;
+                ret.event_data.position[1] = mouse_coords_current.y;
+                //const auto str = fmt::format("Mouse button CLICKED: [{}], [{}, {}]\n", ret.event_data.button,
+                //    ret.event_data.position[0], ret.event_data.position[1]);
+                //engineLog(str.c_str());
+                ret.pointer_clicked_event = true;
+            }
+        }
+    }
+
+    // cache results
+    mouse_coords_prev_ = mouse_coords_current;
+    mouse_down_state_prev_ = mouse_down_state_current;
+
+    // return result;
+    return ret;
+}
+
+
 engine::IScene::IScene(engine_application_t app_handle, engine_result_code_t& engine_error_code)
-: app_(app_handle)
+    : app_(app_handle)
+    , input_event_system_(app_handle)
 {
     engine_error_code = engineSceneCreate(&scene_);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
@@ -105,7 +213,9 @@ engine_result_code_t engine::IScene::update(float dt)
         return ENGINE_RESULT_CODE_OK;
     }
 
-   // gui_event_system_.update(this);
+    //
+    const auto input_events = input_event_system_.update();
+    propagte_input_events(app_, scene_, input_events, scripts_);
     propagate_collisions_events(app_, scene_, scripts_);
 
     update_physics(app_, scene_, dt);

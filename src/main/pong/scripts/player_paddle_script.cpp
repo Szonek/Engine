@@ -82,16 +82,18 @@ void pong::PlayerPaddleScript::on_collision(const collision_t& info)
         ball_dir[1] = interct_pos;
         const auto ball_dir_normalized = glm::normalize(glm::make_vec2(ball_dir.data()));
         ball_script_->update_linear_velocity(ball_dir_normalized[0], ball_dir_normalized[1]);
-        //auto rb = engineSceneGetRigidBodyComponent(scene_, info.other);
-        //rb->linear_velocity[0] = 0.0f;
-        //rb.linear_velocity[1] = 10.0f * interct_pos;
-        //engineSceneUpdateRigidBodyComponent(scene_, info.other, &rb);
     }
 }
 
 void pong::PlayerPaddleScript::update(float dt)
 {
-    handle_input(dt);
+    //handle_input(dt);
+    auto tc = engineSceneGetTransformComponent(scene_, go_);
+    const auto y_delta = 1.0f * ((target_y * 2.0f) - 1.0f);
+    tc.position[1] = y_delta * 8.0f;
+   // update_component = true;
+    engineSceneUpdateTransformComponent(scene_, go_, &tc);
+
     score_str_ = std::to_string(score_);
 }
 
@@ -105,49 +107,9 @@ std::size_t pong::PlayerPaddleScript::get_score() const
     return score_;
 }
 
-void pong::PlayerPaddleScript::handle_input(float dt)
+void pong::PlayerPaddleScript::set_target_screenspace_position(float y)
 {
-    auto tc = engineSceneGetTransformComponent(scene_, go_);
-    const engine_finger_info_t* finger_infos = nullptr;
-    std::size_t fingers_info_count = 0;
-    const auto has_finger_info = engineApplicationGetFingerInfo(app_, &finger_infos, &fingers_info_count);
-
-    bool update_component = false;
-    if constexpr (K_IS_ANDROID)
-    {
-        if (has_finger_info)
-        {
-            for (std::size_t i = 0; i < fingers_info_count; i++)
-            {
-                const auto f = finger_infos[i];
-                if ((f.event_type_flags & ENGINE_FINGER_DOWN || f.event_type_flags & ENGINE_FINGER_MOTION)
-                    && is_finger_in_controller_area_impl(f))
-                {
-                    const auto y_delta = -1.0f * ((f.y * 2.0f) - 1.0f);
-                    tc.position[1] = y_delta * 8.0f;
-                    update_component = true;
-                }
-            }
-        }
-    }
-    else
-    {
-        // KEYBOARD
-        if (engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_W))
-        {
-            tc.position[1] += 0.05f * dt;
-            update_component = true;
-        }
-        if (engineApplicationIsKeyboardButtonDown(app_, ENGINE_KEYBOARD_KEY_S))
-        {
-            tc.position[1] -= 0.05f * dt;
-            update_component = true;
-        }
-    }
-    if (update_component)
-    {
-        engineSceneUpdateTransformComponent(scene_, go_, &tc);
-    }
+    target_y = y;
 }
 
 // 
@@ -175,29 +137,7 @@ pong::RightPlayerPaddleScript::RightPlayerPaddleScript(engine_application_t& app
         tc.scale[1] = 0.5f;
         engineSceneUpdateRectTransformComponent(scene, text_go, &tc);
     }
-
-    // touchable area component
-    {
-        const auto touch_area_go = engineSceneCreateGameObject(scene);
-        auto tc = engineSceneAddRectTransformComponent(scene, touch_area_go);
-        tc.position[0] = 0.8f;
-        tc.position[1] = 0.0f;
-
-        tc.scale[0] = 1.0f;
-        tc.scale[1] = 1.0f;
-        engineSceneUpdateRectTransformComponent(scene, touch_area_go, &tc);
-
-        auto ic = engineSceneAddImageComponent(scene, touch_area_go);
-        set_c_array(ic.color, std::array<float, 4>{0.0f, 0.3f, 0.8f, 0.0f});
-        engineSceneUpdateImageComponent(scene, touch_area_go, &ic);
-    }
 }
-
-bool pong::RightPlayerPaddleScript::is_finger_in_controller_area_impl(const engine_finger_info_t& f)
-{
-    return (f.x > 0.8f && f.x <= 1.0f);
-}
-
 // 
 // --- LEFT PLAYER ---
 //
@@ -222,25 +162,4 @@ pong::LeftPlayerPaddleScript::LeftPlayerPaddleScript(engine_application_t& app, 
         tc.scale[1] = 0.5f;
         engineSceneUpdateRectTransformComponent(scene, text_go, &tc);
     }
-
-    // touchable area component
-    {
-        const auto touch_area_go = engineSceneCreateGameObject(scene);
-        auto tc = engineSceneAddRectTransformComponent(scene, touch_area_go);
-        tc.position[0] = 0.0f;
-        tc.position[1] = 0.0f;
-
-        tc.scale[0] = 0.2f;
-        tc.scale[1] = 1.0f;
-        engineSceneUpdateRectTransformComponent(scene, touch_area_go, &tc);
-
-        auto ic = engineSceneAddImageComponent(scene, touch_area_go);
-        set_c_array(ic.color, std::array<float, 4>{0.0f, 0.3f, 0.8f, 0.0f});
-        engineSceneUpdateImageComponent(scene, touch_area_go, &ic);
-    }
-}
-
-bool pong::LeftPlayerPaddleScript::is_finger_in_controller_area_impl(const engine_finger_info_t& f)
-{
-    return (f.x < 0.2f && f.x >= 0.0f);
 }

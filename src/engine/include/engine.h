@@ -47,6 +47,11 @@ typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_font_t;
 
+typedef struct _engine_coords_2d_t
+{
+    float x;
+    float y;
+} engine_coords_2d_t;
 
 typedef struct _engine_application_create_desc_t
 {
@@ -107,17 +112,14 @@ typedef struct _engine_finger_info_t
     float dy; // normalized (-1, 1) delta of movement (if motion detected)
 } engine_finger_info_t;
 
-typedef struct _engine_mouse_coords_t
-{
-    int32_t x;
-    int32_t y;
-} engine_mouse_coords_t;
-
 typedef enum _engine_mouse_button_t
 {
-    ENGINE_MOUSE_BUTTON_LEFT     = 0,
-    ENGINE_MOUSE_BUTTON_MIDDLE   = 1,
-    ENGINE_MOUSE_BUTTON_RIGHT    = 2,
+    ENGINE_MOUSE_BUTTON_LEFT     = 1,
+    ENGINE_MOUSE_BUTTON_MIDDLE   = 2,
+    ENGINE_MOUSE_BUTTON_RIGHT    = 3,
+    ENGINE_MOUSE_BUTTON_X1       = 4,
+    ENGINE_MOUSE_BUTTON_X2       = 5,
+    ENGINE_MOUSE_BUTTON_COUNT
 } engine_mouse_button_t;
 
 typedef enum _engine_keyboard_keys_t
@@ -257,7 +259,7 @@ ENGINE_API void engineApplicationDestroy(engine_application_t handle);
 ENGINE_API bool engineApplicationIsKeyboardButtonDown(engine_application_t handle, engine_keyboard_keys_t key);
 ENGINE_API bool engineApplicationIsKeyboardButtonUp(engine_application_t handle, engine_keyboard_keys_t key);
 
-ENGINE_API engine_mouse_coords_t engineApplicationGetMouseCoords(engine_application_t handle);
+ENGINE_API engine_coords_2d_t engineApplicationGetMouseCoords(engine_application_t handle);
 ENGINE_API bool engineApplicationIsMouseButtonDown(engine_application_t handle, engine_mouse_button_t);
 ENGINE_API bool engineApplicationIsMouseButtonUp(engine_application_t handle, engine_mouse_button_t);
 

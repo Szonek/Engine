@@ -156,14 +156,14 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
 			const auto str = fmt::format("[SDL_EVENT_FINGER_DOWN]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
 			log::log(log::LogLevel::eTrace, str.c_str());
 			auto& f = finger_info_buffer[e.tfinger.fingerId];
-			f.event_type_flags = ENGINE_FINGER_DOWN;
+			f.event_type_flags |= ENGINE_FINGER_DOWN;
 			f.x = e.tfinger.x;
 			f.y = e.tfinger.y;
 		}
 		else if(e.type == SDL_EVENT_FINGER_MOTION)
 		{
 			auto& f = finger_info_buffer[e.tfinger.fingerId];
-			f.event_type_flags = ENGINE_FINGER_MOTION;
+			f.event_type_flags |= ENGINE_FINGER_MOTION;
 			f.x = e.tfinger.x;
 			f.y = e.tfinger.y;
 			f.dx += e.tfinger.dx;
@@ -172,6 +172,14 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
 			const auto str = fmt::format("[SDL_EVENT_FINGER_MOTION]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
 			log::log(log::LogLevel::eTrace, str.c_str());
 		}
+        else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+        {
+            // ?
+        }
+        else if(e.type == SDL_EVENT_MOUSE_BUTTON_UP)
+        {
+            // ?
+        }
     }
 
 	rdx_.begin_frame();
@@ -283,14 +291,18 @@ bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
     return static_cast<bool>(state[key]);
 }
 
-engine_mouse_coords_t engine::Application::mouse_get_coords()
+engine_coords_2d_t engine::Application::mouse_get_coords()
 {
 	float coord_x = 0.;
 	float coord_y = 0.;
     SDL_GetMouseState(&coord_x, &coord_y);
-	engine_mouse_coords_t ret{};
-	ret.x = static_cast<std::int32_t>(std::floor(coord_x));
-	ret.y = static_cast<std::int32_t>(std::floor(coord_y));
+
+    const auto window_size = rdx_.get_window_size_in_pixels();
+
+    engine_coords_2d_t ret{};
+	ret.x = static_cast<std::int32_t>(std::floor(coord_x)) / static_cast<float>(window_size.width);
+    // flip Y coords so left, bottom corner is (0, 0) and right top is (1, 1)
+    ret.y = 1.0f - static_cast<std::int32_t>(std::floor(coord_y)) / static_cast<float>(window_size.height);
 	return ret;
 }
 
