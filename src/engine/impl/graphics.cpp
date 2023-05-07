@@ -505,6 +505,9 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, 0);
+
+    
 
     const auto displays = []()
     {
@@ -631,7 +634,13 @@ engine::RenderContext::~RenderContext()
 engine::RenderContext::window_size_t engine::RenderContext::get_window_size_in_pixels() const
 {
     window_size_t ret{};
-    SDL_GetWindowSizeInPixels(window_, &ret.width, &ret.height);
+    //SDL_GetWindowSizeInPixels(window_, &ret.width, &ret.height);
+
+	int w = 0;
+	int h = 0;
+	SDL_GetWindowSize(window_, &w, &h);
+	ret.width = w;
+	ret.height = h;
     return ret;
 }
 

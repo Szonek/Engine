@@ -3,38 +3,12 @@
 #include "iscript.h"
 #include "utils.h"
 
-#include "event_types_defs.h"
+#include "event_system.h"
 
 #include <unordered_map>
 
 namespace engine
 {
-class InputEventSystem
-{
-public:
-    struct UpdateResult
-    {
-        bool pointer_moved_event = false;
-        bool pointer_clicked_event = false;
-        PointerEventData event_data = {};
-    };
-
-    InputEventSystem(engine_application_t app_handle)
-        : app_(app_handle)
-    {
-
-    }
-
-    UpdateResult update();
-
-    engine_coords_2d_t mouse_coords_prev_{};
-    std::array<bool, ENGINE_MOUSE_BUTTON_COUNT> mouse_down_state_prev_{};
-
-private:
-    engine_application_t app_;
-};
-
-
 class IScene
 {
 public:
@@ -56,6 +30,7 @@ public:
         std::unique_ptr<IScript> script = std::make_unique<T>(app_, scene_);
         const auto game_object = script->get_game_object();
         scripts_[game_object] = std::move(script);
+
         return (T*)scripts_[game_object].get();
     }
 

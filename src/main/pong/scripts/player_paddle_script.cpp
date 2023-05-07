@@ -57,8 +57,8 @@ pong::PlayerPaddleScript::PlayerPaddleScript(engine_application_t& app, engine_s
         tc.position[0] = score_init_pos_x;
         tc.position[1] = 0.85f;
 
-        tc.scale[0] = 1.5f;
-        tc.scale[1] = 1.5f;
+        tc.scale[0] = 1.0f;
+        tc.scale[1] = 1.0f;
         engineSceneUpdateRectTransformComponent(scene, score_go_, &tc);
     }
 }
@@ -130,7 +130,7 @@ pong::RightPlayerPaddleScript::RightPlayerPaddleScript(engine_application_t& app
         engineSceneUpdateTextComponent(scene, text_go, &text_component);
 
         auto tc = engineSceneAddRectTransformComponent(scene, text_go);
-        tc.position[0] = 0.75f;
+        tc.position[0] = 0.55f;
         tc.position[1] = 0.15f;
 
         tc.scale[0] = 0.5f;

@@ -1,4 +1,3 @@
-#pragma once
 #include "main_menu_scene.h"
 #include "../scripts/camera_script.h"
 #include "../scripts/wall_script.h"
