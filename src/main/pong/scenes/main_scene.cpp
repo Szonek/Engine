@@ -1,4 +1,3 @@
-#pragma once
 #include "main_scene.h"
 
 #include "../scripts/global_constants.h"

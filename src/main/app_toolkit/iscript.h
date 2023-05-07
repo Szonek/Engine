@@ -33,6 +33,7 @@ public:
 
     // if the button/touch is pressed and released on the same object 
     virtual void on_pointer_click(const struct PointerEventData* ped) {};
+    virtual void on_pointer_down(const struct PointerEventData* ped) {};
 
     virtual engine_game_object_t get_game_object() const { return go_; }
 

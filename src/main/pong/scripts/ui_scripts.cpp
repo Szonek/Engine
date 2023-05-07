@@ -25,7 +25,7 @@ pong::PlayerTouchAreaScript::PlayerTouchAreaScript(engine_application_t& app, en
     engineSceneUpdateNameComponent(scene, go_, &name_comp);
 }
 
-void pong::PlayerTouchAreaScript::on_pointer_click(const engine::PointerEventData* ped)
+void pong::PlayerTouchAreaScript::on_pointer_down(const engine::PointerEventData* ped)
 {
     assert(player_script_ != nullptr);
     if (ped->button == ENGINE_MOUSE_BUTTON_LEFT)

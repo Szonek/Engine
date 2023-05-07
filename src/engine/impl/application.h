@@ -40,7 +40,7 @@ public:
     engine_coords_2d_t mouse_get_coords();
     bool mouse_is_button_down(engine_mouse_button_t button);
 
-    std::span<const engine_finger_info_t> get_finger_info_events() const;
+    std::array<engine_finger_info_t, 10> get_finger_info_events() const;
 private:
     RenderContext rdx_;
     GameTimer timer_;

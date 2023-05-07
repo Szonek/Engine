@@ -203,18 +203,20 @@ bool engineApplicationIsMouseButtonUp(engine_application_t handle, engine_mouse_
 	return !engineApplicationIsMouseButtonDown(handle, button);
 }
 
-bool engineApplicationGetFingerInfo(engine_application_t handle, const engine_finger_info_t** infos_list, size_t* infos_count)
+bool engineApplicationGetFingerInfo(engine_application_t handle, engine_fingers_infos_list_t* infos_list)
 {
+    if (!infos_list)
+    {
+        return false;
+    }
     auto* app = reinterpret_cast<engine::Application*>(handle);
     const auto finger_list = app->get_finger_info_events();
     if(finger_list.empty())
     {
-        *infos_list = nullptr;
-        *infos_count = 0;
+        std::memset(infos_list->infos, 0, sizeof(engine_fingers_infos_list_t));
         return false;
     }
-    *infos_list = finger_list.data();
-    *infos_count = finger_list.size();
+    std::memcpy(infos_list->infos, finger_list.data(), sizeof(engine_fingers_infos_list_t));
     return true;
 }
 

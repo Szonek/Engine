@@ -3,6 +3,7 @@
 
 #include "event_types_defs.h"
 
+#include <vector>
 #include <array>
 
 namespace engine
@@ -14,6 +15,7 @@ public:
     {
         bool pointer_moved_event = false;
         bool pointer_clicked_event = false;
+        bool pointer_down_event = false;
         PointerEventData event_data = {};
     };
 
@@ -22,13 +24,17 @@ public:
     {
     }
 
-    UpdateResult update();
-
-    engine_coords_2d_t mouse_coords_prev_{};
-    std::array<bool, ENGINE_MOUSE_BUTTON_COUNT> mouse_down_state_prev_{};
+    std::vector<UpdateResult> update();
 
 private:
     engine_application_t app_;
+
+    // mouse
+    engine_coords_2d_t mouse_coords_prev_{};
+    std::array<bool, ENGINE_MOUSE_BUTTON_COUNT> mouse_down_state_prev_{};
+
+    // touch 
+    engine_fingers_infos_list_t touch_info_prev_{};
 };
 
 }

@@ -112,8 +112,15 @@ typedef struct _engine_finger_info_t
     float dy; // normalized (-1, 1) delta of movement (if motion detected)
 } engine_finger_info_t;
 
+#define ENGINE_FINGERS_INFOS_LIST_COUNT 10
+typedef struct _engine_fingers_infos_list_t
+{
+    engine_finger_info_t infos[ENGINE_FINGERS_INFOS_LIST_COUNT];
+} engine_fingers_infos_list_t;
+
 typedef enum _engine_mouse_button_t
 {
+    ENGINE_MOUSE_BUTTON_UNKNOWN  = 0,
     ENGINE_MOUSE_BUTTON_LEFT     = 1,
     ENGINE_MOUSE_BUTTON_MIDDLE   = 2,
     ENGINE_MOUSE_BUTTON_RIGHT    = 3,
@@ -263,7 +270,7 @@ ENGINE_API engine_coords_2d_t engineApplicationGetMouseCoords(engine_application
 ENGINE_API bool engineApplicationIsMouseButtonDown(engine_application_t handle, engine_mouse_button_t);
 ENGINE_API bool engineApplicationIsMouseButtonUp(engine_application_t handle, engine_mouse_button_t);
 
-ENGINE_API bool engineApplicationGetFingerInfo(engine_application_t handle, const engine_finger_info_t** infos_list, size_t* infos_count);
+ENGINE_API bool engineApplicationGetFingerInfo(engine_application_t handle, engine_fingers_infos_list_t* infos_list);
 
 //frame handling
 ENGINE_API engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_application_t handle);

@@ -98,9 +98,8 @@ void pong::BallScript::handle_input(float dt)
 {
     auto tc = engineSceneGetTransformComponent(scene_, go_);
 
-    const engine_finger_info_t* finger_infos = nullptr;
-    std::size_t fingers_info_count = 0;
-    const auto has_finger_info = engineApplicationGetFingerInfo(app_, &finger_infos, &fingers_info_count);
+    engine_fingers_infos_list_t finger_infos{};
+    const auto has_finger_info = engineApplicationGetFingerInfo(app_, &finger_infos);
 
     bool should_reset_state = false;
 
@@ -108,9 +107,9 @@ void pong::BallScript::handle_input(float dt)
     {
         if (has_finger_info)
         {
-            for (std::size_t i = 0; i < fingers_info_count; i++)
+            for (std::size_t i = 0; i < ENGINE_FINGERS_INFOS_LIST_COUNT; i++)
             {
-                const auto f = finger_infos[i];
+                const auto f = finger_infos.infos[i];
                 if (f.x > 0.35f && f.x < 0.65 && f.y < 0.2f)
                 {
                     should_reset_state = true;

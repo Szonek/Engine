@@ -182,6 +182,13 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
         }
     }
 
+    // flip the coords so it matches mouse and expected coords are: (0, 0) left bottom corner;  (1,1) top right corner
+    for(auto& f : finger_info_buffer)
+    {
+        f.y = 1.0f - f.y;
+        f.dy = -1.0f * f.dy;
+    }
+
 	rdx_.begin_frame();
     const auto window_size_pixels = rdx_.get_window_size_in_pixels();
     ui_manager_.begin_frame(static_cast<float>(window_size_pixels.width), static_cast<float>(window_size_pixels.height));
@@ -312,7 +319,7 @@ bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
     return state & SDL_BUTTON(button);
 }
 
-std::span<const engine_finger_info_t> engine::Application::get_finger_info_events() const
+std::array<engine_finger_info_t, 10> engine::Application::get_finger_info_events() const
 {
 	return finger_info_buffer;
 }

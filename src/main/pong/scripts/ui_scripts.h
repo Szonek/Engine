@@ -15,7 +15,7 @@ class PlayerTouchAreaScript : public engine::IScript
 public:
     PlayerTouchAreaScript(engine_application_t& app, engine_scene_t& scene, float start_pos_x, float end_pos_x, const char* name);
 
-    void on_pointer_click(const engine::PointerEventData* ped) override;
+    void on_pointer_down(const engine::PointerEventData* ped) override;
 
 public:
     class PlayerPaddleScript* player_script_ = nullptr;
