@@ -100,32 +100,23 @@ std::vector<engine::InputEventSystem::UpdateResult> engine::InputEventSystem::up
 
             for (auto& input_event : ur_candidates)
             {
+                //ToDo: fix rect transform and change the scale to width/height in below condition
+                const bool position_within_rect_transform_bounds = input_event.event_data.position[0] >= rect_transform.position[0]    //x0
+                                                                   && input_event.event_data.position[1] >= rect_transform.position[1] //y0
+                                                                   && input_event.event_data.position[0] <= rect_transform.scale[0]
+                                                                   && input_event.event_data.position[1] <= rect_transform.scale[1];
                 // click event has to be finished within object
-                if (input_event.pointer_clicked_event)
+                if (input_event.pointer_clicked_event && position_within_rect_transform_bounds)
                 {
-                    //ToDo: fix rect transform and change the scale to width/height in below condition
-                    if (input_event.event_data.position[0] >= rect_transform.position[0]    //x0
-                        && input_event.event_data.position[1] >= rect_transform.position[1] //y0
-                        && input_event.event_data.position[0] <= rect_transform.scale[0]
-                        && input_event.event_data.position[1] <= rect_transform.scale[1])
-                    {
-                        input_event.event_data.pointer_click_object = game_obj;
-                        ret.push_back(input_event);
-                    }
+                    input_event.event_data.pointer_click_object = game_obj;
+                    ret.push_back(input_event);
                 }
 
                 // down event - pointer is clicked (not released yet) on the object
-                if (input_event.pointer_down_event)
+                if (input_event.pointer_down_event && position_within_rect_transform_bounds)
                 {
-                    //ToDo: fix rect transform and change the scale to width/height in below condition
-                    if (input_event.event_data.position[0] >= rect_transform.position[0]    //x0
-                        && input_event.event_data.position[1] >= rect_transform.position[1] //y0
-                        && input_event.event_data.position[0] <= rect_transform.scale[0]
-                        && input_event.event_data.position[1] <= rect_transform.scale[1])
-                    {
-                        input_event.event_data.pointer_down_object = game_obj;
-                        ret.push_back(input_event);
-                    }
+                    input_event.event_data.pointer_down_object = game_obj;
+                    ret.push_back(input_event);
                 }
             }
             engineComponentIteratorNext(begin_it);
