@@ -81,43 +81,11 @@ int main(int argc, char** argv)
     }
 
     std::deque<std::unique_ptr<engine::IScene>> scenes;
-    scenes.push_back(std::make_unique<pong::MainMenuScene>(app, engine_error_code));
     scenes.push_back(std::make_unique<pong::MainScene>(app, engine_error_code));
+    scenes.push_back(std::make_unique<pong::MainMenuScene>(app, engine_error_code, scenes[0].get()));
 
 
-    //engine_component_view_t rect_tranform_view{};
-    //engineCreateComponentView(&rect_tranform_view);
-    //engineSceneComponentViewAttachRectTransformComponent(scene, rect_tranform_view);
 
-    //engine_component_iterator_t begin_it{};
-    //engineComponentViewCreateBeginComponentIterator(rect_tranform_view, &begin_it);
-    //engine_component_iterator_t end_it{};
-    //engineComponentViewCreateEndComponentIterator(rect_tranform_view, &end_it);
-
-    //size_t idx = 0;
-    //while (engineComponentIteratorCheckEqual(begin_it, end_it) == false)
-    //{
-    //    std::cout << idx++ << std::endl;
-    //    const auto game_obj = engineComponentIteratorGetGameObject(begin_it);
-    //    const auto rect_transform = engineSceneGetRectTransformComponent(scene, game_obj);
-    //    std::cout << rect_transform.position[0] << ", " << rect_transform.position[1] << std::endl;
-    //    engineComponentIteratorNext(begin_it);
-    //}
-
-    //if (begin_it)
-    //{
-    //    engineDeleteComponentIterator(begin_it);
-    //}
-
-    //if (end_it)
-    //{
-    //    engineDeleteComponentIterator(end_it);
-    //}
-
-    //if (rect_tranform_view)
-    //{
-    //    engineDestroyComponentView(rect_tranform_view);
-    //}
     struct fps_counter_t
     {
         float frames_total_time = 0.0f;

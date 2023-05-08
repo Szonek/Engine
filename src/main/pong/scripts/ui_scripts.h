@@ -4,6 +4,7 @@
 
 namespace engine
 {
+struct IScene;
 struct PointerEventData;
 }
 
@@ -32,5 +33,19 @@ class LeftPlayerTouchAreaScript : public PlayerTouchAreaScript
 public:
     LeftPlayerTouchAreaScript(engine_application_t& app, engine_scene_t& scene);
 };
+
+
+// MAIN MENU
+class MainMenuStartPveScene : public engine::IScript
+{
+public:
+    engine::IScene* my_scene_ = nullptr;
+    engine::IScene* pve_scene_ = nullptr;
+public:
+    MainMenuStartPveScene(engine_application_t& app, engine_scene_t& scene);
+
+    void on_pointer_click(const engine::PointerEventData* ped) override;
+};
+
 
 } // namespace pong

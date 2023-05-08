@@ -40,8 +40,5 @@ pong::MainScene::MainScene(engine_application_t app_handle, engine_result_code_t
     }
 
     // deactivate at start
-    if (!K_IS_ANDROID)
-    {
-        deactivate();
-    }
+    deactivate();
 }
