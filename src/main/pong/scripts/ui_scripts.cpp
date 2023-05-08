@@ -9,11 +9,11 @@ pong::PlayerTouchAreaScript::PlayerTouchAreaScript(engine_application_t& app, en
     : IScript(app, scene)
 {
     auto tc = engineSceneAddRectTransformComponent(scene, go_);
-    tc.position[0] = start_pos_x;
-    tc.position[1] = 0.0f;
+    tc.position_min[0] = start_pos_x;
+    tc.position_min[1] = 0.0f;
 
-    tc.scale[0] = end_pos_x;
-    tc.scale[1] = 1.0f;
+    tc.position_max[0] = end_pos_x;
+    tc.position_max[1] = 1.0f;
     engineSceneUpdateRectTransformComponent(scene, go_, &tc);
 
     auto ic = engineSceneAddImageComponent(scene, go_);

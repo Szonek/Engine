@@ -46,6 +46,16 @@ inline void transform_component_init(engine_tranform_component_t* comp)
 inline void rect_transform_component_init(engine_rect_tranform_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_rect_tranform_component_t));
+    comp->position_min[0] = 0.5f;
+    comp->position_min[1] = 0.5f;
+    comp->position_max[0] = 0.75f;
+    comp->position_max[1] = 0.75f;
+}
+
+
+inline void text_component_init(engine_text_component_t* comp)
+{
+    std::memset(comp, 0, sizeof(engine_material_component_t));
     comp->scale[0] = 1.0f;
     comp->scale[1] = 1.0f;
 }
@@ -628,7 +638,7 @@ bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t ga
 
 engine_text_component_t engineSceneAddTextComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_text_component_t>(scene, game_object);
+    return add_component<engine_text_component_t, text_component_init>(scene, game_object);
 }
 
 engine_text_component_t engineSceneGetTextComponent(engine_scene_t scene, engine_game_object_t game_object)

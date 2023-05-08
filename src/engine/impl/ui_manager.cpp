@@ -2,15 +2,12 @@
 #include "asset_store.h"
 #include "engine.h"
 #include "logger.h"
+#include "math_helpers.h"
+
 
 #include <ft2build.h>
 #include FT_FREETYPE_H  
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include <glm/gtc/matrix_access.hpp>
 
 #include <fmt/format.h>
 
@@ -171,15 +168,21 @@ std::uint32_t engine::UiManager::get_font(std::string_view name) const
     return ENGINE_INVALID_OBJECT_HANDLE;
 }
 
-void engine::UiManager::render_text(RenderContext& rdx, std::string_view text, std::uint32_t font_idx, std::span<const float> parent_model_matrix)
+void engine::UiManager::render_text(RenderContext& rdx, const engine_text_component_t& text_comp, const engine_rect_tranform_component_t& transform)
 {
-    assert(font_idx < fonts_.size());
-    assert(parent_model_matrix.size() == 16);
-
+    const auto& text = std::string(text_comp.text);
     if (text.empty())
     {
         return;
     }
+
+    const auto& font_idx = text_comp.font_handle;
+    assert(font_idx < fonts_.size());
+
+    const auto glm_pos = glm::vec3(transform.position_min[0] * current_window_width_, transform.position_min[1] * current_window_height_, 0.0f);
+    const auto glm_rot = glm::vec3(0.0f, 0.0f, 0.0f);
+    const auto glm_scl = glm::vec3(text_comp.scale[0], text_comp.scale[1], 1.0f);
+    const auto parent_model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
 
     rdx.set_depth_test(false);
     rdx.set_blend_mode(true, RenderContext::BlendFactor::eSrcAlpha, RenderContext::BlendFactor::eOneMinusSrcAlpha, RenderContext::BlendFactor::eOne, RenderContext::BlendFactor::eZero);
@@ -212,7 +215,7 @@ void engine::UiManager::render_text(RenderContext& rdx, std::string_view text, s
             shader_font_.set_uniform_f2("glyph_size", std::array<float, 2>{w, h});
             shader_font_.set_uniform_f2("glyph_normalized_start_offset_in_atlas", glyph.offset_in_atlas_normalized);
 
-            auto model_matrix = glm::make_mat4(parent_model_matrix.data());
+            auto model_matrix = parent_model_matrix;
             model_matrix = glm::translate(model_matrix, glm::vec3(xpos, ypos, 0.0f));
             model_matrix = glm::scale(model_matrix, glm::vec3(w, h, 1.0f));
             shader_font_.set_uniform_mat_f4("model_matrix", { glm::value_ptr(model_matrix), sizeof(model_matrix) / sizeof(float) });
@@ -227,18 +230,32 @@ void engine::UiManager::render_text(RenderContext& rdx, std::string_view text, s
     rdx.set_blend_mode(false);
 }
 
-void engine::UiManager::render_image(engine::RenderContext &rdx, std::span<const float> model_matrix)
+void engine::UiManager::render_image(engine::RenderContext &rdx, const engine_rect_tranform_component_t& transform)
 {
+    const auto glm_pos = glm::vec3(transform.position_min[0] * current_window_width_, transform.position_min[1] * current_window_height_, 0.0f);
+    const auto glm_rot = glm::vec3(0.0f, 0.0f, 0.0f);
+    const auto glm_scl = glm::vec3(
+        (transform.position_max[0] - transform.position_min[0]) * current_window_width_,
+        (transform.position_max[1] - transform.position_min[1]) * current_window_height_,
+        1.0f);
+    const auto model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
+
+    rdx.set_depth_test(false);
+
     shader_image_.bind();
     shader_image_.set_uniform_mat_f4("projection", { glm::value_ptr(ortho_projection), sizeof(ortho_projection) / sizeof(float) });
-    shader_image_.set_uniform_mat_f4("model_matrix", model_matrix);
+    shader_image_.set_uniform_mat_f4("model_matrix", { glm::value_ptr(model_matrix), sizeof(model_matrix) / sizeof(float) });
 
     geometry_.bind();
     geometry_.draw(Geometry::Mode::eTriangles);
+
+    rdx.set_depth_test(true);
 }
 
 void engine::UiManager::begin_frame(float screen_width, float screen_height)
 {
+    current_window_width_ = screen_width;
+    current_window_height_ = screen_height;
     ortho_projection = glm::ortho(0.0f, screen_width, 0.0f, screen_height, -100.0f, 100.0f);
 }
 

@@ -1,4 +1,6 @@
 #pragma once
+#include "components/text_component.h"
+#include "components/rect_transform_component.h"
 #include "graphics.h"
 
 #include <array>
@@ -23,9 +25,9 @@ public:
     void begin_frame(float screen_width, float screen_height);
     void end_frame();
 
-    void render_text(RenderContext& rdx, std::string_view text, std::uint32_t font_idx, std::span<const float> parent_model_matrix);
+    void render_text(RenderContext& rdx, const engine_text_component_t& text_comp, const engine_rect_tranform_component_t& transform);
 
-    void render_image(RenderContext& rdx, std::span<const float> model_matrix);
+    void render_image(RenderContext& rdx, const engine_rect_tranform_component_t& transform);
 
 private:
     struct FontImplHandle;
@@ -50,6 +52,8 @@ private:
     using characters_map = std::array<character_t, max_chars_count_>;
 private:
     glm::mat4 ortho_projection;
+    float current_window_width_ = 0.0f;
+    float current_window_height_ = 0.0f;
     FontImplHandle* font_handle_ = nullptr;
     std::array<characters_map, 64> fonts_;
     std::array<atlas_t, 64> atlases_;

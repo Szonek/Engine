@@ -54,11 +54,11 @@ pong::PlayerPaddleScript::PlayerPaddleScript(engine_application_t& app, engine_s
         engineSceneUpdateTextComponent(scene, score_go_, &text_component);
 
         auto tc = engineSceneAddRectTransformComponent(scene, score_go_);
-        tc.position[0] = score_init_pos_x;
-        tc.position[1] = 0.85f;
+        tc.position_min[0] = score_init_pos_x;
+        tc.position_min[1] = 0.85f;
 
-        tc.scale[0] = 1.0f;
-        tc.scale[1] = 1.0f;
+        tc.position_max[0] = 1.0f;
+        tc.position_max[1] = 1.0f;
         engineSceneUpdateRectTransformComponent(scene, score_go_, &tc);
     }
 }
@@ -126,15 +126,17 @@ pong::RightPlayerPaddleScript::RightPlayerPaddleScript(engine_application_t& app
         text_component.font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
         assert(text_component.font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
         text_component.text = "Player 2";
+        text_component.scale[0] = 0.25f;
+        text_component.scale[1] = 0.25f;
         set_c_array(text_component.color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
         engineSceneUpdateTextComponent(scene, text_go, &text_component);
 
         auto tc = engineSceneAddRectTransformComponent(scene, text_go);
-        tc.position[0] = 0.55f;
-        tc.position[1] = 0.15f;
+        tc.position_min[0] = 0.55f;
+        tc.position_min[1] = 0.15f;
 
-        tc.scale[0] = 0.5f;
-        tc.scale[1] = 0.5f;
+        tc.position_max[0] = 1.0f;
+        tc.position_max[1] = 1.0f;
         engineSceneUpdateRectTransformComponent(scene, text_go, &tc);
     }
 }
@@ -151,15 +153,17 @@ pong::LeftPlayerPaddleScript::LeftPlayerPaddleScript(engine_application_t& app, 
         text_component.font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
         assert(text_component.font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
         text_component.text = "Player 1";
+        text_component.scale[0] = 0.25f;
+        text_component.scale[1] = 0.25f;
         set_c_array(text_component.color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
         engineSceneUpdateTextComponent(scene, text_go, &text_component);
 
         auto tc = engineSceneAddRectTransformComponent(scene, text_go);
-        tc.position[0] = 0.25f;
-        tc.position[1] = 0.15f;
+        tc.position_min[0] = 0.25f;
+        tc.position_min[1] = 0.15f;
 
-        tc.scale[0] = 0.5f;
-        tc.scale[1] = 0.5f;
+        tc.position_max[0] = 1.0f;
+        tc.position_max[1] = 1.0f;
         engineSceneUpdateRectTransformComponent(scene, text_go, &tc);
     }
 }

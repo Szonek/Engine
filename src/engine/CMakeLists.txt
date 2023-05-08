@@ -21,6 +21,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/gltf_parser.cpp
 	${ENGINE_SOURCES_DIR}/physics_world.h
 	${ENGINE_SOURCES_DIR}/physics_world.cpp
+	${ENGINE_SOURCES_DIR}/math_helpers.h
 )
 
 set(ENGINE_API "include")

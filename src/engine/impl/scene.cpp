@@ -1,14 +1,10 @@
 #include "scene.h"
 #include "ui_manager.h"
 #include "logger.h"
+#include "math_helpers.h"
 
 #include <fmt/format.h>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include <glm/gtc/matrix_access.hpp>
 
 #include <SDL3/SDL.h>
 
@@ -16,22 +12,7 @@
 
 namespace
 {
-inline glm::mat4 compute_model_matirx(const glm::vec3& glm_pos, const glm::vec3& glm_rot)
-{
-    auto model_identity = glm::mat4{ 1.0f };
-    auto translation = glm::translate(model_identity, glm_pos);
-    translation *= glm::toMat4(glm::quat(glm_rot));
-    return translation;
-}
-inline glm::mat4 compute_model_matirx(const glm::vec3& glm_pos, const glm::vec3& glm_rot, const glm::vec3& glm_scl)
-{
-    auto model_identity = glm::mat4{ 1.0f };
-    auto translation = glm::translate(model_identity, glm_pos);
-    translation *= glm::toMat4(glm::quat(glm_rot));
-    //translation = glm::rotate(translation, glm::radians(0.0f), glm::vec3(1.0f, 0.3f, 0.5f));
-    translation = glm::scale(translation, glm_scl);
-    return translation;
-}
+
 }
 
 engine::Scene::Scene(engine_result_code_t& out_code)
@@ -154,7 +135,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         const auto glm_rot = glm::make_vec3(transform_component->rotation);
         const auto glm_scl = glm::make_vec3(transform_component->scale);
 
-        const auto model_matrix = compute_model_matirx(glm_pos, glm_rot, glm_scl);
+        const auto model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
         std::memcpy(transform_component->local_to_world, &model_matrix, sizeof(model_matrix));
     }
 
@@ -218,25 +199,17 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
 			}
 		);
 
-        ui_text_renderer.each([this, &rdx, &window_size_pixels, &ui_manager](const engine_rect_tranform_component_t& transform, const engine_text_component_t& text)
+        ui_text_renderer.each([this, &rdx, &ui_manager](const engine_rect_tranform_component_t& transform, const engine_text_component_t& text)
             {
-                const auto glm_pos = glm::vec3(transform.position[0] * window_size_pixels.width, transform.position[1] * window_size_pixels.height, 0.0f);
-                const auto glm_rot = glm::vec3(0.0f, 0.0f, 0.0f);
-                const auto glm_scl = glm::vec3(transform.scale[0], transform.scale[1], 1.0f);
-                const auto model_matrix = compute_model_matirx(glm_pos, glm_rot, glm_scl);
 
-                ui_manager->render_text(rdx, text.text, text.font_handle, { glm::value_ptr(model_matrix), sizeof(model_matrix) / sizeof(float) });
+                ui_manager->render_text(rdx, text, transform);
             }
         );
 
-        ui_image_renderer.each([this, &rdx, &window_size_pixels, &ui_manager](const engine_rect_tranform_component_t& transform, const engine_image_component_t& img)
+        ui_image_renderer.each([this, &rdx, &ui_manager](const engine_rect_tranform_component_t& transform, const engine_image_component_t& img)
            {
-               const auto glm_pos = glm::vec3(transform.position[0] * window_size_pixels.width, transform.position[1] * window_size_pixels.height, 0.0f);
-               const auto glm_rot = glm::vec3(0.0f, 0.0f, 0.0f);
-               const auto glm_scl = glm::vec3(transform.scale[0] * window_size_pixels.width, transform.scale[1] * window_size_pixels.height, 1.0f);
-               const auto model_matrix = compute_model_matirx(glm_pos, glm_rot, glm_scl);
 
-               ui_manager->render_image(rdx, { glm::value_ptr(model_matrix), sizeof(model_matrix) / sizeof(float) });
+               ui_manager->render_image(rdx, transform);
            }
         );
     }
