@@ -230,7 +230,7 @@ void engine::UiManager::render_text(RenderContext& rdx, const engine_text_compon
     rdx.set_blend_mode(false);
 }
 
-void engine::UiManager::render_image(engine::RenderContext &rdx, const engine_rect_tranform_component_t& transform)
+void engine::UiManager::render_image(engine::RenderContext &rdx, const engine_image_component_t& img_comp, const engine_rect_tranform_component_t& transform)
 {
     const auto glm_pos = glm::vec3(transform.position_min[0] * current_window_width_, transform.position_min[1] * current_window_height_, 0.0f);
     const auto glm_rot = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -245,6 +245,7 @@ void engine::UiManager::render_image(engine::RenderContext &rdx, const engine_re
     shader_image_.bind();
     shader_image_.set_uniform_mat_f4("projection", { glm::value_ptr(ortho_projection), sizeof(ortho_projection) / sizeof(float) });
     shader_image_.set_uniform_mat_f4("model_matrix", { glm::value_ptr(model_matrix), sizeof(model_matrix) / sizeof(float) });
+    shader_image_.set_uniform_f4("diffuse_color", img_comp.color);
 
     geometry_.bind();
     geometry_.draw(Geometry::Mode::eTriangles);

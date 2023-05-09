@@ -23,7 +23,7 @@ pong::PlayerTouchAreaScript::PlayerTouchAreaScript(engine::IScene *my_scene, flo
     engineSceneUpdateRectTransformComponent(scene, go_, &tc);
 
     auto ic = engineSceneAddImageComponent(scene, go_);
-    set_c_array(ic.color, std::array<float, 4>{0.0f, 0.3f, 0.8f, 0.0f});
+    set_c_array(ic.color, std::array<float, 4>{0.2f, 0.6f, 0.2f, 0.0f});
     engineSceneUpdateImageComponent(scene, go_, &ic);
 
     auto name_comp = engineSceneAddNameComponent(scene, go_);
@@ -66,7 +66,7 @@ pong::MainMenuStartPveScene::MainMenuStartPveScene(engine::IScene *my_scene)
     engineSceneUpdateRectTransformComponent(scene, go_, &tc);
 
     auto ic = engineSceneAddImageComponent(scene, go_);
-    set_c_array(ic.color, std::array<float, 4>{0.0f, 0.3f, 0.8f, 0.0f});
+    set_c_array(ic.color, std::array<float, 4>{0.0f, 0.8f, 0.3f, 0.0f});
     engineSceneUpdateImageComponent(scene, go_, &ic);
 
     const char* name = "main_menu_start_pve";

@@ -1,6 +1,7 @@
 #pragma once
 #include "components/text_component.h"
 #include "components/rect_transform_component.h"
+#include "components/image_component.h"
 #include "graphics.h"
 
 #include <array>
@@ -27,7 +28,7 @@ public:
 
     void render_text(RenderContext& rdx, const engine_text_component_t& text_comp, const engine_rect_tranform_component_t& transform);
 
-    void render_image(RenderContext& rdx, const engine_rect_tranform_component_t& transform);
+    void render_image(RenderContext& rdx, const engine_image_component_t& img_comp, const engine_rect_tranform_component_t& transform);
 
 private:
     struct FontImplHandle;

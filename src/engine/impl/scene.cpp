@@ -201,15 +201,13 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
 
         ui_text_renderer.each([this, &rdx, &ui_manager](const engine_rect_tranform_component_t& transform, const engine_text_component_t& text)
             {
-
                 ui_manager->render_text(rdx, text, transform);
             }
         );
 
         ui_image_renderer.each([this, &rdx, &ui_manager](const engine_rect_tranform_component_t& transform, const engine_image_component_t& img)
            {
-
-               ui_manager->render_image(rdx, transform);
+               ui_manager->render_image(rdx, img, transform);
            }
         );
     }
