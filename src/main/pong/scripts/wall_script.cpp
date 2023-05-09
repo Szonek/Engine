@@ -1,15 +1,19 @@
 #include "wall_script.h"
 #include "global_constants.h"
 
+#include "iscene.h"
 #include "utils.h"
 
 #include <cassert>
 
-pong::WallScript::WallScript(engine_application_t& app, engine_scene_t& scene, float init_pos_y, const char* name)
-    : IScript(app, scene)
+pong::WallScript::WallScript(engine::IScene *my_scene, float init_pos_y, const char* name)
+    : IScript(my_scene)
 {
+    auto scene = my_scene_->get_handle();
+    auto app = my_scene_->get_app_handle();
+
     auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-    mesh_comp.geometry = engineApplicationGetGeometryByName(app_, "cube");
+    mesh_comp.geometry = engineApplicationGetGeometryByName(app, "cube");
     assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for player goal net script!");
     engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
 
@@ -21,7 +25,7 @@ pong::WallScript::WallScript(engine_application_t& app, engine_scene_t& scene, f
     tc.scale[0] = 12.0f;
     tc.scale[1] = 0.1f;
     tc.scale[2] = 1.0f;
-    engineSceneUpdateTransformComponent(scene_, go_, &tc);
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     auto bc = engineSceneAddColliderComponent(scene, go_);
     bc.type = ENGINE_COLLIDER_TYPE_BOX;
@@ -38,14 +42,14 @@ pong::WallScript::WallScript(engine_application_t& app, engine_scene_t& scene, f
     engineSceneUpdateNameComponent(scene, go_, &nc);
 }
 
-pong::WallTopScript::WallTopScript(engine_application_t& app, engine_scene_t& scene)
-    : WallScript(app, scene, K_WALL_Y_OFFSET, "top_wall")
+pong::WallTopScript::WallTopScript(engine::IScene *my_scene)
+    : WallScript(my_scene, K_WALL_Y_OFFSET, "top_wall")
 {
 
 }
 
-pong::BottomTopScript::BottomTopScript(engine_application_t& app, engine_scene_t& scene)
-: WallScript(app, scene, -1.0f * K_WALL_Y_OFFSET, "bottom_wall")
+pong::BottomTopScript::BottomTopScript(engine::IScene *my_scene)
+: WallScript(my_scene, -1.0f * K_WALL_Y_OFFSET, "bottom_wall")
 {
 
 }

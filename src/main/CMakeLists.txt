@@ -8,11 +8,15 @@ set(APP_TOOLKIT_DIR "app_toolkit")
 set(APP_TOOLKIT_SOURCES
 	${APP_TOOLKIT_DIR}/utils.h
 	${APP_TOOLKIT_DIR}/iscript.h
+	${APP_TOOLKIT_DIR}/iscript.cpp
 	${APP_TOOLKIT_DIR}/iscene.h
 	${APP_TOOLKIT_DIR}/iscene.cpp
 	${APP_TOOLKIT_DIR}/event_system.h
 	${APP_TOOLKIT_DIR}/event_system.cpp
 	${APP_TOOLKIT_DIR}/event_types_defs.h
+	${APP_TOOLKIT_DIR}/scene_manager.h
+	${APP_TOOLKIT_DIR}/scene_manager.cpp
+	
 )
 
 set(GAME_DIR "pong")

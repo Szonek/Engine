@@ -10,7 +10,7 @@ namespace pong
 class BallScript : public engine::IScript
 {
 public:
-    BallScript(engine_application_t& app, engine_scene_t& scene);
+    BallScript(engine::IScene *my_scene);
 
     void reset_state();
     void update_linear_velocity(float dir_x, float dir_y);
@@ -18,9 +18,6 @@ public:
     std::array<float, 2> get_direction_vector() const;
 
     void update(float dt) override;
-
-private:
-    void handle_input(float dt);
 
 private:
     float ball_speed_x_ = 0.0f;

@@ -5,6 +5,8 @@
 
 namespace engine
 {
+class IScene;
+class SceneManager;
 
 class IScript
 {
@@ -21,11 +23,7 @@ public:
     };
 
 public:
-    IScript(engine_application_t& app, engine_scene_t& scene)
-        : app_(app)
-        , scene_(scene)
-        , go_(engineSceneCreateGameObject(scene))
-    {}
+    IScript(IScene* my_scene);
     virtual ~IScript() = default;
 
     virtual void update(float dt) {}
@@ -38,8 +36,10 @@ public:
     virtual engine_game_object_t get_game_object() const { return go_; }
 
 protected:
-    engine_application_t& app_;
-    engine_scene_t& scene_;
+    SceneManager* get_scene_manager();
+
+protected:
+    IScene* my_scene_ = nullptr;
     const engine_game_object_t go_;
 };
 

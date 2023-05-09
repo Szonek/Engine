@@ -8,8 +8,8 @@
 #include "../scripts/camera_script.h"
 #include "../scripts/ui_scripts.h"
 
-pong::MainScene::MainScene(engine_application_t app_handle, engine_result_code_t& engine_error_code)
-    : IScene(app_handle, engine_error_code)
+pong::MainScene::MainScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
+    : IScene(app_handle, scn_mgn, engine_error_code)
 {
     if (engine_error_code == ENGINE_RESULT_CODE_OK)
     {

@@ -1,6 +1,7 @@
 #include "player_paddle_script.h"
 #include "ball_script.h"
 
+#include "iscene.h"
 #include "utils.h"
 #include "global_constants.h"
 
@@ -9,13 +10,16 @@
 
 #include <cassert>
 
-pong::PlayerPaddleScript::PlayerPaddleScript(engine_application_t& app, engine_scene_t& scene, float init_pos_x, float score_init_pos_x, const char* name)
-    : IScript(app, scene)
+pong::PlayerPaddleScript::PlayerPaddleScript(engine::IScene *my_scene, float init_pos_x, float score_init_pos_x, const char* name)
+    : IScript(my_scene)
     , score_(0)
     , score_str_(std::to_string(score_))
 {
+    auto scene = my_scene_->get_handle();
+    auto app = my_scene_->get_app_handle();
+
     auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-    mesh_comp.geometry = engineApplicationGetGeometryByName(app_, "cube");
+    mesh_comp.geometry = engineApplicationGetGeometryByName(app, "cube");
     assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for player paddle script!");
     engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
 
@@ -27,7 +31,7 @@ pong::PlayerPaddleScript::PlayerPaddleScript(engine_application_t& app, engine_s
     tc.scale[0] = 0.5f;
     tc.scale[1] = 2.5f;
     tc.scale[2] = 1.0f;
-    engineSceneUpdateTransformComponent(scene_, go_, &tc);
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     auto bc = engineSceneAddColliderComponent(scene, go_);
     bc.type = ENGINE_COLLIDER_TYPE_BOX;
@@ -47,7 +51,7 @@ pong::PlayerPaddleScript::PlayerPaddleScript(engine_application_t& app, engine_s
     {
         score_go_ = engineSceneCreateGameObject(scene);
         auto text_component = engineSceneAddTextComponent(scene, score_go_);
-        text_component.font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
+        text_component.font_handle = engineApplicationGetFontByName(app, "tahoma_font");
         assert(text_component.font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
         text_component.text = score_str_.c_str();
         set_c_array(text_component.color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
@@ -69,10 +73,10 @@ void pong::PlayerPaddleScript::on_collision(const collision_t& info)
 
     if (info.other == ball_script_->get_game_object())
     {
-        const auto paddle_tc = engineSceneGetTransformComponent(scene_, go_);
+        const auto paddle_tc = engineSceneGetTransformComponent(my_scene_->get_handle(), go_);
         const auto paddle_current_y = paddle_tc.position[1];
 
-        auto ball_tc = engineSceneGetTransformComponent(scene_, info.other);
+        auto ball_tc = engineSceneGetTransformComponent(my_scene_->get_handle(), info.other);
         const auto ball_current_y = ball_tc.position[1];
 
         const auto interct_pos = -1.0f * ((paddle_current_y - ball_current_y)) / 2.5f;
@@ -88,11 +92,11 @@ void pong::PlayerPaddleScript::on_collision(const collision_t& info)
 void pong::PlayerPaddleScript::update(float dt)
 {
     //handle_input(dt);
-    auto tc = engineSceneGetTransformComponent(scene_, go_);
+    auto tc = engineSceneGetTransformComponent(my_scene_->get_handle(), go_);
     const auto y_delta = 1.0f * ((target_y * 2.0f) - 1.0f);
     tc.position[1] = y_delta * 8.0f;
    // update_component = true;
-    engineSceneUpdateTransformComponent(scene_, go_, &tc);
+    engineSceneUpdateTransformComponent(my_scene_->get_handle(), go_, &tc);
 
     score_str_ = std::to_string(score_);
 }
@@ -116,14 +120,17 @@ void pong::PlayerPaddleScript::set_target_screenspace_position(float y)
 // --- RIGHT PLAYER ---
 //
 
-pong::RightPlayerPaddleScript::RightPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
-    : PlayerPaddleScript(app, scene, 12.0f, 0.75f, "right_player")
+pong::RightPlayerPaddleScript::RightPlayerPaddleScript(engine::IScene *my_scene)
+    : PlayerPaddleScript(my_scene, 12.0f, 0.75f, "right_player")
 {
+    auto scene = my_scene_->get_handle();
+    auto app = my_scene_->get_app_handle();
+
     // text component
     {
         const auto text_go = engineSceneCreateGameObject(scene);
         auto text_component = engineSceneAddTextComponent(scene, text_go);
-        text_component.font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
+        text_component.font_handle = engineApplicationGetFontByName(app, "tahoma_font");
         assert(text_component.font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
         text_component.text = "Player 2";
         text_component.scale[0] = 0.25f;
@@ -143,14 +150,17 @@ pong::RightPlayerPaddleScript::RightPlayerPaddleScript(engine_application_t& app
 // 
 // --- LEFT PLAYER ---
 //
-pong::LeftPlayerPaddleScript::LeftPlayerPaddleScript(engine_application_t& app, engine_scene_t& scene)
-    : PlayerPaddleScript(app, scene, -12.0f, 0.25f, "left_player")
+pong::LeftPlayerPaddleScript::LeftPlayerPaddleScript(engine::IScene *my_scene)
+    : PlayerPaddleScript(my_scene, -12.0f, 0.25f, "left_player")
 {
+    auto scene = my_scene_->get_handle();
+    auto app = my_scene_->get_app_handle();
+
     // text component for the NAME
     {
         const auto text_go = engineSceneCreateGameObject(scene);
         auto text_component = engineSceneAddTextComponent(scene, text_go);
-        text_component.font_handle = engineApplicationGetFontByName(app_, "tahoma_font");
+        text_component.font_handle = engineApplicationGetFontByName(app, "tahoma_font");
         assert(text_component.font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
         text_component.text = "Player 1";
         text_component.scale[0] = 0.25f;

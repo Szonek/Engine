@@ -1,4 +1,5 @@
 #include "iscene.h"
+#include "scene_manager.h"
 
 #include "event_types_defs.h"
 
@@ -110,17 +111,19 @@ inline engine_scene_t create_scene()
 }  // namespace
 
 
-engine::IScene::IScene(engine_application_t app_handle, engine_result_code_t& engine_error_code)
+engine::IScene::IScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
     : app_(app_handle)
     , scene_(create_scene())
+    , scene_manager_(scn_mgn)
     , input_event_system_(app_, scene_)
 {
     if (!scene_)
     {
-        log(fmt::format("Couldnt create scene!\n"));
+        log(fmt::format("Couldn't create scene!\n"));
         return;
     }
     scripts_.reserve(1024);
+    engine_error_code = ENGINE_RESULT_CODE_OK;
 }
 
 engine::IScene::~IScene()

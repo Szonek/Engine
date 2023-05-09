@@ -12,7 +12,7 @@ public:
     class PlayerPaddleScript* player_paddel_script_ = nullptr;
 
 public:
-    GoalNetScript(engine_application_t& app, engine_scene_t& scene, float init_pos_x, const char* name);
+    GoalNetScript(engine::IScene *my_scene, float init_pos_x, const char* name);
 
     void update(float dt) override;
 
@@ -35,12 +35,12 @@ protected:
 class LeftGoalNetScript : public GoalNetScript
 {
 public:
-    LeftGoalNetScript(engine_application_t& app, engine_scene_t& scene);
+    LeftGoalNetScript(engine::IScene *my_scene);
 };
 
 class RightGoalNetScript : public GoalNetScript
 {
 public:
-    RightGoalNetScript(engine_application_t& app, engine_scene_t& scene);
+    RightGoalNetScript(engine::IScene *my_scene);
 };
 } // namespace pong

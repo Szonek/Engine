@@ -1,6 +1,7 @@
 #include "goal_net_script.h"
 #include "global_constants.h"
 
+#include "iscene.h"
 #include "ball_script.h"
 #include "player_paddle_script.h"
 
@@ -8,11 +9,14 @@
 
 #include <cassert>
 
-pong::GoalNetScript::GoalNetScript(engine_application_t& app, engine_scene_t& scene, float init_pos_x, const char* name)
-    : IScript(app, scene)
+pong::GoalNetScript::GoalNetScript(engine::IScene *my_scene, float init_pos_x, const char* name)
+    : IScript(my_scene)
 {
+    auto scene = my_scene_->get_handle();
+    auto app = my_scene_->get_app_handle();
+
     auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-    mesh_comp.geometry = engineApplicationGetGeometryByName(app_, "cube");
+    mesh_comp.geometry = engineApplicationGetGeometryByName(app, "cube");
     assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Couldnt find geometry for player goal net script!");
     mesh_comp.disable = K_IS_GOAL_NET_DISABLE_RENDER;
     engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
@@ -25,7 +29,7 @@ pong::GoalNetScript::GoalNetScript(engine_application_t& app, engine_scene_t& sc
     tc.scale[0] = 0.5f;
     tc.scale[1] = 25.0f;
     tc.scale[2] = 1.0f;
-    engineSceneUpdateTransformComponent(scene_, go_, &tc);
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     auto bc = engineSceneAddColliderComponent(scene, go_);
     bc.type = ENGINE_COLLIDER_TYPE_BOX;
@@ -68,12 +72,12 @@ void pong::GoalNetScript::on_collision(const collision_t& info)
 
 }
 
-pong::LeftGoalNetScript::LeftGoalNetScript(engine_application_t& app, engine_scene_t& scene)
-    : GoalNetScript(app, scene, -14.0f, "left_goal_net")
+pong::LeftGoalNetScript::LeftGoalNetScript(engine::IScene *my_scene)
+    : GoalNetScript(my_scene, -14.0f, "left_goal_net")
 {
 }
 
-pong::RightGoalNetScript::RightGoalNetScript(engine_application_t& app, engine_scene_t& scene)
-     : GoalNetScript(app, scene, 14.0f, "right_goal_net")
+pong::RightGoalNetScript::RightGoalNetScript(engine::IScene *my_scene)
+     : GoalNetScript(my_scene, 14.0f, "right_goal_net")
 {
 }

@@ -1,5 +1,6 @@
 #include <engine.h>
 
+#include "scene_manager.h"
 #include "iscene.h"
 #include "utils.h"
 #include "iscript.h"
@@ -80,11 +81,9 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    std::deque<std::unique_ptr<engine::IScene>> scenes;
-    scenes.push_back(std::make_unique<pong::MainScene>(app, engine_error_code));
-    scenes.push_back(std::make_unique<pong::MainMenuScene>(app, engine_error_code, scenes[0].get()));
-
-
+    engine::SceneManager scene_manager(app);
+    scene_manager.register_scene<pong::MainScene>("pve_scene");
+    scene_manager.register_scene<pong::MainMenuScene>("main_menu");
 
     struct fps_counter_t
     {
@@ -109,22 +108,6 @@ int main(int argc, char** argv)
 			break;
 		}
 
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_1))
-        {
-            if (scenes.size() > 1)
-            {
-                scenes.at(1)->deactivate();
-            }
-        }
-
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_2))
-        {
-            if (scenes.size() > 1)
-            {
-                scenes.at(1)->activate();
-            }
-        }
-
         fps_counter.frames_count += 1;
         fps_counter.frames_total_time += frame_begin.delta_time;
         if (fps_counter.frames_total_time > 1000.0f)
@@ -134,10 +117,7 @@ int main(int argc, char** argv)
             fps_counter = {};
         }
 
-        for (auto& scene : scenes)
-        {
-            scene->update(frame_begin.delta_time);
-        }
+        scene_manager.update(frame_begin.delta_time);
 
 		const auto frame_end = engineApplicationFrameEnd(app);
 		if (!frame_end.success)

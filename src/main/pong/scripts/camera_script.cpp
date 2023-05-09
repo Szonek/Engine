@@ -1,10 +1,14 @@
 #include "camera_script.h"
-
 #include "global_constants.h"
 
-pong::CameraScript::CameraScript(engine_application_t& app, engine_scene_t& scene)
-    : IScript(app, scene)
+#include "iscene.h"
+
+pong::CameraScript::CameraScript(engine::IScene *my_scene)
+    : IScript(my_scene)
 {
+    auto scene = my_scene_->get_handle();
+    auto app = my_scene_->get_app_handle();
+
     auto camera_comp = engineSceneAddCameraComponent(scene, go_);
     camera_comp.enabled = true;
     camera_comp.clip_plane_near = 0.1f;
