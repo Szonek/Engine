@@ -44,5 +44,13 @@ public:
     void on_pointer_click(const engine::PointerEventData* ped) override;
 };
 
+// MAIN MENU
+class MainMenuStartPvpScene : public engine::IScript
+{
+public:
+    MainMenuStartPvpScene(engine::IScene *my_scene);
+
+    void on_pointer_click(const engine::PointerEventData* ped) override;
+};
 
 } // namespace pong

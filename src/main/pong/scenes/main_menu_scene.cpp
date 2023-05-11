@@ -2,7 +2,6 @@
 #include "../scripts/camera_script.h"
 #include "../scripts/ui_scripts.h"
 
-
 pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
     : IScene(app_handle, scn_mgn, engine_error_code)
 {
@@ -10,5 +9,6 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::Scen
     {
         auto camera_script = register_script<CameraScript>();
         auto start_pve = register_script<MainMenuStartPveScene>();
+        auto start_pvp = register_script<MainMenuStartPvpScene>();
     }
 }

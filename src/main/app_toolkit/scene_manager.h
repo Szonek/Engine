@@ -16,14 +16,14 @@ public:
     void update(float dt);
     
     template<typename T>
-    engine_result_code_t register_scene(std::string_view scene_name)
+    engine_result_code_t register_scene()
     {
-        if (scenes_.contains(scene_name.data()))
+        if (scenes_.contains(T::get_name()))
         {
             return ENGINE_RESULT_CODE_FAIL;
         }
         engine_result_code_t err_code = ENGINE_RESULT_CODE_FAIL;
-        scenes_[scene_name.data()] = std::make_unique<T>(app_, this, err_code);
+        scenes_[T::get_name()] = std::make_unique<T>(app_, this, err_code);
         return err_code;
     }
 

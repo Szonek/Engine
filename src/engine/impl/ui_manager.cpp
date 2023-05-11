@@ -241,6 +241,7 @@ void engine::UiManager::render_image(engine::RenderContext &rdx, const engine_im
     const auto model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
 
     rdx.set_depth_test(false);
+    //rdx.set_blend_mode(true, RenderContext::BlendFactor::eSrcAlpha, RenderContext::BlendFactor::eOneMinusSrcAlpha, RenderContext::BlendFactor::eOne, RenderContext::BlendFactor::eZero);
 
     shader_image_.bind();
     shader_image_.set_uniform_mat_f4("projection", { glm::value_ptr(ortho_projection), sizeof(ortho_projection) / sizeof(float) });
@@ -251,6 +252,7 @@ void engine::UiManager::render_image(engine::RenderContext &rdx, const engine_im
     geometry_.draw(Geometry::Mode::eTriangles);
 
     rdx.set_depth_test(true);
+    //rdx.set_blend_mode(false);
 }
 
 void engine::UiManager::begin_frame(float screen_width, float screen_height)

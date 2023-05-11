@@ -1,6 +1,7 @@
 #include "ui_scripts.h"
 
-#include "../scenes/main_scene.h"
+#include "../scenes/pve_scene.h"
+#include "../scenes/pvp_scene.h"
 #include "scene_manager.h"
 #include "iscene.h"
 #include "event_types_defs.h"
@@ -73,15 +74,58 @@ pong::MainMenuStartPveScene::MainMenuStartPveScene(engine::IScene *my_scene)
     auto name_comp = engineSceneAddNameComponent(scene, go_);
     std::memcpy(name_comp.name, name, std::strlen(name));
     engineSceneUpdateNameComponent(scene, go_, &name_comp);
+
+    auto text_go = go_;//engineSceneCreateGameObject(scene);
+    auto text_component = engineSceneAddTextComponent(scene, text_go);
+    text_component.font_handle = engineApplicationGetFontByName(app, "tahoma_font");
+    assert(text_component.font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
+    text_component.text = "PVE";
+    set_c_array(text_component.color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 0.0f});
+    engineSceneUpdateTextComponent(scene, text_go, &text_component);
+
 }
 
 void pong::MainMenuStartPveScene::on_pointer_click(const engine::PointerEventData *ped)
 {
     assert(my_scene_);
     my_scene_->deactivate();
+    get_scene_manager()->get_scene(pong::PveScene::get_name())->activate();
+}
 
-    get_scene_manager()->get_scene(pong::MainScene::K_NAME)->activate();
-    //assert(pve_scene_);
-    //
-    //pve_scene_->activate();
+pong::MainMenuStartPvpScene::MainMenuStartPvpScene(engine::IScene *my_scene)
+    : IScript(my_scene)
+{
+    auto scene = my_scene_->get_handle();
+    auto app = my_scene_->get_app_handle();
+
+    auto tc = engineSceneAddRectTransformComponent(scene, go_);
+    tc.position_min[0] = 0.4f;
+    tc.position_min[1] = 0.1f;
+
+    tc.position_max[0] = 0.6f;
+    tc.position_max[1] = 0.3f;
+    engineSceneUpdateRectTransformComponent(scene, go_, &tc);
+
+    auto ic = engineSceneAddImageComponent(scene, go_);
+    set_c_array(ic.color, std::array<float, 4>{0.0f, 0.3f, 0.8f, 0.0f});
+    engineSceneUpdateImageComponent(scene, go_, &ic);
+
+    const char* name = "main_menu_start_pvp";
+    auto name_comp = engineSceneAddNameComponent(scene, go_);
+    std::memcpy(name_comp.name, name, std::strlen(name));
+    engineSceneUpdateNameComponent(scene, go_, &name_comp);
+
+    auto text_go = go_;//engineSceneCreateGameObject(scene);
+    auto text_component = engineSceneAddTextComponent(scene, text_go);
+    text_component.font_handle = engineApplicationGetFontByName(app, "tahoma_font");
+    assert(text_component.font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
+    text_component.text = "PVP";
+    set_c_array(text_component.color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 0.0f});
+    engineSceneUpdateTextComponent(scene, text_go, &text_component);
+}
+
+void pong::MainMenuStartPvpScene::on_pointer_click(const engine::PointerEventData *ped)
+{
+    my_scene_->deactivate();
+    get_scene_manager()->get_scene(pong::PvpScene::get_name())->activate();
 }

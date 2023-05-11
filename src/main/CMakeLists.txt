@@ -39,8 +39,10 @@ set(GAME_SCRIPTS_SOURCES
 )
 set(GAME_SCENES_DIR ${GAME_DIR}/scenes)
 set(GAME_SCENES_SOURCES
-	${GAME_SCENES_DIR}/main_scene.h
-	${GAME_SCENES_DIR}/main_scene.cpp
+	${GAME_SCENES_DIR}/pvp_scene.h
+	${GAME_SCENES_DIR}/pvp_scene.cpp
+	${GAME_SCENES_DIR}/pve_scene.h
+	${GAME_SCENES_DIR}/pve_scene.cpp
 	${GAME_SCENES_DIR}/main_menu_scene.h
 	${GAME_SCENES_DIR}/main_menu_scene.cpp
 )

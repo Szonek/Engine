@@ -6,7 +6,8 @@
 #include "iscript.h"
 
 #include "pong/scenes/main_menu_scene.h"
-#include "pong/scenes/main_scene.h"
+#include "pong/scenes/pve_scene.h"
+#include "pong/scenes/pvp_scene.h"
 
 #include <SDL_system.h>
 #include <SDL_main.h>
@@ -25,7 +26,6 @@
 
 int main(int argc, char** argv)
 {
-
 	std::string assets_path = "";
 	if (argc > 1)
 	{
@@ -82,8 +82,9 @@ int main(int argc, char** argv)
     }
 
     engine::SceneManager scene_manager(app);
-    scene_manager.register_scene<pong::MainScene>("pve_scene");
-    scene_manager.register_scene<pong::MainMenuScene>("main_menu");
+    scene_manager.register_scene<pong::PvpScene>();
+    scene_manager.register_scene<pong::PveScene>();
+    scene_manager.register_scene<pong::MainMenuScene>();
 
     struct fps_counter_t
     {
