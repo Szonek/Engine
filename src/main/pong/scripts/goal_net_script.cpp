@@ -73,11 +73,11 @@ void pong::GoalNetScript::on_collision(const collision_t& info)
 }
 
 pong::LeftGoalNetScript::LeftGoalNetScript(engine::IScene *my_scene)
-    : GoalNetScript(my_scene, -14.0f, "left_goal_net")
+    : GoalNetScript(my_scene, -15.0f, "left_goal_net")
 {
 }
 
 pong::RightGoalNetScript::RightGoalNetScript(engine::IScene *my_scene)
-     : GoalNetScript(my_scene, 14.0f, "right_goal_net")
+     : GoalNetScript(my_scene, 15.0f, "right_goal_net")
 {
 }
