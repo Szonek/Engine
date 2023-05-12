@@ -96,3 +96,9 @@ void pong::BallScript::update(float dt)
         update_linear_velocity(get_direction_vector());
     }
 }
+
+std::array<float, 2> pong::BallScript::get_current_position() const
+{
+    auto tc = engineSceneGetTransformComponent(my_scene_->get_handle(), go_);
+    return {tc.position[0], tc.position[1]};
+}

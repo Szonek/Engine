@@ -16,7 +16,7 @@ public:
     void update_linear_velocity(float dir_x, float dir_y);
     void update_linear_velocity(std::span<const float> dir);
     std::array<float, 2> get_direction_vector() const;
-
+    std::array<float, 2> get_current_position() const;
     void update(float dt) override;
 
 private:

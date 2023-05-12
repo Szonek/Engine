@@ -30,6 +30,7 @@ set(GAME_SCRIPTS_SOURCES
 	${GAME_SCRIPTS_DIR}/goal_net_script.cpp
 	${GAME_SCRIPTS_DIR}/player_paddle_script.h
 	${GAME_SCRIPTS_DIR}/player_paddle_script.cpp
+	${GAME_SCRIPTS_DIR}/bot_paddle_script.cpp
 	${GAME_SCRIPTS_DIR}/wall_script.h
 	${GAME_SCRIPTS_DIR}/wall_script.cpp
 	${GAME_SCRIPTS_DIR}/camera_script.h

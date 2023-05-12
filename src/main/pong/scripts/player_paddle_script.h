@@ -21,7 +21,7 @@ public:
     virtual void set_score(std::size_t new_score);
     virtual std::size_t get_score() const;
 
-    virtual void set_target_screenspace_position(float y);
+    virtual void set_target_worldspace_position(float y);
 
 protected:
     engine_game_object_t score_go_;
@@ -42,4 +42,13 @@ class LeftPlayerPaddleScript : public PlayerPaddleScript
 public:
     LeftPlayerPaddleScript(engine::IScene *my_scene);
 };
+
+class BotPlayerPaddleScript : public PlayerPaddleScript
+{
+public:
+    BotPlayerPaddleScript(engine::IScene *my_scene);
+
+    void update(float dt) override;
+};
+
 } // namespace pong

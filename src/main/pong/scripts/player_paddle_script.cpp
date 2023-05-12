@@ -93,10 +93,11 @@ void pong::PlayerPaddleScript::update(float dt)
 {
     //handle_input(dt);
     auto tc = engineSceneGetTransformComponent(my_scene_->get_handle(), go_);
-    const auto y_delta = 1.0f * ((target_y * 2.0f) - 1.0f);
-    tc.position[1] = y_delta * 8.0f;
-   // update_component = true;
-    engineSceneUpdateTransformComponent(my_scene_->get_handle(), go_, &tc);
+   if(tc.position[1] != target_y)
+   {
+       tc.position[1] = target_y;
+       engineSceneUpdateTransformComponent(my_scene_->get_handle(), go_, &tc);
+   }
 
     score_str_ = std::to_string(score_);
 }
@@ -111,7 +112,7 @@ std::size_t pong::PlayerPaddleScript::get_score() const
     return score_;
 }
 
-void pong::PlayerPaddleScript::set_target_screenspace_position(float y)
+void pong::PlayerPaddleScript::set_target_worldspace_position(float y)
 {
     target_y = y;
 }

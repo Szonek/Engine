@@ -37,7 +37,15 @@ void pong::PlayerTouchAreaScript::on_pointer_down(const engine::PointerEventData
     assert(player_script_ != nullptr);
     if (ped->button == ENGINE_MOUSE_BUTTON_LEFT)
     {
-        player_script_->set_target_screenspace_position(ped->position[1]);
+        const float full_screen_height = K_CAMERA_ORTHO_SCALE * 2.0f;
+        const float top_wall_screenspace_pos = (K_CAMERA_ORTHO_SCALE + K_WALL_Y_OFFSET) / full_screen_height;
+        const float bottom_wall_screenspace_pos = (K_CAMERA_ORTHO_SCALE - K_WALL_Y_OFFSET) / full_screen_height;
+        const float screenspace_table_height = top_wall_screenspace_pos - bottom_wall_screenspace_pos;
+        const float pointer_pos = ped->position[1];
+        const float pointer_screenspace_scaled_to_table = ( pointer_pos * screenspace_table_height) + bottom_wall_screenspace_pos;
+        // map to range <-1, 1> and scale to world space size  (world middle is 0,0, so we need negative values to go down/left)!
+        const float pointer_world_space = K_CAMERA_ORTHO_SCALE * ((pointer_screenspace_scaled_to_table * 2.0f) - 1.0f);
+        player_script_->set_target_worldspace_position(pointer_world_space);
     }
 }
 

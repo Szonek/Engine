@@ -18,21 +18,23 @@ pong::PvpScene::PvpScene(engine_application_t app_handle, engine::SceneManager* 
 
         auto camera_script = register_script<CameraScript>();
         auto ball_script = register_script<BallScript>();
+        auto left_touch_area_script = register_script<LeftPlayerTouchAreaScript>();
         auto right_touch_area_script = register_script<RightPlayerTouchAreaScript>();
-        //auto left_player_script = register_script<LeftPlayerPaddleScript>();
+        auto left_player_script = register_script<LeftPlayerPaddleScript>();
         auto right_player_script = register_script<RightPlayerPaddleScript>();
-        //auto left_goal_net_script = register_script<LeftGoalNetScript>();
+        auto left_goal_net_script = register_script<LeftGoalNetScript>();
         auto right_goal_net_script = register_script<RightGoalNetScript>();
         auto top_wall = register_script<WallTopScript>();
         auto bottom_wall = register_script<BottomTopScript>();
 
+        left_touch_area_script->player_script_ = left_player_script;
         right_touch_area_script->player_script_ = right_player_script;
 
         right_player_script->ball_script_ = ball_script;
-        //left_player_script->ball_script_ = ball_script;
+        left_player_script->ball_script_ = ball_script;
 
-        //left_goal_net_script->ball_script_ = ball_script;
-        //left_goal_net_script->player_paddel_script_ = left_player_script;
+        left_goal_net_script->ball_script_ = ball_script;
+        left_goal_net_script->player_paddel_script_ = left_player_script;
         right_goal_net_script->ball_script_ = ball_script;
         right_goal_net_script->player_paddel_script_ = right_player_script;
     }
