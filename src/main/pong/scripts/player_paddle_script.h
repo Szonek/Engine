@@ -4,6 +4,7 @@
 #include "iscript.h"
 
 #include <string>
+#include <deque>
 
 namespace pong
 {
@@ -46,9 +47,23 @@ public:
 class BotPlayerPaddleScript : public PlayerPaddleScript
 {
 public:
+    enum class Difficulty
+    {
+        eEasy,
+        eMedium,
+        eHard,
+        eGodLike
+    };
+
+public:
     BotPlayerPaddleScript(engine::IScene *my_scene);
 
+    void set_difficulty(Difficulty difficulty);
     void update(float dt) override;
+
+private:
+    Difficulty difficulty_;
+    std::deque<float> ball_history_;
 };
 
 } // namespace pong
