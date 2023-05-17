@@ -16,15 +16,23 @@ pong::PveScene::PveScene(engine_application_t app_handle, engine::SceneManager* 
         const float gravity[3] = { 0.0f, 0.0f, 0.0f };
         engineSceneSetGravityVector(scene_, gravity);
 
+        // core
         auto camera_script = register_script<CameraScript>();
         auto ball_script = register_script<BallScript>();
-        auto right_touch_area_script = register_script<RightPlayerTouchAreaScript>();
+        // players
         auto left_player_script = register_script<BotPlayerPaddleScript>();
         auto right_player_script = register_script<RightPlayerPaddleScript>();
+        // goal nets
         auto left_goal_net_script = register_script<LeftGoalNetScript>();
         auto right_goal_net_script = register_script<RightGoalNetScript>();
+        // walls
         auto top_wall = register_script<WallTopScript>();
         auto bottom_wall = register_script<BottomTopScript>();
+
+        // right ui
+        auto right_touch_area_script = register_script<RightPlayerTouchAreaScript>();
+        auto right_superpower_0_script = register_script<RightPlayerSuperPower_0_TouchAreaScript>();
+        right_superpower_0_script->player_script_ = right_player_script;
 
         right_touch_area_script->player_script_ = right_player_script;
 

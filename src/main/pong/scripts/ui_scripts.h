@@ -34,6 +34,18 @@ public:
     LeftPlayerTouchAreaScript(engine::IScene *my_scene);
 };
 
+class RightPlayerSuperPower_0_TouchAreaScript : public engine::IScript
+{
+public:
+    RightPlayerSuperPower_0_TouchAreaScript(engine::IScene *my_scene);
+
+
+    void update(float dt) override;
+    void on_pointer_click(const engine::PointerEventData* ped) override;
+
+public:
+    class PlayerPaddleScript* player_script_ = nullptr;
+};
 
 // MAIN MENU
 class MainMenuStartPveScene : public engine::IScript

@@ -13,7 +13,6 @@ pong::PlayerTouchAreaScript::PlayerTouchAreaScript(engine::IScene *my_scene, flo
     : IScript(my_scene)
 {
     auto scene = my_scene_->get_handle();
-    auto app = my_scene_->get_app_handle();
 
     auto tc = engineSceneAddRectTransformComponent(scene, go_);
     tc.position_min[0] = start_pos_x;
@@ -136,4 +135,53 @@ void pong::MainMenuStartPvpScene::on_pointer_click(const engine::PointerEventDat
 {
     my_scene_->deactivate();
     get_scene_manager()->get_scene(pong::PvpScene::get_name())->activate();
+}
+
+pong::RightPlayerSuperPower_0_TouchAreaScript::RightPlayerSuperPower_0_TouchAreaScript(engine::IScene *my_scene)
+    : IScript(my_scene)
+{
+    auto scene = my_scene_->get_handle();
+
+    auto tc = engineSceneAddRectTransformComponent(scene, go_);
+    tc.position_min[0] = 0.7;
+    tc.position_min[1] = 0.0f;
+
+    tc.position_max[0] = 0.8f;
+    tc.position_max[1] = 0.1f;
+    engineSceneUpdateRectTransformComponent(scene, go_, &tc);
+
+    auto ic = engineSceneAddImageComponent(scene, go_);
+    set_c_array(ic.color, std::array<float, 4>{0.9f, 0.05f, 0.05f, 0.0f});
+    engineSceneUpdateImageComponent(scene, go_, &ic);
+
+    auto name_comp = engineSceneAddNameComponent(scene, go_);
+    const char* name = "right_player_superpower_0";
+    std::memcpy(name_comp.name, name, std::strlen(name));
+    engineSceneUpdateNameComponent(scene, go_, &name_comp);
+}
+
+void pong::RightPlayerSuperPower_0_TouchAreaScript::on_pointer_click(const engine::PointerEventData *ped)
+{
+    assert(player_script_ != nullptr);
+    if(player_script_->get_super_power_type() != SuperPowerType::eNone)
+    {
+        player_script_->trigger_super_power();
+    }
+}
+
+void pong::RightPlayerSuperPower_0_TouchAreaScript::update(float dt)
+{
+    assert(player_script_ != nullptr);
+    auto scene = my_scene_->get_handle();
+    auto ic = engineSceneGetImageComponent(scene, go_);
+    if(player_script_->get_super_power_type() != SuperPowerType::eNone)
+    {
+        set_c_array(ic.color, std::array<float, 4>{0.05f, 0.9f, 0.05f, 0.0f});
+        engineSceneUpdateImageComponent(scene, go_, &ic);
+    }
+    else
+    {
+        set_c_array(ic.color, std::array<float, 4>{0.9f, 0.05f, 0.05f, 0.0f});
+        engineSceneUpdateImageComponent(scene, go_, &ic);
+    }
 }

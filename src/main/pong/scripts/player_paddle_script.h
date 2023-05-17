@@ -8,6 +8,12 @@
 
 namespace pong
 {
+enum class SuperPowerType
+{
+    eNone,
+    eBallSuperSpeed = 1
+};
+
 class PlayerPaddleScript : public engine::IScript
 {
 public:
@@ -23,12 +29,17 @@ public:
     virtual std::size_t get_score() const;
 
     virtual void set_target_worldspace_position(float y);
+    void trigger_super_power();
+    virtual SuperPowerType get_super_power_type() const { return super_power_type_; }
 
 protected:
     engine_game_object_t score_go_;
     std::size_t score_ = 0;
     std::string score_str_ = "";
     float target_y = 0.5f;
+
+    SuperPowerType super_power_type_ = SuperPowerType::eNone;
+    bool super_power_trigger_ = false;
 };
 
 class RightPlayerPaddleScript : public PlayerPaddleScript

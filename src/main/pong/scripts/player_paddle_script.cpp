@@ -14,6 +14,7 @@ pong::PlayerPaddleScript::PlayerPaddleScript(engine::IScene *my_scene, float ini
     : IScript(my_scene)
     , score_(0)
     , score_str_(std::to_string(score_))
+    , super_power_type_(SuperPowerType::eBallSuperSpeed)
 {
     auto scene = my_scene_->get_handle();
     auto app = my_scene_->get_app_handle();
@@ -91,13 +92,24 @@ void pong::PlayerPaddleScript::on_collision(const collision_t& info)
 
 void pong::PlayerPaddleScript::update(float dt)
 {
-    //handle_input(dt);
+    if(super_power_trigger_)
+    {
+        if(super_power_type_ == SuperPowerType::eBallSuperSpeed)
+        {
+            engineLog("[SUERPOWER]  SuperPowerType::eBallSuperSpeed ");
+        }
+
+        // reset super power variables
+        super_power_type_ = SuperPowerType::eNone;
+        super_power_trigger_ = false;
+    }
+
     auto tc = engineSceneGetTransformComponent(my_scene_->get_handle(), go_);
-   if(tc.position[1] != target_y)
-   {
+    if(tc.position[1] != target_y)
+    {
        tc.position[1] = target_y;
        engineSceneUpdateTransformComponent(my_scene_->get_handle(), go_, &tc);
-   }
+    }
 
     score_str_ = std::to_string(score_);
 }
@@ -115,6 +127,11 @@ std::size_t pong::PlayerPaddleScript::get_score() const
 void pong::PlayerPaddleScript::set_target_worldspace_position(float y)
 {
     target_y = y;
+}
+
+void pong::PlayerPaddleScript::trigger_super_power()
+{
+    super_power_trigger_ = true;
 }
 
 // 
