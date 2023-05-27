@@ -99,22 +99,6 @@ void pong::PlayerPaddleScript::on_collision(const collision_t& info)
         ball_dir[1] = interct_pos;
         const auto ball_dir_normalized = glm::normalize(glm::make_vec2(ball_dir.data()));
         ball_script_->update_linear_velocity(ball_dir_normalized[0], ball_dir_normalized[1]);
-
-        if (super_power_state_ == SuperPowerState::eTrigger)
-        {
-            if (super_power_type_ == SuperPowerType::eBallSuperSpeed)
-            {
-                const auto super_speed_factor = 2.0f;
-                //engineLog("[SUERPOWER]  SuperPowerType::eBallSuperSpeed ");
-                const auto ball_speed = ball_script_->get_speed();
-                ball_script_->update_speed(ball_speed[0] * super_speed_factor, ball_speed[1] * super_speed_factor);
-                ball_script_->update_diffuse_color(std::array<float, 4>{1.0f, 0.1f, 0.1f, 0.0f});
-            }
-
-            // reset super power variables
-            super_power_type_ = SuperPowerType::eNone;
-            super_power_state_ = SuperPowerState::eActive;
-        }
     }
 }
 
@@ -145,6 +129,22 @@ void pong::PlayerPaddleScript::update(float dt)
     {
         timer_superpower_cd_ = 0.0f;
         super_power_type_ = SuperPowerType::eBallSuperSpeed;
+    }
+
+    if (super_power_state_ == SuperPowerState::eTrigger)
+    {
+        if (super_power_type_ == SuperPowerType::eBallSuperSpeed)
+        {
+            const auto super_speed_factor = 2.0f;
+            //engineLog("[SUERPOWER]  SuperPowerType::eBallSuperSpeed ");
+            const auto ball_speed = ball_script_->get_speed();
+            ball_script_->update_speed(ball_speed[0] * super_speed_factor, ball_speed[1] * super_speed_factor);
+            ball_script_->update_diffuse_color(std::array<float, 4>{1.0f, 0.1f, 0.1f, 0.0f});
+        }
+
+        // reset super power variables
+        super_power_type_ = SuperPowerType::eNone;
+        super_power_state_ = SuperPowerState::eActive;
     }
 
     auto tc = engineSceneGetTransformComponent(my_scene_->get_handle(), go_);
