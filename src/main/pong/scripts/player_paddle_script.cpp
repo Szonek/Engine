@@ -4,6 +4,7 @@
 #include "iscene.h"
 #include "utils.h"
 #include "global_constants.h"
+#include "event_types.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -66,6 +67,17 @@ pong::PlayerPaddleScript::PlayerPaddleScript(engine::IScene *my_scene, float ini
         tc.position_max[1] = 1.0f;
         engineSceneUpdateRectTransformComponent(scene, score_go_, &tc);
     }
+
+    my_scene_->register_event_callback(PONG_EVENT_TYPE_GOAL_SCORED, [this]()
+        {
+            const auto super_speed_factor = 2.0f;
+            const auto ball_speed = ball_script_->get_speed();
+            ball_script_->update_diffuse_color(std::array<float, 4>{0.4f, 0.3f, 1.0f, 0.0f});
+
+            timer_superpower_active_cd_ = 0.0f;
+            super_power_state_ = SuperPowerState::eNone;
+        }
+    );
 }
 
 void pong::PlayerPaddleScript::on_collision(const collision_t& info)
@@ -87,21 +99,52 @@ void pong::PlayerPaddleScript::on_collision(const collision_t& info)
         ball_dir[1] = interct_pos;
         const auto ball_dir_normalized = glm::normalize(glm::make_vec2(ball_dir.data()));
         ball_script_->update_linear_velocity(ball_dir_normalized[0], ball_dir_normalized[1]);
+
+        if (super_power_state_ == SuperPowerState::eTrigger)
+        {
+            if (super_power_type_ == SuperPowerType::eBallSuperSpeed)
+            {
+                const auto super_speed_factor = 2.0f;
+                //engineLog("[SUERPOWER]  SuperPowerType::eBallSuperSpeed ");
+                const auto ball_speed = ball_script_->get_speed();
+                ball_script_->update_speed(ball_speed[0] * super_speed_factor, ball_speed[1] * super_speed_factor);
+                ball_script_->update_diffuse_color(std::array<float, 4>{1.0f, 0.1f, 0.1f, 0.0f});
+            }
+
+            // reset super power variables
+            super_power_type_ = SuperPowerType::eNone;
+            super_power_state_ = SuperPowerState::eActive;
+        }
     }
 }
 
 void pong::PlayerPaddleScript::update(float dt)
 {
-    if(super_power_trigger_)
+    const auto super_speed_factor = 2.0f;
+    if (super_power_type_ == SuperPowerType::eNone)
     {
-        if(super_power_type_ == SuperPowerType::eBallSuperSpeed)
-        {
-            engineLog("[SUERPOWER]  SuperPowerType::eBallSuperSpeed ");
-        }
+        timer_superpower_cd_ += dt;
+    }
 
-        // reset super power variables
-        super_power_type_ = SuperPowerType::eNone;
-        super_power_trigger_ = false;
+    if (super_power_state_ == SuperPowerState::eActive)
+    {
+        timer_superpower_active_cd_ += dt;
+    }
+
+    if (timer_superpower_active_cd_ >= 1000.0f)
+    {
+        const auto ball_speed = ball_script_->get_speed();
+        ball_script_->update_speed(ball_speed[0] / super_speed_factor, ball_speed[1] / super_speed_factor);
+        ball_script_->update_diffuse_color(std::array<float, 4>{0.4f, 0.3f, 1.0f, 0.0f});
+
+        timer_superpower_active_cd_ = 0.0f;
+        super_power_state_ = SuperPowerState::eNone;
+    }
+
+    if (timer_superpower_cd_ >= 5000.0f)
+    {
+        timer_superpower_cd_ = 0.0f;
+        super_power_type_ = SuperPowerType::eBallSuperSpeed;
     }
 
     auto tc = engineSceneGetTransformComponent(my_scene_->get_handle(), go_);
@@ -131,7 +174,7 @@ void pong::PlayerPaddleScript::set_target_worldspace_position(float y)
 
 void pong::PlayerPaddleScript::trigger_super_power()
 {
-    super_power_trigger_ = true;
+    super_power_state_ = SuperPowerState::eTrigger;
 }
 
 // 

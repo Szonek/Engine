@@ -1,5 +1,6 @@
 #include "ball_script.h"
 #include "global_constants.h"
+#include "event_types.h"
 
 #include "iscene.h"
 #include "utils.h"
@@ -35,7 +36,7 @@ pong::BallScript::BallScript(engine::IScene *my_scene)
     engineSceneUpdateColliderComponent(scene, go_, &bc);
 
     auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-    set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.4f, 0.3f, 1.0f, 0.2f });
+    set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.4f, 0.3f, 1.0f, 0.0f });
     engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
 
     auto nc = engineSceneAddNameComponent(scene, go_);
@@ -44,6 +45,12 @@ pong::BallScript::BallScript(engine::IScene *my_scene)
     engineSceneUpdateNameComponent(scene, go_, &nc);
 
     reset_state();
+
+    my_scene_->register_event_callback(PONG_EVENT_TYPE_GOAL_SCORED, [this]()
+        {
+            reset_state();
+        }
+    );
 }
 
 void pong::BallScript::reset_state()
@@ -74,6 +81,21 @@ void pong::BallScript::update_linear_velocity(std::span<const float> dir)
     update_linear_velocity(dir[0], dir[1]);
 }
 
+void pong::BallScript::update_speed(float speed_x, float speed_y)
+{
+    const auto dir = get_direction_vector();
+    ball_speed_x_ = speed_x;
+    ball_speed_y_ = speed_y;
+    update_linear_velocity(dir);
+}
+
+void pong::BallScript::update_diffuse_color(std::array<float, 4> color)
+{
+    auto material_comp = engineSceneGetMaterialComponent(my_scene_->get_handle(), go_);
+    set_c_array(material_comp.diffuse_color, color);
+    engineSceneUpdateMaterialComponent(my_scene_->get_handle(), go_, &material_comp);
+}
+
 std::array<float, 2> pong::BallScript::get_direction_vector() const
 {
     auto rb = engineSceneGetRigidBodyComponent(my_scene_->get_handle(), go_);
@@ -85,15 +107,13 @@ std::array<float, 2> pong::BallScript::get_direction_vector() const
 
 void pong::BallScript::update(float dt)
 {
-    timer_accu += dt;
-
+    timer_accu_ += dt;
+    //engineLog(fmt::format("{}, {}\n", ball_speed_x_, ball_speed_y_).c_str());
     // update speed every 2 seconds
-    if (timer_accu >= 2000.0f)
+    if (timer_accu_ >= 2000.0f)
     {
-        ball_speed_x_ += 2.0f;
-        ball_speed_y_ += 2.0f;
-        timer_accu = 0.0f;
-        update_linear_velocity(get_direction_vector());
+        update_speed(ball_speed_x_ + 2.0f, ball_speed_y_ + 2.0f);
+        timer_accu_ = 0.0f;
     }
 }
 
@@ -101,4 +121,9 @@ std::array<float, 2> pong::BallScript::get_current_position() const
 {
     auto tc = engineSceneGetTransformComponent(my_scene_->get_handle(), go_);
     return {tc.position[0], tc.position[1]};
+}
+
+std::array<float, 2> pong::BallScript::get_speed() const
+{
+    return {ball_speed_x_, ball_speed_y_};
 }

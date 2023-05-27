@@ -8,6 +8,12 @@
 
 namespace pong
 {
+enum class SuperPowerState
+{
+    eNone,
+    eTrigger = 1,
+    eActive
+};
 enum class SuperPowerType
 {
     eNone,
@@ -39,7 +45,9 @@ protected:
     float target_y = 0.5f;
 
     SuperPowerType super_power_type_ = SuperPowerType::eNone;
-    bool super_power_trigger_ = false;
+    SuperPowerState super_power_state_ = SuperPowerState::eNone;
+    float timer_superpower_cd_ = 0.0f;
+    float timer_superpower_active_cd_ = 0.0f;
 };
 
 class RightPlayerPaddleScript : public PlayerPaddleScript

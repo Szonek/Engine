@@ -6,10 +6,32 @@
 #include "event_system.h"
 
 #include <unordered_map>
+#include <functional>
 
 namespace engine
 {
 class SceneManager;
+
+class UserEventSystem
+{
+public:
+    void register_event_callback(std::uint32_t ev_id, std::function<void()>&& callback)
+    {
+        callbacks_[ev_id].push_back(std::move(callback));
+    }
+
+    void activate_event(std::uint32_t ev_id)
+    {
+        for (const auto& listener : callbacks_[ev_id])
+        {
+            listener();
+        }
+    }
+
+
+private:
+    std::unordered_map<std::uint32_t, std::vector<std::function<void()>>> callbacks_;
+};
 
 class IScene
 {
@@ -37,10 +59,18 @@ public:
     engine_application_t& get_app_handle() { return app_; }
     SceneManager* get_scene_manager() { return scene_manager_; }
 
+
     virtual void activate();
     virtual void deactivate();
     virtual bool is_active() const;
     virtual engine_result_code_t update(float dt);
+
+    UserEventSystem* get_user_event_sysmte() { return &user_event_system_; }
+
+    virtual void register_event_callback(std::uint32_t event_id, std::function<void()>&& callback)
+    {
+        user_event_system_.register_event_callback(event_id, std::move(callback));
+    }
 
 protected:
     engine_application_t app_{};
@@ -49,6 +79,7 @@ protected:
 
     ScriptsMap scripts_{};
     InputEventSystem input_event_system_;
+    UserEventSystem user_event_system_;
     bool is_activate_ = true;
 };
 }

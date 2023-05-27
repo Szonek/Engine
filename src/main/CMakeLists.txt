@@ -37,6 +37,7 @@ set(GAME_SCRIPTS_SOURCES
 	${GAME_SCRIPTS_DIR}/camera_script.cpp
 	${GAME_SCRIPTS_DIR}/ui_scripts.h
 	${GAME_SCRIPTS_DIR}/ui_scripts.cpp
+	${GAME_SCRIPTS_DIR}/event_types.h
 )
 set(GAME_SCENES_DIR ${GAME_DIR}/scenes)
 set(GAME_SCENES_SOURCES
