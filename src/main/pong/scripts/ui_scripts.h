@@ -34,10 +34,10 @@ public:
     LeftPlayerTouchAreaScript(engine::IScene *my_scene);
 };
 
-class RightPlayerSuperPower_0_TouchAreaScript : public engine::IScript
+class PlayerSuperPower_TouchAreaScript : public engine::IScript
 {
 public:
-    RightPlayerSuperPower_0_TouchAreaScript(engine::IScene *my_scene);
+    PlayerSuperPower_TouchAreaScript(engine::IScene* my_scene, float start_pos_x, float end_pos_x, const char* name);
 
 
     void update(float dt) override;
@@ -45,6 +45,18 @@ public:
 
 public:
     class PlayerPaddleScript* player_script_ = nullptr;
+};
+
+class LeftPlayerSuperPower_0_TouchAreaScript : public PlayerSuperPower_TouchAreaScript
+{
+public:
+    LeftPlayerSuperPower_0_TouchAreaScript(engine::IScene* my_scene);
+};
+
+class RightPlayerSuperPower_0_TouchAreaScript : public PlayerSuperPower_TouchAreaScript
+{
+public:
+    RightPlayerSuperPower_0_TouchAreaScript(engine::IScene *my_scene);
 };
 
 // MAIN MENU

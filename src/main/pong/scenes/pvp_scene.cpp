@@ -27,6 +27,12 @@ pong::PvpScene::PvpScene(engine_application_t app_handle, engine::SceneManager* 
         auto top_wall = register_script<WallTopScript>();
         auto bottom_wall = register_script<BottomTopScript>();
 
+        auto right_superpower_0_script = register_script<RightPlayerSuperPower_0_TouchAreaScript>();
+        right_superpower_0_script->player_script_ = right_player_script;
+
+        auto left_superpower_0_script = register_script<LeftPlayerSuperPower_0_TouchAreaScript>();
+        left_superpower_0_script->player_script_ = left_player_script;
+
         left_touch_area_script->player_script_ = left_player_script;
         right_touch_area_script->player_script_ = right_player_script;
 
