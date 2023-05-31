@@ -40,9 +40,9 @@ pong::PvpScene::PvpScene(engine_application_t app_handle, engine::SceneManager* 
         left_player_script->ball_script_ = ball_script;
 
         left_goal_net_script->ball_script_ = ball_script;
-        left_goal_net_script->player_paddel_script_ = left_player_script;
+        left_goal_net_script->player_paddel_script_ = right_player_script;
         right_goal_net_script->ball_script_ = ball_script;
-        right_goal_net_script->player_paddel_script_ = right_player_script;
+        right_goal_net_script->player_paddel_script_ = left_player_script;
     }
 
     // deactivate at start
