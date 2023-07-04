@@ -94,9 +94,12 @@ pong::MainMenuStartPveScene::MainMenuStartPveScene(engine::IScene *my_scene)
 
 void pong::MainMenuStartPveScene::on_pointer_click(const engine::PointerEventData *ped)
 {
+    //ToDo
+#if 0
     assert(my_scene_);
     my_scene_->deactivate();
     get_scene_manager()->get_scene(pong::PveScene::get_name())->activate();
+#endif
 }
 
 pong::MainMenuStartPvpScene::MainMenuStartPvpScene(engine::IScene *my_scene)
@@ -133,8 +136,11 @@ pong::MainMenuStartPvpScene::MainMenuStartPvpScene(engine::IScene *my_scene)
 
 void pong::MainMenuStartPvpScene::on_pointer_click(const engine::PointerEventData *ped)
 {
+     //ToDo
+#if 0
     my_scene_->deactivate();
     get_scene_manager()->get_scene(pong::PvpScene::get_name())->activate();
+#endif
 }
 
 void pong::PlayerSuperPower_TouchAreaScript::on_pointer_click(const engine::PointerEventData *ped)

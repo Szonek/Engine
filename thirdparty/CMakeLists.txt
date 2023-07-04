@@ -37,3 +37,7 @@ set(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath CACHE STRING "Inc
 
 # font library
 add_subdirectory(freetype)
+
+# UI library
+set(BUILD_SAMPLES on)
+add_subdirectory(RmlUi)

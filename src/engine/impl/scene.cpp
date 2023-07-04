@@ -1,4 +1,4 @@
-#include "scene.h"
+﻿#include "scene.h"
 #include "ui_manager.h"
 #include "logger.h"
 #include "math_helpers.h"
@@ -8,12 +8,8 @@
 
 #include <SDL3/SDL.h>
 
+#include <RmlUi/Core.h>
 
-
-namespace
-{
-
-}
 
 engine::Scene::Scene(engine_result_code_t& out_code)
     : shader_simple_(Shader("simple.vs", "simple.fs"))
@@ -144,7 +140,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
 	auto ui_image_renderer = entity_registry_.view<const engine_rect_tranform_component_t , const engine_image_component_t>();
     auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
 
-
+#if 0
     for (auto [entity, camera, transform] : camera_view.each()) 
     {
         if (!camera.enabled)
@@ -210,9 +206,8 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 ui_manager->render_text(rdx, text, transform);
             }
         );
-
-
     }
+#endif
 
     return ENGINE_RESULT_CODE_OK;
 }

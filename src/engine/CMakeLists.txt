@@ -21,7 +21,12 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/gltf_parser.cpp
 	${ENGINE_SOURCES_DIR}/physics_world.h
 	${ENGINE_SOURCES_DIR}/physics_world.cpp
-	${ENGINE_SOURCES_DIR}/math_helpers.h
+	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.h
+	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.cpp
+	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Backend.h
+	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Renderer_GL3.h
+	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Renderer_GL3.cpp
+	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Include_GL3.h
 )
 
 set(ENGINE_API "include")
@@ -48,6 +53,11 @@ set_property(TARGET ${ENGINE} PROPERTY CXX_STANDARD 20)
 
 
 target_include_directories(${ENGINE} PUBLIC ${ENGINE_API} PRIVATE ${BULLET_INCLUDE_DIRS})
-target_link_libraries(${ENGINE} PRIVATE stb tinygltf glad glm EnTT::EnTT freetype SDL3::SDL3-static fmt::fmt-header-only ${BULLET_LIBRARIES})
+target_link_libraries(${ENGINE} PRIVATE stb tinygltf glad glm EnTT::EnTT freetype SDL3::SDL3-static fmt::fmt-header-only RmlCore ${BULLET_LIBRARIES})
+
+get_target_property(target_type RmlCore TYPE)
+if (target_type STREQUAL "STATIC_LIBRARY")
+	target_compile_definitions(${ENGINE} PRIVATE RMLUI_STATIC_LIB)
+endif ()
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_ALL_SOURCES})

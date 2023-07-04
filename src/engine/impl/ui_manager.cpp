@@ -8,6 +8,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H  
 
+#include <RmlUi/Core.h>
 
 #include <fmt/format.h>
 
@@ -75,6 +76,10 @@ engine::UiManager::~UiManager()
 
 std::uint32_t engine::UiManager::load_font_from_file(std::string_view file_name, std::string_view handle_name)
 {
+    const auto font_path = AssetStore::get_instance().get_font_base_path() / file_name;
+    bool success = Rml::LoadFontFace(font_path.string(), true);
+
+
     if (!font_handle_)
     {
         return ENGINE_INVALID_OBJECT_HANDLE;

@@ -5,6 +5,11 @@
 #include <span>
 #include <vector>
 
+
+#include <RmlUi/Core.h>
+#include "RmlUI_backend/RmlUi_Platform_SDL.h"
+#include "RmlUI_backend/RmlUi_Renderer_GL3.h"
+
 struct SDL_Window;
 typedef void* SDL_GLContext;
 
@@ -198,9 +203,16 @@ public:
 	void begin_frame();
 	void end_frame();
 
+    void begin_frame_ui_rendering();
+    void end_frame_ui_rendering();
+
 private:
     SDL_Window* window_ = nullptr;
     SDL_GLContext context_ = nullptr;
+
+    // this 2 are used for UI render
+    SystemInterface_SDL* ui_rml_sdl_interface_ = nullptr;
+    RenderInterface_GL3* ui_rml_gl3_renderer_ = nullptr;
 };
 
 } // namespace engine

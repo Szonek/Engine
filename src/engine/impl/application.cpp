@@ -1,4 +1,4 @@
-#include "application.h"
+﻿#include "application.h"
 #include "graphics.h"
 #include "asset_store.h"
 #include "scene.h"
@@ -12,6 +12,12 @@
 
 #include <span>
 #include <iostream>
+
+
+struct ApplicationData {
+    bool show_text = true;
+    Rml::String animal = "dog";
+} my_data;
 
 namespace
 {
@@ -84,12 +90,46 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     rdx_.set_clear_color(0.05f, 0.0f, 0.2f, 1.0f);
 
 	timer_.tick();
+    Rml::Initialise();
+
+    // create context with some aribtrary name and dimension.  (dimensions wil lbe update in update(..))
+    ui_rml_context_ = Rml::CreateContext("app", Rml::Vector2i(500, 500));
+    assert(ui_rml_context_);
+
+    //if (scene_ctor_idx == 0)
+    {
+
+
+        // Replace and style some text in the loaded document.
+        //Rml::Element* element = document->GetElementById("world");
+        //element->SetInnerRML(reinterpret_cast<const char*>(u8"🌍"));
+        //element->SetProperty("font-size", "1.5em");
+    }
+
+    {
+        // Set up data bindings to synchronize application data.
+        if (Rml::DataModelConstructor constructor = ui_rml_context_->CreateDataModel("animals"))
+        {
+            constructor.Bind("show_text", &my_data.show_text);
+            constructor.Bind("animal", &my_data.animal);
+
+
+        }
+        //if (Rml::ElementDocument* document = ui_rml_context_->LoadDocument("C:\\WORK\\OpenGLPlayground\\buildtree\\bin\\Debug\\tutorial\\template\\data\\tutorial.rml"))
+        //Rml::ElementDocument* document = ui_rml_context_->LoadDocument("C:\\WORK\\OpenGLPlayground\\assets\\ui_docs\\hello_world.rml");
+        //assert(document);
+        //document->Show();
+
+
+    }
+
 	out_code = ENGINE_RESULT_CODE_OK;
 }
 
 engine::Application::~Application()
 {
-	//glfwTerminate();
+    Rml::RemoveContext(ui_rml_context_->GetName());
+    Rml::Shutdown();
 }
 
 engine_result_code_t engine::Application::update_scene(Scene* scene, float delta_time)
@@ -118,10 +158,17 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
 		f.dy = 0.0f;
 	}
 
+    /*
+    if (power_save)
+        has_event = SDL_WaitEventTimeout(&ev, static_cast<int>(Rml::Math::Min(context->GetNextUpdateDelay(), 10.0) * 1000));
+    else
+        has_event = SDL_PollEvent(&ev);
+    */
     //Handle events on queue
     SDL_Event e;
     while (SDL_PollEvent(&e) != 0)
     {
+        RmlSDL::InputEventHandler(ui_rml_context_, e);
         if (e.type == SDL_EVENT_QUIT)
         {
             ret.events |= ENGINE_EVENT_QUIT;
@@ -192,12 +239,33 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
 	rdx_.begin_frame();
     const auto window_size_pixels = rdx_.get_window_size_in_pixels();
     ui_manager_.begin_frame(static_cast<float>(window_size_pixels.width), static_cast<float>(window_size_pixels.height));
+    // UI for the scene
+    {
+        //const auto ui_dims = ui_rml_context_->GetDimensions();
+        //if (ui_dims.x != window_size_pixels.width
+       //     || ui_dims.y != window_size_pixels.height)
+        static int32_t i = 0;
+        if(i == 0)
+        {
+            Rml::ElementDocument* document = ui_rml_context_->LoadDocument("C:\\WORK\\OpenGLPlayground\\assets\\ui_docs\\hello_world.rml");
+            assert(document);
+            document->Show();
+            i++;
+            //ui_rml_context_->SetDimensions(decltype(ui_dims){window_size_pixels.width, window_size_pixels.height});
+        }
+        ui_rml_context_->Update();
+    }
 	return ret;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
     ui_manager_.end_frame();
+
+    rdx_.begin_frame_ui_rendering();
+    ui_rml_context_->Render();
+    rdx_.end_frame_ui_rendering();
+
     rdx_.end_frame();
 	engine_application_frame_end_info_t ret{};
 	//ret.success = !glfwWindowShouldClose(rdx_.get_glfw_window());;

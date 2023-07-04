@@ -153,11 +153,15 @@ std::string engine::AssetStore::get_shader_source(std::string_view name)
 
 engine::RawDataFileContext engine::AssetStore::get_font_data(std::string_view name) const
 {
-	const std::filesystem::path fonts_folder = "fonts";
-	const auto fonts_assets_path = base_path_ / fonts_folder;
-	const auto full_path = fonts_assets_path / name.data();
-
+	const auto full_path = get_font_base_path() / name.data();
 	return RawDataFileContext(full_path);
+}
+
+std::filesystem::path engine::AssetStore::get_font_base_path() const
+{
+    const std::filesystem::path fonts_folder = "fonts";
+    const auto fonts_assets_path = base_path_ / fonts_folder;
+    return fonts_assets_path;
 }
 
 engine::RawDataFileContext engine::AssetStore::get_model_data(std::string_view name) const
