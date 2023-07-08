@@ -11,7 +11,11 @@ body {
 	height: 200px;
 	margin: auto;
 }
-		
+
+body:hover {
+  background-color: yellow;
+}
+	
 h1 {
 	color: #f6470a;
 	font-size: 1.5em;

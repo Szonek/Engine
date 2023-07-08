@@ -12,6 +12,9 @@
 
 #include <fmt/format.h>
 
+#include <RmlUi/Core.h>
+
+
 #include <cassert>
 #include <iostream>
 
@@ -237,6 +240,7 @@ void engine::UiManager::render_text(RenderContext& rdx, const engine_text_compon
 
 void engine::UiManager::render_image(engine::RenderContext &rdx, const engine_image_component_t& img_comp, const engine_rect_tranform_component_t& transform)
 {
+
     const auto glm_pos = glm::vec3(transform.position_min[0] * current_window_width_, transform.position_min[1] * current_window_height_, 0.0f);
     const auto glm_rot = glm::vec3(0.0f, 0.0f, 0.0f);
     const auto glm_scl = glm::vec3(

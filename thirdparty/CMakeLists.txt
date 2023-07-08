@@ -18,26 +18,29 @@ add_subdirectory(glm)
 add_subdirectory(entt)
 
 # gltf 2.0
-set(TINYGLTF_BUILD_LOADER_EXAMPLE OFF)
-set(TINYGLTF_BUILD_GL_EXAMPLES OFF)
-set(TINYGLTF_BUILD_VALIDATOR_EXAMPLE OFF)
-set(TINYGLTF_BUILD_BUILDER_EXAMPLE OFF)
-set(TINYGLTF_INSTALL OFF)
-set(TINYGLTF_HEADER_ONLY ON)
+set(TINYGLTF_BUILD_LOADER_EXAMPLE OFF CACHE BOOL "")
+set(TINYGLTF_BUILD_GL_EXAMPLES OFF CACHE BOOL "")
+set(TINYGLTF_BUILD_VALIDATOR_EXAMPLE OFF CACHE BOOL "")
+set(TINYGLTF_BUILD_BUILDER_EXAMPLE OFF CACHE BOOL "")
+set(TINYGLTF_INSTALL OFF CACHE BOOL "")
+set(TINYGLTF_HEADER_ONLY ON CACHE BOOL "")
 add_subdirectory(tinygltf)
 
 #bullet3
-set(BUILD_OPENGL3_DEMOS OFF)
-set(BUILD_BULLET2_DEMOS OFF)
-set(BUILD_CPU_DEMOS OFF)
-set(BUILD_UNIT_TESTS OFF)
+set(BUILD_OPENGL3_DEMOS OFF CACHE BOOL "")
+set(BUILD_BULLET2_DEMOS OFF CACHE BOOL "")
+set(BUILD_CPU_DEMOS OFF CACHE BOOL "")
+set(BUILD_UNIT_TESTS OFF CACHE BOOL "")
 add_subdirectory(bullet3)
 set(BULLET_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/bullet3/src  CACHE STRING "Include headers of bullet dependency")
 set(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath CACHE STRING "Include libraries of bullet dependency")
 
 # font library
 add_subdirectory(freetype)
+set(FREETYPE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/freetype/include  CACHE STRING "Include headers of freetype dependency")
+set(FREETYPE_LIBRARIES freetype CACHE STRING "Include libraries of freetype dependency")
 
 # UI library
-set(BUILD_SAMPLES on)
+set(BUILD_SAMPLES OFF CACHE BOOL "Build samples of RmlUI thirdparty")
+set(NO_FONT_INTERFACE_DEFAULT OFF CACHE BOOL "Do not include default font interface for RmUI thirdparty.")
 add_subdirectory(RmlUi)

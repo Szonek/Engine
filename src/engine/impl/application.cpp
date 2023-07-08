@@ -90,10 +90,12 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     rdx_.set_clear_color(0.05f, 0.0f, 0.2f, 1.0f);
 
 	timer_.tick();
-    Rml::Initialise();
 
+
+    Rml::Initialise();
     // create context with some aribtrary name and dimension.  (dimensions wil lbe update in update(..))
-    ui_rml_context_ = Rml::CreateContext("app", Rml::Vector2i(500, 500));
+    const auto window_size_pixels = rdx_.get_window_size_in_pixels();
+    ui_rml_context_ = Rml::CreateContext("app", Rml::Vector2i(window_size_pixels.width, window_size_pixels.height));
     assert(ui_rml_context_);
 
     //if (scene_ctor_idx == 0)
