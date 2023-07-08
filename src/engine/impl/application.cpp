@@ -10,6 +10,9 @@
 #include <SDL3/SDL_events.h>
 #include <fmt/format.h>
 
+#include <RmlUi/Core/ID.h>
+#include <RmlUi/Core/DataModelHandle.h>
+
 #include <span>
 #include <iostream>
 
@@ -17,7 +20,26 @@
 struct ApplicationData {
     bool show_text = true;
     Rml::String animal = "dog";
+    std::uint32_t score = 0;
 } my_data;
+
+
+class StartPveSceneListener : public Rml::EventListener {
+public:
+
+protected:
+    void ProcessEvent(Rml::Event& event) override
+    {
+        std::cout << "click!" << std::endl;
+        my_data.score++;
+        event.GetCurrentElement()->GetContext()->GetDataModel("animals").GetModelHandle().DirtyVariable("score");
+        
+    }
+};
+
+StartPveSceneListener g_start_pve_listener;
+
+
 
 namespace
 {
@@ -114,6 +136,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
         {
             constructor.Bind("show_text", &my_data.show_text);
             constructor.Bind("animal", &my_data.animal);
+            constructor.Bind("score", &my_data.score);
 
 
         }
@@ -249,10 +272,15 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
         static int32_t i = 0;
         if(i == 0)
         {
-            Rml::ElementDocument* document = ui_rml_context_->LoadDocument("C:\\WORK\\OpenGLPlayground\\assets\\ui_docs\\hello_world.rml");
+            Rml::ElementDocument* document = ui_rml_context_->LoadDocument("C:\\WORK\\OpenGLPlayground\\assets\\ui_docs\\pong_main_menu.rml");
             assert(document);
             document->Show();
             i++;
+
+            auto element = document->GetElementById("id_start_pve_scene");
+            assert(element);
+            element->AddEventListener(Rml::EventId::Click, &g_start_pve_listener);
+            //ui_rml_context_->AddEventListener("start_pve_scene", &g_start_pve_listener);
             //ui_rml_context_->SetDimensions(decltype(ui_dims){window_size_pixels.width, window_size_pixels.height});
         }
         ui_rml_context_->Update();
