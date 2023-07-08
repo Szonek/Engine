@@ -10,5 +10,8 @@ public:
 
 public:
     static constexpr const char* get_name() { return "main_menu_scene"; }
+
+private:
+    engine_ui_document_t ui_doc_ = nullptr;
 };
 }

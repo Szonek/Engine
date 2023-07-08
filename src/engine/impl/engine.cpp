@@ -371,6 +371,34 @@ void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const
     sc->get_physcis_collisions_list(*collisions, num_collision);
 }
 
+engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out)
+{
+    if (app && file_path && out)
+    {
+        auto* app_handle = application_cast(app);
+        *out = app_handle->load_ui_document(file_path);
+    }
+    return engine_result_code_t::ENGINE_RESULT_CODE_FAIL;
+}
+
+void engineApplicationUiDocumentShow(engine_application_t app, engine_ui_document_t ui_doc)
+{
+    if (app && ui_doc)
+    {
+        auto* app_handle = application_cast(app);
+        app_handle->show_ui_document(ui_doc);
+    }
+}
+
+void engineApplicationUiDocumentHide(engine_application_t app, engine_ui_document_t ui_doc)
+{
+    if (app && ui_doc)
+    {
+        auto* app_handle = application_cast(app);
+        app_handle->hide_ui_document(ui_doc);
+    }
+}
+
 engine_result_code_t engineCreateComponentView(engine_component_view_t* out)
 {
     if (out)

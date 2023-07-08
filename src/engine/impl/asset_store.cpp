@@ -164,6 +164,13 @@ std::filesystem::path engine::AssetStore::get_font_base_path() const
     return fonts_assets_path;
 }
 
+std::filesystem::path engine::AssetStore::get_ui_docs_base_path() const
+{
+    const std::filesystem::path ui_docs_folder = "ui_docs";
+    const auto ui_docs_ssets_path = base_path_ / ui_docs_folder;
+    return ui_docs_ssets_path;
+}
+
 engine::RawDataFileContext engine::AssetStore::get_model_data(std::string_view name) const
 {
 	const std::filesystem::path models_folder = "models";

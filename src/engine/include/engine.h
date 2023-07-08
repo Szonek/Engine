@@ -43,6 +43,7 @@ typedef struct _engine_application_t* engine_application_t;
 typedef struct _engine_scene_t* engine_scene_t;
 typedef struct _engine_component_view_t* engine_component_view_t;
 typedef struct _engine_component_iterator_t* engine_component_iterator_t;
+typedef struct _engine_ui_document_t* engine_ui_document_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_font_t;
@@ -304,8 +305,13 @@ ENGINE_API void                     engineSceneDestroyGameObject(engine_scene_t 
 
 
 // physics 
-ENGINE_API void                     engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);
-ENGINE_API void                     engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
+ENGINE_API void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);
+ENGINE_API void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
+
+// ui
+ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out);
+ENGINE_API void engineApplicationUiDocumentShow(engine_application_t app, engine_ui_document_t ui_doc);
+ENGINE_API void engineApplicationUiDocumentHide(engine_application_t app, engine_ui_document_t ui_doc);
 
 // ECS 
 ENGINE_API engine_result_code_t engineCreateComponentView(engine_component_view_t* out);

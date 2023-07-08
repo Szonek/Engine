@@ -41,6 +41,10 @@ public:
     engine_model_info_t load_model_info_from_file(engine_model_specification_t spec, std::string_view name);
     void release_model_info(engine_model_info_t* info);
 
+    engine_ui_document_t load_ui_document(std::string_view file_name);
+    void show_ui_document(engine_ui_document_t doc) const;
+    void hide_ui_document(engine_ui_document_t doc) const;
+
     bool keyboard_is_key_down(engine_keyboard_keys_t key);
 
     engine_coords_2d_t mouse_get_coords();

@@ -272,14 +272,14 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
         static int32_t i = 0;
         if(i == 0)
         {
-            Rml::ElementDocument* document = ui_rml_context_->LoadDocument("C:\\WORK\\OpenGLPlayground\\assets\\ui_docs\\pong_main_menu.rml");
-            assert(document);
-            document->Show();
-            i++;
+            //Rml::ElementDocument* document = ui_rml_context_->LoadDocument("C:\\WORK\\OpenGLPlayground\\assets\\ui_docs\\pong_main_menu.rml");
+            //assert(document);
+            //document->Show();
+            //i++;
 
-            auto element = document->GetElementById("id_start_pve_scene");
-            assert(element);
-            element->AddEventListener(Rml::EventId::Click, &g_start_pve_listener);
+            //auto element = document->GetElementById("id_start_pve_scene");
+            //assert(element);
+            //element->AddEventListener(Rml::EventId::Click, &g_start_pve_listener);
             //ui_rml_context_->AddEventListener("start_pve_scene", &g_start_pve_listener);
             //ui_rml_context_->SetDimensions(decltype(ui_dims){window_size_pixels.width, window_size_pixels.height});
         }
@@ -388,6 +388,31 @@ void engine::Application::release_model_info(engine_model_info_t* info)
         delete model_info;
         std::memset(info, 0, sizeof(engine_model_info_t));
     }
+}
+
+engine_ui_document_t engine::Application::load_ui_document(std::string_view file_name)
+{
+    if (file_name.empty())
+    {
+        return nullptr;
+    }
+    
+    Rml::ElementDocument* document = ui_rml_context_->LoadDocument((AssetStore::get_instance().get_ui_docs_base_path() / file_name).string());
+    return reinterpret_cast<engine_ui_document_t>(document);
+}
+
+void engine::Application::show_ui_document(engine_ui_document_t doc) const
+{
+    auto rml_ui_doc = reinterpret_cast<Rml::ElementDocument*>(doc);
+    assert(rml_ui_doc);
+    rml_ui_doc->Show();
+}
+
+void engine::Application::hide_ui_document(engine_ui_document_t doc) const
+{
+    auto rml_ui_doc = reinterpret_cast<Rml::ElementDocument*>(doc);
+    assert(rml_ui_doc);
+    rml_ui_doc->Hide();
 }
 
 bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
