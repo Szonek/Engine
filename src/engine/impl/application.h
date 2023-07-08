@@ -8,12 +8,6 @@
 #include <array>
 #include <string>
 
-namespace Rml
-{
-    class Context;
-}
-
-
 namespace engine
 {
 class Application
@@ -105,8 +99,6 @@ private:
     UiManager ui_manager_;
 
     std::array<engine_finger_info_t, 10> finger_info_buffer;
-
-    Rml::Context* ui_rml_context_;
 };
 
 }  // namespace engine

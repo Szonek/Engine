@@ -13,13 +13,39 @@
 #include <fmt/format.h>
 
 #include <RmlUi/Core.h>
-
+#include <RmlUi/Core/ID.h>
+#include <RmlUi/Core/DataModelHandle.h>
 
 #include <cassert>
 #include <iostream>
 
-engine::UiManager::UiManager()
-    : shader_font_(Shader("font.vs", "font.fs"))
+
+struct ApplicationData {
+    bool show_text = true;
+    Rml::String animal = "dog";
+    std::uint32_t score = 0;
+} my_data;
+
+
+class StartPveSceneListener : public Rml::EventListener {
+public:
+
+protected:
+    void ProcessEvent(Rml::Event& event) override
+    {
+        std::cout << "click!" << std::endl;
+        my_data.score++;
+        event.GetCurrentElement()->GetContext()->GetDataModel("animals").GetModelHandle().DirtyVariable("score");
+
+    }
+};
+
+StartPveSceneListener g_start_pve_listener;
+
+
+engine::UiManager::UiManager(RenderContext& rdx)
+    : rdx_(rdx)
+    , shader_font_(Shader("font.vs", "font.fs"))
     , shader_image_(Shader("font.vs", "ui_image.fs"))
     , current_font_idx_(ENGINE_INVALID_OBJECT_HANDLE) // start with, since 0 is invalid index
 {
@@ -48,11 +74,28 @@ engine::UiManager::UiManager()
     vertex_layut[0] = Geometry::vertex_attribute_t{ 0, 2, 4 * sizeof(float), 0 * sizeof(float), Geometry::vertex_attribute_t::Type::eFloat };
     vertex_layut[1] = Geometry::vertex_attribute_t{ 1, 2, 4 * sizeof(float), 2 * sizeof(float), Geometry::vertex_attribute_t::Type::eFloat };
     geometry_ = engine::Geometry(vertex_layut, { vertex_data, 6 * 4 * sizeof(float) }, 6);
+
+    Rml::Initialise();
+    // create context with some aribtrary name and dimension.  (dimensions wil lbe update in update(..))
+    const auto window_size_pixels = rdx_.get_window_size_in_pixels();
+    ui_rml_context_ = Rml::CreateContext("app", Rml::Vector2i(window_size_pixels.width, window_size_pixels.height));
+    assert(ui_rml_context_);
+
+    // Set up data bindings to synchronize application data.
+    if (Rml::DataModelConstructor constructor = ui_rml_context_->CreateDataModel("animals"))
+    {
+        constructor.Bind("show_text", &my_data.show_text);
+        constructor.Bind("animal", &my_data.animal);
+        constructor.Bind("score", &my_data.score);
+
+
+    }
 }
 
 engine::UiManager::UiManager(UiManager&& rhs)
     : shader_font_(std::move(rhs.shader_font_))
     , shader_image_(std::move(rhs.shader_image_))
+    , rdx_(rhs.rdx_)
 {
     std::swap(font_handle_, rhs.font_handle_);
 }
@@ -74,7 +117,16 @@ engine::UiManager::~UiManager()
     {
         FT_Library ft_lib = reinterpret_cast<FT_Library>(font_handle_);
         FT_Done_FreeType(ft_lib);
+
+        Rml::RemoveContext(ui_rml_context_->GetName());
+        Rml::Shutdown();
     }
+}
+
+engine_ui_document_t engine::UiManager::load_ui_document_from_file(std::string_view file_name)
+{
+    Rml::ElementDocument* document = ui_rml_context_->LoadDocument((AssetStore::get_instance().get_ui_docs_base_path() / file_name).string());
+    return reinterpret_cast<engine_ui_document_t>(document);
 }
 
 std::uint32_t engine::UiManager::load_font_from_file(std::string_view file_name, std::string_view handle_name)
@@ -176,7 +228,12 @@ std::uint32_t engine::UiManager::get_font(std::string_view name) const
     return ENGINE_INVALID_OBJECT_HANDLE;
 }
 
-void engine::UiManager::render_text(RenderContext& rdx, const engine_text_component_t& text_comp, const engine_rect_tranform_component_t& transform)
+void engine::UiManager::parse_sdl_event(SDL_Event ev)
+{
+    RmlSDL::InputEventHandler(ui_rml_context_, ev);
+}
+
+void engine::UiManager::render_text(const engine_text_component_t& text_comp, const engine_rect_tranform_component_t& transform)
 {
     const auto& text = std::string(text_comp.text);
     if (text.empty())
@@ -192,8 +249,8 @@ void engine::UiManager::render_text(RenderContext& rdx, const engine_text_compon
     const auto glm_scl = glm::vec3(text_comp.scale[0], text_comp.scale[1], 1.0f);
     const auto parent_model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
 
-    rdx.set_depth_test(false);
-    rdx.set_blend_mode(true, RenderContext::BlendFactor::eSrcAlpha, RenderContext::BlendFactor::eOneMinusSrcAlpha, RenderContext::BlendFactor::eOne, RenderContext::BlendFactor::eZero);
+    rdx_.set_depth_test(false);
+    rdx_.set_blend_mode(true, RenderContext::BlendFactor::eSrcAlpha, RenderContext::BlendFactor::eOneMinusSrcAlpha, RenderContext::BlendFactor::eOne, RenderContext::BlendFactor::eZero);
 
     shader_font_.bind();
     shader_font_.set_uniform_mat_f4("projection", { glm::value_ptr(ortho_projection), sizeof(ortho_projection) / sizeof(float) });
@@ -234,11 +291,11 @@ void engine::UiManager::render_text(RenderContext& rdx, const engine_text_compon
         // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
         cursor_x_pos += (glyph.advance >> 6); // bitshift by 6 to get value in pixels (2^6 = 64)
     }
-    rdx.set_depth_test(true);
-    rdx.set_blend_mode(false);
+    rdx_.set_depth_test(true);
+    rdx_.set_blend_mode(false);
 }
 
-void engine::UiManager::render_image(engine::RenderContext &rdx, const engine_image_component_t& img_comp, const engine_rect_tranform_component_t& transform)
+void engine::UiManager::render_image(const engine_image_component_t& img_comp, const engine_rect_tranform_component_t& transform)
 {
 
     const auto glm_pos = glm::vec3(transform.position_min[0] * current_window_width_, transform.position_min[1] * current_window_height_, 0.0f);
@@ -249,7 +306,7 @@ void engine::UiManager::render_image(engine::RenderContext &rdx, const engine_im
         1.0f);
     const auto model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
 
-    rdx.set_depth_test(false);
+    rdx_.set_depth_test(false);
     //rdx.set_blend_mode(true, RenderContext::BlendFactor::eSrcAlpha, RenderContext::BlendFactor::eOneMinusSrcAlpha, RenderContext::BlendFactor::eOne, RenderContext::BlendFactor::eZero);
 
     shader_image_.bind();
@@ -260,18 +317,25 @@ void engine::UiManager::render_image(engine::RenderContext &rdx, const engine_im
     geometry_.bind();
     geometry_.draw(Geometry::Mode::eTriangles);
 
-    rdx.set_depth_test(true);
+    rdx_.set_depth_test(true);
     //rdx.set_blend_mode(false);
 }
 
-void engine::UiManager::begin_frame(float screen_width, float screen_height)
+void engine::UiManager::begin_frame()
 {
-    current_window_width_ = screen_width;
-    current_window_height_ = screen_height;
-    ortho_projection = glm::ortho(0.0f, screen_width, 0.0f, screen_height, -100.0f, 100.0f);
+    const auto window_size_pixels = rdx_.get_window_size_in_pixels();
+    current_window_width_ = window_size_pixels.width;
+    current_window_height_ = window_size_pixels.height;
+    ortho_projection = glm::ortho(0.0f, current_window_width_, 0.0f, current_window_height_, -100.0f, 100.0f);
+    ui_rml_context_->Update();
 }
 
 void engine::UiManager::end_frame()
 {
+    rdx_.begin_frame_ui_rendering();
+    ui_rml_context_->Render();
+    rdx_.end_frame_ui_rendering();
+
     ortho_projection = glm::mat4();
+
 }

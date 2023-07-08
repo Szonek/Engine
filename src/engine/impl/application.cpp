@@ -10,34 +10,8 @@
 #include <SDL3/SDL_events.h>
 #include <fmt/format.h>
 
-#include <RmlUi/Core/ID.h>
-#include <RmlUi/Core/DataModelHandle.h>
-
 #include <span>
 #include <iostream>
-
-
-struct ApplicationData {
-    bool show_text = true;
-    Rml::String animal = "dog";
-    std::uint32_t score = 0;
-} my_data;
-
-
-class StartPveSceneListener : public Rml::EventListener {
-public:
-
-protected:
-    void ProcessEvent(Rml::Event& event) override
-    {
-        std::cout << "click!" << std::endl;
-        my_data.score++;
-        event.GetCurrentElement()->GetContext()->GetDataModel("animals").GetModelHandle().DirtyVariable("score");
-        
-    }
-};
-
-StartPveSceneListener g_start_pve_listener;
 
 
 
@@ -98,6 +72,7 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layou
 
 engine::Application::Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
 	: rdx_(std::move(RenderContext(desc.name, {0, 0, desc.width, desc.height}, desc.fullscreen)))
+    , ui_manager_(rdx_)
 {
 	{
 		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 160, 50, 168 };
@@ -113,48 +88,11 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
 
 	timer_.tick();
 
-
-    Rml::Initialise();
-    // create context with some aribtrary name and dimension.  (dimensions wil lbe update in update(..))
-    const auto window_size_pixels = rdx_.get_window_size_in_pixels();
-    ui_rml_context_ = Rml::CreateContext("app", Rml::Vector2i(window_size_pixels.width, window_size_pixels.height));
-    assert(ui_rml_context_);
-
-    //if (scene_ctor_idx == 0)
-    {
-
-
-        // Replace and style some text in the loaded document.
-        //Rml::Element* element = document->GetElementById("world");
-        //element->SetInnerRML(reinterpret_cast<const char*>(u8"🌍"));
-        //element->SetProperty("font-size", "1.5em");
-    }
-
-    {
-        // Set up data bindings to synchronize application data.
-        if (Rml::DataModelConstructor constructor = ui_rml_context_->CreateDataModel("animals"))
-        {
-            constructor.Bind("show_text", &my_data.show_text);
-            constructor.Bind("animal", &my_data.animal);
-            constructor.Bind("score", &my_data.score);
-
-
-        }
-        //if (Rml::ElementDocument* document = ui_rml_context_->LoadDocument("C:\\WORK\\OpenGLPlayground\\buildtree\\bin\\Debug\\tutorial\\template\\data\\tutorial.rml"))
-        //Rml::ElementDocument* document = ui_rml_context_->LoadDocument("C:\\WORK\\OpenGLPlayground\\assets\\ui_docs\\hello_world.rml");
-        //assert(document);
-        //document->Show();
-
-
-    }
-
 	out_code = ENGINE_RESULT_CODE_OK;
 }
 
 engine::Application::~Application()
 {
-    Rml::RemoveContext(ui_rml_context_->GetName());
-    Rml::Shutdown();
 }
 
 engine_result_code_t engine::Application::update_scene(Scene* scene, float delta_time)
@@ -193,7 +131,8 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     SDL_Event e;
     while (SDL_PollEvent(&e) != 0)
     {
-        RmlSDL::InputEventHandler(ui_rml_context_, e);
+        ui_manager_.parse_sdl_event(e);
+
         if (e.type == SDL_EVENT_QUIT)
         {
             ret.events |= ENGINE_EVENT_QUIT;
@@ -262,41 +201,16 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     }
 
 	rdx_.begin_frame();
-    const auto window_size_pixels = rdx_.get_window_size_in_pixels();
-    ui_manager_.begin_frame(static_cast<float>(window_size_pixels.width), static_cast<float>(window_size_pixels.height));
-    // UI for the scene
-    {
-        //const auto ui_dims = ui_rml_context_->GetDimensions();
-        //if (ui_dims.x != window_size_pixels.width
-       //     || ui_dims.y != window_size_pixels.height)
-        static int32_t i = 0;
-        if(i == 0)
-        {
-            //Rml::ElementDocument* document = ui_rml_context_->LoadDocument("C:\\WORK\\OpenGLPlayground\\assets\\ui_docs\\pong_main_menu.rml");
-            //assert(document);
-            //document->Show();
-            //i++;
+    ui_manager_.begin_frame(); 
 
-            //auto element = document->GetElementById("id_start_pve_scene");
-            //assert(element);
-            //element->AddEventListener(Rml::EventId::Click, &g_start_pve_listener);
-            //ui_rml_context_->AddEventListener("start_pve_scene", &g_start_pve_listener);
-            //ui_rml_context_->SetDimensions(decltype(ui_dims){window_size_pixels.width, window_size_pixels.height});
-        }
-        ui_rml_context_->Update();
-    }
 	return ret;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
     ui_manager_.end_frame();
-
-    rdx_.begin_frame_ui_rendering();
-    ui_rml_context_->Render();
-    rdx_.end_frame_ui_rendering();
-
     rdx_.end_frame();
+
 	engine_application_frame_end_info_t ret{};
 	//ret.success = !glfwWindowShouldClose(rdx_.get_glfw_window());;
     ret.success = true;
@@ -395,10 +309,8 @@ engine_ui_document_t engine::Application::load_ui_document(std::string_view file
     if (file_name.empty())
     {
         return nullptr;
-    }
-    
-    Rml::ElementDocument* document = ui_rml_context_->LoadDocument((AssetStore::get_instance().get_ui_docs_base_path() / file_name).string());
-    return reinterpret_cast<engine_ui_document_t>(document);
+    } 
+    return ui_manager_.load_ui_document_from_file(file_name);
 }
 
 void engine::Application::show_ui_document(engine_ui_document_t doc) const

@@ -8,27 +8,37 @@
 
 #include <glm/glm.hpp>
 
+namespace Rml
+{
+    class Context;
+}
+
+typedef struct _engine_ui_document_t* engine_ui_document_t;
+
 namespace engine
 {
 class UiManager
 {
 public:
-    UiManager();
+    UiManager(RenderContext& rdx);
     UiManager(const UiManager& rhs) = delete;
     UiManager& operator=(const UiManager& rhs) = delete;
     UiManager(UiManager&&);
     UiManager& operator=(UiManager&& rhs);
     ~UiManager();
 
+    engine_ui_document_t load_ui_document_from_file(std::string_view file_name);
     std::uint32_t load_font_from_file(std::string_view file_name, std::string_view handle_name);
     std::uint32_t get_font(std::string_view name) const;
 
-    void begin_frame(float screen_width, float screen_height);
+    void parse_sdl_event(SDL_Event ev);
+
+    void begin_frame();
     void end_frame();
 
-    void render_text(RenderContext& rdx, const engine_text_component_t& text_comp, const engine_rect_tranform_component_t& transform);
+    void render_text(const engine_text_component_t& text_comp, const engine_rect_tranform_component_t& transform);
 
-    void render_image(RenderContext& rdx, const engine_image_component_t& img_comp, const engine_rect_tranform_component_t& transform);
+    void render_image(const engine_image_component_t& img_comp, const engine_rect_tranform_component_t& transform);
 
 private:
     struct FontImplHandle;
@@ -52,6 +62,7 @@ private:
     static constexpr inline std::size_t max_chars_count_ = 128;
     using characters_map = std::array<character_t, max_chars_count_>;
 private:
+    RenderContext& rdx_;
     glm::mat4 ortho_projection;
     float current_window_width_ = 0.0f;
     float current_window_height_ = 0.0f;
@@ -62,6 +73,8 @@ private:
     Shader shader_font_;
     Shader shader_image_;
     Geometry geometry_;
+
+    Rml::Context* ui_rml_context_;
 };
 
 
