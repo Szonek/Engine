@@ -4,13 +4,20 @@
 
 #include <iostream>
 
-//void callback_func(const engine_ui_document_event_t* event, void* user_data_ptr)
-//{
-//    auto my_data = reinterpret_cast<pong::MainMenuData*>(user_data_ptr);
-//    my_data->score++;
-//    std::cout << "click!: " << my_data->score << std::endl;
-//    engineUiDataHandleDirtyVariable(my_data->data_handle, "score");
-//}
+void callback_func(const engine_ui_event_t* event, void* user_data_ptr)
+{
+    if (user_data_ptr)
+    {
+        auto my_data = reinterpret_cast<pong::MainMenuData*>(user_data_ptr);
+        my_data->score++;
+        std::cout << "click!: " << my_data->score << std::endl;
+        engineUiDataHandleDirtyVariable(my_data->data_handle, "score");
+    }
+    else
+    {
+        std::cout << "Click!" << std::endl;
+    }
+}
 
 pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
     : IScene(app_handle, scn_mgn, engine_error_code)
@@ -44,7 +51,7 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::Scen
         }
 
         engine_error_code = engineUiDocumentGetElementById(ui_doc_, "id_start_pve_scene", &ui_element_start_pve_scene_);
-        engine_error_code = engineUiDocumentGetElementById(ui_doc_, "id_start_pvp_scene", &ui_element_start_pvp_scene_);
+        engineUiElementAddEventCallback(ui_element_start_pve_scene_, ENGINE_UI_EVENT_TYPE_CLICK, &my_data_, callback_func);
     }
 
     if (engine_error_code == ENGINE_RESULT_CODE_OK)
@@ -56,8 +63,6 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::Scen
     }
 
     my_data_.data_handle = ui_data_handle_;
-    my_data_.score = 5;
-    engineUiDataHandleDirtyVariable(ui_data_handle_, "score");
 }
 
 pong::MainMenuScene::~MainMenuScene()

@@ -478,6 +478,18 @@ engine_result_code_t engineUiDocumentGetElementById(engine_ui_document_t documen
     return ret;
 }
 
+engine_result_code_t engineUiElementAddEventCallback(engine_ui_element_t element, engine_ui_event_type_t event_type, void* user_data, void(*callback)(const engine_ui_event_t*, void*))
+{
+    if (element && event_type && callback)
+    {
+        auto element_handle = reinterpret_cast<engine::UiElement*>(element);
+        element_handle->register_callback(event_type, user_data, callback);
+        return ENGINE_RESULT_CODE_OK;
+    }
+
+    return ENGINE_RESULT_CODE_FAIL;
+}
+
 engine_result_code_t engineCreateComponentView(engine_component_view_t* out)
 {
     if (out)

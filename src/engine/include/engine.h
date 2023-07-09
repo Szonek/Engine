@@ -68,6 +68,13 @@ typedef struct _engine_ui_document_data_binding_t
     };
 } engine_ui_document_data_binding_t;
 
+
+typedef enum _engine_ui_event_type_t
+{
+    ENGINE_UI_EVENT_TYPE_UNKNOWN = 0,
+    ENGINE_UI_EVENT_TYPE_CLICK = 1
+} engine_ui_event_type_t;
+
 typedef struct _engine_ui_event_t
 {
 } engine_ui_event_t;
@@ -345,6 +352,7 @@ ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine
 ENGINE_API void engineUiDocumentShow(engine_ui_document_t ui_doc);
 ENGINE_API void engineUiDocumentHide(engine_ui_document_t ui_doc);
 ENGINE_API engine_result_code_t engineUiDocumentGetElementById(engine_ui_document_t document, const char* id, engine_ui_element_t* out);
+ENGINE_API engine_result_code_t engineUiElementAddEventCallback(engine_ui_element_t element, engine_ui_event_type_t event_type, void* user_data, void (*callback)(const engine_ui_event_t*, void*));
 
 // ECS 
 ENGINE_API engine_result_code_t engineCreateComponentView(engine_component_view_t* out);

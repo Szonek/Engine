@@ -1,8 +1,12 @@
 #pragma once
 #include <string>
 #include <span>
+#include <map>
+#include <functional>
 
 #include "engine.h"
+
+#include <RmlUi/Core.h>
 
 namespace Rml
 {
@@ -40,6 +44,30 @@ private:
 
 class UiElement
 {
+private:
+    using fnCallbackT = std::function<void(const engine_ui_event_t*, void*)>;
+
+    class BasicEventListener : public Rml::EventListener {
+    public:
+        BasicEventListener() = default;
+        BasicEventListener(fnCallbackT&& callback, void* user_data)
+            : callback_(std::move(callback))
+            , user_data_(user_data)
+        {
+
+        }
+    protected:
+        void ProcessEvent(Rml::Event& event) override
+        {
+            engine_ui_event_t ev{};
+            callback_(&ev, user_data_);
+        }
+
+    private:
+        fnCallbackT callback_;
+        void* user_data_;
+    };
+
 public:
     UiElement(Rml::Element* element, engine_result_code_t& err_out);
     UiElement(const UiElement& rhs) = delete;
@@ -48,8 +76,13 @@ public:
     UiElement& operator=(UiElement&& rhs);
     ~UiElement();
 
+    // return true if overwriten previously existing callback
+    bool register_callback(engine_ui_event_type_t type, void* user_data, fnCallbackT&& callback);
+
 private:
     Rml::Element* element_ = nullptr;
+
+    std::map<engine_ui_event_type_t, BasicEventListener> listeners_;
 };
 
 class UiDocument

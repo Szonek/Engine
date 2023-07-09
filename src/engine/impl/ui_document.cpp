@@ -132,3 +132,33 @@ engine::UiElement::~UiElement()
 {
     element_ = nullptr;
 }
+
+bool engine::UiElement::register_callback(engine_ui_event_type_t type, void* user_data, fnCallbackT&& callback)
+{
+    Rml::EventId rml_ev_id = Rml::EventId::Invalid;
+    switch (type)
+    {
+    case ENGINE_UI_EVENT_TYPE_CLICK:
+    {
+        rml_ev_id = Rml::EventId::Click;
+        break;
+    }
+    default:
+        engine::log::log(log::LogLevel::eCritical, "Unknown engine_ui_event_type_t. Cant creatre UI callback!");
+    }
+
+    if (rml_ev_id == Rml::EventId::Invalid)
+    {
+        return false;
+    }
+
+    const bool ret = listeners_.count(type);
+    if (ret)
+    {
+        engine::log::log(log::LogLevel::eError, "Overwritting callback function for UiElement!");
+    }
+
+    listeners_[type] = BasicEventListener(std::move(callback), user_data);
+    element_->AddEventListener(rml_ev_id, &listeners_[type]);
+    return ret;
+}
