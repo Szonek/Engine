@@ -387,6 +387,15 @@ engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_applicat
     return ENGINE_RESULT_CODE_FAIL;
 }
 
+void engineApplicationDestroyUiDocumentDataHandle(engine_application_t app, engine_ui_document_data_handle_t handle)
+{
+    if (app && handle)
+    {
+        auto* app_handle = application_cast(app);
+        app_handle->destroy_ui_document_data_handle(handle);
+    }
+}
+
 engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out)
 {
     if (app && file_path && out)

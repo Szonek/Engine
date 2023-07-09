@@ -332,6 +332,11 @@ engine_ui_document_data_handle_t engine::Application::create_ui_document_data_ha
     return data_handle;
 }
 
+void engine::Application::destroy_ui_document_data_handle(engine_ui_document_data_handle_t& hande)
+{
+    ui_manager_.destroy_ui_document_data_handle(hande);
+}
+
 bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
 {
     const auto state = SDL_GetKeyboardState(nullptr);

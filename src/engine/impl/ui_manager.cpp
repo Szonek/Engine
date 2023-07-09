@@ -194,6 +194,12 @@ engine_ui_document_data_handle_t engine::UiManager::create_ui_document_data_hand
     return nullptr;
 }
 
+void engine::UiManager::destroy_ui_document_data_handle(engine_ui_document_data_handle_t& handle)
+{
+    auto rml_handle = reinterpret_cast<Rml::DataModelHandle*>(handle);
+    delete rml_handle;
+}
+
 engine_ui_document_t engine::UiManager::load_ui_document_from_file(std::string_view file_name)
 {
     Rml::ElementDocument* document = ui_rml_context_->LoadDocument((AssetStore::get_instance().get_ui_docs_base_path() / file_name).string());

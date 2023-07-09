@@ -27,6 +27,8 @@ public:
     ~UiManager();
 
     engine_ui_document_data_handle_t create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
+    void destroy_ui_document_data_handle(engine_ui_document_data_handle_t& handle);
+
     engine_ui_document_t load_ui_document_from_file(std::string_view file_name);
     std::uint32_t load_font_from_file(std::string_view file_name, std::string_view handle_name);
     std::uint32_t get_font(std::string_view name) const;

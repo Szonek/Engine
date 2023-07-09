@@ -42,3 +42,11 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::Scen
         auto start_pvp = register_script<MainMenuStartPvpScene>();
     }
 }
+
+pong::MainMenuScene::~MainMenuScene()
+{
+    if (ui_data_handle_)
+    {
+        engineApplicationDestroyUiDocumentDataHandle(app_, ui_data_handle_);
+    }
+}

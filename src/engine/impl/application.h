@@ -39,6 +39,7 @@ public:
     void show_ui_document(engine_ui_document_t doc) const;
     void hide_ui_document(engine_ui_document_t doc) const;
     engine_ui_document_data_handle_t create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
+    void destroy_ui_document_data_handle(engine_ui_document_data_handle_t& hande);
 
     bool keyboard_is_key_down(engine_keyboard_keys_t key);
 

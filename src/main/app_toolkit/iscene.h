@@ -43,7 +43,7 @@ public:
     IScene(IScene&& rhs) noexcept = default;
     IScene& operator=(const IScene& rhs) = delete;
     IScene& operator=(IScene&& rhs)  noexcept = default;
-    ~IScene();
+    virtual ~IScene();
 
     template<typename T>
     T* register_script()
