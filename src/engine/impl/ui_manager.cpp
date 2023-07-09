@@ -22,7 +22,6 @@
 
 struct ApplicationData {
     bool show_text = true;
-    Rml::String animal = "dog";
     std::uint32_t score = 0;
 } my_data;
 
@@ -42,6 +41,28 @@ protected:
 
 StartPveSceneListener g_start_pve_listener;
 
+typedef enum engine_ui_document_data_binding_data_type_t
+{
+    ENGINE_DATA_TYPE_UNKNOWN = 0,
+    ENGINE_DATA_TYPE_BOOL = 1,
+    ENGINE_DATA_TYPE_UINT32
+} engine_ui_document_data_binding_data_type;
+
+typedef struct engine_application_ui_document_data_binding_t
+{
+    uint32_t offset;
+    char name[64];
+    engine_ui_document_data_binding_data_type type;
+} engine_application_ui_document_data_binding;
+
+typedef struct engine_application_ui_document_data_model_t
+{
+    char name[64];
+    engine_application_ui_document_data_binding bindings[64];
+    void* data;
+} engine_application_ui_document_data_model;
+
+engine_application_ui_document_data_model data_model{};
 
 engine::UiManager::UiManager(RenderContext& rdx)
     : rdx_(rdx)
@@ -81,15 +102,53 @@ engine::UiManager::UiManager(RenderContext& rdx)
     ui_rml_context_ = Rml::CreateContext("app", Rml::Vector2i(window_size_pixels.width, window_size_pixels.height));
     assert(ui_rml_context_);
 
-    // Set up data bindings to synchronize application data.
-    if (Rml::DataModelConstructor constructor = ui_rml_context_->CreateDataModel("animals"))
+
+    std::strcpy(data_model.name, "animals");
+    data_model.data = &my_data;
+    data_model.bindings[0].offset = 0;
+    data_model.bindings[0].type = ENGINE_DATA_TYPE_BOOL;
+    std::strcpy(data_model.bindings[0].name, "show_text");
+    data_model.bindings[1].offset = offsetof(ApplicationData, score);
+    data_model.bindings[1].type = ENGINE_DATA_TYPE_UINT32;
+    std::strcpy(data_model.bindings[1].name, "score");
+
+    Rml::DataModelHandle data_handle;
+    if (Rml::DataModelConstructor constructor = ui_rml_context_->CreateDataModel(data_model.name))
     {
-        constructor.Bind("show_text", &my_data.show_text);
-        constructor.Bind("animal", &my_data.animal);
-        constructor.Bind("score", &my_data.score);
+        const auto bindigns_count = sizeof(data_model.bindings) / sizeof(data_model.bindings[0]);
+        for (int i = 0; i < bindigns_count; i++)
+        {
+            auto bind = data_model.bindings[i];
+            switch (bind.type)
+            {
+            case ENGINE_DATA_TYPE_BOOL:
+            {
+                auto* b = reinterpret_cast<bool*>(((char*)data_model.data + data_model.bindings[i].offset));
+                constructor.Bind(bind.name, b);
+                break;
+            }
+            case ENGINE_DATA_TYPE_UINT32:
+            {
+                auto* u32 = reinterpret_cast<std::uint32_t*>(((char*)data_model.data + data_model.bindings[i].offset));
+                constructor.Bind(bind.name, u32);
+                break;
+            }
+            }
+        }
 
-
+        data_handle = constructor.GetModelHandle();
     }
+
+    my_data.score = 1;
+    data_handle.DirtyAllVariables();
+
+    // Set up data bindings to synchronize application data.
+    //if (Rml::DataModelConstructor constructor = ui_rml_context_->CreateDataModel("animals"))
+    //{
+    //    constructor.Bind("show_text", &my_data.show_text);
+    //    constructor.Bind("animal", &my_data.animal);
+    //    constructor.Bind("score", &my_data.score);
+    //}
 }
 
 engine::UiManager::UiManager(UiManager&& rhs)
