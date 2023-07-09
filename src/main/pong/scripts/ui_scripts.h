@@ -58,23 +58,4 @@ class RightPlayerSuperPower_0_TouchAreaScript : public PlayerSuperPower_TouchAre
 public:
     RightPlayerSuperPower_0_TouchAreaScript(engine::IScene *my_scene);
 };
-
-// MAIN MENU
-class MainMenuStartPveScene : public engine::IScript
-{
-public:
-    MainMenuStartPveScene(engine::IScene *my_scene);
-
-    void on_pointer_click(const engine::PointerEventData* ped) override;
-};
-
-// MAIN MENU
-class MainMenuStartPvpScene : public engine::IScript
-{
-public:
-    MainMenuStartPvpScene(engine::IScene *my_scene);
-
-    void on_pointer_click(const engine::PointerEventData* ped) override;
-};
-
 } // namespace pong

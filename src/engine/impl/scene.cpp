@@ -140,7 +140,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
 	auto ui_image_renderer = entity_registry_.view<const engine_rect_tranform_component_t , const engine_image_component_t>();
     auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
 
-#if 0
+
     for (auto [entity, camera, transform] : camera_view.each()) 
     {
         if (!camera.enabled)
@@ -195,6 +195,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
 			}
 		);
 
+#if 0
         ui_image_renderer.each([this, &rdx, &ui_manager](const engine_rect_tranform_component_t& transform, const engine_image_component_t& img)
            {
                ui_manager->render_image(rdx, img, transform);
@@ -206,8 +207,9 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 ui_manager->render_text(rdx, text, transform);
             }
         );
-    }
 #endif
+    }
+
 
     return ENGINE_RESULT_CODE_OK;
 }

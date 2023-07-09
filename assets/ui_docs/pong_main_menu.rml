@@ -4,12 +4,11 @@
 	<link type="text/rcss" href="rml.rcss"/>
 	<link type="text/rcss" href="window.rcss"/>
 </head>
-<body data-model="animals">
+<body>
 	<h1>Pong Quest</h1>
 	
 	<div class="div_pve" id="id_start_pve_scene">
 	<p> PVE </p>
-	<p> {{score}} </p>
 	</div>
 </body>
 </rml>

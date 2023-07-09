@@ -1,22 +1,20 @@
 #include "main_menu_scene.h"
 #include "../scripts/camera_script.h"
 #include "../scripts/ui_scripts.h"
+#include "scene_manager.h"
+
+#include "pve_scene.h"
+#include "pvp_scene.h"
 
 #include <iostream>
 
 void callback_func(const engine_ui_event_t* event, void* user_data_ptr)
 {
-    if (user_data_ptr)
-    {
-        auto my_data = reinterpret_cast<pong::MainMenuData*>(user_data_ptr);
-        my_data->score++;
-        std::cout << "click!: " << my_data->score << std::endl;
-        engineUiDataHandleDirtyVariable(my_data->data_handle, "score");
-    }
-    else
-    {
-        std::cout << "Click!" << std::endl;
-    }
+    assert(user_data_ptr);
+
+    auto main_menu_scene = reinterpret_cast<pong::MainMenuScene*>(user_data_ptr);
+    main_menu_scene->deactivate();
+    main_menu_scene->get_scene_manager()->get_scene(pong::PveScene::get_name())->activate();
 }
 
 pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
@@ -25,24 +23,24 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::Scen
     if (engine_error_code == ENGINE_RESULT_CODE_OK)
     {
         // first create data model handel
-        std::array<engine_ui_document_data_binding_t, 2> bindings;
+        //std::array<engine_ui_document_data_binding_t, 2> bindings;
 
         //std::strcpy(data_model.name, "animals");
 
-        std::strcpy(bindings[0].name, "show_text");
-        bindings[0].type = ENGINE_DATA_TYPE_BOOL;
-        bindings[0].data_bool = &my_data_.show_text;
+        //std::strcpy(bindings[0].name, "show_text");
+        //bindings[0].type = ENGINE_DATA_TYPE_BOOL;
+        //bindings[0].data_bool = &my_data_.show_text;
 
-        std::strcpy(bindings[1].name, "score");
-        bindings[1].type = ENGINE_DATA_TYPE_UINT32;
-        bindings[1].data_uint32_t = &my_data_.score;
+        //std::strcpy(bindings[1].name, "score");
+        //bindings[1].type = ENGINE_DATA_TYPE_UINT32;
+        //bindings[1].data_uint32_t = &my_data_.score;
 
         // = engineApplicationUI
-        engine_error_code = engineApplicationCreateUiDocumentDataHandle(app_handle, "animals", bindings.data(), bindings.size(), &ui_data_handle_);
-        if (engine_error_code != ENGINE_RESULT_CODE_OK) 
-        {
-            return;
-        }
+        //engine_error_code = engineApplicationCreateUiDocumentDataHandle(app_handle, "animals", bindings.data(), bindings.size(), &ui_data_handle_);
+        //if (engine_error_code != ENGINE_RESULT_CODE_OK) 
+        //{
+        //    return;
+        //}
         // load ui doc
         engine_error_code = engineApplicationCreateUiDocumentFromFile(app_handle, "pong_main_menu.rml", &ui_doc_);
         if (ui_doc_)
@@ -51,18 +49,16 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::Scen
         }
 
         engine_error_code = engineUiDocumentGetElementById(ui_doc_, "id_start_pve_scene", &ui_element_start_pve_scene_);
-        engineUiElementAddEventCallback(ui_element_start_pve_scene_, ENGINE_UI_EVENT_TYPE_CLICK, &my_data_, callback_func);
+        engineUiElementAddEventCallback(ui_element_start_pve_scene_, ENGINE_UI_EVENT_TYPE_CLICK, this, callback_func);
     }
 
-    if (engine_error_code == ENGINE_RESULT_CODE_OK)
-    {
-        // register scripts
-        auto camera_script = register_script<CameraScript>();
-        auto start_pve = register_script<MainMenuStartPveScene>();
-        auto start_pvp = register_script<MainMenuStartPvpScene>();
-    }
-
-    my_data_.data_handle = ui_data_handle_;
+    //if (engine_error_code == ENGINE_RESULT_CODE_OK)
+    //{
+    //    // register scripts
+    //    auto camera_script = register_script<CameraScript>();
+    //    auto start_pve = register_script<MainMenuStartPveScene>();
+    //    auto start_pvp = register_script<MainMenuStartPvpScene>();
+    //}
 }
 
 pong::MainMenuScene::~MainMenuScene()
@@ -71,4 +67,10 @@ pong::MainMenuScene::~MainMenuScene()
     {
         engineUiDataHandleDestroy(ui_data_handle_);
     }
+}
+
+void pong::MainMenuScene::deactivate()
+{
+    engineUiDocumentHide(ui_doc_);
+    IScene::deactivate();
 }
