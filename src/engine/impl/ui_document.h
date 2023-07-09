@@ -7,6 +7,7 @@
 namespace Rml
 {
     class ElementDocument;
+    class Element;
     class DataModelConstructor;
     class DataModelHandle;
 }
@@ -37,6 +38,20 @@ private:
     Rml::DataModelHandle* handle_ = nullptr;
 };
 
+class UiElement
+{
+public:
+    UiElement(Rml::Element* element, engine_result_code_t& err_out);
+    UiElement(const UiElement& rhs) = delete;
+    UiElement& operator=(const UiElement& rhs) = delete;
+    UiElement(UiElement&& rhs);
+    UiElement& operator=(UiElement&& rhs);
+    ~UiElement();
+
+private:
+    Rml::Element* element_ = nullptr;
+};
+
 class UiDocument
 {
 public:
@@ -49,6 +64,8 @@ public:
 
     void show();
     void hide();
+
+    UiElement get_element_by_id(std::string_view id, engine_result_code_t& err_out);
 
 private:
     UiManager* ui_mng_ = nullptr;

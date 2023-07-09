@@ -20,40 +20,40 @@
 #include <iostream>
 
 
-struct ApplicationData {
-    bool show_text = true;
-    std::uint32_t score = 0;
-} my_data;
-
-
-void callback_func(const engine_ui_document_event_t* event, void* user_data_ptr)
-{
-    auto my_data = reinterpret_cast<ApplicationData*>(user_data_ptr);
-    my_data->score++;
-    std::cout << "click!: " << my_data->score << std::endl;
-    //engineApplicationUiDocumentDataHandleDirtyVariable()
-}
-
+//struct ApplicationData {
+//    bool show_text = true;
+//    std::uint32_t score = 0;
+//} my_data;
+//
+//
+//void callback_func(const engine_ui_document_event_t* event, void* user_data_ptr)
+//{
+//    auto my_data = reinterpret_cast<ApplicationData*>(user_data_ptr);
+//    my_data->score++;
+//    std::cout << "click!: " << my_data->score << std::endl;
+//    //engineApplicationUiDocumentDataHandleDirtyVariable()
+//}
+//
 class StartPveSceneListener : public Rml::EventListener {
 public:
     StartPveSceneListener()
     {
-        callback_ = callback_func;
+        //callback_ = callback_func;
     }
 protected:
     void ProcessEvent(Rml::Event& event) override
     {
-        //std::cout << "click!" << std::endl;
+        std::cout << "click!" << std::endl;
         //my_data.score++;
         //event.GetCurrentElement()->GetContext()->GetDataModel("animals").GetModelHandle().DirtyVariable("score");
-        engine_ui_document_event_t ev{};
-        callback_func(&ev, &my_data);
+        //engine_ui_document_event_t ev{};
+        //callback_func(&ev, &my_data);
     }
 
 private:
-    std::function<void(const engine_ui_document_event_t*, void*)> callback_;
+    //std::function<void(const engine_ui_document_event_t*, void*)> callback_;
 };
-
+//
 StartPveSceneListener g_start_pve_listener;
 
 
@@ -136,8 +136,8 @@ engine::UiDataHandle engine::UiManager::create_data_handle(std::string_view name
 engine::UiDocument engine::UiManager::load_document_from_file(std::string_view file_name)
 {
     Rml::ElementDocument* document = ui_rml_context_->LoadDocument((AssetStore::get_instance().get_ui_docs_base_path() / file_name).string());
-    auto element = document->GetElementById("id_start_pve_scene");
-    element->AddEventListener(Rml::EventId::Click, &g_start_pve_listener);
+    //auto element = document->GetElementById("id_start_pve_scene");
+    //element->AddEventListener(Rml::EventId::Click, &g_start_pve_listener);
     return UiDocument(document);
 }
 

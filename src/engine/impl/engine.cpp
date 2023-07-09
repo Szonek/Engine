@@ -462,15 +462,20 @@ void engineUiDocumentHide(engine_ui_document_t ui_doc)
     }
 }
 
-engine_result_code_t engineUiDocumentGetElementById(engine_ui_document_t document, const char* id, engine_ui_document_element_t* out)
+engine_result_code_t engineUiDocumentGetElementById(engine_ui_document_t document, const char* id, engine_ui_element_t* out)
 {
+    engine_result_code_t ret = ENGINE_RESULT_CODE_FAIL;
     if (document && id && out)
     {
-        //auto* app_handle = application_cast(app);
-        //*out = app_handle->get_ui_document_element_by_id(name, { bindings, bindings_count });
-        //return *out ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+
+        auto doc = ui_document_cast(document);
+        auto element = new engine::UiElement(doc->get_element_by_id(id, ret));
+        if (ret == ENGINE_RESULT_CODE_OK)
+        {
+            *out = reinterpret_cast<engine_ui_element_t>(element);
+        }
     }
-    return ENGINE_RESULT_CODE_FAIL;
+    return ret;
 }
 
 engine_result_code_t engineCreateComponentView(engine_component_view_t* out)

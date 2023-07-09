@@ -45,7 +45,7 @@ typedef struct _engine_component_view_t* engine_component_view_t;
 typedef struct _engine_component_iterator_t* engine_component_iterator_t;
 typedef struct _engine_ui_document_t* engine_ui_document_t;
 typedef struct _engine_ui_data_handle_t* engine_ui_data_handle_t;
-typedef struct _engine_ui_document_element_t* engine_ui_document_element_t;
+typedef struct _engine_ui_element_t* engine_ui_element_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_font_t;
@@ -68,9 +68,9 @@ typedef struct _engine_ui_document_data_binding_t
     };
 } engine_ui_document_data_binding_t;
 
-typedef struct _engine_ui_document_event_t
+typedef struct _engine_ui_event_t
 {
-} engine_ui_document_event_t;
+} engine_ui_event_t;
 
 
 typedef struct _engine_coords_2d_t
@@ -344,7 +344,7 @@ ENGINE_API void engineUiDataHandleDirtyVariable(engine_ui_data_handle_t handle, 
 ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out);
 ENGINE_API void engineUiDocumentShow(engine_ui_document_t ui_doc);
 ENGINE_API void engineUiDocumentHide(engine_ui_document_t ui_doc);
-ENGINE_API engine_result_code_t engineUiDocumentGetElementById(engine_ui_document_t document, const char* id, engine_ui_document_element_t* out);
+ENGINE_API engine_result_code_t engineUiDocumentGetElementById(engine_ui_document_t document, const char* id, engine_ui_element_t* out);
 
 // ECS 
 ENGINE_API engine_result_code_t engineCreateComponentView(engine_component_view_t* out);

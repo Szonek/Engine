@@ -6,7 +6,6 @@ namespace pong
 
 struct MainMenuData
 {
-    engine_application_t app = nullptr;
     engine_ui_data_handle_t data_handle = nullptr;
     bool show_text = true;
     std::uint32_t score = 0;
@@ -24,5 +23,7 @@ private:
     MainMenuData my_data_ = {};
     engine_ui_data_handle_t ui_data_handle_;
     engine_ui_document_t ui_doc_ = nullptr;
+    engine_ui_element_t ui_element_start_pve_scene_ = nullptr;
+    engine_ui_element_t ui_element_start_pvp_scene_ = nullptr;
 };
 }

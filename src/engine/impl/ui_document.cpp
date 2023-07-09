@@ -43,6 +43,11 @@ void engine::UiDocument::hide()
     doc_->Hide();
 }
 
+engine::UiElement engine::UiDocument::get_element_by_id(std::string_view id, engine_result_code_t& err_out)
+{
+    return UiElement(doc_->GetElementById(id.data()), err_out);
+}
+
 engine::UiDataHandle::UiDataHandle(Rml::DataModelConstructor* constructor, std::span<const engine_ui_document_data_binding_t> bindings)
 {
     if (!constructor)
@@ -101,4 +106,29 @@ void engine::UiDataHandle::dirty_all_variables()
 void engine::UiDataHandle::dirty_variable(std::string_view name)
 {
     handle_->DirtyVariable(name.data());
+}
+
+engine::UiElement::UiElement(Rml::Element* element, engine_result_code_t& err_out)
+    : element_(element)
+{
+    err_out = element_ ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine::UiElement::UiElement(UiElement&& rhs)
+{
+    std::swap(element_, rhs.element_);
+}
+
+engine::UiElement& engine::UiElement::operator=(UiElement&& rhs)
+{
+    if (this != &rhs)
+    {
+        std::swap(element_, rhs.element_);
+    }
+    return *this;
+}
+
+engine::UiElement::~UiElement()
+{
+    element_ = nullptr;
 }
