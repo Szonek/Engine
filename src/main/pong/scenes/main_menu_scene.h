@@ -4,6 +4,13 @@
 namespace pong
 {
 
+struct MainMenuData
+{
+    engine_application_t app = nullptr;
+    engine_ui_document_data_handle_t data_handle = nullptr;
+    bool show_text = true;
+    std::uint32_t score = 0;
+};
 
 class MainMenuScene : public engine::IScene
 {
@@ -12,12 +19,6 @@ public:
     ~MainMenuScene();
     static constexpr const char* get_name() { return "main_menu_scene"; }
 
-private:
-    struct MainMenuData 
-    {
-        bool show_text = true;
-        std::uint32_t score = 0;
-    };
 
 private:
     MainMenuData my_data_ = {};

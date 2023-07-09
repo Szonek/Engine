@@ -3,6 +3,7 @@
 #include "application.h"
 #include "scene.h"
 #include "asset_store.h"
+#include "ui_document.h"
 
 #include "logger.h"
 
@@ -13,6 +14,11 @@ namespace
 inline engine::Application* application_cast(engine_application_t engine_app)
 {
     return reinterpret_cast<engine::Application*>(engine_app);
+}
+
+inline engine::UiDocument* ui_document_cast(engine_ui_document_t doc)
+{
+    return reinterpret_cast<engine::UiDocument*>(doc);
 }
 
 inline engine::Scene* scene_cast(engine_scene_t engine_scene_t)
@@ -419,27 +425,43 @@ engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_applicatio
     if (app && file_path && out)
     {
         auto* app_handle = application_cast(app);
-        *out = app_handle->load_ui_document(file_path);
+        auto* ret = new engine::UiDocument(app_handle->load_ui_document(file_path));
+        if (ret)
+        {
+            *out = reinterpret_cast<engine_ui_document_t>(ret);
+            return ENGINE_RESULT_CODE_OK;
+        }    
     }
     return ENGINE_RESULT_CODE_FAIL;
 }
 
-void engineApplicationUiDocumentShow(engine_application_t app, engine_ui_document_t ui_doc)
+void engineUiDocumentShow(engine_ui_document_t ui_doc)
 {
-    if (app && ui_doc)
+    if (ui_doc)
     {
-        auto* app_handle = application_cast(app);
-        app_handle->show_ui_document(ui_doc);
+        auto* doc = ui_document_cast(ui_doc);
+        doc->show();
     }
 }
 
-void engineApplicationUiDocumentHide(engine_application_t app, engine_ui_document_t ui_doc)
+void engineUiDocumentHide(engine_ui_document_t ui_doc)
 {
-    if (app && ui_doc)
+    if (ui_doc)
     {
-        auto* app_handle = application_cast(app);
-        app_handle->hide_ui_document(ui_doc);
+        auto* doc = ui_document_cast(ui_doc);
+        doc->hide();
     }
+}
+
+engine_result_code_t engineUiDocumentGetElementById(engine_ui_document_t document, const char* id, engine_ui_document_element_t* out)
+{
+    if (document && id && out)
+    {
+        //auto* app_handle = application_cast(app);
+        //*out = app_handle->get_ui_document_element_by_id(name, { bindings, bindings_count });
+        //return *out ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+    }
+    return ENGINE_RESULT_CODE_FAIL;
 }
 
 engine_result_code_t engineCreateComponentView(engine_component_view_t* out)

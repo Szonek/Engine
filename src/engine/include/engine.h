@@ -45,18 +45,19 @@ typedef struct _engine_component_view_t* engine_component_view_t;
 typedef struct _engine_component_iterator_t* engine_component_iterator_t;
 typedef struct _engine_ui_document_t* engine_ui_document_t;
 typedef struct _engine_ui_document_data_handle_t* engine_ui_document_data_handle_t;
+typedef struct _engine_ui_document_element_t* engine_ui_document_element_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_font_t;
 
-typedef enum engine_ui_document_data_binding_data_type_t
+typedef enum _engine_ui_document_data_binding_data_type_t
 {
     ENGINE_DATA_TYPE_UNKNOWN = 0,
     ENGINE_DATA_TYPE_BOOL = 1,
     ENGINE_DATA_TYPE_UINT32
 } engine_ui_document_data_binding_data_type_t;
 
-typedef struct engine_ui_document_data_binding_t
+typedef struct _engine_ui_document_data_binding_t
 {
     char name[64];
     engine_ui_document_data_binding_data_type_t type;
@@ -66,6 +67,11 @@ typedef struct engine_ui_document_data_binding_t
         uint32_t* data_uint32_t;
     };
 } engine_ui_document_data_binding_t;
+
+typedef struct _engine_ui_document_event_t
+{
+} engine_ui_document_event_t;
+
 
 typedef struct _engine_coords_2d_t
 {
@@ -336,8 +342,9 @@ ENGINE_API void engineApplicationUiDocumentDataHandleDirtyVariable(engine_applic
 
 // if document uses data model than creata data model first with function: engineApplicationCreateUiDataHandle(...)
 ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out);
-ENGINE_API void engineApplicationUiDocumentShow(engine_application_t app, engine_ui_document_t ui_doc);
-ENGINE_API void engineApplicationUiDocumentHide(engine_application_t app, engine_ui_document_t ui_doc);
+ENGINE_API void engineUiDocumentShow(engine_ui_document_t ui_doc);
+ENGINE_API void engineUiDocumentHide(engine_ui_document_t ui_doc);
+ENGINE_API engine_result_code_t engineUiDocumentGetElementById(engine_ui_document_t document, const char* id, engine_ui_document_element_t* out);
 
 // ECS 
 ENGINE_API engine_result_code_t engineCreateComponentView(engine_component_view_t* out);

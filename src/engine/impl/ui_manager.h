@@ -4,6 +4,7 @@
 #include "components/image_component.h"
 #include "graphics.h"
 #include "engine.h"
+#include "ui_document.h"
 
 #include <array>
 
@@ -12,6 +13,7 @@
 namespace Rml
 {
     class Context;
+    class ElementDocument;
 }
 
 namespace engine
@@ -31,9 +33,7 @@ public:
     void data_handle_dirty_all_variables(engine_ui_document_data_handle_t& handle);
     void data_handle_dirty_variable(engine_ui_document_data_handle_t& handle, std::string_view name);
 
-    engine_ui_document_t load_document_from_file(std::string_view file_name);
-    void show_document(engine_ui_document_t doc);
-    void hide_document(engine_ui_document_t doc);
+    UiDocument load_document_from_file(std::string_view file_name);
 
     std::uint32_t load_font_from_file(std::string_view file_name, std::string_view handle_name);
     std::uint32_t get_font(std::string_view name) const;

@@ -26,17 +26,32 @@ struct ApplicationData {
 } my_data;
 
 
+void callback_func(const engine_ui_document_event_t* event, void* user_data_ptr)
+{
+    auto my_data = reinterpret_cast<ApplicationData*>(user_data_ptr);
+    my_data->score++;
+    std::cout << "click!: " << my_data->score << std::endl;
+    //engineApplicationUiDocumentDataHandleDirtyVariable()
+}
+
 class StartPveSceneListener : public Rml::EventListener {
 public:
-
+    StartPveSceneListener()
+    {
+        callback_ = callback_func;
+    }
 protected:
     void ProcessEvent(Rml::Event& event) override
     {
-        std::cout << "click!" << std::endl;
-        my_data.score++;
-        event.GetCurrentElement()->GetContext()->GetDataModel("animals").GetModelHandle().DirtyVariable("score");
-
+        //std::cout << "click!" << std::endl;
+        //my_data.score++;
+        //event.GetCurrentElement()->GetContext()->GetDataModel("animals").GetModelHandle().DirtyVariable("score");
+        engine_ui_document_event_t ev{};
+        callback_func(&ev, &my_data);
     }
+
+private:
+    std::function<void(const engine_ui_document_event_t*, void*)> callback_;
 };
 
 StartPveSceneListener g_start_pve_listener;
@@ -79,55 +94,6 @@ engine::UiManager::UiManager(RenderContext& rdx)
     const auto window_size_pixels = rdx_.get_window_size_in_pixels();
     ui_rml_context_ = Rml::CreateContext("app", Rml::Vector2i(window_size_pixels.width, window_size_pixels.height));
     assert(ui_rml_context_);
-
-//
-//    std::strcpy(data_model.name, "animals");
-//
-//    std::strcpy(data_model.bindings[0].name, "show_text");
-//    data_model.bindings[0].type = ENGINE_DATA_TYPE_BOOL;
-//    data_model.bindings[0].data_bool = &my_data.show_text;
-//
-//    std::strcpy(data_model.bindings[1].name, "score");
-//    data_model.bindings[1].type = ENGINE_DATA_TYPE_UINT32;
-//    data_model.bindings[1].data_uint32_t = &my_data.score;
-
-    //Rml::DataModelHandle data_handle;
-    //if (Rml::DataModelConstructor constructor = ui_rml_context_->CreateDataModel(data_model.name))
-    //{
-    //    const auto bindigns_count = sizeof(data_model.bindings) / sizeof(data_model.bindings[0]);
-    //    for (int i = 0; i < bindigns_count; i++)
-    //    {
-    //        auto bind = data_model.bindings[i];
-    //        switch (bind.type)
-    //        {
-    //        case ENGINE_DATA_TYPE_BOOL:
-    //        {
-    //            constructor.Bind(bind.name, bind.data_bool);
-    //            break;
-    //        }
-    //        case ENGINE_DATA_TYPE_UINT32:
-    //        {
-    //            constructor.Bind(bind.name, bind.data_uint32_t);
-    //            break;
-    //        }
-    //        default:
-    //            log::log(log::LogLevel::eError, "Unknown engine data type. Cant create data binding for UI.");
-    //        }
-    //    }
-
-    //    data_handle = constructor.GetModelHandle();
-    //}
-
-    //my_data.score = 1;
-    //data_handle.DirtyAllVariables();
-
-    // Set up data bindings to synchronize application data.
-    //if (Rml::DataModelConstructor constructor = ui_rml_context_->CreateDataModel("animals"))
-    //{
-    //    constructor.Bind("show_text", &my_data.show_text);
-    //    constructor.Bind("animal", &my_data.animal);
-    //    constructor.Bind("score", &my_data.score);
-    //}
 }
 
 engine::UiManager::UiManager(UiManager&& rhs)
@@ -212,24 +178,12 @@ void engine::UiManager::data_handle_dirty_variable(engine_ui_document_data_handl
     rml_handle->DirtyVariable(name.data());
 }
 
-engine_ui_document_t engine::UiManager::load_document_from_file(std::string_view file_name)
+engine::UiDocument engine::UiManager::load_document_from_file(std::string_view file_name)
 {
     Rml::ElementDocument* document = ui_rml_context_->LoadDocument((AssetStore::get_instance().get_ui_docs_base_path() / file_name).string());
-    return reinterpret_cast<engine_ui_document_t>(document);
-}
-
-void engine::UiManager::show_document(engine_ui_document_t doc)
-{
-    auto rml_ui_doc = reinterpret_cast<Rml::ElementDocument*>(doc);
-    assert(rml_ui_doc);
-    rml_ui_doc->Show();
-}
-
-void engine::UiManager::hide_document(engine_ui_document_t doc)
-{
-    auto rml_ui_doc = reinterpret_cast<Rml::ElementDocument*>(doc);
-    assert(rml_ui_doc);
-    rml_ui_doc->Hide();
+    auto element = document->GetElementById("id_start_pve_scene");
+    element->AddEventListener(Rml::EventId::Click, &g_start_pve_listener);
+    return UiDocument(document);
 }
 
 std::uint32_t engine::UiManager::load_font_from_file(std::string_view file_name, std::string_view handle_name)

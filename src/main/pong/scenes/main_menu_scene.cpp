@@ -2,6 +2,16 @@
 #include "../scripts/camera_script.h"
 #include "../scripts/ui_scripts.h"
 
+#include <iostream>
+
+void callback_func(const engine_ui_document_event_t* event, void* user_data_ptr)
+{
+    auto my_data = reinterpret_cast<pong::MainMenuData*>(user_data_ptr);
+    my_data->score++;
+    std::cout << "click!: " << my_data->score << std::endl;
+    engineApplicationUiDocumentDataHandleDirtyVariable(my_data->app, my_data->data_handle, "score");
+}
+
 pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
     : IScene(app_handle, scn_mgn, engine_error_code)
 {
@@ -30,7 +40,7 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::Scen
         engine_error_code = engineApplicationCreateUiDocumentFromFile(app_handle, "pong_main_menu.rml", &ui_doc_);
         if (ui_doc_)
         {
-            engineApplicationUiDocumentShow(app_handle, ui_doc_);
+            engineUiDocumentShow(ui_doc_);
         }
     }
 
@@ -42,6 +52,8 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::Scen
         auto start_pvp = register_script<MainMenuStartPvpScene>();
     }
 
+    my_data_.app = app_;
+    my_data_.data_handle = ui_data_handle_;
     my_data_.score = 5;
     engineApplicationUiDocumentDataHandleDirtyVariable(app_, ui_data_handle_, "score");
 }

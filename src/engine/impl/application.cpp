@@ -4,6 +4,7 @@
 #include "scene.h"
 #include "logger.h"
 #include "gltf_parser.h"
+#include "ui_document.h"
 
 #include <glm/glm.hpp>
 #include <SDL3/SDL.h>
@@ -304,22 +305,11 @@ void engine::Application::release_model_info(engine_model_info_t* info)
     }
 }
 
-engine_ui_document_t engine::Application::load_ui_document(std::string_view file_name)
+engine::UiDocument engine::Application::load_ui_document(std::string_view file_name)
 {
-    auto ui_doc = ui_manager_.load_document_from_file(file_name);
-    assert(ui_doc);
-    return ui_doc;
+    return ui_manager_.load_document_from_file(file_name);
 }
 
-void engine::Application::show_ui_document(engine_ui_document_t doc)
-{
-    ui_manager_.show_document(doc);
-}
-
-void engine::Application::hide_ui_document(engine_ui_document_t doc)
-{
-    ui_manager_.hide_document(doc);
-}
 
 engine_ui_document_data_handle_t engine::Application::create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
 {

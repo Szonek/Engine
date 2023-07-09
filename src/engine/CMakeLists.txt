@@ -15,6 +15,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/engine.cpp
 	${ENGINE_SOURCES_DIR}/ui_manager.cpp
 	${ENGINE_SOURCES_DIR}/ui_manager.h
+	${ENGINE_SOURCES_DIR}/ui_document.cpp
+	${ENGINE_SOURCES_DIR}/ui_document.h
 	${ENGINE_SOURCES_DIR}/logger.cpp
 	${ENGINE_SOURCES_DIR}/logger.h
 	${ENGINE_SOURCES_DIR}/gltf_parser.h
