@@ -36,8 +36,8 @@ public:
     void release_model_info(engine_model_info_t* info);
 
     engine_ui_document_t load_ui_document(std::string_view file_name);
-    void show_ui_document(engine_ui_document_t doc) const;
-    void hide_ui_document(engine_ui_document_t doc) const;
+    void show_ui_document(engine_ui_document_t doc);
+    void hide_ui_document(engine_ui_document_t doc);
     engine_ui_document_data_handle_t create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
     void destroy_ui_document_data_handle(engine_ui_document_data_handle_t& hande);
     void ui_document_data_handle_dirty_all_variables(engine_ui_document_data_handle_t& handle);

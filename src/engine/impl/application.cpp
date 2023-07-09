@@ -306,35 +306,31 @@ void engine::Application::release_model_info(engine_model_info_t* info)
 
 engine_ui_document_t engine::Application::load_ui_document(std::string_view file_name)
 {
-    auto ui_doc = ui_manager_.load_ui_document_from_file(file_name);
+    auto ui_doc = ui_manager_.load_document_from_file(file_name);
     assert(ui_doc);
     return ui_doc;
 }
 
-void engine::Application::show_ui_document(engine_ui_document_t doc) const
+void engine::Application::show_ui_document(engine_ui_document_t doc)
 {
-    auto rml_ui_doc = reinterpret_cast<Rml::ElementDocument*>(doc);
-    assert(rml_ui_doc);
-    rml_ui_doc->Show();
+    ui_manager_.show_document(doc);
 }
 
-void engine::Application::hide_ui_document(engine_ui_document_t doc) const
+void engine::Application::hide_ui_document(engine_ui_document_t doc)
 {
-    auto rml_ui_doc = reinterpret_cast<Rml::ElementDocument*>(doc);
-    assert(rml_ui_doc);
-    rml_ui_doc->Hide();
+    ui_manager_.hide_document(doc);
 }
 
 engine_ui_document_data_handle_t engine::Application::create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
 {
-    auto data_handle = ui_manager_.create_ui_document_data_handle(name, bindings);
+    auto data_handle = ui_manager_.create_data_handle(name, bindings);
     assert(data_handle);
     return data_handle;
 }
 
 void engine::Application::destroy_ui_document_data_handle(engine_ui_document_data_handle_t& hande)
 {
-    ui_manager_.destroy_ui_document_data_handle(hande);
+    ui_manager_.destroy_data_handle(hande);
 }
 
 void engine::Application::ui_document_data_handle_dirty_all_variables(engine_ui_document_data_handle_t& handle)

@@ -161,7 +161,7 @@ engine::UiManager::~UiManager()
     }
 }
 
-engine_ui_document_data_handle_t engine::UiManager::create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
+engine_ui_document_data_handle_t engine::UiManager::create_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
 {
     if (name.empty())
     {
@@ -194,7 +194,7 @@ engine_ui_document_data_handle_t engine::UiManager::create_ui_document_data_hand
     return nullptr;
 }
 
-void engine::UiManager::destroy_ui_document_data_handle(engine_ui_document_data_handle_t& handle)
+void engine::UiManager::destroy_data_handle(engine_ui_document_data_handle_t& handle)
 {
     auto rml_handle = reinterpret_cast<Rml::DataModelHandle*>(handle);
     delete rml_handle;
@@ -212,10 +212,24 @@ void engine::UiManager::data_handle_dirty_variable(engine_ui_document_data_handl
     rml_handle->DirtyVariable(name.data());
 }
 
-engine_ui_document_t engine::UiManager::load_ui_document_from_file(std::string_view file_name)
+engine_ui_document_t engine::UiManager::load_document_from_file(std::string_view file_name)
 {
     Rml::ElementDocument* document = ui_rml_context_->LoadDocument((AssetStore::get_instance().get_ui_docs_base_path() / file_name).string());
     return reinterpret_cast<engine_ui_document_t>(document);
+}
+
+void engine::UiManager::show_document(engine_ui_document_t doc)
+{
+    auto rml_ui_doc = reinterpret_cast<Rml::ElementDocument*>(doc);
+    assert(rml_ui_doc);
+    rml_ui_doc->Show();
+}
+
+void engine::UiManager::hide_document(engine_ui_document_t doc)
+{
+    auto rml_ui_doc = reinterpret_cast<Rml::ElementDocument*>(doc);
+    assert(rml_ui_doc);
+    rml_ui_doc->Hide();
 }
 
 std::uint32_t engine::UiManager::load_font_from_file(std::string_view file_name, std::string_view handle_name)
