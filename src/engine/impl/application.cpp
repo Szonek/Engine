@@ -306,11 +306,9 @@ void engine::Application::release_model_info(engine_model_info_t* info)
 
 engine_ui_document_t engine::Application::load_ui_document(std::string_view file_name)
 {
-    if (file_name.empty())
-    {
-        return nullptr;
-    } 
-    return ui_manager_.load_ui_document_from_file(file_name);
+    auto ui_doc = ui_manager_.load_ui_document_from_file(file_name);
+    assert(ui_doc);
+    return ui_doc;
 }
 
 void engine::Application::show_ui_document(engine_ui_document_t doc) const
@@ -325,6 +323,13 @@ void engine::Application::hide_ui_document(engine_ui_document_t doc) const
     auto rml_ui_doc = reinterpret_cast<Rml::ElementDocument*>(doc);
     assert(rml_ui_doc);
     rml_ui_doc->Hide();
+}
+
+engine_ui_document_data_handle_t engine::Application::create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
+{
+    auto data_handle = ui_manager_.create_ui_document_data_handle(name, bindings);
+    assert(data_handle);
+    return data_handle;
 }
 
 bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)

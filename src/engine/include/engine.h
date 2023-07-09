@@ -44,9 +44,28 @@ typedef struct _engine_scene_t* engine_scene_t;
 typedef struct _engine_component_view_t* engine_component_view_t;
 typedef struct _engine_component_iterator_t* engine_component_iterator_t;
 typedef struct _engine_ui_document_t* engine_ui_document_t;
+typedef struct _engine_ui_document_data_handle_t* engine_ui_document_data_handle_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_font_t;
+
+typedef enum engine_ui_document_data_binding_data_type_t
+{
+    ENGINE_DATA_TYPE_UNKNOWN = 0,
+    ENGINE_DATA_TYPE_BOOL = 1,
+    ENGINE_DATA_TYPE_UINT32
+} engine_ui_document_data_binding_data_type_t;
+
+typedef struct engine_ui_document_data_binding_t
+{
+    char name[64];
+    engine_ui_document_data_binding_data_type_t type;
+    union
+    {
+        bool* data_bool;
+        uint32_t* data_uint32_t;
+    };
+} engine_ui_document_data_binding_t;
 
 typedef struct _engine_coords_2d_t
 {
@@ -63,13 +82,13 @@ typedef struct _engine_application_create_desc_t
     bool fullscreen;
 } engine_application_create_desc_t;
 
-typedef enum _engine_begin_frame_event_flags_
+typedef enum _engine_begin_frame_event_flags_t
 {
     ENGINE_EVENT_NONE = 0x0,
     ENGINE_EVENT_QUIT = 0x2,
     ENGINE_EVENT_WINDOW_MOVED = 0x4,
     ENGINE_EVENT_WINDOW_RESIZED = 0x8,
-} engine_begin_frame_event_flags_;
+} engine_begin_frame_event_flags_t;
 typedef uint32_t engine_begin_frame_events_mask_t;
 
 typedef struct _engine_application_frame_begine_info_t
@@ -309,6 +328,9 @@ ENGINE_API void engineSceneSetGravityVector(engine_scene_t scene, const float gr
 ENGINE_API void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
 
 // ui
+// create data handel first, before loading document!
+ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_document_data_handle_t* out);
+// if document uses data model than creata data model first with function: engineApplicationCreateUiDataHandle(...)
 ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out);
 ENGINE_API void engineApplicationUiDocumentShow(engine_application_t app, engine_ui_document_t ui_doc);
 ENGINE_API void engineApplicationUiDocumentHide(engine_application_t app, engine_ui_document_t ui_doc);

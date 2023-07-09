@@ -41,28 +41,6 @@ protected:
 
 StartPveSceneListener g_start_pve_listener;
 
-typedef enum engine_ui_document_data_binding_data_type_t
-{
-    ENGINE_DATA_TYPE_UNKNOWN = 0,
-    ENGINE_DATA_TYPE_BOOL = 1,
-    ENGINE_DATA_TYPE_UINT32
-} engine_ui_document_data_binding_data_type;
-
-typedef struct engine_application_ui_document_data_binding_t
-{
-    uint32_t offset;
-    char name[64];
-    engine_ui_document_data_binding_data_type type;
-} engine_application_ui_document_data_binding;
-
-typedef struct engine_application_ui_document_data_model_t
-{
-    char name[64];
-    engine_application_ui_document_data_binding bindings[64];
-    void* data;
-} engine_application_ui_document_data_model;
-
-engine_application_ui_document_data_model data_model{};
 
 engine::UiManager::UiManager(RenderContext& rdx)
     : rdx_(rdx)
@@ -102,45 +80,46 @@ engine::UiManager::UiManager(RenderContext& rdx)
     ui_rml_context_ = Rml::CreateContext("app", Rml::Vector2i(window_size_pixels.width, window_size_pixels.height));
     assert(ui_rml_context_);
 
+//
+//    std::strcpy(data_model.name, "animals");
+//
+//    std::strcpy(data_model.bindings[0].name, "show_text");
+//    data_model.bindings[0].type = ENGINE_DATA_TYPE_BOOL;
+//    data_model.bindings[0].data_bool = &my_data.show_text;
+//
+//    std::strcpy(data_model.bindings[1].name, "score");
+//    data_model.bindings[1].type = ENGINE_DATA_TYPE_UINT32;
+//    data_model.bindings[1].data_uint32_t = &my_data.score;
 
-    std::strcpy(data_model.name, "animals");
-    data_model.data = &my_data;
-    data_model.bindings[0].offset = 0;
-    data_model.bindings[0].type = ENGINE_DATA_TYPE_BOOL;
-    std::strcpy(data_model.bindings[0].name, "show_text");
-    data_model.bindings[1].offset = offsetof(ApplicationData, score);
-    data_model.bindings[1].type = ENGINE_DATA_TYPE_UINT32;
-    std::strcpy(data_model.bindings[1].name, "score");
+    //Rml::DataModelHandle data_handle;
+    //if (Rml::DataModelConstructor constructor = ui_rml_context_->CreateDataModel(data_model.name))
+    //{
+    //    const auto bindigns_count = sizeof(data_model.bindings) / sizeof(data_model.bindings[0]);
+    //    for (int i = 0; i < bindigns_count; i++)
+    //    {
+    //        auto bind = data_model.bindings[i];
+    //        switch (bind.type)
+    //        {
+    //        case ENGINE_DATA_TYPE_BOOL:
+    //        {
+    //            constructor.Bind(bind.name, bind.data_bool);
+    //            break;
+    //        }
+    //        case ENGINE_DATA_TYPE_UINT32:
+    //        {
+    //            constructor.Bind(bind.name, bind.data_uint32_t);
+    //            break;
+    //        }
+    //        default:
+    //            log::log(log::LogLevel::eError, "Unknown engine data type. Cant create data binding for UI.");
+    //        }
+    //    }
 
-    Rml::DataModelHandle data_handle;
-    if (Rml::DataModelConstructor constructor = ui_rml_context_->CreateDataModel(data_model.name))
-    {
-        const auto bindigns_count = sizeof(data_model.bindings) / sizeof(data_model.bindings[0]);
-        for (int i = 0; i < bindigns_count; i++)
-        {
-            auto bind = data_model.bindings[i];
-            switch (bind.type)
-            {
-            case ENGINE_DATA_TYPE_BOOL:
-            {
-                auto* b = reinterpret_cast<bool*>(((char*)data_model.data + data_model.bindings[i].offset));
-                constructor.Bind(bind.name, b);
-                break;
-            }
-            case ENGINE_DATA_TYPE_UINT32:
-            {
-                auto* u32 = reinterpret_cast<std::uint32_t*>(((char*)data_model.data + data_model.bindings[i].offset));
-                constructor.Bind(bind.name, u32);
-                break;
-            }
-            }
-        }
+    //    data_handle = constructor.GetModelHandle();
+    //}
 
-        data_handle = constructor.GetModelHandle();
-    }
-
-    my_data.score = 1;
-    data_handle.DirtyAllVariables();
+    //my_data.score = 1;
+    //data_handle.DirtyAllVariables();
 
     // Set up data bindings to synchronize application data.
     //if (Rml::DataModelConstructor constructor = ui_rml_context_->CreateDataModel("animals"))
@@ -180,6 +159,39 @@ engine::UiManager::~UiManager()
         Rml::RemoveContext(ui_rml_context_->GetName());
         Rml::Shutdown();
     }
+}
+
+engine_ui_document_data_handle_t engine::UiManager::create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
+{
+    if (name.empty())
+    {
+        return nullptr;
+    }
+    Rml::DataModelHandle data_handle;
+    if (Rml::DataModelConstructor constructor = ui_rml_context_->CreateDataModel(name.data()))
+    {
+        for (const auto& bind : bindings)
+        {
+            switch (bind.type)
+            {
+            case ENGINE_DATA_TYPE_BOOL:
+            {
+                constructor.Bind(bind.name, bind.data_bool);
+                break;
+            }
+            case ENGINE_DATA_TYPE_UINT32:
+            {
+                constructor.Bind(bind.name, bind.data_uint32_t);
+                break;
+            }
+            default:
+                log::log(log::LogLevel::eError, "Unknown engine data type. Cant create data binding for UI.");
+            }
+        }
+        auto data_handle = new Rml::DataModelHandle(constructor.GetModelHandle());
+        return reinterpret_cast<engine_ui_document_data_handle_t>(data_handle);
+    }
+    return nullptr;
 }
 
 engine_ui_document_t engine::UiManager::load_ui_document_from_file(std::string_view file_name)

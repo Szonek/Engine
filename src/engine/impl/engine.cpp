@@ -371,6 +371,22 @@ void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const
     sc->get_physcis_collisions_list(*collisions, num_collision);
 }
 
+engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_document_data_handle_t* out)
+{
+    if (bindings_count == 0 && !bindings)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+
+    if (app && name && out)
+    {
+        auto* app_handle = application_cast(app);
+        *out = app_handle->create_ui_document_data_handle(name, { bindings, bindings_count});
+        return *out ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+    }
+    return ENGINE_RESULT_CODE_FAIL;
+}
+
 engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out)
 {
     if (app && file_path && out)
@@ -378,7 +394,7 @@ engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_applicatio
         auto* app_handle = application_cast(app);
         *out = app_handle->load_ui_document(file_path);
     }
-    return engine_result_code_t::ENGINE_RESULT_CODE_FAIL;
+    return ENGINE_RESULT_CODE_FAIL;
 }
 
 void engineApplicationUiDocumentShow(engine_application_t app, engine_ui_document_t ui_doc)
