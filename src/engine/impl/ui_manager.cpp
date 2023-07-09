@@ -127,55 +127,10 @@ engine::UiManager::~UiManager()
     }
 }
 
-engine_ui_document_data_handle_t engine::UiManager::create_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
+engine::UiDataHandle engine::UiManager::create_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
 {
-    if (name.empty())
-    {
-        return nullptr;
-    }
-    Rml::DataModelHandle data_handle;
-    if (Rml::DataModelConstructor constructor = ui_rml_context_->CreateDataModel(name.data()))
-    {
-        for (const auto& bind : bindings)
-        {
-            switch (bind.type)
-            {
-            case ENGINE_DATA_TYPE_BOOL:
-            {
-                constructor.Bind(bind.name, bind.data_bool);
-                break;
-            }
-            case ENGINE_DATA_TYPE_UINT32:
-            {
-                constructor.Bind(bind.name, bind.data_uint32_t);
-                break;
-            }
-            default:
-                log::log(log::LogLevel::eError, "Unknown engine data type. Cant create data binding for UI.");
-            }
-        }
-        auto data_handle = new Rml::DataModelHandle(constructor.GetModelHandle());
-        return reinterpret_cast<engine_ui_document_data_handle_t>(data_handle);
-    }
-    return nullptr;
-}
-
-void engine::UiManager::destroy_data_handle(engine_ui_document_data_handle_t& handle)
-{
-    auto rml_handle = reinterpret_cast<Rml::DataModelHandle*>(handle);
-    delete rml_handle;
-}
-
-void engine::UiManager::data_handle_dirty_all_variables(engine_ui_document_data_handle_t& handle)
-{
-    auto rml_handle = reinterpret_cast<Rml::DataModelHandle*>(handle);
-    rml_handle->DirtyAllVariables();
-}
-
-void engine::UiManager::data_handle_dirty_variable(engine_ui_document_data_handle_t& handle, std::string_view name)
-{
-    auto rml_handle = reinterpret_cast<Rml::DataModelHandle*>(handle);
-    rml_handle->DirtyVariable(name.data());
+   auto constructor = ui_rml_context_->CreateDataModel(name.data());
+   return UiDataHandle(&constructor, bindings);
 }
 
 engine::UiDocument engine::UiManager::load_document_from_file(std::string_view file_name)

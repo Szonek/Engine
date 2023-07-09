@@ -21,6 +21,11 @@ inline engine::UiDocument* ui_document_cast(engine_ui_document_t doc)
     return reinterpret_cast<engine::UiDocument*>(doc);
 }
 
+inline engine::UiDataHandle* ui_data_handle_cast(engine_ui_data_handle_t handle)
+{
+    return reinterpret_cast<engine::UiDataHandle*>(handle);
+}
+
 inline engine::Scene* scene_cast(engine_scene_t engine_scene_t)
 {
     return reinterpret_cast<engine::Scene*>(engine_scene_t);
@@ -377,7 +382,7 @@ void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const
     sc->get_physcis_collisions_list(*collisions, num_collision);
 }
 
-engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_document_data_handle_t* out)
+engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)
 {
     if (bindings_count == 0 && !bindings)
     {
@@ -387,36 +392,40 @@ engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_applicat
     if (app && name && out)
     {
         auto* app_handle = application_cast(app);
-        *out = app_handle->create_ui_document_data_handle(name, { bindings, bindings_count});
-        return *out ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+        auto ret = new engine::UiDataHandle(app_handle->create_ui_document_data_handle(name, { bindings, bindings_count}));
+        if (ret)
+        {
+            *out = reinterpret_cast<engine_ui_data_handle_t>(ret);
+            return ENGINE_RESULT_CODE_OK;
+        }
     }
     return ENGINE_RESULT_CODE_FAIL;
 }
 
-void engineApplicationDestroyUiDocumentDataHandle(engine_application_t app, engine_ui_document_data_handle_t handle)
+void engineUiDataHandleDestroy(engine_ui_data_handle_t handle)
 {
-    if (app && handle)
+    if (handle)
     {
-        auto* app_handle = application_cast(app);
-        app_handle->destroy_ui_document_data_handle(handle);
+        auto* data_handle = ui_data_handle_cast(handle);
+        delete data_handle;
     }
 }
 
-void engineApplicationUiDocumentDataHandleDirtyAllVariables(engine_application_t app, engine_ui_document_data_handle_t handle)
+void engineUiDataHandleDirtyAllVariables(engine_ui_data_handle_t handle)
 {
-    if (app && handle)
+    if (handle)
     {
-        auto* app_handle = application_cast(app);
-        app_handle->ui_document_data_handle_dirty_all_variables(handle);
+        auto* data_handle = ui_data_handle_cast(handle);
+        data_handle->dirty_all_variables();
     }
 }
 
-void engineApplicationUiDocumentDataHandleDirtyVariable(engine_application_t app, engine_ui_document_data_handle_t handle, const char* name)
+void engineUiDataHandleDirtyVariable(engine_ui_data_handle_t handle, const char* name)
 {
-    if (app && handle)
+    if (handle)
     {
-        auto* app_handle = application_cast(app);
-        app_handle->ui_document_data_handle_dirty_variable(handle, name);
+        auto* data_handle = ui_data_handle_cast(handle);
+        data_handle->dirty_variable(name);
     }
 }
 

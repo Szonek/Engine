@@ -28,11 +28,7 @@ public:
     UiManager& operator=(UiManager&& rhs);
     ~UiManager();
 
-    engine_ui_document_data_handle_t create_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
-    void destroy_data_handle(engine_ui_document_data_handle_t& handle);
-    void data_handle_dirty_all_variables(engine_ui_document_data_handle_t& handle);
-    void data_handle_dirty_variable(engine_ui_document_data_handle_t& handle, std::string_view name);
-
+    engine::UiDataHandle create_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
     UiDocument load_document_from_file(std::string_view file_name);
 
     std::uint32_t load_font_from_file(std::string_view file_name, std::string_view handle_name);

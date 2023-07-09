@@ -37,10 +37,7 @@ public:
     void release_model_info(engine_model_info_t* info);
 
     UiDocument load_ui_document(std::string_view file_name);
-    engine_ui_document_data_handle_t create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
-    void destroy_ui_document_data_handle(engine_ui_document_data_handle_t& hande);
-    void ui_document_data_handle_dirty_all_variables(engine_ui_document_data_handle_t& handle);
-    void ui_document_data_handle_dirty_variable(engine_ui_document_data_handle_t& handle, std::string_view name);
+    UiDataHandle create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
 
     bool keyboard_is_key_down(engine_keyboard_keys_t key);
 

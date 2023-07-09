@@ -7,7 +7,7 @@ namespace pong
 struct MainMenuData
 {
     engine_application_t app = nullptr;
-    engine_ui_document_data_handle_t data_handle = nullptr;
+    engine_ui_data_handle_t data_handle = nullptr;
     bool show_text = true;
     std::uint32_t score = 0;
 };
@@ -22,7 +22,7 @@ public:
 
 private:
     MainMenuData my_data_ = {};
-    engine_ui_document_data_handle_t ui_data_handle_;
+    engine_ui_data_handle_t ui_data_handle_;
     engine_ui_document_t ui_doc_ = nullptr;
 };
 }

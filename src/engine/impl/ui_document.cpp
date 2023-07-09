@@ -42,3 +42,63 @@ void engine::UiDocument::hide()
 {
     doc_->Hide();
 }
+
+engine::UiDataHandle::UiDataHandle(Rml::DataModelConstructor* constructor, std::span<const engine_ui_document_data_binding_t> bindings)
+{
+    if (!constructor)
+    {
+        return;
+    }
+
+    for (const auto& bind : bindings)
+    {
+        switch (bind.type)
+        {
+        case ENGINE_DATA_TYPE_BOOL:
+        {
+            constructor->Bind(bind.name, bind.data_bool);
+            break;
+        }
+        case ENGINE_DATA_TYPE_UINT32:
+        {
+            constructor->Bind(bind.name, bind.data_uint32_t);
+            break;
+        }
+        default:
+            log::log(log::LogLevel::eError, "Unknown engine data type. Cant create data binding for UI.");
+        }
+    }
+    handle_ = new Rml::DataModelHandle(constructor->GetModelHandle());
+}
+
+engine::UiDataHandle::UiDataHandle(UiDataHandle&& rhs)
+{
+    std::swap(handle_, rhs.handle_);
+}
+
+engine::UiDataHandle& engine::UiDataHandle::operator=(UiDataHandle&& rhs)
+{
+    if (this != &rhs)
+    {
+        std::swap(handle_, rhs.handle_);
+    }
+    return *this;
+}
+
+engine::UiDataHandle::~UiDataHandle()
+{
+    if (handle_)
+    {
+        delete handle_;
+    }
+}
+
+void engine::UiDataHandle::dirty_all_variables()
+{
+    handle_->DirtyAllVariables();
+}
+
+void engine::UiDataHandle::dirty_variable(std::string_view name)
+{
+    handle_->DirtyVariable(name.data());
+}

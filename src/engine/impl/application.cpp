@@ -311,26 +311,9 @@ engine::UiDocument engine::Application::load_ui_document(std::string_view file_n
 }
 
 
-engine_ui_document_data_handle_t engine::Application::create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
+engine::UiDataHandle engine::Application::create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
 {
-    auto data_handle = ui_manager_.create_data_handle(name, bindings);
-    assert(data_handle);
-    return data_handle;
-}
-
-void engine::Application::destroy_ui_document_data_handle(engine_ui_document_data_handle_t& hande)
-{
-    ui_manager_.destroy_data_handle(hande);
-}
-
-void engine::Application::ui_document_data_handle_dirty_all_variables(engine_ui_document_data_handle_t& handle)
-{
-    ui_manager_.data_handle_dirty_all_variables(handle);
-}
-
-void engine::Application::ui_document_data_handle_dirty_variable(engine_ui_document_data_handle_t& handle, std::string_view name)
-{
-    ui_manager_.data_handle_dirty_variable(handle, name);
+    return ui_manager_.create_data_handle(name, bindings);
 }
 
 bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
