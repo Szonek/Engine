@@ -1,0 +1,13 @@
+<rml>
+<head>
+	<title>Pong Main Menu</title>
+	<link type="text/rcss" href="rml.rcss"/>
+	<link type="text/rcss" href="pong_battleground.rcss"/>
+</head>
+<body>
+	<div class="controller" id="left_controller" data-if="show_left_player_move_controller">
+	</div>
+	<div class="controller" id="right_controller" data-if="show_right_player_move_controller">
+	</div>
+</body>
+</rml>

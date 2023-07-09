@@ -1,0 +1,28 @@
+body {
+	font-family: Tahoma;
+	font-size: 18px;
+	color: #02475e;
+	background: #fefecc00;
+	text-align: center;
+	padding: 2em 1em;
+	position: absolute;
+	border: 2px #ccc;
+	width: 100%;
+	height: 100%;
+	margin: auto;
+}
+
+.controller {
+	background-color: green; 
+ 	position: absolute;
+	height: 100%;
+	width: 20%;
+}
+
+#left_controller {
+	left: 0px;
+}
+
+#right_controller {
+	left: 80%;;
+}

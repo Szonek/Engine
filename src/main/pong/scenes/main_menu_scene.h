@@ -13,7 +13,6 @@ public:
     void deactivate() override;
 
 private:
-    engine_ui_data_handle_t ui_data_handle_;
     engine_ui_document_t ui_doc_ = nullptr;
     engine_ui_element_t ui_element_start_pve_scene_ = nullptr;
     engine_ui_element_t ui_element_start_pvp_scene_ = nullptr;

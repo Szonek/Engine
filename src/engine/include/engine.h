@@ -71,8 +71,8 @@ typedef struct _engine_ui_document_data_binding_t
 
 typedef enum _engine_ui_event_type_t
 {
-    ENGINE_UI_EVENT_TYPE_UNKNOWN = 0,
-    ENGINE_UI_EVENT_TYPE_CLICK = 1
+    ENGINE_UI_EVENT_TYPE_UNKNOWN = 0,   // unknown/invalid/error
+    ENGINE_UI_EVENT_TYPE_CLICK = 1      // single click
 } engine_ui_event_type_t;
 
 typedef struct _engine_ui_event_t

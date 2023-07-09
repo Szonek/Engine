@@ -51,22 +51,10 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::Scen
         engine_error_code = engineUiDocumentGetElementById(ui_doc_, "id_start_pve_scene", &ui_element_start_pve_scene_);
         engineUiElementAddEventCallback(ui_element_start_pve_scene_, ENGINE_UI_EVENT_TYPE_CLICK, this, callback_func);
     }
-
-    //if (engine_error_code == ENGINE_RESULT_CODE_OK)
-    //{
-    //    // register scripts
-    //    auto camera_script = register_script<CameraScript>();
-    //    auto start_pve = register_script<MainMenuStartPveScene>();
-    //    auto start_pvp = register_script<MainMenuStartPvpScene>();
-    //}
 }
 
 pong::MainMenuScene::~MainMenuScene()
 {
-    if (ui_data_handle_)
-    {
-        engineUiDataHandleDestroy(ui_data_handle_);
-    }
 }
 
 void pong::MainMenuScene::deactivate()
