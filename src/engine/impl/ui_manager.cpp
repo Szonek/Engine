@@ -200,6 +200,18 @@ void engine::UiManager::destroy_ui_document_data_handle(engine_ui_document_data_
     delete rml_handle;
 }
 
+void engine::UiManager::data_handle_dirty_all_variables(engine_ui_document_data_handle_t& handle)
+{
+    auto rml_handle = reinterpret_cast<Rml::DataModelHandle*>(handle);
+    rml_handle->DirtyAllVariables();
+}
+
+void engine::UiManager::data_handle_dirty_variable(engine_ui_document_data_handle_t& handle, std::string_view name)
+{
+    auto rml_handle = reinterpret_cast<Rml::DataModelHandle*>(handle);
+    rml_handle->DirtyVariable(name.data());
+}
+
 engine_ui_document_t engine::UiManager::load_ui_document_from_file(std::string_view file_name)
 {
     Rml::ElementDocument* document = ui_rml_context_->LoadDocument((AssetStore::get_instance().get_ui_docs_base_path() / file_name).string());

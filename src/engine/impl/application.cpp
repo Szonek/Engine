@@ -337,6 +337,16 @@ void engine::Application::destroy_ui_document_data_handle(engine_ui_document_dat
     ui_manager_.destroy_ui_document_data_handle(hande);
 }
 
+void engine::Application::ui_document_data_handle_dirty_all_variables(engine_ui_document_data_handle_t& handle)
+{
+    ui_manager_.data_handle_dirty_all_variables(handle);
+}
+
+void engine::Application::ui_document_data_handle_dirty_variable(engine_ui_document_data_handle_t& handle, std::string_view name)
+{
+    ui_manager_.data_handle_dirty_variable(handle, name);
+}
+
 bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
 {
     const auto state = SDL_GetKeyboardState(nullptr);

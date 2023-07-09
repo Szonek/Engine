@@ -41,6 +41,9 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::Scen
         auto start_pve = register_script<MainMenuStartPveScene>();
         auto start_pvp = register_script<MainMenuStartPvpScene>();
     }
+
+    my_data_.score = 5;
+    engineApplicationUiDocumentDataHandleDirtyVariable(app_, ui_data_handle_, "score");
 }
 
 pong::MainMenuScene::~MainMenuScene()

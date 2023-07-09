@@ -331,6 +331,9 @@ ENGINE_API void engineSceneGetCollisions(engine_scene_t scene, size_t* num_colli
 // create data handel first, before loading document!
 ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_document_data_handle_t* out);
 ENGINE_API void engineApplicationDestroyUiDocumentDataHandle(engine_application_t app, engine_ui_document_data_handle_t handle);
+ENGINE_API void engineApplicationUiDocumentDataHandleDirtyAllVariables(engine_application_t app, engine_ui_document_data_handle_t handle);
+ENGINE_API void engineApplicationUiDocumentDataHandleDirtyVariable(engine_application_t app, engine_ui_document_data_handle_t handle, const char* name);
+
 // if document uses data model than creata data model first with function: engineApplicationCreateUiDataHandle(...)
 ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out);
 ENGINE_API void engineApplicationUiDocumentShow(engine_application_t app, engine_ui_document_t ui_doc);
