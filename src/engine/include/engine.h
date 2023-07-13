@@ -50,6 +50,13 @@ typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_font_t;
 
+
+typedef struct _engine_coords_2d_t
+{
+    float x;
+    float y;
+} engine_coords_2d_t;
+
 typedef enum _engine_ui_document_data_binding_data_type_t
 {
     ENGINE_DATA_TYPE_UNKNOWN = 0,
@@ -75,16 +82,15 @@ typedef enum _engine_ui_event_type_t
     ENGINE_UI_EVENT_TYPE_CLICK = 1      // single click
 } engine_ui_event_type_t;
 
+
+
+
 typedef struct _engine_ui_event_t
 {
+    engine_ui_event_type_t type;
+    engine_coords_2d_t normalized_screen_position;
 } engine_ui_event_t;
 
-
-typedef struct _engine_coords_2d_t
-{
-    float x;
-    float y;
-} engine_coords_2d_t;
 
 typedef struct _engine_application_create_desc_t
 {

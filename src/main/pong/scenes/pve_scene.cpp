@@ -20,7 +20,7 @@ void right_controller_callback(const engine_ui_event_t* event, void* user_data_p
     const float top_wall_screenspace_pos = (K_CAMERA_ORTHO_SCALE + K_WALL_Y_OFFSET) / full_screen_height;
     const float bottom_wall_screenspace_pos = (K_CAMERA_ORTHO_SCALE - K_WALL_Y_OFFSET) / full_screen_height;
     const float screenspace_table_height = top_wall_screenspace_pos - bottom_wall_screenspace_pos;
-    const float pointer_pos = 0.0f; // ped->position[1]; ToDo:!!!!!!!!!!!!
+    const float pointer_pos = event->normalized_screen_position.y;
     const float pointer_screenspace_scaled_to_table = (pointer_pos * screenspace_table_height) + bottom_wall_screenspace_pos;
     // map to range <-1, 1> and scale to world space size  (world middle is 0,0, so we need negative values to go down/left)!
     const float pointer_world_space = K_CAMERA_ORTHO_SCALE * ((pointer_screenspace_scaled_to_table * 2.0f) - 1.0f);

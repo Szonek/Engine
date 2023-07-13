@@ -59,9 +59,12 @@ private:
     protected:
         void ProcessEvent(Rml::Event& event) override
         {
-            engine_ui_event_t ev{};
+            const auto ev = parse_rml_event_to_engine_event(event);
             callback_(&ev, user_data_);
         }
+
+    private:
+        engine_ui_event_t parse_rml_event_to_engine_event(const Rml::Event& event);
 
     private:
         fnCallbackT callback_;

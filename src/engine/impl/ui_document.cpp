@@ -162,3 +162,23 @@ bool engine::UiElement::register_callback(engine_ui_event_type_t type, void* use
     element_->AddEventListener(rml_ev_id, &listeners_[type]);
     return ret;
 }
+
+engine_ui_event_t engine::UiElement::BasicEventListener::parse_rml_event_to_engine_event(const Rml::Event& event)
+{
+    engine_ui_event_t ev{};
+    switch (event.GetId())
+    {
+    case Rml::EventId::Click:
+    {
+        ev.type = ENGINE_UI_EVENT_TYPE_CLICK;
+        break;
+    }
+    default:
+        ev.type = ENGINE_UI_EVENT_TYPE_UNKNOWN;
+        engine::log::log(log::LogLevel::eCritical, "Unknown engine_ui_event_type_t. Cant process event correctly.");
+    }
+
+    const auto context_dims = event.GetCurrentElement()->GetContext()->GetDimensions();
+    ev.normalized_screen_position = { event.GetUnprojectedMouseScreenPos().x / context_dims.x, (context_dims.y - event.GetUnprojectedMouseScreenPos().y) / context_dims.y };
+    return ev;
+}
