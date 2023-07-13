@@ -3,7 +3,7 @@
 
 namespace pong
 {
-    class PveScene : public engine::IScene
+    class BattlegroundScene : public engine::IScene
     {
     public:
         struct MyDataForUI
@@ -27,7 +27,7 @@ namespace pong
         };
 
     public:
-        PveScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code, PlayerType left_player_type);
+        BattlegroundScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code, PlayerType left_player_type);
 
     public:
         static constexpr const char* get_name() { return "pve_scene"; }

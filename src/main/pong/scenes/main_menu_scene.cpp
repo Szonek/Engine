@@ -2,8 +2,7 @@
 #include "../scripts/camera_script.h"
 #include "scene_manager.h"
 
-#include "pve_scene.h"
-#include "pvp_scene.h"
+#include "battleground_scene.h"
 
 #include <iostream>
 
@@ -13,8 +12,8 @@ void start_pve_scene(const engine_ui_event_t* event, void* user_data_ptr)
 
     auto main_menu_scene = reinterpret_cast<pong::MainMenuScene*>(user_data_ptr);
     main_menu_scene->deactivate();
-    main_menu_scene->get_scene_manager()->register_scene<pong::PveScene>(pong::PveScene::PlayerType::eBotLow);
-    main_menu_scene->get_scene_manager()->get_scene(pong::PveScene::get_name())->activate();
+    main_menu_scene->get_scene_manager()->register_scene<pong::BattlegroundScene>(pong::BattlegroundScene::PlayerType::eBotLow);
+    main_menu_scene->get_scene_manager()->get_scene(pong::BattlegroundScene::get_name())->activate();
 }
 
 void start_pvp_scene(const engine_ui_event_t* event, void* user_data_ptr)
@@ -23,8 +22,8 @@ void start_pvp_scene(const engine_ui_event_t* event, void* user_data_ptr)
 
     auto main_menu_scene = reinterpret_cast<pong::MainMenuScene*>(user_data_ptr);
     main_menu_scene->deactivate();
-    main_menu_scene->get_scene_manager()->register_scene<pong::PveScene>(pong::PveScene::PlayerType::eHuman);
-    main_menu_scene->get_scene_manager()->get_scene(pong::PveScene::get_name())->activate();
+    main_menu_scene->get_scene_manager()->register_scene<pong::BattlegroundScene>(pong::BattlegroundScene::PlayerType::eHuman);
+    main_menu_scene->get_scene_manager()->get_scene(pong::BattlegroundScene::get_name())->activate();
 }
 
 pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)

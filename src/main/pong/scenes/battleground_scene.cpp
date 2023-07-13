@@ -1,4 +1,4 @@
-#include "pve_scene.h"
+#include "battleground_scene.h"
 #include "../scripts/event_types.h"
 
 #include "../scripts/global_constants.h"
@@ -16,7 +16,7 @@ void right_controller_callback_start_move(const engine_ui_event_t* event, void* 
 {
     using namespace pong;
     assert(user_data_ptr);
-    auto scene_data = reinterpret_cast<pong::PveScene::MyDataForUI*>(user_data_ptr);
+    auto scene_data = reinterpret_cast<pong::BattlegroundScene::MyDataForUI*>(user_data_ptr);
     scene_data->move_right_player = true;
 }
 
@@ -25,7 +25,7 @@ void right_controller_callback_stop_move(const engine_ui_event_t* event, void* u
 {
     using namespace pong;
     assert(user_data_ptr);
-    auto scene_data = reinterpret_cast<pong::PveScene::MyDataForUI*>(user_data_ptr);
+    auto scene_data = reinterpret_cast<pong::BattlegroundScene::MyDataForUI*>(user_data_ptr);
     scene_data->move_right_player = false;
 }
 
@@ -33,7 +33,7 @@ void right_controller_callback_move(const engine_ui_event_t* event, void* user_d
 {
     using namespace pong;
     assert(user_data_ptr);
-    auto scene_data = reinterpret_cast<pong::PveScene::MyDataForUI*>(user_data_ptr);
+    auto scene_data = reinterpret_cast<pong::BattlegroundScene::MyDataForUI*>(user_data_ptr);
 
     if (!scene_data->move_right_player)
     {
@@ -53,7 +53,7 @@ void right_controller_callback_move(const engine_ui_event_t* event, void* user_d
 }
 
 
-pong::PveScene::PveScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code, PlayerType left_player_type)
+pong::BattlegroundScene::BattlegroundScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code, PlayerType left_player_type)
     : IScene(app_handle, scn_mgn, engine_error_code)
 {
     my_data_.show_left_player_controllors = left_player_type == PlayerType::eHuman;
@@ -148,14 +148,14 @@ pong::PveScene::PveScene(engine_application_t app_handle, engine::SceneManager* 
     deactivate();
 }
 
-void pong::PveScene::activate()
+void pong::BattlegroundScene::activate()
 {
     engineUiDocumentShow(ui_doc_);
     IScene::activate();
 }
 
 
-void pong::PveScene::deactivate()
+void pong::BattlegroundScene::deactivate()
 {
     engineUiDocumentHide(ui_doc_);
     IScene::deactivate();
