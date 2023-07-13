@@ -38,11 +38,18 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::Scen
             engineUiDocumentShow(ui_doc_);
         }
 
-        engine_error_code = engineUiDocumentGetElementById(ui_doc_, "id_start_pve_scene", &ui_element_start_pve_scene_);
-        engineUiElementAddEventCallback(ui_element_start_pve_scene_, ENGINE_UI_EVENT_TYPE_POINTER_CLICK, this, start_pve_scene);
+        {
+            engine_ui_element_t ui_ele = nullptr;
+            engine_error_code = engineUiDocumentGetElementById(ui_doc_, "id_start_pve_scene", &ui_ele);
+            engineUiElementAddEventCallback(ui_ele, ENGINE_UI_EVENT_TYPE_POINTER_CLICK, this, start_pve_scene);
+        }
 
-        engine_error_code = engineUiDocumentGetElementById(ui_doc_, "id_start_pvp_scene", &ui_element_start_pvp_scene_);
-        engineUiElementAddEventCallback(ui_element_start_pvp_scene_, ENGINE_UI_EVENT_TYPE_POINTER_CLICK, this, start_pvp_scene);
+        {
+            engine_ui_element_t ui_ele = nullptr;
+            engine_error_code = engineUiDocumentGetElementById(ui_doc_, "id_start_pvp_scene", &ui_ele);
+            engineUiElementAddEventCallback(ui_ele, ENGINE_UI_EVENT_TYPE_POINTER_CLICK, this, start_pvp_scene);
+        }
+
     }
 }
 

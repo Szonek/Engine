@@ -65,7 +65,7 @@ img {
     height:100%;
 	border: 2px #ccc;
 	box-sizing: border-box;
-	color: rgba(39,62,84,0.82);
+/*	image-color: rgb(128, 128, 128); */
 }
 
 .controller_superpower {

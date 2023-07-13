@@ -43,9 +43,13 @@ void engine::UiDocument::hide()
     doc_->Hide();
 }
 
-engine::UiElement engine::UiDocument::get_element_by_id(std::string_view id, engine_result_code_t& err_out)
+engine::UiElement* engine::UiDocument::get_element_by_id(std::string_view id, engine_result_code_t& err_out)
 {
-    return UiElement(doc_->GetElementById(id.data()), err_out);
+    if (!cached_ui_elements_.contains(id.data()))
+    {
+        cached_ui_elements_[id.data()] = UiElement(doc_->GetElementById(id.data()), err_out);
+    }
+    return &cached_ui_elements_[id.data()];
 }
 
 engine::UiDataHandle::UiDataHandle(Rml::DataModelConstructor* constructor, std::span<const engine_ui_document_data_binding_t> bindings)

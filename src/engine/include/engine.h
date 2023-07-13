@@ -360,6 +360,8 @@ ENGINE_API void engineUiDataHandleDirtyVariable(engine_ui_data_handle_t handle, 
 ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out);
 ENGINE_API void engineUiDocumentShow(engine_ui_document_t ui_doc);
 ENGINE_API void engineUiDocumentHide(engine_ui_document_t ui_doc);
+// interanlly it caches elements, so it's safe to call it multiple times to get the same object
+// however for best performance it's recommeneded to reuse elements and minimize usage of this function
 ENGINE_API engine_result_code_t engineUiDocumentGetElementById(engine_ui_document_t document, const char* id, engine_ui_element_t* out);
 ENGINE_API engine_result_code_t engineUiElementAddEventCallback(engine_ui_element_t element, engine_ui_event_type_t event_type, void* user_data, void (*callback)(const engine_ui_event_t*, void*));
 

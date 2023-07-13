@@ -38,9 +38,6 @@ namespace pong
     private:
         engine_ui_data_handle_t ui_data_handle_ = nullptr;
         engine_ui_document_t ui_doc_ = nullptr;
-        engine_ui_element_t ui_element_left_controller = nullptr;
-        engine_ui_element_t ui_element_right_controller_ = nullptr;
-
         MyDataForUI my_data_{};
 };
 }

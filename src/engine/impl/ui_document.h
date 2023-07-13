@@ -19,6 +19,7 @@ namespace Rml
 namespace engine
 {
     class UiManager;
+    class UiDocument;
 }
 
 
@@ -72,6 +73,7 @@ private:
     };
 
 public:
+    UiElement() = default;
     UiElement(Rml::Element* element, engine_result_code_t& err_out);
     UiElement(const UiElement& rhs) = delete;
     UiElement& operator=(const UiElement& rhs) = delete;
@@ -84,7 +86,7 @@ public:
 
 private:
     Rml::Element* element_ = nullptr;
-
+    const UiDocument* const parent_doc_ = nullptr;
     std::map<engine_ui_event_type_t, BasicEventListener> listeners_;
 };
 
@@ -101,10 +103,12 @@ public:
     void show();
     void hide();
 
-    UiElement get_element_by_id(std::string_view id, engine_result_code_t& err_out);
+    UiElement* get_element_by_id(std::string_view id, engine_result_code_t& err_out);
 
 private:
     UiManager* ui_mng_ = nullptr;
     Rml::ElementDocument* doc_ = nullptr;
+
+    std::map<const char*, UiElement> cached_ui_elements_;
 };
 }

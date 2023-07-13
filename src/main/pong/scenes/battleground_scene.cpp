@@ -52,6 +52,13 @@ void right_controller_callback_move(const engine_ui_event_t* event, void* user_d
 
 }
 
+void trigger_superpower(const engine_ui_event_t* event, void* user_data_ptr)
+{
+    using namespace pong;
+    assert(user_data_ptr);
+    auto scene_data = reinterpret_cast<pong::BattlegroundScene::MyDataForUI*>(user_data_ptr);
+    scene_data->right_player->trigger_super_power();
+}
 
 pong::BattlegroundScene::BattlegroundScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code, PlayerType left_player_type)
     : IScene(app_handle, scn_mgn, engine_error_code)
@@ -91,8 +98,6 @@ pong::BattlegroundScene::BattlegroundScene(engine_application_t app_handle, engi
         {
             engineUiDocumentShow(ui_doc_);
         }
-
-        engine_error_code = engineUiDocumentGetElementById(ui_doc_, "right_controller", &ui_element_right_controller_);
     }
 
     if (engine_error_code == ENGINE_RESULT_CODE_OK)
@@ -131,9 +136,23 @@ pong::BattlegroundScene::BattlegroundScene(engine_application_t app_handle, engi
 
         my_data_.right_player = right_player_script;
         my_data_.left_player = left_player_script;
-        engineUiElementAddEventCallback(ui_element_right_controller_, ENGINE_UI_EVENT_TYPE_POINTER_UP, &my_data_, right_controller_callback_stop_move);
-        engineUiElementAddEventCallback(ui_element_right_controller_, ENGINE_UI_EVENT_TYPE_POINTER_DOWN, &my_data_, right_controller_callback_start_move);
-        engineUiElementAddEventCallback(ui_element_right_controller_, ENGINE_UI_EVENT_TYPE_POINTER_MOVE, &my_data_, right_controller_callback_move);
+
+        {
+            engine_ui_element_t ui_ele = nullptr;
+            engine_error_code = engineUiDocumentGetElementById(ui_doc_, "right_controller", &ui_ele);
+
+            engineUiElementAddEventCallback(ui_ele, ENGINE_UI_EVENT_TYPE_POINTER_UP, &my_data_, right_controller_callback_stop_move);
+            engineUiElementAddEventCallback(ui_ele, ENGINE_UI_EVENT_TYPE_POINTER_DOWN, &my_data_, right_controller_callback_start_move);
+            engineUiElementAddEventCallback(ui_ele, ENGINE_UI_EVENT_TYPE_POINTER_MOVE, &my_data_, right_controller_callback_move);
+        }
+
+        {
+            engine_ui_element_t ui_ele = nullptr;
+            engine_error_code = engineUiDocumentGetElementById(ui_doc_, "right_controller_superpower", &ui_ele);
+
+            engineUiElementAddEventCallback(ui_ele, ENGINE_UI_EVENT_TYPE_POINTER_CLICK, &my_data_, trigger_superpower);
+        }
+
     }
 
     register_event_callback(PONG_EVENT_TYPE_GOAL_SCORED, [this]()
