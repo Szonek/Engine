@@ -1,6 +1,5 @@
 #include "main_menu_scene.h"
 #include "../scripts/camera_script.h"
-#include "../scripts/ui_scripts.h"
 #include "scene_manager.h"
 
 #include "pve_scene.h"
@@ -8,12 +7,23 @@
 
 #include <iostream>
 
-void callback_func(const engine_ui_event_t* event, void* user_data_ptr)
+void start_pve_scene(const engine_ui_event_t* event, void* user_data_ptr)
 {
     assert(user_data_ptr);
 
     auto main_menu_scene = reinterpret_cast<pong::MainMenuScene*>(user_data_ptr);
     main_menu_scene->deactivate();
+    main_menu_scene->get_scene_manager()->register_scene<pong::PveScene>(pong::PveScene::PlayerType::eBotLow);
+    main_menu_scene->get_scene_manager()->get_scene(pong::PveScene::get_name())->activate();
+}
+
+void start_pvp_scene(const engine_ui_event_t* event, void* user_data_ptr)
+{
+    assert(user_data_ptr);
+
+    auto main_menu_scene = reinterpret_cast<pong::MainMenuScene*>(user_data_ptr);
+    main_menu_scene->deactivate();
+    main_menu_scene->get_scene_manager()->register_scene<pong::PveScene>(pong::PveScene::PlayerType::eHuman);
     main_menu_scene->get_scene_manager()->get_scene(pong::PveScene::get_name())->activate();
 }
 
@@ -30,7 +40,10 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::Scen
         }
 
         engine_error_code = engineUiDocumentGetElementById(ui_doc_, "id_start_pve_scene", &ui_element_start_pve_scene_);
-        engineUiElementAddEventCallback(ui_element_start_pve_scene_, ENGINE_UI_EVENT_TYPE_POINTER_CLICK, this, callback_func);
+        engineUiElementAddEventCallback(ui_element_start_pve_scene_, ENGINE_UI_EVENT_TYPE_POINTER_CLICK, this, start_pve_scene);
+
+        engine_error_code = engineUiDocumentGetElementById(ui_doc_, "id_start_pvp_scene", &ui_element_start_pvp_scene_);
+        engineUiElementAddEventCallback(ui_element_start_pvp_scene_, ENGINE_UI_EVENT_TYPE_POINTER_CLICK, this, start_pvp_scene);
     }
 }
 

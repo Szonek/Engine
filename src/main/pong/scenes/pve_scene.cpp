@@ -53,9 +53,10 @@ void right_controller_callback_move(const engine_ui_event_t* event, void* user_d
 }
 
 
-pong::PveScene::PveScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
+pong::PveScene::PveScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code, PlayerType left_player_type)
     : IScene(app_handle, scn_mgn, engine_error_code)
 {
+    my_data_.show_left_player_controllors = left_player_type == PlayerType::eHuman;
     my_data_.show_right_player_controllors = true;
     // create ui first
     if (engine_error_code == ENGINE_RESULT_CODE_OK)
@@ -103,7 +104,15 @@ pong::PveScene::PveScene(engine_application_t app_handle, engine::SceneManager* 
         auto camera_script = register_script<CameraScript>();
         auto ball_script = register_script<BallScript>();
         // players
-        auto left_player_script = register_script<BotPlayerPaddleScript>();
+        PlayerPaddleScript* left_player_script = nullptr;
+        if (left_player_type == PlayerType::eHuman)
+        {
+            left_player_script = register_script<LeftPlayerPaddleScript>();
+        }
+        else
+        {
+            left_player_script = register_script<BotPlayerPaddleScript>();
+        }
         auto right_player_script = register_script<RightPlayerPaddleScript>();
         // goal nets
         auto left_goal_net_script = register_script<LeftGoalNetScript>();

@@ -84,8 +84,8 @@ int main(int argc, char** argv)
     }
 
     engine::SceneManager scene_manager(app);
-    scene_manager.register_scene<pong::PvpScene>();
-    scene_manager.register_scene<pong::PveScene>();
+    //scene_manager.register_scene<pong::PvpScene>();
+    //scene_manager.register_scene<pong::PveScene>();
     scene_manager.register_scene<pong::MainMenuScene>();
 
     struct fps_counter_t

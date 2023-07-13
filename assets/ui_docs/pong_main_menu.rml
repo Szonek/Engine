@@ -10,5 +10,8 @@
 	<div class="div_pve" id="id_start_pve_scene">
 	<p> PVE </p>
 	</div>
+	<div class="div_pve" id="id_start_pvp_scene">
+	<p> PVP </p>
+	</div>
 </body>
 </rml>
