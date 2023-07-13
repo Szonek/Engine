@@ -138,9 +138,24 @@ bool engine::UiElement::register_callback(engine_ui_event_type_t type, void* use
     Rml::EventId rml_ev_id = Rml::EventId::Invalid;
     switch (type)
     {
-    case ENGINE_UI_EVENT_TYPE_CLICK:
+    case ENGINE_UI_EVENT_TYPE_POINTER_CLICK:
     {
         rml_ev_id = Rml::EventId::Click;
+        break;
+    }
+    case ENGINE_UI_EVENT_TYPE_POINTER_DOWN:
+    {
+        rml_ev_id = Rml::EventId::Mousedown;
+        break;
+    }
+    case ENGINE_UI_EVENT_TYPE_POINTER_UP:
+    {
+        rml_ev_id = Rml::EventId::Mouseup;
+        break;
+    }
+    case ENGINE_UI_EVENT_TYPE_POINTER_MOVE:
+    {
+        rml_ev_id = Rml::EventId::Mousemove;
         break;
     }
     default:
@@ -170,7 +185,22 @@ engine_ui_event_t engine::UiElement::BasicEventListener::parse_rml_event_to_engi
     {
     case Rml::EventId::Click:
     {
-        ev.type = ENGINE_UI_EVENT_TYPE_CLICK;
+        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_CLICK;
+        break;
+    }
+    case Rml::EventId::Mousedown:
+    {
+        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_DOWN;
+        break;
+    }
+    case Rml::EventId::Mouseup:
+    {
+        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_UP;
+        break;
+    }
+    case Rml::EventId::Mousemove:
+    {
+        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_MOVE;
         break;
     }
     default:

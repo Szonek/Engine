@@ -158,7 +158,7 @@ engine_result_code_t engine::IScene::update(float dt)
 
     //
     const auto input_events = input_event_system_.update();
-    propagte_input_events(app_, scene_, input_events, scripts_);
+    //propagte_input_events(app_, scene_, input_events, scripts_);
     propagate_collisions_events(app_, scene_, scripts_);
 
     update_physics(app_, scene_, dt);

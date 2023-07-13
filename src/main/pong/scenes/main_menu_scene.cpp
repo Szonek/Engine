@@ -49,7 +49,7 @@ pong::MainMenuScene::MainMenuScene(engine_application_t app_handle, engine::Scen
         }
 
         engine_error_code = engineUiDocumentGetElementById(ui_doc_, "id_start_pve_scene", &ui_element_start_pve_scene_);
-        engineUiElementAddEventCallback(ui_element_start_pve_scene_, ENGINE_UI_EVENT_TYPE_CLICK, this, callback_func);
+        engineUiElementAddEventCallback(ui_element_start_pve_scene_, ENGINE_UI_EVENT_TYPE_POINTER_CLICK, this, callback_func);
     }
 }
 

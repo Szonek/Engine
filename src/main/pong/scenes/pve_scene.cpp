@@ -10,11 +10,33 @@
 
 #include "../scripts/global_constants.h"
 
-void right_controller_callback(const engine_ui_event_t* event, void* user_data_ptr)
+void right_controller_callback_start_move(const engine_ui_event_t* event, void* user_data_ptr)
 {
     using namespace pong;
     assert(user_data_ptr);
-    auto paddle_script = reinterpret_cast<pong::RightPlayerPaddleScript*>(user_data_ptr);
+    auto scene_data = reinterpret_cast<pong::PveScene::MyData*>(user_data_ptr);
+    scene_data->move_player = true;
+}
+
+
+void right_controller_callback_stop_move(const engine_ui_event_t* event, void* user_data_ptr)
+{
+    using namespace pong;
+    assert(user_data_ptr);
+    auto scene_data = reinterpret_cast<pong::PveScene::MyData*>(user_data_ptr);
+    scene_data->move_player = false;
+}
+
+void right_controller_callback_move(const engine_ui_event_t* event, void* user_data_ptr)
+{
+    using namespace pong;
+    assert(user_data_ptr);
+    auto scene_data = reinterpret_cast<pong::PveScene::MyData*>(user_data_ptr);
+
+    if (!scene_data->move_player)
+    {
+        return;
+    }
 
     const float full_screen_height = K_CAMERA_ORTHO_SCALE * 2.0f;
     const float top_wall_screenspace_pos = (K_CAMERA_ORTHO_SCALE + K_WALL_Y_OFFSET) / full_screen_height;
@@ -24,7 +46,7 @@ void right_controller_callback(const engine_ui_event_t* event, void* user_data_p
     const float pointer_screenspace_scaled_to_table = (pointer_pos * screenspace_table_height) + bottom_wall_screenspace_pos;
     // map to range <-1, 1> and scale to world space size  (world middle is 0,0, so we need negative values to go down/left)!
     const float pointer_world_space = K_CAMERA_ORTHO_SCALE * ((pointer_screenspace_scaled_to_table * 2.0f) - 1.0f);
-    paddle_script->set_target_worldspace_position(pointer_world_space);
+    scene_data->player->set_target_worldspace_position(pointer_world_space);
 
 }
 
@@ -78,8 +100,11 @@ pong::PveScene::PveScene(engine_application_t app_handle, engine::SceneManager* 
         right_goal_net_script->ball_script_ = ball_script;
         right_goal_net_script->player_paddel_script_ = left_player_script;
 
-
-        engineUiElementAddEventCallback(ui_element_right_controller_, ENGINE_UI_EVENT_TYPE_CLICK, right_player_script, right_controller_callback);
+        my_data_.move_player = false;
+        my_data_.player = right_player_script;
+        engineUiElementAddEventCallback(ui_element_right_controller_, ENGINE_UI_EVENT_TYPE_POINTER_UP, &my_data_, right_controller_callback_stop_move);
+        engineUiElementAddEventCallback(ui_element_right_controller_, ENGINE_UI_EVENT_TYPE_POINTER_DOWN, &my_data_, right_controller_callback_start_move);
+        engineUiElementAddEventCallback(ui_element_right_controller_, ENGINE_UI_EVENT_TYPE_POINTER_MOVE, &my_data_, right_controller_callback_move);
     }
 
 
