@@ -67,10 +67,10 @@ void pong::GoalNetScript::on_collision(const collision_t& info)
 
     if (info.other == ball_script_->get_game_object() && score_fence_.frame_counter == 0)
     {
-        my_scene_->get_user_event_sysmte()->activate_event(PONG_EVENT_TYPE_GOAL_SCORED);
        // ball_script_->reset_state();
         player_paddel_script_->set_score(player_paddel_script_->get_score() + 1);
         score_fence_.was_score = true;
+        my_scene_->get_user_event_sysmte()->activate_event(PONG_EVENT_TYPE_GOAL_SCORED);
     }
 
 }

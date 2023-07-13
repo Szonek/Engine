@@ -6,10 +6,18 @@ namespace pong
     class PveScene : public engine::IScene
     {
     public:
-        struct MyData
+        struct MyDataForUI
         {
-            bool move_player = false;
-            class PlayerPaddleScript* player;
+            bool move_right_player = false;
+            bool move_left_player = false;
+            class PlayerPaddleScript* right_player;
+            class PlayerPaddleScript* left_player;
+
+            std::uint32_t score_left = 0;
+            std::uint32_t score_right = 0;
+
+            bool show_left_player_controllors = false;
+            bool show_right_player_controllors = false;
         };
 
     public:
@@ -27,6 +35,6 @@ namespace pong
         engine_ui_element_t ui_element_left_controller = nullptr;
         engine_ui_element_t ui_element_right_controller_ = nullptr;
 
-        MyData my_data_{};
+        MyDataForUI my_data_{};
 };
 }

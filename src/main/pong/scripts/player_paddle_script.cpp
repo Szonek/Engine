@@ -94,7 +94,7 @@ void pong::PlayerPaddleScript::on_collision(const collision_t& info)
 
         const auto interct_pos = -1.0f * ((paddle_current_y - ball_current_y)) / 2.5f;
         //std::cout << interct_pos << std::endl;
-        engineLog(fmt::format("{} \n", interct_pos).c_str());
+        //engineLog(fmt::format("{} \n", interct_pos).c_str());
         auto ball_dir = ball_script_->get_direction_vector();
         ball_dir[1] = interct_pos;
         const auto ball_dir_normalized = glm::normalize(glm::make_vec2(ball_dir.data()));
