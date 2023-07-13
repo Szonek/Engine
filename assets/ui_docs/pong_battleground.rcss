@@ -46,7 +46,7 @@ h1 {
 }
 
 .controller {
-	background-color: green; 
+	background-color: #a28089;
  	position: absolute;
 	height: 100%;
 	width: 20%;
@@ -58,4 +58,20 @@ h1 {
 
 #right_controller {
 	left: 80%;
+}
+
+img {
+	width:100%;
+    height:100%;
+	border: 2px #ccc;
+	box-sizing: border-box;
+	color: rgba(39,62,84,0.82);
+}
+
+.controller_superpower {
+	position: absolute;
+	left: 75%;
+	bottom: 0%;
+	height: 10%;
+	width: 5%;
 }

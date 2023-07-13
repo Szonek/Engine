@@ -10,9 +10,8 @@
 		<div class="score" id="score_left">  <p id ="score_p"> {{score_left}}  </p> </div>
 		<div class="score" id="score_right"> <p id ="score_p"> {{score_right}} </p> </div>
 	</div>
-	<div class="controller" id="left_controller" data-if="show_left_player_move_controller">
-	</div>
-	<div class="controller" id="right_controller" data-if="show_right_player_move_controller">
-	</div>
+	<div class="controller" id="left_controller" data-if="show_left_player_move_controller"></div>
+	<div class="controller" id="right_controller" data-if="show_right_player_move_controller"></div>
+	<div class="controller_superpower" id="right_controller_superpower" data-if="show_right_player_move_controller"><img src="C:\\WORK\\OpenGLPlayground\\assets\\ui_docs\\tron-arrow.tga"></img></div>
 </body>
 </rml>

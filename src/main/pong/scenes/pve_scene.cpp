@@ -7,7 +7,6 @@
 #include "../scripts/goal_net_script.h"
 #include "../scripts/wall_script.h"
 #include "../scripts/camera_script.h"
-#include "../scripts/ui_scripts.h"
 
 #include "../scripts/global_constants.h"
 
@@ -112,13 +111,6 @@ pong::PveScene::PveScene(engine_application_t app_handle, engine::SceneManager* 
         // walls
         auto top_wall = register_script<WallTopScript>();
         auto bottom_wall = register_script<BottomTopScript>();
-
-        // right ui
-        //auto right_touch_area_script = register_script<RightPlayerTouchAreaScript>();
-        //auto right_superpower_0_script = register_script<RightPlayerSuperPower_0_TouchAreaScript>();
-        //right_superpower_0_script->player_script_ = right_player_script;
-
-        //right_touch_area_script->player_script_ = right_player_script;
 
         right_player_script->ball_script_ = ball_script;
         left_player_script->ball_script_ = ball_script;
