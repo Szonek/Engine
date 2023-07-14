@@ -159,6 +159,7 @@ void pong::PlayerPaddleScript::update(float dt)
 
 void pong::PlayerPaddleScript::set_score(std::size_t new_score)
 {
+
     score_ = new_score;
 }
 

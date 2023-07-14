@@ -38,6 +38,7 @@ public:
     void trigger_super_power();
     virtual SuperPowerType get_super_power_type() const { return super_power_type_; }
 
+
 protected:
     engine_game_object_t score_go_;
     std::size_t score_ = 0;

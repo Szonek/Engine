@@ -58,11 +58,7 @@ private:
 
         }
     protected:
-        void ProcessEvent(Rml::Event& event) override
-        {
-            const auto ev = parse_rml_event_to_engine_event(event);
-            callback_(&ev, user_data_);
-        }
+        void ProcessEvent(Rml::Event& event) override;
 
     private:
         engine_ui_event_t parse_rml_event_to_engine_event(const Rml::Event& event);
@@ -83,6 +79,9 @@ public:
 
     // return true if overwriten previously existing callback
     bool register_callback(engine_ui_event_type_t type, void* user_data, fnCallbackT&& callback);
+
+    bool set_property(std::string_view name, std::string_view value);
+    void remove_property(std::string_view name);
 
 private:
     Rml::Element* element_ = nullptr;

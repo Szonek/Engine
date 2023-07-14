@@ -364,6 +364,9 @@ ENGINE_API void engineUiDocumentHide(engine_ui_document_t ui_doc);
 // however for best performance it's recommeneded to reuse elements and minimize usage of this function
 ENGINE_API engine_result_code_t engineUiDocumentGetElementById(engine_ui_document_t document, const char* id, engine_ui_element_t* out);
 ENGINE_API engine_result_code_t engineUiElementAddEventCallback(engine_ui_element_t element, engine_ui_event_type_t event_type, void* user_data, void (*callback)(const engine_ui_event_t*, void*));
+ENGINE_API engine_result_code_t engineUiElementSetProperty(engine_ui_element_t element, const char* property, const char* value);
+ENGINE_API void engineUiElementRemoveProperty(engine_ui_element_t element, const char* property);
+
 
 // ECS 
 ENGINE_API engine_result_code_t engineCreateComponentView(engine_component_view_t* out);

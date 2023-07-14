@@ -182,6 +182,22 @@ bool engine::UiElement::register_callback(engine_ui_event_type_t type, void* use
     return ret;
 }
 
+bool engine::UiElement::set_property(std::string_view name, std::string_view value)
+{
+    return element_->SetProperty(name.data(), value.data());
+}
+
+void engine::UiElement::remove_property(std::string_view name)
+{
+    element_->RemoveProperty(name.data());
+}
+
+void engine::UiElement::BasicEventListener::ProcessEvent(Rml::Event& event)
+{
+    const auto ev = parse_rml_event_to_engine_event(event);
+    callback_(&ev, user_data_);
+}
+
 engine_ui_event_t engine::UiElement::BasicEventListener::parse_rml_event_to_engine_event(const Rml::Event& event)
 {
     engine_ui_event_t ev{};

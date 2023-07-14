@@ -490,6 +490,26 @@ engine_result_code_t engineUiElementAddEventCallback(engine_ui_element_t element
     return ENGINE_RESULT_CODE_FAIL;
 }
 
+engine_result_code_t engineUiElementSetProperty(engine_ui_element_t element, const char* property, const char* value)
+{
+    bool result = false;
+    if (element && property && value)
+    {
+        auto element_handle = reinterpret_cast<engine::UiElement*>(element);
+        result = element_handle->set_property(property, value);
+    }
+    return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+void engineUiElementRemoveProperty(engine_ui_element_t element, const char* property)
+{
+    if (element && property)
+    {
+        auto element_handle = reinterpret_cast<engine::UiElement*>(element);
+        element_handle->remove_property(property);
+    }
+}
+
 engine_result_code_t engineCreateComponentView(engine_component_view_t* out)
 {
     if (out)

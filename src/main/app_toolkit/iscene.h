@@ -64,7 +64,7 @@ public:
     virtual void deactivate();
     virtual bool is_active() const;
     virtual engine_result_code_t update(float dt);
-
+    
     UserEventSystem* get_user_event_sysmte() { return &user_event_system_; }
 
     virtual void register_event_callback(std::uint32_t event_id, std::function<void()>&& callback)
