@@ -14,8 +14,6 @@
 pong::PlayerPaddleScript::PlayerPaddleScript(engine::IScene *my_scene, float init_pos_x, float score_init_pos_x, const char* name)
     : IScript(my_scene)
     , score_(0)
-    , score_str_(std::to_string(score_))
-    , super_power_type_(SuperPowerType::eBallSuperSpeed)
 {
     auto scene = my_scene_->get_handle();
     auto app = my_scene_->get_app_handle();
@@ -52,12 +50,6 @@ pong::PlayerPaddleScript::PlayerPaddleScript(engine::IScene *my_scene, float ini
     // text component for the SCORE
     {
         score_go_ = engineSceneCreateGameObject(scene);
-        auto text_component = engineSceneAddTextComponent(scene, score_go_);
-        text_component.font_handle = engineApplicationGetFontByName(app, "tahoma_font");
-        assert(text_component.font_handle != ENGINE_INVALID_OBJECT_HANDLE && "Cant find font for player name text render");
-        text_component.text = score_str_.c_str();
-        set_c_array(text_component.color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f});
-        engineSceneUpdateTextComponent(scene, score_go_, &text_component);
 
         auto tc = engineSceneAddRectTransformComponent(scene, score_go_);
         tc.position_min[0] = score_init_pos_x;
@@ -73,9 +65,6 @@ pong::PlayerPaddleScript::PlayerPaddleScript(engine::IScene *my_scene, float ini
             const auto super_speed_factor = 2.0f;
             const auto ball_speed = ball_script_->get_speed();
             ball_script_->update_diffuse_color(std::array<float, 4>{0.4f, 0.3f, 1.0f, 0.0f});
-
-            timer_superpower_active_cd_ = 0.0f;
-            super_power_state_ = SuperPowerState::eNone;
         }
     );
 }
@@ -104,49 +93,6 @@ void pong::PlayerPaddleScript::on_collision(const collision_t& info)
 
 void pong::PlayerPaddleScript::update(float dt)
 {
-    const auto super_speed_factor = 2.0f;
-    if (super_power_type_ == SuperPowerType::eNone)
-    {
-        timer_superpower_cd_ += dt;
-    }
-
-    if (super_power_state_ == SuperPowerState::eActive)
-    {
-        timer_superpower_active_cd_ += dt;
-    }
-
-    if (timer_superpower_active_cd_ >= 1000.0f)
-    {
-        const auto ball_speed = ball_script_->get_speed();
-        ball_script_->update_speed(ball_speed[0] / super_speed_factor, ball_speed[1] / super_speed_factor);
-        ball_script_->update_diffuse_color(std::array<float, 4>{0.4f, 0.3f, 1.0f, 0.0f});
-
-        timer_superpower_active_cd_ = 0.0f;
-        super_power_state_ = SuperPowerState::eNone;
-    }
-
-    if (timer_superpower_cd_ >= 5000.0f)
-    {
-        timer_superpower_cd_ = 0.0f;
-        super_power_type_ = SuperPowerType::eBallSuperSpeed;
-    }
-
-    if (super_power_state_ == SuperPowerState::eTrigger)
-    {
-        if (super_power_type_ == SuperPowerType::eBallSuperSpeed)
-        {
-            const auto super_speed_factor = 2.0f;
-            //engineLog("[SUERPOWER]  SuperPowerType::eBallSuperSpeed ");
-            const auto ball_speed = ball_script_->get_speed();
-            ball_script_->update_speed(ball_speed[0] * super_speed_factor, ball_speed[1] * super_speed_factor);
-            ball_script_->update_diffuse_color(std::array<float, 4>{1.0f, 0.1f, 0.1f, 0.0f});
-        }
-
-        // reset super power variables
-        super_power_type_ = SuperPowerType::eNone;
-        super_power_state_ = SuperPowerState::eActive;
-    }
-
     auto tc = engineSceneGetTransformComponent(my_scene_->get_handle(), go_);
     if(tc.position[1] != target_y)
     {
@@ -154,7 +100,6 @@ void pong::PlayerPaddleScript::update(float dt)
        engineSceneUpdateTransformComponent(my_scene_->get_handle(), go_, &tc);
     }
 
-    score_str_ = std::to_string(score_);
 }
 
 void pong::PlayerPaddleScript::set_score(std::size_t new_score)
@@ -175,7 +120,7 @@ void pong::PlayerPaddleScript::set_target_worldspace_position(float y)
 
 void pong::PlayerPaddleScript::trigger_super_power()
 {
-    super_power_state_ = SuperPowerState::eTrigger;
+    //super_power_state_ = SuperPowerState::eTrigger;
 }
 
 // 

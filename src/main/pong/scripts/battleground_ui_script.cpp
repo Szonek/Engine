@@ -140,4 +140,19 @@ void pong::BattlegroundUiScript::update(float dt)
         my_data_.player_left.score = my_data_.player_left.script->get_score();
         engineUiDataHandleDirtyVariable(ui_data_handle_, "score_left");
     }
+
+    //if (my_data_.player_right.script->get_super_power_state() == SuperPowerState::eNone)
+    if(false)
+    {
+        engine_ui_element_t ui_ele{};
+        engineUiDocumentGetElementById(ui_doc_, "right_controller_superpower", &ui_ele);
+        engineUiElementRemoveProperty(ui_ele, "image-color");
+    }
+    //else if (my_data_.player_right.script->get_super_power_state() == SuperPowerState::eOnCooldown)
+    else if(false)
+    {
+        engine_ui_element_t ui_ele{};
+        engineUiDocumentGetElementById(ui_doc_, "right_controller_superpower", &ui_ele);
+        engineUiElementSetProperty(ui_ele, "image-color", "rgb(128, 128, 128)");
+    }
 }

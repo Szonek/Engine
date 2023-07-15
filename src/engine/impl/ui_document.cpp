@@ -49,6 +49,7 @@ engine::UiElement* engine::UiDocument::get_element_by_id(std::string_view id, en
     {
         cached_ui_elements_[id.data()] = UiElement(doc_->GetElementById(id.data()), err_out);
     }
+    err_out = ENGINE_RESULT_CODE_OK;
     return &cached_ui_elements_[id.data()];
 }
 

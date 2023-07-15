@@ -108,6 +108,6 @@ private:
     UiManager* ui_mng_ = nullptr;
     Rml::ElementDocument* doc_ = nullptr;
 
-    std::map<const char*, UiElement> cached_ui_elements_;
+    std::map<std::string, UiElement> cached_ui_elements_;
 };
 }
