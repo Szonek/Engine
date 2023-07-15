@@ -69,7 +69,7 @@ void propagte_input_events(engine_application_t app, engine_scene_t scene, const
             }
             else
             {
-                scripts[input_event.event_data.pointer_click_object]->on_pointer_click(&input_event.event_data);
+                //scripts[input_event.event_data.pointer_click_object]->on_pointer_click(&input_event.event_data);
             }
         }
 
@@ -81,7 +81,7 @@ void propagte_input_events(engine_application_t app, engine_scene_t scene, const
             }
             else
             {
-                scripts[input_event.event_data.pointer_down_object]->on_pointer_down(&input_event.event_data);
+                //scripts[input_event.event_data.pointer_down_object]->on_pointer_down(&input_event.event_data);
             }
         }
     }

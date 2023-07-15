@@ -27,11 +27,9 @@ public:
     virtual ~IScript() = default;
 
     virtual void update(float dt) {}
+    //ToDo: this should be moved to seperate class like  ICollidableScript
     virtual void on_collision(const collision_t& info) {}
-
-    // if the button/touch is pressed and released on the same object 
-    virtual void on_pointer_click(const struct PointerEventData* ped) {};
-    virtual void on_pointer_down(const struct PointerEventData* ped) {};
+    
 
     virtual engine_game_object_t get_game_object() const { return go_; }
 
