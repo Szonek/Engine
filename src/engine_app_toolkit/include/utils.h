@@ -5,7 +5,6 @@
 #include <span>
 #include <string_view>
 #include <cassert>
-#include <fmt/format.h>
 
 
 #if __ANDROID__
@@ -13,6 +12,17 @@ constexpr const bool K_IS_ANDROID = true;
 #else  
 constexpr const bool K_IS_ANDROID = false;
 #endif
+
+#ifdef _WIN32
+#ifdef engine_app_toolkit_EXPORTS
+#define ENGINE_APP_TOOLKIT_API __declspec(dllexport)
+#else
+#define ENGINE_APP_TOOLKIT_API __declspec(dllimport)
+#endif
+#else
+#define ENGINE_APP_TOOLKIT_API
+#endif
+
 
 template<typename T>
 inline void set_c_array(std::span<float> in, const T& data)

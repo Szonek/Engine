@@ -1,6 +1,6 @@
 #pragma once
 #include "engine.h"
-
+#include "utils.h"
 #include "event_types_defs.h"
 
 #include <vector>
@@ -8,7 +8,7 @@
 
 namespace engine
 {
-class InputEventSystem
+class ENGINE_APP_TOOLKIT_API InputEventSystem
 {
 public:
     struct UpdateResult

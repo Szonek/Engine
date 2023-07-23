@@ -7,6 +7,8 @@
 
 #include <cassert>
 
+#include <fmt/format.h>
+
 pong::BallScript::BallScript(engine::IScene *my_scene)
     : IScript(my_scene)
 {

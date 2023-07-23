@@ -4,21 +4,6 @@ set(APP_SOURCES
 	main.cpp
 )
 
-set(APP_TOOLKIT_DIR "app_toolkit")
-set(APP_TOOLKIT_SOURCES
-	${APP_TOOLKIT_DIR}/utils.h
-	${APP_TOOLKIT_DIR}/iscript.h
-	${APP_TOOLKIT_DIR}/iscript.cpp
-	${APP_TOOLKIT_DIR}/iscene.h
-	${APP_TOOLKIT_DIR}/iscene.cpp
-	${APP_TOOLKIT_DIR}/event_system.h
-	${APP_TOOLKIT_DIR}/event_system.cpp
-	${APP_TOOLKIT_DIR}/event_types_defs.h
-	${APP_TOOLKIT_DIR}/scene_manager.h
-	${APP_TOOLKIT_DIR}/scene_manager.cpp
-	
-)
-
 set(GAME_DIR "pong")
 
 set(GAME_SCRIPTS_DIR ${GAME_DIR}/scripts)
@@ -47,7 +32,7 @@ set(GAME_SCENES_SOURCES
 	${GAME_SCENES_DIR}/main_menu_scene.cpp
 )
 
-set(APP_ALL_SOURCES ${APP_SOURCES} ${APP_TOOLKIT_SOURCES} ${GAME_SCRIPTS_SOURCES} ${GAME_SCENES_SOURCES})
+set(APP_ALL_SOURCES ${APP_SOURCES} ${GAME_SCRIPTS_SOURCES} ${GAME_SCENES_SOURCES})
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Android")
     find_library(log-lib log)
@@ -62,6 +47,5 @@ else ()
     add_executable(${APP_NAME} ${APP_ALL_SOURCES})
 endif()
 set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 20)
-target_link_libraries(${APP_NAME} engine fmt::fmt-header-only SDL3::SDL3-static glm)
-target_include_directories(${APP_NAME} PUBLIC ${APP_TOOLKIT_DIR})
+target_link_libraries(${APP_NAME} engine fmt::fmt-header-only SDL3::SDL3-static glm engine_app_toolkit)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${APP_ALL_SOURCES})

@@ -1,6 +1,6 @@
 #pragma once
 #include "engine.h"
-
+#include "utils.h"
 #include <vector>
 
 namespace engine
@@ -8,7 +8,7 @@ namespace engine
 class IScene;
 class SceneManager;
 
-class IScript
+class ENGINE_APP_TOOLKIT_API IScript
 {
 public:
     struct contact_point_t

@@ -7,12 +7,13 @@
 
 #include <unordered_map>
 #include <functional>
+#include <memory>
 
 namespace engine
 {
 class SceneManager;
 
-class UserEventSystem
+class ENGINE_APP_TOOLKIT_API UserEventSystem
 {
 public:
     void register_event_callback(std::uint32_t ev_id, std::function<void()>&& callback)
@@ -33,7 +34,7 @@ private:
     std::unordered_map<std::uint32_t, std::vector<std::function<void()>>> callbacks_;
 };
 
-class IScene
+class ENGINE_APP_TOOLKIT_API IScene
 {
 public:
     using ScriptsMap = std::unordered_map<engine_game_object_t, std::unique_ptr<IScript>>;

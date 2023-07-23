@@ -20,5 +20,6 @@ engine::IScene* engine::SceneManager::get_scene(std::string_view name)
     {
         return nullptr;
     }
-    return scenes_[name.data()].get();
+    //return scenes_[name.data()].get();
+    return scenes_[name.data()];
 }
