@@ -111,7 +111,7 @@ public:
         : IScene(app_handle, scn_mgn, engine_error_code)
     {
         register_script<CameraScript>();
-        register_script<FloorScript>();
+        //register_script<FloorScript>();
         register_script<TableScript>();
     }
 
@@ -150,8 +150,9 @@ int main(int argc, char** argv)
 
     // cube
     engine_model_info_t model_info{};
-
-    auto model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "cube.glb", &model_info);
+    engine_result_code_t model_info_result = ENGINE_RESULT_CODE_FAIL;
+#if 0
+    model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "cube.glb", &model_info);
     if (model_info_result != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed loading CUBE model. Exiting!\n");
@@ -173,7 +174,8 @@ int main(int argc, char** argv)
     engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
         model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "sphere", &sphere_geometry);
     engineApplicationReleaseModelInfo(app, &model_info);
-    
+#endif
+
     model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "table.glb", &model_info);
     if (model_info_result != ENGINE_RESULT_CODE_OK)
     {
