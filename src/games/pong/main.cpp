@@ -5,7 +5,7 @@
 #include "utils.h"
 #include "iscript.h"
 
-#include "pong/scenes/main_menu_scene.h"
+#include "scenes/main_menu_scene.h"
 
 #include <SDL_system.h>
 #include <SDL_main.h>

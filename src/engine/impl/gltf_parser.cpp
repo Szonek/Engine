@@ -11,8 +11,32 @@ namespace
 {
 inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model)
 {
+    // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_mesh_primitive_mode
+
     engine::GeometryInfo ret{};
-    assert(mesh.primitives.size() == 1 && "Not enabled path for primitives count > 1");
+    //assert(mesh.primitives.size() == 1 && "Not enabled path for primitives count > 1");
+
+    std::size_t total_verts_count = 0;
+    std::size_t total_inds_count = 0;
+    for (std::size_t i = 0; i < mesh.primitives.size(); i++)
+    {
+        const auto& primitive = mesh.primitives[i];
+        auto verts_count = 0;
+        for (const auto& attrib : primitive.attributes)
+        {
+            const auto& attrib_accesor = model.accessors[attrib.second];
+            if (attrib.first.compare("POSITION") == 0)
+            {
+                total_verts_count += attrib_accesor.count;
+            }
+        }
+
+        const auto& index_accessor = model.accessors[primitive.indices];
+        total_inds_count +=  index_accessor.count;
+    }
+
+    ret.verticies.reserve(total_verts_count);
+    ret.indicies.reserve(total_inds_count);
 
     for (std::size_t i = 0; i < mesh.primitives.size(); i++)
     {
@@ -70,34 +94,37 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
         }
 
         // verts
-        ret.verticies.resize(position_data.count);
-        for (auto i = 0; i < ret.verticies.size(); i++)
+        const auto verts_offset = ret.verticies.size();
+        ret.verticies.resize(verts_offset + position_data.count);
+        for (auto i = 0; i < position_data.count; i++)
         {
-            ret.verticies[i].position[0] = position_data.data[0 + i * position_data.num_components];
-            ret.verticies[i].position[1] = position_data.data[1 + i * position_data.num_components];
-            ret.verticies[i].position[2] = position_data.data[2 + i * position_data.num_components];
+            ret.verticies[verts_offset + i].position[0] = position_data.data[0 + i * position_data.num_components];
+            ret.verticies[verts_offset + i].position[1] = position_data.data[1 + i * position_data.num_components];
+            ret.verticies[verts_offset + i].position[2] = position_data.data[2 + i * position_data.num_components];
         }
 
         // inds
-        auto copy_inds_data = [](auto& out, const auto& typed_gltf_buffer)
+        auto copy_inds_data = [](auto& out, const auto out_base_offset, const auto& typed_gltf_buffer)
         {
-            for (auto i = 0; i < out.size(); i++)
+            for (auto i = 0; i < out.size() - out_base_offset; i++)
             {
-                out[i] = typed_gltf_buffer[i];
+                out[i + out_base_offset] = typed_gltf_buffer[i];
             }
         };
         const auto& index_accessor = model.accessors[primitive.indices];
-        ret.indicies.resize(index_accessor.count);
+        const auto indicies_offset = ret.indicies.size();
+        ret.indicies.resize(indicies_offset + index_accessor.count);
+
         const auto& index_buffer_view = model.bufferViews[index_accessor.bufferView];
         const auto& index_buffer = model.buffers[index_buffer_view.buffer];
         const auto index_buffer_data = index_buffer.data.data() + index_buffer_view.byteOffset;
         if (index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
         {
-            copy_inds_data(ret.indicies, reinterpret_cast<const std::uint16_t*>(index_buffer_data));
+            copy_inds_data(ret.indicies, indicies_offset, reinterpret_cast<const std::uint16_t*>(index_buffer_data));
         }
         else if (index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
         {
-            copy_inds_data(ret.indicies, reinterpret_cast<const std::uint32_t*>(index_buffer_data));
+            copy_inds_data(ret.indicies, indicies_offset, reinterpret_cast<const std::uint32_t*>(index_buffer_data));
         }
         else
         {

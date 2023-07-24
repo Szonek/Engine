@@ -1,12 +1,10 @@
-set(APP_NAME "main")
+set(APP_NAME "pong_game")
 
 set(APP_SOURCES
 	main.cpp
 )
 
-set(GAME_DIR "pong")
-
-set(GAME_SCRIPTS_DIR ${GAME_DIR}/scripts)
+set(GAME_SCRIPTS_DIR scripts)
 set(GAME_SCRIPTS_SOURCES
 	${GAME_SCRIPTS_DIR}/ball_script.h
 	${GAME_SCRIPTS_DIR}/ball_script.cpp
@@ -24,7 +22,7 @@ set(GAME_SCRIPTS_SOURCES
 	${GAME_SCRIPTS_DIR}/battleground_ui_script.cpp
 	${GAME_SCRIPTS_DIR}/event_types.h
 )
-set(GAME_SCENES_DIR ${GAME_DIR}/scenes)
+set(GAME_SCENES_DIR scenes)
 set(GAME_SCENES_SOURCES
 	${GAME_SCENES_DIR}/battleground_scene.h
 	${GAME_SCENES_DIR}/battleground_scene.cpp
