@@ -40,8 +40,8 @@ public:
         engineSceneUpdateCameraComponent(scene, go_, &camera_comp);
 
         auto camera_transform_comp = engineSceneAddTransformComponent(scene, go_);
-        camera_transform_comp.position[1] = 10.0f;
-        camera_transform_comp.position[2] = 10.0f;
+        camera_transform_comp.position[1] = 5.0f;
+        camera_transform_comp.position[2] = 5.0f;
         engineSceneUpdateTransformComponent(scene, go_, &camera_transform_comp);
     }
 };
@@ -89,12 +89,12 @@ public:
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
         tc.position[0] = 0.0f;
-        tc.position[1] = 0.2f;
+        tc.position[1] = 1.0f;
         tc.position[0] = 0.0f;
 
-        tc.scale[0] = 5.0f;
-        tc.scale[1] = 5.0f;
-        tc.scale[2] = 5.0f;
+        tc.scale[0] = 1.0f;
+        tc.scale[1] = 1.0f;
+        tc.scale[2] = 1.0f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
@@ -111,7 +111,7 @@ public:
         : IScene(app_handle, scn_mgn, engine_error_code)
     {
         register_script<CameraScript>();
-        //register_script<FloorScript>();
+        register_script<FloorScript>();
         register_script<TableScript>();
     }
 
@@ -150,7 +150,7 @@ int main(int argc, char** argv)
 
     // cube
     engine_model_info_t model_info{};
-#if 0
+
     auto model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "cube.glb", &model_info);
     if (model_info_result != ENGINE_RESULT_CODE_OK)
     {
@@ -173,9 +173,8 @@ int main(int argc, char** argv)
     engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
         model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "sphere", &sphere_geometry);
     engineApplicationReleaseModelInfo(app, &model_info);
-#endif
-    // table
-    auto model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "table2.glb", &model_info);
+    
+    model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "table.glb", &model_info);
     if (model_info_result != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed loading TABLE model. Exiting!\n");
