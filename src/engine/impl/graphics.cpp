@@ -1,3 +1,4 @@
+#include "engine.h"
 #include "graphics.h"
 #include "asset_store.h"
 #include "logger.h"
@@ -163,12 +164,26 @@ void engine::Shader::set_uniform_ui2(std::string_view name, std::span<const std:
     glUniform2ui(loc, host_data[0], host_data[1]);
 }
 
+
+
 void engine::Shader::set_uniform_mat_f4(std::string_view name, std::span<const float> host_data)
 {
 	assert(host_data.size() == 16 && "[ERROR] Wrong size of data");
 	const auto loc = get_uniform_location(name);
 	glUniformMatrix4fv(loc, 1, GL_FALSE, host_data.data());
 }
+
+void engine::Shader::set_texture(std::string_view name, const Texture2D* texture)
+{
+    assert(texture &&  "[ERROR] Nullptr texture ptr");
+    assert(texture->is_valid() && "[ERROR] Invalid texture");
+    const auto loc = get_uniform_location(name);
+    std::int32_t bind_slot = 0;
+    glGetUniformiv(program_, loc, &bind_slot);
+    assert(bind_slot > 0);
+    texture->bind(static_cast<std::uint32_t>(bind_slot));
+}
+
 
 std::int32_t engine::Shader::get_uniform_location(std::string_view name)
 {
@@ -313,7 +328,7 @@ engine::Texture2D::~Texture2D()
 
 bool engine::Texture2D::is_valid() const
 {
-    return texture_ != 0;
+    return texture_ != ENGINE_INVALID_OBJECT_HANDLE;
 }
 
 bool engine::Texture2D::upload_region(std::uint32_t x_pos, std::uint32_t y_pos, std::uint32_t width, std::uint32_t height, const void* data, DataLayout layout)

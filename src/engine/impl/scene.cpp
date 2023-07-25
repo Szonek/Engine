@@ -189,6 +189,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 shader_simple_.bind();
                 shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
                 shader_simple_.set_uniform_mat_f4("model", transform.local_to_world);
+                shader_simple_.set_texture("texture_diffuse", &textures[material.diffuse_texture]);
 
                 geometries[mesh.geometry].bind();
                 geometries[mesh.geometry].draw(Geometry::Mode::eTriangles);

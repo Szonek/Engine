@@ -343,7 +343,7 @@ engine_result_code_t engineSceneCreate(engine_scene_t* out)
 {
     engine_result_code_t ret;
     *out = reinterpret_cast<engine_scene_t>(new engine::Scene(ret));
-    assert(ENGINE_INVALID_GAME_OBJECT_ID == engineSceneCreateGameObject(*out)); // add invalid game object id
+    assert(ENGINE_INVALID_OBJECT_HANDLE != engineSceneCreateGameObject(*out)); // add invalid game object id
     return ret;
 }
 

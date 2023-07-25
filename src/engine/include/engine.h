@@ -12,7 +12,6 @@
 #include "components/collider_component.h"
 #include "components/image_component.h"
 
-#include <stdint.h>
 
 #ifdef _WIN32
 #ifdef engine_EXPORTS
@@ -34,11 +33,12 @@ extern "C"
 {
 #endif  // #ifndef __cplusplus
 
-
+#include <stdint.h>
+#include <limits.h>
 
 typedef uint32_t engine_game_object_t;
 #define ENGINE_INVALID_GAME_OBJECT_ID 0
-#define ENGINE_INVALID_OBJECT_HANDLE 0
+#define ENGINE_INVALID_OBJECT_HANDLE (UINT_MAX)
 typedef struct _engine_application_t* engine_application_t;
 typedef struct _engine_scene_t* engine_scene_t;
 typedef struct _engine_component_view_t* engine_component_view_t;

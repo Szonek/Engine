@@ -56,10 +56,8 @@ private:
         using ArrayType = std::array<T, SIZE>;
     public:
         Atlas()
-            : current_idx_(ENGINE_INVALID_GAME_OBJECT_ID)
+            : current_idx_(0)
         {
-            // move to next so it dont point to invalid obj
-            current_idx_++;
         }
         Atlas(const Atlas& rhs) = delete;
         Atlas(Atlas&& rhs) = delete;

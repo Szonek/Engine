@@ -69,6 +69,9 @@ public:
 	void set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data);
 	void set_uniform_mat_f4(std::string_view name, std::span<const float> host_data);
 
+    void set_texture(std::string_view name, const class Texture2D* textur);
+
+
 private:
 	std::int32_t get_uniform_location(std::string_view name);
 	void compile_and_attach_to_program(std::uint32_t shader, std::string_view source);
