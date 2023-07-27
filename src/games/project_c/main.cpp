@@ -44,6 +44,27 @@ public:
         camera_transform_comp.position[2] = 3.0f;
         engineSceneUpdateTransformComponent(scene, go_, &camera_transform_comp);
     }
+
+    void update(float dt) override
+    {
+        auto app = my_scene_->get_app_handle();
+        auto scene = my_scene_->get_handle();
+
+
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
+        {
+            auto camera_transform_comp = engineSceneGetTransformComponent(scene, go_);
+            camera_transform_comp.position[1] += 0.005f * dt;
+            engineSceneUpdateTransformComponent(scene, go_, &camera_transform_comp);
+        }
+
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S))
+        {
+            auto camera_transform_comp = engineSceneGetTransformComponent(scene, go_);
+            camera_transform_comp.position[1] -= 0.005f * dt;
+            engineSceneUpdateTransformComponent(scene, go_, &camera_transform_comp);
+        }
+    }
 };
 
 class FloorScript : public engine::IScript
@@ -105,6 +126,9 @@ public:
 
         auto bc = engineSceneAddColliderComponent(scene, go_);
         bc.type = ENGINE_COLLIDER_TYPE_BOX;
+        bc.collider.box.size[0] = 2.57f / 2;
+        bc.collider.box.size[1] = 0.922f / 2;
+        bc.collider.box.size[2] = 1.17f / 2;
         bc.bounciness = 0.3f;
         engineSceneUpdateColliderComponent(scene, go_, &bc);
 
@@ -135,7 +159,7 @@ public:
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
         tc.position[0] = 1.0f;
-        tc.position[1] = 0.6f;
+        tc.position[1] = 2.0f;
         tc.position[2] = 0.0f;
 
         tc.scale[0] = 0.1f;
@@ -215,7 +239,6 @@ public:
     {
         auto app = my_scene_->get_app_handle();
         auto scene = my_scene_->get_handle();
-        bool rb_needs_update = false;
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_RIGHT))
         {
             auto rb = engineSceneGetRigidBodyComponent(scene, go_);
