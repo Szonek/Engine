@@ -88,19 +88,19 @@ public:
         auto app = my_scene_->get_app_handle();
 
         auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-        //mesh_comp.geometry = engineApplicationGetGeometryByName(app, "table");
-        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "cube");
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "table");
+        //mesh_comp.geometry = engineApplicationGetGeometryByName(app, "cube");
         assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for table script!");
         engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
         tc.position[0] = 0.0f;
-        tc.position[1] = 0.2f;
+        tc.position[1] = 1.0f;
         tc.position[2] = 0.0f;
 
-        tc.scale[0] = 2.0f;
-        tc.scale[1] = 0.4f;
-        tc.scale[2] = 1.0f;
+        //tc.scale[0] = 2.0f;
+        //tc.scale[1] = 0.4f;
+        //tc.scale[2] = 1.0f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         auto bc = engineSceneAddColliderComponent(scene, go_);
@@ -110,7 +110,7 @@ public:
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
         set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.7f, 0.5f, 0.1f, 0.0f });
-        //material_comp.diffuse_texture = 1;
+        material_comp.diffuse_texture = 1;
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
 
     }
@@ -129,7 +129,6 @@ public:
         auto app = my_scene_->get_app_handle();
 
         auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-        //mesh_comp.geometry = engineApplicationGetGeometryByName(app, "table");
         mesh_comp.geometry = engineApplicationGetGeometryByName(app, "cube");
         assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for table script!");
         engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);

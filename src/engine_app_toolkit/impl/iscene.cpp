@@ -156,6 +156,12 @@ engine_result_code_t engine::IScene::update(float dt)
         return ENGINE_RESULT_CODE_OK;
     }
 
+    for (auto& srq : scripts_register_queue_)
+    {
+        scripts_[srq->get_game_object()] = std::unique_ptr<IScript>(srq);
+    }
+    scripts_register_queue_.clear();
+
     //
     const auto input_events = input_event_system_.update();
     //propagte_input_events(app_, scene_, input_events, scripts_);
@@ -167,6 +173,12 @@ engine_result_code_t engine::IScene::update(float dt)
     update_scripts(scripts_, dt);
 
     update_graphics(app_, scene_, dt);
+
+    for (auto& srq : scripts_unregister_queue_)
+    {
+        scripts_.erase(srq->get_game_object());
+    }
+    scripts_unregister_queue_.clear();
 
     return ENGINE_RESULT_CODE_OK;
 }

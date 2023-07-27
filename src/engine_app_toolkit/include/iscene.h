@@ -6,6 +6,7 @@
 #include "event_system.h"
 
 #include <unordered_map>
+#include <deque>
 #include <functional>
 #include <memory>
 
@@ -38,6 +39,8 @@ class ENGINE_APP_TOOLKIT_API IScene
 {
 public:
     using ScriptsMap = std::unordered_map<engine_game_object_t, std::unique_ptr<IScript>>;
+    using ScriptsQueue = std::deque<IScript*>;
+
 public:
     IScene(engine_application_t app_handle, SceneManager* sc_mng, engine_result_code_t& engine_error_code);
     IScene(const IScene& rhs) = delete;
@@ -49,19 +52,21 @@ public:
     template<typename T>
     T* register_script()
     {
-        std::unique_ptr<IScript> script = std::make_unique<T>(this);
-        const auto game_object = script->get_game_object();
-        scripts_[game_object] = std::move(script);
-
-        return (T*)scripts_[game_object].get();
+        scripts_register_queue_.push_back(new T(this));
+        //std::unique_ptr<IScript> script = std::make_unique<T>(this);
+        //const auto game_object = script->get_game_object();
+        //scripts_[game_object] = std::move(script);
+        return (T*)scripts_register_queue_.back();
+        //return (T*)scripts_[game_object].get();
     }
 
     template<typename T>
     void unregister_script(T* script)
     {
         assert(script);
-        const auto game_object = script->get_game_object();
-        scripts_.erase(game_object);
+        scripts_unregister_queue_.push_front(script);
+        //const auto game_object = script->get_game_object();
+        //scripts_.erase(game_object);
     }
 
     engine_scene_t& get_handle() { return scene_; }
@@ -87,6 +92,8 @@ protected:
     SceneManager* scene_manager_ = nullptr;
 
     ScriptsMap scripts_{};
+    ScriptsQueue scripts_register_queue_{};
+    ScriptsQueue scripts_unregister_queue_{};
     InputEventSystem input_event_system_;
     UserEventSystem user_event_system_;
     bool is_activate_ = true;
