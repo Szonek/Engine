@@ -137,7 +137,7 @@ public:
         tc.position[2] = 0.0f;
 
         tc.scale[0] = 0.1f;
-        tc.scale[1] = 0.1f;
+        tc.scale[1] = 0.4f;
         tc.scale[2] = 0.1f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
@@ -227,6 +227,15 @@ public:
             rb.linear_velocity[2] += 0.01f * dt;
             engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
         }
+
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_SPACE))
+        {
+            auto rb = engineSceneGetRigidBodyComponent(scene, go_);
+            rb.linear_velocity[1] += 0.05f * dt;
+            rb.linear_velocity[1] = std::min(rb.linear_velocity[1], 3.0f);
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
+        }
+
     }
 };
 
