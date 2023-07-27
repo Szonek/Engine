@@ -14,6 +14,7 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
     // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_mesh_primitive_mode
 
     engine::GeometryInfo ret{};
+    ret.material_index = mesh.primitives.front().material;
     //assert(mesh.primitives.size() == 1 && "Not enabled path for primitives count > 1");
 
     std::size_t total_verts_count = 0;
@@ -41,7 +42,7 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
     for (std::size_t i = 0; i < mesh.primitives.size(); i++)
     {
         const auto& primitive = mesh.primitives[i];
-
+        assert(ret.material_index  == primitive.material && "Currently not supporting multi-material meshes!");
         struct attrib_info
         {
             const float* data = nullptr;
@@ -101,6 +102,9 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             ret.verticies[verts_offset + i].position[0] = position_data.data[0 + i * position_data.num_components];
             ret.verticies[verts_offset + i].position[1] = position_data.data[1 + i * position_data.num_components];
             ret.verticies[verts_offset + i].position[2] = position_data.data[2 + i * position_data.num_components];
+
+            ret.verticies[verts_offset + i].uv[0] = uv_0_data.data[0 + i * 2];
+            ret.verticies[verts_offset + i].uv[1] = uv_0_data.data[1 + i * 2];
         }
 
         // inds
@@ -189,6 +193,46 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     {
         out.geometries[idx] = parse_mesh(mesh, model);
         idx++;
+    }
+
+    for (std::size_t idx = 0; auto & material : model.materials)
+    {
+        MaterialInfo new_material{};
+        new_material.name = material.name;
+        // copy diffuse color
+        for (std::size_t c = 0; c < 4; c++)
+        {
+            new_material.diffuse_factor[c] = static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[c]);
+        }
+        // copy diffuse texture
+        auto diffuse_texture_index = material.pbrMetallicRoughness.baseColorTexture.index;
+        if (diffuse_texture_index >= 0)
+        {
+            const auto& tex = model.images[diffuse_texture_index];
+            TextureInfo tex_info{};
+            tex_info.name = tex.name;
+            tex_info.width = tex.width;
+            tex_info.height = tex.height;
+            tex_info.layout = ENGINE_DATA_LAYOUT_COUNT;
+            if (tex.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+            {
+                if (tex.component == 4)
+                {
+                    tex_info.layout = ENGINE_DATA_LAYOUT_RGBA_U8;
+                }
+                else if (tex.component == 3)
+                {
+                    tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
+                }
+            }
+            assert(tex_info.layout != ENGINE_DATA_LAYOUT_COUNT);
+            tex_info.data.resize(tex.image.size());
+            std::memcpy(tex_info.data.data(), tex.image.data(), tex_info.data.size());
+            
+            // attach texture to new material;
+            new_material.diffuse_texture = std::move(tex_info);
+        }
+        out.materials.push_back(new_material);
     }
 
     //https://github.com/syoyo/tinygltf/blob/release/examples/basic/main.cpp

@@ -291,11 +291,20 @@ typedef struct _engine_geometry_info_t
     size_t inds_count;
 } engine_geometry_info_t;
 
+typedef struct _engine_material_info_t
+{
+    float diffuse_color[4];
+    engine_texture_2d_create_from_memory_desc_t diffuse_texture_info;
+} engine_material_info_t;
+
 typedef struct _engine_model_info_t
 {
-    const void* internal_handle = nullptr;
-    engine_geometry_info_t* geometries_array = nullptr;
-    size_t geometries_count = 0;
+    const void* internal_handle;
+    engine_geometry_info_t* geometries_array;
+    size_t geometries_count;
+
+    engine_material_info_t* materials_array;
+    size_t materials_count;
 } engine_model_info_t;
 
 // cross platform log
@@ -335,7 +344,7 @@ ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_applicati
 
 
 // textures 
-ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t& info, const char* name, engine_texture2d_t* out);
+ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t* info, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 
 ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_t* out);

@@ -41,7 +41,7 @@ public:
 
         auto camera_transform_comp = engineSceneAddTransformComponent(scene, go_);
         camera_transform_comp.position[1] = 5.0f;
-        camera_transform_comp.position[2] = 5.0f;
+        camera_transform_comp.position[2] = 3.0f;
         engineSceneUpdateTransformComponent(scene, go_, &camera_transform_comp);
     }
 };
@@ -66,8 +66,13 @@ public:
         tc.scale[2] = 5.0f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
+        auto bc = engineSceneAddColliderComponent(scene, go_);
+        bc.type = ENGINE_COLLIDER_TYPE_BOX;
+        bc.bounciness = 0.5f;
+        engineSceneUpdateColliderComponent(scene, go_, &bc);
+
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.58f, 0.29f, 0.0f, 0.0f });
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.58f, 0.259f, 0.325f, 0.0f });
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
 
     }
@@ -83,26 +88,148 @@ public:
         auto app = my_scene_->get_app_handle();
 
         auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "table");
+        //mesh_comp.geometry = engineApplicationGetGeometryByName(app, "table");
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "cube");
         assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for table script!");
         engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
         tc.position[0] = 0.0f;
-        tc.position[1] = 1.0f;
-        tc.position[0] = 0.0f;
+        tc.position[1] = 0.2f;
+        tc.position[2] = 0.0f;
 
-        tc.scale[0] = 1.0f;
-        tc.scale[1] = 1.0f;
+        tc.scale[0] = 2.0f;
+        tc.scale[1] = 0.4f;
         tc.scale[2] = 1.0f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        auto bc = engineSceneAddColliderComponent(scene, go_);
+        bc.type = ENGINE_COLLIDER_TYPE_BOX;
+        bc.bounciness = 0.3f;
+        engineSceneUpdateColliderComponent(scene, go_, &bc);
+
+        auto material_comp = engineSceneAddMaterialComponent(scene, go_);
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.7f, 0.5f, 0.1f, 0.0f });
+        //material_comp.diffuse_texture = 1;
+        engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+
+    }
+};
+
+class TestObstacle : public engine::IScript
+{
+public:
+    TestObstacle(engine::IScene* my_scene)
+        : IScript(my_scene)
+    {
+        auto scene = my_scene_->get_handle();
+        auto app = my_scene_->get_app_handle();
+
+        auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
+        //mesh_comp.geometry = engineApplicationGetGeometryByName(app, "table");
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "cube");
+        assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for table script!");
+        engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
+
+        auto tc = engineSceneAddTransformComponent(scene, go_);
+        tc.position[0] = 1.0f;
+        tc.position[1] = 0.2f;
+        tc.position[2] = 0.0f;
+
+        tc.scale[0] = 0.1f;
+        tc.scale[1] = 0.1f;
+        tc.scale[2] = 0.1f;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        auto rb = engineSceneAddRigidBodyComponent(scene, go_);
+        rb.mass = 1.0f;
+        engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
+
+        auto bc = engineSceneAddColliderComponent(scene, go_);
+        bc.type = ENGINE_COLLIDER_TYPE_BOX;
+        //bc.bounciness = 0.3f;
+        engineSceneUpdateColliderComponent(scene, go_, &bc);
+
+        auto material_comp = engineSceneAddMaterialComponent(scene, go_);
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.1f, 0.1f, 0.1f, 0.0f });
+        //material_comp.diffuse_texture = 1;
+        engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+
+    }
+};
+
+class CatScript : public  engine::IScript
+{
+public:
+    CatScript(engine::IScene* my_scene)
+        : IScript(my_scene)
+    {
+        auto scene = my_scene_->get_handle();
+        auto app = my_scene_->get_app_handle();
+
+        auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "sphere");
+        assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for cat script!");
+        engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
+
+        auto tc = engineSceneAddTransformComponent(scene, go_);
+        tc.position[0] = 0.0f;
+        tc.position[1] = 2.0f;
+        tc.position[2] = 0.0f;
+
+        tc.scale[0] = 0.2f;
+        tc.scale[1] = 0.2f;
+        tc.scale[2] = 0.2f;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        auto rb = engineSceneAddRigidBodyComponent(scene, go_);
+        rb.mass = 5.0f;
+        engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
+
+        auto bc = engineSceneAddColliderComponent(scene, go_);
+        bc.type = ENGINE_COLLIDER_TYPE_SPHERE;
+        bc.collider.sphere.radius = 1.0f;
+        bc.bounciness = 0.7f;
+        engineSceneUpdateColliderComponent(scene, go_, &bc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
         set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 0.0f });
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
 
     }
+
+    void update(float dt) override
+    {
+        auto app = my_scene_->get_app_handle();
+        auto scene = my_scene_->get_handle();
+        bool rb_needs_update = false;
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_RIGHT))
+        {
+            auto rb = engineSceneGetRigidBodyComponent(scene, go_);
+            rb.linear_velocity[0] += 0.01f * dt;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_LEFT))
+        {
+            auto rb = engineSceneGetRigidBodyComponent(scene, go_);
+            rb.linear_velocity[0] -= 0.01f * dt;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_UP))
+        {
+            auto rb = engineSceneGetRigidBodyComponent(scene, go_);
+            rb.linear_velocity[2] -= 0.01f * dt;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_DOWN))
+        {
+            auto rb = engineSceneGetRigidBodyComponent(scene, go_);
+            rb.linear_velocity[2] += 0.01f * dt;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
+        }
+    }
 };
+
 
 class TestScene_0 : public engine::IScene
 {
@@ -110,9 +237,13 @@ public:
     TestScene_0(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
         : IScene(app_handle, scn_mgn, engine_error_code)
     {
+        const float gravity_vec[3] = { 0.0f, -10.0f, 0.0f };
+        engineSceneSetGravityVector(scene_, gravity_vec);
         register_script<CameraScript>();
-        //register_script<FloorScript>();
+        register_script<FloorScript>();
         register_script<TableScript>();
+        register_script<CatScript>();
+        register_script<TestObstacle>();
     }
 
     ~TestScene_0() = default;
@@ -151,7 +282,7 @@ int main(int argc, char** argv)
     // cube
     engine_model_info_t model_info{};
     engine_result_code_t model_info_result = ENGINE_RESULT_CODE_FAIL;
-#if 0
+
     model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "cube.glb", &model_info);
     if (model_info_result != ENGINE_RESULT_CODE_OK)
     {
@@ -174,7 +305,6 @@ int main(int argc, char** argv)
     engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
         model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "sphere", &sphere_geometry);
     engineApplicationReleaseModelInfo(app, &model_info);
-#endif
 
     model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "table.glb", &model_info);
     if (model_info_result != ENGINE_RESULT_CODE_OK)
@@ -185,8 +315,16 @@ int main(int argc, char** argv)
     engine_geometry_t table_geometry{};
     engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
         model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "table", &table_geometry);
+
+
+    engine_texture2d_t table_diffuse_texture{};
+    if (engineApplicationAddTexture2DFromMemory(app, &model_info.materials_array[0].diffuse_texture_info, "table_diffuse_texture", &table_diffuse_texture) != ENGINE_RESULT_CODE_OK)
+    {
+        log(fmt::format("Couldnt create diffuse texture for geometry!!\n"));
+        return -1;
+    }
     engineApplicationReleaseModelInfo(app, &model_info);
-    
+
     engine_font_t font_handle{};
     if (engineApplicationAddFontFromFile(app, "tahoma.ttf", "tahoma_font", &font_handle) != ENGINE_RESULT_CODE_OK)
     {

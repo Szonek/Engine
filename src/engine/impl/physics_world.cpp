@@ -95,12 +95,12 @@ PhysicsWorld::physcic_internal_component_t PhysicsWorld::create_rigid_body(const
     {
         ret.rigid_body->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
     }
-    ret.rigid_body->setLinearFactor(btVector3(1.0f, 1.0f, 0.0f));
-    ret.rigid_body->setAngularFactor(btVector3(0.0f, 0.0f, 0.0f));
+    //ret.rigid_body->setLinearFactor(btVector3(1.0f, 1.0f, 0.0f));
+    //ret.rigid_body->setAngularFactor(btVector3(0.0f, 0.0f, 0.0f));
     ret.rigid_body->setUserIndex(body_index);
-    ret.rigid_body->setRestitution(collider.bounciness);
-    ret.rigid_body->setFriction(collider.friction_static);
-    ret.rigid_body->setLinearVelocity(btVector3(rigid_body.linear_velocity[0], rigid_body.linear_velocity[1], rigid_body.linear_velocity[2]));
+    //ret.rigid_body->setRestitution(collider.bounciness);
+    //ret.rigid_body->setFriction(collider.friction_static);
+    //ret.rigid_body->setLinearVelocity(btVector3(rigid_body.linear_velocity[0], rigid_body.linear_velocity[1], rigid_body.linear_velocity[2]));
     //ret.rigid_body->setCcdMotionThreshold(1e-7f);
     //ret.rigid_body->setCcdSweptSphereRadius(transform.scale[0]);
     dynamics_world_->addRigidBody(ret.rigid_body);

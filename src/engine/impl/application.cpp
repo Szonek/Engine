@@ -76,7 +76,8 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     , ui_manager_(rdx_)
 {
 	{
-		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 160, 50, 168 };
+		//constexpr const std::array<std::uint8_t, 3> default_texture_color = { 160, 50, 168 };
+		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 255, 255, 255 };
 		engine_texture_2d_create_from_memory_desc_t desc{};
 		desc.width = 1;
 		desc.height = 1;
@@ -278,20 +279,41 @@ engine_model_info_t engine::Application::load_model_info_from_file(engine_model_
     engine_model_info_t ret{};
     ret.internal_handle = reinterpret_cast<const void*>(model_info);
     ret.geometries_count = model_info->geometries.size();
-    ret.geometries_array = new engine_geometry_info_t[ret.geometries_count];
-
-    for (std::size_t i = 0; i < ret.geometries_count; i++)
+    if (ret.geometries_count > 0)
     {
-        const auto& int_g = model_info->geometries[i];
-        auto& ret_g = ret.geometries_array[i];
+        ret.geometries_array = new engine_geometry_info_t[ret.geometries_count];
 
-        ret_g.inds_count = int_g.indicies.size();
-        ret_g.inds = int_g.indicies.data();
+        for (std::size_t i = 0; i < ret.geometries_count; i++)
+        {
+            const auto& int_g = model_info->geometries[i];
+            auto& ret_g = ret.geometries_array[i];
 
-        ret_g.verts_count = int_g.verticies.size();
-        ret_g.verts = int_g.verticies.data();
+            ret_g.inds_count = int_g.indicies.size();
+            ret_g.inds = int_g.indicies.data();
+
+            ret_g.verts_count = int_g.verticies.size();
+            ret_g.verts = int_g.verticies.data();
+        }
+
     }
 
+    ret.materials_count = model_info->materials.size();
+    if (ret.materials_count > 0)
+    {
+        ret.materials_array = new engine_material_info_t[ret.materials_count];
+
+        for (std::size_t i = 0; i < ret.materials_count; i++)
+        {
+            const auto& int_m = model_info->materials[i];
+            auto& ret_m = ret.materials_array[i];
+
+            std::memcpy(ret_m.diffuse_color, int_m.diffuse_factor.data(), int_m.diffuse_factor.size() * sizeof(int_m.diffuse_factor[0]));
+            ret_m.diffuse_texture_info.width = int_m.diffuse_texture.width;
+            ret_m.diffuse_texture_info.height = int_m.diffuse_texture.height;
+            ret_m.diffuse_texture_info.data_layout = int_m.diffuse_texture.layout;
+            ret_m.diffuse_texture_info.data = int_m.diffuse_texture.data.data();
+        }
+    }
     return ret;
 }
 
@@ -301,6 +323,14 @@ void engine::Application::release_model_info(engine_model_info_t* info)
     {
         const auto model_info = reinterpret_cast<const engine::ModelInfo*>(info->internal_handle);
         delete model_info;
+        if (info->geometries_array)
+        {
+            delete[] info->geometries_array;
+        }
+        if (info->materials_array)
+        {
+            delete[] info->materials_array;
+        }
         std::memset(info, 0, sizeof(engine_model_info_t));
     }
 }

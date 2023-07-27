@@ -301,10 +301,10 @@ engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle
     return app->get_geometry(name);
 }
 
-engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t& info, const char* name, engine_texture2d_t* out)
+engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t* info, const char* name, engine_texture2d_t* out)
 {
     auto* app = application_cast(handle);
-    *out = app->add_texture_from_memory(info, name);
+    *out = app->add_texture_from_memory(*info, name);
     return ENGINE_RESULT_CODE_OK;
 }
 
