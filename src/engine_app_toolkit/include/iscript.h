@@ -24,7 +24,7 @@ public:
 
 public:
     IScript(IScene* my_scene);
-    virtual ~IScript() = default;
+    virtual ~IScript();
 
     virtual void update(float dt) {}
     //ToDo: this should be moved to seperate class like  ICollidableScript

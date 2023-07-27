@@ -20,11 +20,12 @@ engine::Scene::Scene(engine_result_code_t& out_code)
     , rigid_body_update_observer(entity_registry_, entt::collector.update<engine_rigid_body_component_t>().where<engine_tranform_component_t, engine_collider_component_t>())
 {
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
+    entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
     out_code = ENGINE_RESULT_CODE_OK;
 }
 
 engine::Scene::~Scene()
-{
+{  
 }
 
 engine_result_code_t engine::Scene::physics_update(float dt)

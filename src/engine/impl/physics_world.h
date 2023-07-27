@@ -8,6 +8,8 @@
 #include <array>
 #include <span>
 
+#include <entt/entt.hpp>
+
 class PhysicsWorld
 {
 public:
@@ -15,6 +17,7 @@ public:
     {
         btCollisionShape* collision_shape = nullptr;
         btRigidBody* rigid_body = nullptr;
+
     };
 public:
     PhysicsWorld();
@@ -23,7 +26,13 @@ public:
     physcic_internal_component_t create_rigid_body(const engine_collider_component_t& collider,
         const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform, std::int32_t body_index);
 
+    void remove_rigid_body(entt::basic_registry<entt::entity>& reg, entt::entity entt)
+    {
+        const auto comp = reg.get<physcic_internal_component_t>(entt);
+        dynamics_world_->removeRigidBody(comp.rigid_body);
+    }
 
+    void update2(engine_rigid_body_component_t& comp) {};
     void update(float dt);
 
     const std::vector<engine_collision_info_t>& get_collisions();

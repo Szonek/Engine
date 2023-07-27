@@ -170,5 +170,4 @@ const std::vector<engine_collision_info_t>& PhysicsWorld::get_collisions()
 void PhysicsWorld::set_gravity(std::span<const float> g)
 {
     dynamics_world_->setGravity(btVector3(g[0], g[1], g[2]));
-
 }

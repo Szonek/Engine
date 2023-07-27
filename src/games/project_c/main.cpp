@@ -119,6 +119,9 @@ public:
 class TestObstacle : public engine::IScript
 {
 public:
+    FloorScript* floor_script = nullptr;
+
+public:
     TestObstacle(engine::IScene* my_scene)
         : IScript(my_scene)
     {
@@ -133,7 +136,7 @@ public:
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
         tc.position[0] = 1.0f;
-        tc.position[1] = 0.2f;
+        tc.position[1] = 0.6f;
         tc.position[2] = 0.0f;
 
         tc.scale[0] = 0.1f;
@@ -154,7 +157,18 @@ public:
         set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.1f, 0.1f, 0.1f, 0.0f });
         //material_comp.diffuse_texture = 1;
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+    }
 
+    void on_collision(const collision_t& info) override
+    {
+        if (info.other == floor_script->get_game_object())
+        {
+            auto new_script = my_scene_->register_script<TestObstacle>();
+            new_script->floor_script = floor_script;
+
+            my_scene_->unregister_script(this);
+
+        }
     }
 };
 
@@ -232,7 +246,6 @@ public:
         {
             auto rb = engineSceneGetRigidBodyComponent(scene, go_);
             rb.linear_velocity[1] += 0.05f * dt;
-            rb.linear_velocity[1] = std::min(rb.linear_velocity[1], 3.0f);
             engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
         }
 
@@ -249,10 +262,11 @@ public:
         const float gravity_vec[3] = { 0.0f, -10.0f, 0.0f };
         engineSceneSetGravityVector(scene_, gravity_vec);
         register_script<CameraScript>();
-        register_script<FloorScript>();
+        auto floor_script = register_script<FloorScript>();
         register_script<TableScript>();
         register_script<CatScript>();
-        register_script<TestObstacle>();
+        auto test_obstacle = register_script<TestObstacle>();
+        test_obstacle->floor_script = floor_script;
     }
 
     ~TestScene_0() = default;

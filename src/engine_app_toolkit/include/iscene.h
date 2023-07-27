@@ -56,6 +56,14 @@ public:
         return (T*)scripts_[game_object].get();
     }
 
+    template<typename T>
+    void unregister_script(T* script)
+    {
+        assert(script);
+        const auto game_object = script->get_game_object();
+        scripts_.erase(game_object);
+    }
+
     engine_scene_t& get_handle() { return scene_; }
     engine_application_t& get_app_handle() { return app_; }
     SceneManager* get_scene_manager() { return scene_manager_; }
