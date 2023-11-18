@@ -91,8 +91,8 @@ namespace net
                             std::cout << "[SERVER] .......... Connection denied\n";
                         }
                     }
-            // no matter if error or not -> wait for new connection 
-            wait_for_client_connection();
+                    // no matter if error or not -> wait for new connection 
+                    wait_for_client_connection();
                 }
             );
         }
@@ -121,7 +121,6 @@ namespace net
 
             for (auto& client : connections_)
             {
-                assert(client);
                 if (client && client->is_connected())
                 {
                     if (client != ignore_client)

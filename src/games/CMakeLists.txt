@@ -1,2 +1,1 @@
-add_subdirectory(pong)
 add_subdirectory(project_c)

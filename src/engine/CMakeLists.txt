@@ -23,6 +23,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/gltf_parser.cpp
 	${ENGINE_SOURCES_DIR}/physics_world.h
 	${ENGINE_SOURCES_DIR}/physics_world.cpp
+	${ENGINE_SOURCES_DIR}/animation.cpp
+	${ENGINE_SOURCES_DIR}/animation.h
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.h
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.cpp
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Backend.h
@@ -45,7 +47,8 @@ set(ENGINE_API_SOURCES
 	${ENGINE_API_COMPONENTS}/text_component.h
 	${ENGINE_API_COMPONENTS}/rigid_body_component.h
 	${ENGINE_API_COMPONENTS}/collider_component.h
-      ${ENGINE_API_COMPONENTS}/image_component.h
+    ${ENGINE_API_COMPONENTS}/image_component.h
+    ${ENGINE_API_COMPONENTS}/animation_component.h
 )
 
 set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})

@@ -162,6 +162,8 @@ engine_result_code_t engine::IScene::update(float dt)
     }
     scripts_register_queue_.clear();
 
+    update_hook_begin();
+
     //
     const auto input_events = input_event_system_.update();
     //propagte_input_events(app_, scene_, input_events, scripts_);
@@ -173,6 +175,8 @@ engine_result_code_t engine::IScene::update(float dt)
     update_scripts(scripts_, dt);
 
     update_graphics(app_, scene_, dt);
+
+    update_hook_end();
 
     for (auto& srq : scripts_unregister_queue_)
     {

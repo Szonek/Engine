@@ -61,12 +61,29 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_tightly_packed_v
 	}
 	return vertex_layout;
 }
-inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layout()
+inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layout(const engine_vertex_attributes_layout_t& verts_layout)
 {
-	std::vector< vertex_attribute_simple_t> vertex_layout_simple;
-	vertex_layout_simple.push_back({ 3,  engine::Geometry::vertex_attribute_t::Type::eFloat });
-	vertex_layout_simple.push_back({ 2,  engine::Geometry::vertex_attribute_t::Type::eFloat });
-	return create_tightly_packed_vertex_layout(vertex_layout_simple);
+    auto to_vert_attr_dt = [](const engine_vertex_attribute_data_type_t& dt)
+    {
+        switch (dt)
+        {
+        case ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_FLOAT: return engine::Geometry::vertex_attribute_t::Type::eFloat;
+        default:
+            return engine::Geometry::vertex_attribute_t::Type::eCount;
+        }
+    };
+
+    std::vector<vertex_attribute_simple_t> vertex_layout_simple;
+    for (auto i = 0; i < std::size(verts_layout.attributes); i++)
+    {
+        const auto& attr = verts_layout.attributes[i];
+        if (attr.elements_count == 0)
+        {
+            continue;
+        }
+        vertex_layout_simple.push_back({ attr.elements_count, to_vert_attr_dt(attr.elements_data_type) });
+    }
+    return create_tightly_packed_vertex_layout(vertex_layout_simple);
 }
 
 }  // namespace annoymous
@@ -74,16 +91,17 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layou
 engine::Application::Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
 	: rdx_(std::move(RenderContext(desc.name, {0, 0, desc.width, desc.height}, desc.fullscreen)))
     , ui_manager_(rdx_)
+    , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
 {
 	{
 		//constexpr const std::array<std::uint8_t, 3> default_texture_color = { 160, 50, 168 };
 		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 255, 255, 255 };
-		engine_texture_2d_create_from_memory_desc_t desc{};
+		engine_texture_2d_create_desc_t desc{};
 		desc.width = 1;
 		desc.height = 1;
         desc.data_layout = ENGINE_DATA_LAYOUT_RGB_U8;
 		desc.data = default_texture_color.data();
-		add_texture_from_memory(desc, "default_1x1_texutre");
+        default_texture_idx_ = add_texture_from_memory(desc, "default_1x1_texutre");
 	}
 
     rdx_.set_clear_color(0.05f, 0.0f, 0.2f, 1.0f);
@@ -102,6 +120,7 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 	const auto ret_code = scene->update(rdx_, delta_time,
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
+        animations_atlas_.get_objects_view(),
         &ui_manager_);
     return ret_code;
 }
@@ -203,23 +222,20 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     }
 
 	rdx_.begin_frame();
-    ui_manager_.begin_frame(); 
-
 	return ret;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
-    ui_manager_.end_frame();
+    ui_manager_.update_state_and_render();
     rdx_.end_frame();
-
 	engine_application_frame_end_info_t ret{};
 	//ret.success = !glfwWindowShouldClose(rdx_.get_glfw_window());;
     ret.success = true;
 	return ret;
 }
 
-std::uint32_t engine::Application::add_texture_from_memory(const engine_texture_2d_create_from_memory_desc_t& desc, std::string_view texture_name)
+std::uint32_t engine::Application::add_texture_from_memory(const engine_texture_2d_create_desc_t& desc, std::string_view texture_name)
 {
     const auto data_layout = [](const auto engine_api_layout)
     {
@@ -243,6 +259,12 @@ std::uint32_t engine::Application::add_texture_from_file(std::string_view file_n
 	return textures_atlas_.add_object(texture_name, Texture2D(file_name, true));
 }
 
+std::uint32_t engine::Application::get_texture(std::string_view name) const
+{
+    const auto ret = textures_atlas_.get_object(name);
+    return ret;
+}
+
 std::uint32_t engine::Application::add_font_from_file(std::string_view file_name, std::string_view handle_name)
 {
     const auto res = ui_manager_.load_font_from_file(file_name, handle_name);
@@ -255,16 +277,40 @@ std::uint32_t engine::Application::get_font(std::string_view name) const
     return ui_manager_.get_font(name);
 }
 
-std::uint32_t engine::Application::add_geometry_from_memory(std::span<const engine_vertex_attribute_t> verts, std::span<const uint32_t> inds, std::string_view name)
+std::uint32_t engine::Application::add_geometry_from_memory(const engine_vertex_attributes_layout_t& api_verts_layout, std::size_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name)
 {
-	const static auto vertex_layout = create_engine_api_layout();
-	return geometries_atlas_.add_object(name, std::move(Geometry(vertex_layout, { reinterpret_cast<const std::byte*>(verts.data()), verts.size_bytes() }, verts.size(), inds)));
+	const static auto vertex_layout = create_engine_api_layout(api_verts_layout);
+	return geometries_atlas_.add_object(name, std::move(Geometry(vertex_layout, verts_data, vertex_count, inds)));
 }
 
 std::uint32_t engine::Application::get_geometry(std::string_view name) const
 {
     return geometries_atlas_.get_object(name);
-;}
+}
+
+std::uint32_t engine::Application::add_animation_clip_from_memory(const engine_animation_clip_create_desc_t& desc, std::string_view name)
+{
+    AnimationClipData clip{};
+    clip.channels.resize(desc.channels_count);
+    for (auto i = 0; i < desc.channels_count; i++)
+    {
+        const auto& ch_in = desc.channels[i];
+        auto& ch_out = clip.channels[i];
+        ch_out.type = ch_in.type;
+        
+        ch_out.timestamps.resize(ch_in.timestamps_count);
+        std::memcpy(ch_out.timestamps.data(), ch_in.timestamps, ch_in.timestamps_count * sizeof(ch_in.timestamps[0]));
+
+        ch_out.data.resize(ch_in.data_count);
+        std::memcpy(ch_out.data.data(), ch_in.data, ch_in.data_count * sizeof(ch_in.data[0]));
+    }
+    return animations_atlas_.add_object(name, std::move(clip));
+}
+
+std::uint32_t engine::Application::get_animation_clip(std::string_view name) const
+{
+    return animations_atlas_.get_object(name);
+}
 
 
 engine_model_info_t engine::Application::load_model_info_from_file(engine_model_specification_t spec, std::string_view name)
@@ -291,8 +337,10 @@ engine_model_info_t engine::Application::load_model_info_from_file(engine_model_
             ret_g.inds_count = int_g.indicies.size();
             ret_g.inds = int_g.indicies.data();
 
-            ret_g.verts_count = int_g.verticies.size();
-            ret_g.verts = int_g.verticies.data();
+            ret_g.verts_data_size = int_g.vertex_data.size();
+            ret_g.verts_data = int_g.vertex_data.data();
+            ret_g.vers_layout = int_g.vertex_laytout;
+            ret_g.verts_count = int_g.vertex_count;
         }
 
     }
@@ -314,6 +362,31 @@ engine_model_info_t engine::Application::load_model_info_from_file(engine_model_
             ret_m.diffuse_texture_info.data = int_m.diffuse_texture.data.data();
         }
     }
+
+    ret.animations_counts = model_info->animations.size();
+    if (ret.animations_counts > 0)
+    {
+        ret.animations_array = new engine_animation_clip_create_desc_t[ret.animations_counts];
+        for (std::size_t i = 0; i < ret.animations_counts; i++)
+        {
+            auto& anim = ret.animations_array[i];
+            anim.channels_count = model_info->animations[i].clip.channels.size();
+            anim.channels = new engine_animation_channel_t[anim.channels_count];  //ToDo: memroy leak, not released memory!
+            for (std::size_t ch_i = 0; ch_i < anim.channels_count; ch_i++)
+            {
+                const auto& in_ch = model_info->animations[i].clip.channels[ch_i];
+                auto& out_ch = anim.channels[ch_i];
+
+                out_ch.type = in_ch.type;
+                out_ch.data_count = in_ch.data.size();
+                out_ch.data = in_ch.data.data();
+
+                out_ch.timestamps_count = in_ch.timestamps.size();
+                out_ch.timestamps = in_ch.timestamps.data();
+            }
+        }
+    }
+
     return ret;
 }
 
@@ -330,6 +403,10 @@ void engine::Application::release_model_info(engine_model_info_t* info)
         if (info->materials_array)
         {
             delete[] info->materials_array;
+        }
+        if (info->animations_array)
+        {
+            delete[] info->animations_array;
         }
         std::memset(info, 0, sizeof(engine_model_info_t));
     }

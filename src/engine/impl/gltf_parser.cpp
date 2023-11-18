@@ -7,6 +7,10 @@
 
 #include <fmt/format.h>
 
+#include "glm/glm.hpp"
+#include <glm/gtc/type_ptr.hpp>
+
+
 namespace
 {
 inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model)
@@ -17,41 +21,50 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
     ret.material_index = mesh.primitives.front().material;
     //assert(mesh.primitives.size() == 1 && "Not enabled path for primitives count > 1");
 
-    std::size_t total_verts_count = 0;
-    std::size_t total_inds_count = 0;
-    for (std::size_t i = 0; i < mesh.primitives.size(); i++)
-    {
-        const auto& primitive = mesh.primitives[i];
-        auto verts_count = 0;
-        for (const auto& attrib : primitive.attributes)
-        {
-            const auto& attrib_accesor = model.accessors[attrib.second];
-            if (attrib.first.compare("POSITION") == 0)
-            {
-                total_verts_count += attrib_accesor.count;
-            }
-        }
-
-        const auto& index_accessor = model.accessors[primitive.indices];
-        total_inds_count +=  index_accessor.count;
-    }
-
-    ret.verticies.reserve(total_verts_count);
-    ret.indicies.reserve(total_inds_count);
-
     for (std::size_t i = 0; i < mesh.primitives.size(); i++)
     {
         const auto& primitive = mesh.primitives[i];
         assert(ret.material_index  == primitive.material && "Currently not supporting multi-material meshes!");
+
+        static const std::map<std::string, engine_vertex_attribute_type_t> expected_attrib_names = []()
+        {
+            std::map<std::string, engine_vertex_attribute_type_t> ret;
+            ret["POSITION"]   = ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION;
+            ret["TEXCOORD_0"] = ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0;
+            ret["JOINTS_0"]   = ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0;
+            ret["WEIGHTS_0"]  = ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0;
+            return ret;
+        }();
+
+        static const std::map<engine_vertex_attribute_type_t, std::size_t> expected_num_components = []()
+        {
+            std::map<engine_vertex_attribute_type_t, std::size_t> ret;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION]  = 3;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_NORMALS]   = 3;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0]      = 2;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0]  = 4;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0] = 4;
+            return ret;
+        }();
+
         struct attrib_info
         {
             const float* data = nullptr;
             std::size_t count = 0;
             std::size_t num_components = 0;
+
+            inline std::size_t get_single_vertex_size() const
+            {
+                return count * num_components * sizeof(data[0]);
+            }
         };
-        attrib_info position_data;
-        attrib_info uv_0_data;
-        attrib_info normals_data;
+        std::array<attrib_info, ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT> attribs{};
+        
+        auto& position_data  = attribs[ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION];
+        auto& normals_data   = attribs[ENGINE_VERTEX_ATTRIBUTE_TYPE_NORMALS];
+        auto& uv_0_data      = attribs[ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0];
+        auto& joints_0_data  = attribs[ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0];
+        auto& weights_0_data = attribs[ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0];
 
         for (const auto& attrib : primitive.attributes)
         {
@@ -62,49 +75,96 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             const auto attrib_num_components = tinygltf::GetNumComponentsInType(attrib_accesor.type);
             const auto attrib_stride = attrib_accesor.ByteStride(model.bufferViews[attrib_accesor.bufferView]);
 
-            if (attrib.first.compare("POSITION") == 0)
+
+            if (expected_attrib_names.find(attrib.first) != expected_attrib_names.end())
             {
-                position_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
-                position_data.count = attrib_accesor.count;
-                position_data.num_components = attrib_num_components;
-                assert(attrib_num_components == 3); //xyz
-                assert(attrib_stride == 12); // 3 floats
+                const auto attrib_type = expected_attrib_names.at(attrib.first);
+                attribs[attrib_type].data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
+                attribs[attrib_type].count = attrib_accesor.count;
+                attribs[attrib_type].num_components = attrib_num_components;
+                assert(attribs[attrib_type].num_components == expected_num_components.at(attrib_type));
             }
-            if (attrib.first.compare("NORMAL") == 0)
+            else
             {
-                normals_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
-                normals_data.count = attrib_accesor.count;
-                normals_data.num_components = attrib_num_components;
-            }
-            if (attrib.first.compare("TEXCOORD_0") == 0)
-            {
-                uv_0_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
-                uv_0_data.count = attrib_accesor.count;
-                uv_0_data.num_components = attrib_num_components;
-                assert(attrib_num_components == 2); //xy
-                assert(attrib_stride == 8); // 2 floats
+                engine::log::log(engine::log::LogLevel::eError, fmt::format("Unexpected vertex attrivute: {} for mesh: {} \n", attrib.first, mesh.name));
             }
         }
+        // we can set number of vertices
+        ret.vertex_count = position_data.count;
 
-        if (position_data.count == 0 || uv_0_data.count == 0 || (position_data.count != uv_0_data.count))
+        // some validation
+        if (position_data.count == 0)
         {
             engine::log::log(engine::log::LogLevel::eCritical, 
-                fmt::format("Cant load mesh correctly. Count of positions: {}, count of uv: {} \n. \
-                    One of the attrib is 0, or cound do not equal to each other.\n",
+                fmt::format("Cant load mesh correctly. Count of positions: {}, count of uv: {} .\n",
                     position_data.count, uv_0_data.count));
         }
 
-        // verts
-        const auto verts_offset = ret.verticies.size();
-        ret.verticies.resize(verts_offset + position_data.count);
+        if (joints_0_data.count != weights_0_data.count)
+        {
+            engine::log::log(engine::log::LogLevel::eError,
+                fmt::format("Cant load vertex joints and weights correctly. Will not load them.\n"));
+            joints_0_data = {};
+            weights_0_data = {};
+        }
+
+        if (joints_0_data.count > 0 && position_data.count != joints_0_data.count)
+        {
+            engine::log::log(engine::log::LogLevel::eCritical,
+                fmt::format("Cant load mesh correctly. Count of positions: {}, count of joints: {} .\n",
+                    position_data.count, joints_0_data.count));
+        }
+
+        // Fill missing gaps  <- because we are using common shader
+        // ToDo: remove this and make shaders detect attributs components (should have better performance)
+        // This approach will have gaps in buffer -> waste of memory and performance
+        for (auto i = 0; i < attribs.size(); i++)
+        {
+            auto& attrib = attribs[i];
+            if (attrib.data)
+            {
+                continue;
+            }
+            attrib.num_components = expected_num_components.at(static_cast<engine_vertex_attribute_type_t>(i));
+            attrib.count = ret.vertex_count;
+        }
+
+        // create layout returned to user
+        {
+            std::size_t attrib_added_idx = 0;
+            for (std::size_t i = 0; i < ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT; i++)
+            {
+                if (attribs[i].num_components > 0)
+                {
+                    ret.vertex_laytout.attributes[attrib_added_idx].elements_data_type = ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_FLOAT;
+                    ret.vertex_laytout.attributes[attrib_added_idx].elements_count = attribs[i].num_components;
+                    ret.vertex_laytout.attributes[attrib_added_idx].type = static_cast<engine_vertex_attribute_type_t>(i);
+                    attrib_added_idx++;
+                }
+            }
+        }
+
+        // verts buffer size
+        const auto total_verts_buffer_size = [&attribs]()
+        {
+            std::size_t ret = 0;
+            std::for_each(attribs.begin(), attribs.end(), [&ret](const auto& attrib) { ret += attrib.get_single_vertex_size(); });
+            return ret;
+        }();
+
+        // copy data into buffer returned to user
+        ret.vertex_data.resize(total_verts_buffer_size, std::byte(0));      
+        float* verrts_ptr = reinterpret_cast<float*>(ret.vertex_data.data());
         for (auto i = 0; i < position_data.count; i++)
         {
-            ret.verticies[verts_offset + i].position[0] = position_data.data[0 + i * position_data.num_components];
-            ret.verticies[verts_offset + i].position[1] = position_data.data[1 + i * position_data.num_components];
-            ret.verticies[verts_offset + i].position[2] = position_data.data[2 + i * position_data.num_components];
-
-            ret.verticies[verts_offset + i].uv[0] = uv_0_data.data[0 + i * 2];
-            ret.verticies[verts_offset + i].uv[1] = uv_0_data.data[1 + i * 2];
+            for (const auto& attrib : attribs)
+            {
+                for (auto c = 0; c < attrib.num_components; c++)
+                {
+                    *verrts_ptr = attrib.data ? attrib.data[c + i * attrib.num_components] : 0.0f;
+                    verrts_ptr++;
+                }
+            }
         }
 
         // inds
@@ -161,9 +221,19 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     std::string load_error_msg = "";
     tinygltf::Model model;
     tinygltf::TinyGLTF loader;
-    const auto load_success = loader.LoadBinaryFromMemory(&model, &load_error_msg, &load_warning_msg,
-                                                          data.data(), data.size_bytes(), "");
 
+    // check magic to detect binary vs ascii
+    bool load_success = false;
+    const auto is_binary = data.size() > 4 && data[0] == 'g' && data[1] == 'l' && data[2] == 'T' && data[3] == 'F';
+    if(is_binary)
+    {
+        load_success = loader.LoadBinaryFromMemory(&model, &load_error_msg, &load_warning_msg,
+            data.data(), data.size_bytes(), "");
+    }
+    else
+    {
+        load_success = loader.LoadASCIIFromString(&model, &load_error_msg, &load_warning_msg, reinterpret_cast<const char*>(data.data()), data.size(), {});
+    }
     if (!load_warning_msg.empty())
     {
         log::log(log::LogLevel::eTrace, load_warning_msg);
@@ -189,13 +259,14 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     engine::ModelInfo out{};
     out.geometries.resize(model.meshes.size());
 
-    for (std::size_t idx = 0; auto& mesh : model.meshes)
+    for (std::size_t idx = 0; const auto& mesh : model.meshes)
     {
         out.geometries[idx] = parse_mesh(mesh, model);
         idx++;
     }
 
-    for (std::size_t idx = 0; auto & material : model.materials)
+    out.materials.resize(model.materials.size());
+    for (std::size_t idx = 0; const auto& material : model.materials)
     {
         MaterialInfo new_material{};
         new_material.name = material.name;
@@ -232,18 +303,91 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             // attach texture to new material;
             new_material.diffuse_texture = std::move(tex_info);
         }
-        out.materials.push_back(new_material);
+        out.materials[idx] = std::move(new_material);
     }
 
-    //https://github.com/syoyo/tinygltf/blob/release/examples/basic/main.cpp
-    for(auto& scene : model.scenes)
+    //https://github.com/KhronosGroup/glTF-Tutorials/blob/main/gltfTutorial/gltfTutorial_019_SimpleSkin.md
+    out.skins.resize(model.skins.size());
+    for (std::size_t skin_idx = 0; const auto& skin : model.skins)
     {
-        for (std::size_t i = 0; i < scene.nodes.size(); ++i)
+        auto& new_skin = out.skins[skin_idx];
+        new_skin.joints.reserve(skin.joints.size());
+        for (std::size_t i = 0; i < skin.joints.size(); i++)
         {
-            assert((scene.nodes[i] >= 0) && (scene.nodes[i] < model.nodes.size()));
-            const auto& scene_node = model.nodes[scene.nodes[i]];
-            //parse_model_nodes(out, model, scene_node);
+            SkinJointInfo joint_info{};
+            joint_info.idx = skin.joints[i];
+            joint_info.childrens = model.nodes[joint_info.idx].children;
+            const auto inv_bind_mtx_accesor = model.accessors[skin.inverseBindMatrices];
+            const auto inv_bind_mtx_buffer_view = model.bufferViews[model.accessors[skin.inverseBindMatrices].bufferView];
+            const auto inv_bind_mtx_buffer = reinterpret_cast<float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);
+            joint_info.inverse_bind_matrix = glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
+
+            new_skin.joints.push_back(std::move(joint_info));
         }
+        skin_idx++;
     }
+    //https://github.com/KhronosGroup/glTF-Tutorials/blob/main/gltfTutorial/gltfTutorial_007_Animations.md
+    out.animations.resize(model.animations.size());
+    for (std::size_t idx = 0; const auto& animation : model.animations)
+    {
+        AnimationInfo new_animation{};
+        new_animation.name = animation.name;
+        new_animation.clip.channels.resize(animation.channels.size());
+        for (std::size_t ch_idx = 0; const auto& ch : animation.channels)
+        {
+            const auto& sampler = animation.samplers[ch.sampler];
+            assert(sampler.interpolation == "LINEAR"); // ToDo: add support for other interploation types
+            
+            const auto& accessor_timestamps = model.accessors[sampler.input];
+            const auto& buffer_view_timestamps = model.bufferViews[accessor_timestamps.bufferView];
+            assert(accessor_timestamps.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+            assert(accessor_timestamps.type == TINYGLTF_TYPE_SCALAR);
+
+            const auto& accessor_data = model.accessors[sampler.output];
+            const auto& buffer_view_data = model.bufferViews[accessor_data.bufferView];
+            assert(accessor_data.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+            assert(accessor_data.type == TINYGLTF_TYPE_VEC3 || accessor_data.type == TINYGLTF_TYPE_VEC4);
+
+            // some additional validation
+            {
+                const auto stride_timestamps = accessor_timestamps.ByteStride(buffer_view_timestamps);
+                assert(stride_timestamps == sizeof(float));
+                const auto stride_data = accessor_data.ByteStride(buffer_view_timestamps);
+                assert(stride_data == 3 * sizeof(float) || stride_data == 4 * sizeof(float));
+            }
+
+            auto& new_channel = new_animation.clip.channels[ch_idx++];
+            if (ch.target_path.compare("rotation") == 0)
+            {
+                new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION;
+            }
+            else if (ch.target_path.compare("translation") == 0)
+            {
+                new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION;
+            }
+            else if (ch.target_path.compare("scale") == 0)
+            {
+                new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_SCALE;
+            }
+            else
+            {
+                assert(false && "Unknown target path for animation!");
+            }
+
+            assert(accessor_timestamps.count == accessor_data.count);
+            new_channel.timestamps.resize(accessor_timestamps.count * tinygltf::GetNumComponentsInType(accessor_timestamps.type));
+            const auto& buffer_timings = reinterpret_cast<const float*>(model.buffers[buffer_view_timestamps.buffer].data.data() + accessor_timestamps.byteOffset + buffer_view_timestamps.byteOffset);
+            std::memcpy(new_channel.timestamps.data(), buffer_timings, new_channel.timestamps.size() * sizeof(float));
+            // go over each element and scale by 1000 to get miliseconds
+            std::for_each(new_channel.timestamps.begin(), new_channel.timestamps.end(), [](auto& v) {v *= 1000.0f; });
+
+            new_channel.data.resize(accessor_data.count * tinygltf::GetNumComponentsInType(accessor_data.type));
+            const auto& buffer_data = reinterpret_cast<const float*>(model.buffers[buffer_view_data.buffer].data.data() + accessor_data.byteOffset + buffer_view_data.byteOffset);
+            std::memcpy(new_channel.data.data(), buffer_data, new_channel.data.size() * sizeof(float));
+
+        }
+        out.animations[idx] = std::move(new_animation);
+    }
+
     return out;
 }

@@ -5,6 +5,7 @@
 #include "graphics.h"
 #include "ui_manager.h"
 #include "ui_document.h"
+#include "animation.h"
 
 #include <array>
 #include <string>
@@ -25,13 +26,18 @@ public:
     engine_application_frame_begine_info_t begine_frame();
     engine_application_frame_end_info_t end_frame();
 
-    std::uint32_t add_texture_from_memory(const engine_texture_2d_create_from_memory_desc_t& desc, std::string_view texture_name);
+    std::uint32_t add_texture_from_memory(const engine_texture_2d_create_desc_t& desc, std::string_view texture_name);
     std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
+    std::uint32_t get_texture(std::string_view name) const;
+
     std::uint32_t add_font_from_file(std::string_view file_name, std::string_view handle_name);
     std::uint32_t get_font(std::string_view name) const;
 
-    std::uint32_t add_geometry_from_memory(std::span<const engine_vertex_attribute_t> verts, std::span<const uint32_t> inds, std::string_view name);
+    std::uint32_t add_geometry_from_memory(const engine_vertex_attributes_layout_t& verts_layout, std::size_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name);
     std::uint32_t get_geometry(std::string_view name) const;
+
+    std::uint32_t add_animation_clip_from_memory(const engine_animation_clip_create_desc_t& desc, std::string_view name);
+    std::uint32_t get_animation_clip(std::string_view name) const;
 
     engine_model_info_t load_model_info_from_file(engine_model_specification_t spec, std::string_view name);
     void release_model_info(engine_model_info_t* info);
@@ -82,7 +88,7 @@ private:
                 }
                 i++;
             }
-            return 0;
+            return ENGINE_INVALID_OBJECT_HANDLE;
         }
 
         const ArrayType& get_objects_view() const { return objects_; }
@@ -93,7 +99,9 @@ private:
     };
 
     Atlas<Texture2D> textures_atlas_;
+    engine_texture2d_t default_texture_idx_;
     Atlas<Geometry> geometries_atlas_;
+    Atlas<AnimationClipData> animations_atlas_;
     UiManager ui_manager_;
 
     std::array<engine_finger_info_t, 10> finger_info_buffer;

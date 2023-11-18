@@ -1,0 +1,10 @@
+<rml>
+<head>
+	<title>Hello world</title>
+	<link type="text/rcss" href="rml.rcss"/>
+	<link type="text/rcss" href="window_health_bar.rcss"/>
+</head>
+<body>
+	<h1 data-model="health">{{value}}</h1>
+</body>
+</rml>

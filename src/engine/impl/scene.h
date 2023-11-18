@@ -20,7 +20,8 @@ public:
     ~Scene();
 
     engine_result_code_t physics_update(float dt);
-    engine_result_code_t update(RenderContext& rdx, float dt, std::span<const class Texture2D> textures, std::span<const Geometry> geometries, class UiManager* text_mgn);
+    engine_result_code_t update(RenderContext& rdx, float dt, std::span<const class Texture2D> textures, 
+        std::span<const Geometry> geometries, std::span<const struct AnimationClipData> animations, class UiManager* text_mgn);
 
     entt::entity create_new_entity();
     void destroy_entity(entt::entity entity);
@@ -49,6 +50,12 @@ public:
     T* get_component(entt::entity entity)
     {
         return &entity_registry_.get<T>(entity);
+    }
+
+    template<typename T>
+    void patch_component(entt::entity entity, std::function<void(T&)>&& func)
+    {
+        entity_registry_.patch<T>(entity, std::move(func));
     }
 
     template<typename T>

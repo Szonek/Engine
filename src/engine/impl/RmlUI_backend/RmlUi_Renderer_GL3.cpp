@@ -48,13 +48,15 @@
 	#define RMLUI_SHADER_HEADER "#version 330\n"
 	#include RMLUI_GL3_CUSTOM_LOADER
 #else
-	#define RMLUI_SHADER_HEADER "#version 320 es\n"
-	//#define GLAD_GL_IMPLEMENTATION
-	//#include "RmlUi_Include_GL3.h"
-
-    //#define GLAD_GLES2_IMPLEMENTATION
+#if __ANDROID__
+    #define RMLUI_SHADER_HEADER "#version 320 es\n"
     #include <glad/gles2.h>
     #include <SDL3/SDL.h>
+#else
+    #define RMLUI_SHADER_HEADER "#version 330\n"
+    #include <glad/gl.h>
+    #include "RmlUi_Include_GL3.h"
+#endif
 #endif
 
 static const char* shader_main_vertex = RMLUI_SHADER_HEADER R"(
@@ -524,8 +526,14 @@ void RenderInterface_GL3::RenderCompiledGeometry(Rml::CompiledGeometryHandle han
 	if (geometry->texture)
 	{
 		glUseProgram(shaders->program_texture.id);
-		if (geometry->texture != TextureEnableWithoutBinding)
-			glBindTexture(GL_TEXTURE_2D, (GLuint)geometry->texture);
+        if (geometry->texture != TextureEnableWithoutBinding)
+        {
+            const auto loc = shaders->program_texture.uniform_locations[(size_t)Gfx::ProgramUniform::Tex];
+            std::int32_t bind_slot = -1;
+            glGetUniformiv(shaders->program_texture.id, loc, &bind_slot);
+            glActiveTexture(GL_TEXTURE0 + bind_slot);
+            glBindTexture(GL_TEXTURE_2D, (GLuint)geometry->texture);
+        }
 		SubmitTransformUniform(ProgramId::Texture, shaders->program_texture.uniform_locations[(size_t)Gfx::ProgramUniform::Transform]);
 		glUniform2fv(shaders->program_texture.uniform_locations[(size_t)Gfx::ProgramUniform::Translate], 1, &translation.x);
 	}
@@ -776,21 +784,21 @@ void RenderInterface_GL3::SubmitTransformUniform(ProgramId program_id, int unifo
 
 bool RmlGL3::Initialize(Rml::String* out_message)
 {
-#if defined RMLUI_PLATFORM_EMSCRIPTEN
-	if (out_message)
-		*out_message = "Started Emscripten WebGL renderer.";
-#elif !defined RMLUI_GL3_CUSTOM_LOADER
-	const int gl_version = gladLoadGLES2(SDL_GL_GetProcAddress);
-	if (gl_version == 0)
-	{
-		if (out_message)
-			*out_message = "Failed to initialize OpenGL context.";
-		return false;
-	}
-
-	if (out_message)
-		*out_message = Rml::CreateString(128, "Loaded OpenGL %d.%d.", GLAD_VERSION_MAJOR(gl_version), GLAD_VERSION_MINOR(gl_version));
-#endif
+//#if defined RMLUI_PLATFORM_EMSCRIPTEN
+//	if (out_message)
+//		*out_message = "Started Emscripten WebGL renderer.";
+//#elif !defined RMLUI_GL3_CUSTOM_LOADER
+//	const int gl_version = gladLoadGLES2(SDL_GL_GetProcAddress);
+//	if (gl_version == 0)
+//	{
+//		if (out_message)
+//			*out_message = "Failed to initialize OpenGL context.";
+//		return false;
+//	}
+//
+//	if (out_message)
+//		*out_message = Rml::CreateString(128, "Loaded OpenGL %d.%d.", GLAD_VERSION_MAJOR(gl_version), GLAD_VERSION_MINOR(gl_version));
+//#endif
 
 	return true;
 }

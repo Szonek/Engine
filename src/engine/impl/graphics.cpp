@@ -3,12 +3,14 @@
 #include "asset_store.h"
 #include "logger.h"
 
-//#define GLAD_GL_IMPLEMENTATION
-//#include <glad/gl.h>
-
+#if __ANDROID__
 #define GLAD_GLES2_IMPLEMENTATION
 #include <glad/gles2.h>
-//#include <GLFW/glfw3.h>
+#else
+#define GLAD_GL_IMPLEMENTATION
+#include <glad/gl.h>
+#endif
+
 
 #include <SDL3/SDL.h>
 
@@ -118,7 +120,7 @@ engine::Shader::Shader(std::string_view vertex_shader_name, std::string fragment
 	{
 		std::array<char, 512> info_log;
 		glGetProgramInfoLog(program_, 512, nullptr, info_log.data());
-		log::log(log::LogLevel::eCritical, fmt::format("[Error][Program] Failed program linking: \n\t", info_log.data()));
+		log::log(log::LogLevel::eCritical, fmt::format("[Error][Program] Failed program linking: \n\t {}", info_log.data()));
 	}
 }
 
@@ -155,6 +157,12 @@ void engine::Shader::set_uniform_f2(std::string_view name, std::span<const float
     assert(host_data.size() == 2 && "[ERROR] Wrong size of data.");
     const auto loc = get_uniform_location(name);
     glUniform2f(loc, host_data[0], host_data[1]);
+}
+
+void engine::Shader::set_uniform_f1(std::string_view name, const float host_data)
+{
+    const auto loc = get_uniform_location(name);
+    glUniform1f(loc, host_data);
 }
 
 void engine::Shader::set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data)
@@ -217,7 +225,7 @@ void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::st
 	{
 		std::array<char, 512> info_log;
 		glGetShaderInfoLog(shader, info_log.size(), nullptr, info_log.data());
-        log::log(log::LogLevel::eError, fmt::format("[Error][Shader] Failed compilation: \n\t", info_log.data()));
+        log::log(log::LogLevel::eError, fmt::format("[Error][Shader] Failed compilation: \n\t {}", info_log.data()));
 	}
 	// attach to program
 	glAttachShader(program_, shader);
@@ -520,10 +528,15 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
         log::log(log::LogLevel::eCritical, fmt::format("Cant init sdl: %s\n", err_msg));
         return;
     }
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+#if __ANDROID__
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, 0);
+#else
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#endif
 
     
 
@@ -578,6 +591,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     context_ = SDL_GL_CreateContext(window_);
     if (!context_)
     {
@@ -604,21 +618,21 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 	}
 	else
 	{
-        log::log(log::LogLevel::eTrace, fmt::format("Sucesfully loaded OpenglES ver: {}, {}.\n",
+        log::log(log::LogLevel::eTrace, fmt::format("Sucesfully loaded Opengl ver: {}, {}.\n",
             GLAD_VERSION_MAJOR(gl_version), GLAD_VERSION_MINOR(gl_version)));
 	}
-#if _DEBUG && defined(GLAD_GL_IMPLEMENTATION)
-    log::log(log::LogLevel::eCritical, "[INFO] Debug build. Building with debug context.\n");
-	glEnable(GL_DEBUG_OUTPUT);
-	glDebugMessageCallback(message_callback, 0);
-#endif
+//#if _DEBUG && defined(GLAD_GLES2_IMPLEMENTATION)
+//    log::log(log::LogLevel::eCritical, "[INFO] Debug build. Building with debug context.\n");
+//	glEnable(GL_DEBUG_OUTPUT);
+//	glDebugMessageCallback(message_callback, 0);
+//#endif
 
 	int32_t vertex_attributes_limit = 0;
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &vertex_attributes_limit);
     log::log(log::LogLevel::eTrace, fmt::format("Maximum nr of vertex attributes supported: {}\n", vertex_attributes_limit));
 	// enable depth test
 	glEnable(GL_DEPTH_TEST);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    //glEnable(GL_BLEND);
 
     // UI stuff 
     ui_rml_sdl_interface_ = new SystemInterface_SDL;
@@ -718,6 +732,9 @@ void engine::RenderContext::set_polygon_mode(PolygonFaceType face, PolygonMode m
 	case PolygonFaceType::eFrontAndBack:
 		gl_face = GL_FRONT_AND_BACK;
 		break;
+    case PolygonFaceType::eFront:
+        gl_face = GL_FRONT;
+        break;
 	default:
 		assert("Unknown polygon face type");
 	}
@@ -769,17 +786,14 @@ void engine::RenderContext::set_blend_mode(bool enable, BlendFactor src_rgb, Ble
 void engine::RenderContext::begin_frame()
 {
     glClearStencil(0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    // ui
-    //ui_rml_gl3_renderer_->BeginFrame();
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     //ui_rml_gl3_renderer_->Clear();
+    //ui_rml_gl3_renderer_->BeginFrame();
 }
 
 void engine::RenderContext::end_frame()
 {
-    //ui     
     //ui_rml_gl3_renderer_->EndFrame();
-
     SDL_GL_SwapWindow(window_);
 
 	// process errors
@@ -794,6 +808,11 @@ void engine::RenderContext::end_frame()
 
 void engine::RenderContext::begin_frame_ui_rendering()
 {
+    //glClearStencil(0);
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    //ui_rml_gl3_renderer_->Clear();
+    //glEnable(GL_BLEND);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     ui_rml_gl3_renderer_->BeginFrame();
 }
 

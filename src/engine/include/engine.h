@@ -11,6 +11,7 @@
 #include "components/rigid_body_component.h"
 #include "components/collider_component.h"
 #include "components/image_component.h"
+#include "components/animation_component.h"
 
 
 #ifdef _WIN32
@@ -46,9 +47,11 @@ typedef struct _engine_component_iterator_t* engine_component_iterator_t;
 typedef struct _engine_ui_document_t* engine_ui_document_t;
 typedef struct _engine_ui_data_handle_t* engine_ui_data_handle_t;
 typedef struct _engine_ui_element_t* engine_ui_element_t;
+typedef struct _engine_skin_t* engine_skin_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_font_t;
+typedef uint32_t engine_animation_clip_t;
 
 
 typedef struct _engine_coords_2d_t
@@ -66,7 +69,7 @@ typedef enum _engine_ui_document_data_binding_data_type_t
 
 typedef struct _engine_ui_document_data_binding_t
 {
-    char name[64];
+    const char* name;
     engine_ui_document_data_binding_data_type_t type;
     union
     {
@@ -247,7 +250,7 @@ typedef struct _texture_2d_create_from_data_desc_t
     uint32_t height;
     engine_data_layout_t data_layout;
     const void* data;
-} engine_texture_2d_create_from_memory_desc_t;
+} engine_texture_2d_create_desc_t;
 
 typedef enum _engine_result_code_t
 {
@@ -260,6 +263,38 @@ typedef struct _engine_vertex_attribute_t
     float position[3];
     float uv[2];
 } engine_vertex_attribute_t;
+
+typedef enum _engine_vertex_attribute_type_t
+{
+    ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION = 0,
+    ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0,
+    ENGINE_VERTEX_ATTRIBUTE_TYPE_NORMALS,
+    ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0,
+    ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0,
+
+    //
+    // 
+ 
+    ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT,
+} engine_vertex_attribute_type_t;
+
+typedef enum _engine_vertex_attribute_data_type_t
+{
+    ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_FLOAT = 0,
+} engine_vertex_attribute_data_type_t;
+
+typedef struct _engine_vertex_attribute_desc_t
+{
+    uint32_t elements_count;  // set to 0 to disable given attribute
+    engine_vertex_attribute_data_type_t elements_data_type;
+    engine_vertex_attribute_type_t type;
+} engine_vertex_attribute_desc_t;
+
+
+typedef struct _engine_vertex_attributes_layout_t
+{
+    engine_vertex_attribute_desc_t attributes[ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT];
+} engine_vertex_attributes_layout_t;
 
 typedef struct _engine_collision_contact_t
 {
@@ -285,16 +320,46 @@ typedef enum _engine_model_specification_t
 
 typedef struct _engine_geometry_info_t
 {
-    const engine_vertex_attribute_t* verts;
+    const void* verts_data;
+    size_t verts_data_size;
     size_t verts_count;
+    engine_vertex_attributes_layout_t vers_layout;
+
     const uint32_t* inds;
     size_t inds_count;
 } engine_geometry_info_t;
 
+typedef enum _engine_animation_channel_type_t
+{
+    ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION = 0,
+    ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION = 1,
+    ENGINE_ANIMATION_CHANNEL_TYPE_SCALE,
+    ENGINE_ANIMATION_CHANNEL_TYPE_COUNT,
+} engine_animation_channel_type_t;
+
+
+typedef struct _engine_animation_channel_t
+{
+    engine_animation_channel_type_t type;
+
+    const float* timestamps;
+    size_t timestamps_count;
+
+    const float* data;
+    size_t data_count;
+} engine_animation_channel_t;
+
+typedef struct _engine_animation_clip_create_desc_t
+{
+    engine_animation_channel_t* channels;
+    size_t channels_count;
+
+} engine_animation_clip_create_desc_t;
+
 typedef struct _engine_material_info_t
 {
     float diffuse_color[4];
-    engine_texture_2d_create_from_memory_desc_t diffuse_texture_info;
+    engine_texture_2d_create_desc_t diffuse_texture_info;
 } engine_material_info_t;
 
 typedef struct _engine_model_info_t
@@ -305,13 +370,25 @@ typedef struct _engine_model_info_t
 
     engine_material_info_t* materials_array;
     size_t materials_count;
+
+    engine_animation_clip_create_desc_t* animations_array;
+    size_t animations_counts;
 } engine_model_info_t;
 
 // cross platform log
 ENGINE_API void engineLog(const char* str);
 
+// app
 ENGINE_API engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc);
 ENGINE_API void engineApplicationDestroy(engine_application_t handle);
+
+// scene
+ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_t* out);
+ENGINE_API void engineSceneDestroy(engine_scene_t scene);
+
+// game objects in scene
+ENGINE_API engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene);
+ENGINE_API void                     engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object);
 
 // user input hangling
 ENGINE_API bool engineApplicationIsKeyboardButtonDown(engine_application_t handle, engine_keyboard_keys_t key);
@@ -334,26 +411,21 @@ ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_applicat
 ENGINE_API engine_font_t engineApplicationGetFontByName(engine_application_t handle, const char* name);
 
 // model loading
-
 ENGINE_API engine_result_code_t engineApplicationAllocateModelInfoAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, engine_model_info_t* out);
 ENGINE_API void engineApplicationReleaseModelInfo(engine_application_t handle, engine_model_info_t* model_info);
 
 // geometry
-ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, const engine_vertex_attribute_t* verts, size_t verts_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
+ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, engine_vertex_attributes_layout_t verts_layout, const void* verts_data, size_t verts_data_size, size_t verts_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 
-
 // textures 
-ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t* info, const char* name, engine_texture2d_t* out);
+ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
+ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
 
-ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_t* out);
-ENGINE_API void engineSceneDestroy(engine_scene_t scene);
-
-ENGINE_API engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene);
-ENGINE_API void                     engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object);
-
-
+// animations
+ENGINE_API engine_result_code_t engineApplicationAddAnimationClipFromMemory(engine_application_t handle, const engine_animation_clip_create_desc_t* info, const char* name, engine_animation_clip_t* out);
+ENGINE_API engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_application_t handle, const char* name);
 // physics 
 ENGINE_API void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);
 ENGINE_API void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
@@ -455,6 +527,13 @@ ENGINE_API engine_collider_component_t engineSceneGetColliderComponent(engine_sc
 ENGINE_API void engineSceneUpdateColliderComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_collider_component_t* comp);
 ENGINE_API void engineSceneRemoveColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+ENGINE_API engine_animation_component_t engineSceneAddAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_animation_component_t engineSceneGetAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateAnimationComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_component_t* comp);
+ENGINE_API void engineSceneRemoveAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
+
 
 #ifdef __cplusplus
 }

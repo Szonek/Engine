@@ -1,0 +1,11 @@
+<rml>
+<head>
+	<title>Hello world</title>
+	<link type="text/rcss" href="rml.rcss"/>
+	<link type="text/rcss" href="window.rcss"/>
+</head>
+<body data-model="animals">
+	<h1>RmlUi</h1>
+	<p>Czemu to nie dziala?</p>
+</body>
+</rml>

@@ -66,7 +66,7 @@ inline void rect_transform_component_init(engine_rect_tranform_component_t* comp
 
 inline void text_component_init(engine_text_component_t* comp)
 {
-    std::memset(comp, 0, sizeof(engine_material_component_t));
+    std::memset(comp, 0, sizeof(engine_text_component_t));
     comp->scale[0] = 1.0f;
     comp->scale[1] = 1.0f;
 }
@@ -97,6 +97,17 @@ inline void material_component_init(engine_material_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_material_component_t));
     comp->shiness = 32;
+    comp->diffuse_texture = ENGINE_INVALID_GAME_OBJECT_ID;
+    comp->specular_texture = ENGINE_INVALID_GAME_OBJECT_ID;
+}
+
+inline void animation_component_init(engine_animation_component_t* comp)
+{
+    std::memset(comp, 0, sizeof(engine_animation_component_t));
+    for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
+    {
+        comp->animations_array[i] = ENGINE_INVALID_OBJECT_HANDLE;
+    }
 }
 
 inline void rigid_body_component_init(engine_rigid_body_component_t* comp)
@@ -288,11 +299,19 @@ engine_font_t engineApplicationGetFontByName(engine_application_t handle, const 
     return app->get_font(name);
 }
 
-engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, const engine_vertex_attribute_t* verts, size_t verts_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out)
+engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, engine_vertex_attributes_layout_t verts_layout, const void* verts_data, size_t verts_data_size, size_t vertex_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out)
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
-    *out = app->add_geometry_from_memory({ verts, verts_count}, {inds, inds_count}, name);
-    return *out == ENGINE_INVALID_OBJECT_HANDLE ? ENGINE_RESULT_CODE_FAIL : ENGINE_RESULT_CODE_OK;
+    const auto ret = app->add_geometry_from_memory(verts_layout, vertex_count, { reinterpret_cast<const std::byte*>(verts_data), verts_data_size }, {inds, inds_count}, name);
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    if (out)
+    {
+        *out = ret;
+    }
+    return ENGINE_RESULT_CODE_OK;
 }
 
 engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name)
@@ -301,10 +320,19 @@ engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle
     return app->get_geometry(name);
 }
 
-engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t* info, const char* name, engine_texture2d_t* out)
+engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out)
 {
     auto* app = application_cast(handle);
-    *out = app->add_texture_from_memory(*info, name);
+    const auto ret =  app->add_texture_from_memory(*info, name);
+
+    if (ret == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    if (out)
+    {
+        *out = ret;
+    }
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -315,6 +343,11 @@ engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t 
     return ENGINE_RESULT_CODE_OK;
 }
 
+engine_texture2d_t engineApplicationGetTextured2DByName(engine_application_t handle, const char* name)
+{
+    const auto* app = application_cast(handle);
+    return app->get_texture(name);
+}
 
 engine_result_code_t engineApplicationAllocateModelInfoAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, engine_model_info_t* out)
 {
@@ -338,6 +371,32 @@ void engineApplicationReleaseModelInfo(engine_application_t handle, engine_model
     app->release_model_info(model_info);
 }
 
+engine_result_code_t engineApplicationAddAnimationClipFromMemory(engine_application_t handle, const engine_animation_clip_create_desc_t* info, const char* name, engine_animation_clip_t* out)
+{
+    auto* app = application_cast(handle);
+    if (!info || !name)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const auto ret = app->add_animation_clip_from_memory(*info, name);
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    if (out)
+    {
+        *out = ret;
+    }
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_application_t handle, const char* name)
+{
+    auto* app = application_cast(handle);
+    const auto ret = app->get_animation_clip(name);
+    assert(ret != ENGINE_INVALID_OBJECT_HANDLE);
+    return ret;
+}
 
 engine_result_code_t engineSceneCreate(engine_scene_t* out)
 {
@@ -873,4 +932,30 @@ void engineSceneRemoveImageComponent(engine_scene_t scene, engine_game_object_t 
 bool engineSceneHasImageComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return has_component<engine_image_component_t>(scene, game_object);
+}
+
+
+engine_animation_component_t engineSceneAddAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_animation_component_t, animation_component_init>(scene, game_object);
+}
+
+engine_animation_component_t engineSceneGetAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_animation_component_t>(scene, game_object);
+}
+
+void engineSceneUpdateAnimationComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_component_t* comp)
+{
+    update_component(scene, game_object, comp);
+}
+
+void engineSceneRemoveAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_animation_component_t>(scene, game_object);
+}
+
+bool engineSceneHasAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_animation_component_t>(scene, game_object);
 }
