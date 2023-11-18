@@ -15,8 +15,8 @@ enum class MessageTypes
 {
     eToServer_PlayerRegister,
     eToClient_PlayerRegister,
-
-    eToClient_PlayerAdd,
+    
+    eClientServer_PlayerState,
 };
 
 std::ostream& operator << (std::ostream& os, const MessageTypes& obj)
@@ -27,7 +27,7 @@ std::ostream& operator << (std::ostream& os, const MessageTypes& obj)
         {  MessageTypes::eToServer_PlayerRegister, "eToServer_PlayerRegister"},
         {  MessageTypes::eToClient_PlayerRegister, "eToClient_PlayerRegister"},
 
-        {  MessageTypes::eToClient_PlayerAdd, "eToClient_PlayerAdd"},
+        {  MessageTypes::eClientServer_PlayerState, "eClientServer_PlayerState"},
 
     };
 
@@ -46,7 +46,7 @@ std::ostream& operator << (std::ostream& os, const MessageTypes& obj)
 template<MessageTypes MsgId>
 struct PayloadBase
 {
-    static MessageTypes id()
+    static MessageTypes msg_id()
     {
         return MsgId;
     }
@@ -62,12 +62,15 @@ struct ToClient_PlayerRegister : public PayloadBase<MessageTypes::eToClient_Play
     PlayerNetId id;
 };
 
-
-struct ToClient_PlayerAdd : public PayloadBase<MessageTypes::eToClient_PlayerAdd>
+struct ClientServer_PlayerState : public PayloadBase<MessageTypes::eClientServer_PlayerState>
 {
     PlayerNetId id;
-};
+    std::int32_t coord_x;
+    std::int32_t coord_z;
 
+    std::int32_t direction_x;
+    std::int32_t direction_z;
+};
 
 using NetMessage = engine::net::Message<MessageTypes>;
 using NetConnection = engine::net::Connection<MessageTypes>;

@@ -64,45 +64,47 @@ public:
                 msg_out << send_register;
                 message_client(client, msg_out);
             }
-
-            // add player to roaster, inform all players that the player has connected
-            {
-                ToClient_PlayerAdd payload{};
-                payload.id = client_id;
-                players_roaster_[payload.id] = payload;
-
-                NetMessage msg_out{};
-                msg_out.header.id = MessageTypes::eToClient_PlayerAdd;
-                msg_out << payload;
-                message_all_clients(msg_out, client);
-            }
-
-            // send current state to the player
+            // update player with current roaster
             for (const auto& payload : players_roaster_)
             {
                 NetMessage msg_out{};
-                msg_out.header.id = MessageTypes::eToClient_PlayerAdd;
+                msg_out.header.id = MessageTypes::eClientServer_PlayerState;
                 msg_out << payload;
                 message_client(client, msg_out);
             }
 
+            // update roaster with the new player (inform all players that the player has connected)
+            {
+                ClientServer_PlayerState payload{};
+                payload.id = client_id;
+                players_roaster_[payload.id] = payload;
+
+                NetMessage msg_out{};
+                msg_out.header.id = MessageTypes::eClientServer_PlayerState;
+                msg_out << payload;
+                message_all_clients(msg_out, client);
+            }
+
+
+            break;
+        }
+        case MessageTypes::eClientServer_PlayerState:
+        {
+            // update all clients with new state
+            ClientServer_PlayerState new_state{};
+            msg_temp >> new_state;
+            players_roaster_[client_id] = new_state;
+            message_all_clients(msg, client);
             break;
         }
 
-        //case MessageTypes::eClientPlayerMove:
-        //{
-            //ClientPlayerMovePayload payload{};
-            //msg_temp >> payload;
-            //std::cout << "eClientPlayerMove message. [x, y]: [" << payload.coord_x << ", " << payload.coord_y << "]. " << std::endl;
-            //break;
-        //}
         default:
             std::cout << "[SERVER] Unknown message type! Msg id: " << static_cast<std::uint32_t>(msg.header.id) << std::endl;
         }
     }
 
 private:
-    std::unordered_map<PlayerNetId, ToClient_PlayerAdd> players_roaster_;
+    std::unordered_map<PlayerNetId, ClientServer_PlayerState> players_roaster_;
 };
 }
 

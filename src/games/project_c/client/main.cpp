@@ -37,7 +37,7 @@ public:
     void send_message(const T& payload)
     {
         NetMessage msg{};
-        msg.header.id = T::id();
+        msg.header.id = T::msg_id();
         msg << payload;
         send(msg);
     }
@@ -289,6 +289,13 @@ public:
         material_comp.diffuse_texture = 0;
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
 
+        player_state_.coord_x = tc.position[0];
+        player_state_.coord_z = tc.position[2];
+    }
+
+    virtual void set_state(ClientServer_PlayerState state)
+    {
+        player_state_ = state;
     }
 
     void update(float dt) override
@@ -297,32 +304,38 @@ public:
     }
 
 protected:
-    virtual void move(const float dt)
+    void move(const float dt)
     {
-
+        auto app = my_scene_->get_app_handle();
+        auto scene = my_scene_->get_handle();
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        tc.position[0] = player_state_.coord_x;
+        tc.position[2] = player_state_.coord_z;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
     };
 
 protected:
     const GameMap& map_;
+    ClientServer_PlayerState player_state_;
 };
 
 class ControllablePlayerScript : public PlayerScript
 {
 public:
-    ControllablePlayerScript(engine::IScene* my_scene, const GameMap& map, ClientInterfaceProjectC& inet)
+    ControllablePlayerScript(engine::IScene* my_scene, const GameMap& map, ClientInterfaceProjectC& inet, PlayerNetId id)
         : PlayerScript(my_scene, map)
         , inet_(inet)
     {
+        player_state_.id = id;
+        inet_.send_message(player_state_);
     }
 
-protected:
-    void move(const float dt) override
+
+    void update(float dt) override
     {
-        //ToDo: going in diagnol directions is 2x faster than going single direction at one time
-        next_move_counter_ += dt;
         auto app = my_scene_->get_app_handle();
         auto scene = my_scene_->get_handle();
-
+        next_move_counter_ += dt;
         const auto move_right = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D);
         const auto move_left = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A);
         const auto move_top = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W);
@@ -334,35 +347,27 @@ protected:
             return;
         }
         next_move_counter_ = 0.0f;
-
         const auto move_speed_factor = 1.0f;
-        auto tc = engineSceneGetTransformComponent(scene, go_);
 
-        auto& [coord_x, coord_y] = position_;
-
-        if (move_right && map_.player_wants_to_move(coord_x + 1, coord_y))
+        if (move_right && map_.player_wants_to_move(player_state_.coord_x + 1, player_state_.coord_z))
         {
-            tc.position[0] += move_speed_factor;
-            coord_x += 1;
+            player_state_.coord_x += 1;
         }
-        if (move_left && map_.player_wants_to_move(coord_x - 1, coord_y))
+        if (move_left && map_.player_wants_to_move(player_state_.coord_x - 1, player_state_.coord_z))
         {
-            tc.position[0] -= move_speed_factor;
-            coord_x -= 1;
+            player_state_.coord_x -= 1;
         }
 
-        if (move_top && map_.player_wants_to_move(coord_x, coord_y - 1))
+        if (move_top && map_.player_wants_to_move(player_state_.coord_x, player_state_.coord_z - 1))
         {
-            tc.position[2] -= move_speed_factor;
-            coord_y -= 1;
+            player_state_.coord_z -= 1;
         }
-        if (move_bottom && map_.player_wants_to_move(coord_x, coord_y + 1))
+        if (move_bottom && map_.player_wants_to_move(player_state_.coord_x, player_state_.coord_z + 1))
         {
-            tc.position[2] += move_speed_factor;
-            coord_y += 1;
+            player_state_.coord_z += 1;
         }
-
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
+        inet_.send_message(player_state_);
+        PlayerScript::update(dt);
     }
 
 private:
@@ -542,33 +547,34 @@ public:
                 ToClient_PlayerRegister payload{};
                 msg >> payload;
                 player_net_id_ = payload.id;
+
+                players_roaster_[payload.id] = register_script<ControllablePlayerScript>(map_, inet_, player_net_id_);
+                // Important: Camera has to be added as 2nd script, because it depends on the position of the controlalble character
+                // if camera would be added first, than it follows player position in previous frame!
+                auto camera_script = register_script<CameraScript>();
+                camera_script->player_script = players_roaster_[player_net_id_];
+
                 engineLog(fmt::format("Client assigned ID: {}", player_net_id_).c_str());
                 break;
             }
 
-            case MessageTypes::eToClient_PlayerAdd:
+            case MessageTypes::eClientServer_PlayerState:
             {
-                ToClient_PlayerAdd payload{};
+                ClientServer_PlayerState payload{};
                 msg >> payload;
-                if (players_roaster_.find(payload.id) != players_roaster_.end())
-                {
-                    engineLog("Conflict with players ID!");
-                }
-                else
-                {                 
+                if (players_roaster_.find(payload.id) == players_roaster_.end())
+                {       
+                    engineLog("Adding new player state");
                     if (payload.id == player_net_id_)
                     {
-                        players_roaster_[payload.id] = register_script<ControllablePlayerScript>(map_, inet_);
-                        // Important: Camera has to be added as 2nd script, because it depends on the position of the controlalble character
-                        // if camera would be added first, than it follows player position in previous frame!
-                        auto camera_script = register_script<CameraScript>();         
-                        camera_script->player_script = players_roaster_[player_net_id_];
+                        engineLog("Invalid player id. New player supposed to have the same ID as you.");
                     }
                     else
                     {
                         players_roaster_[payload.id] = register_script<PlayerScript>(map_);
                     }
                 }
+                players_roaster_[payload.id]->set_state(payload);
                 break;
             }
             default:
