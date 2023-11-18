@@ -13,22 +13,61 @@
 
 #include <network/net_server.h>
 
-enum class Messages
-{
-    ePing = 0
-};
+#include <network_message_types.h>
 
-class ServerProjectC : public engine::net::ServerInterface< Messages>
+namespace project_c
+{
+class ServerProjectC : public engine::net::ServerInterface<MessageTypes>
 {
 public:
-    using engine::net::ServerInterface<Messages>::ServerInterface;
+    using engine::net::ServerInterface<MessageTypes>::ServerInterface;
+
+
+    // veto (reject) on connection -> return false
+    bool on_client_connection(NetConnectionPtr client) override
+    {
+        std::cout << "Client connected: " << client->get_id() << std::endl;
+        return true;
+    }
+
+    virtual void on_client_disconnect(NetConnectionPtr client)  override
+    {
+        std::cout << "Client disconnected: " << client->get_id() << std::endl;
+    }
+
+    virtual void on_message(NetConnectionPtr client, const NetMessage& msg)  override
+    {
+        const auto client_id = client->get_id();
+
+        auto msg_temp = msg;
+
+        switch (msg.header.id)
+        {
+        case MessageTypes::eClientPlayerMove:
+        {
+            ClientPlayerMovePayload payload{};
+            msg_temp >> payload;
+            std::cout << "eClientPlayerMove message. [x, y]: [" << payload.coord_x << ", " << payload.coord_y << "]. " << std::endl;
+            break;
+        }
+        default:
+            std::cout << "Unknown message type! Msg id: " << static_cast<std::uint32_t>(msg.header.id) << std::endl;
+        }
+    }
 };
+}
+
 
 int main(int argc, char** argv)
 {
     try
     {
-        ServerProjectC server(60000);
+        project_c::ServerProjectC server(60000);
+
+        while (true)
+        {
+            server.update(-1, true);
+        }
     }
     catch (std::exception& e)
     {

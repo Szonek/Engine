@@ -78,7 +78,7 @@ namespace net
             return messages_in_;
         }
 
-        void send(Message<T>& msg)
+        void send(const Message<T>& msg)
         {
             assert(connection_ != nullptr && "Connection not established! Cant send message.");
             connection_->send(msg);

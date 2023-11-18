@@ -95,12 +95,12 @@ namespace net
                 {
                     // first check if some messages is being currently written out
                     auto asio_already_busy_wiritng_message = !messages_out_.empty();
-            // add msg to queue
-            messages_out_.push_back(msg);
-            if (!asio_already_busy_wiritng_message)
-            {
-                write_header();
-            }
+                    // add msg to queue
+                    messages_out_.push_back(msg);
+                    if (!asio_already_busy_wiritng_message)
+                    {
+                        write_header();
+                    }
 
                 }
             );

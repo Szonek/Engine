@@ -4,6 +4,7 @@
 #include "iscene.h"
 #include "utils.h"
 #include "iscript.h"
+#include <network/net_client.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -23,11 +24,23 @@
 #include <unordered_map>
 #include <deque>
 #include <functional>
-#define ASIO_NO_DEPRECATED 1
-#include <asio.hpp>
+#include <network_message_types.h>
+
 
 namespace project_c
 {
+
+class ClientInterfaceProjectC : public engine::net::ClientInterface<MessageTypes>
+{
+public:
+    void move_player(const ClientPlayerMovePayload& payload)
+    {
+        NetMessage msg{};
+        msg.header.id = MessageTypes::eClientPlayerMove;
+        msg << payload;
+        send(msg);
+    }
+};
 
 class FloorTile : public engine::IScript
 {
@@ -480,15 +493,14 @@ public:
 };
 
 
-class TestScene_0 : public engine::IScene
+class Overworld : public engine::IScene
 {
 public:
-    TestScene_0(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
+    Overworld(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code, ClientInterfaceProjectC& inet)
         : IScene(app_handle, scn_mgn, engine_error_code)
         , map_(this)
+        , inet_(inet)
     {
-        const float gravity_vec[3] = { 0.0f, -10.0f, 0.0f };
-        engineSceneSetGravityVector(scene_, gravity_vec);
         
         auto player_script = register_script<PlayerScript>(map_);
 
@@ -496,11 +508,12 @@ public:
         camera_script->player_script = player_script;
     }
 
-    ~TestScene_0() = default;
-    static constexpr const char* get_name() { return "TestScene_0"; }
+    ~Overworld() = default;
+    static constexpr const char* get_name() { return "Overworld"; }
 
 private:
     GameMap map_;
+    ClientInterfaceProjectC& inet_;
 };
 }
 
@@ -529,6 +542,17 @@ int main(int argc, char** argv)
         log(fmt::format("Couldnt create engine application!\n"));
 		return -1;
 	}
+
+    const std::string server_ip = "127.0.0.1";
+    const std::uint32_t server_port = 60'000;
+    project_c::ClientInterfaceProjectC network_interface{};
+    engineLog(fmt::format("Connecting to server at address: {}, port: {} ....\n", server_ip, server_port).c_str());
+    network_interface.connect(server_ip, server_port);
+    engineLog(fmt::format(".... Connection {}\n", network_interface.is_connected() ? "successed" : "failed." ).c_str());
+    if (!network_interface.is_connected())
+    {
+        return -404;
+    }
 
     // cube
     engine_model_info_t model_info{};
@@ -594,8 +618,9 @@ int main(int argc, char** argv)
         return -1;
     }
 
+
     engine::SceneManager scene_manager(app);
-    scene_manager.register_scene<project_c::TestScene_0>();
+    scene_manager.register_scene<project_c::Overworld>(network_interface);
 
     struct fps_counter_t
     {

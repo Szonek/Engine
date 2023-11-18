@@ -17,7 +17,7 @@ public:
     void update(float dt);
     
     template<typename T, typename ...TUserArgs>
-    engine_result_code_t register_scene(TUserArgs... args)
+    engine_result_code_t register_scene(TUserArgs&&... args)
     {
         if (scenes_.contains(T::get_name()))
         {
