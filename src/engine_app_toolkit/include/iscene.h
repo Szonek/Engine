@@ -87,6 +87,10 @@ public:
     }
 
 protected:
+    virtual void update_hook_begin() {}
+    virtual void update_hook_end() {}
+
+protected:
     engine_application_t app_{};
     engine_scene_t scene_{};
     SceneManager* scene_manager_ = nullptr;

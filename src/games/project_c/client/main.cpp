@@ -33,10 +33,11 @@ namespace project_c
 class ClientInterfaceProjectC : public engine::net::ClientInterface<MessageTypes>
 {
 public:
-    void move_player(const ClientPlayerMovePayload& payload)
+    template<typename T>
+    void send_message(const T& payload)
     {
         NetMessage msg{};
-        msg.header.id = MessageTypes::eClientPlayerMove;
+        msg.header.id = T::id();
         msg << payload;
         send(msg);
     }
@@ -173,7 +174,6 @@ public:
     GameMapT(engine::IScene* parent_scene)
         : parent_scene_(parent_scene)
     {
-
         for (auto i = 0; i < HEIGHT; i++)
         {
             for (auto j = 0; j < WIDTH; j++)
@@ -232,8 +232,21 @@ public:
 
     bool player_wants_to_move(std::int32_t x, std::int32_t y) const
     {
-        // return check index!!
-        return map_[HEIGHT / 2 + y][WIDTH / 2 + x].can_walk_on();
+        y += HEIGHT / 2;
+        x += WIDTH / 2;
+        
+        // validate out of bounds
+        if (x < 0 || x >= WIDTH)
+        {
+            return false;
+        } 
+        else if (y < 0 || y >= HEIGHT)
+        {
+            return false;
+        }
+        
+        // validate tile
+        return map_[y][x].can_walk_on();
     }
 
 private:
@@ -280,19 +293,30 @@ public:
 
     void update(float dt) override
     {
-
-        auto app = my_scene_->get_app_handle();
-        auto scene = my_scene_->get_handle();
-        //ToDo rotate object around the mouse  
-        // helper unity forum post: https://discussions.unity.com/t/make-a-player-model-rotate-towards-mouse-location/125354/2 
-        const auto mose_pos = engineApplicationGetMouseCoords(app);
-     
-        // move
         move(dt);
     }
 
-private:
-    void move(const float dt)
+protected:
+    virtual void move(const float dt)
+    {
+
+    };
+
+protected:
+    const GameMap& map_;
+};
+
+class ControllablePlayerScript : public PlayerScript
+{
+public:
+    ControllablePlayerScript(engine::IScene* my_scene, const GameMap& map, ClientInterfaceProjectC& inet)
+        : PlayerScript(my_scene, map)
+        , inet_(inet)
+    {
+    }
+
+protected:
+    void move(const float dt) override
     {
         //ToDo: going in diagnol directions is 2x faster than going single direction at one time
         next_move_counter_ += dt;
@@ -342,11 +366,11 @@ private:
     }
 
 private:
+    ClientInterfaceProjectC& inet_;
     float next_move_counter_ = 0.0f;
-    const float next_move_limit_time_ = 500.0f;  // in miliseconds
+    const float next_move_limit_time_ = 25.0f;  // in miliseconds
 
     std::pair<std::int32_t, std::int32_t> position_ = { 0, 0 };
-    const GameMap& map_;
 };
 
 class CameraScript : public engine::IScript
@@ -378,11 +402,11 @@ public:
     void update(float dt) override
     {
         debug_zoom_in_out(dt);
-        set_target_to_perfect_follow_player_position();
+        set_target_to_perfect_follow_player_position(dt);
     }
 
 private:
-    void set_target_to_perfect_follow_player_position()
+    void set_target_to_perfect_follow_player_position(float dt)
     {
         auto app = my_scene_->get_app_handle();
         auto scene = my_scene_->get_handle();
@@ -501,17 +525,66 @@ public:
         , map_(this)
         , inet_(inet)
     {
-        
-        auto player_script = register_script<PlayerScript>(map_);
+        ToServer_PlayerRegister payload{};
+        inet_.send_message(payload);
+    }
 
-        auto camera_script = register_script<CameraScript>();
-        camera_script->player_script = player_script;
+    void update_hook_begin() override
+    {
+        while (!inet_.incoming().empty())
+        {
+            auto msg = inet_.incoming().pop_front().msg;
+
+            switch (msg.header.id)
+            {
+            case MessageTypes::eToClient_PlayerRegister:
+            {
+                ToClient_PlayerRegister payload{};
+                msg >> payload;
+                player_net_id_ = payload.id;
+                engineLog(fmt::format("Client assigned ID: {}", player_net_id_).c_str());
+                break;
+            }
+
+            case MessageTypes::eToClient_PlayerAdd:
+            {
+                ToClient_PlayerAdd payload{};
+                msg >> payload;
+                if (players_roaster_.find(payload.id) != players_roaster_.end())
+                {
+                    engineLog("Conflict with players ID!");
+                }
+                else
+                {                 
+                    if (payload.id == player_net_id_)
+                    {
+                        players_roaster_[payload.id] = register_script<ControllablePlayerScript>(map_, inet_);
+                        // Important: Camera has to be added as 2nd script, because it depends on the position of the controlalble character
+                        // if camera would be added first, than it follows player position in previous frame!
+                        auto camera_script = register_script<CameraScript>();         
+                        camera_script->player_script = players_roaster_[player_net_id_];
+                    }
+                    else
+                    {
+                        players_roaster_[payload.id] = register_script<PlayerScript>(map_);
+                    }
+                }
+                break;
+            }
+            default:
+                std::cout << "[Client] Unknown message type! Msg id: " << static_cast<std::uint32_t>(msg.header.id) << std::endl;
+            }
+
+        }
     }
 
     ~Overworld() = default;
     static constexpr const char* get_name() { return "Overworld"; }
 
 private:
+    std::unordered_map<PlayerNetId, PlayerScript*> players_roaster_;
+    PlayerNetId player_net_id_ = PlayerNetIdInvalid;
+
     GameMap map_;
     ClientInterfaceProjectC& inet_;
 };
@@ -611,12 +684,12 @@ int main(int argc, char** argv)
         model_info.geometries_array[1].inds, model_info.geometries_array[1].inds_count, "y_bot", &ybot_geometry);
     engineApplicationReleaseModelInfo(app, &model_info);
 
-    engine_font_t font_handle{};
-    if (engineApplicationAddFontFromFile(app, "tahoma.ttf", "tahoma_font", &font_handle) != ENGINE_RESULT_CODE_OK)
-    {
-        log(fmt::format("Couldnt load font!\n"));
-        return -1;
-    }
+    //engine_font_t font_handle{};
+    //if (engineApplicationAddFontFromFile(app, "tahoma.ttf", "tahoma_font", &font_handle) != ENGINE_RESULT_CODE_OK)
+    //{
+    //    log(fmt::format("Couldnt load font!\n"));
+    //    return -1;
+    //}
 
 
     engine::SceneManager scene_manager(app);
@@ -655,7 +728,7 @@ int main(int argc, char** argv)
         }
 
         scene_manager.update(frame_begin.delta_time);
-
+       
 		const auto frame_end = engineApplicationFrameEnd(app);
 		if (!frame_end.success)
 		{

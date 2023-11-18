@@ -621,14 +621,14 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
     // UI stuff 
-    ui_rml_sdl_interface_ = new SystemInterface_SDL;
-    ui_rml_gl3_renderer_ = new RenderInterface_GL3;
-    ui_rml_sdl_interface_->SetWindow(window_);
+    //ui_rml_sdl_interface_ = new SystemInterface_SDL;
+    //ui_rml_gl3_renderer_ = new RenderInterface_GL3;
+    //ui_rml_sdl_interface_->SetWindow(window_);
     const auto window_size = get_window_size_in_pixels();
     set_viewport(viewport_t{0, 0, (uint32_t)window_size.width, (uint32_t)window_size.height});
 
-    Rml::SetSystemInterface(ui_rml_sdl_interface_);
-    Rml::SetRenderInterface(ui_rml_gl3_renderer_);
+    //Rml::SetSystemInterface(ui_rml_sdl_interface_);
+    //Rml::SetRenderInterface(ui_rml_gl3_renderer_);
 }
 
 engine::RenderContext::RenderContext(RenderContext&& rhs) noexcept
@@ -689,7 +689,7 @@ engine::RenderContext::window_size_t engine::RenderContext::get_window_size_in_p
 void engine::RenderContext::set_viewport(const viewport_t& viewport)
 {
 	glViewport(0, 0, viewport.width, viewport.height);
-    ui_rml_gl3_renderer_->SetViewport(viewport.width, viewport.height);
+    //ui_rml_gl3_renderer_->SetViewport(viewport.width, viewport.height);
 }
 
 void engine::RenderContext::set_clear_color(float r, float g, float b, float a)
@@ -794,10 +794,10 @@ void engine::RenderContext::end_frame()
 
 void engine::RenderContext::begin_frame_ui_rendering()
 {
-    ui_rml_gl3_renderer_->BeginFrame();
+    //ui_rml_gl3_renderer_->BeginFrame();
 }
 
 void engine::RenderContext::end_frame_ui_rendering()
 {
-    ui_rml_gl3_renderer_->EndFrame();
+    //ui_rml_gl3_renderer_->EndFrame();
 }

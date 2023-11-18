@@ -38,7 +38,9 @@ namespace net
             locker lock(mtx_queue_);
             queue_.push_front(item);
 
-            notify_cv_wait_to_wake_up();
+            //notify_cv_wait_to_wake_up();
+            locker lock_cv_wait(mtx_cv_wait_);
+            cv_wait.notify_one();
         }
 
         void push_back(const T& item)
@@ -46,7 +48,9 @@ namespace net
             locker lock(mtx_queue_);
             queue_.push_back(item);
 
-            notify_cv_wait_to_wake_up();
+            //notify_cv_wait_to_wake_up();
+            locker lock_cv_wait(mtx_cv_wait_);
+            cv_wait.notify_one();
         }
 
         bool empty() const
@@ -97,8 +101,8 @@ namespace net
     private:
         void notify_cv_wait_to_wake_up()
         {
-            locker lock_cv_wait(mtx_cv_wait_);
-            cv_wait.notify_one();
+            //locker lock_cv_wait(mtx_cv_wait_);
+            //cv_wait.notify_one();
         }
 
     private:

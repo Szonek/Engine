@@ -26,7 +26,7 @@ namespace net
 
         friend std::ostream& operator << (std::ostream& os, const Message<T>& msg)
         {
-            os << "ID: " << static_cast<std::int32_t>(msg.header.id) << " SIZE: " << msg.header.size;
+            os << "ID: " << static_cast<std::uint32_t>(msg.header.id) << " SIZE: " << msg.header.size;
             return os;
         }
 

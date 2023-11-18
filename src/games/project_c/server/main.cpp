@@ -20,13 +20,21 @@ namespace project_c
 class ServerProjectC : public engine::net::ServerInterface<MessageTypes>
 {
 public:
-    using engine::net::ServerInterface<MessageTypes>::ServerInterface;
+    ServerProjectC(std::uint16_t port)
+        : ServerInterface<MessageTypes>(port)
+    {
+        start();
+    }
 
+    virtual ~ServerProjectC()
+    {
+        stop();
+    }
 
     // veto (reject) on connection -> return false
     bool on_client_connection(NetConnectionPtr client) override
     {
-        std::cout << "Client connected: " << client->get_id() << std::endl;
+        std::cout << "Client connected: " << *client << std::endl;
         return true;
     }
 
@@ -40,20 +48,61 @@ public:
         const auto client_id = client->get_id();
 
         auto msg_temp = msg;
+        std::cout << "[SERVER] Processing msg: " << msg_temp << ", id: " << msg_temp.header.id << std::endl;
 
         switch (msg.header.id)
         {
-        case MessageTypes::eClientPlayerMove:
+        case MessageTypes::eToServer_PlayerRegister:
         {
-            ClientPlayerMovePayload payload{};
-            msg_temp >> payload;
-            std::cout << "eClientPlayerMove message. [x, y]: [" << payload.coord_x << ", " << payload.coord_y << "]. " << std::endl;
+            // register player
+            {
+                ToClient_PlayerRegister send_register{};
+                send_register.id = client_id;
+
+                NetMessage msg_out{};
+                msg_out.header.id = MessageTypes::eToClient_PlayerRegister;
+                msg_out << send_register;
+                message_client(client, msg_out);
+            }
+
+            // add player to roaster, inform all players that the player has connected
+            {
+                ToClient_PlayerAdd payload{};
+                payload.id = client_id;
+                players_roaster_[payload.id] = payload;
+
+                NetMessage msg_out{};
+                msg_out.header.id = MessageTypes::eToClient_PlayerAdd;
+                msg_out << payload;
+                message_all_clients(msg_out, client);
+            }
+
+            // send current state to the player
+            for (const auto& payload : players_roaster_)
+            {
+                NetMessage msg_out{};
+                msg_out.header.id = MessageTypes::eToClient_PlayerAdd;
+                msg_out << payload;
+                message_client(client, msg_out);
+            }
+
             break;
         }
+
+        //case MessageTypes::eClientPlayerMove:
+        //{
+            //ClientPlayerMovePayload payload{};
+            //msg_temp >> payload;
+            //std::cout << "eClientPlayerMove message. [x, y]: [" << payload.coord_x << ", " << payload.coord_y << "]. " << std::endl;
+            //break;
+        //}
         default:
-            std::cout << "Unknown message type! Msg id: " << static_cast<std::uint32_t>(msg.header.id) << std::endl;
+            std::cout << "[SERVER] Unknown message type! Msg id: " << static_cast<std::uint32_t>(msg.header.id) << std::endl;
         }
     }
+
+private:
+    std::unordered_map<PlayerNetId, ToClient_PlayerAdd> players_roaster_;
 };
 }
 

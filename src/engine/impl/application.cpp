@@ -203,14 +203,14 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     }
 
 	rdx_.begin_frame();
-    ui_manager_.begin_frame(); 
+    //ui_manager_.begin_frame(); 
 
 	return ret;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
-    ui_manager_.end_frame();
+    //ui_manager_.end_frame();
     rdx_.end_frame();
 
 	engine_application_frame_end_info_t ret{};

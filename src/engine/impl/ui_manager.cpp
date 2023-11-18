@@ -26,6 +26,7 @@ engine::UiManager::UiManager(RenderContext& rdx)
     , shader_image_(Shader("font.vs", "ui_image.fs"))
     , current_font_idx_(ENGINE_INVALID_OBJECT_HANDLE) // start with, since 0 is invalid index
 {
+    return;
     current_font_idx_++;
 
     FT_Library ft_handle;
@@ -203,7 +204,7 @@ std::uint32_t engine::UiManager::get_font(std::string_view name) const
 
 void engine::UiManager::parse_sdl_event(SDL_Event ev)
 {
-    RmlSDL::InputEventHandler(ui_rml_context_, ev);
+    //RmlSDL::InputEventHandler(ui_rml_context_, ev);
 }
 
 void engine::UiManager::render_text(const engine_text_component_t& text_comp, const engine_rect_tranform_component_t& transform)
