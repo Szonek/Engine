@@ -316,36 +316,67 @@ public:
         auto app = my_scene_->get_app_handle();
         auto scene = my_scene_->get_handle();
         next_move_counter_ += dt;
-        const auto move_right = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D);
-        const auto move_left = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A);
-        const auto move_top = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W);
-        const auto move_bottom = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S);
 
-        const bool move_requested = move_right || move_left || move_top || move_bottom;
+        constexpr const std::int32_t tile_distance = 1u;
+        struct MoveDir
+        {
+            std::int32_t x = 0;
+            std::int32_t z = 0;
+        };
+        MoveDir move_dir{};
+
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D))
+        {
+            move_dir.x = tile_distance;
+        }
+        else if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A))
+        {
+            move_dir.x = -tile_distance;
+        }
+        else if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
+        {
+            move_dir.z = -tile_distance;
+        }
+        else if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S))
+        {
+            move_dir.z = tile_distance;
+        }
+        else if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_E))
+        {
+            move_dir.x = tile_distance;
+            move_dir.z = -tile_distance;
+        }
+        else if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_Q))
+        {
+            move_dir.x = -tile_distance;
+            move_dir.z = -tile_distance;
+        }
+        else if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_C))
+        {
+            move_dir.x = tile_distance;
+            move_dir.z = tile_distance;
+        }
+        else if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_Z))
+        {
+            move_dir.x = -tile_distance;
+            move_dir.z = tile_distance;
+        }
+
+        const bool move_requested = move_dir.x != 0 || move_dir.z != 0;
         if (!move_requested || next_move_counter_ <= next_move_limit_time_)
         {
             return;
         }
         next_move_counter_ = 0.0f;
-        const auto move_speed_factor = 1.0f;
 
-        if (move_right && map_.player_wants_to_move(player_state_.coord_x + 1, player_state_.coord_z))
+        if (map_.player_wants_to_move(player_state_.coord_x + move_dir.x, player_state_.coord_z + move_dir.z))
         {
-            player_state_.coord_x += 1;
+            player_state_.coord_x += move_dir.x;
+            player_state_.coord_z += move_dir.z;
         }
-        if (move_left && map_.player_wants_to_move(player_state_.coord_x - 1, player_state_.coord_z))
-        {
-            player_state_.coord_x -= 1;
-        }
+        const auto tiles_moved = std::abs(move_dir.x) + std::abs(move_dir.z);
+        next_move_limit_time_ = 500.0f * tiles_moved;
 
-        if (move_top && map_.player_wants_to_move(player_state_.coord_x, player_state_.coord_z - 1))
-        {
-            player_state_.coord_z -= 1;
-        }
-        if (move_bottom && map_.player_wants_to_move(player_state_.coord_x, player_state_.coord_z + 1))
-        {
-            player_state_.coord_z += 1;
-        }
         inet_.send_message(player_state_);
         PlayerScript::update(dt);
     }
@@ -353,7 +384,7 @@ public:
 private:
     ClientInterfaceProjectC& inet_;
     float next_move_counter_ = 0.0f;
-    const float next_move_limit_time_ = 500.0f;  // in miliseconds
+    float next_move_limit_time_ = 500.0f;  // in miliseconds
 
     std::pair<std::int32_t, std::int32_t> position_ = { 0, 0 };
 };
