@@ -121,7 +121,6 @@ namespace net
 
             for (auto& client : connections_)
             {
-                assert(client);
                 if (client && client->is_connected())
                 {
                     if (client != ignore_client)

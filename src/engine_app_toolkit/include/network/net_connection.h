@@ -86,11 +86,12 @@ public:
     {
         if (is_connected())
         {
-            asio::post(io_, [this]()
-                {
-                    socket_.close();
-                }
-            );
+            //asio::post(io_, [this]()
+            //    {
+            //        socket_.close();
+            //    }
+            //);
+            socket_.close();
         }
     }
 

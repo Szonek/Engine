@@ -121,52 +121,6 @@ public:
     }
 };
 
-
-enum class TileID : std::uint32_t
-{
-    eUnknown = 0,
-    eGrass = 1,
-    ePath = 2
-};
-
-enum ObstacleID : std::uint32_t
-{
-    eUnknown = 0,
-    eBox = 1
-};
-
-class Tile
-{
-public:
-    Tile(TileID id = TileID::eUnknown, ObstacleID obsctale = ObstacleID::eUnknown)
-        : tile_id_(id), obstacle_id_(obsctale)
-    {
-
-    }
-
-    TileID get_tile_id() const { return tile_id_; }
-
-    void set_tile_id(TileID id)
-    {
-        tile_id_ = id;
-    }
-
-    ObstacleID get_obstacle_id() const { return obstacle_id_; }
-    void set_obstacle_id(ObstacleID id)
-    {
-        obstacle_id_ = id;
-    }
-
-    bool can_walk_on() const
-    {
-        return obstacle_id_ == ObstacleID::eUnknown;
-    }
-
-private:
-    TileID tile_id_;
-    ObstacleID obstacle_id_;
-};
-
 template<std::uint32_t WIDTH, std::uint32_t HEIGHT>
 class GameMapT
 {
@@ -174,21 +128,11 @@ public:
     GameMapT(engine::IScene* parent_scene)
         : parent_scene_(parent_scene)
     {
-        for (auto i = 0; i < HEIGHT; i++)
-        {
-            for (auto j = 0; j < WIDTH; j++)
-            {
-                auto& tile = map_[i][j];
-                tile = Tile(TileID::eGrass);
-                if (j == WIDTH / 2)
-                {
-                    tile.set_tile_id(TileID::ePath);
-                }
-            }
-        }
-        map_[HEIGHT / 2 - 1][WIDTH / 2 + 1].set_obstacle_id(ObstacleID::eBox);
-        map_[HEIGHT / 2 - 1][WIDTH / 2 + 2].set_obstacle_id(ObstacleID::eBox);
-        map_[HEIGHT / 2 - 1][WIDTH / 2 + 3].set_obstacle_id(ObstacleID::eBox);
+    }
+
+    void initalize(std::array<std::array<Tile, WIDTH>, HEIGHT> map)
+    {
+        map_ = std::move(map);
 
         for (auto i = 0; i < HEIGHT; i++)
         {
@@ -205,12 +149,12 @@ public:
                 {
                 case TileID::eGrass:
                 {
-                    parent_scene->register_script<FloorTile>(coord_x, 0, coord_z);
+                    parent_scene_->register_script<FloorTile>(coord_x, 0, coord_z);
                     break;
                 }
                 case TileID::ePath:
                 {
-                    auto* t = parent_scene->register_script<FloorTile>(coord_x, 0, coord_z);
+                    auto* t = parent_scene_->register_script<FloorTile>(coord_x, 0, coord_z);
                     t->set_material(std::array<float, 4>{0.8f, 0.8f, 0.1f, 0.0f});
                     break;
                 }
@@ -222,7 +166,7 @@ public:
                 {
                 case ObstacleID::eBox:
                 {
-                    parent_scene->register_script<ObstacleStaticObject>(coord_x, 0, coord_z);
+                    parent_scene_->register_script<ObstacleStaticObject>(coord_x, 0, coord_z);
                     break;
                 }
                 }
@@ -269,7 +213,7 @@ public:
 
         auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
         //mesh_comp.geometry = engineApplicationGetGeometryByName(app, "cube");
-        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "cube");
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "y_bot");
         //mesh_comp.geometry = engineApplicationGetGeometryByName(app, "table");
         assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for cat script!");
         engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
@@ -373,7 +317,7 @@ public:
 private:
     ClientInterfaceProjectC& inet_;
     float next_move_counter_ = 0.0f;
-    const float next_move_limit_time_ = 25.0f;  // in miliseconds
+    const float next_move_limit_time_ = 500.0f;  // in miliseconds
 
     std::pair<std::int32_t, std::int32_t> position_ = { 0, 0 };
 };
@@ -394,8 +338,10 @@ public:
         camera_comp.enabled = true;
         camera_comp.clip_plane_near = 0.1f;
         camera_comp.clip_plane_far = 100.0f;
-        camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
-        camera_comp.type_union.perspective_fov = 45.0f;
+        //camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
+        //camera_comp.type_union.perspective_fov = 45.0f;
+        camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC;
+        camera_comp.type_union.orthographics_scale = 5.0f;
         engineSceneUpdateCameraComponent(scene, go_, &camera_comp);
 
         auto camera_transform_comp = engineSceneAddTransformComponent(scene, go_);
@@ -547,6 +493,7 @@ public:
                 ToClient_PlayerRegister payload{};
                 msg >> payload;
                 player_net_id_ = payload.id;
+                map_.initalize(payload.map);
 
                 players_roaster_[payload.id] = register_script<ControllablePlayerScript>(map_, inet_, player_net_id_);
                 // Important: Camera has to be added as 2nd script, because it depends on the position of the controlalble character
@@ -563,7 +510,7 @@ public:
                 ClientServer_PlayerState payload{};
                 msg >> payload;
                 if (players_roaster_.find(payload.id) == players_roaster_.end())
-                {       
+                {
                     engineLog("Adding new player state");
                     if (payload.id == player_net_id_)
                     {
@@ -575,6 +522,22 @@ public:
                     }
                 }
                 players_roaster_[payload.id]->set_state(payload);
+                break;
+            }
+
+            case MessageTypes::eToClient_PlayerDisconnected:
+            {
+                ToClient_PlayerDisconnected payload{};
+                msg >> payload;
+                if (players_roaster_.find(payload.id) == players_roaster_.end())
+                {
+                    engineLog("Player disconnected, but it wasnt in the roaster anyway.");
+                }
+                else
+                {
+                    unregister_script(players_roaster_.at(payload.id));
+                    players_roaster_.erase(payload.id);
+                }
                 break;
             }
             default:
