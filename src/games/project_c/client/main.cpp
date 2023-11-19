@@ -43,6 +43,9 @@ public:
     }
 };
 
+
+
+
 class FloorTile : public engine::IScript
 {
 public:
@@ -69,7 +72,7 @@ public:
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
         material_comp.border_width = 0.025f;
-        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.58f, 0.259f, 0.325f, 0.0f });
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.259f, 0.554f, 0.125f, 0.0f });
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
 
     }
@@ -121,6 +124,42 @@ public:
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
     }
 };
+
+
+class BaseEnemyNPC : public engine::IScript
+{
+public:
+    class PlayerScript* player_script = nullptr;
+public:
+    BaseEnemyNPC(engine::IScene* my_scene, std::int32_t x, std::int32_t y, std::int32_t z)
+        : IScript(my_scene)
+    {
+        auto scene = my_scene_->get_handle();
+        auto app = my_scene_->get_app_handle();
+
+        auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "sphere");
+        assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for cat script!");
+        engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
+
+        auto tc = engineSceneAddTransformComponent(scene, go_);
+        tc.position[0] = static_cast<float>(x);
+        tc.position[1] = static_cast<float>(y) + 0.5f;
+        tc.position[2] = static_cast<float>(z);
+
+        tc.scale[0] = 0.5f;
+        tc.scale[1] = 0.5f;
+        tc.scale[2] = 0.5f;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        auto material_comp = engineSceneAddMaterialComponent(scene, go_);
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.7f, 0.1f, 0.1f, 0.0f });
+        material_comp.diffuse_texture = 0;
+        engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+    }
+
+};
+
 
 template<std::uint32_t WIDTH, std::uint32_t HEIGHT>
 class GameMapT
@@ -179,17 +218,17 @@ public:
     {
         y += HEIGHT / 2;
         x += WIDTH / 2;
-        
+
         // validate out of bounds
         if (x < 0 || x >= WIDTH)
         {
             return false;
-        } 
+        }
         else if (y < 0 || y >= HEIGHT)
         {
             return false;
         }
-        
+
         // validate tile
         return map_[y][x].can_walk_on();
     }
@@ -199,8 +238,6 @@ private:
     engine::IScene* parent_scene_ = nullptr;
 };
 using GameMap = GameMapT<20, 20>;
-
-
 
 class PlayerScript : public  engine::IScript
 {
@@ -435,6 +472,9 @@ public:
                 camera_script->player_script = players_roaster_[player_net_id_];
 
                 engineLog(fmt::format("Client assigned ID: {}\n", player_net_id_).c_str());
+
+                register_script<BaseEnemyNPC>(-5, 0, -5);
+
                 break;
             }
 
