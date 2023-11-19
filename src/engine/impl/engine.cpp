@@ -66,7 +66,7 @@ inline void rect_transform_component_init(engine_rect_tranform_component_t* comp
 
 inline void text_component_init(engine_text_component_t* comp)
 {
-    std::memset(comp, 0, sizeof(engine_material_component_t));
+    std::memset(comp, 0, sizeof(engine_text_component_t));
     comp->scale[0] = 1.0f;
     comp->scale[1] = 1.0f;
 }

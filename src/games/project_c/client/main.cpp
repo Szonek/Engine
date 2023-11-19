@@ -53,7 +53,7 @@ public:
         auto app = my_scene_->get_app_handle();
 
         auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "cube");
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "plane");
         assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for floor script!");
         engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
 
@@ -68,6 +68,7 @@ public:
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
+        material_comp.border_width = 0.025f;
         set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.58f, 0.259f, 0.325f, 0.0f });
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
 
@@ -212,9 +213,7 @@ public:
         auto app = my_scene_->get_app_handle();
 
         auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-        //mesh_comp.geometry = engineApplicationGetGeometryByName(app, "cube");
-        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "y_bot");
-        //mesh_comp.geometry = engineApplicationGetGeometryByName(app, "table");
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "sphere");
         assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for cat script!");
         engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
 
@@ -402,72 +401,6 @@ private:
     inline static const float z_base_offset = 8.0f;
 };
 
-
-class TestObstacle : public engine::IScript
-{
-public:
-    PlayerScript* player_script = nullptr;
-
-public:
-    TestObstacle(engine::IScene* my_scene)
-        : IScript(my_scene)
-    {
-        auto scene = my_scene_->get_handle();
-        auto app = my_scene_->get_app_handle();
-
-        auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "cube");
-        assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for table script!");
-        engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
-
-        auto tc = engineSceneAddTransformComponent(scene, go_);
-        tc.position[0] = 1.0f;
-        tc.position[1] = 0.2f;
-        tc.position[2] = 0.0f;
-
-        tc.scale[0] = 0.1f;
-        tc.scale[1] = 0.4f;
-        tc.scale[2] = 0.1f;
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
-
-        auto rb = engineSceneAddRigidBodyComponent(scene, go_);
-        rb.mass = 15.0f;
-        engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
-
-        auto bc = engineSceneAddColliderComponent(scene, go_);
-        bc.type = ENGINE_COLLIDER_TYPE_BOX;
-        bc.bounciness = 0.0f;
-        bc.friction_static = 1.0f;
-        engineSceneUpdateColliderComponent(scene, go_, &bc);
-
-        auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.1f, 0.1f, 0.1f, 0.0f });
-        //material_comp.diffuse_texture = 1;
-        engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
-    }
-
-    void update(float dt) override
-    {
-        auto scene = my_scene_->get_handle();
-        assert(player_script);
-        const auto player_go = player_script->get_game_object();
-        const auto player_tc = engineSceneGetTransformComponent(scene, player_go);
-        auto my_tc = engineSceneGetTransformComponent(scene, go_);
-
-
-        const auto distance = glm::distance(glm::vec3(player_tc.position[0], player_tc.position[1], player_tc.position[2]),
-            glm::vec3(my_tc.position[0], my_tc.position[1], my_tc.position[2]));    
-
-
-        auto rb = engineSceneGetRigidBodyComponent(scene, go_);
-        rb.linear_velocity[0] = -0.1f;
-        engineSceneUpdateRigidBodyComponent(scene, go_, &rb);
-        //engineLog(fmt::format("Distnace: {}\n", distance).c_str());
-
-    }
-};
-
-
 class Overworld : public engine::IScene
 {
 public:
@@ -501,7 +434,7 @@ public:
                 auto camera_script = register_script<CameraScript>();
                 camera_script->player_script = players_roaster_[player_net_id_];
 
-                engineLog(fmt::format("Client assigned ID: {}", player_net_id_).c_str());
+                engineLog(fmt::format("Client assigned ID: {}\n", player_net_id_).c_str());
                 break;
             }
 
@@ -511,10 +444,10 @@ public:
                 msg >> payload;
                 if (players_roaster_.find(payload.id) == players_roaster_.end())
                 {
-                    engineLog("Adding new player state");
+                    engineLog("Adding new player state\n");
                     if (payload.id == player_net_id_)
                     {
-                        engineLog("Invalid player id. New player supposed to have the same ID as you.");
+                        engineLog("Invalid player id. New player supposed to have the same ID as you.\n");
                     }
                     else
                     {
@@ -531,7 +464,7 @@ public:
                 msg >> payload;
                 if (players_roaster_.find(payload.id) == players_roaster_.end())
                 {
-                    engineLog("Player disconnected, but it wasnt in the roaster anyway.");
+                    engineLog("Player disconnected, but it wasnt in the roaster anyway.\n");
                 }
                 else
                 {
@@ -541,7 +474,7 @@ public:
                 break;
             }
             default:
-                std::cout << "[Client] Unknown message type! Msg id: " << static_cast<std::uint32_t>(msg.header.id) << std::endl;
+                engineLog(fmt::format("[Client] Unknown message type! Msg id: {}\n", static_cast<std::uint32_t>(msg.header.id)).c_str());
             }
 
         }
@@ -610,6 +543,19 @@ int main(int argc, char** argv)
     engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
         model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "cube", &cube_geometry);
     engineApplicationReleaseModelInfo(app, &model_info);
+    
+    // plane
+    model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "plane.glb", &model_info);
+    if (model_info_result != ENGINE_RESULT_CODE_OK)
+    {
+        engineLog("Failed loading PLANE model. Exiting!\n");
+        return -1;
+    }
+    engine_geometry_t plane_geometry{};
+    engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
+        model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "plane", &cube_geometry);
+    engineApplicationReleaseModelInfo(app, &model_info);
+
 
     // sphere
     model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "sphere_uv.glb", &model_info);

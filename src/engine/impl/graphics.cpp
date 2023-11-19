@@ -118,7 +118,7 @@ engine::Shader::Shader(std::string_view vertex_shader_name, std::string fragment
 	{
 		std::array<char, 512> info_log;
 		glGetProgramInfoLog(program_, 512, nullptr, info_log.data());
-		log::log(log::LogLevel::eCritical, fmt::format("[Error][Program] Failed program linking: \n\t", info_log.data()));
+		log::log(log::LogLevel::eCritical, fmt::format("[Error][Program] Failed program linking: \n\t {}", info_log.data()));
 	}
 }
 
@@ -155,6 +155,12 @@ void engine::Shader::set_uniform_f2(std::string_view name, std::span<const float
     assert(host_data.size() == 2 && "[ERROR] Wrong size of data.");
     const auto loc = get_uniform_location(name);
     glUniform2f(loc, host_data[0], host_data[1]);
+}
+
+void engine::Shader::set_uniform_f1(std::string_view name, const float host_data)
+{
+    const auto loc = get_uniform_location(name);
+    glUniform1f(loc, host_data);
 }
 
 void engine::Shader::set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data)
@@ -217,7 +223,7 @@ void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::st
 	{
 		std::array<char, 512> info_log;
 		glGetShaderInfoLog(shader, info_log.size(), nullptr, info_log.data());
-        log::log(log::LogLevel::eError, fmt::format("[Error][Shader] Failed compilation: \n\t", info_log.data()));
+        log::log(log::LogLevel::eError, fmt::format("[Error][Shader] Failed compilation: \n\t {}", info_log.data()));
 	}
 	// attach to program
 	glAttachShader(program_, shader);
