@@ -126,39 +126,7 @@ public:
 };
 
 
-class BaseEnemyNPC : public engine::IScript
-{
-public:
-    class PlayerScript* player_script = nullptr;
-public:
-    BaseEnemyNPC(engine::IScene* my_scene, std::int32_t x, std::int32_t y, std::int32_t z)
-        : IScript(my_scene)
-    {
-        auto scene = my_scene_->get_handle();
-        auto app = my_scene_->get_app_handle();
 
-        auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "sphere");
-        assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for cat script!");
-        engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
-
-        auto tc = engineSceneAddTransformComponent(scene, go_);
-        tc.position[0] = static_cast<float>(x);
-        tc.position[1] = static_cast<float>(y) + 0.5f;
-        tc.position[2] = static_cast<float>(z);
-
-        tc.scale[0] = 0.5f;
-        tc.scale[1] = 0.5f;
-        tc.scale[2] = 0.5f;
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
-
-        auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.7f, 0.1f, 0.1f, 0.0f });
-        material_comp.diffuse_texture = 0;
-        engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
-    }
-
-};
 
 
 template<std::uint32_t WIDTH, std::uint32_t HEIGHT>
@@ -389,6 +357,82 @@ private:
     std::pair<std::int32_t, std::int32_t> position_ = { 0, 0 };
 };
 
+class BaseEnemyNPC : public engine::IScript
+{
+public:
+    class PlayerScript* player_script = nullptr;
+public:
+    BaseEnemyNPC(engine::IScene* my_scene, std::int32_t x, std::int32_t y, std::int32_t z)
+        : IScript(my_scene)
+    {
+        auto scene = my_scene_->get_handle();
+        auto app = my_scene_->get_app_handle();
+
+        auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "sphere");
+        assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for cat script!");
+        engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
+
+        auto tc = engineSceneAddTransformComponent(scene, go_);
+        tc.position[0] = static_cast<float>(x);
+        tc.position[1] = static_cast<float>(y) + 0.5f;
+        tc.position[2] = static_cast<float>(z);
+
+        tc.scale[0] = 0.5f;
+        tc.scale[1] = 0.5f;
+        tc.scale[2] = 0.5f;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        auto material_comp = engineSceneAddMaterialComponent(scene, go_);
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.7f, 0.1f, 0.1f, 0.0f });
+        material_comp.diffuse_texture = 0;
+        engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+    }
+
+    void update(float dt) override
+    {
+        auto scene = my_scene_->get_handle();
+        auto app = my_scene_->get_app_handle();
+        move_timer_ += dt;
+
+        if (move_timer_ >= move_limit_time_)
+        {
+            move_timer_ = 0.0f;
+            const auto players_tc = engineSceneGetTransformComponent(scene, player_script->get_game_object());
+            auto tc = engineSceneGetTransformComponent(scene, go_);
+
+            const auto diff_x = players_tc.position[0] - tc.position[0];
+            const auto diff_y = players_tc.position[1] - tc.position[1];
+            const auto diff_z = players_tc.position[2] - tc.position[2];
+
+            if (diff_x > 1)
+            {
+                tc.position[0] += 1.0f;
+            }
+            else if (diff_x < -1)
+            {
+                tc.position[0] -= 1.0f;
+            }
+            else
+            {
+                if (diff_z > 1)
+                {
+                    tc.position[2] += 1.0f;
+                }
+                else if (diff_z < -1)
+                {
+                    tc.position[2] -= 1.0f;
+                }
+            }
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
+    }
+
+private:
+    float move_timer_ = 0.0f;
+    const float move_limit_time_ = 750.0f; // 500ms
+};
+
 class CameraScript : public engine::IScript
 {
 public:
@@ -504,8 +548,8 @@ public:
 
                 engineLog(fmt::format("Client assigned ID: {}\n", player_net_id_).c_str());
 
-                register_script<BaseEnemyNPC>(-5, 0, -5);
-
+                auto bs = register_script<BaseEnemyNPC>(-5, 0, -5);
+                bs->player_script = players_roaster_[payload.id];
                 break;
             }
 
