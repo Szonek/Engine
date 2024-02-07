@@ -395,6 +395,7 @@ public:
         auto app = my_scene_->get_app_handle();
         move_timer_ += dt;
 
+        // ToDo: replace it with real pathfinding algorthim
         if (move_timer_ >= move_limit_time_)
         {
             move_timer_ = 0.0f;
