@@ -72,7 +72,8 @@ public:
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
         material_comp.border_width = 0.025f;
-        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.259f, 0.554f, 0.125f, 0.0f });
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.259f, 0.554f, 0.125f, 1.0f });
+        set_c_array(material_comp.border_color, std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f });
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
 
     }
@@ -111,7 +112,7 @@ public:
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 0.0f });
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f });
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
 
     }
@@ -163,7 +164,7 @@ public:
                 case TileID::ePath:
                 {
                     auto* t = parent_scene_->register_script<FloorTile>(coord_x, 0, coord_z);
-                    t->set_material(std::array<float, 4>{0.8f, 0.8f, 0.1f, 0.0f});
+                    t->set_material(std::array<float, 4>{0.8f, 0.8f, 0.1f, 0.2f});
                     break;
                 }
                 default:
@@ -233,7 +234,7 @@ public:
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 0.0f });
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 1.0f });
         material_comp.diffuse_texture = 0;
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
 
@@ -384,7 +385,7 @@ public:
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.7f, 0.1f, 0.1f, 0.0f });
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.7f, 0.1f, 0.1f, 1.0f });
         material_comp.diffuse_texture = 0;
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
     }
@@ -450,10 +451,10 @@ public:
         camera_comp.enabled = true;
         camera_comp.clip_plane_near = 0.1f;
         camera_comp.clip_plane_far = 100.0f;
-        //camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
-        //camera_comp.type_union.perspective_fov = 45.0f;
-        camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC;
-        camera_comp.type_union.orthographics_scale = 5.0f;
+        camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
+        camera_comp.type_union.perspective_fov = 45.0f;
+        //camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC;
+        //camera_comp.type_union.orthographics_scale = 5.0f;
         engineSceneUpdateCameraComponent(scene, go_, &camera_comp);
 
         auto camera_transform_comp = engineSceneAddTransformComponent(scene, go_);
@@ -715,12 +716,31 @@ int main(int argc, char** argv)
         model_info.geometries_array[1].inds, model_info.geometries_array[1].inds_count, "y_bot", &ybot_geometry);
     engineApplicationReleaseModelInfo(app, &model_info);
 
-    //engine_font_t font_handle{};
-    //if (engineApplicationAddFontFromFile(app, "tahoma.ttf", "tahoma_font", &font_handle) != ENGINE_RESULT_CODE_OK)
-    //{
-    //    log(fmt::format("Couldnt load font!\n"));
-    //    return -1;
-    //}
+    engine_font_t font_handle{};
+    if (engineApplicationAddFontFromFile(app, "tahoma.ttf", "tahoma_font", &font_handle) != ENGINE_RESULT_CODE_OK)
+    {
+        log(fmt::format("Couldnt load font!\n"));
+        return -1;
+    }
+
+    struct ApplicationData {
+        bool show_text = true;
+    } my_data;
+
+    std::array<engine_ui_document_data_binding_t, 1> bindings{};
+    bindings[0].data_bool = &my_data.show_text;
+    bindings[0].name = "show_text";
+    bindings[0].type = ENGINE_DATA_TYPE_BOOL;
+    engine_ui_data_handle_t ui_data_handle{};
+    engine_error_code = engineApplicationCreateUiDocumentDataHandle(app, "animals", bindings.data(), bindings.size(), &ui_data_handle);
+
+    // load ui doc
+    engine_ui_document_t ui_doc{};
+    engine_error_code = engineApplicationCreateUiDocumentFromFile(app, "pong_main_menu.rml", &ui_doc);
+    if (ui_doc)
+    {
+        engineUiDocumentShow(ui_doc);
+    }
 
 
     engine::SceneManager scene_manager(app);
@@ -732,6 +752,8 @@ int main(int argc, char** argv)
         std::uint32_t frames_count = 0;
     };
     fps_counter_t fps_counter{};
+
+    auto mouse_coords_prev = engine_coords_2d_t{};
 
 	while (true)
 	{
@@ -748,6 +770,13 @@ int main(int argc, char** argv)
 			log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
 			break;
 		}
+
+        const auto mouse_coords = engineApplicationGetMouseCoords(app);
+        if (mouse_coords.x != mouse_coords_prev.x || mouse_coords.y != mouse_coords_prev.y)
+        {
+            //log(std::format("Mouse coord x,y: [{}, {}]\n", mouse_coords.x, mouse_coords.y));
+            mouse_coords_prev = mouse_coords;
+        }
 
         fps_counter.frames_count += 1;
         fps_counter.frames_total_time += frame_begin.delta_time;

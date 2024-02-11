@@ -202,17 +202,15 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
         f.dy = -1.0f * f.dy;
     }
 
+    ui_manager_.begin_frame();
 	rdx_.begin_frame();
-    //ui_manager_.begin_frame(); 
-
 	return ret;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
-    //ui_manager_.end_frame();
+    ui_manager_.end_frame();
     rdx_.end_frame();
-
 	engine_application_frame_end_info_t ret{};
 	//ret.success = !glfwWindowShouldClose(rdx_.get_glfw_window());;
     ret.success = true;

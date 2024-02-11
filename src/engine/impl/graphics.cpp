@@ -8,7 +8,6 @@
 
 #define GLAD_GLES2_IMPLEMENTATION
 #include <glad/gles2.h>
-//#include <GLFW/glfw3.h>
 
 #include <SDL3/SDL.h>
 
@@ -584,6 +583,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     context_ = SDL_GL_CreateContext(window_);
     if (!context_)
     {
@@ -613,28 +613,28 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
         log::log(log::LogLevel::eTrace, fmt::format("Sucesfully loaded OpenglES ver: {}, {}.\n",
             GLAD_VERSION_MAJOR(gl_version), GLAD_VERSION_MINOR(gl_version)));
 	}
-#if _DEBUG && defined(GLAD_GL_IMPLEMENTATION)
-    log::log(log::LogLevel::eCritical, "[INFO] Debug build. Building with debug context.\n");
-	glEnable(GL_DEBUG_OUTPUT);
-	glDebugMessageCallback(message_callback, 0);
-#endif
+//#if _DEBUG && defined(GLAD_GLES2_IMPLEMENTATION)
+//    log::log(log::LogLevel::eCritical, "[INFO] Debug build. Building with debug context.\n");
+//	glEnable(GL_DEBUG_OUTPUT);
+//	glDebugMessageCallback(message_callback, 0);
+//#endif
 
 	int32_t vertex_attributes_limit = 0;
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &vertex_attributes_limit);
     log::log(log::LogLevel::eTrace, fmt::format("Maximum nr of vertex attributes supported: {}\n", vertex_attributes_limit));
 	// enable depth test
 	glEnable(GL_DEPTH_TEST);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    //glEnable(GL_BLEND);
 
     // UI stuff 
-    //ui_rml_sdl_interface_ = new SystemInterface_SDL;
-    //ui_rml_gl3_renderer_ = new RenderInterface_GL3;
-    //ui_rml_sdl_interface_->SetWindow(window_);
+    ui_rml_sdl_interface_ = new SystemInterface_SDL;
+    ui_rml_gl3_renderer_ = new RenderInterface_GL3;
+    ui_rml_sdl_interface_->SetWindow(window_);
     const auto window_size = get_window_size_in_pixels();
     set_viewport(viewport_t{0, 0, (uint32_t)window_size.width, (uint32_t)window_size.height});
 
-    //Rml::SetSystemInterface(ui_rml_sdl_interface_);
-    //Rml::SetRenderInterface(ui_rml_gl3_renderer_);
+    Rml::SetSystemInterface(ui_rml_sdl_interface_);
+    Rml::SetRenderInterface(ui_rml_gl3_renderer_);
 }
 
 engine::RenderContext::RenderContext(RenderContext&& rhs) noexcept
@@ -695,7 +695,7 @@ engine::RenderContext::window_size_t engine::RenderContext::get_window_size_in_p
 void engine::RenderContext::set_viewport(const viewport_t& viewport)
 {
 	glViewport(0, 0, viewport.width, viewport.height);
-    //ui_rml_gl3_renderer_->SetViewport(viewport.width, viewport.height);
+    ui_rml_gl3_renderer_->SetViewport(viewport.width, viewport.height);
 }
 
 void engine::RenderContext::set_clear_color(float r, float g, float b, float a)
@@ -775,17 +775,14 @@ void engine::RenderContext::set_blend_mode(bool enable, BlendFactor src_rgb, Ble
 void engine::RenderContext::begin_frame()
 {
     glClearStencil(0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    // ui
-    //ui_rml_gl3_renderer_->BeginFrame();
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     //ui_rml_gl3_renderer_->Clear();
+    //ui_rml_gl3_renderer_->BeginFrame();
 }
 
 void engine::RenderContext::end_frame()
 {
-    //ui     
     //ui_rml_gl3_renderer_->EndFrame();
-
     SDL_GL_SwapWindow(window_);
 
 	// process errors
@@ -800,10 +797,15 @@ void engine::RenderContext::end_frame()
 
 void engine::RenderContext::begin_frame_ui_rendering()
 {
-    //ui_rml_gl3_renderer_->BeginFrame();
+    //glClearStencil(0);
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    //ui_rml_gl3_renderer_->Clear();
+    //glEnable(GL_BLEND);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    ui_rml_gl3_renderer_->BeginFrame();
 }
 
 void engine::RenderContext::end_frame_ui_rendering()
 {
-    //ui_rml_gl3_renderer_->EndFrame();
+    ui_rml_gl3_renderer_->EndFrame();
 }

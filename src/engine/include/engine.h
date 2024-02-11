@@ -66,7 +66,7 @@ typedef enum _engine_ui_document_data_binding_data_type_t
 
 typedef struct _engine_ui_document_data_binding_t
 {
-    char name[64];
+    const char* name;
     engine_ui_document_data_binding_data_type_t type;
     union
     {

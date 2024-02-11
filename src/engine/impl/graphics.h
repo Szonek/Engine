@@ -40,7 +40,7 @@ enum class DataLayout
 enum class TextureAddressClampMode
 {
     eClampToEdge = 0,
-    //eClampToBorder = 1,
+    eClampToBorder = 1,
     // ...
     eCount
 };

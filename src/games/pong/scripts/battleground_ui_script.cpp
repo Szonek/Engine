@@ -67,19 +67,19 @@ pong::BattlegroundUiScript::BattlegroundUiScript(engine::IScene* my_scene)
         // first create data model handel
         std::array<engine_ui_document_data_binding_t, 4> bindings;
 
-        std::strcpy(bindings[0].name, "score_left");
+        //std::strcpy(bindings[0].name, "score_left");
         bindings[0].type = ENGINE_DATA_TYPE_UINT32;
         bindings[0].data_uint32_t = &my_data_.player_left.score;
 
-        std::strcpy(bindings[1].name, "score_right");
+        //std::strcpy(bindings[1].name, "score_right");
         bindings[1].type = ENGINE_DATA_TYPE_UINT32;
         bindings[1].data_uint32_t = &my_data_.player_right.score;
 
-        std::strcpy(bindings[2].name, "show_left_player_move_controller");
+        //std::strcpy(bindings[2].name, "show_left_player_move_controller");
         bindings[2].type = ENGINE_DATA_TYPE_BOOL;
         bindings[2].data_bool = &my_data_.player_left.show_controllos;
 
-        std::strcpy(bindings[3].name, "show_right_player_move_controller");
+        //std::strcpy(bindings[3].name, "show_right_player_move_controller");
         bindings[3].type = ENGINE_DATA_TYPE_BOOL;
         bindings[3].data_bool = &my_data_.player_right.show_controllos;
 

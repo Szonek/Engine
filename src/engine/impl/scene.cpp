@@ -152,7 +152,8 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         }
 
         const auto window_size_pixels = rdx.get_window_size_in_pixels();
-
+        //rdx.set_depth_test(true);
+        //rdx.set_blend_mode(false);
         // update camera: view and projection
         {
             const auto z_near = camera.clip_plane_near;
@@ -202,20 +203,6 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 geometries[mesh.geometry].draw(Geometry::Mode::eTriangles);
 			}
 		);
-
-#if 0
-        ui_image_renderer.each([this, &rdx, &ui_manager](const engine_rect_tranform_component_t& transform, const engine_image_component_t& img)
-           {
-               ui_manager->render_image(rdx, img, transform);
-           }
-        );
-
-        ui_text_renderer.each([this, &rdx, &ui_manager](const engine_rect_tranform_component_t& transform, const engine_text_component_t& text)
-            {
-                ui_manager->render_text(rdx, text, transform);
-            }
-        );
-#endif
     }
 
 
