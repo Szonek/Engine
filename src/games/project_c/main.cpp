@@ -24,27 +24,11 @@
 #include <unordered_map>
 #include <deque>
 #include <functional>
-#include <network_message_types.h>
 
 
 namespace project_c
 {
 inline std::uint32_t health = 100;
-
-class ClientInterfaceProjectC : public engine::net::ClientInterface<MessageTypes>
-{
-public:
-    template<typename T>
-    void send_message(const T& payload)
-    {
-        NetMessage msg{};
-        msg.header.id = T::msg_id();
-        msg << payload;
-        send(msg);
-    }
-};
-
-
 
 
 class FloorTile : public engine::IScript
@@ -127,63 +111,119 @@ public:
     }
 };
 
-
-
-
-
 template<std::uint32_t WIDTH, std::uint32_t HEIGHT>
 class GameMapT
 {
+private:
+    enum class TileID : std::uint32_t
+    {
+        eUnknown = 0,
+        eGrass = 1,
+        ePath = 2
+    };
+
+    enum ObstacleID : std::uint32_t
+    {
+        eUnknown = 0,
+        eBox = 1
+    };
+
+    class Tile
+    {
+    public:
+        Tile(TileID id = TileID::eUnknown, ObstacleID obsctale = ObstacleID::eUnknown)
+            : tile_id_(id), obstacle_id_(obsctale)
+        {
+
+        }
+
+        TileID get_tile_id() const { return tile_id_; }
+
+        void set_tile_id(TileID id)
+        {
+            tile_id_ = id;
+        }
+
+        ObstacleID get_obstacle_id() const { return obstacle_id_; }
+        void set_obstacle_id(ObstacleID id)
+        {
+            obstacle_id_ = id;
+        }
+
+        bool can_walk_on() const
+        {
+            return obstacle_id_ == ObstacleID::eUnknown;
+        }
+
+    private:
+        TileID tile_id_;
+        ObstacleID obstacle_id_;
+    };
+
 public:
     GameMapT(engine::IScene* parent_scene)
         : parent_scene_(parent_scene)
     {
-    }
-
-    void initalize(std::array<std::array<Tile, WIDTH>, HEIGHT> map)
-    {
-        map_ = std::move(map);
-
         for (auto i = 0; i < HEIGHT; i++)
         {
             for (auto j = 0; j < WIDTH; j++)
             {
                 auto& tile = map_[i][j];
-                auto tile_id = tile.get_tile_id();
-                auto obstacle_id = tile.get_obstacle_id();
+                tile = Tile(TileID::eGrass);
+                if (j == WIDTH / 2)
+                {
+                    tile.set_tile_id(TileID::ePath);
+                }
+            }
+        }
+        map_[HEIGHT / 2 - 1][WIDTH / 2 + 1].set_obstacle_id(ObstacleID::eBox);
+        map_[HEIGHT / 2 - 1][WIDTH / 2 + 2].set_obstacle_id(ObstacleID::eBox);
+        map_[HEIGHT / 2 - 1][WIDTH / 2 + 3].set_obstacle_id(ObstacleID::eBox);
 
-                const auto coord_x = j - static_cast<std::int32_t>(WIDTH / 2);
-                const auto coord_z = i - static_cast<std::int32_t>(HEIGHT / 2);
+        {
+            for (auto i = 0; i < HEIGHT; i++)
+            {
+                for (auto j = 0; j < WIDTH; j++)
+                {
+                    auto& tile = map_[i][j];
+                    auto tile_id = tile.get_tile_id();
+                    auto obstacle_id = tile.get_obstacle_id();
 
-                switch (tile_id)
-                {
-                case TileID::eGrass:
-                {
-                    parent_scene_->register_script<FloorTile>(coord_x, 0, coord_z);
-                    break;
-                }
-                case TileID::ePath:
-                {
-                    auto* t = parent_scene_->register_script<FloorTile>(coord_x, 0, coord_z);
-                    t->set_material(std::array<float, 4>{0.8f, 0.8f, 0.1f, 0.2f});
-                    break;
-                }
-                default:
-                    assert(!"Unknown tileID!");
-                }
+                    const auto coord_x = j - static_cast<std::int32_t>(WIDTH / 2);
+                    const auto coord_z = i - static_cast<std::int32_t>(HEIGHT / 2);
 
-                switch (obstacle_id)
-                {
-                case ObstacleID::eBox:
-                {
-                    parent_scene_->register_script<ObstacleStaticObject>(coord_x, 0, coord_z);
-                    break;
-                }
+                    switch (tile_id)
+                    {
+                    case TileID::eGrass:
+                    {
+                        parent_scene_->register_script<FloorTile>(coord_x, 0, coord_z);
+                        break;
+                    }
+                    case TileID::ePath:
+                    {
+                        auto* t = parent_scene_->register_script<FloorTile>(coord_x, 0, coord_z);
+                        t->set_material(std::array<float, 4>{0.8f, 0.8f, 0.1f, 0.2f});
+                        break;
+                    }
+                    default:
+                        assert(!"Unknown tileID!");
+                    }
+
+                    switch (obstacle_id)
+                    {
+                    case ObstacleID::eBox:
+                    {
+                        parent_scene_->register_script<ObstacleStaticObject>(coord_x, 0, coord_z);
+                        break;
+                    }
+                    }
                 }
             }
         }
     }
 
+
+public:
     bool player_wants_to_move(std::int32_t x, std::int32_t y) const
     {
         y += HEIGHT / 2;
@@ -238,14 +278,6 @@ public:
         set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 1.0f });
         material_comp.diffuse_texture = 0;
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
-
-        player_state_.coord_x = tc.position[0];
-        player_state_.coord_z = tc.position[2];
-    }
-
-    virtual void set_state(ClientServer_PlayerState state)
-    {
-        player_state_ = state;
     }
 
     void update(float dt) override
@@ -258,26 +290,18 @@ protected:
     {
         auto app = my_scene_->get_app_handle();
         auto scene = my_scene_->get_handle();
-        auto tc = engineSceneGetTransformComponent(scene, go_);
-        tc.position[0] = player_state_.coord_x;
-        tc.position[2] = player_state_.coord_z;
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
     };
 
 protected:
     const GameMap& map_;
-    ClientServer_PlayerState player_state_;
 };
 
 class ControllablePlayerScript : public PlayerScript
 {
 public:
-    ControllablePlayerScript(engine::IScene* my_scene, const GameMap& map, ClientInterfaceProjectC& inet, PlayerNetId id)
+    ControllablePlayerScript(engine::IScene* my_scene, const GameMap& map)
         : PlayerScript(my_scene, map)
-        , inet_(inet)
     {
-        player_state_.id = id;
-        inet_.send_message(player_state_);
     }
 
 
@@ -344,21 +368,20 @@ public:
         }
         next_move_counter_ = 0.0f;
 
-        if (map_.player_wants_to_move(player_state_.coord_x + move_dir.x, player_state_.coord_z + move_dir.z))
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+
+        if (map_.player_wants_to_move(tc.position[0] + move_dir.x, tc.position[2] + move_dir.z))
         {
-            player_state_.coord_x += move_dir.x;
-            player_state_.coord_z += move_dir.z;
+            tc.position[0] += move_dir.x;
+            tc.position[2] += move_dir.z;
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
 
         const auto tiles_moved = std::abs(move_dir.x) + std::abs(move_dir.z);
         next_move_limit_time_ = 500.0f * tiles_moved;
-
-        inet_.send_message(player_state_);
-        PlayerScript::update(dt);
     }
 
 private:
-    ClientInterfaceProjectC& inet_;
     float next_move_counter_ = 0.0f;
     float next_move_limit_time_ = 500.0f;  // in miliseconds
 
@@ -525,94 +548,24 @@ private:
 class Overworld : public engine::IScene
 {
 public:
-    Overworld(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code, ClientInterfaceProjectC& inet)
+    Overworld(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
         : IScene(app_handle, scn_mgn, engine_error_code)
         , map_(this)
-        , inet_(inet)
     {
-        ToServer_PlayerRegister payload{};
-        inet_.send_message(payload);
+        auto player = register_script<ControllablePlayerScript>(map_);
+        auto camera_script = register_script<CameraScript>();
+        camera_script->player_script = player;
+
+        auto bs = register_script<BaseEnemyNPC>(-5, 0, -5);
+        bs->player_script = player;
     }
 
-    void update_hook_begin() override
-    {
-        while (!inet_.incoming().empty())
-        {
-            auto msg = inet_.incoming().pop_front().msg;
-
-            switch (msg.header.id)
-            {
-            case MessageTypes::eToClient_PlayerRegister:
-            {
-                ToClient_PlayerRegister payload{};
-                msg >> payload;
-                player_net_id_ = payload.id;
-                map_.initalize(payload.map);
-
-                players_roaster_[payload.id] = register_script<ControllablePlayerScript>(map_, inet_, player_net_id_);
-                // Important: Camera has to be added as 2nd script, because it depends on the position of the controlalble character
-                // if camera would be added first, than it follows player position in previous frame!
-                auto camera_script = register_script<CameraScript>();
-                camera_script->player_script = players_roaster_[player_net_id_];
-
-                engineLog(fmt::format("Client assigned ID: {}\n", player_net_id_).c_str());
-
-                auto bs = register_script<BaseEnemyNPC>(-5, 0, -5);
-                bs->player_script = players_roaster_[payload.id];
-                break;
-            }
-
-            case MessageTypes::eClientServer_PlayerState:
-            {
-                ClientServer_PlayerState payload{};
-                msg >> payload;
-                if (players_roaster_.find(payload.id) == players_roaster_.end())
-                {
-                    engineLog("Adding new player state\n");
-                    if (payload.id == player_net_id_)
-                    {
-                        engineLog("Invalid player id. New player supposed to have the same ID as you.\n");
-                    }
-                    else
-                    {
-                        players_roaster_[payload.id] = register_script<PlayerScript>(map_);
-                    }
-                }
-                players_roaster_[payload.id]->set_state(payload);
-                break;
-            }
-
-            case MessageTypes::eToClient_PlayerDisconnected:
-            {
-                ToClient_PlayerDisconnected payload{};
-                msg >> payload;
-                if (players_roaster_.find(payload.id) == players_roaster_.end())
-                {
-                    engineLog("Player disconnected, but it wasnt in the roaster anyway.\n");
-                }
-                else
-                {
-                    unregister_script(players_roaster_.at(payload.id));
-                    players_roaster_.erase(payload.id);
-                }
-                break;
-            }
-            default:
-                engineLog(fmt::format("[Client] Unknown message type! Msg id: {}\n", static_cast<std::uint32_t>(msg.header.id)).c_str());
-            }
-
-        }
-    }
 
     ~Overworld() = default;
     static constexpr const char* get_name() { return "Overworld"; }
 
 private:
-    std::unordered_map<PlayerNetId, PlayerScript*> players_roaster_;
-    PlayerNetId player_net_id_ = PlayerNetIdInvalid;
-
     GameMap map_;
-    ClientInterfaceProjectC& inet_;
 };
 }
 
@@ -641,17 +594,6 @@ int main(int argc, char** argv)
         log(fmt::format("Couldnt create engine application!\n"));
 		return -1;
 	}
-
-    const std::string server_ip = "127.0.0.1";
-    const std::uint32_t server_port = 60'000;
-    project_c::ClientInterfaceProjectC network_interface{};
-    engineLog(fmt::format("Connecting to server at address: {}, port: {} ....\n", server_ip, server_port).c_str());
-    network_interface.connect(server_ip, server_port);
-    engineLog(fmt::format(".... Connection {}\n", network_interface.is_connected() ? "successed" : "failed." ).c_str());
-    if (!network_interface.is_connected())
-    {
-        return -404;
-    }
 
     // cube
     engine_model_info_t model_info{};
@@ -749,7 +691,7 @@ int main(int argc, char** argv)
 
 
     engine::SceneManager scene_manager(app);
-    scene_manager.register_scene<project_c::Overworld>(network_interface);
+    scene_manager.register_scene<project_c::Overworld>();
 
     struct fps_counter_t
     {
