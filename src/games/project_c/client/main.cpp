@@ -29,6 +29,7 @@
 
 namespace project_c
 {
+inline std::uint32_t health = 100;
 
 class ClientInterfaceProjectC : public engine::net::ClientInterface<MessageTypes>
 {
@@ -331,6 +332,11 @@ public:
             move_dir.z = tile_distance;
         }
 
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_SPACE))
+        {
+            health -= 10;
+            log(fmt::format("Health: {}\n", health));
+        }
         const bool move_requested = move_dir.x != 0 || move_dir.z != 0;
         if (!move_requested || next_move_counter_ <= next_move_limit_time_)
         {
@@ -343,6 +349,7 @@ public:
             player_state_.coord_x += move_dir.x;
             player_state_.coord_z += move_dir.z;
         }
+
         const auto tiles_moved = std::abs(move_dir.x) + std::abs(move_dir.z);
         next_move_limit_time_ = 500.0f * tiles_moved;
 
@@ -723,20 +730,18 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    struct ApplicationData {
-        bool show_text = true;
-    } my_data;
+
 
     std::array<engine_ui_document_data_binding_t, 1> bindings{};
-    bindings[0].data_bool = &my_data.show_text;
-    bindings[0].name = "show_text";
-    bindings[0].type = ENGINE_DATA_TYPE_BOOL;
+    bindings[0].data_uint32_t = &project_c::health;
+    bindings[0].name = "value";
+    bindings[0].type = ENGINE_DATA_TYPE_UINT32;
     engine_ui_data_handle_t ui_data_handle{};
-    engine_error_code = engineApplicationCreateUiDocumentDataHandle(app, "animals", bindings.data(), bindings.size(), &ui_data_handle);
+    engine_error_code = engineApplicationCreateUiDocumentDataHandle(app, "health", bindings.data(), bindings.size(), &ui_data_handle);
 
     // load ui doc
     engine_ui_document_t ui_doc{};
-    engine_error_code = engineApplicationCreateUiDocumentFromFile(app, "pong_main_menu.rml", &ui_doc);
+    engine_error_code = engineApplicationCreateUiDocumentFromFile(app, "project_c_health_bar.rml", &ui_doc);
     if (ui_doc)
     {
         engineUiDocumentShow(ui_doc);
@@ -786,6 +791,7 @@ int main(int argc, char** argv)
                 fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count));
             fps_counter = {};
         }
+        engineUiDataHandleDirtyVariable(ui_data_handle, "value");
 
         scene_manager.update(frame_begin.delta_time);
        
