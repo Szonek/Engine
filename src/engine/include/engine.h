@@ -346,6 +346,7 @@ ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_applicati
 // textures 
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t* info, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
+ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
 
 ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_t* out);
 ENGINE_API void engineSceneDestroy(engine_scene_t scene);

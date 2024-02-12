@@ -315,6 +315,11 @@ engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t 
     return ENGINE_RESULT_CODE_OK;
 }
 
+engine_texture2d_t engineApplicationGetTextured2DByName(engine_application_t handle, const char* name)
+{
+    const auto* app = application_cast(handle);
+    return app->get_texture(name);
+}
 
 engine_result_code_t engineApplicationAllocateModelInfoAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, engine_model_info_t* out)
 {

@@ -164,6 +164,8 @@ public:
     GameMapT(engine::IScene* parent_scene)
         : parent_scene_(parent_scene)
     {
+        return;
+
         for (auto i = 0; i < HEIGHT; i++)
         {
             for (auto j = 0; j < WIDTH; j++)
@@ -270,14 +272,14 @@ public:
         tc.position[1] = 0.5f;
         tc.position[2] = 0.0f;
 
-        tc.scale[0] = 2.0f;//0.5f;
-        tc.scale[1] = 2.0f;//0.5f;
-        tc.scale[2] = 2.0f;//0.5f;
+        tc.scale[0] = 0.02f;//0.5f;
+        tc.scale[1] = 0.02f;//0.5f;
+        tc.scale[2] = 0.02f;//0.5f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f });
-        material_comp.diffuse_texture = 0;
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 1.0f });
+        material_comp.diffuse_texture = engineApplicationGetTextured2DByName(app, "diffuse");
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
     }
 
@@ -533,9 +535,10 @@ public:
         auto player = register_script<ControllablePlayerScript>(map_);
         auto camera_script = register_script<CameraScript>();
         camera_script->player_script = player;
-
+#if 0
         auto bs = register_script<BaseEnemyNPC>(-5, 0, -5);
         bs->player_script = player;
+#endif
     }
 
 
@@ -573,6 +576,7 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
+#if 0
     // cube
     engine_model_info_t model_info{};
     engine_result_code_t model_info_result = ENGINE_RESULT_CODE_FAIL;
@@ -631,16 +635,28 @@ int main(int argc, char** argv)
         return -1;
     }
     engineApplicationReleaseModelInfo(app, &model_info);
+#endif
 
-    model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "y_bot.glb", &model_info);
+    engine_model_info_t model_info{};
+    const auto model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "riverdance_dance_free_animation.glb", &model_info);
     if (model_info_result != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed loading TABLE model. Exiting!\n");
         return -1;
     }
+    const auto& geo = model_info.geometries_array[0];
     engine_geometry_t ybot_geometry{};
-    engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[1].verts, model_info.geometries_array[1].verts_count,
-        model_info.geometries_array[1].inds, model_info.geometries_array[1].inds_count, "y_bot", &ybot_geometry);
+    engineApplicationAddGeometryFromMemory(app, geo.verts, geo.verts_count, geo.inds, geo.inds_count, "y_bot", &ybot_geometry);
+
+
+    engine_texture2d_t tex2d{};
+    const auto& mat = model_info.materials_array[0];
+    engine_error_code = engineApplicationAddTexture2DFromMemory(app, &mat.diffuse_texture_info, "diffuse", &tex2d);
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        engineLog("Failed creating textured for loaded model. Exiting!\n");
+        return -1;
+    }
     engineApplicationReleaseModelInfo(app, &model_info);
 
     engine_font_t font_handle{};

@@ -23,8 +23,6 @@
 
 engine::UiManager::UiManager(RenderContext& rdx)
     : rdx_(rdx)
-    , shader_font_(Shader("font.vs", "font.fs"))
-    , shader_image_(Shader("font.vs", "ui_image.fs"))
     , current_font_idx_(ENGINE_INVALID_OBJECT_HANDLE) // start with, since 0 is invalid index
 {
     current_font_idx_++;
@@ -32,25 +30,18 @@ engine::UiManager::UiManager(RenderContext& rdx)
     // create context with some aribtrary name and dimension.  (dimensions wil lbe update in update(..))
     const auto window_size_pixels = rdx_.get_window_size_in_pixels();
     ui_rml_context_ = Rml::CreateContext("app", Rml::Vector2i(window_size_pixels.width, window_size_pixels.height));
-    //Rml::Debugger::Initialise(ui_rml_context_);
     assert(ui_rml_context_);
 }
 
 engine::UiManager::UiManager(UiManager&& rhs)
-    : shader_font_(std::move(rhs.shader_font_))
-    , shader_image_(std::move(rhs.shader_image_))
-    , rdx_(rhs.rdx_)
+    : rdx_(rhs.rdx_)
 {
-    std::swap(font_handle_, rhs.font_handle_);
 }
 
 engine::UiManager& engine::UiManager::operator=(UiManager&& rhs)
 {
     if (this != &rhs)
     {
-        std::swap(font_handle_, rhs.font_handle_);
-        std::swap(shader_font_, rhs.shader_font_);
-        std::swap(shader_image_, rhs.shader_image_);
     }
     return *this;
 }
@@ -89,15 +80,8 @@ std::uint32_t engine::UiManager::load_font_from_file(std::string_view file_name,
 
 std::uint32_t engine::UiManager::get_font(std::string_view name) const
 {
-    for (std::uint32_t i = 0; const auto& a : atlases_)
-    {
-        if (a.font_name.compare(name) == 0)
-        {
-            return i;
-        }
-        i++;
-    }
-    return ENGINE_INVALID_OBJECT_HANDLE;
+    assert(false && "Not implemented!");
+    return std::uint32_t();
 }
 
 void engine::UiManager::parse_sdl_event(SDL_Event ev)
@@ -105,12 +89,7 @@ void engine::UiManager::parse_sdl_event(SDL_Event ev)
     RmlSDL::InputEventHandler(ui_rml_context_, ev);
 }
 
-void engine::UiManager::begin_frame()
-{
-
-}
-
-void engine::UiManager::end_frame()
+void engine::UiManager::update_state_and_render()
 {
     ui_rml_context_->Update();
     rdx_.begin_frame_ui_rendering();

@@ -202,14 +202,13 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
         f.dy = -1.0f * f.dy;
     }
 
-    ui_manager_.begin_frame();
 	rdx_.begin_frame();
 	return ret;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
-    ui_manager_.end_frame();
+    ui_manager_.update_state_and_render();
     rdx_.end_frame();
 	engine_application_frame_end_info_t ret{};
 	//ret.success = !glfwWindowShouldClose(rdx_.get_glfw_window());;
@@ -239,6 +238,11 @@ std::uint32_t engine::Application::add_texture_from_memory(const engine_texture_
 std::uint32_t engine::Application::add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space)
 {
 	return textures_atlas_.add_object(texture_name, Texture2D(file_name, true));
+}
+
+std::uint32_t engine::Application::get_texture(std::string_view name) const
+{
+    return textures_atlas_.get_object(name);
 }
 
 std::uint32_t engine::Application::add_font_from_file(std::string_view file_name, std::string_view handle_name)

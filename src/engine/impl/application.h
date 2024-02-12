@@ -27,6 +27,8 @@ public:
 
     std::uint32_t add_texture_from_memory(const engine_texture_2d_create_from_memory_desc_t& desc, std::string_view texture_name);
     std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
+    std::uint32_t get_texture(std::string_view name) const;
+
     std::uint32_t add_font_from_file(std::string_view file_name, std::string_view handle_name);
     std::uint32_t get_font(std::string_view name) const;
 
