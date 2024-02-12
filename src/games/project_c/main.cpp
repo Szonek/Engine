@@ -272,9 +272,9 @@ public:
         tc.position[1] = 0.5f;
         tc.position[2] = 0.0f;
 
-        tc.scale[0] = 0.02f;//0.5f;
-        tc.scale[1] = 0.02f;//0.5f;
-        tc.scale[2] = 0.02f;//0.5f;
+        tc.scale[0] = 2.00f;//0.5f;
+        tc.scale[1] = 2.00f;//0.5f;
+        tc.scale[2] = 2.00f;//0.5f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
@@ -638,7 +638,7 @@ int main(int argc, char** argv)
 #endif
 
     engine_model_info_t model_info{};
-    const auto model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "riverdance_dance_free_animation.glb", &model_info);
+    const auto model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "test.gltf", &model_info);
     if (model_info_result != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed loading TABLE model. Exiting!\n");
@@ -648,15 +648,18 @@ int main(int argc, char** argv)
     engine_geometry_t ybot_geometry{};
     engineApplicationAddGeometryFromMemory(app, geo.verts, geo.verts_count, geo.inds, geo.inds_count, "y_bot", &ybot_geometry);
 
-
-    engine_texture2d_t tex2d{};
-    const auto& mat = model_info.materials_array[0];
-    engine_error_code = engineApplicationAddTexture2DFromMemory(app, &mat.diffuse_texture_info, "diffuse", &tex2d);
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    if (model_info.materials_count > 0)
     {
-        engineLog("Failed creating textured for loaded model. Exiting!\n");
-        return -1;
+        engine_texture2d_t tex2d{};
+        const auto& mat = model_info.materials_array[0];
+        engine_error_code = engineApplicationAddTexture2DFromMemory(app, &mat.diffuse_texture_info, "diffuse", &tex2d);
+        if (engine_error_code != ENGINE_RESULT_CODE_OK)
+        {
+            engineLog("Failed creating textured for loaded model. Exiting!\n");
+            return -1;
+        }
     }
+
     engineApplicationReleaseModelInfo(app, &model_info);
 
     engine_font_t font_handle{};

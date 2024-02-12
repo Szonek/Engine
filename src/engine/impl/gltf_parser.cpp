@@ -86,11 +86,10 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             }
         }
 
-        if (position_data.count == 0 || uv_0_data.count == 0 || (position_data.count != uv_0_data.count))
+        if (position_data.count == 0)
         {
             engine::log::log(engine::log::LogLevel::eCritical, 
-                fmt::format("Cant load mesh correctly. Count of positions: {}, count of uv: {} \n. \
-                    One of the attrib is 0, or cound do not equal to each other.\n",
+                fmt::format("Cant load mesh correctly. Count of positions: {}, count of uv: {} .\n",
                     position_data.count, uv_0_data.count));
         }
 
@@ -103,8 +102,11 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             ret.verticies[verts_offset + i].position[1] = position_data.data[1 + i * position_data.num_components];
             ret.verticies[verts_offset + i].position[2] = position_data.data[2 + i * position_data.num_components];
 
-            ret.verticies[verts_offset + i].uv[0] = uv_0_data.data[0 + i * 2];
-            ret.verticies[verts_offset + i].uv[1] = uv_0_data.data[1 + i * 2];
+            if (uv_0_data.count != 0)
+            {
+                ret.verticies[verts_offset + i].uv[0] = uv_0_data.data[0 + i * 2];
+                ret.verticies[verts_offset + i].uv[1] = uv_0_data.data[1 + i * 2];
+            }
         }
 
         // inds
@@ -161,9 +163,19 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     std::string load_error_msg = "";
     tinygltf::Model model;
     tinygltf::TinyGLTF loader;
-    const auto load_success = loader.LoadBinaryFromMemory(&model, &load_error_msg, &load_warning_msg,
-                                                          data.data(), data.size_bytes(), "");
 
+    // check magic to detect binary vs ascii
+    bool load_success = false;
+    const auto is_binary = data.size() > 4 && data[0] == 'g' && data[1] == 'l' && data[2] == 'T ' && data[3] == 'F';
+    if(is_binary)
+    {
+        load_success = loader.LoadBinaryFromMemory(&model, &load_error_msg, &load_warning_msg,
+            data.data(), data.size_bytes(), "");
+    }
+    else
+    {
+        load_success = loader.LoadASCIIFromString(&model, &load_error_msg, &load_warning_msg, reinterpret_cast<const char*>(data.data()), data.size(), {});
+    }
     if (!load_warning_msg.empty())
     {
         log::log(log::LogLevel::eTrace, load_warning_msg);
