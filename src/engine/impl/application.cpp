@@ -316,6 +316,31 @@ engine_model_info_t engine::Application::load_model_info_from_file(engine_model_
             ret_m.diffuse_texture_info.data = int_m.diffuse_texture.data.data();
         }
     }
+
+    ret.animations_counts = model_info->animations.size();
+    if (ret.animations_counts > 0)
+    {
+        ret.animations_array = new engine_animation_info_t[ret.animations_counts];
+        for (std::size_t i = 0; i < ret.animations_counts; i++)
+        {
+            auto& anim = ret.animations_array[i];
+            anim.channels_count = model_info->animations[i].channels.size();
+            anim.channels = new engine_animation_channel_t[anim.channels_count];  //ToDo: memroy leak, not released memory!
+            for (std::size_t ch_i = 0; ch_i < anim.channels_count; ch_i++)
+            {
+                const auto& in_ch = model_info->animations[i].channels[ch_i];
+                auto& out_ch = anim.channels[ch_i];
+
+                out_ch.type = in_ch.type;
+                out_ch.data_count = in_ch.data.size();
+                out_ch.data = in_ch.data.data();
+
+                out_ch.timestamps_count = in_ch.timestamps.size();
+                out_ch.timestamps = in_ch.timestamps.data();
+            }
+        }
+    }
+
     return ret;
 }
 
@@ -332,6 +357,10 @@ void engine::Application::release_model_info(engine_model_info_t* info)
         if (info->materials_array)
         {
             delete[] info->materials_array;
+        }
+        if (info->animations_array)
+        {
+            delete[] info->animations_array;
         }
         std::memset(info, 0, sizeof(engine_model_info_t));
     }

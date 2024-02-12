@@ -166,7 +166,7 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
 
     // check magic to detect binary vs ascii
     bool load_success = false;
-    const auto is_binary = data.size() > 4 && data[0] == 'g' && data[1] == 'l' && data[2] == 'T ' && data[3] == 'F';
+    const auto is_binary = data.size() > 4 && data[0] == 'g' && data[1] == 'l' && data[2] == 'T' && data[3] == 'F';
     if(is_binary)
     {
         load_success = loader.LoadBinaryFromMemory(&model, &load_error_msg, &load_warning_msg,
@@ -201,13 +201,14 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     engine::ModelInfo out{};
     out.geometries.resize(model.meshes.size());
 
-    for (std::size_t idx = 0; auto& mesh : model.meshes)
+    for (std::size_t idx = 0; const auto& mesh : model.meshes)
     {
         out.geometries[idx] = parse_mesh(mesh, model);
         idx++;
     }
 
-    for (std::size_t idx = 0; auto & material : model.materials)
+    out.materials.resize(model.materials.size());
+    for (std::size_t idx = 0; const auto& material : model.materials)
     {
         MaterialInfo new_material{};
         new_material.name = material.name;
@@ -244,18 +245,71 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             // attach texture to new material;
             new_material.diffuse_texture = std::move(tex_info);
         }
-        out.materials.push_back(new_material);
+        out.materials[idx] = std::move(new_material);
     }
 
-    //https://github.com/syoyo/tinygltf/blob/release/examples/basic/main.cpp
-    for(auto& scene : model.scenes)
+    //https://github.com/KhronosGroup/glTF-Tutorials/blob/main/gltfTutorial/gltfTutorial_007_Animations.md
+    out.animations.resize(model.animations.size());
+    for (std::size_t idx = 0; const auto& animation : model.animations)
     {
-        for (std::size_t i = 0; i < scene.nodes.size(); ++i)
+        AnimationInfo new_animation{};
+        new_animation.name = animation.name;
+        new_animation.channels.resize(animation.channels.size());
+        for (std::size_t ch_idx = 0; const auto& ch : animation.channels)
         {
-            assert((scene.nodes[i] >= 0) && (scene.nodes[i] < model.nodes.size()));
-            const auto& scene_node = model.nodes[scene.nodes[i]];
-            //parse_model_nodes(out, model, scene_node);
+            const auto& sampler = animation.samplers[ch.sampler];
+            assert(sampler.interpolation == "LINEAR"); // ToDo: add support for other interploation types
+            
+            const auto& accessor_timestamps = model.accessors[sampler.input];
+            const auto& buffer_view_timestamps = model.bufferViews[accessor_timestamps.bufferView];
+            assert(accessor_timestamps.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+            assert(accessor_timestamps.type == TINYGLTF_TYPE_SCALAR);
+
+            const auto& accessor_data = model.accessors[sampler.output];
+            const auto& buffer_view_data = model.bufferViews[accessor_data.bufferView];
+            assert(accessor_data.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+            assert(accessor_data.type == TINYGLTF_TYPE_VEC3 || accessor_data.type == TINYGLTF_TYPE_VEC4);
+
+            // some additional validation
+            {
+                const auto stride_timestamps = accessor_timestamps.ByteStride(buffer_view_timestamps);
+                assert(stride_timestamps == sizeof(float));
+                const auto stride_data = accessor_data.ByteStride(buffer_view_timestamps);
+                assert(stride_data == 3 * sizeof(float) || stride_data == 4 * sizeof(float));
+            }
+
+            auto& new_channel = new_animation.channels[ch_idx];
+            if (ch.target_path.compare("rotation") == 0)
+            {
+                new_channel.type = ENGINE_ANIMATION_PROPERTY_TYPE_ROTATION;
+            }
+            else if (ch.target_path.compare("translation") == 0)
+            {
+                new_channel.type = ENGINE_ANIMATION_PROPERTY_TYPE_TRANSLATION;
+            }
+            else if (ch.target_path.compare("scale") == 0)
+            {
+                new_channel.type = ENGINE_ANIMATION_PROPERTY_TYPE_SCALE;
+            }
+            else
+            {
+                assert(false && "Unknown target path for animation!");
+            }
+
+            assert(accessor_timestamps.count == accessor_data.count);
+            new_channel.timestamps.resize(accessor_timestamps.count * tinygltf::GetNumComponentsInType(accessor_timestamps.type));
+            const auto& buffer_timings = reinterpret_cast<const float*>(model.buffers[buffer_view_timestamps.buffer].data.data() + accessor_timestamps.byteOffset + buffer_view_timestamps.byteOffset);
+            std::memcpy(new_channel.timestamps.data(), buffer_timings, new_channel.timestamps.size() * sizeof(float));
+            // go over each element and scale by 1000 to get miliseconds
+            std::for_each(new_channel.timestamps.begin(), new_channel.timestamps.end(), [](auto& v) {v *= 1000.0f; });
+
+            new_channel.data.resize(accessor_data.count * tinygltf::GetNumComponentsInType(accessor_data.type));
+            const auto& buffer_data = reinterpret_cast<const float*>(model.buffers[buffer_view_data.buffer].data.data() + accessor_data.byteOffset + buffer_view_data.byteOffset);
+            std::memcpy(new_channel.data.data(), buffer_data, new_channel.data.size() * sizeof(float));
+
         }
+        out.animations[idx] = std::move(new_animation);
     }
+
     return out;
 }

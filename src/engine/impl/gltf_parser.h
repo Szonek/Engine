@@ -31,11 +31,25 @@ struct MaterialInfo
     TextureInfo diffuse_texture;
 };
 
+struct AnimationChannelInfo
+{
+    engine_animation_property_type_t type = ENGINE_ANIMATION_PROPERTY_TYPE_COUNT;
+    std::vector<float> timestamps;
+    std::vector<float> data;
+};
+
+struct AnimationInfo
+{
+    std::string name;
+    std::vector<AnimationChannelInfo> channels;
+};
+
 struct ModelInfo
 {
     std::vector<GeometryInfo> geometries;
     std::vector<MaterialInfo> materials;
+    std::vector<AnimationInfo> animations;
 };
 
 ModelInfo parse_gltf_data_from_memory(std::span<const std::uint8_t> data);
-} // namespace engine
+} // namespace engine>

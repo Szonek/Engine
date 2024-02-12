@@ -25,11 +25,11 @@
 #include <deque>
 #include <functional>
 
+inline engine_model_info_t model_info{};
 
 namespace project_c
 {
 inline std::uint32_t health = 100;
-
 
 class FloorTile : public engine::IScript
 {
@@ -290,6 +290,49 @@ public:
         auto scene = my_scene_->get_handle();
         next_move_counter_ += dt;
 
+        if (trigger_anim_)
+        {
+            anim_counter_ += dt;          
+        }
+
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F) && !trigger_anim_)
+        {
+            trigger_anim_ = true;
+        }
+
+        auto get_index_timestamp = [](float animation_time, const float* timestamps, std::size_t timestamps_count)
+        {
+            for (auto i = 0; i < timestamps_count; i++)
+            {
+                if (animation_time <= timestamps[i])
+                {
+                    return i;
+                }
+            }
+            return 0;
+        };
+
+        if (trigger_anim_)
+        {
+            const auto& anim = model_info.animations_array[0];
+            for (auto i = 0; i < anim.channels_count; i++)
+            {
+                const auto& ch = anim.channels[i];
+                const auto& timestamp_idx = get_index_timestamp(anim_counter_, ch.timestamps, ch.timestamps_count);
+                if (timestamp_idx < ch.timestamps_count - 1)
+                {
+                    const auto base_idx = timestamp_idx * 4;
+                    engineLog(std::format("{}, {}, {}, {}\n", ch.data[base_idx], ch.data[base_idx+1], ch.data[base_idx+2], ch.data[base_idx+3]).c_str());
+                }
+            }
+        }
+
+        if (anim_counter_ >= 1000.0f)
+        {
+            trigger_anim_ = false;
+            anim_counter_ = 0.0f;
+        }
+
         constexpr const std::int32_t tile_distance = 1u;
         struct MoveDir
         {
@@ -366,6 +409,10 @@ private:
     float next_move_limit_time_ = 500.0f;  // in miliseconds
 
     std::pair<std::int32_t, std::int32_t> position_ = { 0, 0 };
+
+
+    float anim_counter_ = 0.0f;
+    bool trigger_anim_ = false;
 };
 
 class BaseEnemyNPC : public engine::IScript
@@ -559,6 +606,17 @@ int main(int argc, char** argv)
         log(fmt::format("Reading assets from path: {}\n", assets_path));
 	}
 
+    bool run_test_model = false;
+    if (argc > 2)
+    {
+        std::string str = argv[2];
+        if (str == "test")
+        {
+            run_test_model = true;
+        }
+    }
+    log(fmt::format("Running test model: {}\n", run_test_model));
+
 	engine_application_t app{};
 	engine_application_create_desc_t app_cd{};
 	app_cd.name = "Pong";
@@ -637,19 +695,25 @@ int main(int argc, char** argv)
     engineApplicationReleaseModelInfo(app, &model_info);
 #endif
 
-    engine_model_info_t model_info{};
-    const auto model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "test.gltf", &model_info);
-    if (model_info_result != ENGINE_RESULT_CODE_OK)
+    //engine_model_info_t model_info{};
+    engine_error_code = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test.gltf" : "riverdance_dance_free_animation.glb", &model_info);
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed loading TABLE model. Exiting!\n");
         return -1;
     }
-    const auto& geo = model_info.geometries_array[0];
-    engine_geometry_t ybot_geometry{};
-    engineApplicationAddGeometryFromMemory(app, geo.verts, geo.verts_count, geo.inds, geo.inds_count, "y_bot", &ybot_geometry);
+
+    if (model_info.geometries_count > 0)
+    {
+        assert(model_info.geometries_count == 1);
+        const auto& geo = model_info.geometries_array[0];
+        engine_geometry_t ybot_geometry{};
+        engineApplicationAddGeometryFromMemory(app, geo.verts, geo.verts_count, geo.inds, geo.inds_count, "y_bot", &ybot_geometry);
+    }
 
     if (model_info.materials_count > 0)
     {
+        assert(model_info.materials_count == 1);
         engine_texture2d_t tex2d{};
         const auto& mat = model_info.materials_array[0];
         engine_error_code = engineApplicationAddTexture2DFromMemory(app, &mat.diffuse_texture_info, "diffuse", &tex2d);
@@ -660,7 +724,18 @@ int main(int argc, char** argv)
         }
     }
 
-    engineApplicationReleaseModelInfo(app, &model_info);
+    if (model_info.animations_counts > 0)
+    {
+        assert(model_info.animations_counts == 1);
+        engine_animation_t animiation{};
+        const auto& anim = model_info.animations_array[0];
+        for (auto i = 0; i < anim.channels_count; i++)
+        {
+            const auto& ch = anim.channels[i];
+        }
+    }
+
+    //engineApplicationReleaseModelInfo(app, &model_info);
 
     engine_font_t font_handle{};
     if (engineApplicationAddFontFromFile(app, "tahoma.ttf", "tahoma_font", &font_handle) != ENGINE_RESULT_CODE_OK)

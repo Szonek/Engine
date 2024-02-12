@@ -48,6 +48,7 @@ typedef struct _engine_ui_data_handle_t* engine_ui_data_handle_t;
 typedef struct _engine_ui_element_t* engine_ui_element_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
+typedef uint32_t engine_animation_t;
 typedef uint32_t engine_font_t;
 
 
@@ -291,6 +292,33 @@ typedef struct _engine_geometry_info_t
     size_t inds_count;
 } engine_geometry_info_t;
 
+typedef enum _engine_animation_property_type_t
+{
+    ENGINE_ANIMATION_PROPERTY_TYPE_TRANSLATION = 0,
+    ENGINE_ANIMATION_PROPERTY_TYPE_ROTATION = 1,
+    ENGINE_ANIMATION_PROPERTY_TYPE_SCALE,
+    ENGINE_ANIMATION_PROPERTY_TYPE_COUNT,
+} engine_animation_property_type_t;
+
+
+typedef struct _engine_animation_channel_t
+{
+    engine_animation_property_type_t type;
+
+    const float* timestamps;
+    size_t timestamps_count;
+
+    const float* data;
+    size_t data_count;
+} engine_animation_channel_t;
+
+typedef struct _engine_animation_info_t
+{
+    engine_animation_channel_t* channels;
+    size_t channels_count;
+
+} engine_animation_info_t;
+
 typedef struct _engine_material_info_t
 {
     float diffuse_color[4];
@@ -305,6 +333,9 @@ typedef struct _engine_model_info_t
 
     engine_material_info_t* materials_array;
     size_t materials_count;
+
+    engine_animation_info_t* animations_array;
+    size_t animations_counts;
 } engine_model_info_t;
 
 // cross platform log
