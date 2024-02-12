@@ -322,7 +322,20 @@ public:
                 if (timestamp_idx < ch.timestamps_count - 1)
                 {
                     const auto base_idx = timestamp_idx * 4;
-                    engineLog(std::format("{}, {}, {}, {}\n", ch.data[base_idx], ch.data[base_idx+1], ch.data[base_idx+2], ch.data[base_idx+3]).c_str());
+                    const float x = ch.data[base_idx];
+                    const float y = ch.data[base_idx + 1];
+                    const float z = ch.data[base_idx + 2];
+                    const float w = ch.data[base_idx + 3];
+                    engineLog(std::format("{}, {}, {}, {}\n", w, x, y, z).c_str());
+
+                    const auto rot = glm::eulerAngles(glm::quat(w, x, y, z));
+                    
+                    auto tc = engineSceneGetTransformComponent(scene, go_);
+
+                    tc.rotation[0] = rot.x;
+                    tc.rotation[1] = rot.y;
+                    tc.rotation[2] = rot.z;
+                    engineSceneUpdateTransformComponent(scene, go_, &tc);
                 }
             }
         }
