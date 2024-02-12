@@ -249,10 +249,11 @@ private:
 };
 using GameMap = GameMapT<20, 20>;
 
-class PlayerScript : public  engine::IScript
+
+class ControllablePlayerScript : public engine::IScript
 {
 public:
-    PlayerScript(engine::IScene* my_scene, const GameMap& map)
+    ControllablePlayerScript(engine::IScene* my_scene, const GameMap& map)
         : IScript(my_scene)
         , map_(map)
     {
@@ -260,8 +261,8 @@ public:
         auto app = my_scene_->get_app_handle();
 
         auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
-        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "sphere");
-        assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for cat script!");
+        mesh_comp.geometry = engineApplicationGetGeometryByName(app, "y_bot");
+        assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for ybot script!");
         engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
@@ -269,39 +270,15 @@ public:
         tc.position[1] = 0.5f;
         tc.position[2] = 0.0f;
 
-        tc.scale[0] = 0.5f;
-        tc.scale[1] = 0.5f;
-        tc.scale[2] = 0.5f;
+        tc.scale[0] = 2.0f;//0.5f;
+        tc.scale[1] = 2.0f;//0.5f;
+        tc.scale[2] = 2.0f;//0.5f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 1.0f });
+        set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.5f, 0.5f, 0.5f, 1.0f });
         material_comp.diffuse_texture = 0;
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
-    }
-
-    void update(float dt) override
-    {
-        move(dt);
-    }
-
-protected:
-    void move(const float dt)
-    {
-        auto app = my_scene_->get_app_handle();
-        auto scene = my_scene_->get_handle();
-    };
-
-protected:
-    const GameMap& map_;
-};
-
-class ControllablePlayerScript : public PlayerScript
-{
-public:
-    ControllablePlayerScript(engine::IScene* my_scene, const GameMap& map)
-        : PlayerScript(my_scene, map)
-    {
     }
 
 
@@ -382,6 +359,7 @@ public:
     }
 
 private:
+    const GameMap& map_;
     float next_move_counter_ = 0.0f;
     float next_move_limit_time_ = 500.0f;  // in miliseconds
 
@@ -391,7 +369,7 @@ private:
 class BaseEnemyNPC : public engine::IScript
 {
 public:
-    class PlayerScript* player_script = nullptr;
+    class ControllablePlayerScript* player_script = nullptr;
 public:
     BaseEnemyNPC(engine::IScene* my_scene, std::int32_t x, std::int32_t y, std::int32_t z)
         : IScript(my_scene)
@@ -468,7 +446,7 @@ private:
 class CameraScript : public engine::IScript
 {
 public:
-    PlayerScript* player_script = nullptr;
+    ControllablePlayerScript* player_script = nullptr;
 
 public:
     CameraScript(engine::IScene* my_scene)
