@@ -309,6 +309,7 @@ public:
                     return i;
                 }
             }
+            assert(false);
             return 0;
         };
 
@@ -318,8 +319,8 @@ public:
             for (auto i = 0; i < anim.channels_count; i++)
             {
                 const auto& ch = anim.channels[i];
-                const auto& timestamp_idx = get_index_timestamp(anim_counter_, ch.timestamps, ch.timestamps_count);
-                if (timestamp_idx < ch.timestamps_count - 1)
+                const auto& timestamp_idx = get_index_timestamp(std::min(anim_counter_, 1000.0f), ch.timestamps, ch.timestamps_count);
+                if (timestamp_idx < ch.timestamps_count)
                 {
                     const auto base_idx = timestamp_idx * 4;
                     const float x = ch.data[base_idx];
@@ -327,6 +328,7 @@ public:
                     const float z = ch.data[base_idx + 2];
                     const float w = ch.data[base_idx + 3];
                     engineLog(std::format("{}, {}, {}, {}\n", w, x, y, z).c_str());
+
 
                     const auto rot = glm::eulerAngles(glm::quat(w, x, y, z));
                     
