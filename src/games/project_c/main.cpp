@@ -326,6 +326,10 @@ public:
             const auto timestamp_idx_prev = get_index_timestamp(animation_time, channel.timestamps, channel.timestamps_count);
             const auto timestamp_idx_next = std::min(timestamp_idx_prev + 1, (int)channel.timestamps_count - 1);
 
+            const auto timestamp_prev = channel.timestamps[timestamp_idx_prev];
+            const auto timestamp_next = channel.timestamps[timestamp_idx_next];
+            const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
+
             const auto rotation_quaternions = [&]()
             {
                 std::array<float, 4> data_rot_prev = {};
@@ -344,14 +348,41 @@ public:
                 return ret;
             }();
             
-            const auto timestamp_prev = channel.timestamps[timestamp_idx_prev];
-            const auto timestamp_next = channel.timestamps[timestamp_idx_next];
-            const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
-
             const auto slerp = glm::slerp(rotation_quaternions.first, rotation_quaternions.second, interpolation_value);
             const auto rotation = glm::eulerAngles(slerp);
 
             return rotation;
+        };
+
+        auto compute_animation_translation_or_scale = [&get_index_timestamp](const engine_animation_channel_t& channel, float animation_time)
+        {
+            const auto timestamp_idx_prev = get_index_timestamp(animation_time, channel.timestamps, channel.timestamps_count);
+            const auto timestamp_idx_next = std::min(timestamp_idx_prev + 1, (int)channel.timestamps_count - 1);
+
+            const auto timestamp_prev = channel.timestamps[timestamp_idx_prev];
+            const auto timestamp_next = channel.timestamps[timestamp_idx_next];
+            const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
+
+            const auto translation_vectors = [&]()
+            {
+                std::array<float, 4> data_prev = {};
+                std::array<float, 4> data_next = {};
+                for (auto i = 0; i < data_prev.size(); i++)
+                {
+                    data_prev[i] = channel.data[timestamp_idx_prev * 3 + i];
+                    data_next[i] = channel.data[timestamp_idx_next * 3 + i];
+                }
+
+                std::pair<glm::vec3, glm::vec3> ret =
+                {
+                    glm::vec3(data_prev[0], data_prev[1], data_prev[2]),
+                    glm::vec3(data_next[0], data_next[1], data_next[2])
+                };
+                return ret;
+            }();
+
+            const auto lerp = glm::mix(translation_vectors.first, translation_vectors.second, interpolation_value);
+            return lerp;
         };
 
         if (trigger_anim_)
@@ -368,6 +399,20 @@ public:
                     tc.rotation[0] = rot.x;
                     tc.rotation[1] = rot.y;
                     tc.rotation[2] = rot.z;
+                }
+                else if (ch.type == ENGINE_ANIMATION_PROPERTY_TYPE_TRANSLATION)
+                {
+                    const auto tr = compute_animation_translation_or_scale(ch, anim_counter_);
+                    tc.position[0] = tr.x;
+                    tc.position[1] = tr.y;
+                    tc.position[2] = tr.z;
+                }
+                else if (ch.type == ENGINE_ANIMATION_PROPERTY_TYPE_SCALE)
+                {
+                    const auto sc = compute_animation_translation_or_scale(ch, anim_counter_);
+                    tc.scale[0] = sc.x;
+                    tc.scale[1] = sc.y;
+                    tc.scale[2] = sc.z;
                 }
             }
             engineSceneUpdateTransformComponent(scene, go_, &tc);
@@ -743,7 +788,7 @@ int main(int argc, char** argv)
 #endif
 
     //engine_model_info_t model_info{};
-    engine_error_code = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test.gltf" : "riverdance_dance_free_animation.glb", &model_info);
+    engine_error_code = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test.gltf" : "test2.glb", &model_info);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed loading TABLE model. Exiting!\n");
@@ -763,7 +808,10 @@ int main(int argc, char** argv)
         assert(model_info.materials_count == 1);
         engine_texture2d_t tex2d{};
         const auto& mat = model_info.materials_array[0];
-        engine_error_code = engineApplicationAddTexture2DFromMemory(app, &mat.diffuse_texture_info, "diffuse", &tex2d);
+        if (mat.diffuse_texture_info.data)
+        {
+            engine_error_code = engineApplicationAddTexture2DFromMemory(app, &mat.diffuse_texture_info, "diffuse", &tex2d);
+        }
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating textured for loaded model. Exiting!\n");
