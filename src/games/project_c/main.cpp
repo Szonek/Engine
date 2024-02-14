@@ -379,7 +379,7 @@ public:
             anim_counter_ = 0.0f;
         }
 
-        constexpr const std::int32_t tile_distance = 1u;
+        constexpr const std::int32_t tile_distance = 1;
         struct MoveDir
         {
             std::int32_t x = 0;
@@ -430,23 +430,24 @@ public:
             log(fmt::format("Health: {}\n", health));
         }
         const bool move_requested = move_dir.x != 0 || move_dir.z != 0;
-        if (!move_requested || next_move_counter_ <= next_move_limit_time_)
+        //if (!move_requested || next_move_counter_ <= next_move_limit_time_)
+        if (!move_requested)
         {
             return;
         }
-        next_move_counter_ = 0.0f;
+        //next_move_counter_ = 0.0f;
 
         auto tc = engineSceneGetTransformComponent(scene, go_);
 
-        if (map_.player_wants_to_move(tc.position[0] + move_dir.x, tc.position[2] + move_dir.z))
+        //if (map_.player_wants_to_move(tc.position[0] + move_dir.x, tc.position[2] + move_dir.z))
         {
-            tc.position[0] += move_dir.x;
-            tc.position[2] += move_dir.z;
+            tc.position[0] += (move_dir.x/1000.0f) * dt;
+            tc.position[2] += (move_dir.z/1000.0f) * dt;
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
 
         const auto tiles_moved = std::abs(move_dir.x) + std::abs(move_dir.z);
-        next_move_limit_time_ = 500.0f * tiles_moved;
+        //next_move_limit_time_ = 500.0f * tiles_moved;
     }
 
 private:
@@ -569,7 +570,7 @@ public:
     void update(float dt) override
     {
         debug_zoom_in_out(dt);
-        set_target_to_perfect_follow_player_position(dt);
+        //set_target_to_perfect_follow_player_position(dt);
     }
 
 private:
