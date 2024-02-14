@@ -290,9 +290,15 @@ public:
         auto scene = my_scene_->get_handle();
         next_move_counter_ += dt;
 
+        bool anim_finish = false;
         if (trigger_anim_)
         {
-            anim_counter_ += dt;          
+            anim_counter_ += dt;
+            if (anim_counter_ >= 1000.0f)
+            {
+                anim_finish = true;
+            }
+            anim_counter_ = std::fmod(anim_counter_, 1000.0f);
         }
 
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F) && !trigger_anim_)
@@ -302,9 +308,9 @@ public:
 
         auto get_index_timestamp = [](float animation_time, const float* timestamps, std::size_t timestamps_count)
         {
-            for (auto i = 0; i < timestamps_count; i++)
+            for (auto i = 0; i < timestamps_count - 1; i++)
             {
-                if (animation_time <= timestamps[i])
+                if (animation_time < timestamps[i + 1])
                 {
                     return i;
                 }
@@ -319,30 +325,44 @@ public:
             for (auto i = 0; i < anim.channels_count; i++)
             {
                 const auto& ch = anim.channels[i];
-                const auto& timestamp_idx = get_index_timestamp(std::min(anim_counter_, 1000.0f), ch.timestamps, ch.timestamps_count);
-                if (timestamp_idx < ch.timestamps_count)
+                const auto timestamp_idx_prev = get_index_timestamp(anim_counter_, ch.timestamps, ch.timestamps_count);
+                const auto timestamp_idx_next = std::min(timestamp_idx_prev + 1, (int)ch.timestamps_count - 1);
+            
+                const auto rotation_quaternions = [&]()
                 {
-                    const auto base_idx = timestamp_idx * 4;
-                    const float x = ch.data[base_idx];
-                    const float y = ch.data[base_idx + 1];
-                    const float z = ch.data[base_idx + 2];
-                    const float w = ch.data[base_idx + 3];
-                    engineLog(std::format("{}, {}, {}, {}\n", w, x, y, z).c_str());
+                    std::array<float, 4> data_rot_prev = {};
+                    std::array<float, 4> data_rot_next = {};
+                    for (auto i = 0; i < data_rot_prev.size(); i++)
+                    {
+                        data_rot_prev[i] = ch.data[timestamp_idx_prev * 4 + i];
+                        data_rot_next[i] = ch.data[timestamp_idx_next * 4 + i];
+                    }
 
+                    std::pair<glm::quat, glm::quat> ret =
+                    {
+                        glm::quat(data_rot_prev[3], data_rot_prev[0], data_rot_prev[1], data_rot_prev[2]),
+                        glm::quat(data_rot_next[3], data_rot_next[0], data_rot_next[1], data_rot_next[2])
+                    };
+                    return ret;
+                }();
 
-                    const auto rot = glm::eulerAngles(glm::quat(w, x, y, z));
-                    
-                    auto tc = engineSceneGetTransformComponent(scene, go_);
+                
+                const auto timestamp_prev = ch.timestamps[timestamp_idx_prev];
+                const auto timestamp_next = ch.timestamps[timestamp_idx_next];
+                const auto interpolation_value = (anim_counter_ - timestamp_prev) / (timestamp_next - timestamp_prev);
 
-                    tc.rotation[0] = rot.x;
-                    tc.rotation[1] = rot.y;
-                    tc.rotation[2] = rot.z;
-                    engineSceneUpdateTransformComponent(scene, go_, &tc);
-                }
+                const auto slerp = glm::slerp(rotation_quaternions.first, rotation_quaternions.second, interpolation_value);
+                const auto rot = glm::eulerAngles(slerp);
+                   
+                auto tc = engineSceneGetTransformComponent(scene, go_);
+                tc.rotation[0] = rot.x;
+                tc.rotation[1] = rot.y;
+                tc.rotation[2] = rot.z;
+                engineSceneUpdateTransformComponent(scene, go_, &tc);
             }
         }
 
-        if (anim_counter_ >= 1000.0f)
+        if (anim_finish)
         {
             trigger_anim_ = false;
             anim_counter_ = 0.0f;
