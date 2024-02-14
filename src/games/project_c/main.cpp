@@ -293,12 +293,14 @@ public:
         bool anim_finish = false;
         if (trigger_anim_)
         {
+            const auto& anim = model_info.animations_array[0];
+            const auto duration = anim.channels[0].timestamps[anim.channels[0].timestamps_count - 1];
             anim_counter_ += dt;
-            if (anim_counter_ >= 1000.0f)
+            if (anim_counter_ >= duration)
             {
                 anim_finish = true;
             }
-            anim_counter_ = std::fmod(anim_counter_, 1000.0f);
+            anim_counter_ = std::fmod(anim_counter_, duration);
         }
 
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F) && !trigger_anim_)
@@ -319,47 +321,56 @@ public:
             return 0;
         };
 
+        auto compute_animation_rotation = [&get_index_timestamp](const engine_animation_channel_t& channel, float animation_time)
+        {
+            const auto timestamp_idx_prev = get_index_timestamp(animation_time, channel.timestamps, channel.timestamps_count);
+            const auto timestamp_idx_next = std::min(timestamp_idx_prev + 1, (int)channel.timestamps_count - 1);
+
+            const auto rotation_quaternions = [&]()
+            {
+                std::array<float, 4> data_rot_prev = {};
+                std::array<float, 4> data_rot_next = {};
+                for (auto i = 0; i < data_rot_prev.size(); i++)
+                {
+                    data_rot_prev[i] = channel.data[timestamp_idx_prev * 4 + i];
+                    data_rot_next[i] = channel.data[timestamp_idx_next * 4 + i];
+                }
+
+                std::pair<glm::quat, glm::quat> ret =
+                {
+                    glm::quat(data_rot_prev[3], data_rot_prev[0], data_rot_prev[1], data_rot_prev[2]),
+                    glm::quat(data_rot_next[3], data_rot_next[0], data_rot_next[1], data_rot_next[2])
+                };
+                return ret;
+            }();
+            
+            const auto timestamp_prev = channel.timestamps[timestamp_idx_prev];
+            const auto timestamp_next = channel.timestamps[timestamp_idx_next];
+            const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
+
+            const auto slerp = glm::slerp(rotation_quaternions.first, rotation_quaternions.second, interpolation_value);
+            const auto rotation = glm::eulerAngles(slerp);
+
+            return rotation;
+        };
+
         if (trigger_anim_)
         {
+            auto tc = engineSceneGetTransformComponent(scene, go_);
             const auto& anim = model_info.animations_array[0];
             for (auto i = 0; i < anim.channels_count; i++)
             {
                 const auto& ch = anim.channels[i];
-                const auto timestamp_idx_prev = get_index_timestamp(anim_counter_, ch.timestamps, ch.timestamps_count);
-                const auto timestamp_idx_next = std::min(timestamp_idx_prev + 1, (int)ch.timestamps_count - 1);
-            
-                const auto rotation_quaternions = [&]()
+
+                if (ch.type == ENGINE_ANIMATION_PROPERTY_TYPE_ROTATION)
                 {
-                    std::array<float, 4> data_rot_prev = {};
-                    std::array<float, 4> data_rot_next = {};
-                    for (auto i = 0; i < data_rot_prev.size(); i++)
-                    {
-                        data_rot_prev[i] = ch.data[timestamp_idx_prev * 4 + i];
-                        data_rot_next[i] = ch.data[timestamp_idx_next * 4 + i];
-                    }
-
-                    std::pair<glm::quat, glm::quat> ret =
-                    {
-                        glm::quat(data_rot_prev[3], data_rot_prev[0], data_rot_prev[1], data_rot_prev[2]),
-                        glm::quat(data_rot_next[3], data_rot_next[0], data_rot_next[1], data_rot_next[2])
-                    };
-                    return ret;
-                }();
-
-                
-                const auto timestamp_prev = ch.timestamps[timestamp_idx_prev];
-                const auto timestamp_next = ch.timestamps[timestamp_idx_next];
-                const auto interpolation_value = (anim_counter_ - timestamp_prev) / (timestamp_next - timestamp_prev);
-
-                const auto slerp = glm::slerp(rotation_quaternions.first, rotation_quaternions.second, interpolation_value);
-                const auto rot = glm::eulerAngles(slerp);
-                   
-                auto tc = engineSceneGetTransformComponent(scene, go_);
-                tc.rotation[0] = rot.x;
-                tc.rotation[1] = rot.y;
-                tc.rotation[2] = rot.z;
-                engineSceneUpdateTransformComponent(scene, go_, &tc);
+                    const auto rot = compute_animation_rotation(ch, anim_counter_);
+                    tc.rotation[0] = rot.x;
+                    tc.rotation[1] = rot.y;
+                    tc.rotation[2] = rot.z;
+                }
             }
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
 
         if (anim_finish)
@@ -550,7 +561,7 @@ public:
         engineSceneUpdateCameraComponent(scene, go_, &camera_comp);
 
         auto camera_transform_comp = engineSceneAddTransformComponent(scene, go_);
-        camera_transform_comp.position[1] = 11.0f;
+        camera_transform_comp.position[1] = 0.0f;// 11.0f;
         camera_transform_comp.position[2] = z_base_offset;
         engineSceneUpdateTransformComponent(scene, go_, &camera_transform_comp);
     }
