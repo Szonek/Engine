@@ -254,7 +254,7 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     {
         AnimationInfo new_animation{};
         new_animation.name = animation.name;
-        new_animation.channels.resize(animation.channels.size());
+        new_animation.clip.channels.resize(animation.channels.size());
         for (std::size_t ch_idx = 0; const auto& ch : animation.channels)
         {
             const auto& sampler = animation.samplers[ch.sampler];
@@ -278,7 +278,7 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
                 assert(stride_data == 3 * sizeof(float) || stride_data == 4 * sizeof(float));
             }
 
-            auto& new_channel = new_animation.channels[ch_idx++];
+            auto& new_channel = new_animation.clip.channels[ch_idx++];
             if (ch.target_path.compare("rotation") == 0)
             {
                 new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION;

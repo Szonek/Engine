@@ -97,6 +97,8 @@ inline void material_component_init(engine_material_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_material_component_t));
     comp->shiness = 32;
+    comp->diffuse_texture = ENGINE_INVALID_GAME_OBJECT_ID;
+    comp->specular_texture = ENGINE_INVALID_GAME_OBJECT_ID;
 }
 
 inline void animation_component_init(engine_animation_component_t* comp)
@@ -299,8 +301,16 @@ engine_font_t engineApplicationGetFontByName(engine_application_t handle, const 
 engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, const engine_vertex_attribute_t* verts, size_t verts_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out)
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
-    *out = app->add_geometry_from_memory({ verts, verts_count}, {inds, inds_count}, name);
-    return *out == ENGINE_INVALID_OBJECT_HANDLE ? ENGINE_RESULT_CODE_FAIL : ENGINE_RESULT_CODE_OK;
+    const auto ret = app->add_geometry_from_memory({ verts, verts_count}, {inds, inds_count}, name);
+    if (ret == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    if (out)
+    {
+        *out = ret;
+    }
+    return ENGINE_RESULT_CODE_OK;
 }
 
 engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name)
@@ -312,7 +322,16 @@ engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle
 engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_from_memory_desc_t* info, const char* name, engine_texture2d_t* out)
 {
     auto* app = application_cast(handle);
-    *out = app->add_texture_from_memory(*info, name);
+    const auto ret =  app->add_texture_from_memory(*info, name);
+
+    if (ret == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    if (out)
+    {
+        *out = ret;
+    }
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -349,6 +368,33 @@ void engineApplicationReleaseModelInfo(engine_application_t handle, engine_model
 {
     auto* app = application_cast(handle);
     app->release_model_info(model_info);
+}
+
+engine_result_code_t engineApplicationAddAnimationClipFromMemory(engine_application_t handle, const engine_animation_clip_create_from_memory_desc_t* info, const char* name, engine_animation_clip_t* out)
+{
+    auto* app = application_cast(handle);
+    if (!info || !name)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const auto ret = app->add_animation_clip_from_memory(*info, name);
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    if (out)
+    {
+        *out = ret;
+    }
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_application_t handle, const char* name)
+{
+    auto* app = application_cast(handle);
+    const auto ret = app->get_animation_clip(name);
+    assert(ret != ENGINE_INVALID_OBJECT_HANDLE);
+    return ret;
 }
 
 
@@ -891,7 +937,7 @@ bool engineSceneHasImageComponent(engine_scene_t scene, engine_game_object_t gam
 
 engine_animation_component_t engineSceneAddAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_animation_component_t>(scene, game_object);
+    return add_component<engine_animation_component_t, animation_component_init>(scene, game_object);
 }
 
 engine_animation_component_t engineSceneGetAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)

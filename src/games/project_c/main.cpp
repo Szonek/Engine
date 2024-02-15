@@ -284,6 +284,7 @@ public:
 
         // animations
         auto anim_comp = engineSceneAddAnimationComponent(scene, go_);
+        anim_comp.animations_array[0] = engineApplicationGetAnimationClipByName(app, "animation");
         engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
     }
 
@@ -821,11 +822,10 @@ int main(int argc, char** argv)
     if (model_info.materials_count > 0)
     {
         assert(model_info.materials_count == 1);
-        engine_texture2d_t tex2d{};
         const auto& mat = model_info.materials_array[0];
         if (mat.diffuse_texture_info.data)
         {
-            engine_error_code = engineApplicationAddTexture2DFromMemory(app, &mat.diffuse_texture_info, "diffuse", &tex2d);
+            engine_error_code = engineApplicationAddTexture2DFromMemory(app, &mat.diffuse_texture_info, "diffuse", nullptr);
         }
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
@@ -836,12 +836,16 @@ int main(int argc, char** argv)
 
     if (model_info.animations_counts > 0)
     {
-        assert(model_info.animations_counts == 1);
-        engine_animation_clip_t animiation{};
-        const auto& anim = model_info.animations_array[0];
-        for (auto i = 0; i < anim.channels_count; i++)
+        assert(model_info.animations_counts == 1);       
+        for (auto i = 0; i < model_info.animations_counts; i++)
         {
-            const auto& ch = anim.channels[i];
+            const auto& anim = model_info.animations_array[i];
+            engine_error_code = engineApplicationAddAnimationClipFromMemory(app, &anim, "animation", nullptr);
+            if (engine_error_code != ENGINE_RESULT_CODE_OK)
+            {
+                engineLog("Failed creating textured for loaded model. Exiting!\n");
+                return -1;
+            }
         }
     }
 
