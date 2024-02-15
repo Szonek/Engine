@@ -295,6 +295,18 @@ public:
         auto scene = my_scene_->get_handle();
         next_move_counter_ += dt;
 
+#if 1
+        if (engineSceneHasAnimationComponent(scene, go_))
+        {
+            auto anim_comp = engineSceneGetAnimationComponent(scene, go_);
+            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F) && anim_comp.animations_state[0] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
+            {
+                anim_comp.animations_state[0] = ENGINE_ANIMATION_CLIP_STATE_PLAYING;
+                engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
+            }
+        }
+
+#else
         bool anim_finish = false;
         if (trigger_anim_)
         {
@@ -432,7 +444,7 @@ public:
             anim_data_prev_ = {};
             anim_data_prev_.scale = glm::vec3(1.0f, 1.0f, 1.0f);
         }
-
+#endif
         constexpr const std::int32_t tile_distance = 1;
         struct MoveDir
         {

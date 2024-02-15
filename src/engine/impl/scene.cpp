@@ -126,7 +126,8 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::span<const Texture2D> textures, std::span<const Geometry> geometries, UiManager* ui_manager)
+engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::span<const Texture2D> textures, 
+    std::span<const Geometry> geometries, std::span<const AnimationClipData> animations, UiManager* ui_manager)
 {
     // transform component updated, calculate new model matrix
     for (const auto entt : transform_model_matrix_update_observer)
@@ -136,15 +137,43 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         const auto glm_rot = glm::make_vec3(transform_component->rotation);
         const auto glm_scl = glm::make_vec3(transform_component->scale);
 
+        // if animaion is playing than we dont need to do below local_to_world math here
+        // it will be recomputed in animation loop
+        // so for such cases it's performance lose
         const auto model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
         std::memcpy(transform_component->local_to_world, &model_matrix, sizeof(model_matrix));
     }
 
-	auto geometry_renderet = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>();
+    auto animation_view = entity_registry_.view<engine_tranform_component_t, engine_animation_component_t>();
+
+    static float anim_dt = 0.0f;
+    for (auto [entity, transform, animation] : animation_view.each())
+    {
+        for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
+        {
+            if (animation.animations_state[i] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
+            {
+                continue;
+            }
+            const auto& animation_data = animations[animation.animations_array[i]];
+
+            auto matrix = animation_data.compute_animation_model_matrix(glm::make_mat4(transform.local_to_world), anim_dt);
+            std::memcpy(transform.local_to_world, &matrix, sizeof(matrix));
+
+            if (anim_dt >= animation_data.get_duration())
+            {
+                animation.animations_state[i] = ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING;
+                anim_dt = 0.0f;
+            }
+        }
+        if(animation.animations_state[0] == ENGINE_ANIMATION_CLIP_STATE_PLAYING)
+            anim_dt += dt;
+    }
+
+    auto geometry_renderet = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>();
 	auto ui_text_renderer = entity_registry_.view<const engine_rect_tranform_component_t , const engine_text_component_t>();
 	auto ui_image_renderer = entity_registry_.view<const engine_rect_tranform_component_t , const engine_image_component_t>();
     auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
-
 
     for (auto [entity, camera, transform] : camera_view.each()) 
     {

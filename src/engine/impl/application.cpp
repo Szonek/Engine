@@ -103,6 +103,7 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 	const auto ret_code = scene->update(rdx_, delta_time,
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
+        animations_atlas_.get_objects_view(),
         &ui_manager_);
     return ret_code;
 }

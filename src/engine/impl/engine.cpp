@@ -103,7 +103,7 @@ inline void material_component_init(engine_material_component_t* comp)
 
 inline void animation_component_init(engine_animation_component_t* comp)
 {
-    for (auto i = 0; i < ENGINE_ANIMATION_CLIP_MAX; i++)
+    for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
     {
         comp->animations_array[i] = ENGINE_INVALID_OBJECT_HANDLE;
         comp->animations_state[i] = ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING;

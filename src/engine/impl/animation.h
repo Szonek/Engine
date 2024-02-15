@@ -4,6 +4,9 @@
 #include <vector>
 #include <string>
 
+#include <glm/glm.hpp>
+
+
 namespace engine
 {
 struct AnimationChannelData
@@ -16,5 +19,8 @@ struct AnimationChannelData
 struct AnimationClipData
 {
     std::vector<AnimationChannelData> channels;
+    float get_duration() const;  // cache this data
+    glm::mat4 compute_animation_model_matrix(const glm::mat4& base_matrix, float animation_timer) const;
 };
+
 }
