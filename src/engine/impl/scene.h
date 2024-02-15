@@ -52,6 +52,12 @@ public:
     }
 
     template<typename T>
+    void patch_component(entt::entity entity, std::function<void(T&)>&& func)
+    {
+        entity_registry_.patch<T>(entity, std::move(func));
+    }
+
+    template<typename T>
     void update_component(entt::entity entity, const T& t)
     {
         //entity_registry_.patch<T>(entity, [&t](auto& p) { [p = t; ] });

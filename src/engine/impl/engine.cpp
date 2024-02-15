@@ -106,6 +106,7 @@ inline void animation_component_init(engine_animation_component_t* comp)
     for (auto i = 0; i < ENGINE_ANIMATION_CLIP_MAX; i++)
     {
         comp->animations_array[i] = ENGINE_INVALID_OBJECT_HANDLE;
+        comp->animations_state[i] = ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING;
     }
 }
 
@@ -396,7 +397,6 @@ engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_applicati
     assert(ret != ENGINE_INVALID_OBJECT_HANDLE);
     return ret;
 }
-
 
 engine_result_code_t engineSceneCreate(engine_scene_t* out)
 {

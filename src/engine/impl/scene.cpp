@@ -1,7 +1,9 @@
 ﻿#include "scene.h"
+#include "animation.h"
 #include "ui_manager.h"
 #include "logger.h"
 #include "math_helpers.h"
+
 
 #include <fmt/format.h>
 
@@ -152,8 +154,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         }
 
         const auto window_size_pixels = rdx.get_window_size_in_pixels();
-        //rdx.set_depth_test(true);
-        //rdx.set_blend_mode(false);
+
         // update camera: view and projection
         {
             const auto z_near = camera.clip_plane_near;

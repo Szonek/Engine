@@ -390,7 +390,6 @@ ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_appl
 // animations
 ENGINE_API engine_result_code_t engineApplicationAddAnimationClipFromMemory(engine_application_t handle, const engine_animation_clip_create_from_memory_desc_t* info, const char* name, engine_animation_clip_t* out);
 ENGINE_API engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_application_t handle, const char* name);
-
 // physics 
 ENGINE_API void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);
 ENGINE_API void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
