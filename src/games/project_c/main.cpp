@@ -281,6 +281,10 @@ public:
         set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 1.0f });
         material_comp.diffuse_texture = engineApplicationGetTextured2DByName(app, "diffuse");
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+
+        // animations
+        auto anim_comp = engineSceneAddAnimationComponent(scene, go_);
+        engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
     }
 
 
@@ -300,7 +304,8 @@ public:
             {
                 anim_finish = true;
             }
-            anim_counter_ = std::fmod(anim_counter_, duration);
+            //anim_counter_ = std::fmod(anim_counter_, duration);
+            anim_counter_ = std::min(anim_counter_, duration);
         }
 
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F) && !trigger_anim_)
@@ -312,7 +317,7 @@ public:
         {
             for (auto i = 0; i < timestamps_count - 1; i++)
             {
-                if (animation_time < timestamps[i + 1])
+                if (animation_time <= timestamps[i + 1])
                 {
                     return i;
                 }
@@ -324,7 +329,7 @@ public:
         auto compute_animation_rotation = [&get_index_timestamp](const engine_animation_channel_t& channel, float animation_time)
         {
             const auto timestamp_idx_prev = get_index_timestamp(animation_time, channel.timestamps, channel.timestamps_count);
-            const auto timestamp_idx_next = std::min(timestamp_idx_prev + 1, (int)channel.timestamps_count - 1);
+            const auto timestamp_idx_next = timestamp_idx_prev + 1;
 
             const auto timestamp_prev = channel.timestamps[timestamp_idx_prev];
             const auto timestamp_next = channel.timestamps[timestamp_idx_next];
@@ -387,41 +392,44 @@ public:
 
         if (trigger_anim_)
         {
-            auto tc = engineSceneGetTransformComponent(scene, go_);
+            animation_data_t anim_data_current{};
+
             const auto& anim = model_info.animations_array[0];
             for (auto i = 0; i < anim.channels_count; i++)
             {
                 const auto& ch = anim.channels[i];
 
-                if (ch.type == ENGINE_ANIMATION_PROPERTY_TYPE_ROTATION)
+                if (ch.type == ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION)
                 {
-                    const auto rot = compute_animation_rotation(ch, anim_counter_);
-                    tc.rotation[0] = rot.x;
-                    tc.rotation[1] = rot.y;
-                    tc.rotation[2] = rot.z;
+                    anim_data_current.rotation = compute_animation_rotation(ch, anim_counter_);
                 }
-                else if (ch.type == ENGINE_ANIMATION_PROPERTY_TYPE_TRANSLATION)
+                else if (ch.type == ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION)
                 {
-                    const auto tr = compute_animation_translation_or_scale(ch, anim_counter_);
-                    tc.position[0] = tr.x;
-                    tc.position[1] = tr.y;
-                    tc.position[2] = tr.z;
+                    anim_data_current.translation = compute_animation_translation_or_scale(ch, anim_counter_);
                 }
-                else if (ch.type == ENGINE_ANIMATION_PROPERTY_TYPE_SCALE)
+                else if (ch.type == ENGINE_ANIMATION_CHANNEL_TYPE_SCALE)
                 {
-                    const auto sc = compute_animation_translation_or_scale(ch, anim_counter_);
-                    tc.scale[0] = sc.x;
-                    tc.scale[1] = sc.y;
-                    tc.scale[2] = sc.z;
+                    anim_data_current.scale = compute_animation_translation_or_scale(ch, anim_counter_);
                 }
             }
+            auto tc = engineSceneGetTransformComponent(scene, go_);
+            for (int i = 0; i < 3; i++)
+            {
+                tc.rotation[i] += anim_data_current.rotation[i] - anim_data_prev_.rotation[i];
+                tc.position[i] += anim_data_current.translation[i] - anim_data_prev_.translation[i];
+                //tc.scale[i] *= anim_data_current.scale[i];
+            };
             engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+            anim_data_prev_ = anim_data_current;
         }
 
         if (anim_finish)
         {
             trigger_anim_ = false;
             anim_counter_ = 0.0f;
+            anim_data_prev_ = {};
+            anim_data_prev_.scale = glm::vec3(1.0f, 1.0f, 1.0f);
         }
 
         constexpr const std::int32_t tile_distance = 1;
@@ -502,9 +510,16 @@ private:
 
     std::pair<std::int32_t, std::int32_t> position_ = { 0, 0 };
 
-
     float anim_counter_ = 0.0f;
     bool trigger_anim_ = false;
+
+    struct animation_data_t
+    {
+        glm::vec3 rotation = {};
+        glm::vec3 translation = {};
+        glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f);
+    };
+    animation_data_t anim_data_prev_ = {};
 };
 
 class BaseEnemyNPC : public engine::IScript
@@ -822,7 +837,7 @@ int main(int argc, char** argv)
     if (model_info.animations_counts > 0)
     {
         assert(model_info.animations_counts == 1);
-        engine_animation_t animiation{};
+        engine_animation_clip_t animiation{};
         const auto& anim = model_info.animations_array[0];
         for (auto i = 0; i < anim.channels_count; i++)
         {

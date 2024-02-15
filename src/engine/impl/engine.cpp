@@ -99,6 +99,14 @@ inline void material_component_init(engine_material_component_t* comp)
     comp->shiness = 32;
 }
 
+inline void animation_component_init(engine_animation_component_t* comp)
+{
+    for (auto i = 0; i < ENGINE_ANIMATION_CLIP_MAX; i++)
+    {
+        comp->animations_array[i] = ENGINE_INVALID_OBJECT_HANDLE;
+    }
+}
+
 inline void rigid_body_component_init(engine_rigid_body_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_rigid_body_component_t));
@@ -878,4 +886,30 @@ void engineSceneRemoveImageComponent(engine_scene_t scene, engine_game_object_t 
 bool engineSceneHasImageComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return has_component<engine_image_component_t>(scene, game_object);
+}
+
+
+engine_animation_component_t engineSceneAddAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_animation_component_t>(scene, game_object);
+}
+
+engine_animation_component_t engineSceneGetAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_animation_component_t>(scene, game_object);
+}
+
+void engineSceneUpdateAnimationComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_component_t* comp)
+{
+    update_component(scene, game_object, comp);
+}
+
+void engineSceneRemoveAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_animation_component_t>(scene, game_object);
+}
+
+bool engineSceneHasAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_animation_component_t>(scene, game_object);
 }

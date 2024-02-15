@@ -33,7 +33,7 @@ struct MaterialInfo
 
 struct AnimationChannelInfo
 {
-    engine_animation_property_type_t type = ENGINE_ANIMATION_PROPERTY_TYPE_COUNT;
+    engine_animation_channel_type_t type = ENGINE_ANIMATION_CHANNEL_TYPE_COUNT;
     std::vector<float> timestamps;
     std::vector<float> data;
 };

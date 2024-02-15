@@ -320,7 +320,7 @@ engine_model_info_t engine::Application::load_model_info_from_file(engine_model_
     ret.animations_counts = model_info->animations.size();
     if (ret.animations_counts > 0)
     {
-        ret.animations_array = new engine_animation_info_t[ret.animations_counts];
+        ret.animations_array = new engine_animation_clip_create_from_memory_desc_t[ret.animations_counts];
         for (std::size_t i = 0; i < ret.animations_counts; i++)
         {
             auto& anim = ret.animations_array[i];

@@ -281,15 +281,15 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             auto& new_channel = new_animation.channels[ch_idx++];
             if (ch.target_path.compare("rotation") == 0)
             {
-                new_channel.type = ENGINE_ANIMATION_PROPERTY_TYPE_ROTATION;
+                new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION;
             }
             else if (ch.target_path.compare("translation") == 0)
             {
-                new_channel.type = ENGINE_ANIMATION_PROPERTY_TYPE_TRANSLATION;
+                new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION;
             }
             else if (ch.target_path.compare("scale") == 0)
             {
-                new_channel.type = ENGINE_ANIMATION_PROPERTY_TYPE_SCALE;
+                new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_SCALE;
             }
             else
             {

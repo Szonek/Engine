@@ -45,7 +45,8 @@ set(ENGINE_API_SOURCES
 	${ENGINE_API_COMPONENTS}/text_component.h
 	${ENGINE_API_COMPONENTS}/rigid_body_component.h
 	${ENGINE_API_COMPONENTS}/collider_component.h
-      ${ENGINE_API_COMPONENTS}/image_component.h
+    ${ENGINE_API_COMPONENTS}/image_component.h
+    ${ENGINE_API_COMPONENTS}/animation_component.h
 )
 
 set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})
