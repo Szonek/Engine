@@ -118,5 +118,6 @@ glm::mat4 engine::AnimationClipData::compute_animation_model_matrix(const glm::m
             transform = compute_animation_translation_or_scale(ch, animation_timer);
         }
     }
-    return compute_model_matrix(base_matrix, transform, rotate, scale);
+    const auto anim_matrix = compute_model_matrix(transform, rotate, scale);
+    return base_matrix * anim_matrix;
 }

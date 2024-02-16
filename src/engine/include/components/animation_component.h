@@ -16,6 +16,7 @@ typedef struct _engine_animation_component_t
 {
     engine_animation_clip_t animations_array[ENGINE_ANIMATIONS_CLIPS_MAX_COUNT];
     engine_animation_clip_state_t animations_state[ENGINE_ANIMATIONS_CLIPS_MAX_COUNT];
+    float animations_dt[ENGINE_ANIMATIONS_CLIPS_MAX_COUNT];
 } engine_animation_component_t;
 
 #ifdef __cplusplus
