@@ -3,11 +3,14 @@
 #include "asset_store.h"
 #include "logger.h"
 
-//#define GLAD_GL_IMPLEMENTATION
-//#include <glad/gl.h>
-
+#if __ANDROID__
 #define GLAD_GLES2_IMPLEMENTATION
 #include <glad/gles2.h>
+#else
+#define GLAD_GL_IMPLEMENTATION
+#include <glad/gl.h>
+#endif
+
 
 #include <SDL3/SDL.h>
 
@@ -724,6 +727,9 @@ void engine::RenderContext::set_polygon_mode(PolygonFaceType face, PolygonMode m
 	case PolygonFaceType::eFrontAndBack:
 		gl_face = GL_FRONT_AND_BACK;
 		break;
+    case PolygonFaceType::eFront:
+        gl_face = GL_FRONT;
+        break;
 	default:
 		assert("Unknown polygon face type");
 	}

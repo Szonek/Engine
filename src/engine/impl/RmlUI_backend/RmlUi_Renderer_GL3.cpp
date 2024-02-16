@@ -48,15 +48,15 @@
 	#define RMLUI_SHADER_HEADER "#version 330\n"
 	#include RMLUI_GL3_CUSTOM_LOADER
 #else
-	#define RMLUI_SHADER_HEADER "#version 320 es\n"
-	//#define RMLUI_SHADER_HEADER "#version 330\n"
-	//#define GLAD_GL_IMPLEMENTATION
-    //#include <glad/gl.h>
-	//#include "RmlUi_Include_GL3.h"
-
-    //#define GLAD_GLES2_IMPLEMENTATION
+#if __ANDROID__
+    #define RMLUI_SHADER_HEADER "#version 320 es\n"
     #include <glad/gles2.h>
     #include <SDL3/SDL.h>
+#else
+    #define RMLUI_SHADER_HEADER "#version 330\n"
+    #include <glad/gl.h>
+    #include "RmlUi_Include_GL3.h"
+#endif
 #endif
 
 static const char* shader_main_vertex = RMLUI_SHADER_HEADER R"(

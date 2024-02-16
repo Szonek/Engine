@@ -56,9 +56,7 @@ public:
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-        material_comp.border_width = 0.025f;
         set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 0.259f, 0.554f, 0.125f, 1.0f });
-        set_c_array(material_comp.border_color, std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f });
         engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
 
     }
@@ -295,7 +293,6 @@ public:
         auto scene = my_scene_->get_handle();
         next_move_counter_ += dt;
 
-#if 1
         if (engineSceneHasAnimationComponent(scene, go_))
         {
             auto anim_comp = engineSceneGetAnimationComponent(scene, go_);
@@ -306,145 +303,6 @@ public:
             }
         }
 
-#else
-        bool anim_finish = false;
-        if (trigger_anim_)
-        {
-            const auto& anim = model_info.animations_array[0];
-            const auto duration = anim.channels[0].timestamps[anim.channels[0].timestamps_count - 1];
-            anim_counter_ += dt;
-            if (anim_counter_ >= duration)
-            {
-                anim_finish = true;
-            }
-            //anim_counter_ = std::fmod(anim_counter_, duration);
-            anim_counter_ = std::min(anim_counter_, duration);
-        }
-
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F) && !trigger_anim_)
-        {
-            trigger_anim_ = true;
-        }
-
-        auto get_index_timestamp = [](float animation_time, const float* timestamps, std::size_t timestamps_count)
-        {
-            for (auto i = 0; i < timestamps_count - 1; i++)
-            {
-                if (animation_time <= timestamps[i + 1])
-                {
-                    return i;
-                }
-            }
-            assert(false);
-            return 0;
-        };
-
-        auto compute_animation_rotation = [&get_index_timestamp](const engine_animation_channel_t& channel, float animation_time)
-        {
-            const auto timestamp_idx_prev = get_index_timestamp(animation_time, channel.timestamps, channel.timestamps_count);
-            const auto timestamp_idx_next = timestamp_idx_prev + 1;
-
-            const auto timestamp_prev = channel.timestamps[timestamp_idx_prev];
-            const auto timestamp_next = channel.timestamps[timestamp_idx_next];
-            const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
-
-            const auto rotation_quaternions = [&]()
-            {
-                std::array<float, 4> data_rot_prev = {};
-                std::array<float, 4> data_rot_next = {};
-                for (auto i = 0; i < data_rot_prev.size(); i++)
-                {
-                    data_rot_prev[i] = channel.data[timestamp_idx_prev * 4 + i];
-                    data_rot_next[i] = channel.data[timestamp_idx_next * 4 + i];
-                }
-
-                std::pair<glm::quat, glm::quat> ret =
-                {
-                    glm::quat(data_rot_prev[3], data_rot_prev[0], data_rot_prev[1], data_rot_prev[2]),
-                    glm::quat(data_rot_next[3], data_rot_next[0], data_rot_next[1], data_rot_next[2])
-                };
-                return ret;
-            }();
-            
-            const auto slerp = glm::slerp(rotation_quaternions.first, rotation_quaternions.second, interpolation_value);
-            const auto rotation = glm::eulerAngles(slerp);
-
-            return rotation;
-        };
-
-        auto compute_animation_translation_or_scale = [&get_index_timestamp](const engine_animation_channel_t& channel, float animation_time)
-        {
-            const auto timestamp_idx_prev = get_index_timestamp(animation_time, channel.timestamps, channel.timestamps_count);
-            const auto timestamp_idx_next = std::min(timestamp_idx_prev + 1, (int)channel.timestamps_count - 1);
-
-            const auto timestamp_prev = channel.timestamps[timestamp_idx_prev];
-            const auto timestamp_next = channel.timestamps[timestamp_idx_next];
-            const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
-
-            const auto translation_vectors = [&]()
-            {
-                std::array<float, 4> data_prev = {};
-                std::array<float, 4> data_next = {};
-                for (auto i = 0; i < data_prev.size(); i++)
-                {
-                    data_prev[i] = channel.data[timestamp_idx_prev * 3 + i];
-                    data_next[i] = channel.data[timestamp_idx_next * 3 + i];
-                }
-
-                std::pair<glm::vec3, glm::vec3> ret =
-                {
-                    glm::vec3(data_prev[0], data_prev[1], data_prev[2]),
-                    glm::vec3(data_next[0], data_next[1], data_next[2])
-                };
-                return ret;
-            }();
-
-            const auto lerp = glm::mix(translation_vectors.first, translation_vectors.second, interpolation_value);
-            return lerp;
-        };
-
-        if (trigger_anim_)
-        {
-            animation_data_t anim_data_current{};
-
-            const auto& anim = model_info.animations_array[0];
-            for (auto i = 0; i < anim.channels_count; i++)
-            {
-                const auto& ch = anim.channels[i];
-
-                if (ch.type == ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION)
-                {
-                    anim_data_current.rotation = compute_animation_rotation(ch, anim_counter_);
-                }
-                else if (ch.type == ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION)
-                {
-                    anim_data_current.translation = compute_animation_translation_or_scale(ch, anim_counter_);
-                }
-                else if (ch.type == ENGINE_ANIMATION_CHANNEL_TYPE_SCALE)
-                {
-                    anim_data_current.scale = compute_animation_translation_or_scale(ch, anim_counter_);
-                }
-            }
-            auto tc = engineSceneGetTransformComponent(scene, go_);
-            for (int i = 0; i < 3; i++)
-            {
-                tc.rotation[i] += anim_data_current.rotation[i] - anim_data_prev_.rotation[i];
-                tc.position[i] += anim_data_current.translation[i] - anim_data_prev_.translation[i];
-                //tc.scale[i] *= anim_data_current.scale[i];
-            };
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
-
-            anim_data_prev_ = anim_data_current;
-        }
-
-        if (anim_finish)
-        {
-            trigger_anim_ = false;
-            anim_counter_ = 0.0f;
-            anim_data_prev_ = {};
-            anim_data_prev_.scale = glm::vec3(1.0f, 1.0f, 1.0f);
-        }
-#endif
         constexpr const std::int32_t tile_distance = 1;
         struct MoveDir
         {
@@ -522,17 +380,6 @@ private:
     float next_move_limit_time_ = 500.0f;  // in miliseconds
 
     std::pair<std::int32_t, std::int32_t> position_ = { 0, 0 };
-
-    float anim_counter_ = 0.0f;
-    bool trigger_anim_ = false;
-
-    struct animation_data_t
-    {
-        glm::vec3 rotation = {};
-        glm::vec3 translation = {};
-        glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f);
-    };
-    animation_data_t anim_data_prev_ = {};
 };
 
 class BaseEnemyNPC : public engine::IScript
@@ -632,10 +479,15 @@ public:
         camera_comp.type_union.perspective_fov = 45.0f;
         //camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC;
         //camera_comp.type_union.orthographics_scale = 5.0f;
+
+        camera_comp.target[0] = 0.0f;
+        camera_comp.target[1] = 2.0f;
+        camera_comp.target[2] = 0.0f;
+
         engineSceneUpdateCameraComponent(scene, go_, &camera_comp);
 
         auto camera_transform_comp = engineSceneAddTransformComponent(scene, go_);
-        camera_transform_comp.position[1] = 0.0f;// 11.0f;
+        camera_transform_comp.position[1] = 2.0f;// 11.0f;
         camera_transform_comp.position[2] = z_base_offset;
         engineSceneUpdateTransformComponent(scene, go_, &camera_transform_comp);
     }
@@ -816,7 +668,7 @@ int main(int argc, char** argv)
 #endif
 
     //engine_model_info_t model_info{};
-    engine_error_code = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test.gltf" : "test2.glb", &model_info);
+    engine_error_code = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test_skin.gltf" : "test2.glb", &model_info);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed loading TABLE model. Exiting!\n");

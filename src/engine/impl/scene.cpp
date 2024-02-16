@@ -215,12 +215,14 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
             shader_simple_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
         }
 
-        geometry_renderet.each([this, &textures, &geometries](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material)
+        rdx.set_polygon_mode(RenderContext::PolygonFaceType::eFrontAndBack, RenderContext::PolygonMode::eLine);
+        geometry_renderet.each([this, &rdx, &textures, &geometries](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material)
             {
                 if (mesh.disable)
                 {
                     return;
                 }
+
                 shader_simple_.bind();
                 shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
                 shader_simple_.set_uniform_mat_f4("model", transform.local_to_world);
@@ -228,13 +230,12 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
                 shader_simple_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
 
-                shader_simple_.set_uniform_f1("border_width", material.border_width);
-                shader_simple_.set_uniform_f4("border_color", material.border_color);
-
                 geometries[mesh.geometry].bind();
                 geometries[mesh.geometry].draw(Geometry::Mode::eTriangles);
+
 			}
 		);
+        rdx.set_polygon_mode(RenderContext::PolygonFaceType::eFrontAndBack, RenderContext::PolygonMode::eFill);
     }
 
 

@@ -161,6 +161,7 @@ public:
 	enum class PolygonFaceType
 	{
 		eFrontAndBack = 0,
+        eFront,
 		eCount
 	};
 

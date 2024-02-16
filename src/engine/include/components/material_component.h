@@ -15,8 +15,6 @@ typedef struct _engine_material_component_t
     engine_texture2d_t specular_texture;
     float shiness;
 
-    float border_width;
-    float border_color[4];
 } engine_material_component_t;
 
 #ifdef __cplusplus
