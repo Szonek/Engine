@@ -1,11 +1,14 @@
 #pragma once
+#include "engine.h"
+#include "animation.h"
+#include "graphics.h"
+
+#include <map>
 #include <span>
 #include <cstdint>
 #include <vector>
 #include <array>
 #include <string>
-#include "engine.h"
-#include "animation.h"
 
 namespace engine
 {
@@ -38,11 +41,25 @@ struct AnimationInfo
     AnimationClipData clip;
 };
 
+struct SkinJointInfo
+{
+    using TypeIdx = std::int32_t;
+    TypeIdx idx = -1;
+    std::vector<TypeIdx> childrens{};
+    glm::mat4 inverse_bind_matrix{ 1.0f };
+};
+
+struct SkinInfo
+{
+    std::map<SkinJointInfo::TypeIdx, SkinJointInfo> joints;
+};
+
 struct ModelInfo
 {
     std::vector<GeometryInfo> geometries;
     std::vector<MaterialInfo> materials;
     std::vector<AnimationInfo> animations;
+    std::vector<SkinInfo> skins;
 };
 
 

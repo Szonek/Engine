@@ -7,6 +7,10 @@
 
 #include <fmt/format.h>
 
+#include "glm/glm.hpp"
+#include <glm/gtc/type_ptr.hpp>
+
+
 namespace
 {
 inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model)
@@ -248,6 +252,22 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         out.materials[idx] = std::move(new_material);
     }
 
+    //https://github.com/KhronosGroup/glTF-Tutorials/blob/main/gltfTutorial/gltfTutorial_019_SimpleSkin.md
+    out.skins.resize(model.skins.size());
+    for (std::size_t skin_idx = 0; const auto& skin : model.skins)
+    {
+        for (std::size_t i = 0; i < skin.joints.size(); i++)
+        {
+            SkinJointInfo joint_info{};
+            joint_info.idx = skin.joints[i];
+            joint_info.childrens = model.nodes[joint_info.idx].children;
+            const auto inv_bind_mtx_accesor = model.accessors[skin.inverseBindMatrices];
+            const auto inv_bind_mtx_buffer_view = model.bufferViews[model.accessors[skin.inverseBindMatrices].bufferView];
+            const auto inv_bind_mtx_buffer = reinterpret_cast<float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);
+            joint_info.inverse_bind_matrix = glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
+        }
+        skin_idx++;
+    }
     //https://github.com/KhronosGroup/glTF-Tutorials/blob/main/gltfTutorial/gltfTutorial_007_Animations.md
     out.animations.resize(model.animations.size());
     for (std::size_t idx = 0; const auto& animation : model.animations)
