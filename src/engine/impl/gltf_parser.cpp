@@ -56,6 +56,8 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
         attrib_info position_data;
         attrib_info uv_0_data;
         attrib_info normals_data;
+        attrib_info joints_0_data;
+        attrib_info weights_0_data;
 
         for (const auto& attrib : primitive.attributes)
         {
@@ -74,19 +76,37 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
                 assert(attrib_num_components == 3); //xyz
                 assert(attrib_stride == 12); // 3 floats
             }
-            if (attrib.first.compare("NORMAL") == 0)
+            else if (attrib.first.compare("NORMAL") == 0)
             {
                 normals_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
                 normals_data.count = attrib_accesor.count;
                 normals_data.num_components = attrib_num_components;
             }
-            if (attrib.first.compare("TEXCOORD_0") == 0)
+            else if (attrib.first.compare("TEXCOORD_0") == 0)
             {
                 uv_0_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
                 uv_0_data.count = attrib_accesor.count;
                 uv_0_data.num_components = attrib_num_components;
                 assert(attrib_num_components == 2); //xy
                 assert(attrib_stride == 8); // 2 floats
+            }
+            else if (attrib.first.compare("JOINTS_0") == 0)
+            {
+                joints_0_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
+                joints_0_data.count = attrib_accesor.count;
+                joints_0_data.num_components = attrib_num_components;
+                assert(joints_0_data.num_components == 4);
+            }
+            else if (attrib.first.compare("WEIGHTS_0") == 0)
+            {
+                weights_0_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
+                weights_0_data.count = attrib_accesor.count;
+                weights_0_data.num_components = attrib_num_components;
+                assert(weights_0_data.num_components == 4);
+            }
+            else
+            {
+                engine::log::log(engine::log::LogLevel::eError, fmt::format("Unexpected vertex attrivute: {} for mesh: {} \n", attrib.first, mesh.name));
             }
         }
 
@@ -95,6 +115,23 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             engine::log::log(engine::log::LogLevel::eCritical, 
                 fmt::format("Cant load mesh correctly. Count of positions: {}, count of uv: {} .\n",
                     position_data.count, uv_0_data.count));
+            return {};
+        }
+
+        if (joints_0_data.count != weights_0_data.count)
+        {
+            engine::log::log(engine::log::LogLevel::eError,
+                fmt::format("Cant load vertex joints and weights correctly. Will not load them.\n"));
+            joints_0_data = {};
+            weights_0_data = {};
+        }
+
+        if (joints_0_data.count > 0 && position_data.count != joints_0_data.count)
+        {
+            engine::log::log(engine::log::LogLevel::eCritical,
+                fmt::format("Cant load mesh correctly. Count of positions: {}, count of joints: {} .\n",
+                    position_data.count, joints_0_data.count));
+            return {};
         }
 
         // verts
