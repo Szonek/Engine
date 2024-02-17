@@ -26,10 +26,19 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
         const auto& primitive = mesh.primitives[i];
         assert(ret.material_index  == primitive.material && "Currently not supporting multi-material meshes!");
 
-
-        static const std::array<std::size_t, ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT> expected_num_components = []()
+        static const std::map<std::string, engine_vertex_attribute_type_t> expected_attrib_names = []()
         {
-            std::array<std::size_t, ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT> ret{ 0 };
+            std::map<std::string, engine_vertex_attribute_type_t> ret;
+            ret["POSITION"]   = ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION;
+            ret["TEXCOORD_0"] = ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0;
+            ret["JOINTS_0"]   = ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0;
+            ret["WEIGHTS_0"]  = ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0;
+            return ret;
+        }();
+
+        static const std::map<engine_vertex_attribute_type_t, std::size_t> expected_num_components = []()
+        {
+            std::map<engine_vertex_attribute_type_t, std::size_t> ret;
             ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION]  = 3;
             ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_NORMALS]   = 3;
             ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0]      = 2;
@@ -66,62 +75,30 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             const auto attrib_num_components = tinygltf::GetNumComponentsInType(attrib_accesor.type);
             const auto attrib_stride = attrib_accesor.ByteStride(model.bufferViews[attrib_accesor.bufferView]);
 
-            if (attrib.first.compare("POSITION") == 0)
+
+            if (expected_attrib_names.find(attrib.first) != expected_attrib_names.end())
             {
-                position_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
-                position_data.count = attrib_accesor.count;
-                position_data.num_components = attrib_num_components;
-                assert(attrib_num_components == expected_num_components[ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION]);
-                assert(attrib_stride == 12); // 3 floats
-            }
-            else if (attrib.first.compare("NORMAL") == 0)
-            {
-                normals_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
-                normals_data.count = attrib_accesor.count;
-                normals_data.num_components = attrib_num_components;
-                assert(attrib_num_components == expected_num_components[ENGINE_VERTEX_ATTRIBUTE_TYPE_NORMALS]);
-                assert(attrib_stride == 12); // 3 floats
-            }
-            else if (attrib.first.compare("TEXCOORD_0") == 0)
-            {
-                uv_0_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
-                uv_0_data.count = attrib_accesor.count;
-                uv_0_data.num_components = attrib_num_components;
-                assert(attrib_num_components == expected_num_components[ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0]);
-                assert(attrib_stride == 8); // 2 floats
-            }
-            else if (attrib.first.compare("JOINTS_0") == 0)
-            {
-                joints_0_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
-                joints_0_data.count = attrib_accesor.count;
-                joints_0_data.num_components = attrib_num_components;
-                assert(joints_0_data.num_components == expected_num_components[ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0]);
-            }
-            else if (attrib.first.compare("WEIGHTS_0") == 0)
-            {
-                weights_0_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
-                weights_0_data.count = attrib_accesor.count;
-                weights_0_data.num_components = attrib_num_components;
-                assert(weights_0_data.num_components == expected_num_components[ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0]);
+                const auto attrib_type = expected_attrib_names.at(attrib.first);
+                attribs[attrib_type].data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
+                attribs[attrib_type].count = attrib_accesor.count;
+                attribs[attrib_type].num_components = attrib_num_components;
+                assert(attribs[attrib_type].num_components == expected_num_components.at(attrib_type));
             }
             else
             {
                 engine::log::log(engine::log::LogLevel::eError, fmt::format("Unexpected vertex attrivute: {} for mesh: {} \n", attrib.first, mesh.name));
             }
         }
+        // we can set number of vertices
+        ret.vertex_count = position_data.count;
 
+        // some validation
         if (position_data.count == 0)
         {
             engine::log::log(engine::log::LogLevel::eCritical, 
                 fmt::format("Cant load mesh correctly. Count of positions: {}, count of uv: {} .\n",
                     position_data.count, uv_0_data.count));
-            return {};
         }
-        else
-        {
-            ret.vertex_count = position_data.count;
-        }
-
 
         if (joints_0_data.count != weights_0_data.count)
         {
@@ -136,7 +113,6 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             engine::log::log(engine::log::LogLevel::eCritical,
                 fmt::format("Cant load mesh correctly. Count of positions: {}, count of joints: {} .\n",
                     position_data.count, joints_0_data.count));
-            return {};
         }
 
         // Fill missing gaps  <- because we are using common shader
@@ -149,7 +125,7 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             {
                 continue;
             }
-            attrib.num_components = expected_num_components[i];
+            attrib.num_components = expected_num_components.at(static_cast<engine_vertex_attribute_type_t>(i));
             attrib.count = ret.vertex_count;
         }
 
@@ -168,7 +144,7 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             }
         }
 
-        // verts
+        // verts buffer size
         const auto total_verts_buffer_size = [&attribs]()
         {
             std::size_t ret = 0;
@@ -176,10 +152,8 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             return ret;
         }();
 
-
-
-        ret.vertex_data.resize(total_verts_buffer_size, std::byte(0));
-        
+        // copy data into buffer returned to user
+        ret.vertex_data.resize(total_verts_buffer_size, std::byte(0));      
         float* verrts_ptr = reinterpret_cast<float*>(ret.vertex_data.data());
         for (auto i = 0; i < position_data.count; i++)
         {
