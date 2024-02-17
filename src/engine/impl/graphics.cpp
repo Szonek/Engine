@@ -224,7 +224,7 @@ void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::st
 	if (!success)
 	{
 		std::array<char, 512> info_log;
-		glGetShaderInfoLog(shader, info_log.size(), nullptr, info_log.data());
+		glGetShaderInfoLog(shader, static_cast<std::int32_t>(info_log.size()), nullptr, info_log.data());
         log::log(log::LogLevel::eError, fmt::format("[Error][Shader] Failed compilation: \n\t {}", info_log.data()));
 	}
 	// attach to program
@@ -355,7 +355,7 @@ void engine::Texture2D::bind(std::uint32_t slot) const
 	glBindTexture(GL_TEXTURE_2D, texture_);
 }
 
-engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const std::byte> vertex_data, std::size_t vertex_count, std::span<const std::uint32_t> index_data)
+engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const std::byte> vertex_data, std::int32_t vertex_count, std::span<const std::uint32_t> index_data)
 	: vbo_(0)
 	, vao_(0)
 	, ibo_(0)
@@ -395,7 +395,7 @@ engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, st
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, index_data.size_bytes(), index_data.data(), GL_STATIC_DRAW);
-		index_count_ = index_data.size();
+		index_count_ = static_cast<std::uint32_t>(index_data.size());
 	}
 
 	// unbind at the end so both vbo_ and ibo_ are part of VAO
@@ -474,13 +474,13 @@ void engine::Geometry::draw(Mode mode) const
 
 #if defined(GLAD_GL_IMPLEMENTATION)
 inline void GLAPIENTRY
-message_callback(GLenum source,
+message_callback(GLenum /*source*/,
 	GLenum type,
-	GLuint id,
+	GLuint /*id*/,
 	GLenum severity,
-	GLsizei length,
+	GLsizei /*length*/,
 	const GLchar* message,
-	const void* userParam)
+	const void* /*userParam*/)
 {
     if (severity == GL_DEBUG_SEVERITY_NOTIFICATION)
     {
@@ -579,7 +579,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     {
         window_init_flags |= SDL_WINDOW_FULLSCREEN;
     }
-    window_ = SDL_CreateWindow("Test App SDL", 
+    window_ = SDL_CreateWindow(window_name.data(),
         SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
         init_size.width, init_size.height, window_init_flags);
     if(!window_)

@@ -63,7 +63,7 @@ engine::UiDocument engine::UiManager::load_document_from_file(std::string_view f
     return UiDocument(document);
 }
 
-std::uint32_t engine::UiManager::load_font_from_file(std::string_view file_name, std::string_view handle_name)
+std::uint32_t engine::UiManager::load_font_from_file(std::string_view file_name, std::string_view /*handle_name*/)
 {
     const auto font_path = AssetStore::get_instance().get_font_base_path() / file_name;
     bool success = Rml::LoadFontFace(font_path.string(), true);
@@ -74,7 +74,7 @@ std::uint32_t engine::UiManager::load_font_from_file(std::string_view file_name,
     return ENGINE_INVALID_OBJECT_HANDLE;
 }
 
-std::uint32_t engine::UiManager::get_font(std::string_view name) const
+std::uint32_t engine::UiManager::get_font(std::string_view /*name*/) const
 {
     assert(false && "Not implemented!");
     return std::uint32_t();

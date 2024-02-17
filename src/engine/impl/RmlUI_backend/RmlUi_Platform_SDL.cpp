@@ -111,7 +111,9 @@ bool RmlSDL::InputEventHandler(Rml::Context* context, SDL_Event& ev)
 
 	switch (ev.type)
 	{
-	case SDL_EVENT_MOUSE_MOTION: result = context->ProcessMouseMove(ev.motion.x, ev.motion.y, GetKeyModifierState()); break;
+    case SDL_EVENT_MOUSE_MOTION: result = context->ProcessMouseMove(
+        static_cast<std::int32_t>(ev.motion.x), static_cast<std::int32_t>(ev.motion.y),
+        GetKeyModifierState()); break;
 	case SDL_EVENT_MOUSE_BUTTON_DOWN:
 		result = context->ProcessMouseButtonDown(ConvertMouseButton(ev.button.button), GetKeyModifierState());
 		SDL_CaptureMouse(SDL_TRUE);

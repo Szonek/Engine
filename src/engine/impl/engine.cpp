@@ -264,7 +264,7 @@ engine_result_code_t engineApplicationFrameSceneUpdatePhysics(engine_application
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    auto* app = application_cast(handle);
+    //auto* app = application_cast(handle);
     auto* scene_typed = scene_cast(scene);
     return scene_typed->physics_update(delta_time);
 }
@@ -299,7 +299,7 @@ engine_font_t engineApplicationGetFontByName(engine_application_t handle, const 
     return app->get_font(name);
 }
 
-engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, engine_vertex_attributes_layout_t verts_layout, const void* verts_data, size_t verts_data_size, size_t vertex_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out)
+engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, engine_vertex_attributes_layout_t verts_layout, const void* verts_data, size_t verts_data_size, int32_t vertex_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out)
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
     const auto ret = app->add_geometry_from_memory(verts_layout, vertex_count, { reinterpret_cast<const std::byte*>(verts_data), verts_data_size }, {inds, inds_count}, name);
@@ -400,7 +400,7 @@ engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_applicati
 
 engine_result_code_t engineSceneCreate(engine_scene_t* out)
 {
-    engine_result_code_t ret;
+    engine_result_code_t ret = ENGINE_RESULT_CODE_FAIL;
     *out = reinterpret_cast<engine_scene_t>(new engine::Scene(ret));
     assert(ENGINE_INVALID_OBJECT_HANDLE != engineSceneCreateGameObject(*out)); // add invalid game object id
     return ret;

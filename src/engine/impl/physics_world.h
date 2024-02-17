@@ -1,7 +1,14 @@
 #pragma once
 #include "engine.h"
 
+#ifdef _MSC_VER
+#pragma warning(disable: 4127) // disable warning
+#endif
 #include <btBulletDynamicsCommon.h>
+#ifdef _MSC_VER
+#pragma warning(default: 4127) // enable warning back
+#endif
+
 
 #include <vector>
 #include <memory>
@@ -32,7 +39,7 @@ public:
         dynamics_world_->removeRigidBody(comp.rigid_body);
     }
 
-    void update2(engine_rigid_body_component_t& comp) {};
+    void update2(engine_rigid_body_component_t&) {};
     void update(float dt);
 
     const std::vector<engine_collision_info_t>& get_collisions();

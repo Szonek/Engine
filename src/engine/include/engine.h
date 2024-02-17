@@ -323,7 +323,7 @@ typedef struct _engine_geometry_desc_t
 {
     const void* verts_data;
     size_t verts_data_size;
-    size_t verts_count;
+    int32_t verts_count;
     engine_vertex_attributes_layout_t vers_layout;
 
     const uint32_t* inds;
@@ -433,7 +433,7 @@ ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFro
 ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info);
 
 // geometry
-ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, engine_vertex_attributes_layout_t verts_layout, const void* verts_data, size_t verts_data_size, size_t verts_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
+ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, engine_vertex_attributes_layout_t verts_layout, const void* verts_data, size_t verts_data_size, int32_t verts_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 
 // textures 

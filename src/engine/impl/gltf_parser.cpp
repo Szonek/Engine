@@ -21,9 +21,9 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
     ret.material_index = mesh.primitives.front().material;
     //assert(mesh.primitives.size() == 1 && "Not enabled path for primitives count > 1");
 
-    for (std::size_t i = 0; i < mesh.primitives.size(); i++)
+    for (std::size_t prim_idx = 0; prim_idx < mesh.primitives.size(); prim_idx++)
     {
-        const auto& primitive = mesh.primitives[i];
+        const auto& primitive = mesh.primitives[prim_idx];
         assert(ret.material_index  == primitive.material && "Currently not supporting multi-material meshes!");
 
         static const std::map<std::string, engine_vertex_attribute_type_t> expected_attrib_names = []()
@@ -36,22 +36,24 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             return ret;
         }();
 
-        static const std::map<engine_vertex_attribute_type_t, std::size_t> expected_num_components = []()
+        static const std::map<engine_vertex_attribute_type_t, std::uint32_t> expected_num_components = []()
         {
-            std::map<engine_vertex_attribute_type_t, std::size_t> ret;
-            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION]  = 3;
-            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_NORMALS]   = 3;
-            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0]      = 2;
-            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0]  = 4;
-            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0] = 4;
+            std::map<engine_vertex_attribute_type_t, std::uint32_t> ret;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION]  = 3u;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_NORMALS]   = 3u;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0]      = 2u;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0]  = 4u;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0] = 4u;
             return ret;
         }();
 
+        using VertDT = float;
+
         struct attrib_info
         {
-            const float* data = nullptr;
+            const VertDT* data = nullptr;
             std::size_t count = 0;
-            std::size_t num_components = 0;
+            std::uint32_t num_components = 0;
 
             inline std::size_t get_single_vertex_size() const
             {
@@ -79,10 +81,11 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             if (expected_attrib_names.find(attrib.first) != expected_attrib_names.end())
             {
                 const auto attrib_type = expected_attrib_names.at(attrib.first);
-                attribs[attrib_type].data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
+                attribs[attrib_type].data = reinterpret_cast<const VertDT*>(buffer.data.data() + buffer_view.byteOffset);
                 attribs[attrib_type].count = attrib_accesor.count;
                 attribs[attrib_type].num_components = attrib_num_components;
                 assert(attribs[attrib_type].num_components == expected_num_components.at(attrib_type));
+                assert(attribs[attrib_type].num_components * sizeof(VertDT) == attrib_stride);
             }
             else
             {
@@ -90,13 +93,19 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             }
         }
         // we can set number of vertices
-        ret.vertex_count = position_data.count;
+        ret.vertex_count = static_cast<std::int32_t>(position_data.count);
 
         // some validation
         if (position_data.count == 0)
         {
             engine::log::log(engine::log::LogLevel::eCritical, 
-                fmt::format("Cant load mesh correctly. Count of positions: {}, count of uv: {} .\n",
+                fmt::format("Cant load mesh correctly. Count of positions: {}.\n", position_data.count));
+        }
+
+        if (normals_data.count > 0 && normals_data.count != position_data.count)
+        {
+            engine::log::log(engine::log::LogLevel::eCritical,
+                fmt::format("Cant load mesh correctly. Count of positions: {}, count of uv: {}.\n",
                     position_data.count, uv_0_data.count));
         }
 
@@ -154,15 +163,15 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
 
         // copy data into buffer returned to user
         ret.vertex_data.resize(total_verts_buffer_size, std::byte(0));      
-        float* verrts_ptr = reinterpret_cast<float*>(ret.vertex_data.data());
+        auto* verts_ptr = reinterpret_cast<VertDT*>(ret.vertex_data.data());
         for (auto i = 0; i < position_data.count; i++)
         {
             for (const auto& attrib : attribs)
             {
-                for (auto c = 0; c < attrib.num_components; c++)
+                for (std::uint32_t c = 0; c < attrib.num_components; c++)
                 {
-                    *verrts_ptr = attrib.data ? attrib.data[c + i * attrib.num_components] : 0.0f;
-                    verrts_ptr++;
+                    *verts_ptr = attrib.data ? attrib.data[c + i * attrib.num_components] : 0.0f;
+                    verts_ptr++;
                 }
             }
         }
@@ -198,19 +207,6 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
 
     return ret;
 }
-
-inline void parse_model_nodes(engine_model_desc_t& model_info, const tinygltf::Model& model, const tinygltf::Node& node)
-{
-    //if ((node.mesh >= 0) && (node.mesh < model.meshes.size())) {
-    //    parse_mesh(model_info, model, model.meshes[node.mesh]);
-    //}
-
-    //for (std::size_t i = 0; i < node.children.size(); i++) 
-    //{
-    //    assert((node.children[i] >= 0) && (node.children[i] < model.nodes.size()));
-    //    parse_model_nodes(model_info, model, model.nodes[node.children[i]]);
-    //}
-}
 }  // namespace anonymous
 
 engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8_t> data)
@@ -228,11 +224,11 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     if(is_binary)
     {
         load_success = loader.LoadBinaryFromMemory(&model, &load_error_msg, &load_warning_msg,
-            data.data(), data.size_bytes(), "");
+            data.data(), static_cast<std::uint32_t>(data.size_bytes()), "");
     }
     else
     {
-        load_success = loader.LoadASCIIFromString(&model, &load_error_msg, &load_warning_msg, reinterpret_cast<const char*>(data.data()), data.size(), {});
+        load_success = loader.LoadASCIIFromString(&model, &load_error_msg, &load_warning_msg, reinterpret_cast<const char*>(data.data()), static_cast<std::uint32_t>(data.size()), {});
     }
     if (!load_warning_msg.empty())
     {

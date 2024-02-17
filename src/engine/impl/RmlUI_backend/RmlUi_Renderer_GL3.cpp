@@ -782,7 +782,7 @@ void RenderInterface_GL3::SubmitTransformUniform(ProgramId program_id, int unifo
 	}
 }
 
-bool RmlGL3::Initialize(Rml::String* out_message)
+bool RmlGL3::Initialize(Rml::String* /*out_message*/)
 {
 //#if defined RMLUI_PLATFORM_EMSCRIPTEN
 //	if (out_message)

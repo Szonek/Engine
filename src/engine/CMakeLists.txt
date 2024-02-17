@@ -54,15 +54,18 @@ set(ENGINE_API_SOURCES
 set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})
 
 add_library(${ENGINE} SHARED ${ENGINE_ALL_SOURCES})
-set_property(TARGET ${ENGINE} PROPERTY CXX_STANDARD 20)
-
 
 target_include_directories(${ENGINE} PUBLIC ${ENGINE_API} PRIVATE ${BULLET_INCLUDE_DIRS})
 target_link_libraries(${ENGINE} PRIVATE stb tinygltf glad glm EnTT::EnTT SDL3::SDL3-static fmt::fmt-header-only RmlCore ${BULLET_LIBRARIES})
-
+	
 get_target_property(target_type RmlCore TYPE)
 if (target_type STREQUAL "STATIC_LIBRARY")
 	target_compile_definitions(${ENGINE} PRIVATE RMLUI_STATIC_LIB)
 endif ()
+
+target_compile_options(${ENGINE} PRIVATE
+  $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
+  $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Werror>
+)
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_ALL_SOURCES})

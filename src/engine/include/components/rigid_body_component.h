@@ -8,7 +8,7 @@ extern "C"
 
 typedef struct _engine_rigid_body_component_t
 {
-    uint32_t mass;  // in kg
+    float mass;  // in kg
     
     float linear_velocity[3];
     float angular_velocity[3];

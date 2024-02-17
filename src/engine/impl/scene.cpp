@@ -75,9 +75,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     // detect if rigid body component was updated by the user
     for (const auto entt : rigid_body_update_observer)
     {
-        const auto collider_component = get_component<engine_collider_component_t>(entt);
         const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
-        const auto transform_component = get_component<engine_tranform_component_t>(entt);
         auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
 
         physcics_component->rigid_body->setLinearVelocity(btVector3(rigidbody_component->linear_velocity[0], rigidbody_component->linear_velocity[1], rigidbody_component->linear_velocity[2]));
@@ -127,7 +125,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 }
 
 engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::span<const Texture2D> textures, 
-    std::span<const Geometry> geometries, std::span<const AnimationClipData> animations, UiManager* ui_manager)
+    std::span<const Geometry> geometries, std::span<const AnimationClipData> animations)
 {
     // transform component updated, calculate new model matrix
     for (const auto entt : transform_model_matrix_update_observer)

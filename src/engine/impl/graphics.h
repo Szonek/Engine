@@ -136,7 +136,7 @@ public:
 
 public:
 	Geometry() = default;
-	Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const std::byte> vertex_data, std::size_t vertex_count, std::span<const std::uint32_t> index_data = {});
+	Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const std::byte> vertex_data, std::int32_t vertex_count, std::span<const std::uint32_t> index_data = {});
 	Geometry(const Geometry& rhs) = delete;
 	Geometry(Geometry&& rhs) noexcept;
 	Geometry& operator=(const Geometry& rhs) = delete;
