@@ -25,6 +25,19 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
     {
         const auto& primitive = mesh.primitives[i];
         assert(ret.material_index  == primitive.material && "Currently not supporting multi-material meshes!");
+
+
+        static const std::array<std::size_t, ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT> expected_num_components = []()
+        {
+            std::array<std::size_t, ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT> ret{ 0 };
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION]  = 3;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_NORMALS]   = 3;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0]      = 2;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0]  = 4;
+            ret[ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0] = 4;
+            return ret;
+        }();
+
         struct attrib_info
         {
             const float* data = nullptr;
@@ -58,7 +71,7 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
                 position_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
                 position_data.count = attrib_accesor.count;
                 position_data.num_components = attrib_num_components;
-                assert(attrib_num_components == 3); //xyz
+                assert(attrib_num_components == expected_num_components[ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION]);
                 assert(attrib_stride == 12); // 3 floats
             }
             else if (attrib.first.compare("NORMAL") == 0)
@@ -66,13 +79,15 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
                 normals_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
                 normals_data.count = attrib_accesor.count;
                 normals_data.num_components = attrib_num_components;
+                assert(attrib_num_components == expected_num_components[ENGINE_VERTEX_ATTRIBUTE_TYPE_NORMALS]);
+                assert(attrib_stride == 12); // 3 floats
             }
             else if (attrib.first.compare("TEXCOORD_0") == 0)
             {
                 uv_0_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
                 uv_0_data.count = attrib_accesor.count;
                 uv_0_data.num_components = attrib_num_components;
-                assert(attrib_num_components == 2); //xy
+                assert(attrib_num_components == expected_num_components[ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0]);
                 assert(attrib_stride == 8); // 2 floats
             }
             else if (attrib.first.compare("JOINTS_0") == 0)
@@ -80,14 +95,14 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
                 joints_0_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
                 joints_0_data.count = attrib_accesor.count;
                 joints_0_data.num_components = attrib_num_components;
-                assert(joints_0_data.num_components == 4);
+                assert(joints_0_data.num_components == expected_num_components[ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0]);
             }
             else if (attrib.first.compare("WEIGHTS_0") == 0)
             {
                 weights_0_data.data = reinterpret_cast<const float*>(buffer.data.data() + buffer_view.byteOffset);
                 weights_0_data.count = attrib_accesor.count;
                 weights_0_data.num_components = attrib_num_components;
-                assert(weights_0_data.num_components == 4);
+                assert(weights_0_data.num_components == expected_num_components[ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0]);
             }
             else
             {
@@ -102,6 +117,11 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
                     position_data.count, uv_0_data.count));
             return {};
         }
+        else
+        {
+            ret.vertex_count = position_data.count;
+        }
+
 
         if (joints_0_data.count != weights_0_data.count)
         {
@@ -119,12 +139,26 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             return {};
         }
 
-        // create layout
+        // Fill missing gaps  <- because we are using common shader
+        // ToDo: remove this and make shaders detect attributs components (should have better performance)
+        // This approach will have gaps in buffer -> waste of memory and performance
+        for (auto i = 0; i < attribs.size(); i++)
+        {
+            auto& attrib = attribs[i];
+            if (attrib.data)
+            {
+                continue;
+            }
+            attrib.num_components = expected_num_components[i];
+            attrib.count = ret.vertex_count;
+        }
+
+        // create layout returned to user
         {
             std::size_t attrib_added_idx = 0;
             for (std::size_t i = 0; i < ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT; i++)
             {
-                if (attribs[i].data)
+                if (attribs[i].num_components > 0)
                 {
                     ret.vertex_laytout.attributes[attrib_added_idx].elements_data_type = ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_FLOAT;
                     ret.vertex_laytout.attributes[attrib_added_idx].elements_count = attribs[i].num_components;
@@ -138,13 +172,13 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
         const auto total_verts_buffer_size = [&attribs]()
         {
             std::size_t ret = 0;
-            std::for_each(attribs.begin(), attribs.end(), [&ret](const auto& attrib) {ret += attrib.get_single_vertex_size(); });
+            std::for_each(attribs.begin(), attribs.end(), [&ret](const auto& attrib) { ret += attrib.get_single_vertex_size(); });
             return ret;
         }();
 
 
-        ret.vertex_count = position_data.count;
-        ret.vertex_data.resize(total_verts_buffer_size);
+
+        ret.vertex_data.resize(total_verts_buffer_size, std::byte(0));
         
         float* verrts_ptr = reinterpret_cast<float*>(ret.vertex_data.data());
         for (auto i = 0; i < position_data.count; i++)
@@ -153,7 +187,7 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             {
                 for (auto c = 0; c < attrib.num_components; c++)
                 {
-                    *verrts_ptr = attrib.data[c + i * attrib.num_components];
+                    *verrts_ptr = attrib.data ? attrib.data[c + i * attrib.num_components] : 0.0f;
                     verrts_ptr++;
                 }
             }
