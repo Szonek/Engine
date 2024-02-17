@@ -387,6 +387,8 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
         }
     }
 
+    ret.skins_counts = model_info->skins.size();
+
     return ret;
 }
 

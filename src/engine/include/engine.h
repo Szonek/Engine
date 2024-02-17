@@ -40,6 +40,7 @@ extern "C"
 typedef uint32_t engine_game_object_t;
 #define ENGINE_INVALID_GAME_OBJECT_ID 0
 #define ENGINE_INVALID_OBJECT_HANDLE (UINT_MAX)
+#define ENGINE_INVALID_SKIN_JOINT_IDX (-1)
 typedef struct _engine_application_t* engine_application_t;
 typedef struct _engine_scene_t* engine_scene_t;
 typedef struct _engine_component_view_t* engine_component_view_t;
@@ -343,7 +344,7 @@ typedef struct _engine_animation_channel_t
     engine_animation_channel_type_t type;
 
     const float* timestamps;
-    size_t timestamps_count;
+    uint32_t timestamps_count;
 
     const float* data;
     size_t data_count;
@@ -352,13 +353,9 @@ typedef struct _engine_animation_channel_t
 typedef struct _engine_animation_clip_desc_t
 {
     engine_animation_channel_t* channels;
-    size_t channels_count;
+    uint32_t channels_count;
 
 } engine_animation_clip_desc_t;
-
-typedef struct _engine_skin_desc_t
-{
-} engine_skin_desc_t;
 
 typedef struct _engine_material_desc_t
 {
@@ -366,17 +363,34 @@ typedef struct _engine_material_desc_t
     engine_texture_2d_desc_t diffuse_texture_info;
 } engine_material_desc_t;
 
+typedef struct _engine_skin_joint_desc_t
+{
+    int32_t idx;
+    const float inverse_bind_mat[16];
+    const int32_t* children;
+    uint32_t children_count;
+} engine_skin_joint_desc_t;
+
+typedef struct _engine_skin_desc_t
+{
+    const engine_skin_joint_desc_t* joints;
+    uint32_t joint_count;
+} engine_skin_desc_t;
+
 typedef struct _engine_model_desc_t
 {
     const void* internal_handle;
     engine_geometry_desc_t* geometries_array;
-    size_t geometries_count;
+    uint32_t geometries_count;
 
     engine_material_desc_t* materials_array;
-    size_t materials_count;
+    uint32_t materials_count;
 
     engine_animation_clip_desc_t* animations_array;
-    size_t animations_counts;
+    uint32_t animations_counts;
+
+    engine_skin_desc_t* skins_array;
+    uint32_t skins_counts;
 } engine_model_desc_t;
 
 // cross platform log

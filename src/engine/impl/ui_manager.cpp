@@ -4,10 +4,6 @@
 #include "logger.h"
 #include "math_helpers.h"
 
-
-#include <ft2build.h>
-#include FT_FREETYPE_H  
-
 #include <RmlUi/Core.h>
 
 #include <fmt/format.h>
