@@ -250,7 +250,7 @@ typedef struct _texture_2d_create_from_data_desc_t
     uint32_t height;
     engine_data_layout_t data_layout;
     const void* data;
-} engine_texture_2d_create_desc_t;
+} engine_texture_2d_desc_t;
 
 typedef enum _engine_result_code_t
 {
@@ -318,7 +318,7 @@ typedef enum _engine_model_specification_t
     ENGINE_MODEL_SPECIFICATION_GLTF_2
 } engine_model_specification_t;
 
-typedef struct _engine_geometry_info_t
+typedef struct _engine_geometry_desc_t
 {
     const void* verts_data;
     size_t verts_data_size;
@@ -327,7 +327,7 @@ typedef struct _engine_geometry_info_t
 
     const uint32_t* inds;
     size_t inds_count;
-} engine_geometry_info_t;
+} engine_geometry_desc_t;
 
 typedef enum _engine_animation_channel_type_t
 {
@@ -349,31 +349,35 @@ typedef struct _engine_animation_channel_t
     size_t data_count;
 } engine_animation_channel_t;
 
-typedef struct _engine_animation_clip_create_desc_t
+typedef struct _engine_animation_clip_desc_t
 {
     engine_animation_channel_t* channels;
     size_t channels_count;
 
-} engine_animation_clip_create_desc_t;
+} engine_animation_clip_desc_t;
 
-typedef struct _engine_material_info_t
+typedef struct _engine_skin_desc_t
+{
+} engine_skin_desc_t;
+
+typedef struct _engine_material_desc_t
 {
     float diffuse_color[4];
-    engine_texture_2d_create_desc_t diffuse_texture_info;
-} engine_material_info_t;
+    engine_texture_2d_desc_t diffuse_texture_info;
+} engine_material_desc_t;
 
-typedef struct _engine_model_info_t
+typedef struct _engine_model_desc_t
 {
     const void* internal_handle;
-    engine_geometry_info_t* geometries_array;
+    engine_geometry_desc_t* geometries_array;
     size_t geometries_count;
 
-    engine_material_info_t* materials_array;
+    engine_material_desc_t* materials_array;
     size_t materials_count;
 
-    engine_animation_clip_create_desc_t* animations_array;
+    engine_animation_clip_desc_t* animations_array;
     size_t animations_counts;
-} engine_model_info_t;
+} engine_model_desc_t;
 
 // cross platform log
 ENGINE_API void engineLog(const char* str);
@@ -411,20 +415,20 @@ ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_applicat
 ENGINE_API engine_font_t engineApplicationGetFontByName(engine_application_t handle, const char* name);
 
 // model loading
-ENGINE_API engine_result_code_t engineApplicationAllocateModelInfoAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, engine_model_info_t* out);
-ENGINE_API void engineApplicationReleaseModelInfo(engine_application_t handle, engine_model_info_t* model_info);
+ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, engine_model_desc_t* out);
+ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info);
 
 // geometry
 ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, engine_vertex_attributes_layout_t verts_layout, const void* verts_data, size_t verts_data_size, size_t verts_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 
 // textures 
-ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out);
+ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_desc_t* info, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
 
 // animations
-ENGINE_API engine_result_code_t engineApplicationAddAnimationClipFromMemory(engine_application_t handle, const engine_animation_clip_create_desc_t* info, const char* name, engine_animation_clip_t* out);
+ENGINE_API engine_result_code_t engineApplicationAddAnimationClipFromMemory(engine_application_t handle, const engine_animation_clip_desc_t* info, const char* name, engine_animation_clip_t* out);
 ENGINE_API engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_application_t handle, const char* name);
 // physics 
 ENGINE_API void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);

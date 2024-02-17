@@ -25,7 +25,7 @@
 #include <deque>
 #include <functional>
 
-inline engine_model_info_t model_info{};
+inline engine_model_desc_t model_info{};
 
 namespace project_c
 {
@@ -668,7 +668,7 @@ int main(int argc, char** argv)
 #endif
 
     //engine_model_info_t model_info{};
-    engine_error_code = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test_skin.gltf" : "test2.glb", &model_info);
+    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test_skin.gltf" : "test2.glb", &model_info);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed loading TABLE model. Exiting!\n");

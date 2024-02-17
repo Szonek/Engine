@@ -199,7 +199,7 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
     return ret;
 }
 
-inline void parse_model_nodes(engine_model_info_t& model_info, const tinygltf::Model& model, const tinygltf::Node& node)
+inline void parse_model_nodes(engine_model_desc_t& model_info, const tinygltf::Model& model, const tinygltf::Node& node)
 {
     //if ((node.mesh >= 0) && (node.mesh < model.meshes.size())) {
     //    parse_mesh(model_info, model, model.meshes[node.mesh]);

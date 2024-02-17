@@ -26,7 +26,7 @@ public:
     engine_application_frame_begine_info_t begine_frame();
     engine_application_frame_end_info_t end_frame();
 
-    std::uint32_t add_texture_from_memory(const engine_texture_2d_create_desc_t& desc, std::string_view texture_name);
+    std::uint32_t add_texture_from_memory(const engine_texture_2d_desc_t& desc, std::string_view texture_name);
     std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
     std::uint32_t get_texture(std::string_view name) const;
 
@@ -36,11 +36,11 @@ public:
     std::uint32_t add_geometry_from_memory(const engine_vertex_attributes_layout_t& verts_layout, std::size_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name);
     std::uint32_t get_geometry(std::string_view name) const;
 
-    std::uint32_t add_animation_clip_from_memory(const engine_animation_clip_create_desc_t& desc, std::string_view name);
+    std::uint32_t add_animation_clip_from_memory(const engine_animation_clip_desc_t& desc, std::string_view name);
     std::uint32_t get_animation_clip(std::string_view name) const;
 
-    engine_model_info_t load_model_info_from_file(engine_model_specification_t spec, std::string_view name);
-    void release_model_info(engine_model_info_t* info);
+    engine_model_desc_t load_model_desc_from_file(engine_model_specification_t spec, std::string_view name);
+    void release_model_desc(engine_model_desc_t* info);
 
     UiDocument load_ui_document(std::string_view file_name);
     UiDataHandle create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);

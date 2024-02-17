@@ -320,7 +320,7 @@ engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle
     return app->get_geometry(name);
 }
 
-engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out)
+engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_desc_t* info, const char* name, engine_texture2d_t* out)
 {
     auto* app = application_cast(handle);
     const auto ret =  app->add_texture_from_memory(*info, name);
@@ -349,14 +349,14 @@ engine_texture2d_t engineApplicationGetTextured2DByName(engine_application_t han
     return app->get_texture(name);
 }
 
-engine_result_code_t engineApplicationAllocateModelInfoAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, engine_model_info_t* out)
+engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, engine_model_desc_t* out)
 {
     if (!out)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
     auto* app = application_cast(handle);
-    *out = app->load_model_info_from_file(spec, file_name);
+    *out = app->load_model_desc_from_file(spec, file_name);
     if (!out->internal_handle)
     {
         return ENGINE_RESULT_CODE_FAIL;
@@ -365,13 +365,13 @@ engine_result_code_t engineApplicationAllocateModelInfoAndLoadDataFromFile(engin
 }
 
 
-void engineApplicationReleaseModelInfo(engine_application_t handle, engine_model_info_t* model_info)
+void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info)
 {
     auto* app = application_cast(handle);
-    app->release_model_info(model_info);
+    app->release_model_desc(model_info);
 }
 
-engine_result_code_t engineApplicationAddAnimationClipFromMemory(engine_application_t handle, const engine_animation_clip_create_desc_t* info, const char* name, engine_animation_clip_t* out)
+engine_result_code_t engineApplicationAddAnimationClipFromMemory(engine_application_t handle, const engine_animation_clip_desc_t* info, const char* name, engine_animation_clip_t* out)
 {
     auto* app = application_cast(handle);
     if (!info || !name)

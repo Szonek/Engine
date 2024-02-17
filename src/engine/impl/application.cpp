@@ -96,7 +96,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
 	{
 		//constexpr const std::array<std::uint8_t, 3> default_texture_color = { 160, 50, 168 };
 		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 255, 255, 255 };
-		engine_texture_2d_create_desc_t desc{};
+		engine_texture_2d_desc_t desc{};
 		desc.width = 1;
 		desc.height = 1;
         desc.data_layout = ENGINE_DATA_LAYOUT_RGB_U8;
@@ -235,7 +235,7 @@ engine_application_frame_end_info_t engine::Application::end_frame()
 	return ret;
 }
 
-std::uint32_t engine::Application::add_texture_from_memory(const engine_texture_2d_create_desc_t& desc, std::string_view texture_name)
+std::uint32_t engine::Application::add_texture_from_memory(const engine_texture_2d_desc_t& desc, std::string_view texture_name)
 {
     const auto data_layout = [](const auto engine_api_layout)
     {
@@ -288,7 +288,7 @@ std::uint32_t engine::Application::get_geometry(std::string_view name) const
     return geometries_atlas_.get_object(name);
 }
 
-std::uint32_t engine::Application::add_animation_clip_from_memory(const engine_animation_clip_create_desc_t& desc, std::string_view name)
+std::uint32_t engine::Application::add_animation_clip_from_memory(const engine_animation_clip_desc_t& desc, std::string_view name)
 {
     AnimationClipData clip{};
     clip.channels.resize(desc.channels_count);
@@ -313,7 +313,7 @@ std::uint32_t engine::Application::get_animation_clip(std::string_view name) con
 }
 
 
-engine_model_info_t engine::Application::load_model_info_from_file(engine_model_specification_t spec, std::string_view name)
+engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_specification_t spec, std::string_view name)
 {
     const auto file_data = engine::AssetStore::get_instance().get_model_data(name);
     if(file_data.get_size() == 0)
@@ -322,12 +322,12 @@ engine_model_info_t engine::Application::load_model_info_from_file(engine_model_
     }
     const auto model_info = new engine::ModelInfo(parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }));
 
-    engine_model_info_t ret{};
+    engine_model_desc_t ret{};
     ret.internal_handle = reinterpret_cast<const void*>(model_info);
     ret.geometries_count = model_info->geometries.size();
     if (ret.geometries_count > 0)
     {
-        ret.geometries_array = new engine_geometry_info_t[ret.geometries_count];
+        ret.geometries_array = new engine_geometry_desc_t[ret.geometries_count];
 
         for (std::size_t i = 0; i < ret.geometries_count; i++)
         {
@@ -348,7 +348,7 @@ engine_model_info_t engine::Application::load_model_info_from_file(engine_model_
     ret.materials_count = model_info->materials.size();
     if (ret.materials_count > 0)
     {
-        ret.materials_array = new engine_material_info_t[ret.materials_count];
+        ret.materials_array = new engine_material_desc_t[ret.materials_count];
 
         for (std::size_t i = 0; i < ret.materials_count; i++)
         {
@@ -366,7 +366,7 @@ engine_model_info_t engine::Application::load_model_info_from_file(engine_model_
     ret.animations_counts = model_info->animations.size();
     if (ret.animations_counts > 0)
     {
-        ret.animations_array = new engine_animation_clip_create_desc_t[ret.animations_counts];
+        ret.animations_array = new engine_animation_clip_desc_t[ret.animations_counts];
         for (std::size_t i = 0; i < ret.animations_counts; i++)
         {
             auto& anim = ret.animations_array[i];
@@ -390,7 +390,7 @@ engine_model_info_t engine::Application::load_model_info_from_file(engine_model_
     return ret;
 }
 
-void engine::Application::release_model_info(engine_model_info_t* info)
+void engine::Application::release_model_desc(engine_model_desc_t* info)
 {
     if (info)
     {
@@ -408,7 +408,7 @@ void engine::Application::release_model_info(engine_model_info_t* info)
         {
             delete[] info->animations_array;
         }
-        std::memset(info, 0, sizeof(engine_model_info_t));
+        std::memset(info, 0, sizeof(engine_model_desc_t));
     }
 }
 
