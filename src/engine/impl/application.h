@@ -33,7 +33,7 @@ public:
     std::uint32_t add_font_from_file(std::string_view file_name, std::string_view handle_name);
     std::uint32_t get_font(std::string_view name) const;
 
-    std::uint32_t add_geometry_from_memory(std::span<const engine_vertex_attribute_t> verts, std::span<const uint32_t> inds, std::string_view name);
+    std::uint32_t add_geometry_from_memory(const engine_vertex_attributes_layout_t& verts_layout, std::size_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name);
     std::uint32_t get_geometry(std::string_view name) const;
 
     std::uint32_t add_animation_clip_from_memory(const engine_animation_clip_create_from_memory_desc_t& desc, std::string_view name);

@@ -263,6 +263,38 @@ typedef struct _engine_vertex_attribute_t
     float uv[2];
 } engine_vertex_attribute_t;
 
+typedef enum _engine_vertex_attribute_type_t
+{
+    ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION = 0,
+    ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0,
+    ENGINE_VERTEX_ATTRIBUTE_TYPE_NORMALS,
+    ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0,
+    ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0,
+
+    //
+    // 
+ 
+    ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT,
+} engine_vertex_attribute_type_t;
+
+typedef enum _engine_vertex_attribute_data_type_t
+{
+    ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_FLOAT = 0,
+} engine_vertex_attribute_data_type_t;
+
+typedef struct _engine_vertex_attribute_desc_t
+{
+    uint32_t elements_count;  // set to 0 to disable given attribute
+    engine_vertex_attribute_data_type_t elements_data_type;
+    engine_vertex_attribute_type_t type;
+} engine_vertex_attribute_desc_t;
+
+
+typedef struct _engine_vertex_attributes_layout_t
+{
+    engine_vertex_attribute_desc_t attributes[ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT];
+} engine_vertex_attributes_layout_t;
+
 typedef struct _engine_collision_contact_t
 {
     float point_object_a[3];
@@ -287,8 +319,11 @@ typedef enum _engine_model_specification_t
 
 typedef struct _engine_geometry_info_t
 {
-    const engine_vertex_attribute_t* verts;
+    const void* verts_data;
+    size_t verts_data_size;
     size_t verts_count;
+    engine_vertex_attributes_layout_t vers_layout;
+
     const uint32_t* inds;
     size_t inds_count;
 } engine_geometry_info_t;
@@ -379,7 +414,7 @@ ENGINE_API engine_result_code_t engineApplicationAllocateModelInfoAndLoadDataFro
 ENGINE_API void engineApplicationReleaseModelInfo(engine_application_t handle, engine_model_info_t* model_info);
 
 // geometry
-ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, const engine_vertex_attribute_t* verts, size_t verts_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
+ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, engine_vertex_attributes_layout_t verts_layout, const void* verts_data, size_t verts_data_size, size_t verts_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 
 // textures 

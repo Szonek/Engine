@@ -14,7 +14,9 @@ namespace engine
 {
 struct GeometryInfo
 {
-    std::vector<engine_vertex_attribute_t> verticies;
+    engine_vertex_attributes_layout_t vertex_laytout{};
+    std::vector<std::byte> vertex_data;
+    std::size_t vertex_count = 0;
     std::vector<std::uint32_t> indicies;
     std::int32_t material_index = -1;
 };

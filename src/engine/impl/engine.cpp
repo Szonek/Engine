@@ -299,11 +299,11 @@ engine_font_t engineApplicationGetFontByName(engine_application_t handle, const 
     return app->get_font(name);
 }
 
-engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, const engine_vertex_attribute_t* verts, size_t verts_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out)
+engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, engine_vertex_attributes_layout_t verts_layout, const void* verts_data, size_t verts_data_size, size_t vertex_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out)
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
-    const auto ret = app->add_geometry_from_memory({ verts, verts_count}, {inds, inds_count}, name);
-    if (ret == ENGINE_INVALID_GAME_OBJECT_ID)
+    const auto ret = app->add_geometry_from_memory(verts_layout, vertex_count, { reinterpret_cast<const std::byte*>(verts_data), verts_data_size }, {inds, inds_count}, name);
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }

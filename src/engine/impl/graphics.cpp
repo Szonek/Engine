@@ -528,10 +528,15 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
         log::log(log::LogLevel::eCritical, fmt::format("Cant init sdl: %s\n", err_msg));
         return;
     }
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+#if __ANDROID__
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, 0);
+#else
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#endif
 
     
 
@@ -613,7 +618,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 	}
 	else
 	{
-        log::log(log::LogLevel::eTrace, fmt::format("Sucesfully loaded OpenglES ver: {}, {}.\n",
+        log::log(log::LogLevel::eTrace, fmt::format("Sucesfully loaded Opengl ver: {}, {}.\n",
             GLAD_VERSION_MAJOR(gl_version), GLAD_VERSION_MINOR(gl_version)));
 	}
 //#if _DEBUG && defined(GLAD_GLES2_IMPLEMENTATION)

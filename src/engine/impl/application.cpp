@@ -260,10 +260,32 @@ std::uint32_t engine::Application::get_font(std::string_view name) const
     return ui_manager_.get_font(name);
 }
 
-std::uint32_t engine::Application::add_geometry_from_memory(std::span<const engine_vertex_attribute_t> verts, std::span<const uint32_t> inds, std::string_view name)
+std::uint32_t engine::Application::add_geometry_from_memory(const engine_vertex_attributes_layout_t& verts_layout, std::size_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name)
 {
-	const static auto vertex_layout = create_engine_api_layout();
-	return geometries_atlas_.add_object(name, std::move(Geometry(vertex_layout, { reinterpret_cast<const std::byte*>(verts.data()), verts.size_bytes() }, verts.size(), inds)));
+	//const static auto vertex_layout = create_engine_api_layout();
+
+    auto to_vert_attr_dt = [](const engine_vertex_attribute_data_type_t& dt)
+    {
+        switch (dt)
+        {
+        case ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_FLOAT: return engine::Geometry::vertex_attribute_t::Type::eFloat;
+        default:
+            return engine::Geometry::vertex_attribute_t::Type::eCount;
+        }
+    };
+
+    std::vector<vertex_attribute_simple_t> vertex_layout_simple;
+    for(auto i = 0; i < std::size(verts_layout.attributes); i++)
+    {
+        const auto& attr = verts_layout.attributes[i];
+        if (attr.elements_count == 0)
+        {
+            continue;
+        }
+        vertex_layout_simple.push_back({ attr.elements_count, to_vert_attr_dt(attr.elements_data_type)});
+    }
+
+	return geometries_atlas_.add_object(name, std::move(Geometry(create_tightly_packed_vertex_layout(vertex_layout_simple), verts_data, vertex_count, inds)));
 }
 
 std::uint32_t engine::Application::get_geometry(std::string_view name) const
@@ -320,8 +342,10 @@ engine_model_info_t engine::Application::load_model_info_from_file(engine_model_
             ret_g.inds_count = int_g.indicies.size();
             ret_g.inds = int_g.indicies.data();
 
-            ret_g.verts_count = int_g.verticies.size();
-            ret_g.verts = int_g.verticies.data();
+            ret_g.verts_data_size = int_g.vertex_data.size();
+            ret_g.verts_data = int_g.vertex_data.data();
+            ret_g.vers_layout = int_g.vertex_laytout;
+            ret_g.verts_count = int_g.vertex_count;
         }
 
     }

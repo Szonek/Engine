@@ -21,28 +21,6 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
     ret.material_index = mesh.primitives.front().material;
     //assert(mesh.primitives.size() == 1 && "Not enabled path for primitives count > 1");
 
-    std::size_t total_verts_count = 0;
-    std::size_t total_inds_count = 0;
-    for (std::size_t i = 0; i < mesh.primitives.size(); i++)
-    {
-        const auto& primitive = mesh.primitives[i];
-        auto verts_count = 0;
-        for (const auto& attrib : primitive.attributes)
-        {
-            const auto& attrib_accesor = model.accessors[attrib.second];
-            if (attrib.first.compare("POSITION") == 0)
-            {
-                total_verts_count += attrib_accesor.count;
-            }
-        }
-
-        const auto& index_accessor = model.accessors[primitive.indices];
-        total_inds_count +=  index_accessor.count;
-    }
-
-    ret.verticies.reserve(total_verts_count);
-    ret.indicies.reserve(total_inds_count);
-
     for (std::size_t i = 0; i < mesh.primitives.size(); i++)
     {
         const auto& primitive = mesh.primitives[i];
@@ -52,12 +30,19 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             const float* data = nullptr;
             std::size_t count = 0;
             std::size_t num_components = 0;
+
+            inline std::size_t get_single_vertex_size() const
+            {
+                return count * num_components * sizeof(data[0]);
+            }
         };
-        attrib_info position_data;
-        attrib_info uv_0_data;
-        attrib_info normals_data;
-        attrib_info joints_0_data;
-        attrib_info weights_0_data;
+        std::array<attrib_info, ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT> attribs{};
+        
+        auto& position_data  = attribs[ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION];
+        auto& normals_data   = attribs[ENGINE_VERTEX_ATTRIBUTE_TYPE_NORMALS];
+        auto& uv_0_data      = attribs[ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0];
+        auto& joints_0_data  = attribs[ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0];
+        auto& weights_0_data = attribs[ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0];
 
         for (const auto& attrib : primitive.attributes)
         {
@@ -134,19 +119,43 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             return {};
         }
 
+        // create layout
+        {
+            std::size_t attrib_added_idx = 0;
+            for (std::size_t i = 0; i < ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT; i++)
+            {
+                if (attribs[i].data)
+                {
+                    ret.vertex_laytout.attributes[attrib_added_idx].elements_data_type = ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_FLOAT;
+                    ret.vertex_laytout.attributes[attrib_added_idx].elements_count = attribs[i].num_components;
+                    ret.vertex_laytout.attributes[attrib_added_idx].type = static_cast<engine_vertex_attribute_type_t>(i);
+                    attrib_added_idx++;
+                }
+            }
+        }
+
         // verts
-        const auto verts_offset = ret.verticies.size();
-        ret.verticies.resize(verts_offset + position_data.count);
+        const auto total_verts_buffer_size = [&attribs]()
+        {
+            std::size_t ret = 0;
+            std::for_each(attribs.begin(), attribs.end(), [&ret](const auto& attrib) {ret += attrib.get_single_vertex_size(); });
+            return ret;
+        }();
+
+
+        ret.vertex_count = position_data.count;
+        ret.vertex_data.resize(total_verts_buffer_size);
+        
+        float* verrts_ptr = reinterpret_cast<float*>(ret.vertex_data.data());
         for (auto i = 0; i < position_data.count; i++)
         {
-            ret.verticies[verts_offset + i].position[0] = position_data.data[0 + i * position_data.num_components];
-            ret.verticies[verts_offset + i].position[1] = position_data.data[1 + i * position_data.num_components];
-            ret.verticies[verts_offset + i].position[2] = position_data.data[2 + i * position_data.num_components];
-
-            if (uv_0_data.count != 0)
+            for (const auto& attrib : attribs)
             {
-                ret.verticies[verts_offset + i].uv[0] = uv_0_data.data[0 + i * 2];
-                ret.verticies[verts_offset + i].uv[1] = uv_0_data.data[1 + i * 2];
+                for (auto c = 0; c < attrib.num_components; c++)
+                {
+                    *verrts_ptr = attrib.data[c + i * attrib.num_components];
+                    verrts_ptr++;
+                }
             }
         }
 

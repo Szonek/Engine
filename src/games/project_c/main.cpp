@@ -680,7 +680,12 @@ int main(int argc, char** argv)
         assert(model_info.geometries_count == 1);
         const auto& geo = model_info.geometries_array[0];
         engine_geometry_t ybot_geometry{};
-        engineApplicationAddGeometryFromMemory(app, geo.verts, geo.verts_count, geo.inds, geo.inds_count, "y_bot", &ybot_geometry);
+        engine_error_code = engineApplicationAddGeometryFromMemory(app, geo.vers_layout, geo.verts_data, geo.verts_data_size, geo.verts_count, geo.inds, geo.inds_count, "y_bot", &ybot_geometry);
+        if (engine_error_code != ENGINE_RESULT_CODE_OK)
+        {
+            engineLog("Failed creating geometry for loaded model. Exiting!\n");
+            return -1;
+        }
     }
 
     if (model_info.materials_count > 0)

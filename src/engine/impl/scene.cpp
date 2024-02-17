@@ -215,7 +215,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
             shader_simple_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
         }
 
-        rdx.set_polygon_mode(RenderContext::PolygonFaceType::eFrontAndBack, RenderContext::PolygonMode::eLine);
+        //rdx.set_polygon_mode(RenderContext::PolygonFaceType::eFrontAndBack, RenderContext::PolygonMode::eLine);
         geometry_renderet.each([this, &rdx, &textures, &geometries](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material)
             {
                 if (mesh.disable)
@@ -235,7 +235,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
 
 			}
 		);
-        rdx.set_polygon_mode(RenderContext::PolygonFaceType::eFrontAndBack, RenderContext::PolygonMode::eFill);
+        //rdx.set_polygon_mode(RenderContext::PolygonFaceType::eFrontAndBack, RenderContext::PolygonMode::eFill);
     }
 
 

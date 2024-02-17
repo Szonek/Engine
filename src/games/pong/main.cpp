@@ -50,36 +50,36 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-    engine_model_info_t model_info{};
-    auto model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "cube.glb", &model_info);
-    if (model_info_result != ENGINE_RESULT_CODE_OK)
-    {
-        engineLog("Failed loading CUBE model. Exiting!\n");
-        return -1;
-    }
-    engine_geometry_t cube_geometry{};
-    engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
-        model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "cube", &cube_geometry);
-    engineApplicationReleaseModelInfo(app, &model_info);
+    //engine_model_info_t model_info{};
+    //auto model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "cube.glb", &model_info);
+    //if (model_info_result != ENGINE_RESULT_CODE_OK)
+    //{
+    //    engineLog("Failed loading CUBE model. Exiting!\n");
+    //    return -1;
+    //}
+    //engine_geometry_t cube_geometry{};
+    //engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_size, model_info.geometries_array[0].vers_layout,
+    //    model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "cube", &cube_geometry);
+    //engineApplicationReleaseModelInfo(app, &model_info);
 
-    model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "sphere_uv.glb", &model_info);
-    if (model_info_result != ENGINE_RESULT_CODE_OK)
-    {
-        engineLog("Failed loading SPHERE model. Exiting!\n");
-        return -1;
-    }
-    engine_geometry_t sphere_geometry{};
-    engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
-        model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "sphere", &sphere_geometry);
-    engineApplicationReleaseModelInfo(app, &model_info);
+    //model_info_result = engineApplicationAllocateModelInfoAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "sphere_uv.glb", &model_info);
+    //if (model_info_result != ENGINE_RESULT_CODE_OK)
+    //{
+    //    engineLog("Failed loading SPHERE model. Exiting!\n");
+    //    return -1;
+    //}
+    //engine_geometry_t sphere_geometry{};
+    //engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
+    //    model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "sphere", &sphere_geometry);
+    //engineApplicationReleaseModelInfo(app, &model_info);
 
-    
-    engine_font_t font_handle{};
-    if (engineApplicationAddFontFromFile(app, "tahoma.ttf", "tahoma_font", &font_handle) != ENGINE_RESULT_CODE_OK)
-    {
-        log(fmt::format("Couldnt load font!\n"));
-        return -1;
-    }
+    //
+    //engine_font_t font_handle{};
+    //if (engineApplicationAddFontFromFile(app, "tahoma.ttf", "tahoma_font", &font_handle) != ENGINE_RESULT_CODE_OK)
+    //{
+    //    log(fmt::format("Couldnt load font!\n"));
+    //    return -1;
+    //}
 
     engine::SceneManager scene_manager(app);
     //scene_manager.register_scene<pong::PvpScene>();
