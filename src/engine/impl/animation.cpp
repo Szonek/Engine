@@ -8,116 +8,178 @@
 
 namespace
 {
-inline std::size_t get_index_timestamp(float animation_time, std::span<const float> timestamps)
-{
-    animation_time = std::min(animation_time, timestamps.back());
-    for (auto i = 0; i < timestamps.size() - 1; i++)
+    inline std::size_t get_index_timestamp(float animation_time, std::span<const float> timestamps)
     {
-        if (animation_time <= timestamps[i + 1])
+        animation_time = std::min(animation_time, timestamps.back());
+        for (auto i = 0; i < timestamps.size() - 1; i++)
         {
-            return i;
+            if (animation_time <= timestamps[i + 1])
+            {
+                return i;
+            }
         }
+        assert(false);
+        return 0;
+    };
+
+    inline glm::quat compute_animation_rotation(const engine::AnimationChannelData<glm::quat>& channel, float animation_time)
+    {
+        if (channel.timestamps.empty())
+        {
+            return{ };
+        }
+        const auto timestamp_idx_prev = get_index_timestamp(animation_time, channel.timestamps);
+        const auto timestamp_idx_next = timestamp_idx_prev + 1;
+
+        const auto timestamp_prev = channel.timestamps[timestamp_idx_prev];
+        const auto timestamp_next = channel.timestamps[timestamp_idx_next];
+        const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
+
+        const auto& data_prev = channel.data[timestamp_idx_prev];
+        const auto& data_next = channel.data[timestamp_idx_next];
+
+        const auto slerp = glm::slerp(data_prev, data_next, interpolation_value);
+        const auto rotation = glm::eulerAngles(slerp);
+
+        return rotation;
+    };
+
+    inline glm::vec3 compute_animation_translation_or_scale(const engine::AnimationChannelData<glm::vec3>& channel, float animation_time, float default_ret_value)
+    {
+        if (channel.timestamps.empty())
+        {
+            return glm::vec3 { default_ret_value, default_ret_value, default_ret_value };
+        }
+        const auto timestamp_idx_prev = get_index_timestamp(animation_time, channel.timestamps);
+        const auto timestamp_idx_next = timestamp_idx_prev + 1;
+
+        const auto& timestamp_prev = channel.timestamps[timestamp_idx_prev];
+        const auto& timestamp_next = channel.timestamps[timestamp_idx_next];
+        const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
+
+        const auto& data_prev = channel.data[timestamp_idx_prev];
+        const auto& data_next = channel.data[timestamp_idx_next];
+
+        const auto lerp = glm::mix(data_prev, data_next, interpolation_value);
+        return lerp;
+    };
+
+    inline glm::vec3 compute_animation_translation(const engine::AnimationChannelData<glm::vec3>& channel, float animation_time)
+    {
+        return compute_animation_translation_or_scale(channel, animation_time, 0.0f);
     }
-    assert(false);
-    return 0;
-};
 
-inline glm::quat compute_animation_rotation(const engine::AnimationChannelData& channel, float animation_time)
-{
-    const auto timestamp_idx_prev = get_index_timestamp(animation_time, channel.timestamps);
-    const auto timestamp_idx_next = timestamp_idx_prev + 1;
-
-    const auto timestamp_prev = channel.timestamps[timestamp_idx_prev];
-    const auto timestamp_next = channel.timestamps[timestamp_idx_next];
-    const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
-
-    const auto rotation_quaternions = [&]()
+    inline glm::vec3 compute_animation_scale(const engine::AnimationChannelData<glm::vec3>& channel, float animation_time)
     {
-        std::array<float, 4> data_rot_prev = {};
-        std::array<float, 4> data_rot_next = {};
-        for (auto i = 0; i < data_rot_prev.size(); i++)
-        {
-            data_rot_prev[i] = channel.data[timestamp_idx_prev * 4 + i];
-            data_rot_next[i] = channel.data[timestamp_idx_next * 4 + i];
-        }
+        return compute_animation_translation_or_scale(channel, animation_time, 1.0f);
+    }
 
-        std::pair<glm::quat, glm::quat> ret =
-        {
-            glm::quat(data_rot_prev[3], data_rot_prev[0], data_rot_prev[1], data_rot_prev[2]),
-            glm::quat(data_rot_next[3], data_rot_next[0], data_rot_next[1], data_rot_next[2])
-        };
-        return ret;
-    }();
+}// namespace anonymous
 
-    const auto slerp = glm::slerp(rotation_quaternions.first, rotation_quaternions.second, interpolation_value);
-    const auto rotation = glm::eulerAngles(slerp);
-
-    return rotation;
-};
-
-inline glm::vec3 compute_animation_translation_or_scale(const engine::AnimationChannelData& channel, float animation_time)
+engine::AnimationClip::AnimationClip(const engine_animation_clip_desc_t& desc)
 {
-    const auto timestamp_idx_prev = get_index_timestamp(animation_time, channel.timestamps);
-    const auto timestamp_idx_next = timestamp_idx_prev + 1;
-
-    const auto timestamp_prev = channel.timestamps[timestamp_idx_prev];
-    const auto timestamp_next = channel.timestamps[timestamp_idx_next];
-    const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
-
-    const auto translation_vectors = [&]()
+    auto fill_timestamp_data_to_vector = [](std::vector<float>& timestampts, const engine_animation_channel_t& channel)
     {
-        std::array<float, 3> data_prev = {};
-        std::array<float, 3> data_next = {};
-        for (auto i = 0; i < data_prev.size(); i++)
+        timestampts.resize(channel.timestamps_count);
+        for (std::size_t i = 0; i < timestampts.size(); i++)
         {
-            data_prev[i] = channel.data[timestamp_idx_prev * 3 + i];
-            data_next[i] = channel.data[timestamp_idx_next * 3 + i];
+            timestampts[i] = channel.timestamps[i];
         }
+    };
 
-        std::pair<glm::vec3, glm::vec3> ret =
+    auto fill_animation_node_data = [this, &fill_timestamp_data_to_vector](const engine_animation_channel_t& channel)
+    {
+        auto& node = nodes_[channel.target_node_idx];
+
+        switch (channel.type)
         {
-            glm::vec3(data_prev[0], data_prev[1], data_prev[2]),
-            glm::vec3(data_next[0], data_next[1], data_next[2])
-        };
-        return ret;
-    }();
+        case ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION:
+        {
+            // timestamp
+            fill_timestamp_data_to_vector(node.transform.timestamps, channel);
+            // data
+            const auto data_size = channel.data_count / 3;
+            node.transform.data.reserve(data_size);
+            for (std::size_t i = 0; i < data_size; i++)
+            {
+                const auto idx = i * 3;
+                const auto& d = channel.data;
+                node.transform.data.push_back(glm::vec3(d[idx], d[idx+1], d[idx+2]));
+            }
+            break;
+        }
+        case ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION:
+        {
+            // timestamp
+            fill_timestamp_data_to_vector(node.rotation.timestamps, channel);
+            // data
+            const auto data_size = channel.data_count / 4;
+            node.rotation.data.reserve(data_size);
+            for (std::size_t i = 0; i < data_size; i++)
+            {
+                const auto idx = i * 4;
+                const auto& d = channel.data;
+                // w, x, y, z
+                node.rotation.data.push_back(glm::quat(d[idx+3], d[idx], d[idx + 1], d[idx + 2]));
+            }
+            break;
+        }
+        case ENGINE_ANIMATION_CHANNEL_TYPE_SCALE:
+        {
+            // timestamp
+            fill_timestamp_data_to_vector(node.scale.timestamps, channel);
+            // data
+            const auto data_size = channel.data_count / 3;
+            node.scale.data.reserve(data_size);
+            for (std::size_t i = 0; i < data_size; i++)
+            {
+                const auto idx = i * 3;
+                const auto& d = channel.data;
+                node.scale.data.push_back(glm::vec3(d[idx], d[idx + 1], d[idx + 2]));
+            }
+            break;
+        }
+        default:
+            assert(false && !"unknown animation channel type!");
+        }
+    };
 
-    const auto lerp = glm::mix(translation_vectors.first, translation_vectors.second, interpolation_value);
-    return lerp;
-};
+    for (std::uint32_t i = 0; i < desc.channels_count; i++)
+    {
+        const auto& channel = desc.channels[i];
+        fill_animation_node_data(channel);
+    }
+
+    // find duration
+    auto get_last_element_if_bigger = [](auto& duration, const auto& ts)
+    {
+        if (!ts.empty())
+        {
+            duration = ts.back() > duration ? ts.back() : duration;
+        }
+    };
+    for (const auto& [idx, data] : nodes_)
+    {
+        get_last_element_if_bigger(duration_, data.transform.timestamps);
+        get_last_element_if_bigger(duration_, data.scale.timestamps);
+        get_last_element_if_bigger(duration_, data.rotation.timestamps);
+    }
 
 }
 
-float engine::AnimationClipData::get_duration() const
+float engine::AnimationClip::get_duration() const
 {
-    float max = 0.0f;
-    for (const auto& ch : channels)
-    {
-        max = ch.timestamps.back() > max ? ch.timestamps.back() : max;
-    }
-    return max;
+    return duration_;
 }
 
-glm::mat4 engine::AnimationClipData::compute_animation_model_matrix(const glm::mat4& base_matrix, float animation_timer) const
+void engine::AnimationClip::compute_animation_model_matrix(std::vector<glm::mat4>& skeleton_data, float animation_timer) const
 {
-    glm::vec3 transform{ 0.0f };
-    glm::vec3 scale{ 1.0f, 1.0f,1.0f };
-    glm::quat rotate{};
-    for (const auto& ch : channels)
+    for (const auto& [node_idx, anim_data] : nodes_)
     {
-        if (ch.type == ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION)
-        {
-            rotate = compute_animation_rotation(ch, animation_timer);
-        }
-        else if (ch.type == ENGINE_ANIMATION_CHANNEL_TYPE_SCALE)
-        {
-            scale = compute_animation_translation_or_scale(ch, animation_timer);
-        }
-        else if (ch.type == ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION)
-        {
-            transform = compute_animation_translation_or_scale(ch, animation_timer);
-        }
+        const auto transform = compute_animation_translation(anim_data.transform, animation_timer);
+        const auto scale = compute_animation_scale(anim_data.scale, animation_timer);
+        const auto rotate = compute_animation_rotation(anim_data.rotation, animation_timer);
+        const auto anim_matrix = compute_model_matrix(transform, rotate, scale);
+        skeleton_data[node_idx] = anim_matrix;
     }
-    const auto anim_matrix = compute_model_matrix(transform, rotate, scale);
-    return base_matrix * anim_matrix;
 }

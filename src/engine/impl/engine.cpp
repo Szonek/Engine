@@ -110,6 +110,13 @@ inline void animation_component_init(engine_animation_component_t* comp)
     }
 }
 
+inline void mesh_component_init(engine_mesh_component_t* comp)
+{
+    std::memset(comp, 0, sizeof(engine_rigid_body_component_t));
+    comp->geometry = ENGINE_INVALID_OBJECT_HANDLE;
+    comp->skin = ENGINE_INVALID_OBJECT_HANDLE;
+}
+
 inline void rigid_body_component_init(engine_rigid_body_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_rigid_body_component_t));
@@ -299,10 +306,10 @@ engine_font_t engineApplicationGetFontByName(engine_application_t handle, const 
     return app->get_font(name);
 }
 
-engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, engine_vertex_attributes_layout_t verts_layout, const void* verts_data, size_t verts_data_size, int32_t vertex_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out)
+engine_result_code_t engineApplicationAddGeometryFromDesc(engine_application_t handle, const engine_geometry_desc_t* desc, const char* name, engine_geometry_t* out)
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
-    const auto ret = app->add_geometry_from_memory(verts_layout, vertex_count, { reinterpret_cast<const std::byte*>(verts_data), verts_data_size }, {inds, inds_count}, name);
+    const auto ret = app->add_geometry(desc->vers_layout, desc->verts_count, { reinterpret_cast<const std::byte*>(desc->verts_data), desc->verts_data_size }, { desc->inds, desc->inds_count}, name);
     if (ret == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return ENGINE_RESULT_CODE_FAIL;
@@ -320,12 +327,12 @@ engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle
     return app->get_geometry(name);
 }
 
-engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_desc_t* info, const char* name, engine_texture2d_t* out)
+engine_result_code_t engineApplicationAddTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_desc_t* info, const char* name, engine_texture2d_t* out)
 {
     auto* app = application_cast(handle);
-    const auto ret =  app->add_texture_from_memory(*info, name);
+    const auto ret =  app->add_texture(*info, name);
 
-    if (ret == ENGINE_INVALID_GAME_OBJECT_ID)
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
@@ -347,6 +354,28 @@ engine_texture2d_t engineApplicationGetTextured2DByName(engine_application_t han
 {
     const auto* app = application_cast(handle);
     return app->get_texture(name);
+}
+
+engine_result_code_t engineApplicationAddSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const char* name, engine_skin_t* out)
+{
+    auto* app = application_cast(handle);
+    const auto ret = app->add_skin(*desc, name);
+
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    if (out)
+    {
+        *out = ret;
+    }
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_skin_t engineApplicationGetSkinByName(engine_application_t handle, const char* name)
+{
+    const auto* app = application_cast(handle);
+    return app->get_skin(name);
 }
 
 engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, engine_model_desc_t* out)
@@ -371,14 +400,14 @@ void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model
     app->release_model_desc(model_info);
 }
 
-engine_result_code_t engineApplicationAddAnimationClipFromMemory(engine_application_t handle, const engine_animation_clip_desc_t* info, const char* name, engine_animation_clip_t* out)
+engine_result_code_t engineApplicationAddAnimationClipFromDesc(engine_application_t handle, const engine_animation_clip_desc_t* info, const char* name, engine_animation_clip_t* out)
 {
     auto* app = application_cast(handle);
     if (!info || !name)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    const auto ret = app->add_animation_clip_from_memory(*info, name);
+    const auto ret = app->add_animation_clip(*info, name);
     if (ret == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return ENGINE_RESULT_CODE_FAIL;
@@ -736,7 +765,7 @@ void engineSceneComponentViewAttachRectTransformComponent(engine_scene_t scene, 
 
 engine_mesh_component_t engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_mesh_component_t>(scene, game_object);
+    return add_component<engine_mesh_component_t, mesh_component_init>(scene, game_object);
 }
 
 engine_mesh_component_t engineSceneGetMeshComponent(engine_scene_t scene, engine_game_object_t game_object)

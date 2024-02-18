@@ -21,7 +21,7 @@ public:
 
     engine_result_code_t physics_update(float dt);
     engine_result_code_t update(RenderContext& rdx, float dt, std::span<const class Texture2D> textures, 
-        std::span<const Geometry> geometries, std::span<const struct AnimationClipData> animations);
+        std::span<const Geometry> geometries, std::span<const class AnimationClip> animations, std::span<const class Skin> skins);
 
     entt::entity create_new_entity();
     void destroy_entity(entt::entity entity);
@@ -84,6 +84,7 @@ public:
 private:
     entt::registry entity_registry_;
     entt::observer transform_model_matrix_update_observer;
+    entt::observer mesh_update_observer;
     entt::observer collider_create_observer;
     entt::observer transform_update_collider_observer;
     entt::observer rigid_body_create_observer;

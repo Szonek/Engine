@@ -3,7 +3,7 @@
 #include "ui_manager.h"
 #include "logger.h"
 #include "math_helpers.h"
-
+#include "vertex_skinning.h"
 
 #include <fmt/format.h>
 
@@ -18,9 +18,11 @@ engine::Scene::Scene(engine_result_code_t& out_code)
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
     , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<PhysicsWorld::physcic_internal_component_t>())
     , transform_model_matrix_update_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>())
+    , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
     , rigid_body_create_observer(entity_registry_, entt::collector.group<engine_rigid_body_component_t, engine_tranform_component_t, engine_collider_component_t>())
     , rigid_body_update_observer(entity_registry_, entt::collector.update<engine_rigid_body_component_t>().where<engine_tranform_component_t, engine_collider_component_t>())
 {
+    entity_registry_.on_construct<engine_mesh_component_t>().connect<&entt::registry::emplace<engine_skin_internal_component_t>>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
     out_code = ENGINE_RESULT_CODE_OK;
@@ -125,7 +127,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 }
 
 engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::span<const Texture2D> textures, 
-    std::span<const Geometry> geometries, std::span<const AnimationClipData> animations)
+    std::span<const Geometry> geometries, std::span<const AnimationClip> animations, std::span<const Skin> skins)
 {
     // transform component updated, calculate new model matrix
     for (const auto entt : transform_model_matrix_update_observer)
@@ -141,35 +143,71 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         const auto model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
         std::memcpy(transform_component->local_to_world, &model_matrix, sizeof(model_matrix));
     }
+    transform_model_matrix_update_observer.clear();
 
-    auto animation_view = entity_registry_.view<engine_tranform_component_t, engine_animation_component_t>();
-
-    for (auto [entity, transform, animation] : animation_view.each())
+    // attach or deattach entity to the skin object
+    for(const auto entt : mesh_update_observer)
     {
-        for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
+        const auto mesh_component = get_component<engine_mesh_component_t>(entt);
+        auto skin_component = get_component<engine_skin_internal_component_t>(entt);
+        if (mesh_component->skin == ENGINE_INVALID_OBJECT_HANDLE)
         {
-            if (animation.animations_state[i] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
-            {
-                continue;
-            }
-
-            const auto& animation_data = animations[animation.animations_array[i]];
-            auto& animation_dt = animation.animations_dt[i];
-            animation_dt += dt;
-
-            auto matrix = animation_data.compute_animation_model_matrix(glm::make_mat4(transform.local_to_world), animation_dt);
-            std::memcpy(transform.local_to_world, &matrix, sizeof(matrix));
-
-            
-            if (animation_dt >= animation_data.get_duration())
-            {
-                animation.animations_state[i] = ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING;
-                animation_dt = 0.0f;
-            }
+            skin_component->skeleton_data.clear();
+        }
+        else
+        {
+            skin_component->skeleton_data.resize(skins[mesh_component->skin].get_joints_count());
+            std::for_each(skin_component->skeleton_data.begin(), skin_component->skeleton_data.end(), [](auto& mat)
+                {
+                    mat = glm::mat4{ 1.0f };
+                });
         }
     }
+    mesh_update_observer.clear();
 
-    auto geometry_renderet = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>();
+    auto animation_skinning_view = entity_registry_.view<engine_tranform_component_t, engine_skin_internal_component_t, const engine_mesh_component_t, engine_animation_component_t>();
+    animation_skinning_view.each([&dt, &animations, &skins, this](auto entity, engine_tranform_component_t& transform, engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh, engine_animation_component_t& animation)
+        {
+            //for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
+            for (auto i = 0; i < 1; i++)
+            {
+                if (animation.animations_state[i] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
+                {
+                    continue;
+                }
+
+                const auto& animation_data = animations[animation.animations_array[i]];
+                auto& animation_dt = animation.animations_dt[i];
+                animation_dt += dt;
+
+                animation_data.compute_animation_model_matrix(skin.skeleton_data, animation_dt);
+
+                // if no skin -> move whole object
+                if (mesh.skin == ENGINE_INVALID_OBJECT_HANDLE)
+                {
+                    patch_component<engine_tranform_component_t>(entity, [&skin](engine_tranform_component_t& c)
+                        {
+                            auto matrix = glm::make_mat4(c.local_to_world);
+                            matrix = matrix * skin.skeleton_data.at(0);
+                            std::memcpy(c.local_to_world, &matrix, sizeof(matrix));
+                        });
+                }
+                else
+                {
+                    skins[mesh.skin].compute_transform(skin.skeleton_data, glm::make_mat4(transform.local_to_world));
+                }
+
+
+                if (animation_dt >= animation_data.get_duration())
+                {
+                    animation.animations_state[i] = ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING;
+                    animation_dt = 0.0f;
+                }
+            }
+        }
+    );
+
+    auto geometry_renderet = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t, const engine_skin_internal_component_t>();
 	auto ui_text_renderer = entity_registry_.view<const engine_rect_tranform_component_t , const engine_text_component_t>();
 	auto ui_image_renderer = entity_registry_.view<const engine_rect_tranform_component_t , const engine_image_component_t>();
     auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
@@ -214,7 +252,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         }
 
         //rdx.set_polygon_mode(RenderContext::PolygonFaceType::eFrontAndBack, RenderContext::PolygonMode::eLine);
-        geometry_renderet.each([this, &rdx, &textures, &geometries](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material)
+        geometry_renderet.each([this, &rdx, &textures, &geometries](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material, const engine_skin_internal_component_t& skin)
             {
                 if (mesh.disable)
                 {
@@ -227,6 +265,17 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
 
                 const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
                 shader_simple_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+
+                //if (mesh.skin != ENGINE_INVALID_OBJECT_HANDLE)
+                if (true)
+                {
+                    const auto& skd = skin.skeleton_data;
+                    for (std::size_t i = 0; i < skd.size(); i++)
+                    {
+                        const auto uniform_name = "joints_mat[" + std::to_string(i) + "]";
+                        shader_simple_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(skd[i]), sizeof(skd[i]) / sizeof(float)});
+                    }
+                }
 
                 geometries[mesh.geometry].bind();
                 geometries[mesh.geometry].draw(Geometry::Mode::eTriangles);

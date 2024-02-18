@@ -2,6 +2,7 @@
 #include "engine.h"
 #include "animation.h"
 #include "graphics.h"
+#include "vertex_skinning.h"
 
 #include <map>
 #include <span>
@@ -37,30 +38,31 @@ struct MaterialInfo
     TextureInfo diffuse_texture;
 };
 
-struct AnimationInfo
+struct AnimationChannelInfo
 {
-    std::string name;
-    AnimationClipData clip;
+    engine_animation_channel_type_t type = ENGINE_ANIMATION_CHANNEL_TYPE_COUNT;
+    std::vector<float> timestamps;
+    std::vector<float> data;
+    // target_node_idx is index of joint if animation is for skeleton
+    std::int32_t target_node_idx = -1;
 };
 
-struct SkinJointInfo
+struct AnimationClipInfo
 {
-    using TypeIdx = std::int32_t;
-    TypeIdx idx = -1;
-    std::vector<TypeIdx> childrens{};
-    glm::mat4 inverse_bind_matrix{ 1.0f };
+    std::string name;
+    std::vector<AnimationChannelInfo> channels;
 };
 
 struct SkinInfo
 {
-    std::vector<SkinJointInfo> joints;
+    std::vector<SkinJointDesc> joints;
 };
 
 struct ModelInfo
 {
     std::vector<GeometryInfo> geometries;
     std::vector<MaterialInfo> materials;
-    std::vector<AnimationInfo> animations;
+    std::vector<AnimationClipInfo> animations;
     std::vector<SkinInfo> skins;
 };
 

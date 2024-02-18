@@ -48,7 +48,7 @@ typedef struct _engine_component_iterator_t* engine_component_iterator_t;
 typedef struct _engine_ui_document_t* engine_ui_document_t;
 typedef struct _engine_ui_data_handle_t* engine_ui_data_handle_t;
 typedef struct _engine_ui_element_t* engine_ui_element_t;
-typedef struct _engine_skin_t* engine_skin_t;
+typedef uint32_t engine_skin_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_font_t;
@@ -281,7 +281,12 @@ typedef enum _engine_vertex_attribute_type_t
 
 typedef enum _engine_vertex_attribute_data_type_t
 {
-    ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_FLOAT = 0,
+    ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UNKNOWN = 0,
+    ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_FLOAT32 = 1,
+    ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT32,
+    ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT16,
+    ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_INT32,
+    ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_INT16,
 } engine_vertex_attribute_data_type_t;
 
 typedef struct _engine_vertex_attribute_desc_t
@@ -342,6 +347,7 @@ typedef enum _engine_animation_channel_type_t
 typedef struct _engine_animation_channel_t
 {
     engine_animation_channel_type_t type;
+    int32_t target_node_idx;  // set to joint index if animation is used for skeleton
 
     const float* timestamps;
     uint32_t timestamps_count;
@@ -366,14 +372,14 @@ typedef struct _engine_material_desc_t
 typedef struct _engine_skin_joint_desc_t
 {
     int32_t idx;
-    const float inverse_bind_mat[16];
+    float inverse_bind_mat[16];
     const int32_t* children;
     uint32_t children_count;
 } engine_skin_joint_desc_t;
 
 typedef struct _engine_skin_desc_t
 {
-    const engine_skin_joint_desc_t* joints;
+    engine_skin_joint_desc_t* joints;
     uint32_t joint_count;
 } engine_skin_desc_t;
 
@@ -433,16 +439,20 @@ ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFro
 ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info);
 
 // geometry
-ENGINE_API engine_result_code_t engineApplicationAddGeometryFromMemory(engine_application_t handle, engine_vertex_attributes_layout_t verts_layout, const void* verts_data, size_t verts_data_size, int32_t verts_count, const uint32_t* inds, size_t inds_count, const char* name, engine_geometry_t* out);
+ENGINE_API engine_result_code_t engineApplicationAddGeometryFromDesc(engine_application_t handle, const engine_geometry_desc_t* desc, const char* name, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 
 // textures 
-ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromMemory(engine_application_t handle, const engine_texture_2d_desc_t* info, const char* name, engine_texture2d_t* out);
+ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_desc_t* info, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
 
+// vertex skinning
+ENGINE_API engine_result_code_t engineApplicationAddSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const char* name, engine_skin_t* out);
+ENGINE_API engine_skin_t        engineApplicationGetSkinByName(engine_application_t handle, const char* name);
+
 // animations
-ENGINE_API engine_result_code_t engineApplicationAddAnimationClipFromMemory(engine_application_t handle, const engine_animation_clip_desc_t* info, const char* name, engine_animation_clip_t* out);
+ENGINE_API engine_result_code_t engineApplicationAddAnimationClipFromDesc(engine_application_t handle, const engine_animation_clip_desc_t* info, const char* name, engine_animation_clip_t* out);
 ENGINE_API engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_application_t handle, const char* name);
 // physics 
 ENGINE_API void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);

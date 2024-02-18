@@ -262,6 +262,7 @@ public:
 
         auto mesh_comp = engineSceneAddMeshComponent(scene, go_);
         mesh_comp.geometry = engineApplicationGetGeometryByName(app, "y_bot");
+        mesh_comp.skin = engineApplicationGetSkinByName(app, "skin");
         assert(mesh_comp.geometry != ENGINE_INVALID_OBJECT_HANDLE && "Cant find geometry for ybot script!");
         engineSceneUpdateMeshComponent(scene, go_, &mesh_comp);
 
@@ -618,7 +619,7 @@ int main(int argc, char** argv)
         return -1;
     }
     engine_geometry_t cube_geometry{};
-    engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
+    engineApplicationAddGeometryFromDesc(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
         model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "cube", &cube_geometry);
     engineApplicationReleaseModelInfo(app, &model_info);
     
@@ -630,7 +631,7 @@ int main(int argc, char** argv)
         return -1;
     }
     engine_geometry_t plane_geometry{};
-    engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
+    engineApplicationAddGeometryFromDesc(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
         model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "plane", &cube_geometry);
     engineApplicationReleaseModelInfo(app, &model_info);
 
@@ -643,7 +644,7 @@ int main(int argc, char** argv)
         return -1;
     }
     engine_geometry_t sphere_geometry{};
-    engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
+    engineApplicationAddGeometryFromDesc(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
         model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "sphere", &sphere_geometry);
     engineApplicationReleaseModelInfo(app, &model_info);
 
@@ -654,12 +655,12 @@ int main(int argc, char** argv)
         return -1;
     }
     engine_geometry_t table_geometry{};
-    engineApplicationAddGeometryFromMemory(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
+    engineApplicationAddGeometryFromDesc(app, model_info.geometries_array[0].verts, model_info.geometries_array[0].verts_count,
         model_info.geometries_array[0].inds, model_info.geometries_array[0].inds_count, "table", &table_geometry);
 
 
     engine_texture2d_t table_diffuse_texture{};
-    if (engineApplicationAddTexture2DFromMemory(app, &model_info.materials_array[0].diffuse_texture_info, "table_diffuse_texture", &table_diffuse_texture) != ENGINE_RESULT_CODE_OK)
+    if (engineApplicationAddTexture2DFromDesc(app, &model_info.materials_array[0].diffuse_texture_info, "table_diffuse_texture", &table_diffuse_texture) != ENGINE_RESULT_CODE_OK)
     {
         log(fmt::format("Couldnt create diffuse texture for geometry!!\n"));
         return -1;
@@ -679,8 +680,7 @@ int main(int argc, char** argv)
     {
         assert(model_info.geometries_count == 1);
         const auto& geo = model_info.geometries_array[0];
-        engine_geometry_t ybot_geometry{};
-        engine_error_code = engineApplicationAddGeometryFromMemory(app, geo.vers_layout, geo.verts_data, geo.verts_data_size, geo.verts_count, geo.inds, geo.inds_count, "y_bot", &ybot_geometry);
+        engine_error_code = engineApplicationAddGeometryFromDesc(app, &geo, "y_bot", nullptr);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating geometry for loaded model. Exiting!\n");
@@ -694,12 +694,27 @@ int main(int argc, char** argv)
         const auto& mat = model_info.materials_array[0];
         if (mat.diffuse_texture_info.data)
         {
-            engine_error_code = engineApplicationAddTexture2DFromMemory(app, &mat.diffuse_texture_info, "diffuse", nullptr);
+            engine_error_code = engineApplicationAddTexture2DFromDesc(app, &mat.diffuse_texture_info, "diffuse", nullptr);
         }
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating textured for loaded model. Exiting!\n");
             return -1;
+        }
+    }
+
+    if (model_info.skins_counts > 0)
+    {
+        assert(model_info.skins_counts == 1);
+        for (auto i = 0; i < model_info.skins_counts; i++)
+        {
+            const auto& skin = model_info.skins_array[i];
+            engine_error_code = engineApplicationAddSkinFromDesc(app, &skin, "skin", nullptr);
+            if (engine_error_code != ENGINE_RESULT_CODE_OK)
+            {
+                engineLog("Failed creating textured for loaded model. Exiting!\n");
+                return -1;
+            }
         }
     }
 
@@ -709,7 +724,7 @@ int main(int argc, char** argv)
         for (auto i = 0; i < model_info.animations_counts; i++)
         {
             const auto& anim = model_info.animations_array[i];
-            engine_error_code = engineApplicationAddAnimationClipFromMemory(app, &anim, "animation", nullptr);
+            engine_error_code = engineApplicationAddAnimationClipFromDesc(app, &anim, "animation", nullptr);
             if (engine_error_code != ENGINE_RESULT_CODE_OK)
             {
                 engineLog("Failed creating textured for loaded model. Exiting!\n");

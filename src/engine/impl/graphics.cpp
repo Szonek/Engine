@@ -372,18 +372,42 @@ engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, st
 	glBufferData(GL_ARRAY_BUFFER, vertex_data.size_bytes(), vertex_data.data(), GL_STATIC_DRAW);
 
 	// vertex layout 
-	std::for_each(vertex_layout.begin(), vertex_layout.end(), [](const vertex_attribute_t& vl)
-		{
+    std::for_each(vertex_layout.begin(), vertex_layout.end(), [](const vertex_attribute_t& vl)
+        {
+            bool use_float_attrib = false;  // we dont want to cast ints to floats with glVertexAttribPointer
 			std::uint32_t gl_type = 0;
 			switch (vl.type)
 			{
-			case vertex_attribute_t::Type::eFloat:
+			case vertex_attribute_t::Type::eFloat32:
 				gl_type = GL_FLOAT;
+                use_float_attrib = true;
 				break;
+            case vertex_attribute_t::Type::eUint32:
+                gl_type = GL_UNSIGNED_INT;
+                break;
+            case vertex_attribute_t::Type::eInt32:
+                gl_type = GL_INT;
+                break;
+            case vertex_attribute_t::Type::eUint16:
+                gl_type = GL_UNSIGNED_SHORT;
+                break;
+            case vertex_attribute_t::Type::eInt16:
+                gl_type = GL_SHORT;
+                break;
 			default:
 				assert("Unknown vertex attirubute tpye!");
 			}
-			glVertexAttribPointer(vl.index, vl.size, gl_type, GL_FALSE, vl.stride, (void*)vl.offset);
+
+            if (use_float_attrib)
+            {
+                // if intiget is used with this function than it will be implictly casted to float
+                glVertexAttribPointer(vl.index, vl.size, gl_type, GL_FALSE, vl.stride, (void*)vl.offset);
+            }
+            else
+            {
+                glVertexAttribIPointer(vl.index, vl.size, gl_type, vl.stride, (void*)vl.offset);
+            }
+
 			glEnableVertexAttribArray(vl.index);
 		}
 	);
