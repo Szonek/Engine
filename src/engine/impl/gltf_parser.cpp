@@ -152,6 +152,8 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
                 case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:   return ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT32;
                 case TINYGLTF_PARAMETER_TYPE_SHORT:          return ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_INT16;
                 case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: return ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT16;
+                case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:  return ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT8;
+                case TINYGLTF_PARAMETER_TYPE_BYTE:           return ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_INT8;
                 default:
                     assert(false && !"Unknown conversion of param type to engine vertex attribute data type!");
                 }
@@ -341,7 +343,12 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             joint_info.idx = static_cast<std::int32_t>(i);
             for (const auto& c : model.nodes[node_id].children)
             {
-                joint_info.childrens.push_back(static_cast<int32_t>(std::distance(std::find(skin.joints.begin(), skin.joints.end(), c), skin.joints.end())));
+                const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), c);
+                if (fnd_itr != std::end(skin.joints))
+                {
+                    const auto dst_itr = std::distance(skin.joints.begin(), fnd_itr);
+                    joint_info.childrens.push_back(static_cast<int32_t>(dst_itr));
+                }
             }
             /*
                 https://lisyarus.github.io/blog/graphics/2023/07/03/gltf-animation.html
@@ -361,7 +368,7 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
                 {
                     return glm::vec3(static_cast<float>(t[0]), static_cast<float>(t[1]), static_cast<float>(t[2]));
                 }
-                return glm::vec3(0.0);
+                return glm::vec3(0.0f);
             }(model.nodes[node_id].translation);
             const auto scale = [](const auto& s)
             {
@@ -369,7 +376,7 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
                 {
                     return glm::vec3(static_cast<float>(s[0]), static_cast<float>(s[1]), static_cast<float>(s[2]));
                 }
-                return glm::vec3(1.0);
+                return glm::vec3(1.0f);
             }(model.nodes[node_id].scale);
             const auto rotation = [](const auto& r)
             {
@@ -379,7 +386,7 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
                     // while gltf is using (x, y, z, w)
                     return glm::quat(static_cast<float>(r[3]), static_cast<float>(r[0]), static_cast<float>(r[1]), static_cast<float>(r[2]));
                 }
-                return glm::quat(0.0, 0.0f, 0.0f, 0.0f);
+                return glm::quat(0.0f, 0.0f, 0.0f, 0.0f);
             }(model.nodes[node_id].rotation);
             joint_info.local_transform_matrix = compute_model_matrix(translation, rotation, scale);
 
@@ -422,7 +429,18 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             if (model.skins.size() > 0)
             {
                 const auto& skin = model.skins[0];
-                new_channel.target_node_idx = static_cast<int32_t>(std::distance(std::find(skin.joints.begin(), skin.joints.end(), ch.target_node), skin.joints.end()));
+
+                const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), ch.target_node);
+                if (fnd_itr != std::end(skin.joints))
+                {
+                    const auto dst_itr = std::distance(skin.joints.begin(), fnd_itr);
+                    new_channel.target_node_idx = static_cast<int32_t>(dst_itr);
+                }
+                else
+                {
+                    continue;
+                }
+                //new_channel.target_node_idx = static_cast<int32_t>(std::distance(std::find(skin.joints.begin(), skin.joints.end(), ch.target_node), skin.joints.end()));
             }
             if (ch.target_path.compare("rotation") == 0)
             {

@@ -124,10 +124,16 @@ public:
 		enum class Type
 		{
 			eFloat32 = 0,
+
 			eUint32,
-			eUint16,
 			eInt32,
+
+			eUint16,
 			eInt16,
+
+            eUint8,
+            eInt8,
+
 			eCount
 		};
 		std::uint32_t index = 0;

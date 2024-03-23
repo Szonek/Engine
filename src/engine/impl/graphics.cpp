@@ -398,6 +398,12 @@ engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, st
             case vertex_attribute_t::Type::eInt16:
                 gl_type = GL_SHORT;
                 break;
+            case vertex_attribute_t::Type::eUint8:
+                gl_type = GL_UNSIGNED_BYTE;
+                break;
+            case vertex_attribute_t::Type::eInt8:
+                gl_type = GL_BYTE;
+                break;
 			default:
 				assert("Unknown vertex attirubute tpye!");
 			}

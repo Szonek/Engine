@@ -49,6 +49,10 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_tightly_packed_v
     case Geometry::vertex_attribute_t::Type::eInt16:
         bytes_size = sizeof(std::uint16_t) * attrib.size;
         break;
+    case Geometry::vertex_attribute_t::Type::eUint8:
+    case Geometry::vertex_attribute_t::Type::eInt8:
+        bytes_size = sizeof(std::uint8_t) * attrib.size;
+        break;
     default:
         assert(false && "Unhandled case.");
 	}
@@ -78,10 +82,15 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layou
         switch (dt)
         {
         case ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_FLOAT32: return engine::Geometry::vertex_attribute_t::Type::eFloat32;
+
         case ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT32: return engine::Geometry::vertex_attribute_t::Type::eUint32;
-        case ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT16: return engine::Geometry::vertex_attribute_t::Type::eUint16;
         case ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_INT32: return engine::Geometry::vertex_attribute_t::Type::eInt32;
+
+        case ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT16: return engine::Geometry::vertex_attribute_t::Type::eUint16;
         case ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_INT16: return engine::Geometry::vertex_attribute_t::Type::eInt16;
+
+        case ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT8: return engine::Geometry::vertex_attribute_t::Type::eUint8;
+        case ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_INT8: return engine::Geometry::vertex_attribute_t::Type::eInt8;
         default:
             return engine::Geometry::vertex_attribute_t::Type::eCount;
         }

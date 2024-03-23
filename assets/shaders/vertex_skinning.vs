@@ -1,5 +1,3 @@
-#define MAX_BONES 64
-uniform mat4 global_bone_transform[MAX_BONES];
 
 // tutorial: https://lisyarus.github.io/blog/graphics/2023/07/03/gltf-animation.html
 // algorthim: linear blend skinning (or just "skinning)
