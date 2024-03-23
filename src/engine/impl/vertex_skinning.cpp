@@ -15,10 +15,12 @@ inline engine::SkinJointDesc to_skin_desc(const engine_skin_joint_desc_t& j)
     new_joint.idx = j.idx;
     new_joint.parent = engine::invalid_joint_idx; // leave as invalid;
     new_joint.inverse_bind_matrix = glm::make_mat4(j.inverse_bind_mat);
+    new_joint.local_transform_matrix = glm::make_mat4(j.local_transform);
     for (std::uint32_t i = 0; i < j.children_count; i++)
     {
         new_joint.childrens.push_back(j.children[i]);
     }
+
     return new_joint;
 }
 }
@@ -50,16 +52,36 @@ engine::Skin::Skin(std::span<const engine_skin_joint_desc_t> joints)
             root_idx_ = idx;
         }
     }
+
+    // compute global transforms
+    for (const auto& [idx, joint] : joints_)
+    {
+        if (joint.parent == invalid_joint_idx)
+        {
+            global_transforms_[idx] = joint.local_transform_matrix;
+        }
+        else
+        {
+            global_transforms_[idx] = global_transforms_[joint.parent] * joint.local_transform_matrix;
+        }
+    }
 }
 
 void engine::Skin::compute_transform(std::vector<glm::mat4>& inout_data) const
 {
+    // compute aimation data with global transforms of bones
+    for (const auto& [idx, joint] : joints_)
+    {
+        inout_data[idx] = global_transforms_.at(idx) * inout_data[idx];
+    }
+
     // combine the transforms with the parent's transforms
     for (const auto& [idx, joint] : joints_)
     {
         if (joint.parent != invalid_joint_idx)
         {
             assert(joint.parent < idx); // parent index has to be smaller than joint index, because we need to gauratnee that parent trnasformation was already computed!
+            //inout_data[idx] = inout_data[joint.parent] * (global_transforms_.at(idx) * inout_data[idx]);
             inout_data[idx] = inout_data[joint.parent] * inout_data[idx];
         }
     }

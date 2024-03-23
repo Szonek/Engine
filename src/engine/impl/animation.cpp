@@ -172,7 +172,7 @@ float engine::AnimationClip::get_duration() const
     return duration_;
 }
 
-void engine::AnimationClip::compute_animation_model_matrix(std::span<glm::mat4> skeleton_data, float animation_timer) const
+void engine::AnimationClip::compute_animation_model_matrix(std::span<glm::mat4> animation_data, float animation_timer) const
 {
     for (const auto& [node_idx, anim_data] : nodes_)
     {
@@ -180,8 +180,8 @@ void engine::AnimationClip::compute_animation_model_matrix(std::span<glm::mat4> 
         const auto scale = compute_animation_scale(anim_data.scale, animation_timer);
         const auto rotate = compute_animation_rotation(anim_data.rotation, animation_timer);
         const auto anim_matrix = compute_model_matrix(transform, rotate, scale);
-        skeleton_data[node_idx] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 1.0, 0.0));
-        skeleton_data[node_idx] *= anim_matrix;
-
+        //animation_data[node_idx] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 1.0, 0.0));
+        //animation_data[node_idx] *= anim_matrix;
+        animation_data[node_idx] = anim_matrix;
     }
 }

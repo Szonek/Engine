@@ -418,6 +418,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
                 out_join.children_count = static_cast<std::uint32_t>(in_join.childrens.size());
                 out_join.children = in_join.childrens.data();
                 std::memcpy(out_join.inverse_bind_mat, glm::value_ptr(in_join.inverse_bind_matrix), 16 * sizeof(float));
+                std::memcpy(out_join.local_transform, glm::value_ptr(in_join.local_transform_matrix), 16 * sizeof(float));
             }
         }
     }

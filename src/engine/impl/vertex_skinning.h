@@ -20,13 +20,14 @@ struct SkinJointDesc
     JoinTypeIdx idx = invalid_joint_idx;
     JoinTypeIdx parent = invalid_joint_idx;
     std::vector<JoinTypeIdx> childrens{};
-    glm::mat4 inverse_bind_matrix{ 1.0f };
+    glm::mat4 local_transform_matrix{ 1.0f };  // transformation of the join in the skeleton
+    glm::mat4 inverse_bind_matrix{ 1.0f };     
 };
 
 
 struct engine_skin_internal_component_t
 {
-    std::vector<glm::mat4> skeleton_data;
+    std::vector<glm::mat4> bone_animation_transform;
 };
 
 
@@ -48,6 +49,7 @@ public:
 
 private:
     std::map<JoinTypeIdx, SkinJointDesc> joints_;
+    std::map<JoinTypeIdx, glm::mat4> global_transforms_;
     JoinTypeIdx root_idx_ = invalid_joint_idx;
 };
 

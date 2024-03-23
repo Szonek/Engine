@@ -1,5 +1,5 @@
 #include "gltf_parser.h"
-#include "logger.h"
+#include "math_helpers.h"
 #include "logger.h"
 
 #define TINYGLTF_IMPLEMENTATION
@@ -336,9 +336,10 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         new_skin.joints.reserve(skin.joints.size());
         for (std::size_t i = 0; i < skin.joints.size(); i++)
         {
+            const auto node_id = skin.joints[i];
             SkinJointDesc joint_info{};
             joint_info.idx = static_cast<std::int32_t>(i);
-            for (const auto& c : model.nodes[skin.joints[i]].children)
+            for (const auto& c : model.nodes[node_id].children)
             {
                 joint_info.childrens.push_back(static_cast<int32_t>(std::distance(std::find(skin.joints.begin(), skin.joints.end(), c), skin.joints.end())));
             }
@@ -351,7 +352,36 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             const auto inv_bind_mtx_accesor = model.accessors[skin.inverseBindMatrices];
             const auto inv_bind_mtx_buffer_view = model.bufferViews[model.accessors[skin.inverseBindMatrices].bufferView];
             const auto inv_bind_mtx_buffer = reinterpret_cast<float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);
-            joint_info.inverse_bind_matrix = glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
+            //joint_info.inverse_bind_matrix =  glm::transpose(glm::make_mat4x4(inv_bind_mtx_buffer + i * 16));
+            joint_info.inverse_bind_matrix =  glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
+
+            const auto translation = [](const auto& t)
+            {
+                if (!t.empty())
+                {
+                    return glm::vec3(static_cast<float>(t[0]), static_cast<float>(t[1]), static_cast<float>(t[2]));
+                }
+                return glm::vec3(0.0);
+            }(model.nodes[node_id].translation);
+            const auto scale = [](const auto& s)
+            {
+                if (!s.empty())
+                {
+                    return glm::vec3(static_cast<float>(s[0]), static_cast<float>(s[1]), static_cast<float>(s[2]));
+                }
+                return glm::vec3(1.0);
+            }(model.nodes[node_id].scale);
+            const auto rotation = [](const auto& r)
+            {
+                if (!r.empty())
+                {
+                    // glm is using (w, x, y, z)
+                    // while gltf is using (x, y, z, w)
+                    return glm::quat(static_cast<float>(r[3]), static_cast<float>(r[0]), static_cast<float>(r[1]), static_cast<float>(r[2]));
+                }
+                return glm::quat(0.0, 0.0f, 0.0f, 0.0f);
+            }(model.nodes[node_id].rotation);
+            joint_info.local_transform_matrix = compute_model_matrix(translation, rotation, scale);
 
             new_skin.joints.push_back(std::move(joint_info));
         }

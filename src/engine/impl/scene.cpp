@@ -153,12 +153,13 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         auto skin_component = get_component<engine_skin_internal_component_t>(entt);
         if (mesh_component->skin == ENGINE_INVALID_OBJECT_HANDLE)
         {
-            skin_component->skeleton_data.clear();
+            skin_component->bone_animation_transform.clear();
         }
         else
         {
-            skin_component->skeleton_data.resize(skins[mesh_component->skin].get_joints_count());
-            std::for_each(skin_component->skeleton_data.begin(), skin_component->skeleton_data.end(), [](auto& mat)
+            skin_component->bone_animation_transform.resize(skins[mesh_component->skin].get_joints_count());
+            // Initalize with identity matrix. If bone doesnt have animation than it will use it this default value.
+            std::for_each(skin_component->bone_animation_transform.begin(), skin_component->bone_animation_transform.end(), [](auto& mat)
                 {
                     mat = glm::mat4{ 1.0f };
                 });
@@ -193,8 +194,8 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 }
                 else
                 {
-                    animation_data.compute_animation_model_matrix(skin.skeleton_data, animation_dt);
-                    skins[mesh.skin].compute_transform(skin.skeleton_data);
+                    animation_data.compute_animation_model_matrix(skin.bone_animation_transform, animation_dt);
+                    skins[mesh.skin].compute_transform(skin.bone_animation_transform);
                 }
 
 
@@ -256,6 +257,9 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                     return;
                 }
                 
+                /*
+                * This is not perfect. Probably we want (for optimization purposes) sort meshes by shader used to have too many shader switches and rebining the same data over and over (i.e. view and projection).
+                */
                 auto bind_and_set_common_variables = [&](Shader& shader)
                 {
                     shader.bind();
@@ -276,12 +280,12 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 {
                     bind_and_set_common_variables(shader_vertex_skinning_);
 
-                    const auto& skd = skin.skeleton_data;
-                    assert(skin.skeleton_data.size() < 64); // MAX_BONES = 64 in shader!
-                    for (std::size_t i = 0; i < skd.size(); i++)
+                    const auto& per_bone_animation_data = skin.bone_animation_transform;
+                    assert(per_bone_animation_data.size() < 64); // MAX_BONES = 64 in shader!
+                    for (std::size_t i = 0; i < per_bone_animation_data.size(); i++)
                     {
                         const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
-                        shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(skd[i]), sizeof(skd[i]) / sizeof(float) });
+                        shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_animation_data[i]), sizeof(per_bone_animation_data[i]) / sizeof(float) });
                     }
                 }
 

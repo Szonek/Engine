@@ -373,6 +373,7 @@ typedef struct _engine_skin_joint_desc_t
 {
     int32_t idx;
     float inverse_bind_mat[16];
+    float local_transform[16];
     const int32_t* children;
     uint32_t children_count;
 } engine_skin_joint_desc_t;
