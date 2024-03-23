@@ -30,7 +30,7 @@ public:
     ~AnimationClip() = default;
 
     float get_duration() const;
-    void compute_animation_model_matrix(std::vector<glm::mat4>& skeleton_data, float animation_timer) const;
+    bool compute_animation_model_matrix(std::span<glm::mat4> animation_data, float animation_timer) const;
 
 private:
     struct AnimationNodeData

@@ -19,6 +19,7 @@ inline engine::SkinJointDesc to_skin_desc(const engine_skin_joint_desc_t& j)
     {
         new_joint.childrens.push_back(j.children[i]);
     }
+
     return new_joint;
 }
 }
@@ -52,20 +53,23 @@ engine::Skin::Skin(std::span<const engine_skin_joint_desc_t> joints)
     }
 }
 
-void engine::Skin::compute_transform(std::vector<glm::mat4>& inout_data, const glm::mat4& world_transform) const
+void engine::Skin::compute_transform(std::vector<glm::mat4>& inout_data, const glm::mat4& ltw) const
 {
-    const auto inverse_world_transform = glm::inverse(world_transform);
-    //https://stackoverflow.com/questions/64745393/gltf-are-bone-matrices-specified-in-local-or-model-space
-    inout_data[0] = inout_data[0] * joints_.at(0).inverse_bind_matrix;
+    // combine the transforms with the parent's transforms
+    for (const auto& [idx, joint] : joints_)
+    {
+        if (joint.parent != invalid_joint_idx)
+        {
+            assert(joint.parent < idx); // parent index has to be smaller than joint index, because we need to gauratnee that parent trnasformation was already computed!
+            //inout_data[idx] = inout_data[joint.parent] * (global_transforms_.at(idx) * inout_data[idx]);
+            inout_data[idx] = inout_data[joint.parent] * inout_data[idx];
+        }
+    }
 
-    auto a = glm::mat4(1.0f);
-    a = glm::translate(a, glm::vec3(0.0f, 1.0f, 0.0f));
-
-    inout_data[1] = glm::inverse(a) * inout_data[1] * joints_.at(1).inverse_bind_matrix;
-
-    //inout_data[0] = inout_data[1];
-    //for (const auto& j : joints_)
-    //{
-    //    inout_data[j.first] *= j.second.inverse_bind_matrix;
-    //}
+    // pre-multiply with inverse bind matrices
+    for (const auto& [idx, joint] : joints_)
+    {
+        inout_data[idx] *= joint.inverse_bind_matrix;
+        //inout_data[idx] = glm::inverse(inout_data[root_idx_]) * inout_data[idx];
+    }
 }

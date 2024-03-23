@@ -268,12 +268,16 @@ public:
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
         tc.position[0] = 0.0f;
-        tc.position[1] = 0.5f;
+        tc.position[1] = 0.0f;
         tc.position[2] = 0.0f;
 
-        tc.scale[0] = 2.00f;//0.5f;
-        tc.scale[1] = 2.00f;//0.5f;
-        tc.scale[2] = 2.00f;//0.5f;
+        //tc.scale[0] = 1.00f;//0.5f;
+        //tc.scale[1] = 1.00f;//0.5f;
+        //tc.scale[2] = 1.00f;//0.5f;
+
+        tc.scale[0] = 0.01f;
+        tc.scale[1] = 0.01f;
+        tc.scale[2] = 0.01f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
@@ -475,21 +479,22 @@ public:
         auto camera_comp = engineSceneAddCameraComponent(scene, go_);
         camera_comp.enabled = true;
         camera_comp.clip_plane_near = 0.1f;
-        camera_comp.clip_plane_far = 100.0f;
+        camera_comp.clip_plane_far = 1000.0f;
         camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
         camera_comp.type_union.perspective_fov = 45.0f;
         //camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC;
         //camera_comp.type_union.orthographics_scale = 5.0f;
 
         camera_comp.target[0] = 0.0f;
-        camera_comp.target[1] = 2.0f;
+        camera_comp.target[1] = 0.0f;
         camera_comp.target[2] = 0.0f;
 
         engineSceneUpdateCameraComponent(scene, go_, &camera_comp);
 
         auto camera_transform_comp = engineSceneAddTransformComponent(scene, go_);
-        camera_transform_comp.position[1] = 2.0f;// 11.0f;
-        camera_transform_comp.position[2] = z_base_offset;
+        camera_transform_comp.position[0] = 0.0f;
+        camera_transform_comp.position[1] = 1.0f;
+        camera_transform_comp.position[2] = 5.0f;
         engineSceneUpdateTransformComponent(scene, go_, &camera_transform_comp);
     }
 
@@ -542,7 +547,7 @@ private:
     }
 
 private:
-    inline static const float z_base_offset = 8.0f;
+    inline static const float z_base_offset = 30.0f;
 };
 
 class Overworld : public engine::IScene
@@ -669,7 +674,10 @@ int main(int argc, char** argv)
 #endif
 
     //engine_model_info_t model_info{};
-    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test_skin.gltf" : "test2.glb", &model_info);
+    //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test_skin.gltf" : "test2.glb", &model_info);
+    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "riverdance_dance_free_animation.glb", &model_info);
+    //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "CesiumMan.gltf", &model_info);
+    //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "stag.gltf", &model_info);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed loading TABLE model. Exiting!\n");

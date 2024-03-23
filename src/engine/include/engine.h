@@ -283,10 +283,16 @@ typedef enum _engine_vertex_attribute_data_type_t
 {
     ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UNKNOWN = 0,
     ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_FLOAT32 = 1,
+
     ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT32,
-    ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT16,
     ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_INT32,
+
+    ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT16,
     ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_INT16,
+
+    ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT8,
+    ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_INT8,
+
 } engine_vertex_attribute_data_type_t;
 
 typedef struct _engine_vertex_attribute_desc_t
@@ -373,6 +379,7 @@ typedef struct _engine_skin_joint_desc_t
 {
     int32_t idx;
     float inverse_bind_mat[16];
+    float local_transform[16];
     const int32_t* children;
     uint32_t children_count;
 } engine_skin_joint_desc_t;

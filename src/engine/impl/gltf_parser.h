@@ -55,6 +55,7 @@ struct AnimationClipInfo
 
 struct SkinInfo
 {
+    glm::mat4 matrix_transform;
     std::vector<SkinJointDesc> joints;
 };
 

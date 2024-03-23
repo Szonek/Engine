@@ -1,5 +1,5 @@
 #include "gltf_parser.h"
-#include "logger.h"
+#include "math_helpers.h"
 #include "logger.h"
 
 #define TINYGLTF_IMPLEMENTATION
@@ -152,6 +152,8 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
                 case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:   return ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT32;
                 case TINYGLTF_PARAMETER_TYPE_SHORT:          return ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_INT16;
                 case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: return ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT16;
+                case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:  return ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_UINT8;
+                case TINYGLTF_PARAMETER_TYPE_BYTE:           return ENGINE_VERTEX_ATTRIBUTE_DATA_TYPE_INT8;
                 default:
                     assert(false && !"Unknown conversion of param type to engine vertex attribute data type!");
                 }
@@ -336,17 +338,29 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         new_skin.joints.reserve(skin.joints.size());
         for (std::size_t i = 0; i < skin.joints.size(); i++)
         {
+            const auto node_id = skin.joints[i];
             SkinJointDesc joint_info{};
             joint_info.idx = static_cast<std::int32_t>(i);
-            for (const auto& c : model.nodes[skin.joints[i]].children)
+            for (const auto& c : model.nodes[node_id].children)
             {
-                joint_info.childrens.push_back(static_cast<int32_t>(std::distance(std::find(skin.joints.begin(), skin.joints.end(), c), skin.joints.end())));
+                const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), c);
+                if (fnd_itr != std::end(skin.joints))
+                {
+                    const auto dst_itr = std::distance(skin.joints.begin(), fnd_itr);
+                    joint_info.childrens.push_back(static_cast<int32_t>(dst_itr));
+                }
             }
+            /*
+                https://lisyarus.github.io/blog/graphics/2023/07/03/gltf-animation.html
+                However, the vertices of the model are in, well, the model’s coordinate system (that’s the definition of this coordinate system).
+                So, we need a way to transform the vertices into the local coordinate system of the bone first.
+                This is called an inverse bind matrix, because it sounds really cool.
+            */
             const auto inv_bind_mtx_accesor = model.accessors[skin.inverseBindMatrices];
             const auto inv_bind_mtx_buffer_view = model.bufferViews[model.accessors[skin.inverseBindMatrices].bufferView];
             const auto inv_bind_mtx_buffer = reinterpret_cast<float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);
-            joint_info.inverse_bind_matrix = glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
-
+            //joint_info.inverse_bind_matrix =  glm::transpose(glm::make_mat4x4(inv_bind_mtx_buffer + i * 16));
+            joint_info.inverse_bind_matrix =  glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
             new_skin.joints.push_back(std::move(joint_info));
         }
         skin_idx++;
@@ -386,7 +400,14 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             if (model.skins.size() > 0)
             {
                 const auto& skin = model.skins[0];
-                new_channel.target_node_idx = static_cast<int32_t>(std::distance(std::find(skin.joints.begin(), skin.joints.end(), ch.target_node), skin.joints.end()));
+
+                const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), ch.target_node);
+                if (fnd_itr != std::end(skin.joints))
+                {
+                    const auto dst_itr = std::distance(skin.joints.begin(), fnd_itr);
+                    new_channel.target_node_idx = static_cast<int32_t>(dst_itr);
+                }
+                //new_channel.target_node_idx = static_cast<int32_t>(std::distance(std::find(skin.joints.begin(), skin.joints.end(), ch.target_node), skin.joints.end()));
             }
             if (ch.target_path.compare("rotation") == 0)
             {
