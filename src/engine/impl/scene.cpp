@@ -165,8 +165,8 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
     }
     mesh_update_observer.clear();
 
-    auto animation_skinning_view = entity_registry_.view<engine_tranform_component_t, engine_skin_internal_component_t, const engine_mesh_component_t, engine_animation_component_t>();
-    animation_skinning_view.each([&dt, &animations, &skins, this](auto entity, engine_tranform_component_t& transform, engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh, engine_animation_component_t& animation)
+    auto animation_skinning_view = entity_registry_.view<engine_skin_internal_component_t, const engine_mesh_component_t, engine_animation_component_t>();
+    animation_skinning_view.each([&dt, &animations, &skins, this](auto entity, engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh, engine_animation_component_t& animation)
         {
             //for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
             for (auto i = 0; i < 1; i++)
@@ -194,7 +194,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 }
                 else
                 {
-                    skins[mesh.skin].compute_transform(skin.skeleton_data, glm::make_mat4(transform.local_to_world));
+                    skins[mesh.skin].compute_transform(skin.skeleton_data);
                 }
 
 
@@ -272,7 +272,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                     const auto& skd = skin.skeleton_data;
                     for (std::size_t i = 0; i < skd.size(); i++)
                     {
-                        const auto uniform_name = "joints_mat[" + std::to_string(i) + "]";
+                        const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
                         shader_simple_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(skd[i]), sizeof(skd[i]) / sizeof(float)});
                     }
                 }

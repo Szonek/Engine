@@ -180,6 +180,8 @@ void engine::AnimationClip::compute_animation_model_matrix(std::vector<glm::mat4
         const auto scale = compute_animation_scale(anim_data.scale, animation_timer);
         const auto rotate = compute_animation_rotation(anim_data.rotation, animation_timer);
         const auto anim_matrix = compute_model_matrix(transform, rotate, scale);
-        skeleton_data[node_idx] = anim_matrix;
+        skeleton_data[node_idx] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 1.0, 0.0));
+        skeleton_data[node_idx] *= anim_matrix;
+
     }
 }
