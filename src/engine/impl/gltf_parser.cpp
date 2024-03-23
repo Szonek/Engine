@@ -342,6 +342,12 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             {
                 joint_info.childrens.push_back(static_cast<int32_t>(std::distance(std::find(skin.joints.begin(), skin.joints.end(), c), skin.joints.end())));
             }
+            /*
+                https://lisyarus.github.io/blog/graphics/2023/07/03/gltf-animation.html
+                However, the vertices of the model are in, well, the model’s coordinate system (that’s the definition of this coordinate system).
+                So, we need a way to transform the vertices into the local coordinate system of the bone first.
+                This is called an inverse bind matrix, because it sounds really cool.
+            */
             const auto inv_bind_mtx_accesor = model.accessors[skin.inverseBindMatrices];
             const auto inv_bind_mtx_buffer_view = model.bufferViews[model.accessors[skin.inverseBindMatrices].bufferView];
             const auto inv_bind_mtx_buffer = reinterpret_cast<float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);

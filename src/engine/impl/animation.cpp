@@ -172,7 +172,7 @@ float engine::AnimationClip::get_duration() const
     return duration_;
 }
 
-void engine::AnimationClip::compute_animation_model_matrix(std::vector<glm::mat4>& skeleton_data, float animation_timer) const
+void engine::AnimationClip::compute_animation_model_matrix(std::span<glm::mat4> skeleton_data, float animation_timer) const
 {
     for (const auto& [node_idx, anim_data] : nodes_)
     {

@@ -93,5 +93,6 @@ private:
     PhysicsWorld physics_world_;
 
     Shader shader_simple_;
+    Shader shader_vertex_skinning_;
 };
 }  // namespace engine

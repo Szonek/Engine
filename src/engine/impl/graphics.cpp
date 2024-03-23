@@ -103,14 +103,15 @@ engine::Shader::Shader(std::string_view vertex_shader_name, std::string fragment
 {
 	// compile shaders and link to program
 	{
+		const auto vertex_shader_definitions = AssetStore::get_instance().get_shader_source("simple_vertex_definitions.h");
 		const auto vertex_shader_source = AssetStore::get_instance().get_shader_source(vertex_shader_name);
 		vertex_shader_ = glCreateShader(GL_VERTEX_SHADER);
-		compile_and_attach_to_program(vertex_shader_, vertex_shader_source);
+        compile_and_attach_to_program(vertex_shader_, { vertex_shader_definitions, vertex_shader_source });
 	}
 	{
 		const auto fragment_shader_source = AssetStore::get_instance().get_shader_source(fragment_shader_name);
 		fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
-		compile_and_attach_to_program(fragment_shader_, fragment_shader_source);
+        compile_and_attach_to_program(fragment_shader_, { fragment_shader_source });
 	}
 	// link attached shaders
 	glLinkProgram(program_);
@@ -209,11 +210,14 @@ std::int32_t engine::Shader::get_uniform_location(std::string_view name)
 	return uniform_location;
 }
 
-void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::string_view source)
+void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::vector<std::string_view> sources)
 {
 	// set source
-	const char* source_cstr = source.data();
-	glShaderSource(shader, 1, &source_cstr, nullptr);
+    std::vector<const char*> sources_ptrs;
+    sources_ptrs.reserve(sources.size());
+    std::for_each(sources.begin(), sources.end(), [&sources_ptrs](const auto& s) {sources_ptrs.push_back(s.data()); });
+
+	glShaderSource(shader, static_cast<std::int32_t>(sources.size()), sources_ptrs.data(), nullptr);
 
 	// compile
 	glCompileShader(shader);

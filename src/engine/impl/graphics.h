@@ -74,7 +74,7 @@ public:
 
 private:
 	std::int32_t get_uniform_location(std::string_view name);
-	void compile_and_attach_to_program(std::uint32_t shader, std::string_view source);
+	void compile_and_attach_to_program(std::uint32_t shader, std::vector<std::string_view> sources);
 
 private:
 	std::uint32_t vertex_shader_;

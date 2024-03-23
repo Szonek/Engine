@@ -15,6 +15,7 @@
 
 engine::Scene::Scene(engine_result_code_t& out_code)
     : shader_simple_(Shader("simple.vs", "simple.fs"))
+    , shader_vertex_skinning_(Shader("vertex_skinning.vs", "simple.fs"))
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
     , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<PhysicsWorld::physcic_internal_component_t>())
     , transform_model_matrix_update_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>())
@@ -165,8 +166,8 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
     }
     mesh_update_observer.clear();
 
-    auto animation_skinning_view = entity_registry_.view<engine_skin_internal_component_t, const engine_mesh_component_t, engine_animation_component_t>();
-    animation_skinning_view.each([&dt, &animations, &skins, this](auto entity, engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh, engine_animation_component_t& animation)
+    auto animation_skinning_view = entity_registry_.view<engine_tranform_component_t, engine_skin_internal_component_t, const engine_mesh_component_t, engine_animation_component_t>();
+    animation_skinning_view.each([&dt, &animations, &skins, this](auto entity, engine_tranform_component_t& transform, engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh, engine_animation_component_t& animation)
         {
             //for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
             for (auto i = 0; i < 1; i++)
@@ -180,20 +181,19 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 auto& animation_dt = animation.animations_dt[i];
                 animation_dt += dt;
 
-                animation_data.compute_animation_model_matrix(skin.skeleton_data, animation_dt);
-
                 // if no skin -> move whole object
                 if (mesh.skin == ENGINE_INVALID_OBJECT_HANDLE)
                 {
-                    patch_component<engine_tranform_component_t>(entity, [&skin](engine_tranform_component_t& c)
+                    std::array<glm::mat4, 1> transform_matrix = { glm::make_mat4(transform.local_to_world) };
+                    animation_data.compute_animation_model_matrix(transform_matrix, animation_dt);
+                    patch_component<engine_tranform_component_t>(entity, [&skin, &transform_matrix](engine_tranform_component_t& c)
                         {
-                            auto matrix = glm::make_mat4(c.local_to_world);
-                            matrix = matrix * skin.skeleton_data.at(0);
-                            std::memcpy(c.local_to_world, &matrix, sizeof(matrix));
+                            std::memcpy(c.local_to_world, &transform_matrix[0], sizeof(transform_matrix[0]));
                         });
                 }
                 else
                 {
+                    animation_data.compute_animation_model_matrix(skin.skeleton_data, animation_dt);
                     skins[mesh.skin].compute_transform(skin.skeleton_data);
                 }
 
@@ -221,6 +221,8 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
 
         const auto window_size_pixels = rdx.get_window_size_in_pixels();
 
+        glm::mat4 view = glm::mat4(0.0);
+        glm::mat4 projection = glm::mat4(0.0);
         // update camera: view and projection
         {
             const auto z_near = camera.clip_plane_near;
@@ -230,7 +232,6 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
             const auto adjusted_width = window_size_pixels.width * (camera.viewport_rect.width - camera.viewport_rect.x);
             const auto adjusted_height = window_size_pixels.height * (camera.viewport_rect.height - camera.viewport_rect.y);
             const float aspect = adjusted_width / adjusted_height;
-            glm::mat4 projection;
 
             if (camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC)
             {
@@ -244,36 +245,45 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
             const auto eye_position = glm::make_vec3(transform.position);
             const auto up = glm::make_vec3(camera.direction.up);
             const auto target = glm::make_vec3(camera.target);
-            const auto view = glm::lookAt(eye_position, target, up);
-
-            shader_simple_.bind();
-            shader_simple_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
-            shader_simple_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
+            view = glm::lookAt(eye_position, target, up);
         }
 
         //rdx.set_polygon_mode(RenderContext::PolygonFaceType::eFrontAndBack, RenderContext::PolygonMode::eLine);
-        geometry_renderet.each([this, &rdx, &textures, &geometries](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material, const engine_skin_internal_component_t& skin)
+        geometry_renderet.each([this, &view, &projection, &rdx, &textures, &geometries](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material, const engine_skin_internal_component_t& skin)
             {
                 if (mesh.disable)
                 {
                     return;
                 }
 
-                shader_simple_.bind();
-                shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
-                shader_simple_.set_uniform_mat_f4("model", transform.local_to_world);
-
-                const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
-                shader_simple_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
-
-                //if (mesh.skin != ENGINE_INVALID_OBJECT_HANDLE)
-                if (true)
+                if (mesh.skin == ENGINE_INVALID_OBJECT_HANDLE)
                 {
+                    shader_simple_.bind();
+                    shader_simple_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
+                    shader_simple_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
+                    shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
+                    shader_simple_.set_uniform_mat_f4("model", transform.local_to_world);
+
+                    const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
+                    shader_simple_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+                }
+                else
+                {
+                    shader_vertex_skinning_.bind();
+                    shader_vertex_skinning_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
+                    shader_vertex_skinning_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
+                    shader_vertex_skinning_.set_uniform_f4("diffuse_color", material.diffuse_color);
+                    shader_vertex_skinning_.set_uniform_mat_f4("model", transform.local_to_world);
+
+                    const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
+                    shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+
                     const auto& skd = skin.skeleton_data;
+                    assert(skin.skeleton_data.size() < 64); // MAX_BONES = 64 in shader!
                     for (std::size_t i = 0; i < skd.size(); i++)
                     {
                         const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
-                        shader_simple_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(skd[i]), sizeof(skd[i]) / sizeof(float)});
+                        shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(skd[i]), sizeof(skd[i]) / sizeof(float) });
                     }
                 }
 

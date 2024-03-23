@@ -54,21 +54,19 @@ engine::Skin::Skin(std::span<const engine_skin_joint_desc_t> joints)
 
 void engine::Skin::compute_transform(std::vector<glm::mat4>& inout_data) const
 {
-    /*
-    * https://lisyarus.github.io/blog/graphics/2023/07/03/gltf-animation.html
-    However, the vertices of the model are in, well, the model’s coordinate system (that’s the definition of this coordinate system).
-    So, we need a way to transform the vertices into the local coordinate system of the bone first.
-    This is called an inverse bind matrix, because it sounds really cool.
-    */
-
-
     // combine the transforms with the parent's transforms
-    //inout_data[1] = inout_data[0] * inout_data[1];
+    for (const auto& [idx, joint] : joints_)
+    {
+        if (joint.parent != invalid_joint_idx)
+        {
+            assert(joint.parent < idx); // parent index has to be smaller than joint index, because we need to gauratnee that parent trnasformation was already computed!
+            inout_data[idx] = inout_data[joint.parent] * inout_data[idx];
+        }
+    }
 
     // pre-multiply with inverse bind matrices
-    //for (const auto& j : joints_)
-    //{
-    //    inout_data[j.first] *= j.second.inverse_bind_matrix;
-    //}
-    inout_data[1] *= joints_.at(1).inverse_bind_matrix;
+    for (const auto& [idx, joint] : joints_)
+    {
+        inout_data[idx] *= joint.inverse_bind_matrix;
+    }
 }
