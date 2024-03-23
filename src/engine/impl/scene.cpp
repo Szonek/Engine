@@ -255,28 +255,26 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 {
                     return;
                 }
+                
+                auto bind_and_set_common_variables = [&](Shader& shader)
+                {
+                    shader.bind();
+                    shader.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
+                    shader.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
+                    shader.set_uniform_f4("diffuse_color", material.diffuse_color);
+                    shader.set_uniform_mat_f4("model", transform.local_to_world);
+
+                    const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
+                    shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+                };  
 
                 if (mesh.skin == ENGINE_INVALID_OBJECT_HANDLE)
                 {
-                    shader_simple_.bind();
-                    shader_simple_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
-                    shader_simple_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
-                    shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
-                    shader_simple_.set_uniform_mat_f4("model", transform.local_to_world);
-
-                    const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
-                    shader_simple_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+                    bind_and_set_common_variables(shader_simple_);
                 }
                 else
                 {
-                    shader_vertex_skinning_.bind();
-                    shader_vertex_skinning_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
-                    shader_vertex_skinning_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
-                    shader_vertex_skinning_.set_uniform_f4("diffuse_color", material.diffuse_color);
-                    shader_vertex_skinning_.set_uniform_mat_f4("model", transform.local_to_world);
-
-                    const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
-                    shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+                    bind_and_set_common_variables(shader_vertex_skinning_);
 
                     const auto& skd = skin.skeleton_data;
                     assert(skin.skeleton_data.size() < 64); // MAX_BONES = 64 in shader!
