@@ -185,11 +185,13 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 // if no skin -> move whole object
                 if (mesh.skin == ENGINE_INVALID_OBJECT_HANDLE)
                 {
-                    std::array<glm::mat4, 1> transform_matrix = { glm::make_mat4(transform.local_to_world) };
-                    animation_data.compute_animation_model_matrix(transform_matrix, animation_dt);
-                    patch_component<engine_tranform_component_t>(entity, [&skin, &transform_matrix](engine_tranform_component_t& c)
+                    auto ltw = glm::make_mat4(transform.local_to_world);
+                    std::array<glm::mat4, 1> animation_matrix;
+                    animation_data.compute_animation_model_matrix(animation_matrix, animation_dt);
+                    ltw *= animation_matrix[0];
+                    patch_component<engine_tranform_component_t>(entity, [&skin, &ltw](engine_tranform_component_t& c)
                         {
-                            std::memcpy(c.local_to_world, &transform_matrix[0], sizeof(transform_matrix[0]));
+                            std::memcpy(c.local_to_world, &ltw, sizeof(ltw));
                         });
                 }
                 else
