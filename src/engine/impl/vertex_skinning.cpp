@@ -15,7 +15,6 @@ inline engine::SkinJointDesc to_skin_desc(const engine_skin_joint_desc_t& j)
     new_joint.idx = j.idx;
     new_joint.parent = engine::invalid_joint_idx; // leave as invalid;
     new_joint.inverse_bind_matrix = glm::make_mat4(j.inverse_bind_mat);
-    new_joint.local_transform_matrix = glm::make_mat4(j.local_transform);
     for (std::uint32_t i = 0; i < j.children_count; i++)
     {
         new_joint.childrens.push_back(j.children[i]);

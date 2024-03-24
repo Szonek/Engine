@@ -675,8 +675,8 @@ int main(int argc, char** argv)
 
     //engine_model_info_t model_info{};
     //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test_skin.gltf" : "test2.glb", &model_info);
-    //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "riverdance_dance_free_animation.glb", &model_info);
-    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "CesiumMan.gltf", &model_info);
+    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "riverdance_dance_free_animation.glb", &model_info);
+    //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "CesiumMan.gltf", &model_info);
     //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "stag.gltf", &model_info);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
