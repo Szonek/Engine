@@ -436,10 +436,6 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
                     const auto dst_itr = std::distance(skin.joints.begin(), fnd_itr);
                     new_channel.target_node_idx = static_cast<int32_t>(dst_itr);
                 }
-                else
-                {
-                    continue;
-                }
                 //new_channel.target_node_idx = static_cast<int32_t>(std::distance(std::find(skin.joints.begin(), skin.joints.end(), ch.target_node), skin.joints.end()));
             }
             if (ch.target_path.compare("rotation") == 0)

@@ -268,7 +268,7 @@ public:
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
         tc.position[0] = 0.0f;
-        tc.position[1] = 0.5f;
+        tc.position[1] = 0.0f;
         tc.position[2] = 0.0f;
 
         //tc.scale[0] = 2.00f;//0.5f;
@@ -486,14 +486,15 @@ public:
         //camera_comp.type_union.orthographics_scale = 5.0f;
 
         camera_comp.target[0] = 0.0f;
-        camera_comp.target[1] = 50.0f;
+        camera_comp.target[1] = 1.0f;
         camera_comp.target[2] = 0.0f;
 
         engineSceneUpdateCameraComponent(scene, go_, &camera_comp);
 
         auto camera_transform_comp = engineSceneAddTransformComponent(scene, go_);
-        camera_transform_comp.position[1] = 5.0f;
-        camera_transform_comp.position[2] = 700.0f;
+        camera_transform_comp.position[0] = 0.0f;
+        camera_transform_comp.position[1] = 1.0f;
+        camera_transform_comp.position[2] = 500.0f;
         engineSceneUpdateTransformComponent(scene, go_, &camera_transform_comp);
     }
 
@@ -675,7 +676,8 @@ int main(int argc, char** argv)
     //engine_model_info_t model_info{};
     //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test_skin.gltf" : "test2.glb", &model_info);
     //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "riverdance_dance_free_animation.glb", &model_info);
-    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "stag.gltf", &model_info);
+    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "CesiumMan.gltf", &model_info);
+    //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "stag.gltf", &model_info);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed loading TABLE model. Exiting!\n");

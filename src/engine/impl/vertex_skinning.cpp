@@ -52,29 +52,10 @@ engine::Skin::Skin(std::span<const engine_skin_joint_desc_t> joints)
             root_idx_ = idx;
         }
     }
-
-    // compute global transforms
-    for (const auto& [idx, joint] : joints_)
-    {
-        if (joint.parent == invalid_joint_idx)
-        {
-            global_transforms_[idx] = joint.local_transform_matrix;
-        }
-        else
-        {
-            global_transforms_[idx] = global_transforms_[joint.parent] * joint.local_transform_matrix;
-        }
-    }
 }
 
 void engine::Skin::compute_transform(std::vector<glm::mat4>& inout_data) const
 {
-    // compute aimation data with global transforms of bones
-    for (const auto& [idx, joint] : joints_)
-    {
-        inout_data[idx] = global_transforms_.at(idx) * inout_data[idx];
-    }
-
     // combine the transforms with the parent's transforms
     for (const auto& [idx, joint] : joints_)
     {

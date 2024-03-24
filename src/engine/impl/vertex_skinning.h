@@ -49,7 +49,6 @@ public:
 
 private:
     std::map<JoinTypeIdx, SkinJointDesc> joints_;
-    std::map<JoinTypeIdx, glm::mat4> global_transforms_;
     JoinTypeIdx root_idx_ = invalid_joint_idx;
 };
 

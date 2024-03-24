@@ -1,5 +1,6 @@
 #include "animation.h"
 #include "math_helpers.h"
+#include "logger.h"
 #include <cassert>
 #include <array>
 #include <algorithm>
@@ -172,8 +173,13 @@ float engine::AnimationClip::get_duration() const
     return duration_;
 }
 
-void engine::AnimationClip::compute_animation_model_matrix(std::span<glm::mat4> animation_data, float animation_timer) const
+bool engine::AnimationClip::compute_animation_model_matrix(std::span<glm::mat4> animation_data, float animation_timer) const
 {
+    if (nodes_.size() != animation_data.size())
+    {
+        engine::log::log(log::LogLevel::eError, "Nodes sizes doesnt match animation data size!. Cant compute animation model matrix.\n");
+        return false;
+    }
     for (const auto& [node_idx, anim_data] : nodes_)
     {
         const auto transform = compute_animation_translation(anim_data.transform, animation_timer);
@@ -184,4 +190,5 @@ void engine::AnimationClip::compute_animation_model_matrix(std::span<glm::mat4> 
         //animation_data[node_idx] *= anim_matrix;
         animation_data[node_idx] = anim_matrix;
     }
+    return true;
 }

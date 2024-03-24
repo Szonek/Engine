@@ -11,7 +11,3 @@ out mediump vec2 out_uv;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
-
-
-#define MAX_BONES 64
-uniform mat4 global_bone_transform[MAX_BONES];

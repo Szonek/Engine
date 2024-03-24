@@ -173,6 +173,11 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
             //for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
             for (auto i = 0; i < 1; i++)
             {
+                static bool run = true;
+                if (!run)
+                {
+                    break;
+                }
                 if (animation.animations_state[i] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
                 {
                     continue;
@@ -181,18 +186,21 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 const auto& animation_data = animations[animation.animations_array[i]];
                 auto& animation_dt = animation.animations_dt[i];
                 animation_dt += dt;
+                //animation_dt += 0.5f * 1000.0f;
 
                 // if no skin -> move whole object
                 if (mesh.skin == ENGINE_INVALID_OBJECT_HANDLE)
                 {
                     auto ltw = glm::make_mat4(transform.local_to_world);
                     std::array<glm::mat4, 1> animation_matrix;
-                    animation_data.compute_animation_model_matrix(animation_matrix, animation_dt);
-                    ltw *= animation_matrix[0];
-                    patch_component<engine_tranform_component_t>(entity, [&skin, &ltw](engine_tranform_component_t& c)
-                        {
-                            std::memcpy(c.local_to_world, &ltw, sizeof(ltw));
-                        });
+                    if (animation_data.compute_animation_model_matrix(animation_matrix, animation_dt))
+                    {
+                        ltw *= animation_matrix[0];
+                        patch_component<engine_tranform_component_t>(entity, [&skin, &ltw](engine_tranform_component_t& c)
+                            {
+                                std::memcpy(c.local_to_world, &ltw, sizeof(ltw));
+                            });
+                    }
                 }
                 else
                 {
@@ -200,6 +208,8 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                     skins[mesh.skin].compute_transform(skin.bone_animation_transform);
                 }
 
+
+                //run = false;
 
                 if (animation_dt >= animation_data.get_duration())
                 {
