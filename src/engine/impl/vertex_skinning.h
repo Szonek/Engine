@@ -44,7 +44,7 @@ public:
 
     std::size_t get_joints_count() const { return joints_.size(); }
 
-    void compute_transform(std::vector<glm::mat4>& inout_data) const;
+    void compute_transform(std::vector<glm::mat4>& inout_data, const glm::mat4& ltw) const;
 
 private:
     std::map<JoinTypeIdx, SkinJointDesc> joints_;

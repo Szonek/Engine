@@ -40,9 +40,9 @@ namespace
         const auto& data_next = channel.data[timestamp_idx_next];
 
         const auto slerp = glm::slerp(data_prev, data_next, interpolation_value);
-        const auto rotation = glm::eulerAngles(slerp);
+        //const auto rotation = glm::eulerAngles(slerp);
 
-        return rotation;
+        return glm::normalize(slerp);
     };
 
     inline glm::vec3 compute_animation_translation_or_scale(const engine::AnimationChannelData<glm::vec3>& channel, float animation_time, float default_ret_value)

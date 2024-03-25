@@ -141,7 +141,42 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         // if animaion is playing than we dont need to do below local_to_world math here
         // it will be recomputed in animation loop
         // so for such cases it's performance lose
-        const auto model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
+        auto model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
+
+        glm::mat4 zup = { 1.0,
+0.0,
+0.0,
+0.0,
+0.0,
+0.0,
+-1.0,
+0.0,
+0.0,
+1.0,
+0.0,
+0.0,
+0.0,
+0.0,
+0.0,
+1.0 };
+        glm::mat4 armature = { -4.371139894487897e-8,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            -4.371139894487897e-8,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0 };
+        model_matrix *= zup;
+        model_matrix *= armature;
         std::memcpy(transform_component->local_to_world, &model_matrix, sizeof(model_matrix));
     }
     transform_model_matrix_update_observer.clear();
@@ -205,7 +240,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 else
                 {
                     animation_data.compute_animation_model_matrix(skin.bone_animation_transform, animation_dt);
-                    skins[mesh.skin].compute_transform(skin.bone_animation_transform);
+                    skins[mesh.skin].compute_transform(skin.bone_animation_transform, glm::make_mat4(transform.local_to_world));
                 }
 
 

@@ -53,7 +53,7 @@ engine::Skin::Skin(std::span<const engine_skin_joint_desc_t> joints)
     }
 }
 
-void engine::Skin::compute_transform(std::vector<glm::mat4>& inout_data) const
+void engine::Skin::compute_transform(std::vector<glm::mat4>& inout_data, const glm::mat4& ltw) const
 {
     // combine the transforms with the parent's transforms
     for (const auto& [idx, joint] : joints_)
@@ -70,5 +70,6 @@ void engine::Skin::compute_transform(std::vector<glm::mat4>& inout_data) const
     for (const auto& [idx, joint] : joints_)
     {
         inout_data[idx] *= joint.inverse_bind_matrix;
+        //inout_data[idx] = glm::inverse(inout_data[root_idx_]) * inout_data[idx];
     }
 }

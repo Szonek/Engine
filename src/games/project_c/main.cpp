@@ -271,13 +271,13 @@ public:
         tc.position[1] = 0.0f;
         tc.position[2] = 0.0f;
 
-        //tc.scale[0] = 2.00f;//0.5f;
-        //tc.scale[1] = 2.00f;//0.5f;
-        //tc.scale[2] = 2.00f;//0.5f;
+        //tc.scale[0] = 1.00f;//0.5f;
+        //tc.scale[1] = 1.00f;//0.5f;
+        //tc.scale[2] = 1.00f;//0.5f;
 
-        tc.scale[0] = 1.0f;//0.01f;
-        tc.scale[1] = 1.0f;//0.01f;
-        tc.scale[2] = 1.0f;//0.01f;
+        tc.scale[0] = 0.01f;
+        tc.scale[1] = 0.01f;
+        tc.scale[2] = 0.01f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         auto material_comp = engineSceneAddMaterialComponent(scene, go_);
@@ -486,7 +486,7 @@ public:
         //camera_comp.type_union.orthographics_scale = 5.0f;
 
         camera_comp.target[0] = 0.0f;
-        camera_comp.target[1] = 1.0f;
+        camera_comp.target[1] = 0.0f;
         camera_comp.target[2] = 0.0f;
 
         engineSceneUpdateCameraComponent(scene, go_, &camera_comp);
@@ -494,7 +494,7 @@ public:
         auto camera_transform_comp = engineSceneAddTransformComponent(scene, go_);
         camera_transform_comp.position[0] = 0.0f;
         camera_transform_comp.position[1] = 1.0f;
-        camera_transform_comp.position[2] = 500.0f;
+        camera_transform_comp.position[2] = 5.0f;
         engineSceneUpdateTransformComponent(scene, go_, &camera_transform_comp);
     }
 
