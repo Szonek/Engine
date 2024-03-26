@@ -10,9 +10,36 @@
 #include "glm/glm.hpp"
 #include <glm/gtc/type_ptr.hpp>
 
-
 namespace
 {
+struct GltfNode
+{
+    inline static const std::int32_t INVALID_VALUE = -1;
+    std::string name = "";
+    std::int32_t index = INVALID_VALUE;
+    std::int32_t mesh = INVALID_VALUE;
+    std::int32_t skin = INVALID_VALUE;
+    GltfNode* parent = nullptr;
+    std::vector<GltfNode*> children = {};
+
+    glm::vec3 translation;
+    glm::vec3 scale = glm::vec3(1.0f);
+    glm::quat rotation;
+    glm::mat4 transform_matrix;
+    glm::mat4 get_local_transform() const
+    {
+        return glm::translate(glm::mat4(1.0f), translation) * glm::mat4(rotation) * glm::scale(glm::mat4(1.0f), scale) * transform_matrix;
+    }
+};
+
+inline void visit_node(GltfNode* node, engine::ModelInfo& info)
+{
+    if (node->mesh != GltfNode::INVALID_VALUE)
+    {
+
+    }
+}
+
 inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model)
 {
     // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_mesh_primitive_mode
@@ -235,6 +262,47 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
 
     return ret;
 }
+
+inline engine::MaterialInfo parse_material(const tinygltf::Material& material, const tinygltf::Model& model)
+{
+    engine::MaterialInfo new_material{};
+    new_material.name = material.name;
+    // copy diffuse color
+    for (std::size_t c = 0; c < 4; c++)
+    {
+        new_material.diffuse_factor[c] = static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[c]);
+    }
+    // copy diffuse texture
+    auto diffuse_texture_index = material.pbrMetallicRoughness.baseColorTexture.index;
+    if (diffuse_texture_index >= 0)
+    {
+        const auto& tex = model.images[diffuse_texture_index];
+        engine::TextureInfo tex_info{};
+        tex_info.name = tex.name;
+        tex_info.width = tex.width;
+        tex_info.height = tex.height;
+        tex_info.layout = ENGINE_DATA_LAYOUT_COUNT;
+        if (tex.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+        {
+            if (tex.component == 4)
+            {
+                tex_info.layout = ENGINE_DATA_LAYOUT_RGBA_U8;
+            }
+            else if (tex.component == 3)
+            {
+                tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
+            }
+        }
+        assert(tex_info.layout != ENGINE_DATA_LAYOUT_COUNT);
+        tex_info.data.resize(tex.image.size());
+        std::memcpy(tex_info.data.data(), tex.image.data(), tex_info.data.size());
+
+        // attach texture to new material;
+        new_material.diffuse_texture = std::move(tex_info);
+    }
+    return new_material;
+}
+
 }  // namespace anonymous
 
 engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8_t> data)
@@ -279,8 +347,120 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi-scene gltf parsing! \n").c_str());
         return {};
     }
-
     engine::ModelInfo out{};
+#if 0
+    // Dont resize this vector later, it will invalidate pointers of the nodes
+    std::vector<GltfNode> nodes(model.nodes.size());
+    std::vector<std::size_t> skins_root_nodes_idx{};
+    std::vector<std::size_t> meshes_root_nodes_idx{};
+    // Build all nodes first
+    for (std::int32_t idx = 0; const auto& node : model.nodes)
+    {
+        auto& n = nodes.at(idx);
+        // general params
+        n.index = idx++;
+        n.name = node.name;
+        n.mesh = node.mesh;
+        n.skin = node.skin;
+        if (!node.translation.empty())
+        {
+            n.translation = glm::make_vec3(node.translation.data());
+        }
+        if (!node.scale.empty())
+        {
+            n.scale = glm::make_vec3(node.scale.data());
+        }
+        if (!node.rotation.empty())
+        {
+            n.rotation = glm::make_quat(node.rotation.data());
+        }
+        if (!node.matrix.empty())
+        {
+            n.transform_matrix = glm::make_mat4(node.matrix.data());
+        }
+        // hierarchy
+        std::for_each(node.children.begin(), node.children.end(), [&n, &nodes](const auto child_idx)
+            {
+                auto& child = nodes.at(child_idx);
+                assert(child.parent == nullptr);
+                child.parent = &n;
+                n.children.push_back(&child);
+            });
+
+        // utility
+        if (n.skin != GltfNode::INVALID_VALUE)
+        {
+            skins_root_nodes_idx.push_back(n.index);
+        }
+        if (n.mesh != GltfNode::INVALID_VALUE)
+        {
+            meshes_root_nodes_idx.push_back(n.index);
+        }
+    }
+    // materials
+    if (out.materials.size() > 1)
+    {
+        log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi material gltf parsing! \n").c_str());
+        return {};
+    }
+    else
+    {
+        out.materials.reserve(model.materials.size());
+        std::for_each(model.materials.begin(), model.materials.end(), [&out, &model](const auto& material)
+            {
+                out.materials.push_back(parse_material(material, model));
+            });
+    }
+    // meshes
+    if (meshes_root_nodes_idx.size() > 1)
+    {
+        log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi mesh gltf parsing! \n").c_str());
+        return {};
+    }
+    else
+    {
+        out.geometries.reserve(meshes_root_nodes_idx.size());
+        std::for_each(model.meshes.begin(), model.meshes.end(), [&out, &model](const auto& mesh)
+            {
+                out.geometries.push_back(parse_mesh(mesh, model));
+            });
+    }
+    // skins
+    if (skins_root_nodes_idx.size() > 1)
+    {
+        log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi skim gltf parsing! \n").c_str());
+        return {};
+    }
+    else
+    {
+        out.skins.reserve(skins_root_nodes_idx.size());
+    }
+
+    for (std::size_t scene_idx = 0; const auto& scene : model.scenes)
+    {
+        log::log(log::LogLevel::eTrace, fmt::format("Parsing scene: idx: {}, name: {}\n", scene_idx, scene.name).c_str());
+
+        if (scene.nodes.size() > 1)
+        {
+            log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi-node in single scene gltf parsing! \n").c_str());
+            return {};
+        }
+
+        for (const auto& scene_node_idx : scene.nodes)
+        {
+            const auto& node = nodes[scene_node_idx];
+            if (node.parent)
+            {
+                log::log(log::LogLevel::eCritical, fmt::format("Scene node dont support parents right now! \n").c_str());
+                return {};
+            }
+
+
+        }
+
+        scene_idx++;
+    }
+#else
     out.geometries.resize(model.meshes.size());
 
     for (std::size_t idx = 0; const auto& mesh : model.meshes)
@@ -440,6 +620,7 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         }
         out.animations[idx] = std::move(new_animation);
     }
-
+#endif
     return out;
+
 }

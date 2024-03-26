@@ -61,7 +61,6 @@ void engine::Skin::compute_transform(std::vector<glm::mat4>& inout_data, const g
         if (joint.parent != invalid_joint_idx)
         {
             assert(joint.parent < idx); // parent index has to be smaller than joint index, because we need to gauratnee that parent trnasformation was already computed!
-            //inout_data[idx] = inout_data[joint.parent] * (global_transforms_.at(idx) * inout_data[idx]);
             inout_data[idx] = inout_data[joint.parent] * inout_data[idx];
         }
     }
@@ -70,6 +69,5 @@ void engine::Skin::compute_transform(std::vector<glm::mat4>& inout_data, const g
     for (const auto& [idx, joint] : joints_)
     {
         inout_data[idx] *= joint.inverse_bind_matrix;
-        //inout_data[idx] = glm::inverse(inout_data[root_idx_]) * inout_data[idx];
     }
 }

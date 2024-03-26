@@ -358,7 +358,7 @@ typedef struct _engine_animation_channel_t
     const float* timestamps;
     uint32_t timestamps_count;
 
-    const float* data;
+    const float* data;  // for vec3: x,y,z; for rotation quaternion: x,y,z,w
     size_t data_count;
 } engine_animation_channel_t;
 
