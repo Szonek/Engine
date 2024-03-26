@@ -97,8 +97,8 @@ inline void material_component_init(engine_material_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_material_component_t));
     comp->shiness = 32;
-    comp->diffuse_texture = ENGINE_INVALID_GAME_OBJECT_ID;
-    comp->specular_texture = ENGINE_INVALID_GAME_OBJECT_ID;
+    comp->diffuse_texture = ENGINE_INVALID_OBJECT_HANDLE;
+    comp->specular_texture = ENGINE_INVALID_OBJECT_HANDLE;
 }
 
 inline void animation_component_init(engine_animation_component_t* comp)
@@ -108,6 +108,11 @@ inline void animation_component_init(engine_animation_component_t* comp)
     {
         comp->animations_array[i] = ENGINE_INVALID_OBJECT_HANDLE;
     }
+}
+
+inline void parent_component_init(engine_parent_component_t* comp)
+{
+    comp->parent = ENGINE_INVALID_GAME_OBJECT_ID;
 }
 
 inline void mesh_component_init(engine_mesh_component_t* comp)
@@ -987,4 +992,30 @@ void engineSceneRemoveAnimationComponent(engine_scene_t scene, engine_game_objec
 bool engineSceneHasAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return has_component<engine_animation_component_t>(scene, game_object);
+}
+
+
+engine_parent_component_t engineSceneAddParentComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_parent_component_t, parent_component_init>(scene, game_object);
+}
+
+engine_parent_component_t engineSceneGetParentComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_parent_component_t>(scene, game_object);
+}
+
+void engineSceneUpdateParentComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_parent_component_t* comp)
+{
+    update_component(scene, game_object, comp);
+}
+
+void engineSceneRemoveParentComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_parent_component_t>(scene, game_object);
+}
+
+bool engineSceneHasParentComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_parent_component_t>(scene, game_object);
 }

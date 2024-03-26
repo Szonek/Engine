@@ -12,6 +12,7 @@
 #include "components/collider_component.h"
 #include "components/image_component.h"
 #include "components/animation_component.h"
+#include "components/parent_component.h"
 
 
 #ifdef _WIN32
@@ -40,7 +41,6 @@ extern "C"
 typedef uint32_t engine_game_object_t;
 #define ENGINE_INVALID_GAME_OBJECT_ID 0
 #define ENGINE_INVALID_OBJECT_HANDLE (UINT_MAX)
-#define ENGINE_INVALID_SKIN_JOINT_IDX (-1)
 typedef struct _engine_application_t* engine_application_t;
 typedef struct _engine_scene_t* engine_scene_t;
 typedef struct _engine_component_view_t* engine_component_view_t;
@@ -353,12 +353,12 @@ typedef enum _engine_animation_channel_type_t
 typedef struct _engine_animation_channel_t
 {
     engine_animation_channel_type_t type;
-    int32_t target_node_idx;  // set to joint index if animation is used for skeleton
+    int32_t target_joint_idx;  // set to joint index if animation is used for skeleton
 
     const float* timestamps;
     uint32_t timestamps_count;
 
-    const float* data;
+    const float* data;  // for vec3: x,y,z; for rotation quaternion: x,y,z,w
     size_t data_count;
 } engine_animation_channel_t;
 
@@ -379,9 +379,12 @@ typedef struct _engine_skin_joint_desc_t
 {
     int32_t idx;
     float inverse_bind_mat[16];
-    float local_transform[16];
     const int32_t* children;
     uint32_t children_count;
+
+    float init_translate[3];
+    float init_scale[3];
+    float init_rotation_quaternion[4];
 } engine_skin_joint_desc_t;
 
 typedef struct _engine_skin_desc_t
@@ -390,9 +393,24 @@ typedef struct _engine_skin_desc_t
     uint32_t joint_count;
 } engine_skin_desc_t;
 
+typedef struct _engine_model_node_desc_t
+{
+    const char* name;
+    struct _engine_model_node_desc_t* parent; // nullptr if no parent
+    uint32_t geometry_index;  // -1 if not used
+    uint32_t skin_index;      // -1 if not used
+    float translate[3];
+    float scale[3];
+    float rotation_quaternion[4];
+} engine_model_node_desc_t;
+
 typedef struct _engine_model_desc_t
 {
     const void* internal_handle;
+
+    engine_model_node_desc_t* nodes_array;
+    uint32_t nodes_count;
+
     engine_geometry_desc_t* geometries_array;
     uint32_t geometries_count;
 
@@ -569,6 +587,11 @@ ENGINE_API void engineSceneUpdateAnimationComponent(engine_scene_t scene, engine
 ENGINE_API void engineSceneRemoveAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
 
+ENGINE_API engine_parent_component_t engineSceneAddParentComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_parent_component_t engineSceneGetParentComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateParentComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_parent_component_t* comp);
+ENGINE_API void engineSceneRemoveParentComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasParentComponent(engine_scene_t scene, engine_game_object_t game_object);
 
 #ifdef __cplusplus
 }

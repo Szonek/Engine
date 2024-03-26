@@ -40,8 +40,6 @@ namespace
         const auto& data_next = channel.data[timestamp_idx_next];
 
         const auto slerp = glm::slerp(data_prev, data_next, interpolation_value);
-        //const auto rotation = glm::eulerAngles(slerp);
-
         return glm::normalize(slerp);
     };
 
@@ -90,7 +88,7 @@ engine::AnimationClip::AnimationClip(const engine_animation_clip_desc_t& desc)
 
     auto fill_animation_node_data = [this, &fill_timestamp_data_to_vector](const engine_animation_channel_t& channel)
     {
-        auto& node = nodes_[channel.target_node_idx];
+        auto& node = nodes_[channel.target_joint_idx];
 
         switch (channel.type)
         {
@@ -120,7 +118,7 @@ engine::AnimationClip::AnimationClip(const engine_animation_clip_desc_t& desc)
             {
                 const auto idx = i * 4;
                 const auto& d = channel.data;
-                // w, x, y, z
+                // quat ctor: w, x, y, z
                 node.rotation.data.push_back(glm::quat(d[idx+3], d[idx], d[idx + 1], d[idx + 2]));
             }
             break;
@@ -173,7 +171,7 @@ float engine::AnimationClip::get_duration() const
     return duration_;
 }
 
-bool engine::AnimationClip::compute_animation_model_matrix(std::span<glm::mat4> animation_data, float animation_timer) const
+bool engine::AnimationClip::compute_animation_model_matrix(std::span<TRS> animation_data, float animation_timer) const
 {
     if (nodes_.size() != animation_data.size())
     {
@@ -182,13 +180,9 @@ bool engine::AnimationClip::compute_animation_model_matrix(std::span<glm::mat4> 
     }
     for (const auto& [node_idx, anim_data] : nodes_)
     {
-        const auto transform = compute_animation_translation(anim_data.transform, animation_timer);
-        const auto scale = compute_animation_scale(anim_data.scale, animation_timer);
-        const auto rotate = compute_animation_rotation(anim_data.rotation, animation_timer);
-        const auto anim_matrix = compute_model_matrix(transform, rotate, scale);
-        //animation_data[node_idx] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 1.0, 0.0));
-        //animation_data[node_idx] *= anim_matrix;
-        animation_data[node_idx] = anim_matrix;
+        animation_data[node_idx].translation = compute_animation_translation(anim_data.transform, animation_timer);
+        animation_data[node_idx].scale = compute_animation_translation(anim_data.scale, animation_timer);
+        animation_data[node_idx].rotation = compute_animation_rotation(anim_data.rotation, animation_timer);
     }
     return true;
 }

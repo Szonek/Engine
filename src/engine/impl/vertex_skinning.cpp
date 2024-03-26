@@ -1,8 +1,10 @@
 #include "vertex_skinning.h"
 #include "graphics.h"
 #include "logger.h"
+#include "math_helpers.h"
 
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/glm.hpp>
 
 #include <algorithm>
 #include <fmt/format.h>
@@ -19,7 +21,9 @@ inline engine::SkinJointDesc to_skin_desc(const engine_skin_joint_desc_t& j)
     {
         new_joint.childrens.push_back(j.children[i]);
     }
-
+    new_joint.init_trs.translation = glm::make_vec3(j.init_translate);
+    new_joint.init_trs.rotation = glm::make_quat(j.init_rotation_quaternion);
+    new_joint.init_trs.scale = glm::make_vec3(j.init_scale);
     return new_joint;
 }
 }
@@ -53,23 +57,40 @@ engine::Skin::Skin(std::span<const engine_skin_joint_desc_t> joints)
     }
 }
 
-void engine::Skin::compute_transform(std::vector<glm::mat4>& inout_data, const glm::mat4& ltw) const
+engine::engine_skin_internal_component_t engine::Skin::initalize_skin_component() const
 {
-    // combine the transforms with the parent's transforms
+    engine_skin_internal_component_t ret{};
+    ret.bone_trs.resize(joints_.size());
+    ret.bone_animation_transform.resize(joints_.size());
+
     for (const auto& [idx, joint] : joints_)
     {
+        ret.bone_trs.at(idx) = joint.init_trs;
+    }
+
+    return ret;
+}
+
+std::vector<glm::mat4> engine::Skin::compute_transform(std::span<const TRS> bones_trs) const
+{
+    std::vector<glm::mat4> ret(joints_.size());
+    // combine the transforms with the parent's transforms
+
+    for (const auto& [idx, joint] : joints_)
+    {
+        ret[idx] = compute_model_matrix(bones_trs[idx]);
+
         if (joint.parent != invalid_joint_idx)
         {
             assert(joint.parent < idx); // parent index has to be smaller than joint index, because we need to gauratnee that parent trnasformation was already computed!
-            //inout_data[idx] = inout_data[joint.parent] * (global_transforms_.at(idx) * inout_data[idx]);
-            inout_data[idx] = inout_data[joint.parent] * inout_data[idx];
+            ret[idx] = ret[joint.parent] * ret[idx];
         }
     }
 
     // pre-multiply with inverse bind matrices
     for (const auto& [idx, joint] : joints_)
     {
-        inout_data[idx] *= joint.inverse_bind_matrix;
-        //inout_data[idx] = glm::inverse(inout_data[root_idx_]) * inout_data[idx];
+        ret[idx] *= joint.inverse_bind_matrix;
     }
+    return ret;
 }

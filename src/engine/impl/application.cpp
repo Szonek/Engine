@@ -345,6 +345,41 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
 
     engine_model_desc_t ret{};
     ret.internal_handle = reinterpret_cast<const void*>(model_info);
+    
+    ret.nodes_count = static_cast<std::uint32_t>(model_info->nodes.size());
+    if (ret.nodes_count > 0)
+    {
+        ret.nodes_array = new engine_model_node_desc_t[ret.nodes_count];
+        for (std::size_t i = 0; i < ret.nodes_count; i++)
+        {
+            auto copy_arr = [](float* const arr, const auto& glm_vec)
+            {
+                for (auto i = 0; i < glm_vec.length(); i++)
+                {
+                    arr[i] = glm_vec[i];
+                }
+            };
+            const auto& in_n = model_info->nodes.at(i);
+            auto& ret_n = ret.nodes_array[i];
+            ret_n.geometry_index = in_n.mesh;
+            ret_n.skin_index = in_n.skin;
+            ret_n.name = in_n.name.c_str();
+            
+            copy_arr(ret_n.translate, in_n.translation);
+            copy_arr(ret_n.rotation_quaternion, in_n.rotation);
+            copy_arr(ret_n.scale, in_n.scale);
+
+            if (in_n.parent)
+            {
+                ret_n.parent = &ret.nodes_array[in_n.parent->index];
+            }
+            else
+            {
+                ret_n.parent = nullptr;
+            }
+        }
+    }
+
     ret.geometries_count = static_cast<std::uint32_t>(model_info->geometries.size());
     if (ret.geometries_count > 0)
     {
@@ -399,7 +434,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
                 auto& out_ch = anim.channels[ch_i];
 
                 out_ch.type = in_ch.type;
-                out_ch.target_node_idx = in_ch.target_node_idx;
+                out_ch.target_joint_idx = in_ch.target_joint_idx;
                 out_ch.data_count = in_ch.data.size();
                 out_ch.data = in_ch.data.data();
 
@@ -426,7 +461,11 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
                 out_join.idx = in_join.idx;
                 out_join.children_count = static_cast<std::uint32_t>(in_join.childrens.size());
                 out_join.children = in_join.childrens.data();
-                std::memcpy(out_join.inverse_bind_mat, glm::value_ptr(in_join.inverse_bind_matrix), 16 * sizeof(float));
+                std::memcpy(out_join.inverse_bind_mat, glm::value_ptr(in_join.inverse_bind_matrix), sizeof(in_join.inverse_bind_matrix)); 
+                // copy init transformation
+                std::memcpy(out_join.init_translate, glm::value_ptr(in_join.init_trs.translation), sizeof(in_join.init_trs.translation));
+                std::memcpy(out_join.init_scale, glm::value_ptr(in_join.init_trs.scale), sizeof(in_join.init_trs.scale));
+                std::memcpy(out_join.init_rotation_quaternion, glm::value_ptr(in_join.init_trs.rotation), sizeof(in_join.init_trs.rotation));
             }
         }
     }

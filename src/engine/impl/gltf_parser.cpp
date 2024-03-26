@@ -9,7 +9,8 @@
 
 #include "glm/glm.hpp"
 #include <glm/gtc/type_ptr.hpp>
-
+#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtc/epsilon.hpp>
 
 namespace
 {
@@ -235,6 +236,160 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
 
     return ret;
 }
+
+inline engine::MaterialInfo parse_material(const tinygltf::Material& material, const tinygltf::Model& model)
+{
+    engine::MaterialInfo new_material{};
+    new_material.name = material.name;
+    // copy diffuse color
+    for (std::size_t c = 0; c < 4; c++)
+    {
+        new_material.diffuse_factor[c] = static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[c]);
+    }
+    // copy diffuse texture
+    auto diffuse_texture_index = material.pbrMetallicRoughness.baseColorTexture.index;
+    if (diffuse_texture_index >= 0)
+    {
+        const auto& tex = model.images[diffuse_texture_index];
+        engine::TextureInfo tex_info{};
+        tex_info.name = tex.name;
+        tex_info.width = tex.width;
+        tex_info.height = tex.height;
+        tex_info.layout = ENGINE_DATA_LAYOUT_COUNT;
+        if (tex.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+        {
+            if (tex.component == 4)
+            {
+                tex_info.layout = ENGINE_DATA_LAYOUT_RGBA_U8;
+            }
+            else if (tex.component == 3)
+            {
+                tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
+            }
+        }
+        assert(tex_info.layout != ENGINE_DATA_LAYOUT_COUNT);
+        tex_info.data.resize(tex.image.size());
+        std::memcpy(tex_info.data.data(), tex.image.data(), tex_info.data.size());
+
+        // attach texture to new material;
+        new_material.diffuse_texture = std::move(tex_info);
+    }
+    return new_material;
+}
+
+inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::Model& model, std::vector<engine::ModelNode>& nodes)
+{
+    engine::SkinInfo new_skin{};
+    new_skin.joints.reserve(skin.joints.size());
+    for (std::size_t i = 0; i < skin.joints.size(); i++)
+    {
+        const auto node_id = skin.joints[i];
+        engine::SkinJointDesc joint_info{};
+        joint_info.idx = static_cast<std::int32_t>(i);
+        for (const auto& c : model.nodes[node_id].children)
+        {
+            const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), c);
+            if (fnd_itr != std::end(skin.joints))
+            {
+                const auto dst_itr = std::distance(skin.joints.begin(), fnd_itr);
+                joint_info.childrens.push_back(static_cast<int32_t>(dst_itr));
+            }
+        }
+        /*
+            https://lisyarus.github.io/blog/graphics/2023/07/03/gltf-animation.html
+            However, the vertices of the model are in, well, the model’s coordinate system (that’s the definition of this coordinate system).
+            So, we need a way to transform the vertices into the local coordinate system of the bone first.
+            This is called an inverse bind matrix, because it sounds really cool.
+        */
+        const auto inv_bind_mtx_accesor = model.accessors[skin.inverseBindMatrices];
+        const auto inv_bind_mtx_buffer_view = model.bufferViews[model.accessors[skin.inverseBindMatrices].bufferView];
+        const auto inv_bind_mtx_buffer = reinterpret_cast<const float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);
+        joint_info.inverse_bind_matrix = glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
+        
+        nodes[node_id].joint = joint_info.idx;
+        joint_info.init_trs = engine::TRS{ nodes[node_id].translation, nodes[node_id].rotation, nodes[node_id].scale};
+        new_skin.joints.push_back(std::move(joint_info));
+    }
+    return new_skin;
+}
+
+inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& animation, const tinygltf::Model& model)
+{
+    engine::AnimationClipInfo new_animation{};
+    new_animation.name = animation.name;
+    new_animation.channels.resize(animation.channels.size());
+    for (std::size_t ch_idx = 0; const auto & ch : animation.channels)
+    {
+        const auto& sampler = animation.samplers[ch.sampler];
+        assert(sampler.interpolation == "LINEAR"); // ToDo: add support for other interploation types
+
+        const auto& accessor_timestamps = model.accessors[sampler.input];
+        const auto& buffer_view_timestamps = model.bufferViews[accessor_timestamps.bufferView];
+        assert(accessor_timestamps.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+        assert(accessor_timestamps.type == TINYGLTF_TYPE_SCALAR);
+
+        const auto& accessor_data = model.accessors[sampler.output];
+        const auto& buffer_view_data = model.bufferViews[accessor_data.bufferView];
+        assert(accessor_data.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+        assert(accessor_data.type == TINYGLTF_TYPE_VEC3 || accessor_data.type == TINYGLTF_TYPE_VEC4);
+
+        // some additional validation
+        {
+            const auto stride_timestamps = accessor_timestamps.ByteStride(buffer_view_timestamps);
+            assert(stride_timestamps == sizeof(float));
+            const auto stride_data = accessor_data.ByteStride(buffer_view_timestamps);
+            assert(stride_data == 3 * sizeof(float) || stride_data == 4 * sizeof(float));
+        }
+
+        auto& new_channel = new_animation.channels[ch_idx++];
+        new_channel.target_joint_idx = 0;
+        if (model.skins.size() > 0)
+        {
+            const auto& skin = model.skins[0];
+
+            const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), ch.target_node);
+            if (fnd_itr != std::end(skin.joints))
+            {
+                const auto dst_itr = std::distance(skin.joints.begin(), fnd_itr);
+                new_channel.target_joint_idx = static_cast<int32_t>(dst_itr);
+            }
+            else
+            {
+                //assert(false);
+                engine::log::log(engine::log::LogLevel::eError, fmt::format("Animated node is not a joint. Probably animation will be parsed with bugs. \n").c_str());
+            }
+        }
+        if (ch.target_path.compare("rotation") == 0)
+        {
+            new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION;
+        }
+        else if (ch.target_path.compare("translation") == 0)
+        {
+            new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION;
+        }
+        else if (ch.target_path.compare("scale") == 0)
+        {
+            new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_SCALE;
+        }
+        else
+        {
+            assert(false && "Unknown target path for animation!");
+        }
+
+        assert(accessor_timestamps.count == accessor_data.count);
+        new_channel.timestamps.resize(accessor_timestamps.count * tinygltf::GetNumComponentsInType(accessor_timestamps.type));
+        const auto& buffer_timings = reinterpret_cast<const float*>(model.buffers[buffer_view_timestamps.buffer].data.data() + accessor_timestamps.byteOffset + buffer_view_timestamps.byteOffset);
+        std::memcpy(new_channel.timestamps.data(), buffer_timings, new_channel.timestamps.size() * sizeof(float));
+        // go over each element and scale by 1000 to get miliseconds
+        std::for_each(new_channel.timestamps.begin(), new_channel.timestamps.end(), [](auto& v) {v *= 1000.0f; });
+
+        new_channel.data.resize(accessor_data.count * tinygltf::GetNumComponentsInType(accessor_data.type));
+        const auto& buffer_data = reinterpret_cast<const float*>(model.buffers[buffer_view_data.buffer].data.data() + accessor_data.byteOffset + buffer_view_data.byteOffset);
+        std::memcpy(new_channel.data.data(), buffer_data, new_channel.data.size() * sizeof(float));
+    }
+    return new_animation;
+}
+
 }  // namespace anonymous
 
 engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8_t> data)
@@ -280,166 +435,139 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         return {};
     }
 
+    // Dont resize this vector later, it will invalidate pointers of the nodes
+    std::vector<engine::ModelNode> nodes(model.nodes.size());
+    std::vector<std::size_t> skins_root_nodes_idx{};
+    std::vector<std::size_t> meshes_root_nodes_idx{};
+    // Build all nodes first
+    for (std::int32_t idx = 0; const auto& node : model.nodes)
+    {
+        auto& n = nodes.at(idx);
+        // general params
+        n.index = idx++;
+        n.name = node.name;
+        n.mesh = node.mesh;
+        n.skin = node.skin;
+        if (!node.translation.empty())
+        {
+            n.translation = glm::make_vec3(node.translation.data());
+        }
+        if (!node.scale.empty())
+        {
+            n.scale = glm::make_vec3(node.scale.data());
+        }
+        if (!node.rotation.empty())
+        {
+            n.rotation.x = node.rotation[0];
+            n.rotation.y = node.rotation[1];
+            n.rotation.z = node.rotation[2];
+            n.rotation.w = node.rotation[3];
+        }
+        if (!node.matrix.empty())
+        {
+            const auto transform_matrix = glm::mat4(glm::make_mat4(node.matrix.data()));
+            glm::vec3 skew;
+            glm::vec4 perspective;
+            const auto res = glm::decompose(transform_matrix, n.scale, n.rotation, n.translation, skew, perspective);
+            assert(res);
+            //ToDo: add valiation to check if trasnform matrix equals to matric computed from decomposed components!
+
+        }
+
+        // hierarchy
+        std::for_each(node.children.begin(), node.children.end(), [&n, &nodes](const auto child_idx)
+            {
+                auto& child = nodes.at(child_idx);
+                assert(child.parent == nullptr);
+                child.parent = &n;
+                n.children.push_back(&child);
+            });
+
+        // utility
+        if (n.skin != engine::INVALID_VALUE)
+        {
+            skins_root_nodes_idx.push_back(n.index);
+        }
+        if (n.mesh != engine::INVALID_VALUE)
+        {
+            meshes_root_nodes_idx.push_back(n.index);
+        }
+    }
     engine::ModelInfo out{};
-    out.geometries.resize(model.meshes.size());
-
-    for (std::size_t idx = 0; const auto& mesh : model.meshes)
+    // materials
+    if (model.materials.size() > 1)
     {
-        out.geometries[idx] = parse_mesh(mesh, model);
-        idx++;
+        log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi material gltf parsing! \n").c_str());
+        return {};
+    }
+    else
+    {
+        out.materials.reserve(model.materials.size());
+        std::for_each(model.materials.begin(), model.materials.end(), [&out, &model](const auto& material)
+            {
+                out.materials.push_back(parse_material(material, model));
+            });
+    }
+    // meshes
+    if (meshes_root_nodes_idx.size() > 1)
+    {
+        log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi mesh gltf parsing! \n").c_str());
+        return {};
+    }
+    else
+    {
+        out.geometries.reserve(meshes_root_nodes_idx.size());
+        std::for_each(model.meshes.begin(), model.meshes.end(), [&out, &model](const auto& mesh)
+            {
+                out.geometries.push_back(parse_mesh(mesh, model));
+            });
+    }
+    // skins
+    if (skins_root_nodes_idx.size() > 1)
+    {
+        log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi skim gltf parsing! \n").c_str());
+        return {};
+    }
+    else
+    {
+        out.skins.reserve(skins_root_nodes_idx.size());
+        std::for_each(model.skins.begin(), model.skins.end(), [&out, &model, &nodes](const auto& skin)
+            {
+                out.skins.push_back(parse_skin(skin, model, nodes));
+            });
+    }
+    // animations
+    if (model.animations.size() > 1)
+    {
+        log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi animation gltf parsing! \n").c_str());
+        return {};
+    }
+    else
+    {
+        out.animations.reserve(model.animations.size());
+        std::for_each(model.animations.begin(), model.animations.end(), [&out, &model](const auto& animation)
+            {
+                out.animations.push_back(parse_animation(animation, model));
+            });
     }
 
-    out.materials.resize(model.materials.size());
-    for (std::size_t idx = 0; const auto& material : model.materials)
-    {
-        MaterialInfo new_material{};
-        new_material.name = material.name;
-        // copy diffuse color
-        for (std::size_t c = 0; c < 4; c++)
-        {
-            new_material.diffuse_factor[c] = static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[c]);
+    // get rid of nodes which has JOINT parents, but arent joints itselfs
+    nodes.erase(std::remove_if(nodes.begin(), nodes.end(), [](const ModelNode& n) {
+        if (n.parent && n.parent->joint != engine::INVALID_VALUE && n.joint == engine::INVALID_VALUE)
+        {   
+            engine::log::log(engine::log::LogLevel::eError,
+                fmt::format("Cant parse node which has JOINT (skeleton bone) parent, but its not joint itself. Removing such node (name: {}).\n", n.name));
+            return true;
         }
-        // copy diffuse texture
-        auto diffuse_texture_index = material.pbrMetallicRoughness.baseColorTexture.index;
-        if (diffuse_texture_index >= 0)
-        {
-            const auto& tex = model.images[diffuse_texture_index];
-            TextureInfo tex_info{};
-            tex_info.name = tex.name;
-            tex_info.width = tex.width;
-            tex_info.height = tex.height;
-            tex_info.layout = ENGINE_DATA_LAYOUT_COUNT;
-            if (tex.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
-            {
-                if (tex.component == 4)
-                {
-                    tex_info.layout = ENGINE_DATA_LAYOUT_RGBA_U8;
-                }
-                else if (tex.component == 3)
-                {
-                    tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
-                }
-            }
-            assert(tex_info.layout != ENGINE_DATA_LAYOUT_COUNT);
-            tex_info.data.resize(tex.image.size());
-            std::memcpy(tex_info.data.data(), tex.image.data(), tex_info.data.size());
-            
-            // attach texture to new material;
-            new_material.diffuse_texture = std::move(tex_info);
-        }
-        out.materials[idx] = std::move(new_material);
-    }
+        return false;
+        }), nodes.end());
 
-    //https://github.com/KhronosGroup/glTF-Tutorials/blob/main/gltfTutorial/gltfTutorial_019_SimpleSkin.md
-    out.skins.resize(model.skins.size());
-    for (std::size_t skin_idx = 0; const auto& skin : model.skins)
-    {
-        auto& new_skin = out.skins[skin_idx];
-        new_skin.joints.reserve(skin.joints.size());
-        for (std::size_t i = 0; i < skin.joints.size(); i++)
-        {
-            const auto node_id = skin.joints[i];
-            SkinJointDesc joint_info{};
-            joint_info.idx = static_cast<std::int32_t>(i);
-            for (const auto& c : model.nodes[node_id].children)
-            {
-                const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), c);
-                if (fnd_itr != std::end(skin.joints))
-                {
-                    const auto dst_itr = std::distance(skin.joints.begin(), fnd_itr);
-                    joint_info.childrens.push_back(static_cast<int32_t>(dst_itr));
-                }
-            }
-            /*
-                https://lisyarus.github.io/blog/graphics/2023/07/03/gltf-animation.html
-                However, the vertices of the model are in, well, the model’s coordinate system (that’s the definition of this coordinate system).
-                So, we need a way to transform the vertices into the local coordinate system of the bone first.
-                This is called an inverse bind matrix, because it sounds really cool.
-            */
-            const auto inv_bind_mtx_accesor = model.accessors[skin.inverseBindMatrices];
-            const auto inv_bind_mtx_buffer_view = model.bufferViews[model.accessors[skin.inverseBindMatrices].bufferView];
-            const auto inv_bind_mtx_buffer = reinterpret_cast<float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);
-            //joint_info.inverse_bind_matrix =  glm::transpose(glm::make_mat4x4(inv_bind_mtx_buffer + i * 16));
-            joint_info.inverse_bind_matrix =  glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
-            new_skin.joints.push_back(std::move(joint_info));
-        }
-        skin_idx++;
-    }
-    //https://github.com/KhronosGroup/glTF-Tutorials/blob/main/gltfTutorial/gltfTutorial_007_Animations.md
-    out.animations.resize(model.animations.size());
-    for (std::size_t idx = 0; const auto& animation : model.animations)
-    {
-        AnimationClipInfo new_animation{};
-        new_animation.name = animation.name;
-        new_animation.channels.resize(animation.channels.size());
-        for (std::size_t ch_idx = 0; const auto& ch : animation.channels)
-        {
-            const auto& sampler = animation.samplers[ch.sampler];
-            assert(sampler.interpolation == "LINEAR"); // ToDo: add support for other interploation types
-            
-            const auto& accessor_timestamps = model.accessors[sampler.input];
-            const auto& buffer_view_timestamps = model.bufferViews[accessor_timestamps.bufferView];
-            assert(accessor_timestamps.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
-            assert(accessor_timestamps.type == TINYGLTF_TYPE_SCALAR);
-
-            const auto& accessor_data = model.accessors[sampler.output];
-            const auto& buffer_view_data = model.bufferViews[accessor_data.bufferView];
-            assert(accessor_data.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
-            assert(accessor_data.type == TINYGLTF_TYPE_VEC3 || accessor_data.type == TINYGLTF_TYPE_VEC4);
-
-            // some additional validation
-            {
-                const auto stride_timestamps = accessor_timestamps.ByteStride(buffer_view_timestamps);
-                assert(stride_timestamps == sizeof(float));
-                const auto stride_data = accessor_data.ByteStride(buffer_view_timestamps);
-                assert(stride_data == 3 * sizeof(float) || stride_data == 4 * sizeof(float));
-            }
-
-            auto& new_channel = new_animation.channels[ch_idx++];
-            new_channel.target_node_idx = 0;
-            if (model.skins.size() > 0)
-            {
-                const auto& skin = model.skins[0];
-
-                const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), ch.target_node);
-                if (fnd_itr != std::end(skin.joints))
-                {
-                    const auto dst_itr = std::distance(skin.joints.begin(), fnd_itr);
-                    new_channel.target_node_idx = static_cast<int32_t>(dst_itr);
-                }
-                //new_channel.target_node_idx = static_cast<int32_t>(std::distance(std::find(skin.joints.begin(), skin.joints.end(), ch.target_node), skin.joints.end()));
-            }
-            if (ch.target_path.compare("rotation") == 0)
-            {
-                new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION;
-            }
-            else if (ch.target_path.compare("translation") == 0)
-            {
-                new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION;
-            }
-            else if (ch.target_path.compare("scale") == 0)
-            {
-                new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_SCALE;
-            }
-            else
-            {
-                assert(false && "Unknown target path for animation!");
-            }
-
-            assert(accessor_timestamps.count == accessor_data.count);
-            new_channel.timestamps.resize(accessor_timestamps.count * tinygltf::GetNumComponentsInType(accessor_timestamps.type));
-            const auto& buffer_timings = reinterpret_cast<const float*>(model.buffers[buffer_view_timestamps.buffer].data.data() + accessor_timestamps.byteOffset + buffer_view_timestamps.byteOffset);
-            std::memcpy(new_channel.timestamps.data(), buffer_timings, new_channel.timestamps.size() * sizeof(float));
-            // go over each element and scale by 1000 to get miliseconds
-            std::for_each(new_channel.timestamps.begin(), new_channel.timestamps.end(), [](auto& v) {v *= 1000.0f; });
-
-            new_channel.data.resize(accessor_data.count * tinygltf::GetNumComponentsInType(accessor_data.type));
-            const auto& buffer_data = reinterpret_cast<const float*>(model.buffers[buffer_view_data.buffer].data.data() + accessor_data.byteOffset + buffer_view_data.byteOffset);
-            std::memcpy(new_channel.data.data(), buffer_data, new_channel.data.size() * sizeof(float));
-
-        }
-        out.animations[idx] = std::move(new_animation);
-    }
-
+    // get rid of joint nodes as they are part of skeleton
+    nodes.erase(std::remove_if(nodes.begin(), nodes.end(), [](const ModelNode& n) { 
+            return n.joint != engine::INVALID_VALUE; 
+        }), nodes.end());
+    // it's improtant to use std::move here to have pointer stability of parent member
+    out.nodes = std::move(nodes);
     return out;
+
 }
