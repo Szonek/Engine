@@ -1,6 +1,7 @@
 #include "vertex_skinning.h"
 #include "graphics.h"
 #include "logger.h"
+#include "math_helpers.h"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -53,21 +54,24 @@ engine::Skin::Skin(std::span<const engine_skin_joint_desc_t> joints)
     }
 }
 
-void engine::Skin::compute_transform(std::vector<glm::mat4>& inout_data, const glm::mat4& ltw) const
+std::vector<glm::mat4> engine::Skin::compute_transform(std::span<const TRS> bones_trs) const
 {
+    std::vector<glm::mat4> ret(joints_.size());
     // combine the transforms with the parent's transforms
     for (const auto& [idx, joint] : joints_)
     {
+        ret[idx] = compute_model_matrix(bones_trs[idx]) * joint.local_matrix;
         if (joint.parent != invalid_joint_idx)
         {
             assert(joint.parent < idx); // parent index has to be smaller than joint index, because we need to gauratnee that parent trnasformation was already computed!
-            inout_data[idx] = inout_data[joint.parent] * inout_data[idx];
+            ret[idx] = ret[joint.parent] * ret[idx];
         }
     }
 
     // pre-multiply with inverse bind matrices
     for (const auto& [idx, joint] : joints_)
     {
-        inout_data[idx] *= joint.inverse_bind_matrix;
+        ret[idx] *= joint.inverse_bind_matrix;
     }
+    return ret;
 }

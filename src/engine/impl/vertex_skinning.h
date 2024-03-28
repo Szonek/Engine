@@ -1,5 +1,6 @@
 #pragma once
 #include "engine.h"
+#include "math_helpers.h"
 
 #include <cstdint>
 #include <vector>
@@ -8,7 +9,7 @@
 #include <string_view>
 
 #include <glm/glm.hpp>
-#include <entt/entt.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 namespace engine
 {
@@ -21,15 +22,15 @@ struct SkinJointDesc
     JoinTypeIdx parent = invalid_joint_idx;
     std::vector<JoinTypeIdx> childrens{};
     glm::mat4 inverse_bind_matrix{ 1.0f };     
-};
 
+    glm::mat4 local_matrix{ 1.0f };
+};
 
 struct engine_skin_internal_component_t
 {
+    std::vector<TRS> bone_trs;
     std::vector<glm::mat4> bone_animation_transform;
 };
-
-
 
 class Skin
 {
@@ -43,8 +44,8 @@ public:
     ~Skin() = default;
 
     std::size_t get_joints_count() const { return joints_.size(); }
-
-    void compute_transform(std::vector<glm::mat4>& inout_data, const glm::mat4& ltw) const;
+    const SkinJointDesc& get_joint_desc(JoinTypeIdx idx) const { return joints_.at(idx); };
+    std::vector<glm::mat4> compute_transform(std::span<const TRS> bones_trs) const;
 
 private:
     std::map<JoinTypeIdx, SkinJointDesc> joints_;

@@ -353,7 +353,7 @@ typedef enum _engine_animation_channel_type_t
 typedef struct _engine_animation_channel_t
 {
     engine_animation_channel_type_t type;
-    int32_t target_node_idx;  // set to joint index if animation is used for skeleton
+    int32_t target_joint_idx;  // set to joint index if animation is used for skeleton
 
     const float* timestamps;
     uint32_t timestamps_count;
@@ -379,7 +379,6 @@ typedef struct _engine_skin_joint_desc_t
 {
     int32_t idx;
     float inverse_bind_mat[16];
-    float local_transform[16];
     const int32_t* children;
     uint32_t children_count;
 } engine_skin_joint_desc_t;
@@ -390,9 +389,20 @@ typedef struct _engine_skin_desc_t
     uint32_t joint_count;
 } engine_skin_desc_t;
 
+typedef struct _engine_modeel_node_t
+{
+    int32_t geometry_index;
+    int32_t skin_index;
+    float local_transform[16];
+} engine_modeel_node_t;
+
 typedef struct _engine_model_desc_t
 {
     const void* internal_handle;
+
+    engine_modeel_node_t nodes_array;
+    uint32_t nodes_count;
+
     engine_geometry_desc_t* geometries_array;
     uint32_t geometries_count;
 

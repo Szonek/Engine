@@ -399,7 +399,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
                 auto& out_ch = anim.channels[ch_i];
 
                 out_ch.type = in_ch.type;
-                out_ch.target_node_idx = in_ch.target_node_idx;
+                out_ch.target_joint_idx = in_ch.target_joint_idx;
                 out_ch.data_count = in_ch.data.size();
                 out_ch.data = in_ch.data.data();
 

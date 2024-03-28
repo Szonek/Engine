@@ -143,40 +143,40 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         // so for such cases it's performance lose
         auto model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
 
-        glm::mat4 zup = { 1.0,
-0.0,
-0.0,
-0.0,
-0.0,
-0.0,
--1.0,
-0.0,
-0.0,
-1.0,
-0.0,
-0.0,
-0.0,
-0.0,
-0.0,
-1.0 };
-        glm::mat4 armature = { -4.371139894487897e-8,
-            -1.0,
-            0.0,
-            0.0,
-            1.0,
-            -4.371139894487897e-8,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0 };
-        model_matrix *= zup;
-        model_matrix *= armature;
+        //glm::mat4 zup = { 1.0,
+        //0.0,
+        //0.0,
+        //0.0,
+        //0.0,
+        //0.0,
+        //-1.0,
+        //0.0,
+        //0.0,
+        //1.0,
+        //0.0,
+        //0.0,
+        //0.0,
+        //0.0,
+        //0.0,
+        //1.0 };
+        //glm::mat4 armature = { -4.371139894487897e-8,
+        //    -1.0,
+        //    0.0,
+        //    0.0,
+        //    1.0,
+        //    -4.371139894487897e-8,
+        //    0.0,
+        //    0.0,
+        //    0.0,
+        //    0.0,
+        //    1.0,
+        //    0.0,
+        //    0.0,
+        //    0.0,
+        //    0.0,
+        //    1.0 };
+        //model_matrix *= zup;
+        //model_matrix *= armature;
         std::memcpy(transform_component->local_to_world, &model_matrix, sizeof(model_matrix));
     }
     transform_model_matrix_update_observer.clear();
@@ -188,22 +188,24 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         auto skin_component = get_component<engine_skin_internal_component_t>(entt);
         if (mesh_component->skin == ENGINE_INVALID_OBJECT_HANDLE)
         {
+            skin_component->bone_trs.clear();
             skin_component->bone_animation_transform.clear();
         }
         else
         {
-            skin_component->bone_animation_transform.resize(skins[mesh_component->skin].get_joints_count());
-            // Initalize with identity matrix. If bone doesnt have animation than it will use it this default value.
-            std::for_each(skin_component->bone_animation_transform.begin(), skin_component->bone_animation_transform.end(), [](auto& mat)
-                {
-                    mat = glm::mat4{ 1.0f };
-                });
+            const auto& skin = skins[mesh_component->skin];
+            skin_component->bone_trs.resize(skin.get_joints_count());
+            skin_component->bone_animation_transform.resize(skin.get_joints_count());
+            for (auto i = 0; i < skin_component->bone_animation_transform.size(); i++)
+            {
+                skin_component->bone_animation_transform[i] = glm::mat4{1.0f};
+            }
         }
     }
     mesh_update_observer.clear();
 
-    auto animation_skinning_view = entity_registry_.view<engine_tranform_component_t, engine_skin_internal_component_t, const engine_mesh_component_t, engine_animation_component_t>();
-    animation_skinning_view.each([&dt, &animations, &skins, this](auto entity, engine_tranform_component_t& transform, engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh, engine_animation_component_t& animation)
+    auto animation_view = entity_registry_.view<engine_tranform_component_t, engine_skin_internal_component_t, const engine_mesh_component_t, engine_animation_component_t>();
+    animation_view.each([&dt, &animations, &skins, this](auto entity, engine_tranform_component_t& transform, engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh, engine_animation_component_t& animation)
         {
             //for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
             for (auto i = 0; i < 1; i++)
@@ -221,30 +223,26 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 const auto& animation_data = animations[animation.animations_array[i]];
                 auto& animation_dt = animation.animations_dt[i];
                 animation_dt += dt;
-                //animation_dt += 0.5f * 1000.0f;
 
                 // if no skin -> move whole object
                 if (mesh.skin == ENGINE_INVALID_OBJECT_HANDLE)
                 {
-                    auto ltw = glm::make_mat4(transform.local_to_world);
-                    std::array<glm::mat4, 1> animation_matrix;
-                    if (animation_data.compute_animation_model_matrix(animation_matrix, animation_dt))
-                    {
-                        ltw *= animation_matrix[0];
-                        patch_component<engine_tranform_component_t>(entity, [&skin, &ltw](engine_tranform_component_t& c)
-                            {
-                                std::memcpy(c.local_to_world, &ltw, sizeof(ltw));
-                            });
-                    }
+                    //auto ltw = glm::make_mat4(transform.local_to_world);
+                    //std::array<glm::mat4, 1> animation_matrix;
+                    //if (animation_data.compute_animation_model_matrix(animation_matrix, animation_dt))
+                    //{
+                    //    ltw *= animation_matrix[0];
+                    //    patch_component<engine_tranform_component_t>(entity, [&skin, &ltw](engine_tranform_component_t& c)
+                    //        {
+                    //            std::memcpy(c.local_to_world, &ltw, sizeof(ltw));
+                    //        });
+                    //}
                 }
                 else
                 {
-                    animation_data.compute_animation_model_matrix(skin.bone_animation_transform, animation_dt);
-                    skins[mesh.skin].compute_transform(skin.bone_animation_transform, glm::make_mat4(transform.local_to_world));
+                    animation_data.compute_animation_model_matrix(skin.bone_trs, animation_dt);
+                    skin.bone_animation_transform = skins[mesh.skin].compute_transform(skin.bone_trs);
                 }
-
-
-                //run = false;
 
                 if (animation_dt >= animation_data.get_duration())
                 {
@@ -332,7 +330,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                     for (std::size_t i = 0; i < per_bone_animation_data.size(); i++)
                     {
                         const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
-                        shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_animation_data[i]), sizeof(per_bone_animation_data[i]) / sizeof(float) });
+                        shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_animation_data[i]), sizeof(per_bone_animation_data[i]) / sizeof(float)});
                     }
                 }
 

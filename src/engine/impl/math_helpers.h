@@ -8,6 +8,13 @@
 
 namespace engine
 {
+struct TRS
+{
+    glm::vec3 translation;
+    glm::quat rotation;
+    glm::vec3 scale{ 1.0f };
+};
+
 inline glm::mat4 compute_model_matrix(const glm::vec3& glm_pos, const glm::vec3& glm_rot)
 {
     auto model_identity = glm::mat4{ 1.0f };
@@ -35,4 +42,11 @@ inline glm::mat4 compute_model_matrix(const glm::vec3& glm_pos, const glm::vec3&
 {
     return compute_model_matrix(glm_pos, glm::quat(glm_rot), glm_scl);
 }
+
+inline glm::mat4 compute_model_matrix(const TRS& trs)
+{
+    return compute_model_matrix(trs.translation, trs.rotation, trs.scale);
+}
+
+
 } // namespace engine

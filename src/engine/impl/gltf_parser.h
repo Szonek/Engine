@@ -43,8 +43,7 @@ struct AnimationChannelInfo
     engine_animation_channel_type_t type = ENGINE_ANIMATION_CHANNEL_TYPE_COUNT;
     std::vector<float> timestamps;
     std::vector<float> data;
-    // target_node_idx is index of joint if animation is for skeleton
-    std::int32_t target_node_idx = -1;
+    std::int32_t target_joint_idx = -1;
 };
 
 struct AnimationClipInfo
@@ -55,12 +54,23 @@ struct AnimationClipInfo
 
 struct SkinInfo
 {
-    glm::mat4 matrix_transform;
     std::vector<SkinJointDesc> joints;
+};
+
+struct ModelNode
+{
+    std::string name{ "" };
+    std::int32_t mesh_index = -1;
+    std::int32_t skin_index = -1;
+    
+    glm::vec3 translate;
+    glm::vec3 scale;
+    glm::quat rotation;
 };
 
 struct ModelInfo
 {
+    std::vector<ModelNode> nodes;
     std::vector<GeometryInfo> geometries;
     std::vector<MaterialInfo> materials;
     std::vector<AnimationClipInfo> animations;
