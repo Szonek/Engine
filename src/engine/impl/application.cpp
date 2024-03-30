@@ -345,6 +345,32 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
 
     engine_model_desc_t ret{};
     ret.internal_handle = reinterpret_cast<const void*>(model_info);
+    
+    ret.nodes_count = static_cast<std::uint32_t>(model_info->nodes.size());
+    if (ret.nodes_count > 0)
+    {
+        ret.nodes_array = new engine_modeel_node_desc_t[ret.nodes_count];
+        for (std::size_t i = 0; i < ret.nodes_count; i++)
+        {
+            auto copy_arr = [](float* const arr, const auto& glm_vec)
+            {
+                for (auto i = 0; i < glm_vec.length(); i++)
+                {
+                    arr[i] = glm_vec[i];
+                }
+            };
+            const auto in_n = model_info->nodes.at(i);
+            auto& ret_n = ret.nodes_array[i];
+            ret_n.geometry_index = in_n.mesh;
+            ret_n.skin_index = in_n.skin;
+            ret_n.name = in_n.name.c_str();
+            
+            copy_arr(ret_n.translate, in_n.translation);
+            copy_arr(ret_n.rotation_quaternion, in_n.rotation);
+            copy_arr(ret_n.scale, in_n.scale);
+        }
+    }
+
     ret.geometries_count = static_cast<std::uint32_t>(model_info->geometries.size());
     if (ret.geometries_count > 0)
     {

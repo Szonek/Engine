@@ -13,60 +13,6 @@
 
 namespace
 {
-struct GltfNode
-{
-    inline static const std::int32_t INVALID_VALUE = -1;
-    std::string name = "";
-    std::int32_t index = INVALID_VALUE;
-    std::int32_t mesh = INVALID_VALUE;
-    std::int32_t skin = INVALID_VALUE;
-    GltfNode* parent = nullptr;
-    std::vector<GltfNode*> children = {};
-
-    glm::vec3 translation;
-    glm::vec3 scale = glm::vec3(1.0f);
-    glm::quat rotation;
-    glm::mat4 transform_matrix{ 1.0f };
-    glm::mat4 get_local_transform() const
-    {
-        return glm::translate(glm::mat4(1.0f), translation) * glm::mat4(rotation) * glm::scale(glm::mat4(1.0f), scale) * transform_matrix;
-    }
-};
-
-inline glm::mat4 get_node_transform(const GltfNode& node)
-{
-    auto node_matrix = node.get_local_transform();
-    auto current_parrent = node.parent;
-    while (current_parrent)
-    {
-        node_matrix = current_parrent->get_local_transform() * node_matrix;
-        current_parrent = current_parrent->parent;
-    }
-    return node_matrix;
-}
-
-inline void add_node_to_model_info_if_needed(const GltfNode& node, engine::ModelInfo& info)
-{
-    if (node.mesh != GltfNode::INVALID_VALUE || node.skin != GltfNode::INVALID_VALUE)
-    {
-        engine::ModelNode new_node{};
-        new_node.mesh_index = node.mesh;
-        new_node.skin_index = node.skin;
-        //new_node.matrix_transform = get_node_transform(node);
-        glm::decompose()
-        info.nodes.push_back(new_node);
-    }
-}
-
-inline void traverse_node_tree_and_add_nodes_to_model_info(const GltfNode& node, engine::ModelInfo& info)
-{
-    add_node_to_model_info_if_needed(node, info);
-    for (const auto& ch : node.children)
-    {
-        traverse_node_tree_and_add_nodes_to_model_info(*ch, info);
-    }
-}
-
 inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model)
 {
     // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_mesh_primitive_mode
@@ -330,7 +276,7 @@ inline engine::MaterialInfo parse_material(const tinygltf::Material& material, c
     return new_material;
 }
 
-inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::Model& model)
+inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::Model& model, std::vector<engine::ModelNode>& nodes)
 {
     engine::SkinInfo new_skin{};
     new_skin.joints.reserve(skin.joints.size());
@@ -358,6 +304,7 @@ inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::M
         const auto inv_bind_mtx_buffer_view = model.bufferViews[model.accessors[skin.inverseBindMatrices].bufferView];
         const auto inv_bind_mtx_buffer = reinterpret_cast<const float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);
         joint_info.inverse_bind_matrix = glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
+        nodes[node_id].joint = joint_info.idx;
         new_skin.joints.push_back(std::move(joint_info));
     }
     return new_skin;
@@ -482,7 +429,7 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     }
 
     // Dont resize this vector later, it will invalidate pointers of the nodes
-    std::vector<GltfNode> nodes(model.nodes.size());
+    std::vector<engine::ModelNode> nodes(model.nodes.size());
     std::vector<std::size_t> skins_root_nodes_idx{};
     std::vector<std::size_t> meshes_root_nodes_idx{};
     // Build all nodes first
@@ -508,7 +455,11 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         }
         if (!node.matrix.empty())
         {
-            n.transform_matrix = glm::make_mat4(node.matrix.data());
+            const auto transform_matrix = glm::mat4(glm::make_mat4(node.matrix.data()));
+            glm::vec3 skew;
+            glm::vec4 perspective;
+            const auto res = glm::decompose(transform_matrix, n.scale, n.rotation, n.translation, skew, perspective);
+            assert(res);
         }
 
         // hierarchy
@@ -521,11 +472,11 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             });
 
         // utility
-        if (n.skin != GltfNode::INVALID_VALUE)
+        if (n.skin != engine::ModelNode::INVALID_VALUE)
         {
             skins_root_nodes_idx.push_back(n.index);
         }
-        if (n.mesh != GltfNode::INVALID_VALUE)
+        if (n.mesh != engine::ModelNode::INVALID_VALUE)
         {
             meshes_root_nodes_idx.push_back(n.index);
         }
@@ -568,9 +519,9 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     else
     {
         out.skins.reserve(skins_root_nodes_idx.size());
-        std::for_each(model.skins.begin(), model.skins.end(), [&out, &model](const auto& skin)
+        std::for_each(model.skins.begin(), model.skins.end(), [&out, &model, &nodes](const auto& skin)
             {
-                out.skins.push_back(parse_skin(skin, model));
+                out.skins.push_back(parse_skin(skin, model, nodes));
             });
     }
     // animations
@@ -588,29 +539,10 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             });
     }
 
-    for (std::size_t scene_idx = 0; const auto& scene : model.scenes)
-    {
-        log::log(log::LogLevel::eTrace, fmt::format("Parsing scene: idx: {}, name: {}\n", scene_idx, scene.name).c_str());
-
-        if (scene.nodes.size() > 1)
-        {
-            log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi-node in single scene gltf parsing! \n").c_str());
-            return {};
-        }
-
-        for (const auto& scene_node_idx : scene.nodes)
-        {
-            const auto& node = nodes[scene_node_idx];
-            if (node.parent)
-            {
-                log::log(log::LogLevel::eCritical, fmt::format("Scene node dont support parents right now! \n").c_str());
-                return {};
-            }
-            traverse_node_tree_and_add_nodes_to_model_info(node, out);
-
-        }
-        scene_idx++;
-    }
+    // get rid of joint nodes as they are part of skeleton
+    nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
+        [](const ModelNode& n) { return n.joint != ModelNode::INVALID_VALUE; }), nodes.end());
+    out.nodes = nodes;
     return out;
 
 }

@@ -57,16 +57,23 @@ struct SkinInfo
     std::vector<SkinJointDesc> joints;
 };
 
+
 struct ModelNode
 {
-    std::string name{ "" };
-    std::int32_t mesh_index = -1;
-    std::int32_t skin_index = -1;
-    
-    glm::vec3 translate;
-    glm::vec3 scale;
+    inline static const std::int32_t INVALID_VALUE = -1;
+    std::string name = "";
+    std::int32_t index = INVALID_VALUE;
+    std::int32_t mesh = INVALID_VALUE;
+    std::int32_t skin = INVALID_VALUE;
+    std::int32_t joint = INVALID_VALUE;
+    ModelNode* parent = nullptr;
+    std::vector<ModelNode*> children = {};
+
+    glm::vec3 translation;
+    glm::vec3 scale = glm::vec3(1.0f);
     glm::quat rotation;
 };
+
 
 struct ModelInfo
 {

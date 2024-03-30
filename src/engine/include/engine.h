@@ -389,18 +389,21 @@ typedef struct _engine_skin_desc_t
     uint32_t joint_count;
 } engine_skin_desc_t;
 
-typedef struct _engine_modeel_node_t
+typedef struct _engine_modeel_node_desc_t
 {
+    const char* name;
     int32_t geometry_index;
     int32_t skin_index;
-    float local_transform[16];
-} engine_modeel_node_t;
+    float translate[3];
+    float scale[3];
+    float rotation_quaternion[4];
+} engine_modeel_node_desc_t;
 
 typedef struct _engine_model_desc_t
 {
     const void* internal_handle;
 
-    engine_modeel_node_t nodes_array;
+    engine_modeel_node_desc_t* nodes_array;
     uint32_t nodes_count;
 
     engine_geometry_desc_t* geometries_array;
