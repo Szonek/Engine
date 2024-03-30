@@ -40,7 +40,6 @@ extern "C"
 typedef uint32_t engine_game_object_t;
 #define ENGINE_INVALID_GAME_OBJECT_ID 0
 #define ENGINE_INVALID_OBJECT_HANDLE (UINT_MAX)
-#define ENGINE_INVALID_SKIN_JOINT_IDX (-1)
 typedef struct _engine_application_t* engine_application_t;
 typedef struct _engine_scene_t* engine_scene_t;
 typedef struct _engine_component_view_t* engine_component_view_t;
@@ -392,8 +391,8 @@ typedef struct _engine_skin_desc_t
 typedef struct _engine_modeel_node_desc_t
 {
     const char* name;
-    int32_t geometry_index;
-    int32_t skin_index;
+    uint32_t geometry_index;  // -1 if not used
+    uint32_t skin_index;      // -1 if not used
     float translate[3];
     float scale[3];
     float rotation_quaternion[4];

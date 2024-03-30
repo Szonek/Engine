@@ -13,13 +13,15 @@
 
 namespace engine
 {
+inline static const std::int32_t INVALID_VALUE = -1;
+
 struct GeometryInfo
 {
     engine_vertex_attributes_layout_t vertex_laytout{};
     std::vector<std::byte> vertex_data;
     std::int32_t vertex_count = 0;
     std::vector<std::uint32_t> indicies;
-    std::int32_t material_index = -1;
+    std::int32_t material_index = INVALID_VALUE;
 };
 
 struct TextureInfo
@@ -60,7 +62,7 @@ struct SkinInfo
 
 struct ModelNode
 {
-    inline static const std::int32_t INVALID_VALUE = -1;
+
     std::string name = "";
     std::int32_t index = INVALID_VALUE;
     std::int32_t mesh = INVALID_VALUE;

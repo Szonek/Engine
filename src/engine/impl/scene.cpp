@@ -135,7 +135,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
     {
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
         const auto glm_pos = glm::make_vec3(transform_component->position);
-        const auto glm_rot = glm::make_vec3(transform_component->rotation);
+        const auto glm_rot = glm::make_quat(transform_component->rotation);
         const auto glm_scl = glm::make_vec3(transform_component->scale);
 
         // if animaion is playing than we dont need to do below local_to_world math here

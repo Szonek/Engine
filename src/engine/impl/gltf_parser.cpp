@@ -472,11 +472,11 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             });
 
         // utility
-        if (n.skin != engine::ModelNode::INVALID_VALUE)
+        if (n.skin != engine::INVALID_VALUE)
         {
             skins_root_nodes_idx.push_back(n.index);
         }
-        if (n.mesh != engine::ModelNode::INVALID_VALUE)
+        if (n.mesh != engine::INVALID_VALUE)
         {
             meshes_root_nodes_idx.push_back(n.index);
         }
@@ -541,7 +541,7 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
 
     // get rid of joint nodes as they are part of skeleton
     nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
-        [](const ModelNode& n) { return n.joint != ModelNode::INVALID_VALUE; }), nodes.end());
+        [](const ModelNode& n) { return n.joint != engine::INVALID_VALUE; }), nodes.end());
     out.nodes = nodes;
     return out;
 

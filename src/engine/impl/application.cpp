@@ -359,7 +359,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
                     arr[i] = glm_vec[i];
                 }
             };
-            const auto in_n = model_info->nodes.at(i);
+            const auto& in_n = model_info->nodes.at(i);
             auto& ret_n = ret.nodes_array[i];
             ret_n.geometry_index = in_n.mesh;
             ret_n.skin_index = in_n.skin;
