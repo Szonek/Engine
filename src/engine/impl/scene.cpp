@@ -158,7 +158,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
 
     //ToDo: this coule be optimized if entityies are sorted, so parents are always computed first
     auto parent_to_child_transform_view = entity_registry_.view<engine_tranform_component_t, const engine_parent_component_t>();
-    parent_to_child_transform_view.each([this](auto entity, engine_tranform_component_t& transform_comp, const engine_parent_component_t& parent_comp)
+    parent_to_child_transform_view.each([this](engine_tranform_component_t& transform_comp, const engine_parent_component_t& parent_comp)
         {
             //engine::log::log(engine::log::LogLevel::eTrace, fmt::format("updating ent: {}\n", static_cast<std::uint32_t>(entity)));
             auto ltw_matrix = glm::make_mat4(transform_comp.local_to_world);
@@ -201,7 +201,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
     mesh_update_observer.clear();
 
     auto animation_view = entity_registry_.view<engine_tranform_component_t, engine_skin_internal_component_t, const engine_mesh_component_t, engine_animation_component_t>();
-    animation_view.each([&dt, &animations, &skins, this](auto entity, engine_tranform_component_t& transform, engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh, engine_animation_component_t& animation)
+    animation_view.each([&dt, &animations, &skins, this](engine_tranform_component_t&, engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh, engine_animation_component_t& animation)
         {
             //for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
             for (auto i = 0; i < 1; i++)

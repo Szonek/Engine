@@ -458,10 +458,10 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         }
         if (!node.rotation.empty())
         {
-            n.rotation.x = node.rotation[0];
-            n.rotation.y = node.rotation[1];
-            n.rotation.z = node.rotation[2];
-            n.rotation.w = node.rotation[3];
+            n.rotation.x = static_cast<float>(node.rotation[0]);
+            n.rotation.y = static_cast<float>(node.rotation[1]);
+            n.rotation.z = static_cast<float>(node.rotation[2]);
+            n.rotation.w = static_cast<float>(node.rotation[3]);
         }
         if (!node.matrix.empty())
         {
