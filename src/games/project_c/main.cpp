@@ -8,6 +8,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <SDL_system.h>
 #include <SDL_main.h>
@@ -54,6 +55,8 @@ public:
         camera_transform_comp.position[1] = 1.0f;
         camera_transform_comp.position[2] = 5.0f;
         engineSceneUpdateTransformComponent(scene_, go_, &camera_transform_comp);
+
+        sc_ = get_spherical_coordinates(camera_transform_comp.position);
     }
 
 
@@ -69,16 +72,16 @@ public:
             mouse_coords_prev_ = mouse_coords;
         }
 
-        constexpr const float rotation_speed = 5.0f;
+        const float move_speed = 1.0f * dt;
 
         if (engineApplicationIsMouseButtonDown(app_, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_LEFT))
         {
-            translate({ dx * rotation_speed, dy * rotation_speed, 0.0f });
+            rotate({ dx * move_speed, dy * move_speed});
         }
 
         if (engineApplicationIsMouseButtonDown(app_, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_RIGHT))
         {
-            translate({ 0.0f, 0.0f, dy * rotation_speed });
+            translate({ 0.0f, 0.0f, dy * move_speed });
         }
     }
 
@@ -93,11 +96,66 @@ private:
         engineSceneUpdateTransformComponent(scene_, go_, &tc);
     }
 
+    inline void rotate(const glm::vec2 delta)
+    {
+        // https://nerdhut.de/2020/05/09/unity-arcball-camera-spherical-coordinates/
+        if (delta.x!= 0 || delta.y != 0)
+        {
+            auto tc = engineSceneGetTransformComponent(scene_, go_);
+            // Rotate the camera left and right
+            sc_[1] += delta.x;
+
+            // Rotate the camera up and down
+            // Prevent the camera from turning upside down (1.5f = approx. Pi / 2)
+            sc_[2] = std::clamp(sc_[2] + delta.y, -1.5f, 1.5f);
+
+            const auto new_position = get_cartesian_coordinates(sc_);
+            auto cc = engineSceneGetCameraComponent(scene_, go_);
+            tc.position[0] = new_position[0] + cc.target[0];
+            tc.position[1] = new_position[1] + cc.target[1];
+            tc.position[2] = new_position[2] + cc.target[2];
+            engineSceneUpdateTransformComponent(scene_, go_, &tc);
+        }
+    }
+
+    inline auto get_spherical_coordinates(const auto& cartesian)
+    {
+        const float r = std::sqrt(
+            std::pow(cartesian[0], 2) +
+            std::pow(cartesian[1], 2) +
+            std::pow(cartesian[2], 2)
+        );
+
+
+        float phi = std::atan2(cartesian[2] / cartesian[0], cartesian[0]);
+        const float theta = std::acos(cartesian[1] / r);
+
+        if (cartesian[0] < 0)
+            phi += 3.1415f;
+
+        std::array<float, 3> ret{ 0.0f };
+        ret[0] = r;
+        ret[1] = phi;
+        ret[2] = theta;
+        return ret;
+    }
+
+    inline auto get_cartesian_coordinates(const auto& spherical)
+    {
+        std::array<float, 3> ret{ 0.0f };
+
+        ret[0] = spherical[0] * std::cos(spherical[2]) * std::cos(spherical[1]);
+        ret[1] = spherical[0] * std::sin(spherical[2]);
+        ret[2] = spherical[0] * std::cos(spherical[2]) * std::sin(spherical[1]);
+
+        return ret;
+    }
+
 private:
     engine_application_t app_ = nullptr;
     engine_scene_t scene_ = nullptr;
     engine_game_object_t go_ = ENGINE_INVALID_GAME_OBJECT_ID;
-
+    std::array<float, 3> sc_;
     engine_coords_2d_t mouse_coords_prev_{};
 };
 
