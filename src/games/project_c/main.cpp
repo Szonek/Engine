@@ -827,7 +827,7 @@ int main(int argc, char** argv)
             if (node.geometry_index != -1)
             {
                 auto material_comp = engineSceneAddMaterialComponent(new_test_scene, go);
-                set_c_array(material_comp.diffuse_color, std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 1.0f });
+                set_c_array(material_comp.diffuse_color, model_info.materials_array[0].diffuse_color);
                 material_comp.diffuse_texture = engineApplicationGetTextured2DByName(app, "diffuse");
                 engineSceneUpdateMaterialComponent(new_test_scene, go, &material_comp);
 

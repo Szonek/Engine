@@ -24,8 +24,7 @@ constexpr const bool K_IS_ANDROID = false;
 #endif
 
 
-template<typename T>
-inline void set_c_array(std::span<float> in, const T& data)
+inline void set_c_array(std::span<float> in, std::span<const float> data)
 {
     assert(in.size() == data.size());
     std::memcpy(in.data(), data.data(), in.size_bytes());
