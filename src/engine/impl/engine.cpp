@@ -311,7 +311,7 @@ engine_font_t engineApplicationGetFontByName(engine_application_t handle, const 
     return app->get_font(name);
 }
 
-engine_result_code_t engineApplicationAddGeometryFromDesc(engine_application_t handle, const engine_geometry_desc_t* desc, const char* name, engine_geometry_t* out)
+engine_result_code_t engineApplicationAddGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out)
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
     const auto ret = app->add_geometry(desc->vers_layout, desc->verts_count, { reinterpret_cast<const std::byte*>(desc->verts_data), desc->verts_data_size }, { desc->inds, desc->inds_count}, name);
@@ -332,7 +332,28 @@ engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle
     return app->get_geometry(name);
 }
 
-engine_result_code_t engineApplicationAddTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_desc_t* info, const char* name, engine_texture2d_t* out)
+engine_result_code_t engineApplicationAddMaterialFromDesc(engine_application_t handle, const engine_material_create_desc_t* desc, const char* name, engine_material_t* out)
+{
+    auto* app = reinterpret_cast<engine::Application*>(handle);
+    const auto ret = app->add_material(*desc, name);
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    if (out)
+    {
+        *out = ret;
+    }
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_material_t engineApplicationGetMaterialByName(engine_application_t handle, const char* name)
+{
+    const auto* app = application_cast(handle);
+    return app->get_material(name);
+}
+
+engine_result_code_t engineApplicationAddTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out)
 {
     auto* app = application_cast(handle);
     const auto ret =  app->add_texture(*info, name);
@@ -361,7 +382,7 @@ engine_texture2d_t engineApplicationGetTextured2DByName(engine_application_t han
     return app->get_texture(name);
 }
 
-engine_result_code_t engineApplicationAddSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const char* name, engine_skin_t* out)
+engine_result_code_t engineApplicationAddSkinFromDesc(engine_application_t handle, const engine_skin_create_desc_t* desc, const char* name, engine_skin_t* out)
 {
     auto* app = application_cast(handle);
     const auto ret = app->add_skin(*desc, name);
@@ -405,7 +426,7 @@ void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model
     app->release_model_desc(model_info);
 }
 
-engine_result_code_t engineApplicationAddAnimationClipFromDesc(engine_application_t handle, const engine_animation_clip_desc_t* info, const char* name, engine_animation_clip_t* out)
+engine_result_code_t engineApplicationAddAnimationClipFromDesc(engine_application_t handle, const engine_animation_clip_create_desc_t* info, const char* name, engine_animation_clip_t* out)
 {
     auto* app = application_cast(handle);
     if (!info || !name)

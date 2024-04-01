@@ -199,8 +199,8 @@ int main(int argc, char** argv)
     const auto load_start = std::chrono::high_resolution_clock::now();
     engine_model_desc_t model_info{};
     //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test_skin.gltf" : "test2.glb", &model_info);
-    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "riverdance_dance_free_animation.glb", &model_info);
-    //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "CesiumMan.gltf", &model_info);
+    //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "riverdance_dance_free_animation.glb", &model_info);
+    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "CesiumMan.gltf", &model_info);
     //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "Stag.gltf", &model_info);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {

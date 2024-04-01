@@ -11,7 +11,7 @@
 
 namespace
 {
-inline engine::SkinJointDesc to_skin_desc(const engine_skin_joint_desc_t& j)
+inline engine::SkinJointDesc to_skin_desc(const engine_skin_joint_create_desc_t& j)
 {
     engine::SkinJointDesc new_joint{};
     new_joint.idx = j.idx;
@@ -28,10 +28,10 @@ inline engine::SkinJointDesc to_skin_desc(const engine_skin_joint_desc_t& j)
 }
 }
 
-engine::Skin::Skin(std::span<const engine_skin_joint_desc_t> joints)
+engine::Skin::Skin(std::span<const engine_skin_joint_create_desc_t> joints)
 {
     // create joints and set their children
-    std::for_each(joints.begin(), joints.end(), [this](const engine_skin_joint_desc_t& j) 
+    std::for_each(joints.begin(), joints.end(), [this](const auto& j) 
         {
             joints_[j.idx] = to_skin_desc(j); 
         });

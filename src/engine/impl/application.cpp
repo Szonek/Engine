@@ -119,7 +119,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
 	{
 		//constexpr const std::array<std::uint8_t, 3> default_texture_color = { 160, 50, 168 };
 		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 255, 255, 255 };
-		engine_texture_2d_desc_t tex2d_desc{};
+		engine_texture_2d_create_desc_t tex2d_desc{};
 		tex2d_desc.width = 1;
 		tex2d_desc.height = 1;
         tex2d_desc.data_layout = ENGINE_DATA_LAYOUT_RGB_U8;
@@ -258,7 +258,7 @@ engine_application_frame_end_info_t engine::Application::end_frame()
 	return ret;
 }
 
-std::uint32_t engine::Application::add_texture(const engine_texture_2d_desc_t& desc, std::string_view texture_name)
+std::uint32_t engine::Application::add_texture(const engine_texture_2d_create_desc_t& desc, std::string_view texture_name)
 {
     const auto data_layout = [](const auto engine_api_layout)
     {
@@ -311,7 +311,7 @@ std::uint32_t engine::Application::get_geometry(std::string_view name) const
     return geometries_atlas_.get_object(name);
 }
 
-std::uint32_t engine::Application::add_animation_clip(const engine_animation_clip_desc_t& desc, std::string_view name)
+std::uint32_t engine::Application::add_animation_clip(const engine_animation_clip_create_desc_t& desc, std::string_view name)
 {
     return animations_atlas_.add_object(name, AnimationClip(desc));
 }
@@ -322,7 +322,7 @@ std::uint32_t engine::Application::get_animation_clip(std::string_view name) con
 }
 
 
-std::uint32_t engine::Application::add_skin(const engine_skin_desc_t& desc, std::string_view name)
+std::uint32_t engine::Application::add_skin(const engine_skin_create_desc_t& desc, std::string_view name)
 {
     return skins_atlas_.add_object(name, Skin({desc.joints, desc.joint_count}));
 }
@@ -330,6 +330,16 @@ std::uint32_t engine::Application::add_skin(const engine_skin_desc_t& desc, std:
 std::uint32_t engine::Application::get_skin(std::string_view name) const
 {
     return skins_atlas_.get_object(name);
+}
+
+std::uint32_t engine::Application::add_material(const engine_material_create_desc_t& desc, std::string_view name)
+{
+    return materials_atlas_.add_object(name, engine_material_create_desc_t(desc));
+}
+
+std::uint32_t engine::Application::get_material(std::string_view name) const
+{
+    return materials_atlas_.get_object(name);
 }
 
 engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_specification_t spec, std::string_view name)
@@ -383,7 +393,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     ret.geometries_count = static_cast<std::uint32_t>(model_info->geometries.size());
     if (ret.geometries_count > 0)
     {
-        ret.geometries_array = new engine_geometry_desc_t[ret.geometries_count];
+        ret.geometries_array = new engine_geometry_create_desc_t[ret.geometries_count];
 
         for (std::size_t i = 0; i < ret.geometries_count; i++)
         {
@@ -404,7 +414,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     ret.materials_count = static_cast<std::uint32_t>(model_info->materials.size());
     if (ret.materials_count > 0)
     {
-        ret.materials_array = new engine_material_desc_t[ret.materials_count];
+        ret.materials_array = new engine_material_create_desc_t[ret.materials_count];
 
         for (std::size_t i = 0; i < ret.materials_count; i++)
         {
@@ -422,12 +432,12 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     ret.animations_counts = static_cast<std::uint32_t>(model_info->animations.size());
     if (ret.animations_counts > 0)
     {
-        ret.animations_array = new engine_animation_clip_desc_t[ret.animations_counts];
+        ret.animations_array = new engine_animation_clip_create_desc_t[ret.animations_counts];
         for (std::uint32_t i = 0; i < ret.animations_counts; i++)
         {
             auto& anim = ret.animations_array[i];
             anim.channels_count = static_cast<std::uint32_t>(model_info->animations[i].channels.size());
-            anim.channels = new engine_animation_channel_t[anim.channels_count];
+            anim.channels = new engine_animation_channel_create_desc_t[anim.channels_count];
             for (std::uint32_t ch_i = 0; ch_i < anim.channels_count; ch_i++)
             {
                 const auto& in_ch = model_info->animations[i].channels[ch_i];
@@ -447,12 +457,12 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     ret.skins_counts = static_cast<std::uint32_t>(model_info->skins.size());
     if (ret.skins_counts > 0)
     {
-        ret.skins_array = new engine_skin_desc_t[ret.skins_counts];
+        ret.skins_array = new engine_skin_create_desc_t[ret.skins_counts];
         for (std::uint32_t i = 0; i < ret.skins_counts; i++)
         {
             auto& skin = ret.skins_array[i];
             skin.joint_count = static_cast<std::uint32_t>(model_info->skins[i].joints.size());
-            skin.joints = new engine_skin_joint_desc_t[skin.joint_count];
+            skin.joints = new engine_skin_joint_create_desc_t[skin.joint_count];
             for (std::uint32_t j = 0; j < skin.joint_count; j++)
             {
                 const auto& in_join = model_info->skins[i].joints[j];

@@ -36,7 +36,7 @@ class Skin
 {
 public:
     Skin() = default;
-    Skin(std::span<const engine_skin_joint_desc_t> joints);
+    Skin(std::span<const engine_skin_joint_create_desc_t> joints);
     Skin(const Skin&) = delete;
     Skin(Skin&& rhs) noexcept = default;
     Skin& operator=(const Skin& rhs) = delete;

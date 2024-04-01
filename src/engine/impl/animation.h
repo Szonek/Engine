@@ -22,7 +22,7 @@ class AnimationClip
 public:
     
     AnimationClip() = default;
-    AnimationClip(const engine_animation_clip_desc_t& desc);
+    AnimationClip(const engine_animation_clip_create_desc_t& desc);
     AnimationClip(const AnimationClip&) = delete;
     AnimationClip(AnimationClip&& rhs) noexcept = default;
     AnimationClip& operator=(const AnimationClip& rhs) = delete;
