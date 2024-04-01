@@ -96,9 +96,7 @@ inline void camera_component_init(engine_camera_component_t* comp)
 inline void material_component_init(engine_material_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_material_component_t));
-    comp->shiness = 32;
-    comp->diffuse_texture = ENGINE_INVALID_OBJECT_HANDLE;
-    comp->specular_texture = ENGINE_INVALID_OBJECT_HANDLE;
+    comp->material = ENGINE_INVALID_OBJECT_HANDLE;
 }
 
 inline void animation_component_init(engine_animation_component_t* comp)

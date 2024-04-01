@@ -237,7 +237,32 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
     return ret;
 }
 
-inline engine::MaterialInfo parse_material(const tinygltf::Material& material, const tinygltf::Model& model)
+inline engine::TextureInfo parse_texture(const tinygltf::Texture& texture, const tinygltf::Model& model)
+{
+    const auto& tex = model.images[texture.source];
+    engine::TextureInfo tex_info{};
+    tex_info.name = tex.name;
+    tex_info.width = tex.width;
+    tex_info.height = tex.height;
+    tex_info.layout = ENGINE_DATA_LAYOUT_COUNT;
+    if (tex.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+    {
+        if (tex.component == 4)
+        {
+            tex_info.layout = ENGINE_DATA_LAYOUT_RGBA_U8;
+        }
+        else if (tex.component == 3)
+        {
+            tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
+        }
+    }
+    assert(tex_info.layout != ENGINE_DATA_LAYOUT_COUNT);
+    tex_info.data.resize(tex.image.size());
+    std::memcpy(tex_info.data.data(), tex.image.data(), tex_info.data.size());
+    return tex_info;
+}
+
+inline engine::MaterialInfo parse_material(const tinygltf::Material& material)
 {
     engine::MaterialInfo new_material{};
     new_material.name = material.name;
@@ -247,33 +272,7 @@ inline engine::MaterialInfo parse_material(const tinygltf::Material& material, c
         new_material.diffuse_factor[c] = static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[c]);
     }
     // copy diffuse texture
-    auto diffuse_texture_index = material.pbrMetallicRoughness.baseColorTexture.index;
-    if (diffuse_texture_index >= 0)
-    {
-        const auto& tex = model.images[diffuse_texture_index];
-        engine::TextureInfo tex_info{};
-        tex_info.name = tex.name;
-        tex_info.width = tex.width;
-        tex_info.height = tex.height;
-        tex_info.layout = ENGINE_DATA_LAYOUT_COUNT;
-        if (tex.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
-        {
-            if (tex.component == 4)
-            {
-                tex_info.layout = ENGINE_DATA_LAYOUT_RGBA_U8;
-            }
-            else if (tex.component == 3)
-            {
-                tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
-            }
-        }
-        assert(tex_info.layout != ENGINE_DATA_LAYOUT_COUNT);
-        tex_info.data.resize(tex.image.size());
-        std::memcpy(tex_info.data.data(), tex.image.data(), tex_info.data.size());
-
-        // attach texture to new material;
-        new_material.diffuse_texture = std::move(tex_info);
-    }
+    new_material.diffuse_texture = material.pbrMetallicRoughness.baseColorTexture.index;
     return new_material;
 }
 
@@ -494,6 +493,14 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         }
     }
     engine::ModelInfo out{};
+
+    // textures
+    out.textures.reserve(model.textures.size());
+    std::for_each(model.textures.begin(), model.textures.end(), [&out, &model](const auto& texture)
+        {
+            out.textures.push_back(parse_texture(texture, model));
+        });
+
     // materials
     if (model.materials.size() > 1)
     {
@@ -503,9 +510,9 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     else
     {
         out.materials.reserve(model.materials.size());
-        std::for_each(model.materials.begin(), model.materials.end(), [&out, &model](const auto& material)
+        std::for_each(model.materials.begin(), model.materials.end(), [&out](const auto& material)
             {
-                out.materials.push_back(parse_material(material, model));
+                out.materials.push_back(parse_material(material));
             });
     }
     // meshes

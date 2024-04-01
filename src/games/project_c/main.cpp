@@ -208,7 +208,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    std::vector<engine_geometry_t> geometries(model_info.geometries_count);
+    std::vector<engine_geometry_t> geometries(model_info.geometries_count, ENGINE_INVALID_OBJECT_HANDLE);
     if (model_info.geometries_count > 0)
     {
         assert(model_info.geometries_count == 1);
@@ -221,18 +221,41 @@ int main(int argc, char** argv)
         }
     }
 
+    std::vector<engine_texture2d_t> textures(model_info.textures_count, ENGINE_INVALID_OBJECT_HANDLE);
+    if (model_info.textures_count > 0)
+    {
+        for (std::uint32_t i = 0; i < model_info.textures_count; i++)
+        {
+            const auto name = "unnamed_texture_" + std::to_string(i);
+            engine_error_code = engineApplicationAddTexture2DFromDesc(app, &model_info.textures_array[i], name.c_str(), &textures[i]);
+            if (engine_error_code != ENGINE_RESULT_CODE_OK)
+            {
+                engineLog("Failed creating texture for loaded model. Exiting!\n");
+                return -1;
+            }
+        }
+    }
+
+    std::vector<engine_material_t> materials(model_info.materials_count, ENGINE_INVALID_OBJECT_HANDLE);
     if (model_info.materials_count > 0)
     {
         assert(model_info.materials_count == 1);
-        const auto& mat = model_info.materials_array[0];
-        if (mat.diffuse_texture_info.data)
+        for (std::uint32_t i = 0; i < model_info.materials_count; i++)
         {
-            engine_error_code = engineApplicationAddTexture2DFromDesc(app, &mat.diffuse_texture_info, "diffuse", nullptr);
-        }
-        if (engine_error_code != ENGINE_RESULT_CODE_OK)
-        {
-            engineLog("Failed creating textured for loaded model. Exiting!\n");
-            return -1;
+            const auto& mat = model_info.materials_array[i];
+            engine_material_create_desc_t mat_create_desc{};
+            set_c_array(mat_create_desc.diffuse_color, mat.diffuse_color);
+            if (mat.diffuse_texture_index != 1)
+            {
+                mat_create_desc.diffuse_texture = textures.at(mat.diffuse_texture_index);
+            }
+            engine_error_code = engineApplicationAddMaterialFromDesc(app, &mat_create_desc, mat.name, &materials[i]);
+
+            if (engine_error_code != ENGINE_RESULT_CODE_OK)
+            {
+                engineLog("Failed creating textured for loaded model. Exiting!\n");
+                return -1;
+            }
         }
     }
 
@@ -322,22 +345,21 @@ int main(int argc, char** argv)
             }
 
             // if mesh is present then definitly we need some material to render it
-            if (node.geometry_index != -1)
+            if (node.material_index != -1)
             {
                 auto material_comp = engineSceneAddMaterialComponent(new_test_scene, go);
-                set_c_array(material_comp.diffuse_color, model_info.materials_array[0].diffuse_color);
-                material_comp.diffuse_texture = engineApplicationGetTextured2DByName(app, "diffuse");
+                material_comp.material = materials.at(node.material_index);
                 engineSceneUpdateMaterialComponent(new_test_scene, go, &material_comp);
 
                 // animations
-                auto anim_comp = engineSceneAddAnimationComponent(new_test_scene, go);
-                anim_comp.animations_array[0] = engineApplicationGetAnimationClipByName(app, "animation");
-                engineSceneUpdateAnimationComponent(new_test_scene, go, &anim_comp);
+                //auto anim_comp = engineSceneAddAnimationComponent(new_test_scene, go);
+                //anim_comp.animations_array[0] = engineApplicationGetAnimationClipByName(app, "animation");
+                //engineSceneUpdateAnimationComponent(new_test_scene, go, &anim_comp);
             }
         }
     }
 
-    //engineApplicationReleaseModelInfo(app, &model_info);
+    engineApplicationReleaseModelDesc(app, &model_info);
     const auto load_end = std::chrono::high_resolution_clock::now();
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
     log(fmt::format("Model loading took: {}\n", ms_load_time));

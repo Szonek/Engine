@@ -373,7 +373,7 @@ typedef struct _engine_animation_clip_create_desc_t
 typedef struct _engine_material_create_desc_t
 {
     float diffuse_color[4];
-    engine_texture_2d_create_desc_t diffuse_texture_info;
+    engine_texture2d_t diffuse_texture;
 } engine_material_create_desc_t;
 
 typedef struct _engine_skin_joint_create_desc_t
@@ -394,12 +394,20 @@ typedef struct _engine_skin_reate_desc_t
     uint32_t joint_count;
 } engine_skin_create_desc_t;
 
+typedef struct _engine_model_material_desc_t
+{
+    const char* name;
+    float diffuse_color[4];
+    uint32_t diffuse_texture_index;  // -1 if not used
+} engine_model_material_desc_t;
+
 typedef struct _engine_model_node_desc_t
 {
     const char* name;
     struct _engine_model_node_desc_t* parent; // nullptr if no parent
     uint32_t geometry_index;  // -1 if not used
     uint32_t skin_index;      // -1 if not used
+    uint32_t material_index;  // -1 if not used
     float translate[3];
     float scale[3];
     float rotation_quaternion[4];
@@ -415,8 +423,11 @@ typedef struct _engine_model_desc_t
     engine_geometry_create_desc_t* geometries_array;
     uint32_t geometries_count;
 
-    engine_material_create_desc_t* materials_array;
+    engine_model_material_desc_t* materials_array;
     uint32_t materials_count;
+
+    engine_texture_2d_create_desc_t* textures_array;
+    uint32_t textures_count;
 
     engine_animation_clip_create_desc_t* animations_array;
     uint32_t animations_counts;

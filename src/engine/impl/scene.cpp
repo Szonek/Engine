@@ -128,7 +128,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 }
 
 engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::span<const Texture2D> textures, 
-    std::span<const Geometry> geometries, std::span<const AnimationClip> animations, std::span<const Skin> skins)
+    std::span<const Geometry> geometries, std::span<const AnimationClip> animations, std::span<const Skin> skins, std::span<const engine_material_create_desc_t> materials)
 {
 #if 1
     auto transform_view = entity_registry_.view<engine_tranform_component_t>();
@@ -291,7 +291,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         }
 
         //rdx.set_polygon_mode(RenderContext::PolygonFaceType::eFrontAndBack, RenderContext::PolygonMode::eLine);
-        geometry_renderet.each([this, &view, &projection, &rdx, &textures, &geometries](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material, const engine_skin_internal_component_t& skin)
+        geometry_renderet.each([this, &view, &projection, &rdx, &textures, &geometries, &materials](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material_component, const engine_skin_internal_component_t& skin)
             {
                 if (mesh.disable)
                 {
@@ -301,7 +301,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                 /*
                 * This is not perfect. Probably we want (for optimization purposes) sort meshes by shader used to have too many shader switches and rebining the same data over and over (i.e. view and projection).
                 */
-                auto bind_and_set_common_variables = [&](Shader& shader)
+                auto bind_and_set_common_variables = [&](Shader& shader, const engine_material_create_desc_t& material)
                 {
                     shader.bind();
                     shader.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
@@ -313,13 +313,14 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                     shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
                 };  
 
+                const auto& material = materials[material_component.material];
                 if (mesh.skin == ENGINE_INVALID_OBJECT_HANDLE)
                 {
-                    bind_and_set_common_variables(shader_simple_);
+                    bind_and_set_common_variables(shader_simple_, material);
                 }
                 else
                 {
-                    bind_and_set_common_variables(shader_vertex_skinning_);
+                    bind_and_set_common_variables(shader_vertex_skinning_, material);
 
                     const auto& per_bone_animation_data = skin.bone_animation_transform;
                     assert(per_bone_animation_data.size() < 64); // MAX_BONES = 64 in shader!
