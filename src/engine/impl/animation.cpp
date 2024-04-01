@@ -75,9 +75,9 @@ namespace
 
 }// namespace anonymous
 
-engine::AnimationClip::AnimationClip(const engine_animation_clip_desc_t& desc)
+engine::AnimationClip::AnimationClip(const engine_animation_clip_create_desc_t& desc)
 {
-    auto fill_timestamp_data_to_vector = [](std::vector<float>& timestampts, const engine_animation_channel_t& channel)
+    auto fill_timestamp_data_to_vector = [](std::vector<float>& timestampts, const auto& channel)
     {
         timestampts.resize(channel.timestamps_count);
         for (std::size_t i = 0; i < timestampts.size(); i++)
@@ -86,7 +86,7 @@ engine::AnimationClip::AnimationClip(const engine_animation_clip_desc_t& desc)
         }
     };
 
-    auto fill_animation_node_data = [this, &fill_timestamp_data_to_vector](const engine_animation_channel_t& channel)
+    auto fill_animation_node_data = [this, &fill_timestamp_data_to_vector](const auto& channel)
     {
         auto& node = nodes_[channel.target_joint_idx];
 
@@ -173,11 +173,6 @@ float engine::AnimationClip::get_duration() const
 
 bool engine::AnimationClip::compute_animation_model_matrix(std::span<TRS> animation_data, float animation_timer) const
 {
-    if (nodes_.size() != animation_data.size())
-    {
-        engine::log::log(log::LogLevel::eError, "Nodes sizes doesnt match animation data size!. Cant compute animation model matrix.\n");
-        return false;
-    }
     for (const auto& [node_idx, anim_data] : nodes_)
     {
         animation_data[node_idx].translation = compute_animation_translation(anim_data.transform, animation_timer);

@@ -37,7 +37,7 @@ struct MaterialInfo
 {
     std::string name;
     std::array<float, 4> diffuse_factor;
-    TextureInfo diffuse_texture;
+    std::int32_t diffuse_texture = INVALID_VALUE;
 };
 
 struct AnimationChannelInfo
@@ -52,6 +52,7 @@ struct AnimationClipInfo
 {
     std::string name;
     std::vector<AnimationChannelInfo> channels;
+    std::int32_t skin = INVALID_VALUE;
 };
 
 struct SkinInfo
@@ -82,6 +83,7 @@ struct ModelInfo
     std::vector<ModelNode> nodes;
     std::vector<GeometryInfo> geometries;
     std::vector<MaterialInfo> materials;
+    std::vector<TextureInfo> textures;
     std::vector<AnimationClipInfo> animations;
     std::vector<SkinInfo> skins;
 };

@@ -17,7 +17,10 @@ add_subdirectory(glm)
 # entt
 add_subdirectory(entt)
 
-# entt
+# rapidJson
+add_subdirectory(rapidjson)
+
+# asio
 add_library(asio INTERFACE)
 target_include_directories(asio INTERFACE "asio/asio/include")
 

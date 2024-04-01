@@ -237,7 +237,32 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
     return ret;
 }
 
-inline engine::MaterialInfo parse_material(const tinygltf::Material& material, const tinygltf::Model& model)
+inline engine::TextureInfo parse_texture(const tinygltf::Texture& texture, const tinygltf::Model& model)
+{
+    const auto& tex = model.images[texture.source];
+    engine::TextureInfo tex_info{};
+    tex_info.name = tex.name;
+    tex_info.width = tex.width;
+    tex_info.height = tex.height;
+    tex_info.layout = ENGINE_DATA_LAYOUT_COUNT;
+    if (tex.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+    {
+        if (tex.component == 4)
+        {
+            tex_info.layout = ENGINE_DATA_LAYOUT_RGBA_U8;
+        }
+        else if (tex.component == 3)
+        {
+            tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
+        }
+    }
+    assert(tex_info.layout != ENGINE_DATA_LAYOUT_COUNT);
+    tex_info.data.resize(tex.image.size());
+    std::memcpy(tex_info.data.data(), tex.image.data(), tex_info.data.size());
+    return tex_info;
+}
+
+inline engine::MaterialInfo parse_material(const tinygltf::Material& material)
 {
     engine::MaterialInfo new_material{};
     new_material.name = material.name;
@@ -247,33 +272,7 @@ inline engine::MaterialInfo parse_material(const tinygltf::Material& material, c
         new_material.diffuse_factor[c] = static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[c]);
     }
     // copy diffuse texture
-    auto diffuse_texture_index = material.pbrMetallicRoughness.baseColorTexture.index;
-    if (diffuse_texture_index >= 0)
-    {
-        const auto& tex = model.images[diffuse_texture_index];
-        engine::TextureInfo tex_info{};
-        tex_info.name = tex.name;
-        tex_info.width = tex.width;
-        tex_info.height = tex.height;
-        tex_info.layout = ENGINE_DATA_LAYOUT_COUNT;
-        if (tex.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
-        {
-            if (tex.component == 4)
-            {
-                tex_info.layout = ENGINE_DATA_LAYOUT_RGBA_U8;
-            }
-            else if (tex.component == 3)
-            {
-                tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
-            }
-        }
-        assert(tex_info.layout != ENGINE_DATA_LAYOUT_COUNT);
-        tex_info.data.resize(tex.image.size());
-        std::memcpy(tex_info.data.data(), tex.image.data(), tex_info.data.size());
-
-        // attach texture to new material;
-        new_material.diffuse_texture = std::move(tex_info);
-    }
+    new_material.diffuse_texture = material.pbrMetallicRoughness.baseColorTexture.index;
     return new_material;
 }
 
@@ -286,6 +285,7 @@ inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::M
         const auto node_id = skin.joints[i];
         engine::SkinJointDesc joint_info{};
         joint_info.idx = static_cast<std::int32_t>(i);
+
         for (const auto& c : model.nodes[node_id].children)
         {
             const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), c);
@@ -342,23 +342,33 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
         }
 
         auto& new_channel = new_animation.channels[ch_idx++];
-        new_channel.target_joint_idx = 0;
-        if (model.skins.size() > 0)
+        new_channel.target_joint_idx = engine::INVALID_VALUE;
+        //new_channel.target_joint_idx = ch.target_node;
+        for (auto skn_i = 0; skn_i < model.skins.size(); skn_i++)
         {
-            const auto& skin = model.skins[0];
+            const auto& skin = model.skins[skn_i];
 
             const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), ch.target_node);
             if (fnd_itr != std::end(skin.joints))
             {
+                if (new_animation.skin == engine::INVALID_VALUE)
+                {
+                    new_animation.skin = static_cast<std::int32_t>(skn_i);
+                }
+                else
+                {
+                    assert(new_animation.skin == static_cast<std::int32_t>(skn_i));
+                }
                 const auto dst_itr = std::distance(skin.joints.begin(), fnd_itr);
                 new_channel.target_joint_idx = static_cast<int32_t>(dst_itr);
             }
-            else
-            {
-                //assert(false);
-                engine::log::log(engine::log::LogLevel::eError, fmt::format("Animated node is not a joint. Probably animation will be parsed with bugs. \n").c_str());
-            }
         }
+
+        if (new_channel.target_joint_idx == engine::INVALID_VALUE)
+        {
+            engine::log::log(engine::log::LogLevel::eError, fmt::format("Animated node is not a joint. Probably animation will be parsed with bugs. \n").c_str());
+        }
+
         if (ch.target_path.compare("rotation") == 0)
         {
             new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION;
@@ -387,6 +397,12 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
         const auto& buffer_data = reinterpret_cast<const float*>(model.buffers[buffer_view_data.buffer].data.data() + accessor_data.byteOffset + buffer_view_data.byteOffset);
         std::memcpy(new_channel.data.data(), buffer_data, new_channel.data.size() * sizeof(float));
     }
+
+    // erase any invalid channels
+    new_animation.channels.erase(std::remove_if(new_animation.channels.begin(), new_animation.channels.end(), [](const engine::AnimationChannelInfo& c) {
+        return c.target_joint_idx == engine::INVALID_VALUE;
+        }), new_animation.channels.end());
+
     return new_animation;
 }
 
@@ -494,6 +510,14 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         }
     }
     engine::ModelInfo out{};
+
+    // textures
+    out.textures.reserve(model.textures.size());
+    std::for_each(model.textures.begin(), model.textures.end(), [&out, &model](const auto& texture)
+        {
+            out.textures.push_back(parse_texture(texture, model));
+        });
+
     // materials
     if (model.materials.size() > 1)
     {
@@ -503,9 +527,9 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     else
     {
         out.materials.reserve(model.materials.size());
-        std::for_each(model.materials.begin(), model.materials.end(), [&out, &model](const auto& material)
+        std::for_each(model.materials.begin(), model.materials.end(), [&out](const auto& material)
             {
-                out.materials.push_back(parse_material(material, model));
+                out.materials.push_back(parse_material(material));
             });
     }
     // meshes
