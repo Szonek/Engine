@@ -351,6 +351,8 @@ int main(int argc, char** argv)
                 material_comp.material = materials.at(node.material_index);
                 engineSceneUpdateMaterialComponent(new_test_scene, go, &material_comp);
 
+                //ToDo fix animations
+                // skin should have index pointing to animations...
                 // animations
                 //auto anim_comp = engineSceneAddAnimationComponent(new_test_scene, go);
                 //anim_comp.animations_array[0] = engineApplicationGetAnimationClipByName(app, "animation");

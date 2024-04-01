@@ -127,6 +127,16 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
         default_texture_idx_ = add_texture(tex2d_desc, "default_1x1_texutre");
 	}
 
+    {
+        engine_material_create_desc_t default_material{};
+        for (int i = 0; i < 4; i++)
+        {
+            default_material.diffuse_color[i] = 1.0f;
+        }
+        default_material.diffuse_texture = default_texture_idx_;
+        add_material(default_material, "default_material");
+    }
+
     rdx_.set_clear_color(0.05f, 0.0f, 0.2f, 1.0f);
 
 	timer_.tick();

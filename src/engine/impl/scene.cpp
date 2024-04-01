@@ -313,7 +313,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
                     shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
                 };  
 
-                const auto& material = materials[material_component.material];
+                const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
                 if (mesh.skin == ENGINE_INVALID_OBJECT_HANDLE)
                 {
                     bind_and_set_common_variables(shader_simple_, material);
