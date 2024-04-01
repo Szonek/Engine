@@ -679,8 +679,8 @@ int main(int argc, char** argv)
     const auto load_start = std::chrono::high_resolution_clock::now();
     //engine_model_info_t model_info{};
     //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test_skin.gltf" : "test2.glb", &model_info);
-    //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "riverdance_dance_free_animation.glb", &model_info);
-    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "CesiumMan.gltf", &model_info);
+    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "riverdance_dance_free_animation.glb", &model_info);
+    //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "CesiumMan.gltf", &model_info);
     //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "Stag.gltf", &model_info);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
@@ -754,28 +754,79 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    // add camera
+    class Camera
     {
-        const auto go = engineSceneCreateGameObject(new_test_scene);
-        auto camera_comp = engineSceneAddCameraComponent(new_test_scene, go);
-        camera_comp.enabled = true;
-        camera_comp.clip_plane_near = 0.1f;
-        camera_comp.clip_plane_far = 1000.0f;
-        camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
-        camera_comp.type_union.perspective_fov = 45.0f;
+    public:
+        Camera(engine_application_t app, engine_scene_t scene)
+            : app_(app)
+            , scene_(scene)
+        {
+            go_ = engineSceneCreateGameObject(scene_);
+            auto camera_comp = engineSceneAddCameraComponent(scene_, go_);
+            camera_comp.enabled = true;
+            camera_comp.clip_plane_near = 0.1f;
+            camera_comp.clip_plane_far = 1000.0f;
+            camera_comp.type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
+            camera_comp.type_union.perspective_fov = 45.0f;
 
-        camera_comp.target[0] = 0.0f;
-        camera_comp.target[1] = 0.0f;
-        camera_comp.target[2] = 0.0f;
+            camera_comp.target[0] = 0.0f;
+            camera_comp.target[1] = 0.0f;
+            camera_comp.target[2] = 0.0f;
 
-        engineSceneUpdateCameraComponent(new_test_scene, go, &camera_comp);
+            engineSceneUpdateCameraComponent(scene_, go_, &camera_comp);
 
-        auto camera_transform_comp = engineSceneAddTransformComponent(new_test_scene, go);
-        camera_transform_comp.position[0] = 0.0f;
-        camera_transform_comp.position[1] = 1.0f;
-        camera_transform_comp.position[2] = 5.0f;
-        engineSceneUpdateTransformComponent(new_test_scene, go, &camera_transform_comp);
-    }
+            auto camera_transform_comp = engineSceneAddTransformComponent(scene_, go_);
+            camera_transform_comp.position[0] = 0.0f;
+            camera_transform_comp.position[1] = 1.0f;
+            camera_transform_comp.position[2] = 5.0f;
+            engineSceneUpdateTransformComponent(scene_, go_, &camera_transform_comp);
+        }
+
+
+        void update(float dt)
+        {
+            const auto mouse_coords = engineApplicationGetMouseCoords(app_);
+
+            const auto dx = mouse_coords.x - mouse_coords_prev_.x;
+            const auto dy = mouse_coords.y - mouse_coords_prev_.y;
+
+            if (mouse_coords.x != mouse_coords_prev_.x || mouse_coords.y != mouse_coords_prev_.y)
+            {
+                mouse_coords_prev_ = mouse_coords;
+            }
+
+            constexpr const float rotation_speed = 5.0f;
+
+            if (engineApplicationIsMouseButtonDown(app_, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_LEFT))
+            {
+                translate({ dx * rotation_speed, dy * rotation_speed, 0.0f });
+            }
+
+            if (engineApplicationIsMouseButtonDown(app_, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_RIGHT))
+            {
+                translate({ 0.0f, 0.0f, dy * rotation_speed });
+            }
+        }
+
+    private:
+        inline void translate(const glm::vec3& delta)
+        {
+            auto tc = engineSceneGetTransformComponent(scene_, go_);
+            for (int i = 0; i < std::size(tc.position); i++)
+            {
+                tc.position[i] += delta[i];
+            }
+            engineSceneUpdateTransformComponent(scene_, go_, &tc);
+        }
+
+    private:
+        engine_application_t app_ = nullptr;
+        engine_scene_t scene_ = nullptr;
+        engine_game_object_t go_ = ENGINE_INVALID_GAME_OBJECT_ID;
+
+        engine_coords_2d_t mouse_coords_prev_{};
+    };
+    Camera camera(app, new_test_scene);
 
     // add nodes
     std::map<const engine_model_node_desc_t*, engine_game_object_t> model_game_objects{};
@@ -879,8 +930,6 @@ int main(int argc, char** argv)
     };
     fps_counter_t fps_counter{};
 
-    auto mouse_coords_prev = engine_coords_2d_t{};
-
 	while (true)
 	{
 		const auto frame_begin = engineApplicationFrameBegine(app);
@@ -897,13 +946,6 @@ int main(int argc, char** argv)
 			break;
 		}
 
-        const auto mouse_coords = engineApplicationGetMouseCoords(app);
-        if (mouse_coords.x != mouse_coords_prev.x || mouse_coords.y != mouse_coords_prev.y)
-        {
-            //log(std::format("Mouse coord x,y: [{}, {}]\n", mouse_coords.x, mouse_coords.y));
-            mouse_coords_prev = mouse_coords;
-        }
-
         fps_counter.frames_count += 1;
         fps_counter.frames_total_time += frame_begin.delta_time;
         if (fps_counter.frames_total_time > 1000.0f)
@@ -916,6 +958,8 @@ int main(int argc, char** argv)
 
         //scene_manager.update(frame_begin.delta_time);
        
+        camera.update(frame_begin.delta_time);
+
         if (engineSceneHasAnimationComponent(new_test_scene, go_with_animation))
         {
             auto anim_comp = engineSceneGetAnimationComponent(new_test_scene, go_with_animation);
