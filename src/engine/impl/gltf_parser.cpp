@@ -285,6 +285,7 @@ inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::M
         const auto node_id = skin.joints[i];
         engine::SkinJointDesc joint_info{};
         joint_info.idx = static_cast<std::int32_t>(i);
+
         for (const auto& c : model.nodes[node_id].children)
         {
             const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), c);
@@ -396,6 +397,12 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
         const auto& buffer_data = reinterpret_cast<const float*>(model.buffers[buffer_view_data.buffer].data.data() + accessor_data.byteOffset + buffer_view_data.byteOffset);
         std::memcpy(new_channel.data.data(), buffer_data, new_channel.data.size() * sizeof(float));
     }
+
+    // erase any invalid channels
+    new_animation.channels.erase(std::remove_if(new_animation.channels.begin(), new_animation.channels.end(), [](const engine::AnimationChannelInfo& c) {
+        return c.target_joint_idx == engine::INVALID_VALUE;
+        }), new_animation.channels.end());
+
     return new_animation;
 }
 

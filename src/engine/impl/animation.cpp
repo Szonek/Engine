@@ -173,11 +173,6 @@ float engine::AnimationClip::get_duration() const
 
 bool engine::AnimationClip::compute_animation_model_matrix(std::span<TRS> animation_data, float animation_timer) const
 {
-    if (nodes_.size() != animation_data.size())
-    {
-        engine::log::log(log::LogLevel::eError, "Nodes sizes doesnt match animation data size!. Cant compute animation model matrix.\n");
-        return false;
-    }
     for (const auto& [node_idx, anim_data] : nodes_)
     {
         animation_data[node_idx].translation = compute_animation_translation(anim_data.transform, animation_timer);
