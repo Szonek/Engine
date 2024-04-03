@@ -209,11 +209,11 @@ int main(int argc, char** argv)
     }
 
     std::vector<engine_geometry_t> geometries(model_info.geometries_count, ENGINE_INVALID_OBJECT_HANDLE);
-    if (model_info.geometries_count > 0)
+    for (std::uint32_t i = 0; i < model_info.geometries_count; i++)
     {
-        assert(model_info.geometries_count == 1);
-        const auto& geo = model_info.geometries_array[0];
-        engine_error_code = engineApplicationAddGeometryFromDesc(app, &geo, "y_bot", &geometries[0]);
+        const auto& geo = model_info.geometries_array[i];
+        const auto name = "unnamed_geometry__" + std::to_string(i);
+        engine_error_code = engineApplicationAddGeometryFromDesc(app, &geo, name.c_str(), &geometries[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating geometry for loaded model. Exiting!\n");
@@ -222,71 +222,59 @@ int main(int argc, char** argv)
     }
 
     std::vector<engine_texture2d_t> textures(model_info.textures_count, ENGINE_INVALID_OBJECT_HANDLE);
-    if (model_info.textures_count > 0)
+    for (std::uint32_t i = 0; i < model_info.textures_count; i++)
     {
-        for (std::uint32_t i = 0; i < model_info.textures_count; i++)
+        const auto name = "unnamed_texture_" + std::to_string(i);
+        engine_error_code = engineApplicationAddTexture2DFromDesc(app, &model_info.textures_array[i], name.c_str(), &textures[i]);
+        if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
-            const auto name = "unnamed_texture_" + std::to_string(i);
-            engine_error_code = engineApplicationAddTexture2DFromDesc(app, &model_info.textures_array[i], name.c_str(), &textures[i]);
-            if (engine_error_code != ENGINE_RESULT_CODE_OK)
-            {
-                engineLog("Failed creating texture for loaded model. Exiting!\n");
-                return -1;
-            }
+            engineLog("Failed creating texture for loaded model. Exiting!\n");
+            return -1;
         }
     }
 
     std::vector<engine_material_t> materials(model_info.materials_count, ENGINE_INVALID_OBJECT_HANDLE);
-    if (model_info.materials_count > 0)
+    for (std::uint32_t i = 0; i < model_info.materials_count; i++)
     {
-        assert(model_info.materials_count == 1);
-        for (std::uint32_t i = 0; i < model_info.materials_count; i++)
+        const auto& mat = model_info.materials_array[i];
+        engine_material_create_desc_t mat_create_desc{};
+        set_c_array(mat_create_desc.diffuse_color, mat.diffuse_color);
+        if (mat.diffuse_texture_index != 1)
         {
-            const auto& mat = model_info.materials_array[i];
-            engine_material_create_desc_t mat_create_desc{};
-            set_c_array(mat_create_desc.diffuse_color, mat.diffuse_color);
-            if (mat.diffuse_texture_index != 1)
-            {
-                mat_create_desc.diffuse_texture = textures.at(mat.diffuse_texture_index);
-            }
-            engine_error_code = engineApplicationAddMaterialFromDesc(app, &mat_create_desc, mat.name, &materials[i]);
+            mat_create_desc.diffuse_texture = textures.at(mat.diffuse_texture_index);
+        }
+        engine_error_code = engineApplicationAddMaterialFromDesc(app, &mat_create_desc, mat.name, &materials[i]);
 
-            if (engine_error_code != ENGINE_RESULT_CODE_OK)
-            {
-                engineLog("Failed creating textured for loaded model. Exiting!\n");
-                return -1;
-            }
+        if (engine_error_code != ENGINE_RESULT_CODE_OK)
+        {
+            engineLog("Failed creating textured for loaded model. Exiting!\n");
+            return -1;
         }
     }
 
-    std::vector<engine_skin_t> skins(model_info.skins_counts);
-    if (model_info.skins_counts > 0)
+    std::vector<engine_skin_t> skins(model_info.skins_counts, ENGINE_INVALID_OBJECT_HANDLE);
+    for (auto i = 0; i < model_info.skins_counts; i++)
     {
-        assert(model_info.skins_counts == 1);
-        for (auto i = 0; i < model_info.skins_counts; i++)
+        const auto& skin = model_info.skins_array[i];
+        const auto name = "unnamed_skin_" + std::to_string(i);
+        engine_error_code = engineApplicationAddSkinFromDesc(app, &skin, name.c_str(), &skins[i]);
+        if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
-            const auto& skin = model_info.skins_array[i];
-            engine_error_code = engineApplicationAddSkinFromDesc(app, &skin, "skin", &skins[0]);
-            if (engine_error_code != ENGINE_RESULT_CODE_OK)
-            {
-                engineLog("Failed creating textured for loaded model. Exiting!\n");
-                return -1;
-            }
+            engineLog("Failed creating textured for loaded model. Exiting!\n");
+            return -1;
         }
     }
 
-    if (model_info.animations_counts > 0)
+    std::vector<engine_animation_clip_t> animations(model_info.animations_counts, ENGINE_INVALID_OBJECT_HANDLE); 
+    for (auto i = 0; i < model_info.animations_counts; i++)
     {
-        assert(model_info.animations_counts == 1);       
-        for (auto i = 0; i < model_info.animations_counts; i++)
+        const auto& anim = model_info.animations_array[i];
+        const auto name = "unnamed_animation_" + std::to_string(i);
+        engine_error_code = engineApplicationAddAnimationClipFromDesc(app, &anim, name.c_str(), &animations[i]);
+        if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
-            const auto& anim = model_info.animations_array[i];
-            engine_error_code = engineApplicationAddAnimationClipFromDesc(app, &anim, "animation", nullptr);
-            if (engine_error_code != ENGINE_RESULT_CODE_OK)
-            {
-                engineLog("Failed creating textured for loaded model. Exiting!\n");
-                return -1;
-            }
+            engineLog("Failed creating textured for loaded model. Exiting!\n");
+            return -1;
         }
     }
 
@@ -344,19 +332,23 @@ int main(int argc, char** argv)
                 go_with_animation = go;
             }
 
+            if (node.skin_index != -1)
+            {
+                auto anim_comp = engineSceneAddAnimationComponent(new_test_scene, go);
+                const auto skin_info = model_info.skins_array[node.skin_index];
+                for (auto i = 0; i < skin_info.animations_count; i++)
+                {                                     
+                    anim_comp.animations_array[i] = animations.at(skin_info.animations_array[i]);
+                }
+                engineSceneUpdateAnimationComponent(new_test_scene, go, &anim_comp);
+            }
+
             // if mesh is present then definitly we need some material to render it
             if (node.material_index != -1)
             {
                 auto material_comp = engineSceneAddMaterialComponent(new_test_scene, go);
                 material_comp.material = materials.at(node.material_index);
                 engineSceneUpdateMaterialComponent(new_test_scene, go, &material_comp);
-
-                //ToDo fix animations
-                // skin should have index pointing to animations...
-                // animations
-                //auto anim_comp = engineSceneAddAnimationComponent(new_test_scene, go);
-                //anim_comp.animations_array[0] = engineApplicationGetAnimationClipByName(app, "animation");
-                //engineSceneUpdateAnimationComponent(new_test_scene, go, &anim_comp);
             }
         }
     }

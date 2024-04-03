@@ -495,6 +495,8 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
         for (std::uint32_t i = 0; i < ret.skins_counts; i++)
         {
             auto& skin = ret.skins_array[i];
+            skin.animations_count = 0;
+            skin.animations_array = nullptr;
             skin.joint_count = static_cast<std::uint32_t>(model_info->skins[i].joints.size());
             skin.joints = new engine_skin_joint_create_desc_t[skin.joint_count];
             for (std::uint32_t j = 0; j < skin.joint_count; j++)
@@ -510,6 +512,28 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
                 std::memcpy(out_join.init_translate, glm::value_ptr(in_join.init_trs.translation), sizeof(in_join.init_trs.translation));
                 std::memcpy(out_join.init_scale, glm::value_ptr(in_join.init_trs.scale), sizeof(in_join.init_trs.scale));
                 std::memcpy(out_join.init_rotation_quaternion, glm::value_ptr(in_join.init_trs.rotation), sizeof(in_join.init_trs.rotation));
+            }
+
+            // count animations and attach to skin
+            for (auto anim_i = 0; anim_i < model_info->animations.size(); anim_i++)
+            {
+                if (model_info->animations.at(anim_i).skin == static_cast<std::int32_t>(i))
+                {
+                    skin.animations_count++;
+                }
+            }
+            if (skin.animations_count > 0)
+            {
+                skin.animations_array = new uint32_t[skin.animations_count];
+            }
+            auto counter = 0ul;
+            for (auto anim_i = 0; anim_i < model_info->animations.size(); anim_i++)
+            {
+                if (model_info->animations.at(anim_i).skin == static_cast<std::int32_t>(i))
+                {
+                    skin.animations_array[counter] = anim_i;
+                    counter++;
+                }
             }
         }
     }
@@ -544,6 +568,13 @@ void engine::Application::release_model_desc(engine_model_desc_t* info)
         }
         if (info->skins_array)
         {
+            for (std::uint32_t i = 0; i < info->skins_counts; i++)
+            {
+                if (info->skins_array[i].animations_count > 0)
+                {
+                    delete[] info->skins_array[i].animations_array;
+                }
+            }
             delete[] info->skins_array;
         }
         std::memset(info, 0, sizeof(engine_model_desc_t));

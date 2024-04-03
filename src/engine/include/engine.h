@@ -392,6 +392,9 @@ typedef struct _engine_skin_reate_desc_t
 {
     engine_skin_joint_create_desc_t* joints;
     uint32_t joint_count;
+    
+    uint32_t* animations_array;
+    uint32_t animations_count;
 } engine_skin_create_desc_t;
 
 typedef struct _engine_model_material_desc_t

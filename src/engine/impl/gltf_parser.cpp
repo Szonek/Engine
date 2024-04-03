@@ -341,23 +341,33 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
         }
 
         auto& new_channel = new_animation.channels[ch_idx++];
-        new_channel.target_joint_idx = 0;
-        if (model.skins.size() > 0)
+        new_channel.target_joint_idx = engine::INVALID_VALUE;
+        //new_channel.target_joint_idx = ch.target_node;
+        for (auto skn_i = 0; skn_i < model.skins.size(); skn_i++)
         {
-            const auto& skin = model.skins[0];
+            const auto& skin = model.skins[skn_i];
 
             const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), ch.target_node);
             if (fnd_itr != std::end(skin.joints))
             {
+                if (new_animation.skin == engine::INVALID_VALUE)
+                {
+                    new_animation.skin = static_cast<std::int32_t>(skn_i);
+                }
+                else
+                {
+                    assert(new_animation.skin == static_cast<std::int32_t>(skn_i));
+                }
                 const auto dst_itr = std::distance(skin.joints.begin(), fnd_itr);
                 new_channel.target_joint_idx = static_cast<int32_t>(dst_itr);
             }
-            else
-            {
-                //assert(false);
-                engine::log::log(engine::log::LogLevel::eError, fmt::format("Animated node is not a joint. Probably animation will be parsed with bugs. \n").c_str());
-            }
         }
+
+        if (new_channel.target_joint_idx == engine::INVALID_VALUE)
+        {
+            engine::log::log(engine::log::LogLevel::eError, fmt::format("Animated node is not a joint. Probably animation will be parsed with bugs. \n").c_str());
+        }
+
         if (ch.target_path.compare("rotation") == 0)
         {
             new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION;

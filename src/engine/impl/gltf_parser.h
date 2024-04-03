@@ -52,6 +52,7 @@ struct AnimationClipInfo
 {
     std::string name;
     std::vector<AnimationChannelInfo> channels;
+    std::int32_t skin = INVALID_VALUE;
 };
 
 struct SkinInfo

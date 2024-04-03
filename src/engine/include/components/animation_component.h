@@ -5,7 +5,7 @@ extern "C"
 {
 #endif // cpp
 typedef uint32_t engine_animation_clip_t;
-#define ENGINE_ANIMATIONS_CLIPS_MAX_COUNT 16
+#define ENGINE_ANIMATIONS_CLIPS_MAX_COUNT 128
 typedef enum _engine_animation_clip_state_t
 {
     ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING,
