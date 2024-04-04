@@ -29,15 +29,119 @@
 #include <functional>
 #include <chrono>
 
-class Camera
+namespace project_c
+{
+struct ModelInfo
+{
+    engine_application_t& app;
+    engine_model_desc_t model_info{};
+    std::vector<engine_geometry_t> geometries;
+    std::vector<engine_texture2d_t> textures;
+    std::vector<engine_material_t> materials;
+    std::vector<engine_skin_t> skins;
+    std::vector<engine_animation_clip_t> animations;
+
+    ModelInfo(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name)
+        : app(app)
+    {
+
+        engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), &model_info);
+        if (engine_error_code != ENGINE_RESULT_CODE_OK)
+        {
+            engineLog("Failed loading TABLE model. Exiting!\n");
+            return;
+        }
+
+        geometries = std::vector(model_info.geometries_count, ENGINE_INVALID_OBJECT_HANDLE);
+        for (std::uint32_t i = 0; i < model_info.geometries_count; i++)
+        {
+            const auto& geo = model_info.geometries_array[i];
+            const auto name = "unnamed_geometry__" + std::to_string(i);
+            engine_error_code = engineApplicationAddGeometryFromDesc(app, &geo, name.c_str(), &geometries[i]);
+            if (engine_error_code != ENGINE_RESULT_CODE_OK)
+            {
+                engineLog("Failed creating geometry for loaded model. Exiting!\n");
+                return;
+            }
+        }
+
+        textures = std::vector<engine_texture2d_t>(model_info.textures_count, ENGINE_INVALID_OBJECT_HANDLE);
+        for (std::uint32_t i = 0; i < model_info.textures_count; i++)
+        {
+            const auto name = "unnamed_texture_" + std::to_string(i);
+            engine_error_code = engineApplicationAddTexture2DFromDesc(app, &model_info.textures_array[i], name.c_str(), &textures[i]);
+            if (engine_error_code != ENGINE_RESULT_CODE_OK)
+            {
+                engineLog("Failed creating texture for loaded model. Exiting!\n");
+                return;
+            }
+        }
+
+        materials = std::vector<engine_material_t>(model_info.materials_count, ENGINE_INVALID_OBJECT_HANDLE);
+        for (std::uint32_t i = 0; i < model_info.materials_count; i++)
+        {
+            const auto& mat = model_info.materials_array[i];
+            engine_material_create_desc_t mat_create_desc{};
+            set_c_array(mat_create_desc.diffuse_color, mat.diffuse_color);
+            if (mat.diffuse_texture_index != -1)
+            {
+                mat_create_desc.diffuse_texture = textures.at(mat.diffuse_texture_index);
+            }
+            engine_error_code = engineApplicationAddMaterialFromDesc(app, &mat_create_desc, mat.name, &materials[i]);
+
+            if (engine_error_code != ENGINE_RESULT_CODE_OK)
+            {
+                engineLog("Failed creating textured for loaded model. Exiting!\n");
+                return;
+            }
+        }
+
+        skins = std::vector<engine_skin_t>(model_info.skins_counts, ENGINE_INVALID_OBJECT_HANDLE);
+        for (auto i = 0; i < model_info.skins_counts; i++)
+        {
+            const auto& skin = model_info.skins_array[i];
+            const auto name = "unnamed_skin_" + std::to_string(i);
+            engine_error_code = engineApplicationAddSkinFromDesc(app, &skin, name.c_str(), &skins[i]);
+            if (engine_error_code != ENGINE_RESULT_CODE_OK)
+            {
+                engineLog("Failed creating textured for loaded model. Exiting!\n");
+                return;
+            }
+        }
+
+        animations = std::vector<engine_animation_clip_t>(model_info.animations_counts, ENGINE_INVALID_OBJECT_HANDLE);
+        for (auto i = 0; i < model_info.animations_counts; i++)
+        {
+            const auto& anim = model_info.animations_array[i];
+            const auto name = "unnamed_animation_" + std::to_string(i);
+            engine_error_code = engineApplicationAddAnimationClipFromDesc(app, &anim, name.c_str(), &animations[i]);
+            if (engine_error_code != ENGINE_RESULT_CODE_OK)
+            {
+                engineLog("Failed creating textured for loaded model. Exiting!\n");
+                return;
+            }
+        }
+    }
+
+    ~ModelInfo()
+    {
+        if (model_info.nodes_count > 0)
+        {
+            engineApplicationReleaseModelDesc(app, &model_info);
+        }
+    }
+};
+
+class CameraScript : public engine::IScript
 {
 public:
-    Camera(engine_application_t app, engine_scene_t scene)
-        : app_(app)
-        , scene_(scene)
+    CameraScript(engine::IScene* my_scene)
+        : IScript(my_scene)
     {
-        go_ = engineSceneCreateGameObject(scene_);
-        auto camera_comp = engineSceneAddCameraComponent(scene_, go_);
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+
+        auto camera_comp = engineSceneAddCameraComponent(scene, go_);
         camera_comp.enabled = true;
         camera_comp.clip_plane_near = 0.1f;
         camera_comp.clip_plane_far = 1000.0f;
@@ -48,21 +152,21 @@ public:
         camera_comp.target[1] = 0.0f;
         camera_comp.target[2] = 0.0f;
 
-        engineSceneUpdateCameraComponent(scene_, go_, &camera_comp);
+        engineSceneUpdateCameraComponent(scene, go_, &camera_comp);
 
-        auto camera_transform_comp = engineSceneAddTransformComponent(scene_, go_);
-        camera_transform_comp.position[0] = 0.0f;
-        camera_transform_comp.position[1] = 1.0f;
-        camera_transform_comp.position[2] = 5.0f;
-        engineSceneUpdateTransformComponent(scene_, go_, &camera_transform_comp);
+        auto camera_transform_comp = engineSceneAddTransformComponent(scene, go_);
+        camera_transform_comp.position[0] = -2.273151f;
+        camera_transform_comp.position[1] = 4.3652916f;
+        camera_transform_comp.position[2] = 1.3330482f;
+        engineSceneUpdateTransformComponent(scene, go_, &camera_transform_comp);
 
         sc_ = get_spherical_coordinates(camera_transform_comp.position);
     }
 
-
-    void update(float dt)
+    void update(float dt) override
     {
-        const auto mouse_coords = engineApplicationGetMouseCoords(app_);
+        const auto app = my_scene_->get_app_handle();
+        const auto mouse_coords = engineApplicationGetMouseCoords(app);
 
         const auto dx = mouse_coords.x - mouse_coords_prev_.x;
         const auto dy = mouse_coords.y - mouse_coords_prev_.y;
@@ -74,12 +178,12 @@ public:
 
         const float move_speed = 1.0f * dt;
 
-        if (engineApplicationIsMouseButtonDown(app_, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_LEFT))
+        if (engineApplicationIsMouseButtonDown(app, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_LEFT))
         {
-            rotate({ dx * move_speed, dy * move_speed});
+            rotate({ dx * move_speed, dy * move_speed });
         }
 
-        if (engineApplicationIsMouseButtonDown(app_, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_RIGHT))
+        if (engineApplicationIsMouseButtonDown(app, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_RIGHT))
         {
             translate({ 0.0f, 0.0f, dy * move_speed });
         }
@@ -88,20 +192,22 @@ public:
 private:
     inline void translate(const glm::vec3& delta)
     {
-        auto tc = engineSceneGetTransformComponent(scene_, go_);
+        const auto scene = my_scene_->get_handle();
+        auto tc = engineSceneGetTransformComponent(scene, go_);
         for (int i = 0; i < std::size(tc.position); i++)
         {
             tc.position[i] += delta[i];
         }
-        engineSceneUpdateTransformComponent(scene_, go_, &tc);
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
     }
 
     inline void rotate(const glm::vec2 delta)
     {
+        const auto scene = my_scene_->get_handle();
         // https://nerdhut.de/2020/05/09/unity-arcball-camera-spherical-coordinates/
-        if (delta.x!= 0 || delta.y != 0)
+        if (delta.x != 0 || delta.y != 0)
         {
-            auto tc = engineSceneGetTransformComponent(scene_, go_);
+            auto tc = engineSceneGetTransformComponent(scene, go_);
             // Rotate the camera left and right
             sc_[1] += delta.x;
 
@@ -110,11 +216,11 @@ private:
             sc_[2] = std::clamp(sc_[2] + delta.y, -1.5f, 1.5f);
 
             const auto new_position = get_cartesian_coordinates(sc_);
-            auto cc = engineSceneGetCameraComponent(scene_, go_);
+            auto cc = engineSceneGetCameraComponent(scene, go_);
             tc.position[0] = new_position[0] + cc.target[0];
             tc.position[1] = new_position[1] + cc.target[1];
             tc.position[2] = new_position[2] + cc.target[2];
-            engineSceneUpdateTransformComponent(scene_, go_, &tc);
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
     }
 
@@ -152,12 +258,212 @@ private:
     }
 
 private:
-    engine_application_t app_ = nullptr;
-    engine_scene_t scene_ = nullptr;
-    engine_game_object_t go_ = ENGINE_INVALID_GAME_OBJECT_ID;
     std::array<float, 3> sc_;
     engine_coords_2d_t mouse_coords_prev_{};
 };
+
+class BaseNode : public engine::IScript
+{
+public:
+    BaseNode(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
+        : IScript(my_scene)
+    {
+        const auto scene = my_scene_->get_handle();
+        auto nc = engineSceneAddNameComponent(scene, go_);
+        if (node.name)
+        {
+            std::strncpy(nc.name, node.name, std::max(std::strlen(node.name), std::size(nc.name)));
+            if (std::strlen(node.name) > std::size(nc.name))
+            {
+                log(fmt::format("Couldnt copy full entity name. Orginal name: {}, entity name: {}!\n", nc.name, node.name));
+            }
+            engineSceneUpdateNameComponent(scene, go_, &nc);
+        }
+        log(fmt::format("Created entity [id: {}] with name: {}\n", go_, nc.name));
+
+        // this is potentaiyll very costly part of this c-tor
+        if (node.parent)
+        {
+            engine_component_view_t view = nullptr;
+            engineCreateComponentView(&view);
+            engineSceneComponentViewAttachNameComponent(scene, view);
+            
+            engine_component_iterator_t begin{};
+            engine_component_iterator_t end{};
+            engineComponentViewCreateBeginComponentIterator(view, &begin);
+            engineComponentViewCreateEndComponentIterator(view, &end);
+
+            engine_game_object_t parent_go = ENGINE_INVALID_GAME_OBJECT_ID;
+            while (!engineComponentIteratorCheckEqual(begin, end))
+            {
+                const auto go = engineComponentIteratorGetGameObject(begin);
+                const auto go_name_comp = engineSceneGetNameComponent(scene, go);
+                if (std::strcmp(go_name_comp.name, node.parent->name) == 0)
+                {
+                    parent_go = go;
+                    begin = end; // finish
+                }
+                else
+                {
+                    engineComponentIteratorNext(begin);
+                }
+
+            }
+
+            if (parent_go != ENGINE_INVALID_GAME_OBJECT_ID)
+            {
+                auto pc = engineSceneAddParentComponent(scene, go_);
+                pc.parent = parent_go;
+                engineSceneUpdateParentComponent(scene, go_, &pc);
+            }
+            if (view)
+            {
+                engineDestroyComponentView(view);
+            }
+        }
+
+        auto tc = engineSceneAddTransformComponent(scene, go_);
+        std::memcpy(tc.position, node.translate, std::size(node.translate) * sizeof(float));
+        std::memcpy(tc.scale, node.scale, std::size(node.scale) * sizeof(float));
+        std::memcpy(tc.rotation, node.rotation_quaternion, std::size(node.rotation_quaternion) * sizeof(float));
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        if (node.geometry_index != -1 || node.skin_index != -1)
+        {
+            auto mc = engineSceneAddMeshComponent(scene, go_);
+            mc.geometry = node.geometry_index != -1 ? model_info.geometries[node.geometry_index] : ENGINE_INVALID_OBJECT_HANDLE;
+            mc.skin = node.skin_index != -1 ? model_info.skins[node.skin_index] : ENGINE_INVALID_OBJECT_HANDLE;
+            engineSceneUpdateMeshComponent(scene, go_, &mc);
+        }
+
+        if (node.skin_index != -1)
+        {
+            auto anim_comp = engineSceneAddAnimationComponent(scene, go_);
+            const auto skin_info = model_info.model_info.skins_array[node.skin_index];
+            for (auto i = 0; i < skin_info.animations_count; i++)
+            {
+                anim_comp.animations_array[i] = model_info.animations.at(skin_info.animations_array[i]);
+            }
+            engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
+        }
+
+        // if mesh is present then definitly we need some material to render it
+        if (node.material_index != -1)
+        {
+            auto material_comp = engineSceneAddMaterialComponent(scene, go_);
+            material_comp.material = model_info.materials.at(node.material_index);
+            engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+        }
+    }
+};
+
+class Node3D : public BaseNode
+{
+public:
+    Node3D(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
+        : BaseNode(my_scene, node, model_info)
+    {
+    }
+};
+
+class ControllableEntity : public BaseNode
+{
+public:
+    ControllableEntity(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
+        : BaseNode(my_scene, node, model_info)
+    {
+    }
+
+    void update(float dt)
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+        if (engineSceneHasAnimationComponent(scene, go_))
+        {
+            auto anim_comp = engineSceneGetAnimationComponent(scene, go_);
+            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F) && anim_comp.animations_state[0] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
+            {
+                anim_comp.animations_state[0] = ENGINE_ANIMATION_CLIP_STATE_PLAYING;
+                engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
+            }
+        }
+
+        const float speed = 0.005f * dt;
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
+        {
+
+            tc.position[0] += speed;
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S))
+        {
+            tc.position[0] -= speed;
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
+    }
+};
+
+class TestScene : public engine::IScene
+{
+public:
+    TestScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
+        : IScene(app_handle, scn_mgn, engine_error_code)
+    {
+        auto camera_script = register_script<CameraScript>();
+    }
+
+    ~TestScene() = default;
+    static constexpr const char* get_name() { return "TestScene"; }
+};
+
+
+inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* scene)
+{
+    engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
+    const auto load_start = std::chrono::high_resolution_clock::now();
+    project_c::ModelInfo model_info(engine_error_code, app, "CesiumMan.gltf");
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        return false;
+    }
+    // add nodes
+    for (auto i = 0; i < model_info.model_info.nodes_count; i++)
+    {
+        const auto& node = model_info.model_info.nodes_array[i];
+        if (node.geometry_index != -1 || node.skin_index != -1)
+        {
+            scene->register_script<project_c::ControllableEntity>(node, model_info);
+        }
+        else
+        {
+            scene->register_script<project_c::Node3D>(node, model_info);
+        }
+    }
+    return true;
+}
+
+inline bool load_cube(engine_application_t& app, engine::IScene* scene)
+{
+    engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
+    const auto load_start = std::chrono::high_resolution_clock::now();
+    project_c::ModelInfo model_info(engine_error_code, app, "cube.glb");
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        return false;
+    }
+    // add nodes
+    for (auto i = 0; i < model_info.model_info.nodes_count; i++)
+    {
+        const auto& node = model_info.model_info.nodes_array[i];
+        scene->register_script<project_c::Node3D>(node, model_info);
+    }
+    return true;
+}
+
+}  // namespace project_c
+
+
 
 int main(int argc, char** argv)
 {
@@ -187,7 +493,6 @@ int main(int argc, char** argv)
     app_cd.height = K_IS_ANDROID ? 0 : 1080 / 2;
     app_cd.fullscreen = K_IS_ANDROID;
 
-
 	auto engine_error_code = engineApplicationCreate(&app, app_cd);
 	if (engine_error_code != ENGINE_RESULT_CODE_OK)
 	{
@@ -196,164 +501,26 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
+    engine::SceneManager scene_manager(app);
+    scene_manager.register_scene<project_c::TestScene>();
+    auto scene = scene_manager.get_scene("TestScene");
+
     const auto load_start = std::chrono::high_resolution_clock::now();
-    engine_model_desc_t model_info{};
-    //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test_skin.gltf" : "test2.glb", &model_info);
-    //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "riverdance_dance_free_animation.glb", &model_info);
-    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "CesiumMan.gltf", &model_info);
-    //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "Stag.gltf", &model_info);
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    bool load_model = true;
+    load_model = project_c::load_controllable_mesh(app, scene);
+    if (!load_model)
     {
-        engineLog("Failed loading TABLE model. Exiting!\n");
+        log(fmt::format("Loading model failed!\n"));
         return -1;
     }
 
-    std::vector<engine_geometry_t> geometries(model_info.geometries_count, ENGINE_INVALID_OBJECT_HANDLE);
-    for (std::uint32_t i = 0; i < model_info.geometries_count; i++)
+    load_model = project_c::load_cube(app, scene);
+    if (!load_model)
     {
-        const auto& geo = model_info.geometries_array[i];
-        const auto name = "unnamed_geometry__" + std::to_string(i);
-        engine_error_code = engineApplicationAddGeometryFromDesc(app, &geo, name.c_str(), &geometries[i]);
-        if (engine_error_code != ENGINE_RESULT_CODE_OK)
-        {
-            engineLog("Failed creating geometry for loaded model. Exiting!\n");
-            return -1;
-        }
-    }
-
-    std::vector<engine_texture2d_t> textures(model_info.textures_count, ENGINE_INVALID_OBJECT_HANDLE);
-    for (std::uint32_t i = 0; i < model_info.textures_count; i++)
-    {
-        const auto name = "unnamed_texture_" + std::to_string(i);
-        engine_error_code = engineApplicationAddTexture2DFromDesc(app, &model_info.textures_array[i], name.c_str(), &textures[i]);
-        if (engine_error_code != ENGINE_RESULT_CODE_OK)
-        {
-            engineLog("Failed creating texture for loaded model. Exiting!\n");
-            return -1;
-        }
-    }
-
-    std::vector<engine_material_t> materials(model_info.materials_count, ENGINE_INVALID_OBJECT_HANDLE);
-    for (std::uint32_t i = 0; i < model_info.materials_count; i++)
-    {
-        const auto& mat = model_info.materials_array[i];
-        engine_material_create_desc_t mat_create_desc{};
-        set_c_array(mat_create_desc.diffuse_color, mat.diffuse_color);
-        if (mat.diffuse_texture_index != 1)
-        {
-            mat_create_desc.diffuse_texture = textures.at(mat.diffuse_texture_index);
-        }
-        engine_error_code = engineApplicationAddMaterialFromDesc(app, &mat_create_desc, mat.name, &materials[i]);
-
-        if (engine_error_code != ENGINE_RESULT_CODE_OK)
-        {
-            engineLog("Failed creating textured for loaded model. Exiting!\n");
-            return -1;
-        }
-    }
-
-    std::vector<engine_skin_t> skins(model_info.skins_counts, ENGINE_INVALID_OBJECT_HANDLE);
-    for (auto i = 0; i < model_info.skins_counts; i++)
-    {
-        const auto& skin = model_info.skins_array[i];
-        const auto name = "unnamed_skin_" + std::to_string(i);
-        engine_error_code = engineApplicationAddSkinFromDesc(app, &skin, name.c_str(), &skins[i]);
-        if (engine_error_code != ENGINE_RESULT_CODE_OK)
-        {
-            engineLog("Failed creating textured for loaded model. Exiting!\n");
-            return -1;
-        }
-    }
-
-    std::vector<engine_animation_clip_t> animations(model_info.animations_counts, ENGINE_INVALID_OBJECT_HANDLE); 
-    for (auto i = 0; i < model_info.animations_counts; i++)
-    {
-        const auto& anim = model_info.animations_array[i];
-        const auto name = "unnamed_animation_" + std::to_string(i);
-        engine_error_code = engineApplicationAddAnimationClipFromDesc(app, &anim, name.c_str(), &animations[i]);
-        if (engine_error_code != ENGINE_RESULT_CODE_OK)
-        {
-            engineLog("Failed creating textured for loaded model. Exiting!\n");
-            return -1;
-        }
-    }
-
-    engine_scene_t new_test_scene{};
-    if (engineSceneCreate(&new_test_scene) != ENGINE_RESULT_CODE_OK)
-    {
-        log(fmt::format("Couldnt create new scene!\n"));
+        log(fmt::format("Loading model failed!\n"));
         return -1;
     }
-    Camera camera(app, new_test_scene);
 
-    // add nodes
-    std::map<const engine_model_node_desc_t*, engine_game_object_t> model_game_objects{};
-    engine_game_object_t go_with_animation = ENGINE_INVALID_GAME_OBJECT_ID;
-    if (model_info.nodes_count > 0)
-    {
-        for (auto i = 0; i < model_info.nodes_count; i++)
-        {
-            const auto& node = model_info.nodes_array[i];
-            const auto go = engineSceneCreateGameObject(new_test_scene);     
-            model_game_objects.insert({ &node, go });
-
-            auto nc = engineSceneAddNameComponent(new_test_scene, go);
-            if (node.name)
-            {
-                std::strncpy(nc.name, node.name, std::max(std::strlen(node.name), std::size(nc.name)));
-                if (std::strlen(node.name) > std::size(nc.name))
-                {
-                    log(fmt::format("Couldnt copy full entity name. Orginal name: {}, entity name: {}!\n", nc.name, node.name));
-                }
-                engineSceneUpdateNameComponent(new_test_scene, go, &nc);
-            }
-            log(fmt::format("Created entity [id: {}] with name: {}\n", go, nc.name));
-
-            if (node.parent)
-            {
-                auto pc = engineSceneAddParentComponent(new_test_scene, go);         
-                pc.parent = model_game_objects.at(node.parent);
-                engineSceneUpdateParentComponent(new_test_scene, go, &pc);
-            }
-
-            auto tc = engineSceneAddTransformComponent(new_test_scene, go);
-            std::memcpy(tc.position, node.translate, std::size(node.translate) * sizeof(float));
-            std::memcpy(tc.scale, node.scale, std::size(node.scale) * sizeof(float));
-            std::memcpy(tc.rotation, node.rotation_quaternion, std::size(node.rotation_quaternion) * sizeof(float));
-            engineSceneUpdateTransformComponent(new_test_scene, go, &tc);
-
-            if (node.geometry_index != -1 || node.skin_index != -1)
-            {
-                auto mc = engineSceneAddMeshComponent(new_test_scene, go);
-                mc.geometry = node.geometry_index != -1 ? geometries[node.geometry_index] : ENGINE_INVALID_OBJECT_HANDLE;
-                mc.skin = node.skin_index != -1 ? skins[node.skin_index] : ENGINE_INVALID_OBJECT_HANDLE;
-                engineSceneUpdateMeshComponent(new_test_scene, go, &mc);
-
-                go_with_animation = go;
-            }
-
-            if (node.skin_index != -1)
-            {
-                auto anim_comp = engineSceneAddAnimationComponent(new_test_scene, go);
-                const auto skin_info = model_info.skins_array[node.skin_index];
-                for (auto i = 0; i < skin_info.animations_count; i++)
-                {                                     
-                    anim_comp.animations_array[i] = animations.at(skin_info.animations_array[i]);
-                }
-                engineSceneUpdateAnimationComponent(new_test_scene, go, &anim_comp);
-            }
-
-            // if mesh is present then definitly we need some material to render it
-            if (node.material_index != -1)
-            {
-                auto material_comp = engineSceneAddMaterialComponent(new_test_scene, go);
-                material_comp.material = materials.at(node.material_index);
-                engineSceneUpdateMaterialComponent(new_test_scene, go, &material_comp);
-            }
-        }
-    }
-
-    engineApplicationReleaseModelDesc(app, &model_info);
     const auto load_end = std::chrono::high_resolution_clock::now();
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
     log(fmt::format("Model loading took: {}\n", ms_load_time));
@@ -384,8 +551,6 @@ int main(int argc, char** argv)
     }
 
 
-    //engine::SceneManager scene_manager(app);
-    //scene_manager.register_scene<project_c::Overworld>();
 
     struct fps_counter_t
     {
@@ -420,22 +585,7 @@ int main(int argc, char** argv)
         }
         engineUiDataHandleDirtyVariable(ui_data_handle, "value");
 
-        //scene_manager.update(frame_begin.delta_time);
-       
-        camera.update(frame_begin.delta_time);
-
-        if (engineSceneHasAnimationComponent(new_test_scene, go_with_animation))
-        {
-            auto anim_comp = engineSceneGetAnimationComponent(new_test_scene, go_with_animation);
-            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F) && anim_comp.animations_state[0] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
-            {
-                anim_comp.animations_state[0] = ENGINE_ANIMATION_CLIP_STATE_PLAYING;
-                engineSceneUpdateAnimationComponent(new_test_scene, go_with_animation, &anim_comp);
-            }
-        }
-
-        engineApplicationFrameSceneUpdatePhysics(app, new_test_scene, frame_begin.delta_time);
-        engineApplicationFrameSceneUpdateGraphics(app, new_test_scene, frame_begin.delta_time);
+        scene_manager.update(frame_begin.delta_time);
 
 		const auto frame_end = engineApplicationFrameEnd(app);
 		if (!frame_end.success)

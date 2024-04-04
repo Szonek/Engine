@@ -313,7 +313,7 @@ std::uint32_t engine::Application::get_font(std::string_view name) const
 
 std::uint32_t engine::Application::add_geometry(const engine_vertex_attributes_layout_t& api_verts_layout, std::int32_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name)
 {
-	const static auto vertex_layout = create_engine_api_layout(api_verts_layout);
+	const auto vertex_layout = create_engine_api_layout(api_verts_layout);
 	return geometries_atlas_.add_object(name, std::move(Geometry(vertex_layout, verts_data, vertex_count, inds)));
 }
 

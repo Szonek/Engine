@@ -246,7 +246,11 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
     auto skinning_view = entity_registry_.view<engine_skin_internal_component_t, const engine_mesh_component_t>();
     skinning_view.each([&skins](engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh)
         {
-            skin.bone_animation_transform = skins[mesh.skin].compute_transform(skin.bone_trs);
+            //ToDo: if there is a lot of meshes with and without skin than this if statement is going to be performance costly
+            if (mesh.skin != ENGINE_INVALID_OBJECT_HANDLE)
+            {
+                skin.bone_animation_transform = skins[mesh.skin].compute_transform(skin.bone_trs);
+            }
         });
 
     auto geometry_renderet = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t, const engine_skin_internal_component_t>();
