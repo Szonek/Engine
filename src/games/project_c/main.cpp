@@ -284,12 +284,46 @@ public:
         }
         log(fmt::format("Created entity [id: {}] with name: {}\n", go_, nc.name));
 
-        //if (node.parent)
-        //{
-        //    auto pc = engineSceneAddParentComponent(scene, go);
-        //    pc.parent = model_game_objects.at(node.parent);
-        //    engineSceneUpdateParentComponent(new_test_scene, go, &pc);
-        //}
+        // this is potentaiyll very costly part of this c-tor
+        if (node.parent)
+        {
+            engine_component_view_t view = nullptr;
+            engineCreateComponentView(&view);
+            engineSceneComponentViewAttachNameComponent(scene, view);
+            
+            engine_component_iterator_t begin{};
+            engine_component_iterator_t end{};
+            engineComponentViewCreateBeginComponentIterator(view, &begin);
+            engineComponentViewCreateEndComponentIterator(view, &end);
+
+            engine_game_object_t parent_go = ENGINE_INVALID_GAME_OBJECT_ID;
+            while (!engineComponentIteratorCheckEqual(begin, end))
+            {
+                const auto go = engineComponentIteratorGetGameObject(begin);
+                const auto go_name_comp = engineSceneGetNameComponent(scene, go);
+                if (std::strcmp(go_name_comp.name, node.parent->name) == 0)
+                {
+                    parent_go = go;
+                    begin = end; // finish
+                }
+                else
+                {
+                    engineComponentIteratorNext(begin);
+                }
+
+            }
+
+            if (parent_go != ENGINE_INVALID_GAME_OBJECT_ID)
+            {
+                auto pc = engineSceneAddParentComponent(scene, go_);
+                pc.parent = parent_go;
+                engineSceneUpdateParentComponent(scene, go_, &pc);
+            }
+            if (view)
+            {
+                engineDestroyComponentView(view);
+            }
+        }
 
         auto tc = engineSceneAddTransformComponent(scene, go_);
         std::memcpy(tc.position, node.translate, std::size(node.translate) * sizeof(float));
@@ -371,7 +405,36 @@ public:
     ~TestScene() = default;
     static constexpr const char* get_name() { return "TestScene"; }
 };
+
+
+inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* scene)
+{
+    engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
+    const auto load_start = std::chrono::high_resolution_clock::now();
+    project_c::ModelInfo model_info(engine_error_code, app);
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        return false;
+    }
+    // add nodes
+    for (auto i = 0; i < model_info.model_info.nodes_count; i++)
+    {
+        const auto& node = model_info.model_info.nodes_array[i];
+        if (node.geometry_index != -1 || node.skin_index != -1)
+        {
+            scene->register_script<project_c::ControllableEntity>(node, model_info);
+        }
+        else
+        {
+            scene->register_script<project_c::Node3D>(node, model_info);
+        }
+    }
+    return true;
+}
+
 }  // namespace project_c
+
+
 
 int main(int argc, char** argv)
 {
@@ -414,23 +477,11 @@ int main(int argc, char** argv)
     auto scene = scene_manager.get_scene("TestScene");
 
     const auto load_start = std::chrono::high_resolution_clock::now();
-    project_c::ModelInfo model_info(engine_error_code, app);
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    auto load_model = project_c::load_controllable_mesh(app, scene);
+    if (!load_model)
     {
-        return -2;
-    }
-    // add nodes
-    for (auto i = 0; i < model_info.model_info.nodes_count; i++)
-    {
-        const auto& node = model_info.model_info.nodes_array[i];
-        if (node.geometry_index != -1 || node.skin_index != -1)
-        {
-            scene->register_script<project_c::ControllableEntity>(node, model_info);
-        }
-        else
-        {
-            scene->register_script<project_c::Node3D>(node, model_info);
-        }
+        log(fmt::format("Loading model failed!\n"));
+        return -1;
     }
     const auto load_end = std::chrono::high_resolution_clock::now();
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);

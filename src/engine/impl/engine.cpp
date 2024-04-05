@@ -728,7 +728,12 @@ bool engineSceneHasNameComponent(engine_scene_t scene, engine_game_object_t game
 {
     return has_component<engine_name_component_t>(scene, game_object);
 }
-
+void engineSceneComponentViewAttachNameComponent(engine_scene_t scene, engine_component_view_t view)
+{
+    auto sc = scene_cast(scene);
+    auto rv = runtime_view_cast(view);
+    sc->attach_component_to_runtime_view<engine_name_component_t>(*rv);
+}
 
 engine_tranform_component_t engineSceneAddTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
