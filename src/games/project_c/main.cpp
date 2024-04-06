@@ -41,14 +41,11 @@ struct ModelInfo
     std::vector<engine_skin_t> skins;
     std::vector<engine_animation_clip_t> animations;
 
-    ModelInfo(engine_result_code_t& engine_error_code, engine_application_t& app)
+    ModelInfo(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name)
         : app(app)
     {
 
-        //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, run_test_model ? "test_skin.gltf" : "test2.glb", &model_info);
-        //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "riverdance_dance_free_animation.glb", &model_info);
-        engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "CesiumMan.gltf", &model_info);
-        //engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, "Stag.gltf", &model_info);
+        engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), &model_info);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed loading TABLE model. Exiting!\n");
@@ -86,7 +83,7 @@ struct ModelInfo
             const auto& mat = model_info.materials_array[i];
             engine_material_create_desc_t mat_create_desc{};
             set_c_array(mat_create_desc.diffuse_color, mat.diffuse_color);
-            if (mat.diffuse_texture_index != 1)
+            if (mat.diffuse_texture_index != -1)
             {
                 mat_create_desc.diffuse_texture = textures.at(mat.diffuse_texture_index);
             }
@@ -390,6 +387,20 @@ public:
                 engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
             }
         }
+
+        const float speed = 0.005f * dt;
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
+        {
+
+            tc.position[0] += speed;
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S))
+        {
+            tc.position[0] -= speed;
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
     }
 };
 
@@ -411,7 +422,7 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
 {
     engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
     const auto load_start = std::chrono::high_resolution_clock::now();
-    project_c::ModelInfo model_info(engine_error_code, app);
+    project_c::ModelInfo model_info(engine_error_code, app, "CesiumMan.gltf");
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         return false;
@@ -428,6 +439,24 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
         {
             scene->register_script<project_c::Node3D>(node, model_info);
         }
+    }
+    return true;
+}
+
+inline bool load_cube(engine_application_t& app, engine::IScene* scene)
+{
+    engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
+    const auto load_start = std::chrono::high_resolution_clock::now();
+    project_c::ModelInfo model_info(engine_error_code, app, "cube.glb");
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        return false;
+    }
+    // add nodes
+    for (auto i = 0; i < model_info.model_info.nodes_count; i++)
+    {
+        const auto& node = model_info.model_info.nodes_array[i];
+        scene->register_script<project_c::Node3D>(node, model_info);
     }
     return true;
 }
@@ -477,12 +506,21 @@ int main(int argc, char** argv)
     auto scene = scene_manager.get_scene("TestScene");
 
     const auto load_start = std::chrono::high_resolution_clock::now();
-    auto load_model = project_c::load_controllable_mesh(app, scene);
+    bool load_model = true;
+    load_model = project_c::load_controllable_mesh(app, scene);
     if (!load_model)
     {
         log(fmt::format("Loading model failed!\n"));
         return -1;
     }
+
+    load_model = project_c::load_cube(app, scene);
+    if (!load_model)
+    {
+        log(fmt::format("Loading model failed!\n"));
+        return -1;
+    }
+
     const auto load_end = std::chrono::high_resolution_clock::now();
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
     log(fmt::format("Model loading took: {}\n", ms_load_time));
