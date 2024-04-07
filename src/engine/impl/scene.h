@@ -10,9 +10,8 @@ namespace engine
 {
 class Scene
 {
-
 public:
-    Scene(engine_result_code_t& out_code);
+    Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code);
     Scene(const Scene&) = delete;
     Scene(Scene&& rhs) = delete;
     Scene& operator=(const Scene&) = delete;
@@ -20,7 +19,7 @@ public:
     ~Scene();
 
     engine_result_code_t physics_update(float dt);
-    engine_result_code_t update(RenderContext& rdx, float dt, std::span<const class Texture2D> textures, 
+    engine_result_code_t update(float dt, std::span<const class Texture2D> textures, 
         std::span<const Geometry> geometries, std::span<const class AnimationClip> animations,
         std::span<const class Skin> skins, std::span<const engine_material_create_desc_t> materials);
 
@@ -83,6 +82,7 @@ public:
     void get_physcis_collisions_list(const engine_collision_info_t*& ptr_first, size_t* count);
 
 private:
+    RenderContext& rdx_;
     entt::registry entity_registry_;
     entt::observer transform_model_matrix_update_observer;
     entt::observer mesh_update_observer;

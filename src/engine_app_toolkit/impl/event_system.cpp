@@ -90,7 +90,7 @@ std::vector<engine::InputEventSystem::UpdateResult> engine::InputEventSystem::up
     {
         engine_component_view_t rect_tranform_view{};
         engineCreateComponentView(&rect_tranform_view);
-        engineSceneComponentViewAttachRectTransformComponent(scene_, rect_tranform_view);
+        //engineSceneComponentViewAttachRectTransformComponent(scene_, rect_tranform_view);
 
         engine_component_iterator_t begin_it{};
         engineComponentViewCreateBeginComponentIterator(rect_tranform_view, &begin_it);
@@ -100,27 +100,27 @@ std::vector<engine::InputEventSystem::UpdateResult> engine::InputEventSystem::up
         while (engineComponentIteratorCheckEqual(begin_it, end_it) == false)
         {
             const auto game_obj = engineComponentIteratorGetGameObject(begin_it);
-            const auto rect_transform = engineSceneGetRectTransformComponent(scene_, game_obj);
+            //const auto rect_transform = engineSceneGetRectTransformComponent(scene_, game_obj);
 
             for (auto& input_event : ur_candidates)
             {
-                const bool position_within_rect_transform_bounds = input_event.event_data.position[0] >= rect_transform.position_min[0]    //x0
-                                                                   && input_event.event_data.position[1] >= rect_transform.position_min[1] //y0
-                                                                   && input_event.event_data.position[0] <= rect_transform.position_max[0]
-                                                                   && input_event.event_data.position[1] <= rect_transform.position_max[1];
-                // click event has to be finished within object
-                if (input_event.pointer_clicked_event && position_within_rect_transform_bounds)
-                {
-                    input_event.event_data.pointer_click_object = game_obj;
-                    ret.push_back(input_event);
-                }
-
-                // down event - pointer is clicked (not released yet) on the object
-                if (input_event.pointer_down_event && position_within_rect_transform_bounds)
-                {
-                    input_event.event_data.pointer_down_object = game_obj;
-                    ret.push_back(input_event);
-                }
+                //const bool position_within_rect_transform_bounds = input_event.event_data.position[0] >= rect_transform.position_min[0]    //x0
+                //                                                   && input_event.event_data.position[1] >= rect_transform.position_min[1] //y0
+                //                                                   && input_event.event_data.position[0] <= rect_transform.position_max[0]
+                //                                                   && input_event.event_data.position[1] <= rect_transform.position_max[1];
+                //// click event has to be finished within object
+                //if (input_event.pointer_clicked_event && position_within_rect_transform_bounds)
+                //{
+                //    input_event.event_data.pointer_click_object = game_obj;
+                //    ret.push_back(input_event);
+                //}
+                //
+                //// down event - pointer is clicked (not released yet) on the object
+                //if (input_event.pointer_down_event && position_within_rect_transform_bounds)
+                //{
+                //    input_event.event_data.pointer_down_object = game_obj;
+                //    ret.push_back(input_event);
+                //}
             }
             engineComponentIteratorNext(begin_it);
         }

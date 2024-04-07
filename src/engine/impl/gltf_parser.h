@@ -69,18 +69,18 @@ struct ModelNode
     std::int32_t mesh = INVALID_VALUE;
     std::int32_t skin = INVALID_VALUE;
     std::int32_t joint = INVALID_VALUE;
-    ModelNode* parent = nullptr;
-    std::vector<ModelNode*> children = {};
+    std::shared_ptr<ModelNode> parent = nullptr; // shared_ptr to have pointer stability while erasing nodes
+    std::vector<std::shared_ptr<ModelNode>> children = {};
 
     glm::vec3 translation;
     glm::vec3 scale = glm::vec3(1.0f);
-    glm::quat rotation;
+    glm::quat rotation = glm::quat(0.0f, 0.0f, 0.0f, 1.0f);
 };
 
 
 struct ModelInfo
 {
-    std::vector<ModelNode> nodes;
+    std::vector<std::shared_ptr<ModelNode>> nodes;
     std::vector<GeometryInfo> geometries;
     std::vector<MaterialInfo> materials;
     std::vector<TextureInfo> textures;

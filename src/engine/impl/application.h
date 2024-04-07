@@ -23,6 +23,9 @@ public:
     Application& operator=(Application&&) = default;
     ~Application();
 
+    class Scene* create_scene(const engine_scene_create_desc_t& desc);
+    void release_scene(class Scene* scene);
+
     engine_result_code_t update_scene(class Scene* scene, float delta_time);
     engine_application_frame_begine_info_t begine_frame();
     engine_application_frame_end_info_t end_frame();
@@ -36,6 +39,7 @@ public:
 
     std::uint32_t add_geometry(const engine_vertex_attributes_layout_t& verts_layout, std::int32_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name);
     std::uint32_t get_geometry(std::string_view name) const;
+    const Geometry* get_geometry(std::uint32_t idx) const;
 
     std::uint32_t add_animation_clip(const engine_animation_clip_create_desc_t& desc, std::string_view name);
     std::uint32_t get_animation_clip(std::string_view name) const;
@@ -84,6 +88,12 @@ private:
             names_[current_idx_] = name.data();
             return current_idx_++;
         }
+
+        const T* get_object(std::uint32_t idx) const
+        {
+            return &objects_[idx];
+        }
+
 
         std::uint32_t get_object(std::string_view name) const
         {

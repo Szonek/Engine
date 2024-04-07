@@ -116,6 +116,7 @@ public:
 	enum Mode
 	{
 		eTriangles = 0,
+        eLines,
 		eCount
 	};
 
@@ -141,6 +142,9 @@ public:
 		std::uint32_t stride = 0;
 		std::size_t offset = 0;
 		Type type;
+
+        std::vector<float> range_max;
+        std::vector<float> range_min;
 	};
 
 public:
@@ -156,7 +160,10 @@ public:
 	void bind() const;
 	void draw(Mode mode) const;
 
+    vertex_attribute_t get_vertex_attribute(std::size_t idx) const;
+
 private:
+    std::vector<vertex_attribute_t> attribs_{};
 	std::uint32_t vbo_{0}; // vertex buffer
 	std::uint32_t ibo_{0}; // index buffer
 	std::uint32_t vao_{0};

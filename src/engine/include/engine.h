@@ -3,14 +3,11 @@
 #include "components/camera_component.h"
 #include "components/light_component.h"
 #include "components/transform_component.h"
-#include "components/rect_transform_component.h"
 #include "components/name_component.h"
 #include "components/mesh_component.h"
 #include "components/material_component.h"
-#include "components/text_component.h"
 #include "components/rigid_body_component.h"
 #include "components/collider_component.h"
-#include "components/image_component.h"
 #include "components/animation_component.h"
 #include "components/parent_component.h"
 
@@ -108,6 +105,11 @@ typedef struct _engine_application_create_desc_t
     uint32_t height;
     bool fullscreen;
 } engine_application_create_desc_t;
+
+typedef struct _engine_scene_create_desc_t
+{
+    bool enable_physics_debug_draw;
+} engine_scene_create_desc_t;
 
 typedef enum _engine_begin_frame_event_flags_t
 {
@@ -301,8 +303,10 @@ typedef struct _engine_vertex_attribute_desc_t
     uint32_t elements_count;  // set to 0 to disable given attribute
     engine_vertex_attribute_data_type_t elements_data_type;
     engine_vertex_attribute_type_t type;
-} engine_vertex_attribute_desc_t;
 
+    float range_min[4];
+    float range_max[4];
+} engine_vertex_attribute_desc_t;
 
 typedef struct _engine_vertex_attributes_layout_t
 {
@@ -336,8 +340,7 @@ typedef struct _engine_geometry_create_desc_t
     const void* verts_data;
     size_t verts_data_size;
     int32_t verts_count;
-    engine_vertex_attributes_layout_t vers_layout;
-
+    engine_vertex_attributes_layout_t verts_layout;
     const uint32_t* inds;
     size_t inds_count;
 } engine_geometry_create_desc_t;
@@ -439,6 +442,27 @@ typedef struct _engine_model_desc_t
     uint32_t skins_counts;
 } engine_model_desc_t;
 
+/**
+ * @struct engine_geometry_attribute_limit_t
+ * @brief A structure representing the limits of a geometry attribute in the engine.
+ *
+ * This structure is used to define the limits or boundaries of a specific attribute of a geometry object in the engine.
+ * This could be used for various purposes such as optimization, error checking, or to define certain behaviors in the engine.
+ *
+ * @var float min
+ * The minimum value of the attribute. This represents the lower limit or boundary for this attribute.
+ *
+ * @var float max
+ * The maximum value of the attribute. This represents the upper limit or boundary for this attribute.
+ */
+typedef struct _engine_geometry_attribute_limit_t
+{
+    size_t elements_count;
+    float min[4];
+    float max[4];
+} engine_geometry_attribute_limit_t;
+
+
 // cross platform log
 ENGINE_API void engineLog(const char* str);
 
@@ -447,8 +471,8 @@ ENGINE_API engine_result_code_t engineApplicationCreate(engine_application_t* ha
 ENGINE_API void engineApplicationDestroy(engine_application_t handle);
 
 // scene
-ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_t* out);
-ENGINE_API void engineSceneDestroy(engine_scene_t scene);
+ENGINE_API engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, engine_scene_create_desc_t desc, engine_scene_t* out);
+ENGINE_API void engineApplicationSceneDestroy(engine_application_t handle, engine_scene_t scene);
 
 // game objects in scene
 ENGINE_API engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene);
@@ -481,6 +505,7 @@ ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, e
 // geometry
 ENGINE_API engine_result_code_t engineApplicationAddGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
+ENGINE_API engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_application_t handle, engine_geometry_t geometry, engine_vertex_attribute_type_t type);
 
 // material
 ENGINE_API engine_result_code_t engineApplicationAddMaterialFromDesc(engine_application_t handle, const engine_material_create_desc_t* desc, const char* name, engine_material_t* out);
@@ -545,13 +570,6 @@ ENGINE_API void engineSceneUpdateTransformComponent(engine_scene_t scene, engine
 ENGINE_API void engineSceneRemoveTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
 
-ENGINE_API engine_rect_tranform_component_t engineSceneAddRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_rect_tranform_component_t engineSceneGetRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_rect_tranform_component_t* comp);
-ENGINE_API void engineSceneRemoveRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneComponentViewAttachRectTransformComponent(engine_scene_t scene, engine_component_view_t view);
-
 ENGINE_API engine_mesh_component_t engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_mesh_component_t engineSceneGetMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void engineSceneUpdateMeshComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_mesh_component_t* comp);
@@ -575,18 +593,6 @@ ENGINE_API engine_camera_component_t engineSceneGetCameraComponent(engine_scene_
 ENGINE_API void engineSceneUpdateCameraComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_camera_component_t* comp);
 ENGINE_API void engineSceneRemoveCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
-
-ENGINE_API engine_text_component_t engineSceneAddTextComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_text_component_t engineSceneGetTextComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateTextComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_text_component_t* comp);
-ENGINE_API void engineSceneRemoveTextComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasTextComponent(engine_scene_t scene, engine_game_object_t game_object);
-
-ENGINE_API engine_image_component_t engineSceneAddImageComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_image_component_t engineSceneGetImageComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateImageComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_image_component_t* comp);
-ENGINE_API void engineSceneRemoveImageComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasImageComponent(engine_scene_t scene, engine_game_object_t game_object);
 
 ENGINE_API engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_rigid_body_component_t engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);

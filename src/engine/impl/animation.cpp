@@ -118,8 +118,7 @@ engine::AnimationClip::AnimationClip(const engine_animation_clip_create_desc_t& 
             {
                 const auto idx = i * 4;
                 const auto& d = channel.data;
-                // quat ctor: w, x, y, z
-                node.rotation.data.push_back(glm::quat(d[idx+3], d[idx], d[idx + 1], d[idx + 2]));
+                node.rotation.data.push_back(glm::quat(d[idx], d[idx + 1], d[idx + 2], d[idx + 3]));
             }
             break;
         }
@@ -176,7 +175,7 @@ bool engine::AnimationClip::compute_animation_model_matrix(std::span<TRS> animat
     for (const auto& [node_idx, anim_data] : nodes_)
     {
         animation_data[node_idx].translation = compute_animation_translation(anim_data.transform, animation_timer);
-        animation_data[node_idx].scale = compute_animation_translation(anim_data.scale, animation_timer);
+        animation_data[node_idx].scale = compute_animation_scale(anim_data.scale, animation_timer);
         animation_data[node_idx].rotation = compute_animation_rotation(anim_data.rotation, animation_timer);
     }
     return true;

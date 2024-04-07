@@ -96,13 +96,17 @@ engine_result_code_t update_scripts(std::unordered_map<engine_game_object_t, std
     return ENGINE_RESULT_CODE_OK;
 }
 
-inline engine_scene_t create_scene()
+inline engine_scene_t create_scene(engine_application_t& app_handle)
 {
     engine_scene_t scene = nullptr;
-    auto engine_error_code = engineSceneCreate(&scene);
+
+    engine_scene_create_desc_t desc{};
+    desc.enable_physics_debug_draw = true;
+
+    auto engine_error_code = engineApplicationSceneCreate(app_handle, desc, &scene);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
-        engineSceneDestroy(scene);
+        engineApplicationSceneDestroy(app_handle, scene);
         scene = nullptr;
     }
     return scene;
@@ -113,7 +117,7 @@ inline engine_scene_t create_scene()
 
 engine::IScene::IScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
     : app_(app_handle)
-    , scene_(create_scene())
+    , scene_(create_scene(app_handle))
     , scene_manager_(scn_mgn)
     , input_event_system_(app_, scene_)
 {
@@ -130,7 +134,7 @@ engine::IScene::~IScene()
 {
     if (scene_)
     {
-        engineSceneDestroy(scene_);
+        engineApplicationSceneDestroy(app_, scene_);
     }
 }
 
@@ -169,11 +173,8 @@ engine_result_code_t engine::IScene::update(float dt)
     //propagte_input_events(app_, scene_, input_events, scripts_);
     propagate_collisions_events(app_, scene_, scripts_);
 
-    update_physics(app_, scene_, dt);
-
-
     update_scripts(scripts_, dt);
-
+    update_physics(app_, scene_, dt);
     update_graphics(app_, scene_, dt);
 
     update_hook_end();
