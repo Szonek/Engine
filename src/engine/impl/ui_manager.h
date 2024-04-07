@@ -1,7 +1,4 @@
 #pragma once
-#include "components/text_component.h"
-#include "components/rect_transform_component.h"
-#include "components/image_component.h"
 #include "graphics.h"
 #include "engine.h"
 #include "ui_document.h"

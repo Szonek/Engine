@@ -3,14 +3,11 @@
 #include "components/camera_component.h"
 #include "components/light_component.h"
 #include "components/transform_component.h"
-#include "components/rect_transform_component.h"
 #include "components/name_component.h"
 #include "components/mesh_component.h"
 #include "components/material_component.h"
-#include "components/text_component.h"
 #include "components/rigid_body_component.h"
 #include "components/collider_component.h"
-#include "components/image_component.h"
 #include "components/animation_component.h"
 #include "components/parent_component.h"
 
@@ -545,13 +542,6 @@ ENGINE_API void engineSceneUpdateTransformComponent(engine_scene_t scene, engine
 ENGINE_API void engineSceneRemoveTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
 
-ENGINE_API engine_rect_tranform_component_t engineSceneAddRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_rect_tranform_component_t engineSceneGetRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_rect_tranform_component_t* comp);
-ENGINE_API void engineSceneRemoveRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneComponentViewAttachRectTransformComponent(engine_scene_t scene, engine_component_view_t view);
-
 ENGINE_API engine_mesh_component_t engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_mesh_component_t engineSceneGetMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void engineSceneUpdateMeshComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_mesh_component_t* comp);
@@ -575,18 +565,6 @@ ENGINE_API engine_camera_component_t engineSceneGetCameraComponent(engine_scene_
 ENGINE_API void engineSceneUpdateCameraComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_camera_component_t* comp);
 ENGINE_API void engineSceneRemoveCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
-
-ENGINE_API engine_text_component_t engineSceneAddTextComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_text_component_t engineSceneGetTextComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateTextComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_text_component_t* comp);
-ENGINE_API void engineSceneRemoveTextComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasTextComponent(engine_scene_t scene, engine_game_object_t game_object);
-
-ENGINE_API engine_image_component_t engineSceneAddImageComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_image_component_t engineSceneGetImageComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateImageComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_image_component_t* comp);
-ENGINE_API void engineSceneRemoveImageComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasImageComponent(engine_scene_t scene, engine_game_object_t game_object);
 
 ENGINE_API engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_rigid_body_component_t engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);

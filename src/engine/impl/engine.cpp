@@ -54,23 +54,6 @@ inline void transform_component_init(engine_tranform_component_t* comp)
     comp->scale[2] = 1.0f;
 }
 
-inline void rect_transform_component_init(engine_rect_tranform_component_t* comp)
-{
-    std::memset(comp, 0, sizeof(engine_rect_tranform_component_t));
-    comp->position_min[0] = 0.5f;
-    comp->position_min[1] = 0.5f;
-    comp->position_max[0] = 0.75f;
-    comp->position_max[1] = 0.75f;
-}
-
-
-inline void text_component_init(engine_text_component_t* comp)
-{
-    std::memset(comp, 0, sizeof(engine_text_component_t));
-    comp->scale[0] = 1.0f;
-    comp->scale[1] = 1.0f;
-}
-
 inline void camera_component_init(engine_camera_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_camera_component_t));
@@ -332,6 +315,10 @@ engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle
 
 engine_result_code_t engineApplicationAddMaterialFromDesc(engine_application_t handle, const engine_material_create_desc_t* desc, const char* name, engine_material_t* out)
 {
+    if (!handle || !desc || !name)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
     auto* app = reinterpret_cast<engine::Application*>(handle);
     const auto ret = app->add_material(*desc, name);
     if (ret == ENGINE_INVALID_OBJECT_HANDLE)
@@ -760,38 +747,6 @@ bool engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t
     return has_component<engine_tranform_component_t>(scene, game_object);
 }
 
-engine_rect_tranform_component_t engineSceneAddRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return add_component<engine_rect_tranform_component_t, rect_transform_component_init>(scene, game_object);
-}
-
-engine_rect_tranform_component_t engineSceneGetRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return get_component<engine_rect_tranform_component_t>(scene, game_object);
-}
-
-void engineSceneUpdateRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_rect_tranform_component_t* comp)
-{
-    update_component(scene, game_object, comp);
-}
-
-void engineSceneRemoveRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    remove_component<engine_rect_tranform_component_t>(scene, game_object);
-}
-
-bool engineSceneHasRectTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return has_component<engine_rect_tranform_component_t>(scene, game_object);
-}
-
-void engineSceneComponentViewAttachRectTransformComponent(engine_scene_t scene, engine_component_view_t view)
-{
-    auto sc = scene_cast(scene);
-    auto rv = runtime_view_cast(view);
-    sc->attach_component_to_runtime_view<engine_rect_tranform_component_t>(*rv);
-}
-
 engine_mesh_component_t engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return add_component<engine_mesh_component_t, mesh_component_init>(scene, game_object);
@@ -892,31 +847,6 @@ bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t ga
     return has_component<engine_camera_component_t>(scene, game_object);
 }
 
-engine_text_component_t engineSceneAddTextComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return add_component<engine_text_component_t, text_component_init>(scene, game_object);
-}
-
-engine_text_component_t engineSceneGetTextComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return get_component<engine_text_component_t>(scene, game_object);
-}
-
-void engineSceneUpdateTextComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_text_component_t* comp)
-{
-    update_component(scene, game_object, comp);
-}
-
-void engineSceneRemoveTextComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    remove_component<engine_text_component_t>(scene, game_object);
-}
-
-bool engineSceneHasTextComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return has_component<engine_text_component_t>(scene, game_object);
-}
-
 engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return add_component<engine_rigid_body_component_t, rigid_body_component_init>(scene, game_object);
@@ -966,32 +896,6 @@ bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t 
 {
     return has_component<engine_collider_component_t>(scene, game_object);
 }
-
-engine_image_component_t engineSceneAddImageComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return add_component<engine_image_component_t>(scene, game_object);
-}
-
-engine_image_component_t engineSceneGetImageComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return get_component<engine_image_component_t>(scene, game_object);
-}
-
-void engineSceneUpdateImageComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_image_component_t* comp)
-{
-    update_component(scene, game_object, comp);
-}
-
-void engineSceneRemoveImageComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    remove_component<engine_image_component_t>(scene, game_object);
-}
-
-bool engineSceneHasImageComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return has_component<engine_image_component_t>(scene, game_object);
-}
-
 
 engine_animation_component_t engineSceneAddAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
 {

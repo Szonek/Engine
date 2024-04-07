@@ -366,25 +366,84 @@ public:
     }
 };
 
+class Floor : public BaseNode
+{
+public:
+    Floor(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
+        : BaseNode(my_scene, node, model_info)
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        tc.scale[0] = 3.0f;
+        tc.scale[1] = 0.01f;
+        tc.scale[2] = 3.0f;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        // material
+        engine_material_create_desc_t mat_cd{};
+        set_c_array(mat_cd.diffuse_color, std::array<float, 4>({0.23, 0.7, 0.44f, 1.0f}));
+        engine_material_t mat{};
+        if (engineApplicationAddMaterialFromDesc(app, &mat_cd, "floor_material", &mat) == ENGINE_RESULT_CODE_OK)
+        {
+            auto mc = engineSceneGetMaterialComponent(scene, go_);
+            mc.material = mat;
+            engineSceneUpdateMaterialComponent(scene, go_, &mc);
+        }
+    }
+};
+
+
+class Enemy : public BaseNode
+{
+public:
+    Enemy(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
+        : BaseNode(my_scene, node, model_info)
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        tc.scale[0] = 0.5f;
+        tc.scale[1] = 1.0f;
+        tc.scale[2] = 0.5f;
+
+        tc.position[0] += 1.0f;
+        tc.position[1] += 1.0f;
+        tc.position[2] += 0.0f;
+        
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+    }
+};
+
 class ControllableEntity : public BaseNode
 {
 public:
+    engine_game_object_t go_with_animation = ENGINE_INVALID_GAME_OBJECT_ID;
+
     ControllableEntity(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
         : BaseNode(my_scene, node, model_info)
     {
+        const auto scene = my_scene_->get_handle();
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        const auto q = glm::rotate(glm::make_quat(tc.rotation), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        for (int i = 0; i < q.length(); i++)
+        {
+            tc.rotation[i] = q[i];
+        }
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
     }
 
     void update(float dt)
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
-        if (engineSceneHasAnimationComponent(scene, go_))
+        if (engineSceneHasAnimationComponent(scene, go_with_animation))
         {
-            auto anim_comp = engineSceneGetAnimationComponent(scene, go_);
+            auto anim_comp = engineSceneGetAnimationComponent(scene, go_with_animation);
             if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F) && anim_comp.animations_state[0] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
             {
                 anim_comp.animations_state[0] = ENGINE_ANIMATION_CLIP_STATE_PLAYING;
-                engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
+                engineSceneUpdateAnimationComponent(scene, go_with_animation, &anim_comp);
             }
         }
 
@@ -421,23 +480,28 @@ public:
 inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* scene)
 {
     engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
-    const auto load_start = std::chrono::high_resolution_clock::now();
     project_c::ModelInfo model_info(engine_error_code, app, "CesiumMan.gltf");
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         return false;
     }
     // add nodes
+    ControllableEntity* controllable_entity = nullptr;
     for (auto i = 0; i < model_info.model_info.nodes_count; i++)
     {
         const auto& node = model_info.model_info.nodes_array[i];
-        if (node.geometry_index != -1 || node.skin_index != -1)
+        if (!node.parent)
         {
-            scene->register_script<project_c::ControllableEntity>(node, model_info);
+            assert(controllable_entity == nullptr);
+            controllable_entity = scene->register_script<project_c::ControllableEntity>(node, model_info);
         }
         else
         {
-            scene->register_script<project_c::Node3D>(node, model_info);
+            const auto node3d = scene->register_script<project_c::Node3D>(node, model_info);
+            if (engineSceneHasAnimationComponent(scene->get_handle(), node3d->get_game_object()))
+            {
+                controllable_entity->go_with_animation = node3d->get_game_object();
+            }
         }
     }
     return true;
@@ -452,12 +516,13 @@ inline bool load_cube(engine_application_t& app, engine::IScene* scene)
     {
         return false;
     }
+    assert(model_info.model_info.nodes_count == 1);
     // add nodes
-    for (auto i = 0; i < model_info.model_info.nodes_count; i++)
-    {
-        const auto& node = model_info.model_info.nodes_array[i];
-        scene->register_script<project_c::Node3D>(node, model_info);
-    }
+    const auto& node = model_info.model_info.nodes_array[0];
+
+    // floor
+    scene->register_script<project_c::Floor>(node, model_info);
+    scene->register_script<project_c::Enemy>(node, model_info);
     return true;
 }
 
@@ -487,7 +552,7 @@ int main(int argc, char** argv)
 
 	engine_application_t app{};
 	engine_application_create_desc_t app_cd{};
-	app_cd.name = "Pong";
+	app_cd.name = "Project_C";
 	app_cd.asset_store_path = assets_path.c_str();
     app_cd.width = K_IS_ANDROID ? 0 : 2280 / 2;
     app_cd.height = K_IS_ANDROID ? 0 : 1080 / 2;
