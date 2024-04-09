@@ -17,6 +17,9 @@
 
 #include <entt/entt.hpp>
 
+namespace engine
+{
+
 class PhysicsWorld
 {
 public:
@@ -39,7 +42,6 @@ public:
         dynamics_world_->removeRigidBody(comp.rigid_body);
     }
 
-    void update2(engine_rigid_body_component_t&) {};
     void update(float dt);
 
     const std::vector<engine_collision_info_t>& get_collisions();
@@ -57,3 +59,5 @@ private:
     std::vector<engine_collision_info_t> collisions_info_buffer_;
     std::vector<engine_collision_contact_point_t> collisions_contact_points_buffer_;
 };
+
+}// namespace engine

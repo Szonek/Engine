@@ -68,8 +68,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
         btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
         world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
-        btQuaternion quaterninon{};
-        quaterninon.setEulerZYX(transform_component->rotation[2], transform_component->rotation[1], transform_component->rotation[0]);
+        const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
         world_transform.setRotation(quaterninon);
 
         physcics_component->rigid_body->setWorldTransform(world_transform);
@@ -103,7 +102,10 @@ engine_result_code_t engine::Scene::physics_update(float dt)
             transform.position[2] = origin.getZ();
 
             const auto euler_rotation = transform_phsycics.getRotation();
-            euler_rotation.getEulerZYX(transform.rotation[2], transform.rotation[1], transform.rotation[0]);
+            transform.rotation[0] = euler_rotation.getX();
+            transform.rotation[1] = euler_rotation.getY();
+            transform.rotation[2] = euler_rotation.getZ();
+            transform.rotation[3] = euler_rotation.getW();
             update_component(entity, transform);
 
             const auto lin_vel = physcics.rigid_body->getLinearVelocity();

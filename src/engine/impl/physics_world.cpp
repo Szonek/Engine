@@ -1,4 +1,5 @@
 #include "physics_world.h"
+#include "math_helpers.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -8,27 +9,8 @@
 
 #include <cassert>
 
-namespace
-{
-inline glm::mat4 compute_model_matirx(const glm::vec3& glm_pos, const glm::vec3& glm_rot)
-{
-    auto model_identity = glm::mat4{ 1.0f };
-    auto translation = glm::translate(model_identity, glm_pos);
-    translation *= glm::toMat4(glm::quat(glm_rot));
-    return translation;
-}
-inline glm::mat4 compute_model_matirx(const glm::vec3& glm_pos, const glm::vec3& glm_rot, const glm::vec3& glm_scl)
-{
-    auto model_identity = glm::mat4{ 1.0f };
-    auto translation = glm::translate(model_identity, glm_pos);
-    translation *= glm::toMat4(glm::quat(glm_rot));
-    //translation = glm::rotate(translation, glm::radians(0.0f), glm::vec3(1.0f, 0.3f, 0.5f));
-    translation = glm::scale(translation, glm_scl);
-    return translation;
-}
-}
 
-PhysicsWorld::PhysicsWorld()
+engine::PhysicsWorld::PhysicsWorld()
 {
     collisions_info_buffer_.reserve(1024 * 2);
     collisions_contact_points_buffer_.reserve(1024 * 16);
@@ -48,28 +30,28 @@ PhysicsWorld::PhysicsWorld()
     //btAlignedObjectArray<btCollisionShape*> collisionShapes;
 }
 
-PhysicsWorld::physcic_internal_component_t PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform, std::int32_t body_index)
+engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform, std::int32_t body_index)
 {
     physcic_internal_component_t ret{};
     if (collider.type == ENGINE_COLLIDER_TYPE_BOX)
     {
         const btVector3 box_bounds{
-            collider.collider.box.size[0] * transform.scale[0],
-            collider.collider.box.size[1] * transform.scale[1],
-            collider.collider.box.size[2] * transform.scale[2],
+            collider.collider.box.size[0],
+            collider.collider.box.size[1],
+            collider.collider.box.size[2],
         };
         ret.collision_shape = new btBoxShape(box_bounds);
     }
     else if (collider.type == ENGINE_COLLIDER_TYPE_SPHERE)
     {
-        ret.collision_shape = new btSphereShape(collider.collider.sphere.radius * transform.scale[0]);
+        ret.collision_shape = new btSphereShape(collider.collider.sphere.radius);
     }
     else
     {
         assert(false && "Unknown collider type in physisc world!");
         return ret;
     }
-
+    ret.collision_shape->setLocalScaling(btVector3(transform.scale[0], transform.scale[1], transform.scale[2]));
     btVector3 local_inertia(0, 0, 0);
     if (rigid_body.mass)
     {
@@ -77,9 +59,10 @@ PhysicsWorld::physcic_internal_component_t PhysicsWorld::create_rigid_body(const
     }
 
     const auto glm_pos = glm::make_vec3(transform.position);
-    const auto glm_rot = glm::make_vec3(transform.rotation);
+    const auto glm_rot = glm::make_quat(transform.rotation);
+    const auto glm_scl = glm::make_vec3(transform.scale);
 
-    const auto model_matrix = compute_model_matirx(glm_pos, glm_rot);
+    const auto model_matrix = compute_model_matrix(glm_pos, glm_rot, /*glm_scl*/ glm::vec3(1.0f));
 
     btTransform transform_init;
     transform_init.setFromOpenGLMatrix(glm::value_ptr(model_matrix));
@@ -117,12 +100,12 @@ PhysicsWorld::physcic_internal_component_t PhysicsWorld::create_rigid_body(const
     return ret;
 }
 
-void PhysicsWorld::update(float dt)
+void engine::PhysicsWorld::update(float dt)
 {
     dynamics_world_->stepSimulation(dt, 10);
 }
 
-const std::vector<engine_collision_info_t>& PhysicsWorld::get_collisions()
+const std::vector<engine_collision_info_t>& engine::PhysicsWorld::get_collisions()
 {
     collisions_info_buffer_.clear();
     collisions_contact_points_buffer_.clear();
@@ -176,7 +159,7 @@ const std::vector<engine_collision_info_t>& PhysicsWorld::get_collisions()
     return collisions_info_buffer_;
 }
 
-void PhysicsWorld::set_gravity(std::span<const float> g)
+void engine::PhysicsWorld::set_gravity(std::span<const float> g)
 {
     dynamics_world_->setGravity(btVector3(g[0], g[1], g[2]));
 }

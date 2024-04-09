@@ -378,6 +378,9 @@ public:
         tc.scale[0] = 3.0f;
         tc.scale[1] = 0.01f;
         tc.scale[2] = 3.0f;
+
+        tc.position[1] -= 0.25f;
+
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         // material
@@ -390,6 +393,13 @@ public:
             mc.material = mat;
             engineSceneUpdateMaterialComponent(scene, go_, &mc);
         }
+
+        // physcis
+        auto cc = engineSceneAddColliderComponent(scene, go_);
+        cc.type = ENGINE_COLLIDER_TYPE_BOX;
+        set_c_array(cc.collider.box.center, std::array<float, 3>{ 0.0f, 0.0f, 0.0f });
+        set_c_array(cc.collider.box.size, std::array<float, 3>{ 1.0f, 1.0f, 1.0f }); 
+        engineSceneUpdateColliderComponent(scene, go_, &cc);
     }
 };
 
@@ -404,14 +414,26 @@ public:
         const auto app = my_scene_->get_app_handle();
         auto tc = engineSceneGetTransformComponent(scene, go_);
         tc.scale[0] = 0.5f;
-        tc.scale[1] = 1.0f;
+        tc.scale[1] = 0.75f;
         tc.scale[2] = 0.5f;
 
         tc.position[0] += 1.0f;
-        tc.position[1] += 1.0f;
+        tc.position[1] += 2.5f;
         tc.position[2] += 0.0f;
         
         engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        // physcis
+        auto cc = engineSceneAddColliderComponent(scene, go_);
+        cc.type = ENGINE_COLLIDER_TYPE_BOX;
+        set_c_array(cc.collider.box.center, std::array<float, 3>{ 0.0f, 0.0f, 0.0f });
+        set_c_array(cc.collider.box.size, std::array<float, 3>{ 1.0f, 1.0f, 1.0f});
+        engineSceneUpdateColliderComponent(scene, go_, &cc);
+
+        //rb
+        auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+        rbc.mass = 1.0f;
+        engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
     }
 };
 
@@ -431,6 +453,20 @@ public:
             tc.rotation[i] = q[i];
         }
         engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        // physcis
+
+        // collider
+        auto cc = engineSceneAddColliderComponent(scene, go_);
+        cc.type = ENGINE_COLLIDER_TYPE_BOX;
+        set_c_array(cc.collider.box.center, std::array<float, 3>{ 0.0f, 0.0f, 0.75f });
+        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.13f, 0.56f, 0.75f });
+        engineSceneUpdateColliderComponent(scene, go_, &cc);
+
+        //rb
+        auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+        rbc.mass = 1.0f;      
+        engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
     }
 
     void update(float dt)
