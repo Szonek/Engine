@@ -1,5 +1,7 @@
 #include "physics_world.h"
 #include "math_helpers.h"
+#include "logger.h"
+#include "graphics.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -7,11 +9,17 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/matrix_access.hpp>
 
+#include <fmt/format.h>
+
 #include <cassert>
 
 
+
+
 engine::PhysicsWorld::PhysicsWorld()
+    : debug_drawer_(nullptr)
 {
+
     collisions_info_buffer_.reserve(1024 * 2);
     collisions_contact_points_buffer_.reserve(1024 * 16);
 
@@ -28,6 +36,53 @@ engine::PhysicsWorld::PhysicsWorld()
     //keep track of the shapes, we release memory at exit.
     //make sure to re-use collision shapes among rigid bodies whenever possible!
     //btAlignedObjectArray<btCollisionShape*> collisionShapes;
+}
+
+void engine::PhysicsWorld::enable_debug_draw(bool enable)
+{
+    if (enable && debug_drawer_)
+    {
+        engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Physics debug draw is already enabled, you cant do enable it again!\n"));
+        return;
+    }
+    if(enable)
+    {
+        debug_drawer_ = std::make_unique<DebugDrawer>();
+        dynamics_world_->setDebugDrawer(debug_drawer_.get());
+        debug_drawer_->setDebugMode(
+            btIDebugDraw::DBG_DrawWireframe
+            | btIDebugDraw::DBG_DrawAabb 
+            | btIDebugDraw::DBG_DrawContactPoints
+        );
+    }
+    else
+    {
+        debug_drawer_.reset();
+    }
+}
+
+void engine::PhysicsWorld::debug_draw(RenderContext* renderer, std::span<const float> view, std::span<const float> projection)
+{
+    if (debug_drawer_)
+    {
+        // set state
+        debug_drawer_->set_renderer(renderer);
+        debug_drawer_->set_view(view);
+        debug_drawer_->set_projection(projection);
+
+        // draw
+        dynamics_world_->debugDrawWorld();
+
+        // reset state, so its not accidiently used for next frame
+        // todo: possible optimization is not to reset state for each frame as camera is not changing
+        debug_drawer_->set_renderer(nullptr);
+        debug_drawer_->set_view({});
+        debug_drawer_->set_projection({});
+    }
+    else
+    {
+        engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Physics debug draw is not enabled!\n"));
+    }
 }
 
 engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform, std::int32_t body_index)
@@ -162,4 +217,41 @@ const std::vector<engine_collision_info_t>& engine::PhysicsWorld::get_collisions
 void engine::PhysicsWorld::set_gravity(std::span<const float> g)
 {
     dynamics_world_->setGravity(btVector3(g[0], g[1], g[2]));
+}
+
+void engine::PhysicsWorld::DebugDrawer::drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
+{
+    //ToDo: this can be optimized by using single geometry for all lines
+    // i.e. store all lines in single buffer and draw them all at once
+    // or use instanced rendering
+    // batch lines to vertex and defer rendering till the end to reduce draw calls
+    assert(renderer_ && "Renderer is not set in physics debug drawer!");
+    const auto from_v = glm::vec3(from.getX(), from.getY(), from.getZ());
+    const auto to_v = glm::vec3(to.getX(), to.getY(), to.getZ());
+    const auto color_v = glm::vec3(color.getX(), color.getY(), color.getZ());
+
+    std::array<glm::vec3, 2> vertices = { from_v, to_v };
+    std::array<Geometry::vertex_attribute_t, 1> vertex_attributes = {
+        { 0u, 3u, 0u, 0u, Geometry::vertex_attribute_t::Type::eFloat32 }
+    };
+    Geometry line_geo(vertex_attributes, { reinterpret_cast<const std::byte*>(vertices.data()), vertices.size() * sizeof(vertices[0])}, vertices.size());
+
+    line_geo.bind();
+    line_geo.draw(Geometry::Mode::eLines);
+    //engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw line \n"));
+}
+
+void engine::PhysicsWorld::DebugDrawer::drawContactPoint(const btVector3& point_on_B, const btVector3& normal_on_B, btScalar distance, int life_time, const btVector3& color)
+{
+    engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw contact point \n"));
+}
+
+void engine::PhysicsWorld::DebugDrawer::reportErrorWarning(const char* warning_string)
+{
+    engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] physics warning: {}\n", warning_string));
+}
+
+void engine::PhysicsWorld::DebugDrawer::draw3dText(const btVector3& location, const char* text_ttring)
+{
+    engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw 3d text {}\n", text_ttring));
 }

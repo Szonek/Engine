@@ -608,7 +608,7 @@ int main(int argc, char** argv)
 
     const auto load_start = std::chrono::high_resolution_clock::now();
     bool load_model = true;
-    load_model = project_c::load_controllable_mesh(app, scene);
+    //load_model = project_c::load_controllable_mesh(app, scene);
     if (!load_model)
     {
         log(fmt::format("Loading model failed!\n"));

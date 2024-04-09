@@ -27,6 +27,8 @@ engine::Scene::Scene(engine_result_code_t& out_code)
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
     out_code = ENGINE_RESULT_CODE_OK;
+
+    physics_world_.enable_debug_draw(true);
 }
 
 engine::Scene::~Scene()
@@ -340,7 +342,18 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
 
 			}
 		);
-        //rdx.set_polygon_mode(RenderContext::PolygonFaceType::eFrontAndBack, RenderContext::PolygonMode::eFill);
+        shader_simple_.bind();
+        shader_simple_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
+        shader_simple_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
+        shader_simple_.set_uniform_f4("diffuse_color", std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f});
+        glm::mat4x4 amat(1.0f);
+        shader_simple_.set_uniform_mat_f4("model", { glm::value_ptr(amat), sizeof(amat) / sizeof(float) });
+        shader_simple_.set_texture("texture_diffuse", &textures[0]);
+
+        physics_world_.debug_draw(&rdx,
+            { glm::value_ptr(view), sizeof(view) / sizeof(float) },
+            { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
+
     }
 
 

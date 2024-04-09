@@ -366,6 +366,16 @@ engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, st
 	, vertex_count_(vertex_count)
 	, index_count_(0)
 {
+    if (vertex_layout.empty())
+    {
+        log::log(log::LogLevel::eCritical, "Empty vertex layout!");
+        return;
+    }
+    if(vertex_data.empty())
+    {
+        log::log(log::LogLevel::eCritical, "Empty vertex data!");
+        return;
+    }
 	// vertex array object (buffer)
 	glGenVertexArrays(1, &vao_);
 	glBindVertexArray(vao_);
@@ -487,6 +497,8 @@ void engine::Geometry::draw(Mode mode) const
 	case Geometry::Mode::eTriangles:
 		gl_mode = GL_TRIANGLES;
 		break;
+    case Geometry::Mode::eLines:
+        gl_mode = GL_LINES;
 	default:
 		assert("[OpenGl Render Context] Unknown draw mode.");
 	}

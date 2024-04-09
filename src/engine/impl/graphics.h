@@ -116,6 +116,7 @@ public:
 	enum Mode
 	{
 		eTriangles = 0,
+        eLines,
 		eCount
 	};
 
