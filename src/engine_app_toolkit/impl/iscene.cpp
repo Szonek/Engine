@@ -169,11 +169,8 @@ engine_result_code_t engine::IScene::update(float dt)
     //propagte_input_events(app_, scene_, input_events, scripts_);
     propagate_collisions_events(app_, scene_, scripts_);
 
-    update_physics(app_, scene_, dt);
-
-
     update_scripts(scripts_, dt);
-
+    update_physics(app_, scene_, dt);
     update_graphics(app_, scene_, dt);
 
     update_hook_end();

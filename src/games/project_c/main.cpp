@@ -376,7 +376,7 @@ public:
         const auto app = my_scene_->get_app_handle();
         auto tc = engineSceneGetTransformComponent(scene, go_);
         tc.scale[0] = 3.0f;
-        tc.scale[1] = 0.01f;
+        tc.scale[1] = 0.1f;
         tc.scale[2] = 3.0f;
 
         tc.position[1] -= 0.25f;
@@ -435,6 +435,42 @@ public:
         rbc.mass = 1.0f;
         engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
     }
+
+    void update(float dt) override
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+
+#if 0
+        const float speed = 0.005f * dt;
+        auto rbc = engineSceneGetRigidBodyComponent(scene, go_);
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
+        {
+            rbc.linear_velocity[0] += speed;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S))
+        {
+            rbc.linear_velocity[0] -= speed;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A))
+        {
+            rbc.linear_velocity[2] -= speed;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D))
+        {
+            rbc.linear_velocity[2] += speed;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_SPACE))
+        {
+            rbc.linear_velocity[1] += 8.0f * speed;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+        }
+#endif
+    }
 };
 
 class ControllableEntity : public BaseNode
@@ -484,17 +520,31 @@ public:
         }
 
         const float speed = 0.005f * dt;
-        auto tc = engineSceneGetTransformComponent(scene, go_);
+        auto rbc = engineSceneGetRigidBodyComponent(scene, go_);
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
         {
-
-            tc.position[0] += speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
+            rbc.linear_velocity[0] += speed;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
         }
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S))
         {
-            tc.position[0] -= speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
+            rbc.linear_velocity[0] -= speed;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A))
+        {
+            rbc.linear_velocity[2] -= speed;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D))
+        {
+            rbc.linear_velocity[2] += speed;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_SPACE))
+        {
+            rbc.linear_velocity[1] += 8.0f * speed;
+            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
         }
     }
 };
@@ -608,7 +658,7 @@ int main(int argc, char** argv)
 
     const auto load_start = std::chrono::high_resolution_clock::now();
     bool load_model = true;
-    //load_model = project_c::load_controllable_mesh(app, scene);
+    load_model = project_c::load_controllable_mesh(app, scene);
     if (!load_model)
     {
         log(fmt::format("Loading model failed!\n"));

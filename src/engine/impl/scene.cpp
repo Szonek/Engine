@@ -72,7 +72,8 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
         const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
         world_transform.setRotation(quaterninon);
-
+        
+        physcics_component->rigid_body->activate(true);
         physcics_component->rigid_body->setWorldTransform(world_transform);
     }
 
@@ -82,6 +83,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
         auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
 
+        physcics_component->rigid_body->activate(true);
         physcics_component->rigid_body->setLinearVelocity(btVector3(rigidbody_component->linear_velocity[0], rigidbody_component->linear_velocity[1], rigidbody_component->linear_velocity[2]));
         physcics_component->rigid_body->setAngularVelocity(btVector3(rigidbody_component->angular_velocity[0], rigidbody_component->angular_velocity[1], rigidbody_component->angular_velocity[2]));
     }

@@ -123,8 +123,7 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
     transform_init.setFromOpenGLMatrix(glm::value_ptr(model_matrix));
     //transform_init.setIdentity();
     //transform_init.setOrigin(btVector3(transform.position[0], transform.position[1], transform.position[2]));
-    //transform_init.setRotation()
-
+    //transform_init.setRotation(btQuaternion(transform.rotation[0], transform.rotation[1], transform.rotation[2], transform.rotation[3]));
     //using motionstate is optional, it provides interpolation capabilities, and only synchronizes 'active' objects
     btDefaultMotionState* my_motion_state = new btDefaultMotionState(transform_init);
     btRigidBody::btRigidBodyConstructionInfo rbInfo(rigid_body.mass, my_motion_state, ret.collision_shape, local_inertia);
@@ -243,7 +242,7 @@ void engine::PhysicsWorld::DebugDrawer::drawLine(const btVector3& from, const bt
 
 void engine::PhysicsWorld::DebugDrawer::drawContactPoint(const btVector3& point_on_B, const btVector3& normal_on_B, btScalar distance, int life_time, const btVector3& color)
 {
-    engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw contact point \n"));
+    //engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw contact point \n"));
 }
 
 void engine::PhysicsWorld::DebugDrawer::reportErrorWarning(const char* warning_string)
