@@ -64,29 +64,37 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     }
 
     // transform component updated, sync it with rigid body
-    for (const auto entt : transform_update_collider_observer)
-    {
-        const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
-        btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
-        world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
-        const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
-        world_transform.setRotation(quaterninon);
-        
-        physcics_component->rigid_body->activate(true);
-        physcics_component->rigid_body->setWorldTransform(world_transform);
-    }
+    //for (const auto entt : transform_update_collider_observer)
+    //{
+    //    const auto transform_component = get_component<engine_tranform_component_t>(entt);
+    //    auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
+    //    btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
+    //    world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
+    //    const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
+    //    world_transform.setRotation(quaterninon);
+    //    
+    //    physcics_component->rigid_body->activate(true);
+    //    physcics_component->rigid_body->setWorldTransform(world_transform);
+    //}
 
     // detect if rigid body component was updated by the user
-    for (const auto entt : rigid_body_update_observer)
-    {
-        const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
-        auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
+    //for (const auto entt : rigid_body_update_observer)
+    //{
+    //    const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
+    //    auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
 
-        physcics_component->rigid_body->activate(true);
-        physcics_component->rigid_body->setLinearVelocity(btVector3(rigidbody_component->linear_velocity[0], rigidbody_component->linear_velocity[1], rigidbody_component->linear_velocity[2]));
-        physcics_component->rigid_body->setAngularVelocity(btVector3(rigidbody_component->angular_velocity[0], rigidbody_component->angular_velocity[1], rigidbody_component->angular_velocity[2]));
-    }
+    //    physcics_component->rigid_body->activate(true);
+    //    physcics_component->rigid_body->setLinearVelocity(btVector3(rigidbody_component->linear_velocity[0], rigidbody_component->linear_velocity[1], rigidbody_component->linear_velocity[2]));
+    //    physcics_component->rigid_body->setAngularVelocity(btVector3(rigidbody_component->angular_velocity[0], rigidbody_component->angular_velocity[1], rigidbody_component->angular_velocity[2]));
+    //}
+
+    auto rigib_body_view = entity_registry_.view<const engine_rigid_body_component_t, PhysicsWorld::physcic_internal_component_t>();
+    rigib_body_view.each([this](auto entity, const engine_rigid_body_component_t& rigidbody, PhysicsWorld::physcic_internal_component_t& physcics_component)
+        {
+            physcics_component.rigid_body->activate(true);
+            physcics_component.rigid_body->setLinearVelocity(btVector3(rigidbody.linear_velocity[0], rigidbody.linear_velocity[1], rigidbody.linear_velocity[2]));
+            physcics_component.rigid_body->setAngularVelocity(btVector3(rigidbody.angular_velocity[0], rigidbody.angular_velocity[1], rigidbody.angular_velocity[2]));
+        });
 
     physics_world_.update(dt / 1000.0f);
     //physics_world_.update(10.0f / 1000.0f);
@@ -112,16 +120,16 @@ engine_result_code_t engine::Scene::physics_update(float dt)
             transform.rotation[3] = euler_rotation.getW();
             update_component(entity, transform);
 
-            const auto lin_vel = physcics.rigid_body->getLinearVelocity();
-            rigidbody.linear_velocity[0] = lin_vel.getX();
-            rigidbody.linear_velocity[1] = lin_vel.getY();
-            rigidbody.linear_velocity[2] = lin_vel.getZ();
+            //const auto lin_vel = physcics.rigid_body->getLinearVelocity();
+            //rigidbody.linear_velocity[0] = lin_vel.getX();
+            //rigidbody.linear_velocity[1] = lin_vel.getY();
+            //rigidbody.linear_velocity[2] = lin_vel.getZ();
 
-            const auto ang_vel = physcics.rigid_body->getAngularVelocity();
-            rigidbody.angular_velocity[0] = ang_vel.getX();
-            rigidbody.angular_velocity[1] = ang_vel.getY();
-            rigidbody.angular_velocity[2] = ang_vel.getZ();
-            update_component(entity, rigidbody);
+            //const auto ang_vel = physcics.rigid_body->getAngularVelocity();
+            //rigidbody.angular_velocity[0] = ang_vel.getX();
+            //rigidbody.angular_velocity[1] = ang_vel.getY();
+            //rigidbody.angular_velocity[2] = ang_vel.getZ();
+            //update_component(entity, rigidbody);
         }
     );
 
