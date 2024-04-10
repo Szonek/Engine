@@ -78,23 +78,23 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     //}
 
     // detect if rigid body component was updated by the user
-    //for (const auto entt : rigid_body_update_observer)
-    //{
-    //    const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
-    //    auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
+    for (const auto entt : rigid_body_update_observer)
+    {
+        const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
+        auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
 
-    //    physcics_component->rigid_body->activate(true);
-    //    physcics_component->rigid_body->setLinearVelocity(btVector3(rigidbody_component->linear_velocity[0], rigidbody_component->linear_velocity[1], rigidbody_component->linear_velocity[2]));
-    //    physcics_component->rigid_body->setAngularVelocity(btVector3(rigidbody_component->angular_velocity[0], rigidbody_component->angular_velocity[1], rigidbody_component->angular_velocity[2]));
-    //}
+        physcics_component->rigid_body->activate(true);
+        physcics_component->rigid_body->setLinearVelocity(btVector3(rigidbody_component->linear_velocity[0], rigidbody_component->linear_velocity[1], rigidbody_component->linear_velocity[2]));
+        physcics_component->rigid_body->setAngularVelocity(btVector3(rigidbody_component->angular_velocity[0], rigidbody_component->angular_velocity[1], rigidbody_component->angular_velocity[2]));
+    }
 
-    auto rigib_body_view = entity_registry_.view<const engine_rigid_body_component_t, PhysicsWorld::physcic_internal_component_t>();
-    rigib_body_view.each([this](auto entity, const engine_rigid_body_component_t& rigidbody, PhysicsWorld::physcic_internal_component_t& physcics_component)
-        {
-            physcics_component.rigid_body->activate(true);
-            physcics_component.rigid_body->setLinearVelocity(btVector3(rigidbody.linear_velocity[0], rigidbody.linear_velocity[1], rigidbody.linear_velocity[2]));
-            physcics_component.rigid_body->setAngularVelocity(btVector3(rigidbody.angular_velocity[0], rigidbody.angular_velocity[1], rigidbody.angular_velocity[2]));
-        });
+    //auto rigib_body_view = entity_registry_.view<const engine_rigid_body_component_t, PhysicsWorld::physcic_internal_component_t>();
+    //rigib_body_view.each([this](auto entity, const engine_rigid_body_component_t& rigidbody, PhysicsWorld::physcic_internal_component_t& physcics_component)
+    //    {
+    //        physcics_component.rigid_body->activate(true);
+    //        physcics_component.rigid_body->setLinearVelocity(btVector3(rigidbody.linear_velocity[0], rigidbody.linear_velocity[1], rigidbody.linear_velocity[2]));
+    //        physcics_component.rigid_body->setAngularVelocity(btVector3(rigidbody.angular_velocity[0], rigidbody.angular_velocity[1], rigidbody.angular_velocity[2]));
+    //    });
 
     physics_world_.update(dt / 1000.0f);
     //physics_world_.update(10.0f / 1000.0f);
@@ -118,18 +118,23 @@ engine_result_code_t engine::Scene::physics_update(float dt)
             transform.rotation[1] = euler_rotation.getY();
             transform.rotation[2] = euler_rotation.getZ();
             transform.rotation[3] = euler_rotation.getW();
+
+            glm::mat4 mat;
+            transform_phsycics.getOpenGLMatrix(glm::value_ptr(mat));
+            mat = glm::scale(mat, glm::make_vec3(transform.scale));
+            std::memcpy(transform.local_to_world, &mat, sizeof(mat));
             update_component(entity, transform);
 
-            //const auto lin_vel = physcics.rigid_body->getLinearVelocity();
-            //rigidbody.linear_velocity[0] = lin_vel.getX();
-            //rigidbody.linear_velocity[1] = lin_vel.getY();
-            //rigidbody.linear_velocity[2] = lin_vel.getZ();
+            const auto lin_vel = physcics.rigid_body->getLinearVelocity();
+            rigidbody.linear_velocity[0] = lin_vel.getX();
+            rigidbody.linear_velocity[1] = lin_vel.getY();
+            rigidbody.linear_velocity[2] = lin_vel.getZ();
 
-            //const auto ang_vel = physcics.rigid_body->getAngularVelocity();
-            //rigidbody.angular_velocity[0] = ang_vel.getX();
-            //rigidbody.angular_velocity[1] = ang_vel.getY();
-            //rigidbody.angular_velocity[2] = ang_vel.getZ();
-            //update_component(entity, rigidbody);
+            const auto ang_vel = physcics.rigid_body->getAngularVelocity();
+            rigidbody.angular_velocity[0] = ang_vel.getX();
+            rigidbody.angular_velocity[1] = ang_vel.getY();
+            rigidbody.angular_velocity[2] = ang_vel.getZ();
+            update_component(entity, rigidbody);
         }
     );
 
@@ -145,7 +150,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
     std::span<const Geometry> geometries, std::span<const AnimationClip> animations, std::span<const Skin> skins, std::span<const engine_material_create_desc_t> materials)
 {
 #if 1
-    auto transform_view = entity_registry_.view<engine_tranform_component_t>();
+    auto transform_view = entity_registry_.view<engine_tranform_component_t>(entt::exclude<engine_rigid_body_component_t>);
     transform_view.each([this](engine_tranform_component_t& transform_component)
         {
             const auto glm_pos = glm::make_vec3(transform_component.position);
