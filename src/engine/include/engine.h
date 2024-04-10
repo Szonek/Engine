@@ -444,8 +444,8 @@ ENGINE_API engine_result_code_t engineApplicationCreate(engine_application_t* ha
 ENGINE_API void engineApplicationDestroy(engine_application_t handle);
 
 // scene
-ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_t* out);
-ENGINE_API void engineSceneDestroy(engine_scene_t scene);
+ENGINE_API engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, engine_scene_t* out);
+ENGINE_API void engineApplicationSceneDestroy(engine_application_t handle, engine_scene_t scene);
 
 // game objects in scene
 ENGINE_API engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene);

@@ -96,13 +96,13 @@ engine_result_code_t update_scripts(std::unordered_map<engine_game_object_t, std
     return ENGINE_RESULT_CODE_OK;
 }
 
-inline engine_scene_t create_scene()
+inline engine_scene_t create_scene(engine_application_t& app_handle)
 {
     engine_scene_t scene = nullptr;
-    auto engine_error_code = engineSceneCreate(&scene);
+    auto engine_error_code = engineApplicationSceneCreate(app_handle, &scene);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
-        engineSceneDestroy(scene);
+        engineApplicationSceneDestroy(app_handle, scene);
         scene = nullptr;
     }
     return scene;
@@ -113,7 +113,7 @@ inline engine_scene_t create_scene()
 
 engine::IScene::IScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
     : app_(app_handle)
-    , scene_(create_scene())
+    , scene_(create_scene(app_handle))
     , scene_manager_(scn_mgn)
     , input_event_system_(app_, scene_)
 {
@@ -130,7 +130,7 @@ engine::IScene::~IScene()
 {
     if (scene_)
     {
-        engineSceneDestroy(scene_);
+        engineApplicationSceneDestroy(app_, scene_);
     }
 }
 

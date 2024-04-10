@@ -5,6 +5,7 @@
 #include "logger.h"
 #include "gltf_parser.h"
 #include "ui_document.h"
+#include "scene.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -148,9 +149,29 @@ engine::Application::~Application()
 {
 }
 
+engine::Scene* engine::Application::create_scene()
+{
+    engine_result_code_t ret_code = ENGINE_RESULT_CODE_FAIL;
+    auto ret = new Scene(rdx_, ret_code);
+    if (ret_code == ENGINE_RESULT_CODE_FAIL)
+    {
+        delete ret;
+        return nullptr;
+    }
+    return ret;
+}
+
+void engine::Application::release_scene(Scene* scene)
+{
+    if (scene)
+    {
+        delete scene;
+    }
+}
+
 engine_result_code_t engine::Application::update_scene(Scene* scene, float delta_time)
 {
-	const auto ret_code = scene->update(rdx_, delta_time,
+	const auto ret_code = scene->update(delta_time,
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
         animations_atlas_.get_objects_view(),

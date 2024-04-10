@@ -30,7 +30,7 @@ public:
 
     };
 public:
-    PhysicsWorld();
+    PhysicsWorld(class RenderContext* renderer);
 
     /**
      * @brief Enables or disables debug drawing for the physics world.
@@ -60,7 +60,7 @@ public:
      * @note This function requires that you have a valid OpenGL context and that your
      *       OpenGL state is correctly set up for rendering lines and points.
      */
-    void debug_draw(class RenderContext* renderer, std::span<const float> view, std::span<const float> projection);
+    void debug_draw(std::span<const float> view, std::span<const float> projection);
 
     physcic_internal_component_t create_rigid_body(const engine_collider_component_t& collider,
         const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform, std::int32_t body_index);
@@ -81,17 +81,11 @@ private:
     class DebugDrawer : public btIDebugDraw
     {
     public:
-
+        DebugDrawer(class RenderContext* renderer);
         void drawLine(const btVector3& from, const btVector3& to, const btVector3& color) override;
         void drawContactPoint(const btVector3& point_on_B, const btVector3& normal_on_B, btScalar distance, int life_time, const btVector3& color) override;
         void reportErrorWarning(const char* warning_string) override;
         void draw3dText(const btVector3& location, const char* text_string) override;
-        
-        // has to be called each frame
-        void set_renderer(class RenderContext* renderer)
-        {
-            renderer_ = renderer;
-        }
 
         void set_view(std::span<const float> view)
         {

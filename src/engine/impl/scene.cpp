@@ -13,8 +13,10 @@
 #include <RmlUi/Core.h>
 
 
-engine::Scene::Scene(engine_result_code_t& out_code)
-    : shader_simple_(Shader("simple.vs", "simple.fs"))
+engine::Scene::Scene(RenderContext& rdx, engine_result_code_t& out_code)
+    : rdx_(rdx)
+    , physics_world_(&rdx_)
+    , shader_simple_(Shader("simple.vs", "simple.fs"))
     , shader_vertex_skinning_(Shader("vertex_skinning.vs", "simple.fs"))
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
     , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<PhysicsWorld::physcic_internal_component_t>())
@@ -146,7 +148,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::span<const Texture2D> textures, 
+engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
     std::span<const Geometry> geometries, std::span<const AnimationClip> animations, std::span<const Skin> skins, std::span<const engine_material_create_desc_t> materials)
 {
 #if 1
@@ -282,7 +284,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
             continue;
         }
 
-        const auto window_size_pixels = rdx.get_window_size_in_pixels();
+        const auto window_size_pixels = rdx_.get_window_size_in_pixels();
 
         glm::mat4 view = glm::mat4(0.0);
         glm::mat4 projection = glm::mat4(0.0);
@@ -312,7 +314,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         }
 
         //rdx.set_polygon_mode(RenderContext::PolygonFaceType::eFrontAndBack, RenderContext::PolygonMode::eLine);
-        geometry_renderet.each([this, &view, &projection, &rdx, &textures, &geometries, &materials](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material_component, const engine_skin_internal_component_t& skin)
+        geometry_renderet.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material_component, const engine_skin_internal_component_t& skin)
             {
                 if (mesh.disable)
                 {
@@ -365,7 +367,7 @@ engine_result_code_t engine::Scene::update(RenderContext& rdx, float dt, std::sp
         shader_simple_.set_uniform_mat_f4("model", { glm::value_ptr(amat), sizeof(amat) / sizeof(float) });
         shader_simple_.set_texture("texture_diffuse", &textures[0]);
 
-        physics_world_.debug_draw(&rdx,
+        physics_world_.debug_draw(
             { glm::value_ptr(view), sizeof(view) / sizeof(float) },
             { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
 

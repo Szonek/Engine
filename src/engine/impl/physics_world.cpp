@@ -16,8 +16,8 @@
 
 
 
-engine::PhysicsWorld::PhysicsWorld()
-    : debug_drawer_(nullptr)
+engine::PhysicsWorld::PhysicsWorld(RenderContext* renderer)
+    : debug_drawer_(std::make_unique<DebugDrawer>(renderer))
 {
 
     collisions_info_buffer_.reserve(1024 * 2);
@@ -40,14 +40,13 @@ engine::PhysicsWorld::PhysicsWorld()
 
 void engine::PhysicsWorld::enable_debug_draw(bool enable)
 {
-    if (enable && debug_drawer_)
+    if (enable && dynamics_world_->getDebugDrawer() != nullptr)
     {
         engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Physics debug draw is already enabled, you cant do enable it again!\n"));
         return;
     }
     if(enable)
     {
-        debug_drawer_ = std::make_unique<DebugDrawer>();
         dynamics_world_->setDebugDrawer(debug_drawer_.get());
         debug_drawer_->setDebugMode(
             btIDebugDraw::DBG_DrawWireframe
@@ -57,27 +56,20 @@ void engine::PhysicsWorld::enable_debug_draw(bool enable)
     }
     else
     {
-        debug_drawer_.reset();
+        dynamics_world_->setDebugDrawer(nullptr);
     }
 }
 
-void engine::PhysicsWorld::debug_draw(RenderContext* renderer, std::span<const float> view, std::span<const float> projection)
+void engine::PhysicsWorld::debug_draw(std::span<const float> view, std::span<const float> projection)
 {
     if (debug_drawer_)
     {
         // set state
-        debug_drawer_->set_renderer(renderer);
         debug_drawer_->set_view(view);
         debug_drawer_->set_projection(projection);
 
         // draw
         dynamics_world_->debugDrawWorld();
-
-        // reset state, so its not accidiently used for next frame
-        // todo: possible optimization is not to reset state for each frame as camera is not changing
-        debug_drawer_->set_renderer(nullptr);
-        debug_drawer_->set_view({});
-        debug_drawer_->set_projection({});
     }
     else
     {
@@ -238,6 +230,11 @@ void engine::PhysicsWorld::DebugDrawer::drawLine(const btVector3& from, const bt
     line_geo.bind();
     line_geo.draw(Geometry::Mode::eLines);
     //engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw line \n"));
+}
+
+engine::PhysicsWorld::DebugDrawer::DebugDrawer(class RenderContext* renderer)
+    : renderer_(renderer)
+{
 }
 
 void engine::PhysicsWorld::DebugDrawer::drawContactPoint(const btVector3& point_on_B, const btVector3& normal_on_B, btScalar distance, int life_time, const btVector3& color)

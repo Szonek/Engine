@@ -438,20 +438,32 @@ engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_applicati
     return ret;
 }
 
-engine_result_code_t engineSceneCreate(engine_scene_t* out)
+engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, engine_scene_t* out)
 {
-    engine_result_code_t ret = ENGINE_RESULT_CODE_FAIL;
-    *out = reinterpret_cast<engine_scene_t>(new engine::Scene(ret));
+    if (!handle)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    auto* app = application_cast(handle);
+    *out = reinterpret_cast<engine_scene_t>(app->create_scene());
+    if (!out)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
     assert(ENGINE_INVALID_OBJECT_HANDLE != engineSceneCreateGameObject(*out)); // add invalid game object id
-    return ret;
+    return ENGINE_RESULT_CODE_OK;
 }
 
-void engineSceneDestroy(engine_scene_t scene)
+void engineApplicationSceneDestroy(engine_application_t handle, engine_scene_t scene)
 {
+    if (!handle || !scene)
+    {
+        return;
+    }
     if (scene)
     {
-        auto sc = scene_cast(scene);
-        delete sc;
+        auto* app = application_cast(handle);
+        app->release_scene(scene_cast(scene));
     }
 }
 
