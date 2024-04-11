@@ -16,6 +16,7 @@
 #include <span>
 
 #include <entt/entt.hpp>
+#include <glm/glm.hpp>
 
 namespace engine
 {
@@ -87,15 +88,9 @@ private:
         void reportErrorWarning(const char* warning_string) override;
         void draw3dText(const btVector3& location, const char* text_string) override;
 
-        void set_view(std::span<const float> view)
-        {
-            view_ = view.data();
-        }
+        void begin_frame(std::span<const float> view, std::span<const float> projection);
 
-        void set_projection(std::span<const float> projection)
-        {
-            projection_ = projection.data();
-        }
+        void end_frame();
 
         void setDebugMode(int debug_mode) override
         {
@@ -108,10 +103,32 @@ private:
         }
 
     private:
+        void set_view(std::span<const float> view)
+        {
+            view_ = view.data();
+        }
+
+        void set_projection(std::span<const float> projection)
+        {
+            projection_ = projection.data();
+        }
+
+        void process_lines_buffer();
+
+    private:
+        struct DrawableLine {
+            glm::vec3 from;
+            glm::vec3 to;
+            glm::vec3 color;
+            std::int32_t life_time = 0;
+        };
+    private:
         class RenderContext* renderer_ = nullptr;
         const float* view_ = nullptr;
         const float* projection_ = nullptr;
         std::int32_t debug_mode_;
+
+        std::vector<DrawableLine> lines_;
     };
 
 private:

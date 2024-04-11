@@ -64,12 +64,9 @@ void engine::PhysicsWorld::debug_draw(std::span<const float> view, std::span<con
 {
     if (debug_drawer_)
     {
-        // set state
-        debug_drawer_->set_view(view);
-        debug_drawer_->set_projection(projection);
-
-        // draw
+        debug_drawer_->begin_frame(view, projection);
         dynamics_world_->debugDrawWorld();
+        debug_drawer_->end_frame();
     }
     else
     {
@@ -210,35 +207,35 @@ void engine::PhysicsWorld::set_gravity(std::span<const float> g)
     dynamics_world_->setGravity(btVector3(g[0], g[1], g[2]));
 }
 
+engine::PhysicsWorld::DebugDrawer::DebugDrawer(class RenderContext* renderer)
+    : renderer_(renderer)
+{
+    lines_.reserve(1024);
+}
+
 void engine::PhysicsWorld::DebugDrawer::drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
 {
-    //ToDo: this can be optimized by using single geometry for all lines
-    // i.e. store all lines in single buffer and draw them all at once
-    // or use instanced rendering
-    // batch lines to vertex and defer rendering till the end to reduce draw calls
     assert(renderer_ && "Renderer is not set in physics debug drawer!");
     const auto from_v = glm::vec3(from.getX(), from.getY(), from.getZ());
     const auto to_v = glm::vec3(to.getX(), to.getY(), to.getZ());
     const auto color_v = glm::vec3(color.getX(), color.getY(), color.getZ());
 
-    std::array<glm::vec3, 2> vertices = { from_v, to_v };
-    std::array<Geometry::vertex_attribute_t, 1> vertex_attributes = {
-        { 0u, 3u, 0u, 0u, Geometry::vertex_attribute_t::Type::eFloat32 }
-    };
-    Geometry line_geo(vertex_attributes, { reinterpret_cast<const std::byte*>(vertices.data()), vertices.size() * sizeof(vertices[0])}, vertices.size());
-
-    line_geo.bind();
-    line_geo.draw(Geometry::Mode::eLines);
+    lines_.push_back({ from_v, to_v, color_v, 1 });
     //engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw line \n"));
-}
-
-engine::PhysicsWorld::DebugDrawer::DebugDrawer(class RenderContext* renderer)
-    : renderer_(renderer)
-{
 }
 
 void engine::PhysicsWorld::DebugDrawer::drawContactPoint(const btVector3& point_on_B, const btVector3& normal_on_B, btScalar distance, int life_time, const btVector3& color)
 {
+    // Calculate the start and end points of the line segment
+    btVector3 from = point_on_B;
+    btVector3 to = point_on_B + normal_on_B * distance * 10;
+
+    // Convert the Bullet vectors to GLM vectors
+    glm::vec3 from_v(from.getX(), from.getY(), from.getZ());
+    glm::vec3 to_v(to.getX(), to.getY(), to.getZ());
+    glm::vec3 color_v(color.getX(), color.getY(), color.getZ());
+
+    lines_.push_back({ from_v, to_v, color_v, life_time * 5 });
     //engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw contact point \n"));
 }
 
@@ -250,4 +247,56 @@ void engine::PhysicsWorld::DebugDrawer::reportErrorWarning(const char* warning_s
 void engine::PhysicsWorld::DebugDrawer::draw3dText(const btVector3& location, const char* text_ttring)
 {
     engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw 3d text {}\n", text_ttring));
+}
+
+void engine::PhysicsWorld::DebugDrawer::begin_frame(std::span<const float> view, std::span<const float> projection)
+{
+    set_view(view);
+    set_projection(projection);
+}
+
+void engine::PhysicsWorld::DebugDrawer::end_frame()
+{
+    process_lines_buffer();
+    set_view({});
+    set_projection({});
+}
+
+void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
+{
+    //ToDo: this can be optimized by using single geometry for all lines
+    // i.e. store all lines in single buffer and draw them all at once
+    // or use instanced rendering
+    // batch lines to vertex and defer rendering till the end to reduce draw calls
+    auto draw_line = [this](const glm::vec3& from_v, const glm::vec3& to_v, const glm::vec3& color)
+    {
+        std::array<glm::vec3, 2> vertices = { from_v, to_v };
+        std::array<Geometry::vertex_attribute_t, 1> vertex_attributes = {
+            { 0u, 3u, 0u, 0u, Geometry::vertex_attribute_t::Type::eFloat32 }
+        };
+        Geometry line_geo(vertex_attributes, { reinterpret_cast<const std::byte*>(vertices.data()), vertices.size() * sizeof(vertices[0]) }, vertices.size());
+
+        // Draw the line
+        line_geo.bind();
+        line_geo.draw(Geometry::Mode::eLines);
+    };
+
+    for (auto it = lines_.begin(); it != lines_.end(); /* no increment here */)
+    {
+        auto& line = *it;
+        draw_line(line.from, line.to, line.color);
+
+        if (line.life_time > 0)
+        {
+            line.life_time--;
+        }
+        if (line.life_time == 0)
+        {
+            it = lines_.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
 }
