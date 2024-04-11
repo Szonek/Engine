@@ -60,7 +60,7 @@ void engine::PhysicsWorld::enable_debug_draw(bool enable)
     }
 }
 
-void engine::PhysicsWorld::debug_draw(std::span<const float> view, std::span<const float> projection)
+void engine::PhysicsWorld::debug_draw(const glm::mat4& view, const glm::mat4& projection)
 {
     if (debug_drawer_)
     {
@@ -249,7 +249,7 @@ void engine::PhysicsWorld::DebugDrawer::draw3dText(const btVector3& location, co
     engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw 3d text {}\n", text_ttring));
 }
 
-void engine::PhysicsWorld::DebugDrawer::begin_frame(std::span<const float> view, std::span<const float> projection)
+void engine::PhysicsWorld::DebugDrawer::begin_frame(const glm::mat4& view, const glm::mat4& projection)
 {
     set_view(view);
     set_projection(projection);
@@ -264,10 +264,17 @@ void engine::PhysicsWorld::DebugDrawer::end_frame()
 
 void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
 {
+    static auto shader = Shader("debug_physics_lines.vs", "debug_physics_lines.fs");
+    if (!lines_.empty())
+    {
+        shader.bind();
+        shader.set_uniform_mat_f4("view", { glm::value_ptr(view_), sizeof(view_) / sizeof(float) });
+        shader.set_uniform_mat_f4("projection", { glm::value_ptr(projection_), sizeof(projection_) / sizeof(float) });
+    }
     //ToDo: this can be optimized by using single geometry for all lines
     // i.e. store all lines in single buffer and draw them all at once
     // or use instanced rendering
-    // batch lines to vertex and defer rendering till the end to reduce draw calls
+    // or create single geometry and just set uniform for each line for from_v and to_v vectors and offset vertices in the shader
     auto draw_line = [this](const glm::vec3& from_v, const glm::vec3& to_v, const glm::vec3& color)
     {
         std::array<glm::vec3, 2> vertices = { from_v, to_v };
@@ -275,6 +282,9 @@ void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
             { 0u, 3u, 0u, 0u, Geometry::vertex_attribute_t::Type::eFloat32 }
         };
         Geometry line_geo(vertex_attributes, { reinterpret_cast<const std::byte*>(vertices.data()), vertices.size() * sizeof(vertices[0]) }, vertices.size());
+
+        // set color
+        shader.set_uniform_f4("color", std::array<float, 4>{color.x, color.y, color.z, 1.0f});
 
         // Draw the line
         line_geo.bind();

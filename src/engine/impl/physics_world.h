@@ -61,7 +61,7 @@ public:
      * @note This function requires that you have a valid OpenGL context and that your
      *       OpenGL state is correctly set up for rendering lines and points.
      */
-    void debug_draw(std::span<const float> view, std::span<const float> projection);
+    void debug_draw(const glm::mat4& view, const glm::mat4& projection);
 
     physcic_internal_component_t create_rigid_body(const engine_collider_component_t& collider,
         const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform, std::int32_t body_index);
@@ -88,7 +88,7 @@ private:
         void reportErrorWarning(const char* warning_string) override;
         void draw3dText(const btVector3& location, const char* text_string) override;
 
-        void begin_frame(std::span<const float> view, std::span<const float> projection);
+        void begin_frame(const glm::mat4& view, const glm::mat4& projection);
 
         void end_frame();
 
@@ -103,14 +103,14 @@ private:
         }
 
     private:
-        void set_view(std::span<const float> view)
+        void set_view(const glm::mat4& view)
         {
-            view_ = view.data();
+            view_ = view;
         }
 
-        void set_projection(std::span<const float> projection)
+        void set_projection(const glm::mat4& projection)
         {
-            projection_ = projection.data();
+            projection_ = projection;
         }
 
         void process_lines_buffer();
@@ -124,8 +124,8 @@ private:
         };
     private:
         class RenderContext* renderer_ = nullptr;
-        const float* view_ = nullptr;
-        const float* projection_ = nullptr;
+        glm::mat4 view_;
+        glm::mat4 projection_;
         std::int32_t debug_mode_;
 
         std::vector<DrawableLine> lines_;
