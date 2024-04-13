@@ -397,7 +397,6 @@ public:
         // physcis
         auto cc = engineSceneAddColliderComponent(scene, go_);
         cc.type = ENGINE_COLLIDER_TYPE_BOX;
-        set_c_array(cc.collider.box.center, std::array<float, 3>{ 0.0f, 0.0f, 0.0f });
         set_c_array(cc.collider.box.size, std::array<float, 3>{ 1.0f, 1.0f, 1.0f }); 
         engineSceneUpdateColliderComponent(scene, go_, &cc);
     }
@@ -426,7 +425,6 @@ public:
         // physcis
         auto cc = engineSceneAddColliderComponent(scene, go_);
         cc.type = ENGINE_COLLIDER_TYPE_BOX;
-        set_c_array(cc.collider.box.center, std::array<float, 3>{ 0.0f, 0.0f, 0.0f });
         set_c_array(cc.collider.box.size, std::array<float, 3>{ 1.0f, 1.0f, 1.0f});
         engineSceneUpdateColliderComponent(scene, go_, &cc);
 
@@ -434,42 +432,6 @@ public:
         auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
         rbc.mass = 1.0f;
         engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
-    }
-
-    void update(float dt) override
-    {
-        const auto scene = my_scene_->get_handle();
-        const auto app = my_scene_->get_app_handle();
-
-#if 0
-        const float speed = 0.005f * dt;
-        auto rbc = engineSceneGetRigidBodyComponent(scene, go_);
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
-        {
-            rbc.linear_velocity[0] += speed;
-            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S))
-        {
-            rbc.linear_velocity[0] -= speed;
-            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A))
-        {
-            rbc.linear_velocity[2] -= speed;
-            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D))
-        {
-            rbc.linear_velocity[2] += speed;
-            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_SPACE))
-        {
-            rbc.linear_velocity[1] += 8.0f * speed;
-            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
-        }
-#endif
     }
 };
 
@@ -494,9 +456,10 @@ public:
 
         // collider
         auto cc = engineSceneAddColliderComponent(scene, go_);
-        cc.type = ENGINE_COLLIDER_TYPE_BOX;
-        set_c_array(cc.collider.box.center, std::array<float, 3>{ 0.0f, 0.0f, 0.75f });
-        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.13f, 0.1f, 0.75f });
+        cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
+        cc.collider.compound.children[0].type = ENGINE_COLLIDER_TYPE_BOX;
+        set_c_array(cc.collider.compound.children[0].transform, std::array<float, 3>{ 0.0f, 0.0f, 0.75f });
+        set_c_array(cc.collider.compound.children[0].collider.box.size, std::array<float, 3>{ 0.13f, 0.1f, 0.75f });
         engineSceneUpdateColliderComponent(scene, go_, &cc);
 
         //rb

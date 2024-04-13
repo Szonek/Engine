@@ -77,34 +77,54 @@ void engine::PhysicsWorld::debug_draw(const glm::mat4& view, const glm::mat4& pr
 engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform, std::int32_t body_index)
 {
     physcic_internal_component_t ret{};
-    if (body_index == 2)
+    if (collider.type == ENGINE_COLLIDER_TYPE_BOX)
     {
-        auto transform = btTransform::getIdentity();
-        transform.setOrigin(btVector3(collider.collider.box.center[0], collider.collider.box.center[1], collider.collider.box.center[2]));
+        const btVector3 box_bounds{
+            collider.collider.box.size[0],
+            collider.collider.box.size[1],
+            collider.collider.box.size[2],
+        };
+        ret.collision_shape = new btBoxShape(box_bounds);
+    }
+    else if (collider.type == ENGINE_COLLIDER_TYPE_SPHERE)
+    {
+        ret.collision_shape = new btSphereShape(collider.collider.sphere.radius);
+    }
+    else if (collider.type == ENGINE_COLLIDER_TYPE_COMPOUND)
+    {
         auto cs = new btCompoundShape();
-        cs->addChildShape(transform, new btBoxShape(btVector3(collider.collider.box.size[0], collider.collider.box.size[1], collider.collider.box.size[2])));
+        for (auto i = 0; i < ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS; i++)
+        {
+            const auto& chil_collider = collider.collider.compound.children[i];
+
+            if (chil_collider.type == ENGINE_COLLIDER_TYPE_NONE)
+            {
+                continue;
+            }
+            
+            auto transform = btTransform::getIdentity();
+            transform.setOrigin(btVector3(chil_collider.transform[0], chil_collider.transform[1], chil_collider.transform[2]));
+
+            if (chil_collider.type == ENGINE_COLLIDER_TYPE_BOX)
+            {
+                cs->addChildShape(transform, new btBoxShape(btVector3(chil_collider.collider.box.size[0], chil_collider.collider.box.size[1], chil_collider.collider.box.size[2])));
+            }
+            else if (chil_collider.type == ENGINE_COLLIDER_TYPE_SPHERE)
+            {
+                cs->addChildShape(transform, new btSphereShape(chil_collider.collider.sphere.radius));
+            }
+            else
+            {
+                assert(false && "Unknown collider type in compound collider!");
+                return ret;
+            }
+        }
         ret.collision_shape = cs;
     }
     else
     {
-        if (collider.type == ENGINE_COLLIDER_TYPE_BOX)
-        {
-            const btVector3 box_bounds{
-                collider.collider.box.size[0],
-                collider.collider.box.size[1],
-                collider.collider.box.size[2],
-            };
-            ret.collision_shape = new btBoxShape(box_bounds);
-        }
-        else if (collider.type == ENGINE_COLLIDER_TYPE_SPHERE)
-        {
-            ret.collision_shape = new btSphereShape(collider.collider.sphere.radius);
-        }
-        else
-        {
-            assert(false && "Unknown collider type in physisc world!");
-            return ret;
-        }
+        assert(false && "Unknown collider type in physisc world!");
+        return ret;
     }
 
     ret.collision_shape->setLocalScaling(btVector3(transform.scale[0], transform.scale[1], transform.scale[2]));

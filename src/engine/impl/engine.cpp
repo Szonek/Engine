@@ -111,18 +111,7 @@ inline void rigid_body_component_init(engine_rigid_body_component_t* comp)
 inline void collider_component_init(engine_collider_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_collider_component_t));
-    comp->type = ENGINE_COLLIDER_TYPE_BOX;
-
     comp->friction_static = 0.5f;
-    comp->bounciness = 0.0f;
-
-    comp->collider.box.center[0] = 0.0f;
-    comp->collider.box.center[1] = 0.0f;
-    comp->collider.box.center[2] = 0.0f;
-
-    comp->collider.box.size[0] = 1.0f;
-    comp->collider.box.size[1] = 1.0f;
-    comp->collider.box.size[2] = 1.0f;
 }
 
 template<typename T>
