@@ -149,10 +149,10 @@ engine::Application::~Application()
 {
 }
 
-engine::Scene* engine::Application::create_scene()
+engine::Scene* engine::Application::create_scene(const engine_scene_create_desc_t& desc)
 {
     engine_result_code_t ret_code = ENGINE_RESULT_CODE_FAIL;
-    auto ret = new Scene(rdx_, ret_code);
+    auto ret = new Scene(rdx_, desc, ret_code);
     if (ret_code == ENGINE_RESULT_CODE_FAIL)
     {
         delete ret;

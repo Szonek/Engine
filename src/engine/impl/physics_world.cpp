@@ -235,7 +235,7 @@ void engine::PhysicsWorld::DebugDrawer::drawContactPoint(const btVector3& point_
     glm::vec3 to_v(to.getX(), to.getY(), to.getZ());
     glm::vec3 color_v(color.getX(), color.getY(), color.getZ());
 
-    lines_.push_back({ from_v, to_v, color_v, life_time * 5 });
+    lines_.push_back({ from_v, to_v, color_v, life_time });
     //engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw contact point \n"));
 }
 
@@ -275,6 +275,7 @@ void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
     // i.e. store all lines in single buffer and draw them all at once
     // or use instanced rendering
     // or create single geometry and just set uniform for each line for from_v and to_v vectors and offset vertices in the shader
+    // or use geometry shader to create lines from points
     auto draw_line = [this](const glm::vec3& from_v, const glm::vec3& to_v, const glm::vec3& color)
     {
         std::array<glm::vec3, 2> vertices = { from_v, to_v };

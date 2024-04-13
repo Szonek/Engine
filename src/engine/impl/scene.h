@@ -10,9 +10,8 @@ namespace engine
 {
 class Scene
 {
-
 public:
-    Scene(RenderContext& rdx, engine_result_code_t& out_code);
+    Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code);
     Scene(const Scene&) = delete;
     Scene(Scene&& rhs) = delete;
     Scene& operator=(const Scene&) = delete;

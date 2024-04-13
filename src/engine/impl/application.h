@@ -23,7 +23,7 @@ public:
     Application& operator=(Application&&) = default;
     ~Application();
 
-    class Scene* create_scene();
+    class Scene* create_scene(const engine_scene_create_desc_t& desc);
     void release_scene(class Scene* scene);
 
     engine_result_code_t update_scene(class Scene* scene, float delta_time);

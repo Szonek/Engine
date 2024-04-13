@@ -106,6 +106,11 @@ typedef struct _engine_application_create_desc_t
     bool fullscreen;
 } engine_application_create_desc_t;
 
+typedef struct _engine_scene_create_desc_t
+{
+    bool enable_physics_debug_draw;
+} engine_scene_create_desc_t;
+
 typedef enum _engine_begin_frame_event_flags_t
 {
     ENGINE_EVENT_NONE = 0x0,
@@ -444,7 +449,7 @@ ENGINE_API engine_result_code_t engineApplicationCreate(engine_application_t* ha
 ENGINE_API void engineApplicationDestroy(engine_application_t handle);
 
 // scene
-ENGINE_API engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, engine_scene_t* out);
+ENGINE_API engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, engine_scene_create_desc_t desc, engine_scene_t* out);
 ENGINE_API void engineApplicationSceneDestroy(engine_application_t handle, engine_scene_t scene);
 
 // game objects in scene

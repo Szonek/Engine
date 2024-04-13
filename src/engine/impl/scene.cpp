@@ -13,7 +13,7 @@
 #include <RmlUi/Core.h>
 
 
-engine::Scene::Scene(RenderContext& rdx, engine_result_code_t& out_code)
+engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : rdx_(rdx)
     , physics_world_(&rdx_)
     , shader_simple_(Shader("simple.vs", "simple.fs"))
@@ -30,7 +30,7 @@ engine::Scene::Scene(RenderContext& rdx, engine_result_code_t& out_code)
     entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
     out_code = ENGINE_RESULT_CODE_OK;
 
-    //physics_world_.enable_debug_draw(true);
+    physics_world_.enable_debug_draw(config.enable_physics_debug_draw);
 }
 
 engine::Scene::~Scene()

@@ -438,14 +438,14 @@ engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_applicati
     return ret;
 }
 
-engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, engine_scene_t* out)
+engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, engine_scene_create_desc_t desc, engine_scene_t* out)
 {
     if (!handle)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
     auto* app = application_cast(handle);
-    *out = reinterpret_cast<engine_scene_t>(app->create_scene());
+    *out = reinterpret_cast<engine_scene_t>(app->create_scene(desc));
     if (!out)
     {
         return ENGINE_RESULT_CODE_FAIL;
