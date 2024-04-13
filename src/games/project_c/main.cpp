@@ -496,7 +496,7 @@ public:
         auto cc = engineSceneAddColliderComponent(scene, go_);
         cc.type = ENGINE_COLLIDER_TYPE_BOX;
         set_c_array(cc.collider.box.center, std::array<float, 3>{ 0.0f, 0.0f, 0.75f });
-        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.13f, 0.56f, 0.75f });
+        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.13f, 0.1f, 0.75f });
         engineSceneUpdateColliderComponent(scene, go_, &cc);
 
         //rb

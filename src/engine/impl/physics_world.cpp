@@ -77,24 +77,36 @@ void engine::PhysicsWorld::debug_draw(const glm::mat4& view, const glm::mat4& pr
 engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform, std::int32_t body_index)
 {
     physcic_internal_component_t ret{};
-    if (collider.type == ENGINE_COLLIDER_TYPE_BOX)
+    if (body_index == 2)
     {
-        const btVector3 box_bounds{
-            collider.collider.box.size[0],
-            collider.collider.box.size[1],
-            collider.collider.box.size[2],
-        };
-        ret.collision_shape = new btBoxShape(box_bounds);
-    }
-    else if (collider.type == ENGINE_COLLIDER_TYPE_SPHERE)
-    {
-        ret.collision_shape = new btSphereShape(collider.collider.sphere.radius);
+        auto transform = btTransform::getIdentity();
+        transform.setOrigin(btVector3(collider.collider.box.center[0], collider.collider.box.center[1], collider.collider.box.center[2]));
+        auto cs = new btCompoundShape();
+        cs->addChildShape(transform, new btBoxShape(btVector3(collider.collider.box.size[0], collider.collider.box.size[1], collider.collider.box.size[2])));
+        ret.collision_shape = cs;
     }
     else
     {
-        assert(false && "Unknown collider type in physisc world!");
-        return ret;
+        if (collider.type == ENGINE_COLLIDER_TYPE_BOX)
+        {
+            const btVector3 box_bounds{
+                collider.collider.box.size[0],
+                collider.collider.box.size[1],
+                collider.collider.box.size[2],
+            };
+            ret.collision_shape = new btBoxShape(box_bounds);
+        }
+        else if (collider.type == ENGINE_COLLIDER_TYPE_SPHERE)
+        {
+            ret.collision_shape = new btSphereShape(collider.collider.sphere.radius);
+        }
+        else
+        {
+            assert(false && "Unknown collider type in physisc world!");
+            return ret;
+        }
     }
+
     ret.collision_shape->setLocalScaling(btVector3(transform.scale[0], transform.scale[1], transform.scale[2]));
     btVector3 local_inertia(0, 0, 0);
     if (rigid_body.mass)
