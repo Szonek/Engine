@@ -284,7 +284,7 @@ engine_font_t engineApplicationGetFontByName(engine_application_t handle, const 
 engine_result_code_t engineApplicationAddGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out)
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
-    const auto ret = app->add_geometry(desc->vers_layout, desc->verts_count, { reinterpret_cast<const std::byte*>(desc->verts_data), desc->verts_data_size }, { desc->inds, desc->inds_count}, name);
+    const auto ret = app->add_geometry(desc->verts_layout, desc->verts_count, { reinterpret_cast<const std::byte*>(desc->verts_data), desc->verts_data_size }, { desc->inds, desc->inds_count}, name);
     if (ret == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return ENGINE_RESULT_CODE_FAIL;

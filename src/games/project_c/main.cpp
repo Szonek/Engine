@@ -444,22 +444,32 @@ public:
         : BaseNode(my_scene, node, model_info)
     {
         const auto scene = my_scene_->get_handle();
-        auto tc = engineSceneGetTransformComponent(scene, go_);
-        const auto q = glm::rotate(glm::make_quat(tc.rotation), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        for (int i = 0; i < q.length(); i++)
-        {
-            tc.rotation[i] = q[i];
-        }
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
+        //auto tc = engineSceneGetTransformComponent(scene, go_);
+        //const auto q = glm::rotate(glm::make_quat(tc.rotation), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        //for (int i = 0; i < q.length(); i++)
+        //{
+        //    tc.rotation[i] = q[i];
+        //}
+        //engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         // physcis
-
         // collider
         auto cc = engineSceneAddColliderComponent(scene, go_);
         cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
         cc.collider.compound.children[0].type = ENGINE_COLLIDER_TYPE_BOX;
-        set_c_array(cc.collider.compound.children[0].transform, std::array<float, 3>{ 0.0f, 0.0f, 0.75f });
-        set_c_array(cc.collider.compound.children[0].collider.box.size, std::array<float, 3>{ 0.13f, 0.1f, 0.75f });
+        const auto& vertex_info = model_info.model_info.geometries_array[node.geometry_index].verts_layout.attributes[ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION];
+        std::array<float, 3> aabb_center{};
+        std::array<float, 3> aabb_half_extent{};
+        for (auto i = 0; i < aabb_half_extent.size(); i++)
+        {
+            aabb_center[i] = (vertex_info.range_max[i] + vertex_info.range_min[i]) / 2.0f;
+            aabb_half_extent[i] = (std::abs(vertex_info.range_max[i]) + std::abs(vertex_info.range_min[i])) / 2.0f;
+        }
+        set_c_array(cc.collider.compound.children[0].transform, aabb_center);
+        set_c_array(cc.collider.compound.children[0].collider.box.size, aabb_half_extent);
+        //set_c_array(cc.collider.compound.children[0].collider.box.size, std::array<float, 3>{ 0.56f, 0.75f, 0.13f });
+        //set_c_array(cc.collider.compound.children[0].transform, std::array<float, 3>{ 0.0f, 0.0f, 0.75f });
+        //set_c_array(cc.collider.compound.children[0].collider.box.size, std::array<float, 3>{ 0.56f, 0.13f, 0.75f });
         engineSceneUpdateColliderComponent(scene, go_, &cc);
 
         //rb
@@ -539,7 +549,8 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
     for (auto i = 0; i < model_info.model_info.nodes_count; i++)
     {
         const auto& node = model_info.model_info.nodes_array[i];
-        if (!node.parent)
+        //if (!node.parent)
+        if (node.geometry_index != ENGINE_INVALID_OBJECT_HANDLE)
         {
             assert(controllable_entity == nullptr);
             controllable_entity = scene->register_script<project_c::ControllableEntity>(node, model_info);

@@ -56,6 +56,9 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
             std::uint32_t num_components = 0;
             std::uint32_t data_stride = 0;
 
+            std::vector<double> values_range_min;
+            std::vector<double> values_range_max;
+
             inline std::size_t get_size() const
             {
                 return count * num_components * tinygltf::GetComponentSizeInBytes(param_type);
@@ -88,6 +91,9 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
                 attribs[attrib_type].num_components = attrib_num_components;
                 attribs[attrib_type].param_type = attrib_accesor.componentType;
                 attribs[attrib_type].data_stride = attrib_stride;
+                attribs[attrib_type].values_range_min = attrib_accesor.minValues;
+                attribs[attrib_type].values_range_max = attrib_accesor.maxValues;
+
                 assert(attribs[attrib_type].num_components == expected_num_components.at(attrib_type));
             }
             else
@@ -169,6 +175,14 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
                     ret.vertex_laytout.attributes[attrib_added_idx].elements_data_type = to_engine_vertex_data_type(attribs[i].param_type);
                     ret.vertex_laytout.attributes[attrib_added_idx].elements_count = attribs[i].num_components;
                     ret.vertex_laytout.attributes[attrib_added_idx].type = static_cast<engine_vertex_attribute_type_t>(i);
+
+                    for (std::size_t j = 0; j < attribs[i].values_range_min.size(); j++)
+                    {
+                        ret.vertex_laytout.attributes[attrib_added_idx].range_min[j] = static_cast<float>(attribs[i].values_range_min[j]);
+                        ret.vertex_laytout.attributes[attrib_added_idx].range_max[j] = static_cast<float>(attribs[i].values_range_max[j]);
+                    }
+
+
                     attrib_added_idx++;
                 }
             }

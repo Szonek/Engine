@@ -303,8 +303,10 @@ typedef struct _engine_vertex_attribute_desc_t
     uint32_t elements_count;  // set to 0 to disable given attribute
     engine_vertex_attribute_data_type_t elements_data_type;
     engine_vertex_attribute_type_t type;
-} engine_vertex_attribute_desc_t;
 
+    float range_min[4];
+    float range_max[4];
+} engine_vertex_attribute_desc_t;
 
 typedef struct _engine_vertex_attributes_layout_t
 {
@@ -338,8 +340,7 @@ typedef struct _engine_geometry_create_desc_t
     const void* verts_data;
     size_t verts_data_size;
     int32_t verts_count;
-    engine_vertex_attributes_layout_t vers_layout;
-
+    engine_vertex_attributes_layout_t verts_layout;
     const uint32_t* inds;
     size_t inds_count;
 } engine_geometry_create_desc_t;

@@ -446,7 +446,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
 
             ret_g.verts_data_size = int_g.vertex_data.size();
             ret_g.verts_data = int_g.vertex_data.data();
-            ret_g.vers_layout = int_g.vertex_laytout;
+            ret_g.verts_layout = int_g.vertex_laytout;
             ret_g.verts_count = int_g.vertex_count;
         }
 
