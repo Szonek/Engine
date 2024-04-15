@@ -49,6 +49,7 @@ inline auto component_iterator_cast(engine_component_iterator_t it)
 inline void transform_component_init(engine_tranform_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_tranform_component_t));
+    comp->rotation[3] = 1.0f;
     comp->scale[0] = 1.0f;
     comp->scale[1] = 1.0f;
     comp->scale[2] = 1.0f;
@@ -300,6 +301,26 @@ engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle
 {
     const auto* app = application_cast(handle);
     return app->get_geometry(name);
+}
+
+engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_application_t handle, engine_geometry_t geometry, engine_vertex_attribute_type_t type)
+{
+    engine_geometry_attribute_limit_t ret{};
+    ret.elements_count = 0;
+    if (!handle || geometry == ENGINE_INVALID_OBJECT_HANDLE || type == ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT)
+    {
+        return ret;
+    }
+    const auto* app = application_cast(handle);
+    const auto geometry_obj = app->get_geometry(geometry);
+    const auto attrib = geometry_obj->get_vertex_attribute(type);
+    ret.elements_count = attrib.range_max.size();
+    for (auto i = 0; i < ret.elements_count; i++)
+    {
+        ret.max[i] = attrib.range_max[i];
+        ret.min[i] = attrib.range_min[i];
+    }
+    return ret;
 }
 
 engine_result_code_t engineApplicationAddMaterialFromDesc(engine_application_t handle, const engine_material_create_desc_t* desc, const char* name, engine_material_t* out)

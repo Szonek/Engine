@@ -76,6 +76,7 @@ typedef struct _engine_child_collider_t
 {
     engine_collider_type_t type;
     float transform[3];  // x,y,z position transform
+    float rotation_quaternion[4];  // x,y,z,w quaternion rotation transform
     union
     {
         engine_box_collider_t box;

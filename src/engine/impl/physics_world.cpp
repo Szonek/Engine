@@ -95,23 +95,25 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
         auto cs = new btCompoundShape();
         for (auto i = 0; i < ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS; i++)
         {
-            const auto& chil_collider = collider.collider.compound.children[i];
+            const auto& child_collider = collider.collider.compound.children[i];
 
-            if (chil_collider.type == ENGINE_COLLIDER_TYPE_NONE)
+            if (child_collider.type == ENGINE_COLLIDER_TYPE_NONE)
             {
                 continue;
             }
             
-            auto transform = btTransform::getIdentity();
-            transform.setOrigin(btVector3(chil_collider.transform[0], chil_collider.transform[1], chil_collider.transform[2]));
+            auto shape_transform = btTransform();
+            shape_transform.setIdentity();
+            shape_transform.setOrigin(btVector3(child_collider.transform[0], child_collider.transform[1], child_collider.transform[2]));
+            shape_transform.setRotation(btQuaternion(child_collider.rotation_quaternion[0], child_collider.rotation_quaternion[1], child_collider.rotation_quaternion[2], child_collider.rotation_quaternion[3]));
 
-            if (chil_collider.type == ENGINE_COLLIDER_TYPE_BOX)
+            if (child_collider.type == ENGINE_COLLIDER_TYPE_BOX)
             {
-                cs->addChildShape(transform, new btBoxShape(btVector3(chil_collider.collider.box.size[0], chil_collider.collider.box.size[1], chil_collider.collider.box.size[2])));
+                cs->addChildShape(shape_transform, new btBoxShape(btVector3(child_collider.collider.box.size[0], child_collider.collider.box.size[1], child_collider.collider.box.size[2])));
             }
-            else if (chil_collider.type == ENGINE_COLLIDER_TYPE_SPHERE)
+            else if (child_collider.type == ENGINE_COLLIDER_TYPE_SPHERE)
             {
-                cs->addChildShape(transform, new btSphereShape(chil_collider.collider.sphere.radius));
+                cs->addChildShape(shape_transform, new btSphereShape(child_collider.collider.sphere.radius));
             }
             else
             {
@@ -134,17 +136,11 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
         ret.collision_shape->calculateLocalInertia(rigid_body.mass, local_inertia);
     }
 
-    const auto glm_pos = glm::make_vec3(transform.position);
-    const auto glm_rot = glm::make_quat(transform.rotation);
-    const auto glm_scl = glm::make_vec3(transform.scale);
-
-    const auto model_matrix = compute_model_matrix(glm_pos, glm_rot, /*glm_scl*/ glm::vec3(1.0f));
-
     btTransform transform_init;
-    transform_init.setFromOpenGLMatrix(glm::value_ptr(model_matrix));
-    //transform_init.setIdentity();
-    //transform_init.setOrigin(btVector3(transform.position[0], transform.position[1], transform.position[2]));
-    //transform_init.setRotation(btQuaternion(transform.rotation[0], transform.rotation[1], transform.rotation[2], transform.rotation[3]));
+    transform_init.setIdentity();
+    transform_init.setOrigin(btVector3(transform.position[0], transform.position[1], transform.position[2]));
+    transform_init.setRotation(btQuaternion(transform.rotation[0], transform.rotation[1], transform.rotation[2], transform.rotation[3]));
+
     //using motionstate is optional, it provides interpolation capabilities, and only synchronizes 'active' objects
     btDefaultMotionState* my_motion_state = new btDefaultMotionState(transform_init);
     btRigidBody::btRigidBodyConstructionInfo rbInfo(rigid_body.mass, my_motion_state, ret.collision_shape, local_inertia);
@@ -153,23 +149,8 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
     {
         ret.rigid_body->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
     }
-    //ret.rigid_body->setLinearFactor(btVector3(1.0f, 1.0f, 0.0f));
-    //ret.rigid_body->setAngularFactor(btVector3(0.0f, 0.0f, 0.0f));
+
     ret.rigid_body->setUserIndex(body_index);
-
-    //if (body_index == 3)
-    //{
-        //ret.rigid_body->setLinearFactor(btVector3(0.0, 0.0, 0.0));
-        //ret.rigid_body->setAngularFactor(btVector3(0.0, 0.0, 0.0));
-        //ret.rigid_body->setDamping(1.0f, 1.0f);
-    //}
-
-
-    //ret.rigid_body->setRestitution(collider.bounciness);
-    //ret.rigid_body->setFriction(collider.friction_static);
-    //ret.rigid_body->setLinearVelocity(btVector3(rigid_body.linear_velocity[0], rigid_body.linear_velocity[1], rigid_body.linear_velocity[2]));
-    //ret.rigid_body->setCcdMotionThreshold(1e-7f);
-    //ret.rigid_body->setCcdSweptSphereRadius(transform.scale[0]);
     dynamics_world_->addRigidBody(ret.rigid_body);
 
     return ret;
@@ -276,7 +257,7 @@ void engine::PhysicsWorld::DebugDrawer::reportErrorWarning(const char* warning_s
     engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] physics warning: {}\n", warning_string));
 }
 
-void engine::PhysicsWorld::DebugDrawer::draw3dText(const btVector3& location, const char* text_ttring)
+void engine::PhysicsWorld::DebugDrawer::draw3dText(const btVector3& /*location*/, const char* text_ttring)
 {
     engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw 3d text {}\n", text_ttring));
 }

@@ -106,7 +106,11 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     auto transform_physcis_view = entity_registry_.view<engine_tranform_component_t, const PhysicsWorld::physcic_internal_component_t, engine_rigid_body_component_t>();
     transform_physcis_view.each([this](auto entity, engine_tranform_component_t transform, const PhysicsWorld::physcic_internal_component_t physcics, engine_rigid_body_component_t rigidbody)
         {
-            assert(physcics.rigid_body);
+            //assert(physcics.rigid_body);
+            if (!physcics.rigid_body)
+            {
+                return;
+            }
             btTransform transform_phsycics{};
             physcics.rigid_body->getMotionState()->getWorldTransform(transform_phsycics);   
 
@@ -202,7 +206,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             }     
             std::memcpy(transform_comp.local_to_world, &ltw_matrix, sizeof(ltw_matrix));
         });
-
+ 
     // attach or deattach entity to the skin object
     for(const auto entt : mesh_update_observer)
     {

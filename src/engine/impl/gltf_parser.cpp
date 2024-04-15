@@ -290,7 +290,7 @@ inline engine::MaterialInfo parse_material(const tinygltf::Material& material)
     return new_material;
 }
 
-inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::Model& model, std::vector<engine::ModelNode>& nodes)
+inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::Model& model, std::vector<std::shared_ptr<engine::ModelNode>>& nodes)
 {
     engine::SkinInfo new_skin{};
     new_skin.joints.reserve(skin.joints.size());
@@ -320,8 +320,8 @@ inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::M
         const auto inv_bind_mtx_buffer = reinterpret_cast<const float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);
         joint_info.inverse_bind_matrix = glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
         
-        nodes[node_id].joint = joint_info.idx;
-        joint_info.init_trs = engine::TRS{ nodes[node_id].translation, nodes[node_id].rotation, nodes[node_id].scale};
+        nodes[node_id]->joint = joint_info.idx;
+        joint_info.init_trs = engine::TRS{ nodes[node_id]->translation, nodes[node_id]->rotation, nodes[node_id]->scale};
         new_skin.joints.push_back(std::move(joint_info));
     }
     return new_skin;
@@ -335,7 +335,7 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
     for (std::size_t ch_idx = 0; const auto & ch : animation.channels)
     {
         const auto& sampler = animation.samplers[ch.sampler];
-        assert(sampler.interpolation == "LINEAR"); // ToDo: add support for other interploation types
+        //assert(sampler.interpolation == "LINEAR"); // ToDo: add support for other interploation types
 
         const auto& accessor_timestamps = model.accessors[sampler.input];
         const auto& buffer_view_timestamps = model.bufferViews[accessor_timestamps.bufferView];
@@ -466,13 +466,15 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     }
 
     // Dont resize this vector later, it will invalidate pointers of the nodes
-    std::vector<engine::ModelNode> nodes(model.nodes.size());
+    std::vector<std::shared_ptr<engine::ModelNode>> nodes(model.nodes.size());
     std::vector<std::size_t> skins_root_nodes_idx{};
     std::vector<std::size_t> meshes_root_nodes_idx{};
     // Build all nodes first
     for (std::int32_t idx = 0; const auto& node : model.nodes)
     {
-        auto& n = nodes.at(idx);
+        nodes.at(idx) = std::make_shared<engine::ModelNode>();
+        auto& n_ptr = nodes.at(idx);
+        auto& n = *n_ptr;
         // general params
         n.index = idx++;
         n.name = node.name;
@@ -504,15 +506,6 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
 
         }
 
-        // hierarchy
-        std::for_each(node.children.begin(), node.children.end(), [&n, &nodes](const auto child_idx)
-            {
-                auto& child = nodes.at(child_idx);
-                assert(child.parent == nullptr);
-                child.parent = &n;
-                n.children.push_back(&child);
-            });
-
         // utility
         if (n.skin != engine::INVALID_VALUE)
         {
@@ -523,6 +516,21 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             meshes_root_nodes_idx.push_back(n.index);
         }
     }
+    // build hierarchy
+    for (std::int32_t idx = 0; const auto & node : model.nodes)
+    {
+        auto& n_ptr = nodes.at(idx);
+        std::for_each(node.children.begin(), node.children.end(), [&n_ptr, &nodes](const auto child_idx)
+            {
+                auto child = nodes.at(child_idx);
+                assert(child->parent == nullptr);
+                child->parent = n_ptr;
+                n_ptr->children.push_back(child);
+            });
+        idx++;
+    }
+
+
     engine::ModelInfo out{};
 
     // textures
@@ -590,22 +598,26 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     }
 
     // get rid of nodes which has JOINT parents, but arent joints itselfs
-    nodes.erase(std::remove_if(nodes.begin(), nodes.end(), [](const ModelNode& n) {
-        if (n.parent && n.parent->joint != engine::INVALID_VALUE && n.joint == engine::INVALID_VALUE)
+    nodes.erase(std::remove_if(nodes.begin(), nodes.end(), [](const auto& n) {
+        if (n->parent && n->parent->joint != engine::INVALID_VALUE && n->joint == engine::INVALID_VALUE)
         {   
             engine::log::log(engine::log::LogLevel::eError,
-                fmt::format("Cant parse node which has JOINT (skeleton bone) parent, but its not joint itself. Removing such node (name: {}).\n", n.name));
+                fmt::format("Cant parse node which has JOINT (skeleton bone) parent, but its not joint itself. Removing such node (name: {}).\n", n->name));
             return true;
         }
         return false;
         }), nodes.end());
 
-    // get rid of joint nodes as they are part of skeleton
-    nodes.erase(std::remove_if(nodes.begin(), nodes.end(), [](const ModelNode& n) { 
-            return n.joint != engine::INVALID_VALUE; 
+    nodes.erase(std::remove_if(nodes.begin(), nodes.end(), [](const auto& n) { 
+            return n->joint != engine::INVALID_VALUE; 
         }), nodes.end());
     // it's improtant to use std::move here to have pointer stability of parent member
     out.nodes = std::move(nodes);
+    // update indicies
+    for (std::size_t i = 0; i < out.nodes.size(); i++)
+    {
+        out.nodes[i]->index = static_cast<std::int32_t>(i);
+    }
     return out;
 
 }

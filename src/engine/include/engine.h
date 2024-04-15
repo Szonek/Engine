@@ -442,6 +442,27 @@ typedef struct _engine_model_desc_t
     uint32_t skins_counts;
 } engine_model_desc_t;
 
+/**
+ * @struct engine_geometry_attribute_limit_t
+ * @brief A structure representing the limits of a geometry attribute in the engine.
+ *
+ * This structure is used to define the limits or boundaries of a specific attribute of a geometry object in the engine.
+ * This could be used for various purposes such as optimization, error checking, or to define certain behaviors in the engine.
+ *
+ * @var float min
+ * The minimum value of the attribute. This represents the lower limit or boundary for this attribute.
+ *
+ * @var float max
+ * The maximum value of the attribute. This represents the upper limit or boundary for this attribute.
+ */
+typedef struct _engine_geometry_attribute_limit_t
+{
+    size_t elements_count;
+    float min[4];
+    float max[4];
+} engine_geometry_attribute_limit_t;
+
+
 // cross platform log
 ENGINE_API void engineLog(const char* str);
 
@@ -484,6 +505,7 @@ ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, e
 // geometry
 ENGINE_API engine_result_code_t engineApplicationAddGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
+ENGINE_API engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_application_t handle, engine_geometry_t geometry, engine_vertex_attribute_type_t type);
 
 // material
 ENGINE_API engine_result_code_t engineApplicationAddMaterialFromDesc(engine_application_t handle, const engine_material_create_desc_t* desc, const char* name, engine_material_t* out);

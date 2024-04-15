@@ -25,6 +25,9 @@ struct vertex_attribute_simple_t
 {
 	std::uint32_t size;
 	engine::Geometry::vertex_attribute_t::Type type;
+
+    std::vector<float> range_min;
+    std::vector<float> range_max;
 };
 inline std::vector<engine::Geometry::vertex_attribute_t> create_tightly_packed_vertex_layout(std::span<const vertex_attribute_simple_t> simple_attribs)
 {
@@ -72,6 +75,8 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_tightly_packed_v
 		attrib.size = simple_attribs[idx].size;
 		attrib.type = simple_attribs[idx].type;
 		attrib.offset = offsets[idx];
+        attrib.range_min = simple_attribs[idx].range_min;
+        attrib.range_max = simple_attribs[idx].range_max;
 		idx++;
 	}
 	return vertex_layout;
@@ -97,6 +102,16 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layou
         }
     };
 
+    auto to_range_vector = [](const float* data, const auto size)
+    {
+        std::vector<float> ret(size);
+        for (auto i = 0; i < ret.size(); i++)
+        {
+            ret.at(i) = data[i];
+        }
+        return ret;
+    };
+
     std::vector<vertex_attribute_simple_t> vertex_layout_simple;
     for (auto i = 0; i < std::size(verts_layout.attributes); i++)
     {
@@ -105,7 +120,7 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layou
         {
             continue;
         }
-        vertex_layout_simple.push_back({ attr.elements_count, to_vert_attr_dt(attr.elements_data_type) });
+        vertex_layout_simple.push_back({ attr.elements_count, to_vert_attr_dt(attr.elements_data_type), to_range_vector(attr.range_min, attr.elements_count), to_range_vector(attr.range_max, attr.elements_count)});
     }
     return create_tightly_packed_vertex_layout(vertex_layout_simple);
 }
@@ -343,6 +358,11 @@ std::uint32_t engine::Application::get_geometry(std::string_view name) const
     return geometries_atlas_.get_object(name);
 }
 
+const engine::Geometry* engine::Application::get_geometry(std::uint32_t idx) const
+{
+    return geometries_atlas_.get_object(idx);
+}
+
 std::uint32_t engine::Application::add_animation_clip(const engine_animation_clip_create_desc_t& desc, std::string_view name)
 {
     return animations_atlas_.add_object(name, AnimationClip(desc));
@@ -401,11 +421,12 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
                     arr[i] = glm_vec[i];
                 }
             };
+
             const auto& in_n = model_info->nodes.at(i);
             auto& ret_n = ret.nodes_array[i];
-            ret_n.geometry_index = in_n.mesh;
-            ret_n.skin_index = in_n.skin;
-            ret_n.name = in_n.name.c_str();
+            ret_n.geometry_index = in_n->mesh;
+            ret_n.skin_index = in_n->skin;
+            ret_n.name = in_n->name.c_str();
             if (ret_n.geometry_index != -1)
             {
                 ret_n.material_index = model_info->geometries[ret_n.geometry_index].material_index;
@@ -416,13 +437,13 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
             }
 
 
-            copy_arr(ret_n.translate, in_n.translation);
-            copy_arr(ret_n.rotation_quaternion, in_n.rotation);
-            copy_arr(ret_n.scale, in_n.scale);
+            copy_arr(ret_n.translate, in_n->translation);
+            copy_arr(ret_n.rotation_quaternion, in_n->rotation);
+            copy_arr(ret_n.scale, in_n->scale);
 
-            if (in_n.parent)
+            if (in_n->parent)
             {
-                ret_n.parent = &ret.nodes_array[in_n.parent->index];
+                ret_n.parent = &ret.nodes_array[in_n->parent->index];
             }
             else
             {

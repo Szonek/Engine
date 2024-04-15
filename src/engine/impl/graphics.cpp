@@ -386,7 +386,7 @@ engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, st
 	glBufferData(GL_ARRAY_BUFFER, vertex_data.size_bytes(), vertex_data.data(), GL_STATIC_DRAW);
 
 	// vertex layout 
-    std::for_each(vertex_layout.begin(), vertex_layout.end(), [](const vertex_attribute_t& vl)
+    std::for_each(vertex_layout.begin(), vertex_layout.end(), [this](const vertex_attribute_t& vl)
         {
             bool use_float_attrib = false;  // we dont want to cast ints to floats with glVertexAttribPointer
 			std::uint32_t gl_type = 0;
@@ -429,6 +429,7 @@ engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, st
             }
 
 			glEnableVertexAttribArray(vl.index);
+            attribs_.push_back(vl);
 		}
 	);
 
@@ -453,6 +454,7 @@ engine::Geometry::Geometry(Geometry&& rhs) noexcept
 	std::swap(vao_, rhs.vao_);
 	std::swap(vertex_count_, rhs.vertex_count_);
 	std::swap(index_count_, rhs.index_count_);
+	std::swap(attribs_, rhs.attribs_);
 }
 
 engine::Geometry& engine::Geometry::operator=(Geometry&& rhs) noexcept
@@ -464,6 +466,7 @@ engine::Geometry& engine::Geometry::operator=(Geometry&& rhs) noexcept
 		std::swap(vao_, rhs.vao_);
 		std::swap(vertex_count_, rhs.vertex_count_);
 		std::swap(index_count_, rhs.index_count_);
+		std::swap(attribs_, rhs.attribs_);
 	}
 	return *this;
 }
@@ -511,6 +514,11 @@ void engine::Geometry::draw(Mode mode) const
 	{
 		glDrawArrays(gl_mode, 0, vertex_count_);
 	}
+}
+
+engine::Geometry::vertex_attribute_t engine::Geometry::get_vertex_attribute(std::size_t idx) const
+{
+    return attribs_.at(idx);
 }
 
 //inline void framebuffer_size_callback(struct GLFWwindow* window, std::int32_t width, std::int32_t height)
