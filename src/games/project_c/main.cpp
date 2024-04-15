@@ -450,7 +450,8 @@ public:
 class ControllableEntity : public engine::IScript
 {
 public:
-    ControllableEntity(engine::IScene* my_scene, const engine_tranform_component_t& transform, engine_geometry_t geometry, engine_material_t material)
+    ControllableEntity(engine::IScene* my_scene, const engine_tranform_component_t& transform,
+        engine_geometry_t geometry, engine_material_t material, engine_skin_t skin, const std::vector<engine_animation_clip_t>& anims)
         : IScript(my_scene)
     {
         const auto scene = my_scene->get_handle();
@@ -471,7 +472,7 @@ public:
         {
             auto mc = engineSceneAddMeshComponent(scene, go_);
             mc.geometry = geometry;
-            mc.skin = ENGINE_INVALID_OBJECT_HANDLE;
+            mc.skin = skin;
             engineSceneUpdateMeshComponent(scene, go_, &mc);
         }
 
@@ -481,6 +482,16 @@ public:
             auto material_comp = engineSceneAddMaterialComponent(scene, go_);
             material_comp.material = material;
             engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+        }
+
+        if (!anims.empty())
+        {
+            auto anim_comp = engineSceneAddAnimationComponent(scene, go_);
+            for (auto i = 0; i < anims.size(); i++)
+            {
+                anim_comp.animations_array[i] = anims[i];
+            }
+            engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
         }
 
         // ------------ physcis
@@ -639,7 +650,9 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
     std::memcpy(&transform_comp.scale, glm::value_ptr(scale), sizeof(transform_comp.scale));
     scene->register_script<project_c::ControllableEntity>(transform_comp,
         model_info.geometries[node_with_geometry->geometry_index],
-        model_info.materials[node_with_geometry->material_index]);
+        model_info.materials[node_with_geometry->material_index],
+        model_info.skins[node_with_geometry->skin_index],
+        model_info.animations);
     return true;
 }
 
