@@ -185,6 +185,8 @@ public:
 
         if (engineApplicationIsMouseButtonDown(app, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_RIGHT))
         {
+            // zoom in/out with right mouse button 
+            // update spherical coordinates (radius -> sc_[0])
             translate({ 0.0f, 0.0f, dy * move_speed });
         }
     }
@@ -264,7 +266,7 @@ private:
     }
 
 private:
-    std::array<float, 3> sc_;
+    std::array<float, 3> sc_;  // {radius, phi, theta}
     engine_coords_2d_t mouse_coords_prev_{};
 };
 
