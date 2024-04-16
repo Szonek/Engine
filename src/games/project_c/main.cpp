@@ -193,11 +193,17 @@ private:
     inline void translate(const glm::vec3& delta)
     {
         const auto scene = my_scene_->get_handle();
+        // Decrease the radius based on the delta's z value
+        sc_[0] -= delta.z;
+        // Make sure the radius doesn't go below a certain threshold to prevent the camera from going inside the target
+        sc_[0] = std::max(sc_[0], 0.1f);
+        // Update the camera's position based on the new spherical coordinates
+        const auto new_position = get_cartesian_coordinates(sc_);
         auto tc = engineSceneGetTransformComponent(scene, go_);
-        for (int i = 0; i < std::size(tc.position); i++)
-        {
-            tc.position[i] += delta[i];
-        }
+        auto cc = engineSceneGetCameraComponent(scene, go_);
+        tc.position[0] = new_position[0] + cc.target[0];
+        tc.position[1] = new_position[1] + cc.target[1];
+        tc.position[2] = new_position[2] + cc.target[2];
         engineSceneUpdateTransformComponent(scene, go_, &tc);
     }
 
