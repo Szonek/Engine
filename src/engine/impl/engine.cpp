@@ -99,9 +99,16 @@ inline void parent_component_init(engine_parent_component_t* comp)
 
 inline void mesh_component_init(engine_mesh_component_t* comp)
 {
-    std::memset(comp, 0, sizeof(engine_rigid_body_component_t));
+    std::memset(comp, 0, sizeof(engine_mesh_component_t));
     comp->geometry = ENGINE_INVALID_OBJECT_HANDLE;
     comp->skin = ENGINE_INVALID_OBJECT_HANDLE;
+}
+
+inline void skinned_mesh_component_init(engine_skinned_mesh_component_t* comp)
+{
+    std::memset(comp, 0, sizeof(engine_skinned_mesh_component_t));
+    comp->geometry = ENGINE_INVALID_OBJECT_HANDLE;
+    comp->root_bone = ENGINE_INVALID_GAME_OBJECT_ID;
 }
 
 inline void rigid_body_component_init(engine_rigid_body_component_t* comp)
@@ -793,6 +800,60 @@ bool engineSceneHasMeshComponent(engine_scene_t scene, engine_game_object_t game
 {
     return has_component<engine_mesh_component_t>(scene, game_object);
 }
+
+// skinned mesh
+engine_skinned_mesh_component_t engineSceneAddSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_skinned_mesh_component_t, skinned_mesh_component_init>(scene, game_object);
+}
+
+engine_skinned_mesh_component_t engineSceneGetSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_skinned_mesh_component_t>(scene, game_object);
+}
+
+void engineSceneUpdateSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_skinned_mesh_component_t* comp)
+{
+    update_component(scene, game_object, comp);
+}
+
+void engineSceneRemoveSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_skinned_mesh_component_t>(scene, game_object);
+}
+
+bool engineSceneHasSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_skinned_mesh_component_t>(scene, game_object);
+}
+// -- 
+
+// bone
+engine_bone_component_t engineSceneAddBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_bone_component_t>(scene, game_object);
+}
+
+engine_bone_component_t engineSceneGetBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_bone_component_t>(scene, game_object);
+}
+
+void engineSceneUpdateBoneComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_bone_component_t* comp)
+{
+    update_component(scene, game_object, comp);
+}
+
+void engineSceneRemoveBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_bone_component_t>(scene, game_object);
+}
+
+bool engineSceneHasBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_bone_component_t>(scene, game_object);
+}
+// -- 
 
 engine_material_component_t engineSceneAddMaterialComponent(engine_scene_t scene, engine_game_object_t game_object)
 {

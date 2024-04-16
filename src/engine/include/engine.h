@@ -576,6 +576,18 @@ ENGINE_API void engineSceneUpdateMeshComponent(engine_scene_t scene, engine_game
 ENGINE_API void engineSceneRemoveMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 
+ENGINE_API engine_skinned_mesh_component_t engineSceneAddSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_skinned_mesh_component_t engineSceneGetSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_skinned_mesh_component_t* comp);
+ENGINE_API void engineSceneRemoveSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+ENGINE_API engine_bone_component_t engineSceneAddBoneComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_bone_component_t engineSceneGetBoneComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateBoneComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_bone_component_t* comp);
+ENGINE_API void engineSceneRemoveBoneComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasBoneComponent(engine_scene_t scene, engine_game_object_t game_object);
+
 ENGINE_API engine_material_component_t engineSceneAddMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_material_component_t engineSceneGetMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void engineSceneUpdateMaterialComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_material_component_t* comp);
