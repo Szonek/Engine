@@ -248,7 +248,7 @@ void engine::PhysicsWorld::DebugDrawer::drawContactPoint(const btVector3& point_
     glm::vec3 to_v(to.getX(), to.getY(), to.getZ());
     glm::vec3 color_v(color.getX(), color.getY(), color.getZ());
 
-    lines_.push_back({ from_v, to_v, color_v, life_time });
+    //lines_.push_back({ from_v, to_v, color_v, life_time });
     //engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw contact point \n"));
 }
 

@@ -14,6 +14,7 @@
 #include <SDL3/SDL_events.h>
 #include <fmt/format.h>
 
+#include <map>
 #include <span>
 #include <iostream>
 
@@ -189,8 +190,6 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 	const auto ret_code = scene->update(delta_time,
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
-        animations_atlas_.get_objects_view(),
-        skins_atlas_.get_objects_view(),
         materials_atlas_.get_objects_view());
     return ret_code;
 }
@@ -363,27 +362,6 @@ const engine::Geometry* engine::Application::get_geometry(std::uint32_t idx) con
     return geometries_atlas_.get_object(idx);
 }
 
-std::uint32_t engine::Application::add_animation_clip(const engine_animation_clip_create_desc_t& desc, std::string_view name)
-{
-    return animations_atlas_.add_object(name, AnimationClip(desc));
-}
-
-std::uint32_t engine::Application::get_animation_clip(std::string_view name) const
-{
-    return animations_atlas_.get_object(name);
-}
-
-
-std::uint32_t engine::Application::add_skin(const engine_skin_create_desc_t& desc, std::string_view name)
-{
-    return skins_atlas_.add_object(name, Skin({desc.joints, desc.joint_count}));
-}
-
-std::uint32_t engine::Application::get_skin(std::string_view name) const
-{
-    return skins_atlas_.get_object(name);
-}
-
 std::uint32_t engine::Application::add_material(const engine_material_create_desc_t& desc, std::string_view name)
 {
     return materials_atlas_.add_object(name, engine_material_create_desc_t(desc));
@@ -435,7 +413,6 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
             {
                 ret_n.material_index = ENGINE_INVALID_OBJECT_HANDLE;
             }
-
 
             copy_arr(ret_n.translate, in_n->translation);
             copy_arr(ret_n.rotation_quaternion, in_n->rotation);
@@ -511,74 +488,79 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
         ret.animations_array = new engine_animation_clip_create_desc_t[ret.animations_counts];
         for (std::uint32_t i = 0; i < ret.animations_counts; i++)
         {
+            const auto& in_anim = model_info->animations[i];
             auto& anim = ret.animations_array[i];
-            anim.channels_count = static_cast<std::uint32_t>(model_info->animations[i].channels.size());
-            anim.channels = new engine_animation_channel_create_desc_t[anim.channels_count];
-            for (std::uint32_t ch_i = 0; ch_i < anim.channels_count; ch_i++)
+            anim.name = in_anim.name.c_str();
+
+            std::map<std::uint32_t, engine_animation_channel_create_desc_t> channels_map;
+            for (const auto& in_ch : in_anim.channels)
             {
-                const auto& in_ch = model_info->animations[i].channels[ch_i];
-                auto& out_ch = anim.channels[ch_i];
+                channels_map[in_ch.target_node_idx].model_node_index = in_ch.target_node_idx;
 
-                out_ch.type = in_ch.type;
-                out_ch.target_joint_idx = in_ch.target_joint_idx;
-                out_ch.data_count = in_ch.data.size();
-                out_ch.data = in_ch.data.data();
+                engine_animation_channel_data_t* channel = nullptr;
 
-                out_ch.timestamps_count = static_cast<std::uint32_t>(in_ch.timestamps.size());
-                out_ch.timestamps = in_ch.timestamps.data();
+                if (in_ch.type == AnimationChannelType::eTranslation)
+                {
+                    channel = &channels_map[in_ch.target_node_idx].channel_translation;
+                }
+                else if (in_ch.type == AnimationChannelType::eRotation)
+                {
+                    channel = &channels_map[in_ch.target_node_idx].channel_rotation;
+                }
+                else if (in_ch.type == AnimationChannelType::eScale)
+                {
+                    channel = &channels_map[in_ch.target_node_idx].channel_scale;
+                }
+                else
+                {
+                    log::log(log::LogLevel::eError, fmt::format("Cant sucesffuly parse animation channel! Id: {}, Animation name: {}\n", i, anim.name));
+                }
+                if (channel)
+                {
+                    channel->data = in_ch.data.data();
+                    channel->data_count = static_cast<std::uint32_t>(in_ch.data.size());
+
+                    channel->timestamps = in_ch.timestamps.data();
+                    channel->timestamps_count = static_cast<std::uint32_t>(in_ch.timestamps.size());
+                }
+            }
+            anim.channels_count = channels_map.size();
+            anim.channels = new engine_animation_channel_create_desc_t[anim.channels_count];
+            std::size_t out_chanel_idx = 0;
+            for (const auto& ch : channels_map)
+            {
+                anim.channels[out_chanel_idx] = ch.second;
+                out_chanel_idx++;
             }
         }
     }
-
+    
     ret.skins_counts = static_cast<std::uint32_t>(model_info->skins.size());
     if (ret.skins_counts > 0)
     {
         ret.skins_array = new engine_skin_create_desc_t[ret.skins_counts];
         for (std::uint32_t i = 0; i < ret.skins_counts; i++)
         {
-            auto& skin = ret.skins_array[i];
-            skin.animations_count = 0;
-            skin.animations_array = nullptr;
-            skin.joint_count = static_cast<std::uint32_t>(model_info->skins[i].joints.size());
-            skin.joints = new engine_skin_joint_create_desc_t[skin.joint_count];
-            for (std::uint32_t j = 0; j < skin.joint_count; j++)
-            {
-                const auto& in_join = model_info->skins[i].joints[j];
-                auto& out_join = skin.joints[j];
+            const auto& skin = model_info->skins[i];
+            auto& skin_out = ret.skins_array[i];
+            skin_out.name = skin.name.c_str();
 
-                out_join.idx = in_join.idx;
-                out_join.children_count = static_cast<std::uint32_t>(in_join.childrens.size());
-                out_join.children = in_join.childrens.data();
-                std::memcpy(out_join.inverse_bind_mat, glm::value_ptr(in_join.inverse_bind_matrix), sizeof(in_join.inverse_bind_matrix)); 
-                // copy init transformation
-                std::memcpy(out_join.init_translate, glm::value_ptr(in_join.init_trs.translation), sizeof(in_join.init_trs.translation));
-                std::memcpy(out_join.init_scale, glm::value_ptr(in_join.init_trs.scale), sizeof(in_join.init_trs.scale));
-                std::memcpy(out_join.init_rotation_quaternion, glm::value_ptr(in_join.init_trs.rotation), sizeof(in_join.init_trs.rotation));
-            }
-
-            // count animations and attach to skin
-            for (auto anim_i = 0; anim_i < model_info->animations.size(); anim_i++)
+            log::log(log::LogLevel::eTrace, fmt::format("Skin name found in model: {}\n", skin.name));
+            skin_out.bones_count = static_cast<std::uint32_t>(skin.bones.size());
+            if (skin_out.bones_count > 0)
             {
-                if (model_info->animations.at(anim_i).skin == static_cast<std::int32_t>(i))
+                skin_out.bones_array = new engine_bone_create_desc_t[skin_out.bones_count];
+                for (std::uint32_t i = 0; i < skin_out.bones_count; i++)
                 {
-                    skin.animations_count++;
-                }
-            }
-            if (skin.animations_count > 0)
-            {
-                skin.animations_array = new uint32_t[skin.animations_count];
-            }
-            auto counter = 0ul;
-            for (auto anim_i = 0; anim_i < model_info->animations.size(); anim_i++)
-            {
-                if (model_info->animations.at(anim_i).skin == static_cast<std::int32_t>(i))
-                {
-                    skin.animations_array[counter] = anim_i;
-                    counter++;
+                    const auto& in_bone = skin.bones[i];
+                    auto& out_bone = skin_out.bones_array[i];
+                    out_bone.model_node_index = in_bone.target_node_idx;
+                    std::memcpy(out_bone.inverse_bind_mat, glm::value_ptr(in_bone.inverse_bind_matrix), sizeof(in_bone.inverse_bind_matrix));
                 }
             }
         }
     }
+
     return ret;
 }
 
@@ -612,9 +594,9 @@ void engine::Application::release_model_desc(engine_model_desc_t* info)
         {
             for (std::uint32_t i = 0; i < info->skins_counts; i++)
             {
-                if (info->skins_array[i].animations_count > 0)
+                if (info->skins_array[i].bones_count > 0)
                 {
-                    delete[] info->skins_array[i].animations_array;
+                    delete[] info->skins_array[i].bones_array;
                 }
             }
             delete[] info->skins_array;

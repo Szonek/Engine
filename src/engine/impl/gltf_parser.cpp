@@ -290,25 +290,14 @@ inline engine::MaterialInfo parse_material(const tinygltf::Material& material)
     return new_material;
 }
 
-inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::Model& model, std::vector<std::shared_ptr<engine::ModelNode>>& nodes)
+inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::Model& model)
 {
     engine::SkinInfo new_skin{};
-    new_skin.joints.reserve(skin.joints.size());
+    new_skin.name = skin.name;
+    new_skin.bones.reserve(skin.joints.size());
     for (std::size_t i = 0; i < skin.joints.size(); i++)
     {
         const auto node_id = skin.joints[i];
-        engine::SkinJointDesc joint_info{};
-        joint_info.idx = static_cast<std::int32_t>(i);
-
-        for (const auto& c : model.nodes[node_id].children)
-        {
-            const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), c);
-            if (fnd_itr != std::end(skin.joints))
-            {
-                const auto dst_itr = std::distance(skin.joints.begin(), fnd_itr);
-                joint_info.childrens.push_back(static_cast<int32_t>(dst_itr));
-            }
-        }
         /*
             https://lisyarus.github.io/blog/graphics/2023/07/03/gltf-animation.html
             However, the vertices of the model are in, well, the model’s coordinate system (that’s the definition of this coordinate system).
@@ -316,13 +305,14 @@ inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::M
             This is called an inverse bind matrix, because it sounds really cool.
         */
         const auto inv_bind_mtx_accesor = model.accessors[skin.inverseBindMatrices];
-        const auto inv_bind_mtx_buffer_view = model.bufferViews[model.accessors[skin.inverseBindMatrices].bufferView];
+        const auto inv_bind_mtx_buffer_view = model.bufferViews[inv_bind_mtx_accesor.bufferView];
         const auto inv_bind_mtx_buffer = reinterpret_cast<const float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);
-        joint_info.inverse_bind_matrix = glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
+        const auto inverse_bind_matrix = glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
         
-        nodes[node_id]->joint = joint_info.idx;
-        joint_info.init_trs = engine::TRS{ nodes[node_id]->translation, nodes[node_id]->rotation, nodes[node_id]->scale};
-        new_skin.joints.push_back(std::move(joint_info));
+        engine::BoneInfo info{};
+        info.target_node_idx = node_id;
+        info.inverse_bind_matrix = inverse_bind_matrix;
+        new_skin.bones.push_back(info);
     }
     return new_skin;
 }
@@ -335,7 +325,7 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
     for (std::size_t ch_idx = 0; const auto & ch : animation.channels)
     {
         const auto& sampler = animation.samplers[ch.sampler];
-        //assert(sampler.interpolation == "LINEAR"); // ToDo: add support for other interploation types
+        assert(sampler.interpolation == "LINEAR"); // ToDo: add support for other interploation types
 
         const auto& accessor_timestamps = model.accessors[sampler.input];
         const auto& buffer_view_timestamps = model.bufferViews[accessor_timestamps.bufferView];
@@ -356,44 +346,19 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
         }
 
         auto& new_channel = new_animation.channels[ch_idx++];
-        new_channel.target_joint_idx = engine::INVALID_VALUE;
-        //new_channel.target_joint_idx = ch.target_node;
-        for (auto skn_i = 0; skn_i < model.skins.size(); skn_i++)
-        {
-            const auto& skin = model.skins[skn_i];
-
-            const auto fnd_itr = std::find(skin.joints.begin(), skin.joints.end(), ch.target_node);
-            if (fnd_itr != std::end(skin.joints))
-            {
-                if (new_animation.skin == engine::INVALID_VALUE)
-                {
-                    new_animation.skin = static_cast<std::int32_t>(skn_i);
-                }
-                else
-                {
-                    assert(new_animation.skin == static_cast<std::int32_t>(skn_i));
-                }
-                const auto dst_itr = std::distance(skin.joints.begin(), fnd_itr);
-                new_channel.target_joint_idx = static_cast<int32_t>(dst_itr);
-            }
-        }
-
-        if (new_channel.target_joint_idx == engine::INVALID_VALUE)
-        {
-            engine::log::log(engine::log::LogLevel::eError, fmt::format("Animated node is not a joint. Probably animation will be parsed with bugs. \n").c_str());
-        }
+        new_channel.target_node_idx = ch.target_node;
 
         if (ch.target_path.compare("rotation") == 0)
         {
-            new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION;
+            new_channel.type = engine::AnimationChannelType::eRotation;
         }
         else if (ch.target_path.compare("translation") == 0)
         {
-            new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION;
+            new_channel.type = engine::AnimationChannelType::eTranslation;
         }
         else if (ch.target_path.compare("scale") == 0)
         {
-            new_channel.type = ENGINE_ANIMATION_CHANNEL_TYPE_SCALE;
+            new_channel.type = engine::AnimationChannelType::eScale;
         }
         else
         {
@@ -411,12 +376,6 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
         const auto& buffer_data = reinterpret_cast<const float*>(model.buffers[buffer_view_data.buffer].data.data() + accessor_data.byteOffset + buffer_view_data.byteOffset);
         std::memcpy(new_channel.data.data(), buffer_data, new_channel.data.size() * sizeof(float));
     }
-
-    // erase any invalid channels
-    new_animation.channels.erase(std::remove_if(new_animation.channels.begin(), new_animation.channels.end(), [](const engine::AnimationChannelInfo& c) {
-        return c.target_joint_idx == engine::INVALID_VALUE;
-        }), new_animation.channels.end());
-
     return new_animation;
 }
 
@@ -579,7 +538,7 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         out.skins.reserve(skins_root_nodes_idx.size());
         std::for_each(model.skins.begin(), model.skins.end(), [&out, &model, &nodes](const auto& skin)
             {
-                out.skins.push_back(parse_skin(skin, model, nodes));
+                out.skins.push_back(parse_skin(skin, model));
             });
     }
     // animations
@@ -596,28 +555,7 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
                 out.animations.push_back(parse_animation(animation, model));
             });
     }
-
-    // get rid of nodes which has JOINT parents, but arent joints itselfs
-    nodes.erase(std::remove_if(nodes.begin(), nodes.end(), [](const auto& n) {
-        if (n->parent && n->parent->joint != engine::INVALID_VALUE && n->joint == engine::INVALID_VALUE)
-        {   
-            engine::log::log(engine::log::LogLevel::eError,
-                fmt::format("Cant parse node which has JOINT (skeleton bone) parent, but its not joint itself. Removing such node (name: {}).\n", n->name));
-            return true;
-        }
-        return false;
-        }), nodes.end());
-
-    nodes.erase(std::remove_if(nodes.begin(), nodes.end(), [](const auto& n) { 
-            return n->joint != engine::INVALID_VALUE; 
-        }), nodes.end());
-    // it's improtant to use std::move here to have pointer stability of parent member
     out.nodes = std::move(nodes);
-    // update indicies
-    for (std::size_t i = 0; i < out.nodes.size(); i++)
-    {
-        out.nodes[i]->index = static_cast<std::int32_t>(i);
-    }
     return out;
 
 }

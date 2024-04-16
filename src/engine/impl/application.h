@@ -6,7 +6,6 @@
 #include "ui_manager.h"
 #include "ui_document.h"
 #include "animation.h"
-#include "vertex_skinning.h"
 
 #include <array>
 #include <string>
@@ -40,12 +39,6 @@ public:
     std::uint32_t add_geometry(const engine_vertex_attributes_layout_t& verts_layout, std::int32_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name);
     std::uint32_t get_geometry(std::string_view name) const;
     const Geometry* get_geometry(std::uint32_t idx) const;
-
-    std::uint32_t add_animation_clip(const engine_animation_clip_create_desc_t& desc, std::string_view name);
-    std::uint32_t get_animation_clip(std::string_view name) const;
-
-    std::uint32_t add_skin(const engine_skin_create_desc_t& desc, std::string_view name);
-    std::uint32_t get_skin(std::string_view name) const;
 
     std::uint32_t add_material(const engine_material_create_desc_t& desc, std::string_view name);
     std::uint32_t get_material(std::string_view name) const;
@@ -117,9 +110,7 @@ private:
 
     Atlas<Texture2D> textures_atlas_;
     engine_texture2d_t default_texture_idx_;
-    Atlas<Geometry> geometries_atlas_;
-    Atlas<AnimationClip> animations_atlas_;
-    Atlas<Skin> skins_atlas_;
+    Atlas<Geometry> geometries_atlas_;;
     Atlas<engine_material_create_desc_t> materials_atlas_;
     UiManager ui_manager_;
 

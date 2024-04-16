@@ -38,8 +38,6 @@ struct ModelInfo
     std::vector<engine_geometry_t> geometries;
     std::vector<engine_texture2d_t> textures;
     std::vector<engine_material_t> materials;
-    std::vector<engine_skin_t> skins;
-    std::vector<engine_animation_clip_t> animations;
 
     ModelInfo(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name)
         : app(app)
@@ -89,32 +87,6 @@ struct ModelInfo
             }
             engine_error_code = engineApplicationAddMaterialFromDesc(app, &mat_create_desc, mat.name, &materials[i]);
 
-            if (engine_error_code != ENGINE_RESULT_CODE_OK)
-            {
-                engineLog("Failed creating textured for loaded model. Exiting!\n");
-                return;
-            }
-        }
-
-        skins = std::vector<engine_skin_t>(model_info.skins_counts, ENGINE_INVALID_OBJECT_HANDLE);
-        for (auto i = 0; i < model_info.skins_counts; i++)
-        {
-            const auto& skin = model_info.skins_array[i];
-            const auto name = "unnamed_skin_" + std::to_string(i);
-            engine_error_code = engineApplicationAddSkinFromDesc(app, &skin, name.c_str(), &skins[i]);
-            if (engine_error_code != ENGINE_RESULT_CODE_OK)
-            {
-                engineLog("Failed creating textured for loaded model. Exiting!\n");
-                return;
-            }
-        }
-
-        animations = std::vector<engine_animation_clip_t>(model_info.animations_counts, ENGINE_INVALID_OBJECT_HANDLE);
-        for (auto i = 0; i < model_info.animations_counts; i++)
-        {
-            const auto& anim = model_info.animations_array[i];
-            const auto name = "unnamed_animation_" + std::to_string(i);
-            engine_error_code = engineApplicationAddAnimationClipFromDesc(app, &anim, name.c_str(), &animations[i]);
             if (engine_error_code != ENGINE_RESULT_CODE_OK)
             {
                 engineLog("Failed creating textured for loaded model. Exiting!\n");
@@ -270,123 +242,16 @@ private:
     engine_coords_2d_t mouse_coords_prev_{};
 };
 
-class BaseNode : public engine::IScript
-{
-public:
-    BaseNode(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
-        : IScript(my_scene)
-    {
-        const auto scene = my_scene_->get_handle();
-        auto nc = engineSceneAddNameComponent(scene, go_);
-        if (node.name)
-        {
-            std::strncpy(nc.name, node.name, std::max(std::strlen(node.name), std::size(nc.name)));
-            if (std::strlen(node.name) > std::size(nc.name))
-            {
-                log(fmt::format("Couldnt copy full entity name. Orginal name: {}, entity name: {}!\n", nc.name, node.name));
-            }
-            engineSceneUpdateNameComponent(scene, go_, &nc);
-        }
-        log(fmt::format("Created entity [id: {}] with name: {}\n", go_, nc.name));
 
-        auto tc = engineSceneAddTransformComponent(scene, go_);
-        std::memcpy(tc.position, node.translate, std::size(node.translate) * sizeof(float));
-        std::memcpy(tc.scale, node.scale, std::size(node.scale) * sizeof(float));
-        std::memcpy(tc.rotation, node.rotation_quaternion, std::size(node.rotation_quaternion) * sizeof(float));
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
-
-        if (node.geometry_index != -1 || node.skin_index != -1)
-        {
-            auto mc = engineSceneAddMeshComponent(scene, go_);
-            mc.geometry = node.geometry_index != -1 ? model_info.geometries[node.geometry_index] : ENGINE_INVALID_OBJECT_HANDLE;
-            mc.skin = node.skin_index != -1 ? model_info.skins[node.skin_index] : ENGINE_INVALID_OBJECT_HANDLE;
-            engineSceneUpdateMeshComponent(scene, go_, &mc);
-        }
-
-        if (node.skin_index != -1)
-        {
-            auto anim_comp = engineSceneAddAnimationComponent(scene, go_);
-            const auto skin_info = model_info.model_info.skins_array[node.skin_index];
-            for (auto i = 0; i < skin_info.animations_count; i++)
-            {
-                anim_comp.animations_array[i] = model_info.animations.at(skin_info.animations_array[i]);
-            }
-            engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
-        }
-
-        // if mesh is present then definitly we need some material to render it
-        if (node.material_index != -1)
-        {
-            auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-            material_comp.material = model_info.materials.at(node.material_index);
-            engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
-        }
-    }
-
-    virtual void try_to_find_and_set_parent_entity(const engine_model_node_desc_t& node, const ModelInfo& model_info)
-    {
-        const auto scene = my_scene_->get_handle();
-        // this is potentaiyll very costly part of this c-tor
-        if (node.parent)
-        {
-            engine_component_view_t view = nullptr;
-            engineCreateComponentView(&view);
-            engineSceneComponentViewAttachNameComponent(scene, view);
-
-            engine_component_iterator_t begin{};
-            engine_component_iterator_t end{};
-            engineComponentViewCreateBeginComponentIterator(view, &begin);
-            engineComponentViewCreateEndComponentIterator(view, &end);
-
-            engine_game_object_t parent_go = ENGINE_INVALID_GAME_OBJECT_ID;
-            while (!engineComponentIteratorCheckEqual(begin, end))
-            {
-                const auto go = engineComponentIteratorGetGameObject(begin);
-                const auto go_name_comp = engineSceneGetNameComponent(scene, go);
-                if (std::strcmp(go_name_comp.name, node.parent->name) == 0)
-                {
-                    parent_go = go;
-                    begin = end; // finish
-                }
-                else
-                {
-                    engineComponentIteratorNext(begin);
-                }
-
-            }
-
-            if (parent_go != ENGINE_INVALID_GAME_OBJECT_ID)
-            {
-                auto pc = engineSceneAddParentComponent(scene, go_);
-                pc.parent = parent_go;
-                engineSceneUpdateParentComponent(scene, go_, &pc);
-            }
-            if (view)
-            {
-                engineDestroyComponentView(view);
-            }
-        }
-    }
-};
-
-class Node3D : public BaseNode
-{
-public:
-    Node3D(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
-        : BaseNode(my_scene, node, model_info)
-    {
-    }
-};
-
-class Floor : public BaseNode
+class Floor : public engine::IScript
 {
 public:
     Floor(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
-        : BaseNode(my_scene, node, model_info)
+        : engine::IScript(my_scene)
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
-        auto tc = engineSceneGetTransformComponent(scene, go_);
+        auto tc = engineSceneAddTransformComponent(scene, go_);
         tc.scale[0] = 3.0f;
         tc.scale[1] = 0.1f;
         tc.scale[2] = 3.0f;
@@ -398,9 +263,21 @@ public:
         {
             tc.rotation[i] = q[i];
         }
-
-
         engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        if (node.geometry_index != -1)
+        {
+            auto mc = engineSceneAddMeshComponent(scene, go_);
+            mc.geometry = node.geometry_index != -1 ? model_info.geometries[node.geometry_index] : ENGINE_INVALID_OBJECT_HANDLE;
+            engineSceneUpdateMeshComponent(scene, go_, &mc);
+        }
+
+        if (node.material_index != -1)
+        {
+            auto material_comp = engineSceneAddMaterialComponent(scene, go_);
+            material_comp.material = model_info.materials.at(node.material_index);
+            engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+        }
 
         // material
         engine_material_create_desc_t mat_cd{};
@@ -422,15 +299,28 @@ public:
 };
 
 
-class Enemy : public BaseNode
+class Enemy : public engine::IScript
 {
 public:
     Enemy(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
-        : BaseNode(my_scene, node, model_info)
+        : engine::IScript(my_scene)
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
-        auto tc = engineSceneGetTransformComponent(scene, go_);
+
+        auto nc = engineSceneAddNameComponent(scene, go_);
+        if (node.name)
+        {
+            std::strncpy(nc.name, node.name, std::max(std::strlen(node.name), std::size(nc.name)));
+            if (std::strlen(node.name) > std::size(nc.name))
+            {
+                log(fmt::format("Couldnt copy full entity name. Orginal name: {}, entity name: {}!\n", nc.name, node.name));
+            }
+            engineSceneUpdateNameComponent(scene, go_, &nc);
+        }
+        log(fmt::format("Created entity [id: {}] with name: {}\n", go_, nc.name));
+
+        auto tc = engineSceneAddTransformComponent(scene, go_);
         tc.scale[0] = 0.5f;
         tc.scale[1] = 0.75f;
         tc.scale[2] = 0.5f;
@@ -438,8 +328,22 @@ public:
         tc.position[0] += 1.0f;
         tc.position[1] += 2.5f;
         tc.position[2] += 0.0f;
-        
         engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        if (node.geometry_index != -1)
+        {
+            auto mc = engineSceneAddMeshComponent(scene, go_);
+            mc.geometry = node.geometry_index != -1 ? model_info.geometries[node.geometry_index] : ENGINE_INVALID_OBJECT_HANDLE;
+            engineSceneUpdateMeshComponent(scene, go_, &mc);
+        }
+
+        // if mesh is present then definitly we need some material to render it
+        if (node.material_index != -1)
+        {
+            auto material_comp = engineSceneAddMaterialComponent(scene, go_);
+            material_comp.material = model_info.materials.at(node.material_index);
+            engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+        }
 
         // physcis
         auto cc = engineSceneAddColliderComponent(scene, go_);
@@ -454,60 +358,178 @@ public:
     }
 };
 
-//class ControllableEntity : public BaseNode
+
+class Sword : public engine::IScript
+{
+public:
+    Sword(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
+        : IScript(my_scene)
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+
+        auto nc = engineSceneAddNameComponent(scene, go_);
+        if (node.name)
+        {
+            std::strncpy(nc.name, node.name, std::max(std::strlen(node.name), std::size(nc.name)));
+            if (std::strlen(node.name) > std::size(nc.name))
+            {
+                log(fmt::format("Couldnt copy full entity name. Orginal name: {}, entity name: {}!\n", nc.name, node.name));
+            }
+            engineSceneUpdateNameComponent(scene, go_, &nc);
+        }
+        log(fmt::format("Created entity [id: {}] with name: {}\n", go_, nc.name));
+
+        auto tc = engineSceneAddTransformComponent(scene, go_);
+        tc.scale[0] = 0.05f;
+        tc.scale[1] = 0.40f;
+        tc.scale[2] = 0.05f;
+
+        tc.position[0] += 0.0f;
+        tc.position[1] += 0.20f;
+        tc.position[2] += 0.0f;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        if (node.geometry_index != -1)
+        {
+            auto mc = engineSceneAddMeshComponent(scene, go_);
+            mc.geometry = node.geometry_index != -1 ? model_info.geometries[node.geometry_index] : ENGINE_INVALID_OBJECT_HANDLE;
+            engineSceneUpdateMeshComponent(scene, go_, &mc);
+        }
+
+        if (node.material_index != -1)
+        {
+            auto material_comp = engineSceneAddMaterialComponent(scene, go_);
+            material_comp.material = model_info.materials.at(node.material_index);
+            engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+        }
+
+        // physcis
+        auto cc = engineSceneAddColliderComponent(scene, go_);
+        cc.type = ENGINE_COLLIDER_TYPE_BOX;
+        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.15f, 0.15f, 0.15f});
+        cc.is_trigger = true;
+        engineSceneUpdateColliderComponent(scene, go_, &cc);
+
+        // parent to hand
+        engine_component_view_t cv{};
+        engineCreateComponentView(&cv);
+        engineSceneComponentViewAttachNameComponent(scene, cv);
+
+        engine_component_iterator_t begin{};
+        engine_component_iterator_t end{};
+        engineComponentViewCreateBeginComponentIterator(cv, &begin);
+        engineComponentViewCreateEndComponentIterator(cv, &end);
+
+        while (!engineComponentIteratorCheckEqual(begin, end))
+        {       
+            auto go_it = engineComponentIteratorGetGameObject(begin);
+            const auto nc = engineSceneGetNameComponent(scene, go_it);
+
+            if (std::strcmp(nc.name, "Skeleton_arm_joint_R__3_") == 0)
+            {
+                auto pc = engineSceneAddParentComponent(scene, go_);
+                pc.parent = go_it;
+                engineSceneUpdateParentComponent(scene, go_, &pc);
+                begin = end;
+            }
+            else
+            {
+                engineComponentIteratorNext(begin);
+            }
+        }
+        engineDestroyComponentView(cv);
+    }
+};
+
+class AnimationController
+{
+public:
+    AnimationController(engine::IScene* my_scene, const std::vector<engine_game_object_t>& gos)
+        : my_scene_(my_scene)
+        , gos_(gos)
+    {
+    }
+
+    void play_animation()
+    {
+        if (playin_animation_)
+        {
+            return;
+        }
+        playin_animation_ = true;
+        animation_clip_index_ = 0;
+        const auto scene = my_scene_->get_handle();
+        for (const auto& go : gos_)
+        {
+            if (engineSceneHasAnimationClipComponent(scene, go))
+            {
+                auto anim_comp = engineSceneGetAnimationClipComponent(scene, go);
+                auto& animation_clip = anim_comp.clips_array[animation_clip_index_];
+                animation_clip.animation_dt = 0.0f;
+                engineSceneUpdateAnimationClipComponent(scene, go, &anim_comp);
+            }
+        }
+    }
+
+    void update(float dt)
+    {
+        const auto scene = my_scene_->get_handle();
+        if (playin_animation_)
+        {
+            for (const auto& go : gos_)
+            {
+                if (engineSceneHasAnimationClipComponent(scene, go))
+                {
+                    auto anim_comp = engineSceneGetAnimationClipComponent(scene, go);
+                    //ToDo: duration can be pre-computed
+                    auto& animation_clip = anim_comp.clips_array[animation_clip_index_];
+                    const auto duration = animation_clip.channel_rotation.timestamps[animation_clip.channel_rotation.timestamps_count - 1];
+                    animation_clip.animation_dt += dt;
+                    engineSceneUpdateAnimationClipComponent(scene, go, &anim_comp);
+                    if (animation_clip.animation_dt > duration)
+                    {
+                        playin_animation_ = false;
+                    }
+                }
+            }
+        }
+    }
+
+private:
+    bool playin_animation_ = false;
+    std::uint32_t animation_clip_index_ = 0;
+
+    engine::IScene* my_scene_;
+    std::vector<engine_game_object_t> gos_;
+};
+
+inline AnimationController* anim_controller_poc = nullptr;
+
 class ControllableEntity : public engine::IScript
 {
 public:
-    ControllableEntity(engine::IScene* my_scene, const engine_tranform_component_t& transform,
-        engine_geometry_t geometry, engine_material_t material, engine_skin_t skin, const std::vector<engine_animation_clip_t>& anims)
-        : IScript(my_scene)
+    ControllableEntity(engine::IScene* my_scene, engine_game_object_t go)
+        : IScript(my_scene, go)
     {
         const auto scene = my_scene->get_handle();
         const auto app = my_scene_->get_app_handle();
         // ------------ transform
-        auto tc = engineSceneAddTransformComponent(scene, go_);
-        std::memcpy(&tc, &transform, sizeof(engine_tranform_component_t));
+        auto tc = engineSceneGetTransformComponent(scene, go_);
         auto quat_rot90y = glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         const auto quat = quat_rot90y * glm::make_quat(tc.rotation);
         for (int i = 0; i < quat.length(); i++)
         {
-            tc.rotation[i] = quat[i];
+            //tc.rotation[i] = quat[i];
         }
         engineSceneUpdateTransformComponent(scene, go_, &tc);
-
-        // ------------ rendering
-        if (geometry != ENGINE_INVALID_OBJECT_HANDLE)
-        {
-            auto mc = engineSceneAddMeshComponent(scene, go_);
-            mc.geometry = geometry;
-            mc.skin = skin;
-            engineSceneUpdateMeshComponent(scene, go_, &mc);
-        }
-
-        // if mesh is present then definitly we need some material to render it
-        if (material != ENGINE_INVALID_OBJECT_HANDLE)
-        {
-            auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-            material_comp.material = material;
-            engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
-        }
-
-        if (!anims.empty())
-        {
-            auto anim_comp = engineSceneAddAnimationComponent(scene, go_);
-            for (auto i = 0; i < anims.size(); i++)
-            {
-                anim_comp.animations_array[i] = anims[i];
-            }
-            engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
-        }
 
         // ------------ physcis
         // collider
         auto cc = engineSceneAddColliderComponent(scene, go_);
         cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
         cc.collider.compound.children[0].type = ENGINE_COLLIDER_TYPE_BOX;
-        const auto position_limits = engineApplicationGeometryGetAttributeLimits(app, geometry, ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION);
+        const auto position_limits = engineApplicationGeometryGetAttributeLimits(app, engineApplicationGetGeometryByName(app, "unnamed_geometry__0"), ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION);
         std::array<float, 3> aabb_center{};
         std::array<float, 3> aabb_half_extent{};
         for (auto i = 0; i < aabb_half_extent.size(); i++)
@@ -516,6 +538,7 @@ public:
             aabb_half_extent[i] = (std::abs(position_limits.min[i]) + std::abs(position_limits.max[i])) / 2.0f;
         }
         set_c_array(cc.collider.compound.children[0].rotation_quaternion, std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f});
+        //set_c_array(cc.collider.compound.children[0].rotation_quaternion, std::array<float, 4>{quat.x, quat.y, quat.z, quat.w});
         set_c_array(cc.collider.compound.children[0].collider.box.size, aabb_half_extent);
         set_c_array(cc.collider.compound.children[0].transform, aabb_center);
         engineSceneUpdateColliderComponent(scene, go_, &cc);
@@ -532,17 +555,14 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
-        if (engineSceneHasAnimationComponent(scene, go_))
+        if(anim_controller_poc)
         {
-            auto anim_comp = engineSceneGetAnimationComponent(scene, go_);
-            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F) && anim_comp.animations_state[0] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
+            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F))
             {
-                anim_comp.animations_state[0] = ENGINE_ANIMATION_CLIP_STATE_PLAYING;
-                engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
+                anim_controller_poc->play_animation();
             }
+            anim_controller_poc->update(dt);
         }
-
-
 
         const float speed = 0.005f * dt;
 #if 0
@@ -612,55 +632,162 @@ public:
 };
 
 
-inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* scene)
+inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* scene_cpp)
 {
+    auto scene = scene_cpp->get_handle();
     engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
     project_c::ModelInfo model_info(engine_error_code, app, "CesiumMan.gltf");
-    //project_c::ModelInfo model_info(engine_error_code, app, "CesiumMan2.glb");
+
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         return false;
     }
-    // add nodes
 
-    const engine_model_node_desc_t* node_with_geometry = nullptr;
+    std::map<std::uint32_t, engine_game_object_t> node_id_to_game_object;
     for (auto i = 0; i < model_info.model_info.nodes_count; i++)
     {
         const auto& node = model_info.model_info.nodes_array[i];
-        if (node.geometry_index != ENGINE_INVALID_OBJECT_HANDLE)
+        node_id_to_game_object[i] = engineSceneCreateGameObject(scene);
+        const auto& go = node_id_to_game_object[i];
+        if (node.name)
         {
-            assert(node_with_geometry == nullptr); // only one node with geometry is allowed for now
-            node_with_geometry = &node;
+            auto nc = engineSceneAddNameComponent(scene, go);
+            std::strncpy(nc.name, node.name, std::size(nc.name));
+            engineSceneUpdateNameComponent(scene, go, &nc);
+            log(fmt::format("Created entity [id: {}] with name: {}\n", go, nc.name));
+        }
+
+        // transform
+        {
+            auto tc = engineSceneAddTransformComponent(scene, go);
+            std::memcpy(&tc.position, node.translate, sizeof(tc.position));
+            std::memcpy(&tc.rotation, node.rotation_quaternion, sizeof(tc.rotation));
+            std::memcpy(&tc.scale, node.scale, sizeof(tc.scale));
+            engineSceneUpdateTransformComponent(scene, go, &tc);
+            log(fmt::format("\tAdded transform component\n", go));
+        }
+        
+        if (node.geometry_index != -1)
+        {
+            auto mc = engineSceneAddMeshComponent(scene, go);
+            mc.geometry = model_info.geometries.at(node.geometry_index);
+            engineSceneUpdateMeshComponent(scene, go, &mc);
+            log(fmt::format("\tAdded mesh component\n", go));
+        }
+
+        if (node.material_index != -1)
+        {
+            auto material_comp = engineSceneAddMaterialComponent(scene, go);
+            material_comp.material = model_info.materials.at(node.material_index);
+            engineSceneUpdateMaterialComponent(scene, go, &material_comp);
+            log(fmt::format("\tAdded material component\n", go));
+        }
+
+        if (!node.parent)
+        {
+            scene_cpp->register_script<ControllableEntity>(go);
         }
     }
-    if (!node_with_geometry)
+
+    // hierarchy
+    for (auto i = 0; i < model_info.model_info.nodes_count; i++)
     {
-        assert(false && "Failed to find node with geometry!");
-        return false;
+        const auto& node = model_info.model_info.nodes_array[i];
+        const auto& go = node_id_to_game_object[i];
+        if (node.parent)
+        {
+            // find parent index - not optimal. ToDo: consider having parent index instead parent pointer
+            const std::uint32_t parent_index = [&]()
+                {
+                    for (std::uint32_t j = 0; j < model_info.model_info.nodes_count; j++)
+                    {
+                        if (&model_info.model_info.nodes_array[j] == node.parent)
+                        {
+                            return j;
+                        }
+                    }
+                    return std::uint32_t(ENGINE_INVALID_GAME_OBJECT_ID);
+                }();
+
+
+            // add parent component
+            auto pc = engineSceneAddParentComponent(scene, go);
+            pc.parent = node_id_to_game_object[parent_index];
+            engineSceneUpdateParentComponent(scene, go, &pc);
+            log(fmt::format("Entity: {} added parent component: {}\n", go, pc.parent));
+        }
     }
 
-    glm::vec3 transform = glm::make_vec3(node_with_geometry->translate);
-    glm::quat rotation = glm::quat(node_with_geometry->rotation_quaternion[0], node_with_geometry->rotation_quaternion[1], node_with_geometry->rotation_quaternion[2], node_with_geometry->rotation_quaternion[3]);
-    glm::vec3 scale = glm::make_vec3(node_with_geometry->scale);
-
-    const engine_model_node_desc_t* parent = node_with_geometry->parent;
-    while (parent)
+    // bones
+    std::map<uint32_t, std::vector<engine_game_object_t>> skin_to_game_object;
+    for (auto skin_idx = 0; skin_idx < model_info.model_info.skins_counts; skin_idx++)
     {
-        transform += glm::make_vec3(parent->translate);
-        scale *= glm::make_vec3(parent->scale);
-        rotation = glm::quat(parent->rotation_quaternion[0], parent->rotation_quaternion[1], parent->rotation_quaternion[2], parent->rotation_quaternion[3]) * rotation;
-        parent = parent->parent;  
+        const auto& skin = model_info.model_info.skins_array[skin_idx];
+        log(fmt::format("Adding skin: {}\n", skin.name));
+        for (auto bone_idx = 0; bone_idx < skin.bones_count; bone_idx++)
+        {
+            const auto& bone = skin.bones_array[bone_idx];
+            const auto& go = node_id_to_game_object[bone.model_node_index];
+            skin_to_game_object[skin_idx].push_back(go);
+
+            auto bc = engineSceneAddBoneComponent(scene, go);
+            std::memcpy(bc.inverse_bind_matrix, bone.inverse_bind_mat, sizeof(bc.inverse_bind_matrix));
+            engineSceneUpdateBoneComponent(scene, go, &bc);
+            log(fmt::format("\tAttached entity: {} to the skin.\n", go));
+        }
     }
 
-    engine_tranform_component_t transform_comp{};
-    std::memcpy(&transform_comp.position, glm::value_ptr(transform), sizeof(transform_comp.position));
-    std::memcpy(&transform_comp.rotation, glm::value_ptr(rotation), sizeof(transform_comp.rotation));
-    std::memcpy(&transform_comp.scale, glm::value_ptr(scale), sizeof(transform_comp.scale));
-    scene->register_script<project_c::ControllableEntity>(transform_comp,
-        model_info.geometries[node_with_geometry->geometry_index],
-        model_info.materials[node_with_geometry->material_index],
-        model_info.skins[node_with_geometry->skin_index],
-        model_info.animations);
+    // update nodes with skin components
+    for (auto i = 0; i < model_info.model_info.nodes_count; i++)
+    {
+        const auto& node = model_info.model_info.nodes_array[i];
+        const auto& go = node_id_to_game_object[i];
+        if (node.skin_index != -1)
+        {
+            const auto& bones_game_object_arr = skin_to_game_object[node.skin_index];
+            auto sc = engineSceneAddSkinComponent(scene, go);
+            for (auto bone_idx = 0; bone_idx < bones_game_object_arr.size(); bone_idx++)
+            {
+                sc.bones[bone_idx] = bones_game_object_arr.at(bone_idx);
+            }
+            engineSceneUpdateSkinComponent(scene, go, &sc);
+            log(fmt::format("Entity: {} added skin component for skin index: \n", go, node.skin_index));
+        }
+    }
+
+    // animations
+    auto copy_anim_channel_data = [](engine_animation_channel_t& out_channel, const engine_animation_channel_data_t& in_channel)
+        {
+            //timestamps
+            out_channel.timestamps_count = in_channel.timestamps_count;
+            assert(out_channel.timestamps_count < ENGINE_ANIMATION_CHANNEL_MAX_DATA_SIZE);
+            std::memcpy(out_channel.timestamps, in_channel.timestamps, in_channel.timestamps_count * sizeof(in_channel.timestamps[0]));
+
+            // data
+            out_channel.data_count = in_channel.data_count;
+            assert(out_channel.data_count < ENGINE_ANIMATION_CHANNEL_MAX_DATA_SIZE);
+            std::memcpy(out_channel.data, in_channel.data, in_channel.data_count * sizeof(in_channel.data[0]));
+        };
+
+    std::vector<engine_game_object_t> animated_go;
+    for (auto anim_idx = 0; anim_idx < model_info.model_info.animations_counts; anim_idx++)
+    {
+        const auto& anim = model_info.model_info.animations_array[anim_idx];
+        log(fmt::format("Adding animation: {}\n", anim.name));
+        for (auto channel_idx = 0; channel_idx < anim.channels_count; channel_idx++)
+        {
+            const auto& channel = anim.channels[channel_idx];
+            const auto& go = node_id_to_game_object[channel.model_node_index];
+            animated_go.push_back(go);
+            auto anim = engineSceneAddAnimationClipComponent(scene, go);
+            anim.clips_array[anim_idx].animation_dt = 0.0f;
+            copy_anim_channel_data(anim.clips_array[anim_idx].channel_translation, channel.channel_translation);
+            copy_anim_channel_data(anim.clips_array[anim_idx].channel_rotation, channel.channel_rotation);
+            copy_anim_channel_data(anim.clips_array[anim_idx].channel_scale, channel.channel_scale);
+            engineSceneUpdateAnimationClipComponent(scene, go, &anim);
+        }
+    }
+    anim_controller_poc = new AnimationController(scene_cpp, animated_go);
     return true;
 }
 
@@ -680,8 +807,10 @@ inline bool load_cube(engine_application_t& app, engine::IScene* scene)
     // floor
     scene->register_script<project_c::Floor>(node, model_info);
     scene->register_script<project_c::Enemy>(node, model_info);
+    scene->register_script<project_c::Sword>(node, model_info);
     return true;
 }
+
 
 }  // namespace project_c
 

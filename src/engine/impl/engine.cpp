@@ -9,6 +9,8 @@
 
 #include <utility>
 
+#include <fmt/format.h>
+
 namespace
 {
 inline engine::Application* application_cast(engine_application_t engine_app)
@@ -83,13 +85,9 @@ inline void material_component_init(engine_material_component_t* comp)
     comp->material = ENGINE_INVALID_OBJECT_HANDLE;
 }
 
-inline void animation_component_init(engine_animation_component_t* comp)
+inline void animation_clip_component_init(engine_animation_clip_component_t* comp)
 {
-    std::memset(comp, 0, sizeof(engine_animation_component_t));
-    for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
-    {
-        comp->animations_array[i] = ENGINE_INVALID_OBJECT_HANDLE;
-    }
+    std::memset(comp, 0, sizeof(engine_animation_clip_component_t));
 }
 
 inline void parent_component_init(engine_parent_component_t* comp)
@@ -99,9 +97,18 @@ inline void parent_component_init(engine_parent_component_t* comp)
 
 inline void mesh_component_init(engine_mesh_component_t* comp)
 {
-    std::memset(comp, 0, sizeof(engine_rigid_body_component_t));
+    std::memset(comp, 0, sizeof(engine_mesh_component_t));
     comp->geometry = ENGINE_INVALID_OBJECT_HANDLE;
-    comp->skin = ENGINE_INVALID_OBJECT_HANDLE;
+}
+
+inline void skin_component_init(engine_skin_component_t* comp)
+{
+    std::memset(comp, 0, sizeof(engine_skin_component_t));
+    static_assert(ENGINE_INVALID_GAME_OBJECT_ID == 0, "Invalid game object id should be 0. If it's not 0 than update this function to initalize skeleton array.");
+    for (auto& bone : comp->bones)
+    {
+        bone = ENGINE_INVALID_GAME_OBJECT_ID;
+    }
 }
 
 inline void rigid_body_component_init(engine_rigid_body_component_t* comp)
@@ -286,14 +293,12 @@ engine_result_code_t engineApplicationAddGeometryFromDesc(engine_application_t h
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
     const auto ret = app->add_geometry(desc->verts_layout, desc->verts_count, { reinterpret_cast<const std::byte*>(desc->verts_data), desc->verts_data_size }, { desc->inds, desc->inds_count}, name);
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    if (out)
-    {
-        *out = ret;
-    }
+    *out = ret;
+    engineLog(fmt::format("Created geometry: {}, with id: {}\n", name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -331,14 +336,12 @@ engine_result_code_t engineApplicationAddMaterialFromDesc(engine_application_t h
     }
     auto* app = reinterpret_cast<engine::Application*>(handle);
     const auto ret = app->add_material(*desc, name);
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    if (out)
-    {
-        *out = ret;
-    }
+    *out = ret;
+    engineLog(fmt::format("Created material: {}, with id: {}\n", name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -353,21 +356,25 @@ engine_result_code_t engineApplicationAddTexture2DFromDesc(engine_application_t 
     auto* app = application_cast(handle);
     const auto ret =  app->add_texture(*info, name);
 
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    if (out)
-    {
-        *out = ret;
-    }
+    *out = ret;
+    engineLog(fmt::format("Created texture: {}, with id: {}\n", name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 
 engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_name, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out)
 {
     auto* app = application_cast(handle);
-    *out = app->add_texture_from_file(file_name, name, color_space);
+    const auto ret = app->add_texture_from_file(file_name, name, color_space);
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    *out = ret;
+    engineLog(fmt::format("Created texture from file: {}, with id: {}\n", name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -375,28 +382,6 @@ engine_texture2d_t engineApplicationGetTextured2DByName(engine_application_t han
 {
     const auto* app = application_cast(handle);
     return app->get_texture(name);
-}
-
-engine_result_code_t engineApplicationAddSkinFromDesc(engine_application_t handle, const engine_skin_create_desc_t* desc, const char* name, engine_skin_t* out)
-{
-    auto* app = application_cast(handle);
-    const auto ret = app->add_skin(*desc, name);
-
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    if (out)
-    {
-        *out = ret;
-    }
-    return ENGINE_RESULT_CODE_OK;
-}
-
-engine_skin_t engineApplicationGetSkinByName(engine_application_t handle, const char* name)
-{
-    const auto* app = application_cast(handle);
-    return app->get_skin(name);
 }
 
 engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, engine_model_desc_t* out)
@@ -414,38 +399,10 @@ engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engin
     return ENGINE_RESULT_CODE_OK;
 }
 
-
 void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info)
 {
     auto* app = application_cast(handle);
     app->release_model_desc(model_info);
-}
-
-engine_result_code_t engineApplicationAddAnimationClipFromDesc(engine_application_t handle, const engine_animation_clip_create_desc_t* info, const char* name, engine_animation_clip_t* out)
-{
-    auto* app = application_cast(handle);
-    if (!info || !name)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    const auto ret = app->add_animation_clip(*info, name);
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    if (out)
-    {
-        *out = ret;
-    }
-    return ENGINE_RESULT_CODE_OK;
-}
-
-engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_application_t handle, const char* name)
-{
-    auto* app = application_cast(handle);
-    const auto ret = app->get_animation_clip(name);
-    assert(ret != ENGINE_INVALID_OBJECT_HANDLE);
-    return ret;
 }
 
 engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, engine_scene_create_desc_t desc, engine_scene_t* out)
@@ -794,6 +751,60 @@ bool engineSceneHasMeshComponent(engine_scene_t scene, engine_game_object_t game
     return has_component<engine_mesh_component_t>(scene, game_object);
 }
 
+// skinned mesh
+engine_skin_component_t engineSceneAddSkinComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_skin_component_t, skin_component_init>(scene, game_object);
+}
+
+engine_skin_component_t engineSceneGetSkinComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_skin_component_t>(scene, game_object);
+}
+
+void engineSceneUpdateSkinComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_skin_component_t* comp)
+{
+    update_component(scene, game_object, comp);
+}
+
+void engineSceneRemoveSkinComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_skin_component_t>(scene, game_object);
+}
+
+bool engineSceneHasSkinComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_skin_component_t>(scene, game_object);
+}
+// -- 
+
+// bone
+engine_bone_component_t engineSceneAddBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_bone_component_t>(scene, game_object);
+}
+
+engine_bone_component_t engineSceneGetBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_bone_component_t>(scene, game_object);
+}
+
+void engineSceneUpdateBoneComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_bone_component_t* comp)
+{
+    update_component(scene, game_object, comp);
+}
+
+void engineSceneRemoveBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_bone_component_t>(scene, game_object);
+}
+
+bool engineSceneHasBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_bone_component_t>(scene, game_object);
+}
+// -- 
+
 engine_material_component_t engineSceneAddMaterialComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return add_component<engine_material_component_t, material_component_init>(scene, game_object);
@@ -919,31 +930,32 @@ bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t 
     return has_component<engine_collider_component_t>(scene, game_object);
 }
 
-engine_animation_component_t engineSceneAddAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
+// animation clip
+engine_animation_clip_component_t engineSceneAddAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_animation_component_t, animation_component_init>(scene, game_object);
+    return add_component<engine_animation_clip_component_t, animation_clip_component_init>(scene, game_object);
 }
 
-engine_animation_component_t engineSceneGetAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_animation_clip_component_t engineSceneGetAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return get_component<engine_animation_component_t>(scene, game_object);
+    return get_component<engine_animation_clip_component_t>(scene, game_object);
 }
 
-void engineSceneUpdateAnimationComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_component_t* comp)
+void engineSceneUpdateAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_clip_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }
 
-void engineSceneRemoveAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
+void engineSceneRemoveAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    remove_component<engine_animation_component_t>(scene, game_object);
+    remove_component<engine_animation_clip_component_t>(scene, game_object);
 }
 
-bool engineSceneHasAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
+bool engineSceneHasAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return has_component<engine_animation_component_t>(scene, game_object);
+    return has_component<engine_animation_clip_component_t>(scene, game_object);
 }
-
+// ---
 
 engine_parent_component_t engineSceneAddParentComponent(engine_scene_t scene, engine_game_object_t game_object)
 {

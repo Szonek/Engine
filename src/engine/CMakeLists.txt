@@ -25,8 +25,6 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/physics_world.cpp
 	${ENGINE_SOURCES_DIR}/animation.cpp
 	${ENGINE_SOURCES_DIR}/animation.h
-	${ENGINE_SOURCES_DIR}/vertex_skinning.h
-	${ENGINE_SOURCES_DIR}/vertex_skinning.cpp
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.h
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.cpp
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Backend.h

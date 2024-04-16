@@ -46,12 +46,9 @@ typedef struct _engine_ui_document_t* engine_ui_document_t;
 typedef struct _engine_ui_data_handle_t* engine_ui_data_handle_t;
 typedef struct _engine_ui_element_t* engine_ui_element_t;
 typedef uint32_t engine_material_t;
-typedef uint32_t engine_skin_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_font_t;
-typedef uint32_t engine_animation_clip_t;
-
 
 typedef struct _engine_coords_2d_t
 {
@@ -345,32 +342,28 @@ typedef struct _engine_geometry_create_desc_t
     size_t inds_count;
 } engine_geometry_create_desc_t;
 
-typedef enum _engine_animation_channel_type_t
+typedef struct _engine_animation_channel_data_t
 {
-    ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION = 0,
-    ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION = 1,
-    ENGINE_ANIMATION_CHANNEL_TYPE_SCALE,
-    ENGINE_ANIMATION_CHANNEL_TYPE_COUNT,
-} engine_animation_channel_type_t;
-
-
-typedef struct _engine_animation_channel_create_desc_t
-{
-    engine_animation_channel_type_t type;
-    int32_t target_joint_idx;  // set to joint index if animation is used for skeleton
-
     const float* timestamps;
     uint32_t timestamps_count;
 
-    const float* data;  // for vec3: x,y,z; for rotation quaternion: x,y,z,w
+    const float* data;
     size_t data_count;
+} engine_animation_channel_data_t;
+
+typedef struct _engine_animation_channel_create_desc_t
+{
+    uint32_t model_node_index;
+    engine_animation_channel_data_t channel_translation;  // data is {x, y, z}
+    engine_animation_channel_data_t channel_rotation;  // data is quatenion: {x, y, z, w}
+    engine_animation_channel_data_t channel_scale;  // data is {x, y, z}
 } engine_animation_channel_create_desc_t;
 
 typedef struct _engine_animation_clip_create_desc_t
 {
+    const char* name;
     engine_animation_channel_create_desc_t* channels;
     uint32_t channels_count;
-
 } engine_animation_clip_create_desc_t;
 
 typedef struct _engine_material_create_desc_t
@@ -379,25 +372,17 @@ typedef struct _engine_material_create_desc_t
     engine_texture2d_t diffuse_texture;
 } engine_material_create_desc_t;
 
-typedef struct _engine_skin_joint_create_desc_t
+typedef struct _engine_bones_create_desc_t
 {
-    int32_t idx;
+    uint32_t model_node_index;
     float inverse_bind_mat[16];
-    const int32_t* children;
-    uint32_t children_count;
-
-    float init_translate[3];
-    float init_scale[3];
-    float init_rotation_quaternion[4];
-} engine_skin_joint_create_desc_t;
+} engine_bone_create_desc_t;
 
 typedef struct _engine_skin_reate_desc_t
 {
-    engine_skin_joint_create_desc_t* joints;
-    uint32_t joint_count;
-    
-    uint32_t* animations_array;
-    uint32_t animations_count;
+    const char* name;
+    engine_bone_create_desc_t* bones_array;
+    uint32_t bones_count;
 } engine_skin_create_desc_t;
 
 typedef struct _engine_model_material_desc_t
@@ -516,13 +501,6 @@ ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromDesc(engine_app
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
 
-// vertex skinning
-ENGINE_API engine_result_code_t engineApplicationAddSkinFromDesc(engine_application_t handle, const engine_skin_create_desc_t* desc, const char* name, engine_skin_t* out);
-ENGINE_API engine_skin_t        engineApplicationGetSkinByName(engine_application_t handle, const char* name);
-
-// animations
-ENGINE_API engine_result_code_t engineApplicationAddAnimationClipFromDesc(engine_application_t handle, const engine_animation_clip_create_desc_t* info, const char* name, engine_animation_clip_t* out);
-ENGINE_API engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_application_t handle, const char* name);
 // physics 
 ENGINE_API void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);
 ENGINE_API void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
@@ -576,6 +554,18 @@ ENGINE_API void engineSceneUpdateMeshComponent(engine_scene_t scene, engine_game
 ENGINE_API void engineSceneRemoveMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 
+ENGINE_API engine_skin_component_t engineSceneAddSkinComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_skin_component_t engineSceneGetSkinComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateSkinComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_skin_component_t* comp);
+ENGINE_API void engineSceneRemoveSkinComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasSkinComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+ENGINE_API engine_bone_component_t engineSceneAddBoneComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_bone_component_t engineSceneGetBoneComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateBoneComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_bone_component_t* comp);
+ENGINE_API void engineSceneRemoveBoneComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasBoneComponent(engine_scene_t scene, engine_game_object_t game_object);
+
 ENGINE_API engine_material_component_t engineSceneAddMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_material_component_t engineSceneGetMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void engineSceneUpdateMaterialComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_material_component_t* comp);
@@ -606,11 +596,12 @@ ENGINE_API void engineSceneUpdateColliderComponent(engine_scene_t scene, engine_
 ENGINE_API void engineSceneRemoveColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
 
-ENGINE_API engine_animation_component_t engineSceneAddAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_animation_component_t engineSceneGetAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateAnimationComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_component_t* comp);
-ENGINE_API void engineSceneRemoveAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_animation_clip_component_t engineSceneAddAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_animation_clip_component_t engineSceneGetAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_clip_component_t* comp);
+ENGINE_API void engineSceneRemoveAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object);
+
 
 ENGINE_API engine_parent_component_t engineSceneAddParentComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_parent_component_t engineSceneGetParentComponent(engine_scene_t scene, engine_game_object_t game_object);
