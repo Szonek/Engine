@@ -334,51 +334,6 @@ public:
             engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
         }
     }
-
-    virtual void try_to_find_and_set_parent_entity(const engine_model_node_desc_t& node, const ModelInfo& model_info)
-    {
-        const auto scene = my_scene_->get_handle();
-        // this is potentaiyll very costly part of this c-tor
-        if (node.parent)
-        {
-            engine_component_view_t view = nullptr;
-            engineCreateComponentView(&view);
-            engineSceneComponentViewAttachNameComponent(scene, view);
-
-            engine_component_iterator_t begin{};
-            engine_component_iterator_t end{};
-            engineComponentViewCreateBeginComponentIterator(view, &begin);
-            engineComponentViewCreateEndComponentIterator(view, &end);
-
-            engine_game_object_t parent_go = ENGINE_INVALID_GAME_OBJECT_ID;
-            while (!engineComponentIteratorCheckEqual(begin, end))
-            {
-                const auto go = engineComponentIteratorGetGameObject(begin);
-                const auto go_name_comp = engineSceneGetNameComponent(scene, go);
-                if (std::strcmp(go_name_comp.name, node.parent->name) == 0)
-                {
-                    parent_go = go;
-                    begin = end; // finish
-                }
-                else
-                {
-                    engineComponentIteratorNext(begin);
-                }
-
-            }
-
-            if (parent_go != ENGINE_INVALID_GAME_OBJECT_ID)
-            {
-                auto pc = engineSceneAddParentComponent(scene, go_);
-                pc.parent = parent_go;
-                engineSceneUpdateParentComponent(scene, go_, &pc);
-            }
-            if (view)
-            {
-                engineDestroyComponentView(view);
-            }
-        }
-    }
 };
 
 class Node3D : public BaseNode
@@ -471,7 +426,7 @@ class ControllableEntity : public engine::IScript
 {
 public:
     ControllableEntity(engine::IScene* my_scene, const engine_tranform_component_t& transform,
-        engine_geometry_t geometry, engine_material_t material, engine_skin_t skin, const std::vector<engine_animation_clip_t>& anims)
+        engine_geometry_t geometry, engine_material_t material, std::span<const engine_game_object_t> skeleton_bones, const std::vector<engine_animation_clip_t>& anims)
         : IScript(my_scene)
     {
         const auto scene = my_scene->get_handle();
@@ -488,11 +443,14 @@ public:
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         // ------------ rendering
-        if (geometry != ENGINE_INVALID_OBJECT_HANDLE)
+        if (geometry != ENGINE_INVALID_OBJECT_HANDLE && !skeleton_bones.empty())
         {
             auto mc = engineSceneAddSkinnedMeshComponent(scene, go_);
             mc.geometry = geometry;
-            //mc.skeleton
+            for (auto i = 0; i < skeleton_bones.size(); i++)
+            {
+                mc.skeleton[i] = skeleton_bones[i];
+            }
             engineSceneUpdateSkinnedMeshComponent(scene, go_, &mc);
         }
 
@@ -504,15 +462,15 @@ public:
             engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
         }
 
-        if (skin != ENGINE_INVALID_OBJECT_HANDLE && !anims.empty())
-        {
-            auto anim_comp = engineSceneAddAnimationComponent(scene, go_);
-            for (auto i = 0; i < anims.size(); i++)
-            {
-                anim_comp.animations_array[i] = anims[i];
-            }
-            engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
-        }
+        //if (skin != ENGINE_INVALID_OBJECT_HANDLE && !anims.empty())
+        //{
+        //    auto anim_comp = engineSceneAddAnimationComponent(scene, go_);
+        //    for (auto i = 0; i < anims.size(); i++)
+        //    {
+        //        anim_comp.animations_array[i] = anims[i];
+        //    }
+        //    engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
+        //}
 
         // ------------ physcis
         // collider
@@ -633,7 +591,7 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
     {
         return false;
     }
-    project_c::SkinInfo skin{};
+    std::vector<engine_game_object_t> skeleton_bones(model_info.model_info.bones_count);
     // add nodes
     const engine_model_node_desc_t* node_with_geometry = nullptr;
     for (auto i = 0; i < model_info.model_info.nodes_count; i++)
@@ -646,7 +604,8 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
         }
         if (node.bone_index != -1)
         {
-            scene->register_script<project_c::Node3D>(node, model_info);
+            auto node3d = scene->register_script<project_c::Node3D>(node, model_info);
+            skeleton_bones.at(node.bone_index) = node3d->get_game_object();
         }
     }
     if (!node_with_geometry)
@@ -672,11 +631,39 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
     std::memcpy(&transform_comp.position, glm::value_ptr(transform), sizeof(transform_comp.position));
     std::memcpy(&transform_comp.rotation, glm::value_ptr(rotation), sizeof(transform_comp.rotation));
     std::memcpy(&transform_comp.scale, glm::value_ptr(scale), sizeof(transform_comp.scale));
-    scene->register_script<project_c::ControllableEntity>(transform_comp,
+    const auto controllabe_entity = scene->register_script<project_c::ControllableEntity>(transform_comp,
         model_info.geometries[node_with_geometry->geometry_index],
         model_info.materials[node_with_geometry->material_index],
-        model_info.skins.empty() ? ENGINE_INVALID_OBJECT_HANDLE : model_info.skins[node_with_geometry->skin_index],
+        skeleton_bones,
         model_info.animations);
+
+
+
+    // connect skeletons bones
+    for (auto i = 0; i < model_info.model_info.nodes_count; i++)
+    {
+        const auto& node = model_info.model_info.nodes_array[i];
+        if (node.bone_index != -1 && node.parent)
+        {
+            const auto go = skeleton_bones.at(node.bone_index);
+            engine_game_object_t parent_go = ENGINE_INVALID_GAME_OBJECT_ID;
+            if (node.parent->bone_index == -1)
+            {
+                parent_go = controllabe_entity->get_game_object();
+            }
+            else
+            {
+                parent_go = skeleton_bones.at(node.parent->bone_index);
+            }
+            if (parent_go != ENGINE_INVALID_GAME_OBJECT_ID)
+            {
+                auto pc = engineSceneAddParentComponent(scene->get_handle(), go);
+                pc.parent = parent_go;
+                engineSceneUpdateParentComponent(scene->get_handle(), go, &pc);
+            }
+        }
+    }
+
     return true;
 }
 

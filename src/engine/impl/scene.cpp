@@ -358,6 +358,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
                 shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
 
+                const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
+
                 for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
                 {
                     const auto& bone_entity = mesh_component.skeleton[i];
@@ -370,7 +372,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                     const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world);
                     const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
                     //const auto per_bone_animation_data = skin.bone_animation_transform[i];
-                    const auto per_bone_final_transform = bone_matrix * inverse_bind_matrix;// *per_bone_animation_data;
+                    //const auto per_bone_final_transform = bone_matrix * inverse_bind_matrix;// *per_bone_animation_data;
+                    const auto per_bone_final_transform = bone_matrix * inverse_bind_matrix * inverse_transform;// *per_bone_animation_data;
                     const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
                     shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
                 }
