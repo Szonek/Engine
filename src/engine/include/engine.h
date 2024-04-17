@@ -52,7 +52,6 @@ typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_font_t;
 typedef uint32_t engine_animation_clip_t;
 
-
 typedef struct _engine_coords_2d_t
 {
     float x;
@@ -353,7 +352,6 @@ typedef enum _engine_animation_channel_type_t
     ENGINE_ANIMATION_CHANNEL_TYPE_COUNT,
 } engine_animation_channel_type_t;
 
-
 typedef struct _engine_animation_channel_create_desc_t
 {
     engine_animation_channel_type_t type;
@@ -539,6 +537,7 @@ ENGINE_API engine_skin_t        engineApplicationGetSkinByName(engine_applicatio
 // animations
 ENGINE_API engine_result_code_t engineApplicationAddAnimationClipFromDesc(engine_application_t handle, const engine_animation_clip_create_desc_t* info, const char* name, engine_animation_clip_t* out);
 ENGINE_API engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_application_t handle, const char* name);
+
 // physics 
 ENGINE_API void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);
 ENGINE_API void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
@@ -639,6 +638,13 @@ ENGINE_API engine_animation_component_t engineSceneGetAnimationComponent(engine_
 ENGINE_API void engineSceneUpdateAnimationComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_component_t* comp);
 ENGINE_API void engineSceneRemoveAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+ENGINE_API engine_animation_clip_component_t engineSceneAddAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_animation_clip_component_t engineSceneGetAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_clip_component_t* comp);
+ENGINE_API void engineSceneRemoveAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object);
+
 
 ENGINE_API engine_parent_component_t engineSceneAddParentComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_parent_component_t engineSceneGetParentComponent(engine_scene_t scene, engine_game_object_t game_object);

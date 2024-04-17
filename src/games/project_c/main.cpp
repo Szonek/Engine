@@ -38,8 +38,6 @@ struct ModelInfo
     std::vector<engine_geometry_t> geometries;
     std::vector<engine_texture2d_t> textures;
     std::vector<engine_material_t> materials;
-    std::vector<engine_skin_t> skins;
-    std::vector<engine_animation_clip_t> animations;
 
     ModelInfo(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name)
         : app(app)
@@ -89,32 +87,6 @@ struct ModelInfo
             }
             engine_error_code = engineApplicationAddMaterialFromDesc(app, &mat_create_desc, mat.name, &materials[i]);
 
-            if (engine_error_code != ENGINE_RESULT_CODE_OK)
-            {
-                engineLog("Failed creating textured for loaded model. Exiting!\n");
-                return;
-            }
-        }
-
-        //skins = std::vector<engine_skin_t>(model_info.skins_counts, ENGINE_INVALID_OBJECT_HANDLE);
-        //for (auto i = 0; i < model_info.skins_counts; i++)
-        //{
-        //    const auto& skin = model_info.skins_array[i];
-        //    const auto name = "unnamed_skin_" + std::to_string(i);
-        //    engine_error_code = engineApplicationAddSkinFromDesc(app, &skin, name.c_str(), &skins[i]);
-        //    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-        //    {
-        //        engineLog("Failed creating textured for loaded model. Exiting!\n");
-        //        return;
-        //    }
-        //}
-
-        animations = std::vector<engine_animation_clip_t>(model_info.animations_counts, ENGINE_INVALID_OBJECT_HANDLE);
-        for (auto i = 0; i < model_info.animations_counts; i++)
-        {
-            const auto& anim = model_info.animations_array[i];
-            const auto name = "unnamed_animation_" + std::to_string(i);
-            engine_error_code = engineApplicationAddAnimationClipFromDesc(app, &anim, name.c_str(), &animations[i]);
             if (engine_error_code != ENGINE_RESULT_CODE_OK)
             {
                 engineLog("Failed creating textured for loaded model. Exiting!\n");
@@ -300,11 +272,10 @@ public:
         std::memcpy(tc.rotation, node.rotation_quaternion, std::size(node.rotation_quaternion) * sizeof(float));
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
-        if (node.geometry_index != -1 || node.skin_index != -1)
+        if (node.geometry_index != -1)
         {
             auto mc = engineSceneAddMeshComponent(scene, go_);
             mc.geometry = node.geometry_index != -1 ? model_info.geometries[node.geometry_index] : ENGINE_INVALID_OBJECT_HANDLE;
-            mc.skin = node.skin_index != -1 ? model_info.skins[node.skin_index] : ENGINE_INVALID_OBJECT_HANDLE;
             engineSceneUpdateMeshComponent(scene, go_, &mc);
         }
 
@@ -315,16 +286,6 @@ public:
             std::memcpy(bc.inverse_bind_matrix, bone_info.inverse_bind_mat, sizeof(bone_info.inverse_bind_mat));
             engineSceneUpdateBoneComponent(scene, go_, &bc);
         }
-        //if (node.skin_index != -1)
-        //{
-        //    auto anim_comp = engineSceneAddAnimationComponent(scene, go_);
-        //    const auto skin_info = model_info.model_info.skins_array[node.skin_index];
-        //    for (auto i = 0; i < skin_info.animations_count; i++)
-        //    {
-        //        anim_comp.animations_array[i] = model_info.animations.at(skin_info.animations_array[i]);
-        //    }
-        //    engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
-        //}
 
         // if mesh is present then definitly we need some material to render it
         if (node.material_index != -1)
@@ -426,7 +387,7 @@ class ControllableEntity : public engine::IScript
 {
 public:
     ControllableEntity(engine::IScene* my_scene, const engine_tranform_component_t& transform,
-        engine_geometry_t geometry, engine_material_t material, std::span<const engine_game_object_t> skeleton_bones, const std::vector<engine_animation_clip_t>& anims)
+        engine_geometry_t geometry, engine_material_t material, std::span<const engine_game_object_t> skeleton_bones)
         : IScript(my_scene)
     {
         const auto scene = my_scene->get_handle();
@@ -461,16 +422,6 @@ public:
             material_comp.material = material;
             engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
         }
-
-        //if (skin != ENGINE_INVALID_OBJECT_HANDLE && !anims.empty())
-        //{
-        //    auto anim_comp = engineSceneAddAnimationComponent(scene, go_);
-        //    for (auto i = 0; i < anims.size(); i++)
-        //    {
-        //        anim_comp.animations_array[i] = anims[i];
-        //    }
-        //    engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
-        //}
 
         // ------------ physcis
         // collider
@@ -614,6 +565,62 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
         return false;
     }
 
+    // add animations
+    std::vector<engine_game_object_t> objs_to_add_anim_component(skeleton_bones.size(), ENGINE_INVALID_GAME_OBJECT_ID);
+    std::vector<engine_animation_clip_component_t> animation_components(model_info.model_info.nodes_count);
+    for (auto i = 0; i < model_info.model_info.animations_counts; i++)
+    {
+        const auto& anim = model_info.model_info.animations_array[i];
+        for (auto j = 0; j < anim.channels_count; j++)
+        {
+            const auto& in_channel = anim.channels[j];
+
+            auto& anim_comp = animation_components.at(in_channel.target_joint_idx);
+            objs_to_add_anim_component[in_channel.target_joint_idx] = skeleton_bones.at(in_channel.target_joint_idx);
+            auto& anim_clip = anim_comp.clips_array[i];
+
+            engine_animation_channel_t* out_channel = nullptr;
+            if (in_channel.type == ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION)
+            {
+                out_channel = &anim_clip.channel_translation;
+            }
+            else if (in_channel.type == ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION)
+            {
+                out_channel = &anim_clip.channel_rotation;
+            }
+            else if (in_channel.type == ENGINE_ANIMATION_CHANNEL_TYPE_SCALE)
+            {
+                out_channel = &anim_clip.channel_scale;
+            }
+            else
+            {
+                assert(false && "Unknown animation channel type!");
+            }
+            out_channel->interpolation_type = ENGINE_ANIMATION_CHANNEL_INTERPOLATION_TYPE_LINEAR;
+            //timestamps
+            out_channel->timestamps_count = in_channel.timestamps_count;
+            assert(out_channel->timestamps_count < ENGINE_ANIMATION_CHANNEL_MAX_DATA_SIZE);
+            std::memcpy(out_channel->timestamps, in_channel.timestamps, in_channel.timestamps_count * sizeof(in_channel.timestamps[0]));
+
+            // data
+            out_channel->data_count = in_channel.data_count;
+            assert(out_channel->data_count < ENGINE_ANIMATION_CHANNEL_MAX_DATA_SIZE);
+            std::memcpy(out_channel->data, in_channel.data, in_channel.data_count * sizeof(in_channel.data[0]));
+        }     
+    }
+    for (std::size_t i = 0; i < objs_to_add_anim_component.size(); i++)
+    {
+        const auto obj = objs_to_add_anim_component.at(i);
+        if (obj == ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            continue;
+        }
+        auto anim_comp = engineSceneAddAnimationClipComponent(scene->get_handle(), obj);
+        anim_comp = animation_components.at(i);
+        engineSceneUpdateAnimationClipComponent(scene->get_handle(), obj, &anim_comp);
+    }
+    
+    // fuse transform from parents on top of mesh node
     glm::vec3 transform = glm::make_vec3(node_with_geometry->translate);
     glm::quat rotation = glm::quat(node_with_geometry->rotation_quaternion[0], node_with_geometry->rotation_quaternion[1], node_with_geometry->rotation_quaternion[2], node_with_geometry->rotation_quaternion[3]);
     glm::vec3 scale = glm::make_vec3(node_with_geometry->scale);
@@ -627,6 +634,7 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
         parent = parent->parent;  
     }
 
+    // finally create controllable entity
     engine_tranform_component_t transform_comp{};
     std::memcpy(&transform_comp.position, glm::value_ptr(transform), sizeof(transform_comp.position));
     std::memcpy(&transform_comp.rotation, glm::value_ptr(rotation), sizeof(transform_comp.rotation));
@@ -634,10 +642,7 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
     const auto controllabe_entity = scene->register_script<project_c::ControllableEntity>(transform_comp,
         model_info.geometries[node_with_geometry->geometry_index],
         model_info.materials[node_with_geometry->material_index],
-        skeleton_bones,
-        model_info.animations);
-
-
+        skeleton_bones);
 
     // connect skeletons bones
     for (auto i = 0; i < model_info.model_info.nodes_count; i++)
