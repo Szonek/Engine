@@ -46,11 +46,9 @@ typedef struct _engine_ui_document_t* engine_ui_document_t;
 typedef struct _engine_ui_data_handle_t* engine_ui_data_handle_t;
 typedef struct _engine_ui_element_t* engine_ui_element_t;
 typedef uint32_t engine_material_t;
-typedef uint32_t engine_skin_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_font_t;
-typedef uint32_t engine_animation_clip_t;
 
 typedef struct _engine_coords_2d_t
 {
@@ -530,14 +528,6 @@ ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromDesc(engine_app
 ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
 
-// vertex skinning
-ENGINE_API engine_result_code_t engineApplicationAddSkinFromDesc(engine_application_t handle, const engine_skin_create_desc_t* desc, const char* name, engine_skin_t* out);
-ENGINE_API engine_skin_t        engineApplicationGetSkinByName(engine_application_t handle, const char* name);
-
-// animations
-ENGINE_API engine_result_code_t engineApplicationAddAnimationClipFromDesc(engine_application_t handle, const engine_animation_clip_create_desc_t* info, const char* name, engine_animation_clip_t* out);
-ENGINE_API engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_application_t handle, const char* name);
-
 // physics 
 ENGINE_API void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);
 ENGINE_API void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
@@ -632,12 +622,6 @@ ENGINE_API engine_collider_component_t engineSceneGetColliderComponent(engine_sc
 ENGINE_API void engineSceneUpdateColliderComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_collider_component_t* comp);
 ENGINE_API void engineSceneRemoveColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
-
-ENGINE_API engine_animation_component_t engineSceneAddAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_animation_component_t engineSceneGetAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateAnimationComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_component_t* comp);
-ENGINE_API void engineSceneRemoveAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasAnimationComponent(engine_scene_t scene, engine_game_object_t game_object);
 
 ENGINE_API engine_animation_clip_component_t engineSceneAddAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_animation_clip_component_t engineSceneGetAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object);

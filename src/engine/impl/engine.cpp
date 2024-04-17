@@ -83,15 +83,6 @@ inline void material_component_init(engine_material_component_t* comp)
     comp->material = ENGINE_INVALID_OBJECT_HANDLE;
 }
 
-inline void animation_component_init(engine_animation_component_t* comp)
-{
-    std::memset(comp, 0, sizeof(engine_animation_component_t));
-    for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
-    {
-        comp->animations_array[i] = ENGINE_INVALID_OBJECT_HANDLE;
-    }
-}
-
 inline void animation_clip_component_init(engine_animation_clip_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_animation_clip_component_t));
@@ -389,28 +380,6 @@ engine_texture2d_t engineApplicationGetTextured2DByName(engine_application_t han
     return app->get_texture(name);
 }
 
-engine_result_code_t engineApplicationAddSkinFromDesc(engine_application_t handle, const engine_skin_create_desc_t* desc, const char* name, engine_skin_t* out)
-{
-    auto* app = application_cast(handle);
-    const auto ret = app->add_skin(*desc, name);
-
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    if (out)
-    {
-        *out = ret;
-    }
-    return ENGINE_RESULT_CODE_OK;
-}
-
-engine_skin_t engineApplicationGetSkinByName(engine_application_t handle, const char* name)
-{
-    const auto* app = application_cast(handle);
-    return app->get_skin(name);
-}
-
 engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, engine_model_desc_t* out)
 {
     if (!out)
@@ -426,38 +395,10 @@ engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engin
     return ENGINE_RESULT_CODE_OK;
 }
 
-
 void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info)
 {
     auto* app = application_cast(handle);
     app->release_model_desc(model_info);
-}
-
-engine_result_code_t engineApplicationAddAnimationClipFromDesc(engine_application_t handle, const engine_animation_clip_create_desc_t* info, const char* name, engine_animation_clip_t* out)
-{
-    auto* app = application_cast(handle);
-    if (!info || !name)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    const auto ret = app->add_animation_clip(*info, name);
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    if (out)
-    {
-        *out = ret;
-    }
-    return ENGINE_RESULT_CODE_OK;
-}
-
-engine_animation_clip_t engineApplicationGetAnimationClipByName(engine_application_t handle, const char* name)
-{
-    auto* app = application_cast(handle);
-    const auto ret = app->get_animation_clip(name);
-    assert(ret != ENGINE_INVALID_OBJECT_HANDLE);
-    return ret;
 }
 
 engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, engine_scene_create_desc_t desc, engine_scene_t* out)
@@ -985,33 +926,7 @@ bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t 
     return has_component<engine_collider_component_t>(scene, game_object);
 }
 
-engine_animation_component_t engineSceneAddAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return add_component<engine_animation_component_t, animation_component_init>(scene, game_object);
-}
-
-engine_animation_component_t engineSceneGetAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return get_component<engine_animation_component_t>(scene, game_object);
-}
-
-void engineSceneUpdateAnimationComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_component_t* comp)
-{
-    update_component(scene, game_object, comp);
-}
-
-void engineSceneRemoveAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    remove_component<engine_animation_component_t>(scene, game_object);
-}
-
-bool engineSceneHasAnimationComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return has_component<engine_animation_component_t>(scene, game_object);
-}
-
 // animation clip
-
 engine_animation_clip_component_t engineSceneAddAnimationClipComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return add_component<engine_animation_clip_component_t, animation_clip_component_init>(scene, game_object);

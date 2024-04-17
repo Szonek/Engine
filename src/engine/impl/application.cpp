@@ -189,8 +189,6 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 	const auto ret_code = scene->update(delta_time,
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
-        animations_atlas_.get_objects_view(),
-        skins_atlas_.get_objects_view(),
         materials_atlas_.get_objects_view());
     return ret_code;
 }
@@ -361,27 +359,6 @@ std::uint32_t engine::Application::get_geometry(std::string_view name) const
 const engine::Geometry* engine::Application::get_geometry(std::uint32_t idx) const
 {
     return geometries_atlas_.get_object(idx);
-}
-
-std::uint32_t engine::Application::add_animation_clip(const engine_animation_clip_create_desc_t& desc, std::string_view name)
-{
-    return animations_atlas_.add_object(name, AnimationClip(desc));
-}
-
-std::uint32_t engine::Application::get_animation_clip(std::string_view name) const
-{
-    return animations_atlas_.get_object(name);
-}
-
-
-std::uint32_t engine::Application::add_skin(const engine_skin_create_desc_t& desc, std::string_view name)
-{
-    return skins_atlas_.add_object(name, Skin({desc.joints, desc.joint_count}));
-}
-
-std::uint32_t engine::Application::get_skin(std::string_view name) const
-{
-    return skins_atlas_.get_object(name);
 }
 
 std::uint32_t engine::Application::add_material(const engine_material_create_desc_t& desc, std::string_view name)

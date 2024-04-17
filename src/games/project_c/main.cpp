@@ -453,15 +453,15 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
-        if (engineSceneHasAnimationComponent(scene, go_))
-        {
-            auto anim_comp = engineSceneGetAnimationComponent(scene, go_);
-            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F) && anim_comp.animations_state[0] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
-            {
-                anim_comp.animations_state[0] = ENGINE_ANIMATION_CLIP_STATE_PLAYING;
-                engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
-            }
-        }
+        //if (engineSceneHasAnimationComponent(scene, go_))
+        //{
+        //    auto anim_comp = engineSceneGetAnimationComponent(scene, go_);
+        //    if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F) && anim_comp.animations_state[0] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
+        //    {
+        //        anim_comp.animations_state[0] = ENGINE_ANIMATION_CLIP_STATE_PLAYING;
+        //        engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
+        //    }
+        //}
 
 
 

@@ -3,7 +3,6 @@
 #include "ui_manager.h"
 #include "logger.h"
 #include "math_helpers.h"
-#include "vertex_skinning.h"
 
 #include <fmt/format.h>
 
@@ -24,7 +23,6 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     , rigid_body_create_observer(entity_registry_, entt::collector.group<engine_rigid_body_component_t, engine_tranform_component_t, engine_collider_component_t>())
     , rigid_body_update_observer(entity_registry_, entt::collector.update<engine_rigid_body_component_t>().where<engine_tranform_component_t, engine_collider_component_t>())
 {
-    entity_registry_.on_construct<engine_mesh_component_t>().connect<&entt::registry::emplace<engine_skin_internal_component_t>>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
     out_code = ENGINE_RESULT_CODE_OK;
@@ -152,8 +150,15 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 }
 
 engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
-    std::span<const Geometry> geometries, std::span<const AnimationClip> animations, std::span<const Skin> skins, std::span<const engine_material_create_desc_t> materials)
+    std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials)
 {
+
+    auto animation_transform_view = entity_registry_.view<engine_tranform_component_t, const engine_animation_clip_component_t>();
+    animation_transform_view.each([this](engine_tranform_component_t& transform_component, const engine_animation_clip_component_t& animation_clip_component)
+        {
+
+
+        });
 #if 1
     auto transform_view = entity_registry_.view<engine_tranform_component_t>(entt::exclude<engine_rigid_body_component_t>);
     transform_view.each([this](engine_tranform_component_t& transform_component)
@@ -206,76 +211,48 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             std::memcpy(transform_comp.local_to_world, &ltw_matrix, sizeof(ltw_matrix));
         });
  
-    // attach or deattach entity to the skin object
-    for(const auto entt : mesh_update_observer)
-    {
-        const auto mesh_component = get_component<engine_mesh_component_t>(entt);
-        auto skin_component = get_component<engine_skin_internal_component_t>(entt);
-        if (mesh_component->skin == ENGINE_INVALID_OBJECT_HANDLE)
-        {
-            skin_component->bone_trs.clear();
-            skin_component->bone_animation_transform.clear();
-        }
-        else
-        {
-            const auto& skin = skins[mesh_component->skin];
-            *skin_component = skin.initalize_skin_component();
-        }
-    }
-    mesh_update_observer.clear();
+    //auto animation_view = entity_registry_.view<engine_tranform_component_t, engine_skin_internal_component_t, const engine_mesh_component_t, engine_animation_component_t>();
+    //animation_view.each([&dt, &animations, &skins, this](engine_tranform_component_t&, engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh, engine_animation_component_t& animation)
+    //    {
+    //        //for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
+    //        for (auto i = 0; i < 1; i++)
+    //        {
+    //            if (animation.animations_state[i] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
+    //            {
+    //                continue;
+    //            }
 
-    auto animation_view = entity_registry_.view<engine_tranform_component_t, engine_skin_internal_component_t, const engine_mesh_component_t, engine_animation_component_t>();
-    animation_view.each([&dt, &animations, &skins, this](engine_tranform_component_t&, engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh, engine_animation_component_t& animation)
-        {
-            //for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
-            for (auto i = 0; i < 1; i++)
-            {
-                if (animation.animations_state[i] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
-                {
-                    continue;
-                }
+    //            const auto& animation_data = animations[animation.animations_array[i]];
+    //            auto& animation_dt = animation.animations_dt[i];
+    //            animation_dt += dt;
 
-                const auto& animation_data = animations[animation.animations_array[i]];
-                auto& animation_dt = animation.animations_dt[i];
-                animation_dt += dt;
+    //            // if no skin -> move whole object
+    //            if (mesh.skin == ENGINE_INVALID_OBJECT_HANDLE)
+    //            {
+    //                //auto ltw = glm::make_mat4(transform.local_to_world);
+    //                //std::array<glm::mat4, 1> animation_matrix;
+    //                //if (animation_data.compute_animation_model_matrix(animation_matrix, animation_dt))
+    //                //{
+    //                //    ltw *= animation_matrix[0];
+    //                //    patch_component<engine_tranform_component_t>(entity, [&skin, &ltw](engine_tranform_component_t& c)
+    //                //        {
+    //                //            std::memcpy(c.local_to_world, &ltw, sizeof(ltw));
+    //                //        });
+    //                //}
+    //            }
+    //            else
+    //            {
+    //                animation_data.compute_animation_model_matrix(skin.bone_trs, animation_dt);
+    //            }
 
-                // if no skin -> move whole object
-                if (mesh.skin == ENGINE_INVALID_OBJECT_HANDLE)
-                {
-                    //auto ltw = glm::make_mat4(transform.local_to_world);
-                    //std::array<glm::mat4, 1> animation_matrix;
-                    //if (animation_data.compute_animation_model_matrix(animation_matrix, animation_dt))
-                    //{
-                    //    ltw *= animation_matrix[0];
-                    //    patch_component<engine_tranform_component_t>(entity, [&skin, &ltw](engine_tranform_component_t& c)
-                    //        {
-                    //            std::memcpy(c.local_to_world, &ltw, sizeof(ltw));
-                    //        });
-                    //}
-                }
-                else
-                {
-                    animation_data.compute_animation_model_matrix(skin.bone_trs, animation_dt);
-                }
-
-                if (animation_dt >= animation_data.get_duration())
-                {
-                    animation.animations_state[i] = ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING;
-                    animation_dt = 0.0f;
-                }
-            }
-        }
-    );
-
-    auto skinning_view = entity_registry_.view<engine_skin_internal_component_t, const engine_mesh_component_t>();
-    skinning_view.each([&skins](engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh)
-        {
-            //ToDo: if there is a lot of meshes with and without skin than this if statement is going to be performance costly
-            if (mesh.skin != ENGINE_INVALID_OBJECT_HANDLE)
-            {
-                skin.bone_animation_transform = skins[mesh.skin].compute_transform(skin.bone_trs);
-            }
-        });
+    //            if (animation_dt >= animation_data.get_duration())
+    //            {
+    //                animation.animations_state[i] = ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING;
+    //                animation_dt = 0.0f;
+    //            }
+    //        }
+    //    }
+    //);
 
     auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>();
     auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_skinned_mesh_component_t, const engine_material_component_t>();

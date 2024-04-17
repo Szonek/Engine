@@ -2,7 +2,7 @@
 #include "engine.h"
 #include "animation.h"
 #include "graphics.h"
-#include "vertex_skinning.h"
+#include "math_helpers.h"
 
 #include <map>
 #include <span>
@@ -13,7 +13,19 @@
 
 namespace engine
 {
+
 inline static const std::int32_t INVALID_VALUE = -1;
+using JoinTypeIdx = std::int32_t;
+
+struct SkinJointDesc
+{
+    JoinTypeIdx idx = INVALID_VALUE;
+    JoinTypeIdx parent = INVALID_VALUE;
+    std::vector<JoinTypeIdx> childrens{};
+    glm::mat4 inverse_bind_matrix{ 1.0f };
+
+    TRS init_trs;
+};
 
 struct GeometryInfo
 {
