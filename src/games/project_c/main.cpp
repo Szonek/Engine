@@ -96,18 +96,18 @@ struct ModelInfo
             }
         }
 
-        skins = std::vector<engine_skin_t>(model_info.skins_counts, ENGINE_INVALID_OBJECT_HANDLE);
-        for (auto i = 0; i < model_info.skins_counts; i++)
-        {
-            const auto& skin = model_info.skins_array[i];
-            const auto name = "unnamed_skin_" + std::to_string(i);
-            engine_error_code = engineApplicationAddSkinFromDesc(app, &skin, name.c_str(), &skins[i]);
-            if (engine_error_code != ENGINE_RESULT_CODE_OK)
-            {
-                engineLog("Failed creating textured for loaded model. Exiting!\n");
-                return;
-            }
-        }
+        //skins = std::vector<engine_skin_t>(model_info.skins_counts, ENGINE_INVALID_OBJECT_HANDLE);
+        //for (auto i = 0; i < model_info.skins_counts; i++)
+        //{
+        //    const auto& skin = model_info.skins_array[i];
+        //    const auto name = "unnamed_skin_" + std::to_string(i);
+        //    engine_error_code = engineApplicationAddSkinFromDesc(app, &skin, name.c_str(), &skins[i]);
+        //    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+        //    {
+        //        engineLog("Failed creating textured for loaded model. Exiting!\n");
+        //        return;
+        //    }
+        //}
 
         animations = std::vector<engine_animation_clip_t>(model_info.animations_counts, ENGINE_INVALID_OBJECT_HANDLE);
         for (auto i = 0; i < model_info.animations_counts; i++)
@@ -270,6 +270,11 @@ private:
     engine_coords_2d_t mouse_coords_prev_{};
 };
 
+struct SkinInfo
+{
+    std::map<std::uint32_t, engine_game_object_t> bones;
+};
+
 class BaseNode : public engine::IScript
 {
 public:
@@ -303,16 +308,23 @@ public:
             engineSceneUpdateMeshComponent(scene, go_, &mc);
         }
 
-        if (node.skin_index != -1)
+        if (node.bone_index != -1)
         {
-            auto anim_comp = engineSceneAddAnimationComponent(scene, go_);
-            const auto skin_info = model_info.model_info.skins_array[node.skin_index];
-            for (auto i = 0; i < skin_info.animations_count; i++)
-            {
-                anim_comp.animations_array[i] = model_info.animations.at(skin_info.animations_array[i]);
-            }
-            engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
+            auto bc = engineSceneAddBoneComponent(scene, go_);
+            const auto bone_info = model_info.model_info.bones_array[node.bone_index];
+            std::memcpy(bc.inverse_bind_matrix, bone_info.inverse_bind_mat, sizeof(bone_info.inverse_bind_mat));
+            engineSceneUpdateBoneComponent(scene, go_, &bc);
         }
+        //if (node.skin_index != -1)
+        //{
+        //    auto anim_comp = engineSceneAddAnimationComponent(scene, go_);
+        //    const auto skin_info = model_info.model_info.skins_array[node.skin_index];
+        //    for (auto i = 0; i < skin_info.animations_count; i++)
+        //    {
+        //        anim_comp.animations_array[i] = model_info.animations.at(skin_info.animations_array[i]);
+        //    }
+        //    engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
+        //}
 
         // if mesh is present then definitly we need some material to render it
         if (node.material_index != -1)
@@ -478,10 +490,10 @@ public:
         // ------------ rendering
         if (geometry != ENGINE_INVALID_OBJECT_HANDLE)
         {
-            auto mc = engineSceneAddMeshComponent(scene, go_);
+            auto mc = engineSceneAddSkinnedMeshComponent(scene, go_);
             mc.geometry = geometry;
-            mc.skin = skin;
-            engineSceneUpdateMeshComponent(scene, go_, &mc);
+            //mc.skeleton
+            engineSceneUpdateSkinnedMeshComponent(scene, go_, &mc);
         }
 
         // if mesh is present then definitly we need some material to render it
@@ -492,7 +504,7 @@ public:
             engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
         }
 
-        if (!anims.empty())
+        if (skin != ENGINE_INVALID_OBJECT_HANDLE && !anims.empty())
         {
             auto anim_comp = engineSceneAddAnimationComponent(scene, go_);
             for (auto i = 0; i < anims.size(); i++)
@@ -621,8 +633,8 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
     {
         return false;
     }
+    project_c::SkinInfo skin{};
     // add nodes
-
     const engine_model_node_desc_t* node_with_geometry = nullptr;
     for (auto i = 0; i < model_info.model_info.nodes_count; i++)
     {
@@ -631,6 +643,10 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
         {
             assert(node_with_geometry == nullptr); // only one node with geometry is allowed for now
             node_with_geometry = &node;
+        }
+        if (node.bone_index != -1)
+        {
+            scene->register_script<project_c::Node3D>(node, model_info);
         }
     }
     if (!node_with_geometry)
@@ -659,7 +675,7 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
     scene->register_script<project_c::ControllableEntity>(transform_comp,
         model_info.geometries[node_with_geometry->geometry_index],
         model_info.materials[node_with_geometry->material_index],
-        model_info.skins[node_with_geometry->skin_index],
+        model_info.skins.empty() ? ENGINE_INVALID_OBJECT_HANDLE : model_info.skins[node_with_geometry->skin_index],
         model_info.animations);
     return true;
 }

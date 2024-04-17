@@ -598,26 +598,26 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     }
 
     // get rid of nodes which has JOINT parents, but arent joints itselfs
-    nodes.erase(std::remove_if(nodes.begin(), nodes.end(), [](const auto& n) {
-        if (n->parent && n->parent->joint != engine::INVALID_VALUE && n->joint == engine::INVALID_VALUE)
-        {   
-            engine::log::log(engine::log::LogLevel::eError,
-                fmt::format("Cant parse node which has JOINT (skeleton bone) parent, but its not joint itself. Removing such node (name: {}).\n", n->name));
-            return true;
-        }
-        return false;
-        }), nodes.end());
+    //nodes.erase(std::remove_if(nodes.begin(), nodes.end(), [](const auto& n) {
+    //    if (n->parent && n->parent->joint != engine::INVALID_VALUE && n->joint == engine::INVALID_VALUE)
+    //    {   
+    //        engine::log::log(engine::log::LogLevel::eError,
+    //            fmt::format("Cant parse node which has JOINT (skeleton bone) parent, but its not joint itself. Removing such node (name: {}).\n", n->name));
+    //        return true;
+    //    }
+    //    return false;
+    //    }), nodes.end());
 
-    nodes.erase(std::remove_if(nodes.begin(), nodes.end(), [](const auto& n) { 
-            return n->joint != engine::INVALID_VALUE; 
-        }), nodes.end());
+    //nodes.erase(std::remove_if(nodes.begin(), nodes.end(), [](const auto& n) { 
+    //        return n->joint != engine::INVALID_VALUE; 
+    //    }), nodes.end());
     // it's improtant to use std::move here to have pointer stability of parent member
     out.nodes = std::move(nodes);
     // update indicies
-    for (std::size_t i = 0; i < out.nodes.size(); i++)
-    {
-        out.nodes[i]->index = static_cast<std::int32_t>(i);
-    }
+    //for (std::size_t i = 0; i < out.nodes.size(); i++)
+    //{
+    //    out.nodes[i]->index = static_cast<std::int32_t>(i);
+    //}
     return out;
 
 }

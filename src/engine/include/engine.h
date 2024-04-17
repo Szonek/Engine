@@ -400,6 +400,18 @@ typedef struct _engine_skin_reate_desc_t
     uint32_t animations_count;
 } engine_skin_create_desc_t;
 
+typedef struct _engine_bones_create_desc_t
+{
+    int32_t idx;
+    float inverse_bind_mat[16];
+    const int32_t* children;
+    uint32_t children_count;
+
+    float init_translate[3];
+    float init_scale[3];
+    float init_rotation_quaternion[4];
+} engine_bone_create_desc_t;
+
 typedef struct _engine_model_material_desc_t
 {
     const char* name;
@@ -414,6 +426,7 @@ typedef struct _engine_model_node_desc_t
     uint32_t geometry_index;  // -1 if not used
     uint32_t skin_index;      // -1 if not used
     uint32_t material_index;  // -1 if not used
+    uint32_t bone_index;    // -1 if not used
     float translate[3];
     float scale[3];
     float rotation_quaternion[4];
@@ -440,6 +453,9 @@ typedef struct _engine_model_desc_t
 
     engine_skin_create_desc_t* skins_array;
     uint32_t skins_counts;
+
+    engine_bone_create_desc_t* bones_array;
+    uint32_t bones_count;
 } engine_model_desc_t;
 
 /**

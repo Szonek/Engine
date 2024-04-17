@@ -108,7 +108,7 @@ inline void skinned_mesh_component_init(engine_skinned_mesh_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_skinned_mesh_component_t));
     comp->geometry = ENGINE_INVALID_OBJECT_HANDLE;
-    comp->root_bone = ENGINE_INVALID_GAME_OBJECT_ID;
+    static_assert(ENGINE_INVALID_GAME_OBJECT_ID == 0, "Invalid game object id should be 0. If it's not 0 than update this function to initalize skeleton array.");
 }
 
 inline void rigid_body_component_init(engine_rigid_body_component_t* comp)

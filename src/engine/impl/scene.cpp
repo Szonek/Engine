@@ -12,7 +12,6 @@
 
 #include <RmlUi/Core.h>
 
-
 engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : rdx_(rdx)
     , physics_world_(&rdx_)
@@ -278,7 +277,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             }
         });
 
-    auto geometry_renderet = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t, const engine_skin_internal_component_t>();
+    auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>();
+    auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_skinned_mesh_component_t, const engine_material_component_t>();
     auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
 
     for (auto [entity, camera, transform] : camera_view.each()) 
@@ -318,51 +318,68 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         }
 
         //rdx.set_polygon_mode(RenderContext::PolygonFaceType::eFrontAndBack, RenderContext::PolygonMode::eLine);
-        geometry_renderet.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform, const engine_mesh_component_t& mesh, const engine_material_component_t& material_component, const engine_skin_internal_component_t& skin)
+        geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
             {
-                if (mesh.disable)
+                if (mesh_component.disable)
                 {
                     return;
                 }
-                
-                /*
-                * This is not perfect. Probably we want (for optimization purposes) sort meshes by shader used to have too many shader switches and rebining the same data over and over (i.e. view and projection).
-                */
-                auto bind_and_set_common_variables = [&](Shader& shader, const engine_material_create_desc_t& material)
-                {
-                    shader.bind();
-                    shader.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
-                    shader.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
-                    shader.set_uniform_f4("diffuse_color", material.diffuse_color);
-                    shader.set_uniform_mat_f4("model", transform.local_to_world);
+                const auto& material =materials[material_component.material];
 
-                    const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
-                    shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
-                };  
+                shader_simple_.bind();
+                shader_simple_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
+                shader_simple_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
+                shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
+                shader_simple_.set_uniform_mat_f4("model", transform_component.local_to_world);
 
-                const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
-                if (mesh.skin == ENGINE_INVALID_OBJECT_HANDLE)
-                {
-                    bind_and_set_common_variables(shader_simple_, material);
-                }
-                else
-                {
-                    bind_and_set_common_variables(shader_vertex_skinning_, material);
+                const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
+                shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
 
-                    const auto& per_bone_animation_data = skin.bone_animation_transform;
-                    assert(per_bone_animation_data.size() < 64); // MAX_BONES = 64 in shader!
-                    for (std::size_t i = 0; i < per_bone_animation_data.size(); i++)
-                    {
-                        const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
-                        shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_animation_data[i]), sizeof(per_bone_animation_data[i]) / sizeof(float)});
-                    }
-                }
-
-                geometries[mesh.geometry].bind();
-                geometries[mesh.geometry].draw(Geometry::Mode::eTriangles);
+                geometries[mesh_component.geometry].bind();
+                geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
 
 			}
 		);
+
+        skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_skinned_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
+            {
+                if (mesh_component.disable)
+                {
+                    return;
+                }
+                const auto& material = materials[material_component.material];
+
+                shader_vertex_skinning_.bind();
+                shader_vertex_skinning_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
+                shader_vertex_skinning_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
+                shader_vertex_skinning_.set_uniform_f4("diffuse_color", material.diffuse_color);
+                shader_vertex_skinning_.set_uniform_mat_f4("model", transform_component.local_to_world);
+
+                const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
+                shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+
+                for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
+                {
+                    const auto& bone_entity = mesh_component.skeleton[i];
+                    if (bone_entity == ENGINE_INVALID_GAME_OBJECT_ID)
+                    {
+                        continue;
+                    }
+                    const auto& bone_component = get_component<engine_bone_component_t>(static_cast<entt::entity>(bone_entity));
+                    const auto& bone_transform = get_component<engine_tranform_component_t>(static_cast<entt::entity>(bone_entity));
+                    const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world);
+                    const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
+                    //const auto per_bone_animation_data = skin.bone_animation_transform[i];
+                    const auto per_bone_final_transform = bone_matrix * inverse_bind_matrix;// *per_bone_animation_data;
+                    const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
+                    shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
+                }
+
+                geometries[mesh_component.geometry].bind();
+                geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
+
+            }
+        );
 
         physics_world_.debug_draw(view, projection);
     }
