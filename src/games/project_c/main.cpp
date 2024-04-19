@@ -382,6 +382,60 @@ public:
     }
 };
 
+
+class Sword : public BaseNode
+{
+public:
+    Sword(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
+        : BaseNode(my_scene, node, model_info)
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        tc.scale[0] = 0.05f;
+        tc.scale[1] = 0.40f;
+        tc.scale[2] = 0.05f;
+
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        // physcis
+        auto cc = engineSceneAddColliderComponent(scene, go_);
+        cc.type = ENGINE_COLLIDER_TYPE_BOX;
+        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.15f, 0.15f, 0.15f});
+        cc.is_trigger = true;
+        engineSceneUpdateColliderComponent(scene, go_, &cc);
+
+        // parent to hand
+        engine_component_view_t cv{};
+        engineCreateComponentView(&cv);
+        engineSceneComponentViewAttachNameComponent(scene, cv);
+
+        engine_component_iterator_t begin{};
+        engine_component_iterator_t end{};
+        engineComponentViewCreateBeginComponentIterator(cv, &begin);
+        engineComponentViewCreateEndComponentIterator(cv, &end);
+
+        while (!engineComponentIteratorCheckEqual(begin, end))
+        {       
+            auto go_it = engineComponentIteratorGetGameObject(begin);
+            const auto nc = engineSceneGetNameComponent(scene, go_it);
+
+            if (std::strcmp(nc.name, "Skeleton_arm_joint_R__3_") == 0)
+            {
+                auto pc = engineSceneAddParentComponent(scene, go_);
+                pc.parent = go_it;
+                engineSceneUpdateParentComponent(scene, go_, &pc);
+                begin = end;
+            }
+            else
+            {
+                engineComponentIteratorNext(begin);
+            }
+        }
+        engineDestroyComponentView(cv);
+    }
+};
+
 //class ControllableEntity : public BaseNode
 class ControllableEntity : public engine::IScript
 {
@@ -697,8 +751,10 @@ inline bool load_cube(engine_application_t& app, engine::IScene* scene)
     // floor
     scene->register_script<project_c::Floor>(node, model_info);
     scene->register_script<project_c::Enemy>(node, model_info);
+    scene->register_script<project_c::Sword>(node, model_info);
     return true;
 }
+
 
 }  // namespace project_c
 
