@@ -152,13 +152,44 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
     std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials)
 {
-
-    auto animation_transform_view = entity_registry_.view<engine_tranform_component_t, const engine_animation_clip_component_t>();
-    animation_transform_view.each([this](engine_tranform_component_t& transform_component, const engine_animation_clip_component_t& animation_clip_component)
+    auto animation_transform_view = entity_registry_.view<engine_tranform_component_t, engine_animation_clip_component_t>();
+    animation_transform_view.each([this](auto entity, engine_tranform_component_t& transform_component, engine_animation_clip_component_t& animation_clip_component)
         {
+            //for (std::uint32_t i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
+            for (std::uint32_t i = 0; i < 1; i++)
+            {
+                auto& clip = animation_clip_component.clips_array[i];
+                const auto translation = compute_animation_translation2(
+                    { reinterpret_cast<const glm::vec3*>(clip.channel_translation.data), clip.channel_translation.data_count / 3 },
+                    { clip.channel_translation.timestamps, clip.channel_translation.timestamps_count },
+                    clip.animation_dt);
+                const auto rotation = compute_animation_rotation2(
+                    { reinterpret_cast<const glm::quat*>(clip.channel_rotation.data), clip.channel_rotation.data_count / 4 },
+                    { clip.channel_rotation.timestamps, clip.channel_rotation.timestamps_count },
+                    clip.animation_dt);
+                const auto scale = compute_animation_scale2(
+                    { reinterpret_cast<const glm::vec3*>(clip.channel_scale.data), clip.channel_scale.data_count / 3 },
+                    { clip.channel_scale.timestamps, clip.channel_scale.timestamps_count },
+                    clip.animation_dt);
 
+                transform_component.position[0] = translation.x;    
+                transform_component.position[1] = translation.y;
+                transform_component.position[2] = translation.z;
 
+                transform_component.rotation[0] = rotation.x;
+                transform_component.rotation[1] = rotation.y;
+                transform_component.rotation[2] = rotation.z;
+                transform_component.rotation[3] = rotation.w;
+
+                transform_component.scale[0] = scale.x;
+                transform_component.scale[1] = scale.y;
+                transform_component.scale[2] = scale.z;
+                //update_component(entity, transform_component);
+                //glm::mat4* model_matrix = reinterpret_cast<glm::mat4*>(transform_component.local_to_world);
+                //*model_matrix *= compute_model_matrix(translation, rotation, scale);
+            }
         });
+
 #if 1
     auto transform_view = entity_registry_.view<engine_tranform_component_t>(entt::exclude<engine_rigid_body_component_t>);
     transform_view.each([this](engine_tranform_component_t& transform_component)
@@ -185,9 +216,10 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
     transform_model_matrix_update_observer.clear();
 #endif
 
+    std::map<entt::entity, glm::mat4> ltw_map;
     //ToDo: this coule be optimized if entityies are sorted, so parents are always computed first
     auto parent_to_child_transform_view = entity_registry_.view<engine_tranform_component_t, const engine_parent_component_t>();
-    parent_to_child_transform_view.each([this](engine_tranform_component_t& transform_comp, const engine_parent_component_t& parent_comp)
+    parent_to_child_transform_view.each([this, &ltw_map](auto entity, engine_tranform_component_t& transform_comp, const engine_parent_component_t& parent_comp)
         {
             //engine::log::log(engine::log::LogLevel::eTrace, fmt::format("updating ent: {}\n", static_cast<std::uint32_t>(entity)));
             auto ltw_matrix = glm::make_mat4(transform_comp.local_to_world);
@@ -207,53 +239,15 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                     // break the recussion
                     parent = ENGINE_INVALID_GAME_OBJECT_ID;
                 }
-            }     
-            std::memcpy(transform_comp.local_to_world, &ltw_matrix, sizeof(ltw_matrix));
+            }    
+            ltw_map[entity] = ltw_matrix;
+            //std::memcpy(transform_comp.local_to_world, &ltw_matrix, sizeof(ltw_matrix));
         });
- 
-    //auto animation_view = entity_registry_.view<engine_tranform_component_t, engine_skin_internal_component_t, const engine_mesh_component_t, engine_animation_component_t>();
-    //animation_view.each([&dt, &animations, &skins, this](engine_tranform_component_t&, engine_skin_internal_component_t& skin, const engine_mesh_component_t& mesh, engine_animation_component_t& animation)
-    //    {
-    //        //for (auto i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
-    //        for (auto i = 0; i < 1; i++)
-    //        {
-    //            if (animation.animations_state[i] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
-    //            {
-    //                continue;
-    //            }
-
-    //            const auto& animation_data = animations[animation.animations_array[i]];
-    //            auto& animation_dt = animation.animations_dt[i];
-    //            animation_dt += dt;
-
-    //            // if no skin -> move whole object
-    //            if (mesh.skin == ENGINE_INVALID_OBJECT_HANDLE)
-    //            {
-    //                //auto ltw = glm::make_mat4(transform.local_to_world);
-    //                //std::array<glm::mat4, 1> animation_matrix;
-    //                //if (animation_data.compute_animation_model_matrix(animation_matrix, animation_dt))
-    //                //{
-    //                //    ltw *= animation_matrix[0];
-    //                //    patch_component<engine_tranform_component_t>(entity, [&skin, &ltw](engine_tranform_component_t& c)
-    //                //        {
-    //                //            std::memcpy(c.local_to_world, &ltw, sizeof(ltw));
-    //                //        });
-    //                //}
-    //            }
-    //            else
-    //            {
-    //                animation_data.compute_animation_model_matrix(skin.bone_trs, animation_dt);
-    //            }
-
-    //            if (animation_dt >= animation_data.get_duration())
-    //            {
-    //                animation.animations_state[i] = ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING;
-    //                animation_dt = 0.0f;
-    //            }
-    //        }
-    //    }
-    //);
-
+    for (const auto& [entity, ltw_matrix] : ltw_map)
+    {
+        auto transform_comp = get_component<engine_tranform_component_t>(entity);
+        std::memcpy(transform_comp->local_to_world, &ltw_matrix, sizeof(ltw_matrix));
+    }
     auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>();
     auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_skinned_mesh_component_t, const engine_material_component_t>();
     auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
@@ -318,7 +312,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 			}
 		);
 
-        skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_skinned_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
+        skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component,
+            const engine_skinned_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
             {
                 if (mesh_component.disable)
                 {
@@ -346,11 +341,9 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                     }
                     const auto& bone_component = get_component<engine_bone_component_t>(static_cast<entt::entity>(bone_entity));
                     const auto& bone_transform = get_component<engine_tranform_component_t>(static_cast<entt::entity>(bone_entity));
-                    const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world);
                     const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
-                    //const auto per_bone_animation_data = skin.bone_animation_transform[i];
-                    //const auto per_bone_final_transform = bone_matrix * inverse_bind_matrix;// *per_bone_animation_data;
-                    const auto per_bone_final_transform = bone_matrix * inverse_bind_matrix * inverse_transform;// *per_bone_animation_data;
+                    const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
+                    const auto per_bone_final_transform = inverse_transform * bone_matrix;
                     const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
                     shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
                 }

@@ -30,6 +30,7 @@ typedef struct _engine_animation_clip_desc_t
     engine_animation_channel_t channel_translation;
     engine_animation_channel_t channel_rotation;
     engine_animation_channel_t channel_scale;
+    float animation_matrix[16];
     float animation_dt;
 } engine_animation_clip_desc_t;
 

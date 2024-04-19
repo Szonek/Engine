@@ -413,9 +413,9 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
     }
 
     // erase any invalid channels
-    new_animation.channels.erase(std::remove_if(new_animation.channels.begin(), new_animation.channels.end(), [](const engine::AnimationChannelInfo& c) {
-        return c.target_joint_idx == engine::INVALID_VALUE;
-        }), new_animation.channels.end());
+    //new_animation.channels.erase(std::remove_if(new_animation.channels.begin(), new_animation.channels.end(), [](const engine::AnimationChannelInfo& c) {
+    //    return c.target_joint_idx == engine::INVALID_VALUE;
+    //    }), new_animation.channels.end());
 
     return new_animation;
 }

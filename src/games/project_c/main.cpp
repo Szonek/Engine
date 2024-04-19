@@ -395,12 +395,12 @@ public:
         // ------------ transform
         auto tc = engineSceneAddTransformComponent(scene, go_);
         std::memcpy(&tc, &transform, sizeof(engine_tranform_component_t));
-        auto quat_rot90y = glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        const auto quat = quat_rot90y * glm::make_quat(tc.rotation);
-        for (int i = 0; i < quat.length(); i++)
-        {
-            tc.rotation[i] = quat[i];
-        }
+        //auto quat_rot90y = glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        //const auto quat = quat_rot90y * glm::make_quat(tc.rotation);
+        //for (int i = 0; i < quat.length(); i++)
+        //{
+        //    tc.rotation[i] = quat[i];
+        //}
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         // ------------ rendering

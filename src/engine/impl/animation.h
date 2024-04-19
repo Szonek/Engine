@@ -6,11 +6,7 @@
 #include <span>
 #include <map>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include <glm/gtc/matrix_access.hpp>
+#include "math_helpers.h"
 
 namespace engine
 {
@@ -30,9 +26,28 @@ inline std::size_t get_index_timestamp2(float animation_time, std::span<const fl
 
 inline glm::quat compute_animation_rotation2(std::span<const glm::quat> channel, std::span<const float> timestamps, float animation_time)
 {
-    if (timestamps.empty())
+    if (timestamps.empty() || channel.empty())
     {
-        return {};
+        return glm::quat(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+    const auto timestamp_idx_prev = get_index_timestamp2(animation_time, timestamps);
+    const auto timestamp_idx_next = timestamp_idx_prev + 1;
+
+    const auto timestamp_prev = timestamps[timestamp_idx_prev];
+    const auto timestamp_next = timestamps[timestamp_idx_next];
+    const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
+
+    const auto data_prev = channel[timestamp_idx_prev];
+    const auto data_next = channel[timestamp_idx_next];
+
+    const auto slerp = glm::slerp(data_prev, data_next, interpolation_value);
+    return glm::normalize(slerp);
+}
+inline glm::vec3 compute_animation_translation2(std::span<const glm::vec3> channel, std::span<const float> timestamps, float animation_time)
+{
+    if (timestamps.empty() || channel.empty())
+    {
+        return glm::vec3(0.0f, 0.0f, 0.0f);
     }
     const auto timestamp_idx_prev = get_index_timestamp2(animation_time, timestamps);
     const auto timestamp_idx_next = timestamp_idx_prev + 1;
@@ -44,16 +59,27 @@ inline glm::quat compute_animation_rotation2(std::span<const glm::quat> channel,
     const auto& data_prev = channel[timestamp_idx_prev];
     const auto& data_next = channel[timestamp_idx_next];
 
-    const auto slerp = glm::slerp(data_prev, data_next, interpolation_value);
-    return slerp;
+    const auto lerp = glm::mix(data_prev, data_next, interpolation_value);
+    return lerp;
 }
-inline glm::vec3 compute_animation_translation2(const glm::vec3* channel, float animation_time)
+inline glm::vec3 compute_animation_scale2(std::span<const glm::vec3> channel, std::span<const float> timestamps, float animation_time)
 {
+    if (timestamps.empty() || channel.empty())
+    {
+        return glm::vec3(1.0f, 1.0f, 1.0f);
+    }
+    const auto timestamp_idx_prev = get_index_timestamp2(animation_time, timestamps);
+    const auto timestamp_idx_next = timestamp_idx_prev + 1;
 
-}
-inline glm::vec3 compute_animation_scale2(const glm::vec3* channel, float animation_time)
-{
+    const auto timestamp_prev = timestamps[timestamp_idx_prev];
+    const auto timestamp_next = timestamps[timestamp_idx_next];
+    const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
 
+    const auto& data_prev = channel[timestamp_idx_prev];
+    const auto& data_next = channel[timestamp_idx_next];
+
+    const auto lerp = glm::mix(data_prev, data_next, interpolation_value);
+    return lerp;
 }
 
 }
