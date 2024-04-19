@@ -390,17 +390,18 @@ public:
         engine_geometry_t geometry, engine_material_t material, std::span<const engine_game_object_t> skeleton_bones)
         : IScript(my_scene)
     {
+        skeleton_bones_.assign(skeleton_bones.begin(), skeleton_bones.end());
         const auto scene = my_scene->get_handle();
         const auto app = my_scene_->get_app_handle();
         // ------------ transform
         auto tc = engineSceneAddTransformComponent(scene, go_);
         std::memcpy(&tc, &transform, sizeof(engine_tranform_component_t));
-        //auto quat_rot90y = glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        //const auto quat = quat_rot90y * glm::make_quat(tc.rotation);
-        //for (int i = 0; i < quat.length(); i++)
-        //{
-        //    tc.rotation[i] = quat[i];
-        //}
+        auto quat_rot90y = glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        const auto quat = quat_rot90y * glm::make_quat(tc.rotation);
+        for (int i = 0; i < quat.length(); i++)
+        {
+            tc.rotation[i] = quat[i];
+        }
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         // ------------ rendering
@@ -453,18 +454,23 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
-        //if (engineSceneHasAnimationComponent(scene, go_))
-        //{
-        //    auto anim_comp = engineSceneGetAnimationComponent(scene, go_);
-        //    if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F) && anim_comp.animations_state[0] == ENGINE_ANIMATION_CLIP_STATE_NOT_PLAYING)
-        //    {
-        //        anim_comp.animations_state[0] = ENGINE_ANIMATION_CLIP_STATE_PLAYING;
-        //        engineSceneUpdateAnimationComponent(scene, go_, &anim_comp);
-        //    }
-        //}
-
-
-
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F))
+        {
+            for (const auto& sb : skeleton_bones_)
+            {
+                if (engineSceneHasAnimationClipComponent(scene, sb))
+                {
+                    auto anim_comp = engineSceneGetAnimationClipComponent(scene, sb);
+                    const auto duration = anim_comp.clips_array[0].channel_rotation.timestamps[anim_comp.clips_array[0].channel_rotation.timestamps_count - 1];
+                    anim_comp.clips_array[0].animation_dt += dt;
+                    if (anim_comp.clips_array[0].animation_dt > duration)
+                    {
+                        anim_comp.clips_array[0].animation_dt = 0.0f;
+                    }
+                    engineSceneUpdateAnimationClipComponent(scene, sb, &anim_comp);
+                }
+            }
+        }
         const float speed = 0.005f * dt;
 #if 0
         auto tc = engineSceneGetTransformComponent(scene, go_);
@@ -517,6 +523,9 @@ public:
         }
 #endif
     }
+
+private:
+    std::vector<engine_game_object_t> skeleton_bones_;
 };
 
 class TestScene : public engine::IScene

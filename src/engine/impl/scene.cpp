@@ -159,15 +159,15 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             for (std::uint32_t i = 0; i < 1; i++)
             {
                 auto& clip = animation_clip_component.clips_array[i];
-                const auto translation = compute_animation_translation2(
+                const auto translation = compute_animation_translation(
                     { reinterpret_cast<const glm::vec3*>(clip.channel_translation.data), clip.channel_translation.data_count / 3 },
                     { clip.channel_translation.timestamps, clip.channel_translation.timestamps_count },
                     clip.animation_dt);
-                const auto rotation = compute_animation_rotation2(
+                const auto rotation = compute_animation_rotation(
                     { reinterpret_cast<const glm::quat*>(clip.channel_rotation.data), clip.channel_rotation.data_count / 4 },
                     { clip.channel_rotation.timestamps, clip.channel_rotation.timestamps_count },
                     clip.animation_dt);
-                const auto scale = compute_animation_scale2(
+                const auto scale = compute_animation_scale(
                     { reinterpret_cast<const glm::vec3*>(clip.channel_scale.data), clip.channel_scale.data_count / 3 },
                     { clip.channel_scale.timestamps, clip.channel_scale.timestamps_count },
                     clip.animation_dt);
@@ -184,9 +184,6 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 transform_component.scale[0] = scale.x;
                 transform_component.scale[1] = scale.y;
                 transform_component.scale[2] = scale.z;
-                //update_component(entity, transform_component);
-                //glm::mat4* model_matrix = reinterpret_cast<glm::mat4*>(transform_component.local_to_world);
-                //*model_matrix *= compute_model_matrix(translation, rotation, scale);
             }
         });
 
