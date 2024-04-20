@@ -342,31 +342,28 @@ typedef struct _engine_geometry_create_desc_t
     size_t inds_count;
 } engine_geometry_create_desc_t;
 
-typedef enum _engine_animation_channel_type_t
+typedef struct _engine_animation_channel_data_t
 {
-    ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION = 0,
-    ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION = 1,
-    ENGINE_ANIMATION_CHANNEL_TYPE_SCALE,
-    ENGINE_ANIMATION_CHANNEL_TYPE_COUNT,
-} engine_animation_channel_type_t;
-
-typedef struct _engine_animation_channel_create_desc_t
-{
-    engine_animation_channel_type_t type;
-    int32_t target_joint_idx;  // set to joint index if animation is used for skeleton
-
     const float* timestamps;
     uint32_t timestamps_count;
 
-    const float* data;  // for vec3: x,y,z; for rotation quaternion: x,y,z,w
+    const float* data;
     size_t data_count;
+} engine_animation_channel_data_t;
+
+typedef struct _engine_animation_channel_create_desc_t
+{
+    uint32_t model_node_index;
+    engine_animation_channel_data_t channel_translation;  // data is {x, y, z}
+    engine_animation_channel_data_t channel_rotation;  // data is quatenion: {x, y, z, w}
+    engine_animation_channel_data_t channel_scale;  // data is {x, y, z}
 } engine_animation_channel_create_desc_t;
 
 typedef struct _engine_animation_clip_create_desc_t
 {
+    const char* name;
     engine_animation_channel_create_desc_t* channels;
     uint32_t channels_count;
-
 } engine_animation_clip_create_desc_t;
 
 typedef struct _engine_material_create_desc_t
@@ -375,38 +372,18 @@ typedef struct _engine_material_create_desc_t
     engine_texture2d_t diffuse_texture;
 } engine_material_create_desc_t;
 
-typedef struct _engine_skin_joint_create_desc_t
+typedef struct _engine_bones_create_desc_t
 {
-    int32_t idx;
+    uint32_t model_node_index;
     float inverse_bind_mat[16];
-    const int32_t* children;
-    uint32_t children_count;
-
-    float init_translate[3];
-    float init_scale[3];
-    float init_rotation_quaternion[4];
-} engine_skin_joint_create_desc_t;
+} engine_bone_create_desc_t;
 
 typedef struct _engine_skin_reate_desc_t
 {
-    engine_skin_joint_create_desc_t* joints;
-    uint32_t joint_count;
-    
-    uint32_t* animations_array;
-    uint32_t animations_count;
+    const char* name;
+    engine_bone_create_desc_t* bones_array;
+    uint32_t bones_count;
 } engine_skin_create_desc_t;
-
-typedef struct _engine_bones_create_desc_t
-{
-    int32_t idx;
-    float inverse_bind_mat[16];
-    const int32_t* children;
-    uint32_t children_count;
-
-    float init_translate[3];
-    float init_scale[3];
-    float init_rotation_quaternion[4];
-} engine_bone_create_desc_t;
 
 typedef struct _engine_model_material_desc_t
 {
@@ -422,7 +399,6 @@ typedef struct _engine_model_node_desc_t
     uint32_t geometry_index;  // -1 if not used
     uint32_t skin_index;      // -1 if not used
     uint32_t material_index;  // -1 if not used
-    uint32_t bone_index;    // -1 if not used
     float translate[3];
     float scale[3];
     float rotation_quaternion[4];
@@ -449,9 +425,6 @@ typedef struct _engine_model_desc_t
 
     engine_skin_create_desc_t* skins_array;
     uint32_t skins_counts;
-
-    engine_bone_create_desc_t* bones_array;
-    uint32_t bones_count;
 } engine_model_desc_t;
 
 /**

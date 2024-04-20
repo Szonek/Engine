@@ -1,7 +1,10 @@
 #include "iscript.h"
 #include "iscene.h"
 
-
+engine::IScript::IScript(engine_game_object_t go, engine::IScene* my_scene)
+    : my_scene_(my_scene)
+    , go_(go)
+{}
 
 engine::IScript::IScript(engine::IScene *my_scene)
     : my_scene_(my_scene)

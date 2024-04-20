@@ -51,6 +51,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 
         *physcics_component = physics_world_.create_rigid_body(*collider_component, rigidbody_component, *transform_component, static_cast<std::int32_t>(entt));
     }
+    collider_create_observer.clear();
 
     // detect new group creation, when rigid body component was added
     for (const auto entt : rigid_body_create_observer)
@@ -61,20 +62,23 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         auto physcics_component = get_component< PhysicsWorld::physcic_internal_component_t>(entt);
         *physcics_component = physics_world_.create_rigid_body(*collider_component, *rigidbody_component, *transform_component, static_cast<std::int32_t>(entt));
     }
+    rigid_body_create_observer.clear();
 
     // transform component updated, sync it with rigid body
-    //for (const auto entt : transform_update_collider_observer)
-    //{
-    //    const auto transform_component = get_component<engine_tranform_component_t>(entt);
-    //    auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
-    //    btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
-    //    world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
-    //    const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
-    //    world_transform.setRotation(quaterninon);
-    //    
-    //    physcics_component->rigid_body->activate(true);
-    //    physcics_component->rigid_body->setWorldTransform(world_transform);
-    //}
+    for (const auto entt : transform_update_collider_observer)
+    {
+        const auto transform_component = get_component<engine_tranform_component_t>(entt);
+        auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
+        btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
+        //world_transform.setFromOpenGLMatrix(transform_component->local_to_world);
+        world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
+        const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
+        world_transform.setRotation(quaterninon);
+        
+        physcics_component->rigid_body->activate(true);
+        physcics_component->rigid_body->setWorldTransform(world_transform);
+    }
+    transform_update_collider_observer.clear();
 
     // detect if rigid body component was updated by the user
     for (const auto entt : rigid_body_update_observer)
@@ -86,17 +90,9 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         physcics_component->rigid_body->setLinearVelocity(btVector3(rigidbody_component->linear_velocity[0], rigidbody_component->linear_velocity[1], rigidbody_component->linear_velocity[2]));
         physcics_component->rigid_body->setAngularVelocity(btVector3(rigidbody_component->angular_velocity[0], rigidbody_component->angular_velocity[1], rigidbody_component->angular_velocity[2]));
     }
-
-    //auto rigib_body_view = entity_registry_.view<const engine_rigid_body_component_t, PhysicsWorld::physcic_internal_component_t>();
-    //rigib_body_view.each([this](auto entity, const engine_rigid_body_component_t& rigidbody, PhysicsWorld::physcic_internal_component_t& physcics_component)
-    //    {
-    //        physcics_component.rigid_body->activate(true);
-    //        physcics_component.rigid_body->setLinearVelocity(btVector3(rigidbody.linear_velocity[0], rigidbody.linear_velocity[1], rigidbody.linear_velocity[2]));
-    //        physcics_component.rigid_body->setAngularVelocity(btVector3(rigidbody.angular_velocity[0], rigidbody.angular_velocity[1], rigidbody.angular_velocity[2]));
-    //    });
+    rigid_body_update_observer.clear();
 
     physics_world_.update(dt / 1000.0f);
-    //physics_world_.update(10.0f / 1000.0f);
 
     // sync physcis to graphics world
     // ToDo: this could be seperate function or called at the beggning of the graphics update function?
@@ -140,12 +136,6 @@ engine_result_code_t engine::Scene::physics_update(float dt)
             update_component(entity, rigidbody);
         }
     );
-
-    collider_create_observer.clear();
-    rigid_body_create_observer.clear();
-    transform_update_collider_observer.clear();
-    rigid_body_update_observer.clear();
-
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -184,6 +174,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 transform_component.scale[0] = scale.x;
                 transform_component.scale[1] = scale.y;
                 transform_component.scale[2] = scale.z;
+                update_component(entity, transform_component);
             }
         });
 
@@ -238,7 +229,6 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 }
             }    
             ltw_map[entity] = ltw_matrix;
-            //std::memcpy(transform_comp.local_to_world, &ltw_matrix, sizeof(ltw_matrix));
         });
     for (const auto& [entity, ltw_matrix] : ltw_map)
     {

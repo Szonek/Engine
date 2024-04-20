@@ -9,6 +9,8 @@
 
 #include <utility>
 
+#include <fmt/format.h>
+
 namespace
 {
 inline engine::Application* application_cast(engine_application_t engine_app)
@@ -289,14 +291,12 @@ engine_result_code_t engineApplicationAddGeometryFromDesc(engine_application_t h
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
     const auto ret = app->add_geometry(desc->verts_layout, desc->verts_count, { reinterpret_cast<const std::byte*>(desc->verts_data), desc->verts_data_size }, { desc->inds, desc->inds_count}, name);
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    if (out)
-    {
-        *out = ret;
-    }
+    *out = ret;
+    engineLog(fmt::format("Created geometry: {}, with id: {}\n", name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -334,14 +334,12 @@ engine_result_code_t engineApplicationAddMaterialFromDesc(engine_application_t h
     }
     auto* app = reinterpret_cast<engine::Application*>(handle);
     const auto ret = app->add_material(*desc, name);
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    if (out)
-    {
-        *out = ret;
-    }
+    *out = ret;
+    engineLog(fmt::format("Created material: {}, with id: {}\n", name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -356,21 +354,25 @@ engine_result_code_t engineApplicationAddTexture2DFromDesc(engine_application_t 
     auto* app = application_cast(handle);
     const auto ret =  app->add_texture(*info, name);
 
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    if (out)
-    {
-        *out = ret;
-    }
+    *out = ret;
+    engineLog(fmt::format("Created texture: {}, with id: {}\n", name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 
 engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_name, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out)
 {
     auto* app = application_cast(handle);
-    *out = app->add_texture_from_file(file_name, name, color_space);
+    const auto ret = app->add_texture_from_file(file_name, name, color_space);
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    *out = ret;
+    engineLog(fmt::format("Created texture from file: {}, with id: {}\n", name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 

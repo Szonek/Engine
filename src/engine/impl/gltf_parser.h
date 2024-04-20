@@ -15,17 +15,6 @@ namespace engine
 {
 
 inline static const std::int32_t INVALID_VALUE = -1;
-using JoinTypeIdx = std::int32_t;
-
-struct SkinJointDesc
-{
-    JoinTypeIdx idx = INVALID_VALUE;
-    JoinTypeIdx parent = INVALID_VALUE;
-    std::vector<JoinTypeIdx> childrens{};
-    glm::mat4 inverse_bind_matrix{ 1.0f };
-
-    TRS init_trs;
-};
 
 struct GeometryInfo
 {
@@ -52,30 +41,43 @@ struct MaterialInfo
     std::int32_t diffuse_texture = INVALID_VALUE;
 };
 
+enum class AnimationChannelType
+{
+    eUnknown,
+    eTranslation,
+    eRotation,
+    eScale
+};
+
 struct AnimationChannelInfo
 {
-    engine_animation_channel_type_t type = ENGINE_ANIMATION_CHANNEL_TYPE_COUNT;
+    AnimationChannelType type = AnimationChannelType::eUnknown;
     std::vector<float> timestamps;
     std::vector<float> data;
-    std::int32_t target_joint_idx = -1;
+    std::int32_t target_node_idx = INVALID_VALUE;
 };
 
 struct AnimationClipInfo
 {
     std::string name;
     std::vector<AnimationChannelInfo> channels;
-    std::int32_t skin = INVALID_VALUE;
+};
+
+struct BoneInfo
+{
+    std::int32_t target_node_idx = INVALID_VALUE;
+    glm::mat4 inverse_bind_matrix;
 };
 
 struct SkinInfo
 {
-    std::vector<SkinJointDesc> joints;
+    std::string name = "";
+    std::vector<BoneInfo> bones;
 };
 
 
 struct ModelNode
 {
-
     std::string name = "";
     std::int32_t index = INVALID_VALUE;
     std::int32_t mesh = INVALID_VALUE;
