@@ -520,7 +520,7 @@ public:
         const auto quat = quat_rot90y * glm::make_quat(tc.rotation);
         for (int i = 0; i < quat.length(); i++)
         {
-            //tc.rotation[i] = quat[i];
+            tc.rotation[i] = quat[i];
         }
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
@@ -539,6 +539,7 @@ public:
         }
         set_c_array(cc.collider.compound.children[0].rotation_quaternion, std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f});
         //set_c_array(cc.collider.compound.children[0].rotation_quaternion, std::array<float, 4>{quat.x, quat.y, quat.z, quat.w});
+        aabb_half_extent[1] *= 0.5f;  // scale down the collider
         set_c_array(cc.collider.compound.children[0].collider.box.size, aabb_half_extent);
         set_c_array(cc.collider.compound.children[0].transform, aabb_center);
         engineSceneUpdateColliderComponent(scene, go_, &cc);
