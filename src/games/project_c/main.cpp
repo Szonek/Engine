@@ -453,8 +453,23 @@ public:
 
     void play_animation()
     {
+        if (playin_animation_)
+        {
+            return;
+        }
         playin_animation_ = true;
         animation_clip_index_ = 0;
+        const auto scene = my_scene_->get_handle();
+        for (const auto& go : gos_)
+        {
+            if (engineSceneHasAnimationClipComponent(scene, go))
+            {
+                auto anim_comp = engineSceneGetAnimationClipComponent(scene, go);
+                auto& animation_clip = anim_comp.clips_array[animation_clip_index_];
+                animation_clip.animation_dt = 0.0f;
+                engineSceneUpdateAnimationClipComponent(scene, go, &anim_comp);
+            }
+        }
     }
 
     void update(float dt)
@@ -471,12 +486,11 @@ public:
                     auto& animation_clip = anim_comp.clips_array[animation_clip_index_];
                     const auto duration = animation_clip.channel_rotation.timestamps[animation_clip.channel_rotation.timestamps_count - 1];
                     animation_clip.animation_dt += dt;
+                    engineSceneUpdateAnimationClipComponent(scene, go, &anim_comp);
                     if (animation_clip.animation_dt > duration)
                     {
-                        animation_clip.animation_dt = 0.0f;
                         playin_animation_ = false;
                     }
-                    engineSceneUpdateAnimationClipComponent(scene, go, &anim_comp);
                 }
             }
         }
@@ -506,7 +520,7 @@ public:
         const auto quat = quat_rot90y * glm::make_quat(tc.rotation);
         for (int i = 0; i < quat.length(); i++)
         {
-            tc.rotation[i] = quat[i];
+            //tc.rotation[i] = quat[i];
         }
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
