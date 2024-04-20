@@ -24,7 +24,7 @@ public:
 
 public:
     // take ownership of user-provided game object and associated scene 
-    IScript(engine_game_object_t go, IScene* my_scene);
+    IScript(IScene* my_scene, engine_game_object_t go);
     // creates new game object in given scene
     IScript(IScene* my_scene);
     virtual ~IScript();

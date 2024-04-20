@@ -14,6 +14,7 @@
 #include <SDL3/SDL_events.h>
 #include <fmt/format.h>
 
+#include <map>
 #include <span>
 #include <iostream>
 
@@ -481,51 +482,39 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
         }
     }
 
-    /*ret.animations_counts = static_cast<std::uint32_t>(model_info->animations.size());
+    ret.animations_counts = static_cast<std::uint32_t>(model_info->animations.size());
     if (ret.animations_counts > 0)
     {
         ret.animations_array = new engine_animation_clip_create_desc_t[ret.animations_counts];
         for (std::uint32_t i = 0; i < ret.animations_counts; i++)
         {
-            const auto in_anim = model_info->animations[i];
+            const auto& in_anim = model_info->animations[i];
             auto& anim = ret.animations_array[i];
             anim.name = in_anim.name.c_str();
-            anim.channels_count = [&]()
-                {
-                    std::set<std::uint32_t> animated_node;
-                    for (std::uint32_t ch_i = 0; ch_i < in_anim.channels.size(); ch_i++)
-                    {
-                        const auto& in_ch = in_anim.channels[ch_i];
-                        animated_node.insert(in_ch.target_node_idx);
-                    }
-                    return static_cast<std::uint32_t>(animated_node.size());
-                }();
-            anim.channels = new engine_animation_channel_create_desc_t[anim.channels_count];
-            std::size_t out_chanel_idx = 0;
-            for (std::uint32_t ch_i = 0; ch_i < anim.channels_count; ch_i++)
+
+            std::map<std::uint32_t, engine_animation_channel_create_desc_t> channels_map;
+            for (const auto& in_ch : in_anim.channels)
             {
-                const auto& in_ch = in_anim.channels[ch_i];
-                auto& out_ch = anim.channels[ch_o++];
+                channels_map[in_ch.target_node_idx].model_node_index = in_ch.target_node_idx;
 
                 engine_animation_channel_data_t* channel = nullptr;
 
                 if (in_ch.type == AnimationChannelType::eTranslation)
                 {
-                    channel = &out_ch.channel_translation;
+                    channel = &channels_map[in_ch.target_node_idx].channel_translation;
                 }
                 else if (in_ch.type == AnimationChannelType::eRotation)
                 {
-                    channel = &out_ch.channel_rotation;
+                    channel = &channels_map[in_ch.target_node_idx].channel_rotation;
                 }
                 else if (in_ch.type == AnimationChannelType::eScale)
                 {
-                    channel = &out_ch.channel_scale;
+                    channel = &channels_map[in_ch.target_node_idx].channel_scale;
                 }
                 else
                 {
-                    log::log(log::LogLevel::eError, fmt::format("Cant sucesffuly parse animation channel! Id: {}, Animation name: {}\n", ch_i, anim.name));
+                    log::log(log::LogLevel::eError, fmt::format("Cant sucesffuly parse animation channel! Id: {}, Animation name: {}\n", i, anim.name));
                 }
-
                 if (channel)
                 {
                     channel->data = in_ch.data.data();
@@ -535,8 +524,16 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
                     channel->timestamps_count = static_cast<std::uint32_t>(in_ch.timestamps.size());
                 }
             }
+            anim.channels_count = channels_map.size();
+            anim.channels = new engine_animation_channel_create_desc_t[anim.channels_count];
+            std::size_t out_chanel_idx = 0;
+            for (const auto& ch : channels_map)
+            {
+                anim.channels[out_chanel_idx] = ch.second;
+                out_chanel_idx++;
+            }
         }
-    }*/
+    }
     
     ret.skins_counts = static_cast<std::uint32_t>(model_info->skins.size());
     if (ret.skins_counts > 0)

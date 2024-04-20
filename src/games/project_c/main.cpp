@@ -442,20 +442,66 @@ public:
     }
 };
 
-//class ControllableEntity : public BaseNode
+class AnimationController
+{
+public:
+    AnimationController(engine::IScene* my_scene, const std::vector<engine_game_object_t>& gos)
+        : my_scene_(my_scene)
+        , gos_(gos)
+    {
+    }
+
+    void play_animation()
+    {
+        playin_animation_ = true;
+        animation_clip_index_ = 0;
+    }
+
+    void update(float dt)
+    {
+        const auto scene = my_scene_->get_handle();
+        if (playin_animation_)
+        {
+            for (const auto& go : gos_)
+            {
+                if (engineSceneHasAnimationClipComponent(scene, go))
+                {
+                    auto anim_comp = engineSceneGetAnimationClipComponent(scene, go);
+                    //ToDo: duration can be pre-computed
+                    auto& animation_clip = anim_comp.clips_array[animation_clip_index_];
+                    const auto duration = animation_clip.channel_rotation.timestamps[animation_clip.channel_rotation.timestamps_count - 1];
+                    animation_clip.animation_dt += dt;
+                    if (animation_clip.animation_dt > duration)
+                    {
+                        animation_clip.animation_dt = 0.0f;
+                        playin_animation_ = false;
+                    }
+                    engineSceneUpdateAnimationClipComponent(scene, go, &anim_comp);
+                }
+            }
+        }
+    }
+
+private:
+    bool playin_animation_ = false;
+    std::uint32_t animation_clip_index_ = 0;
+
+    engine::IScene* my_scene_;
+    std::vector<engine_game_object_t> gos_;
+};
+
+inline AnimationController* anim_controller_poc = nullptr;
+
 class ControllableEntity : public engine::IScript
 {
 public:
-    ControllableEntity(engine::IScene* my_scene, const engine_tranform_component_t& transform,
-        engine_geometry_t geometry, engine_material_t material, std::span<const engine_game_object_t> skeleton_bones)
-        : IScript(my_scene)
+    ControllableEntity(engine::IScene* my_scene, engine_game_object_t go)
+        : IScript(my_scene, go)
     {
-        skeleton_bones_.assign(skeleton_bones.begin(), skeleton_bones.end());
         const auto scene = my_scene->get_handle();
         const auto app = my_scene_->get_app_handle();
         // ------------ transform
-        auto tc = engineSceneAddTransformComponent(scene, go_);
-        std::memcpy(&tc, &transform, sizeof(engine_tranform_component_t));
+        auto tc = engineSceneGetTransformComponent(scene, go_);
         auto quat_rot90y = glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         const auto quat = quat_rot90y * glm::make_quat(tc.rotation);
         for (int i = 0; i < quat.length(); i++)
@@ -464,36 +510,12 @@ public:
         }
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
-        // ------------ rendering
-        if (geometry != ENGINE_INVALID_OBJECT_HANDLE)
-        {
-            auto mc = engineSceneAddSkinnedMeshComponent(scene, go_);
-            mc.geometry = geometry;
-            for (auto i = 0; i < skeleton_bones.size(); i++)
-            {
-                mc.skeleton[i] = skeleton_bones[i];
-            }
-            engineSceneUpdateSkinnedMeshComponent(scene, go_, &mc);
-
-            //auto mc = engineSceneAddMeshComponent(scene, go_);
-            //mc.geometry = geometry;
-            //engineSceneUpdateMeshComponent(scene, go_, &mc);
-        }
-
-        // if mesh is present then definitly we need some material to render it
-        if (material != ENGINE_INVALID_OBJECT_HANDLE)
-        {
-            auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-            material_comp.material = material;
-            engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
-        }
-
         // ------------ physcis
         // collider
         auto cc = engineSceneAddColliderComponent(scene, go_);
         cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
         cc.collider.compound.children[0].type = ENGINE_COLLIDER_TYPE_BOX;
-        const auto position_limits = engineApplicationGeometryGetAttributeLimits(app, geometry, ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION);
+        const auto position_limits = engineApplicationGeometryGetAttributeLimits(app, engineApplicationGetGeometryByName(app, "unnamed_geometry__0"), ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION);
         std::array<float, 3> aabb_center{};
         std::array<float, 3> aabb_half_extent{};
         for (auto i = 0; i < aabb_half_extent.size(); i++)
@@ -502,6 +524,7 @@ public:
             aabb_half_extent[i] = (std::abs(position_limits.min[i]) + std::abs(position_limits.max[i])) / 2.0f;
         }
         set_c_array(cc.collider.compound.children[0].rotation_quaternion, std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f});
+        //set_c_array(cc.collider.compound.children[0].rotation_quaternion, std::array<float, 4>{quat.x, quat.y, quat.z, quat.w});
         set_c_array(cc.collider.compound.children[0].collider.box.size, aabb_half_extent);
         set_c_array(cc.collider.compound.children[0].transform, aabb_center);
         engineSceneUpdateColliderComponent(scene, go_, &cc);
@@ -518,23 +541,15 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F))
+        if(anim_controller_poc)
         {
-            for (const auto& sb : skeleton_bones_)
+            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F))
             {
-                if (engineSceneHasAnimationClipComponent(scene, sb))
-                {
-                    auto anim_comp = engineSceneGetAnimationClipComponent(scene, sb);
-                    const auto duration = anim_comp.clips_array[0].channel_rotation.timestamps[anim_comp.clips_array[0].channel_rotation.timestamps_count - 1];
-                    anim_comp.clips_array[0].animation_dt += dt;
-                    if (anim_comp.clips_array[0].animation_dt > duration)
-                    {
-                        anim_comp.clips_array[0].animation_dt = 0.0f;
-                    }
-                    engineSceneUpdateAnimationClipComponent(scene, sb, &anim_comp);
-                }
+                anim_controller_poc->play_animation();
             }
+            anim_controller_poc->update(dt);
         }
+
         const float speed = 0.005f * dt;
 #if 0
         auto tc = engineSceneGetTransformComponent(scene, go_);
@@ -587,9 +602,6 @@ public:
         }
 #endif
     }
-
-private:
-    std::vector<engine_game_object_t> skeleton_bones_;
 };
 
 class TestScene : public engine::IScene
@@ -611,14 +623,12 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
     auto scene = scene_cpp->get_handle();
     engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
     project_c::ModelInfo model_info(engine_error_code, app, "CesiumMan.gltf");
-    //project_c::ModelInfo model_info(engine_error_code, app, "CesiumMan2.glb");
+
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         return false;
     }
-    //std::vector<engine_game_object_t> skeleton_bones(model_info.model_info.skins_array[0].bones_count);
-    // add nodes
-    //const engine_model_node_desc_t* node_with_geometry = nullptr;
+
     std::map<std::uint32_t, engine_game_object_t> node_id_to_game_object;
     for (auto i = 0; i < model_info.model_info.nodes_count; i++)
     {
@@ -659,16 +669,10 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
             log(fmt::format("\tAdded material component\n", go));
         }
 
-        //if (node.geometry_index != ENGINE_INVALID_OBJECT_HANDLE)
-        //{
-        //    assert(node_with_geometry == nullptr); // only one node with geometry is allowed for now
-        //    node_with_geometry = &node;
-        //}
-        //if (node.bone_index != -1)
-        //{
-        //    auto node3d = scene->register_script<project_c::Node3D>(node, model_info);
-        //    skeleton_bones.at(node.bone_index) = node3d->get_game_object();
-        //}
+        if (!node.parent)
+        {
+            scene_cpp->register_script<ControllableEntity>(go);
+        }
     }
 
     // hierarchy
@@ -678,7 +682,7 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
         const auto& go = node_id_to_game_object[i];
         if (node.parent)
         {
-            // find parent index
+            // find parent index - not optimal. ToDo: consider having parent index instead parent pointer
             const std::uint32_t parent_index = [&]()
                 {
                     for (std::uint32_t j = 0; j < model_info.model_info.nodes_count; j++)
@@ -701,6 +705,7 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
     }
 
     // bones
+    std::map<uint32_t, std::vector<engine_game_object_t>> skin_to_game_object;
     for (auto skin_idx = 0; skin_idx < model_info.model_info.skins_counts; skin_idx++)
     {
         const auto& skin = model_info.model_info.skins_array[skin_idx];
@@ -709,6 +714,7 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
         {
             const auto& bone = skin.bones_array[bone_idx];
             const auto& go = node_id_to_game_object[bone.model_node_index];
+            skin_to_game_object[skin_idx].push_back(go);
 
             auto bc = engineSceneAddBoneComponent(scene, go);
             std::memcpy(bc.inverse_bind_matrix, bone.inverse_bind_mat, sizeof(bc.inverse_bind_matrix));
@@ -717,118 +723,57 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
         }
     }
 
+    // update nodes with skin components
+    for (auto i = 0; i < model_info.model_info.nodes_count; i++)
+    {
+        const auto& node = model_info.model_info.nodes_array[i];
+        const auto& go = node_id_to_game_object[i];
+        if (node.skin_index != -1)
+        {
+            const auto& bones_game_object_arr = skin_to_game_object[node.skin_index];
+            auto sc = engineSceneAddSkinComponent(scene, go);
+            for (auto bone_idx = 0; bone_idx < bones_game_object_arr.size(); bone_idx++)
+            {
+                sc.bones[bone_idx] = bones_game_object_arr.at(bone_idx);
+            }
+            engineSceneUpdateSkinComponent(scene, go, &sc);
+            log(fmt::format("Entity: {} added skin component for skin index: \n", go, node.skin_index));
+        }
+    }
 
+    // animations
+    auto copy_anim_channel_data = [](engine_animation_channel_t& out_channel, const engine_animation_channel_data_t& in_channel)
+        {
+            //timestamps
+            out_channel.timestamps_count = in_channel.timestamps_count;
+            assert(out_channel.timestamps_count < ENGINE_ANIMATION_CHANNEL_MAX_DATA_SIZE);
+            std::memcpy(out_channel.timestamps, in_channel.timestamps, in_channel.timestamps_count * sizeof(in_channel.timestamps[0]));
 
-    //if (!node_with_geometry)
-    //{
-    //    assert(false && "Failed to find node with geometry!");
-    //    return false;
-    //}
+            // data
+            out_channel.data_count = in_channel.data_count;
+            assert(out_channel.data_count < ENGINE_ANIMATION_CHANNEL_MAX_DATA_SIZE);
+            std::memcpy(out_channel.data, in_channel.data, in_channel.data_count * sizeof(in_channel.data[0]));
+        };
 
-    // add animations
-    //std::vector<engine_game_object_t> objs_to_add_anim_component(skeleton_bones.size(), ENGINE_INVALID_GAME_OBJECT_ID);
-    //std::vector<engine_animation_clip_component_t> animation_components(model_info.model_info.nodes_count);
-    //for (auto i = 0; i < model_info.model_info.animations_counts; i++)
-    //{
-    //    const auto& anim = model_info.model_info.animations_array[i];
-    //    for (auto j = 0; j < anim.channels_count; j++)
-    //    {
-    //        const auto& in_channel = anim.channels[j];
-
-    //        auto& anim_comp = animation_components.at(in_channel.target_node_idx);
-    //        objs_to_add_anim_component[in_channel.target_joint_idx] = skeleton_bones.at(in_channel.target_joint_idx);
-    //        auto& anim_clip = anim_comp.clips_array[i];
-
-    //        engine_animation_channel_t* out_channel = nullptr;
-    //        if (in_channel.type == ENGINE_ANIMATION_CHANNEL_TYPE_TRANSLATION)
-    //        {
-    //            out_channel = &anim_clip.channel_translation;
-    //        }
-    //        else if (in_channel.type == ENGINE_ANIMATION_CHANNEL_TYPE_ROTATION)
-    //        {
-    //            out_channel = &anim_clip.channel_rotation;
-    //        }
-    //        else if (in_channel.type == ENGINE_ANIMATION_CHANNEL_TYPE_SCALE)
-    //        {
-    //            out_channel = &anim_clip.channel_scale;
-    //        }
-    //        else
-    //        {
-    //            assert(false && "Unknown animation channel type!");
-    //        }
-    //        out_channel->interpolation_type = ENGINE_ANIMATION_CHANNEL_INTERPOLATION_TYPE_LINEAR;
-    //        //timestamps
-    //        out_channel->timestamps_count = in_channel.timestamps_count;
-    //        assert(out_channel->timestamps_count < ENGINE_ANIMATION_CHANNEL_MAX_DATA_SIZE);
-    //        std::memcpy(out_channel->timestamps, in_channel.timestamps, in_channel.timestamps_count * sizeof(in_channel.timestamps[0]));
-
-    //        // data
-    //        out_channel->data_count = in_channel.data_count;
-    //        assert(out_channel->data_count < ENGINE_ANIMATION_CHANNEL_MAX_DATA_SIZE);
-    //        std::memcpy(out_channel->data, in_channel.data, in_channel.data_count * sizeof(in_channel.data[0]));
-    //    }     
-    //}
-    //for (std::size_t i = 0; i < objs_to_add_anim_component.size(); i++)
-    //{
-    //    const auto obj = objs_to_add_anim_component.at(i);
-    //    if (obj == ENGINE_INVALID_GAME_OBJECT_ID)
-    //    {
-    //        continue;
-    //    }
-    //    auto anim_comp = engineSceneAddAnimationClipComponent(scene->get_handle(), obj);
-    //    anim_comp = animation_components.at(i);
-    //    engineSceneUpdateAnimationClipComponent(scene->get_handle(), obj, &anim_comp);
-    //}
-    
-    // fuse transform from parents on top of mesh node
-    //glm::vec3 transform = glm::make_vec3(node_with_geometry->translate);
-    //glm::quat rotation = glm::quat(node_with_geometry->rotation_quaternion[0], node_with_geometry->rotation_quaternion[1], node_with_geometry->rotation_quaternion[2], node_with_geometry->rotation_quaternion[3]);
-    //glm::vec3 scale = glm::make_vec3(node_with_geometry->scale);
-
-    //const engine_model_node_desc_t* parent = node_with_geometry->parent;
-    //while (parent)
-    //{
-    //    transform += glm::make_vec3(parent->translate);
-    //    scale *= glm::make_vec3(parent->scale);
-    //    rotation = glm::quat(parent->rotation_quaternion[0], parent->rotation_quaternion[1], parent->rotation_quaternion[2], parent->rotation_quaternion[3]) * rotation;
-    //    parent = parent->parent;  
-    //}
-
-    //// finally create controllable entity
-    //engine_tranform_component_t transform_comp{};
-    //std::memcpy(&transform_comp.position, glm::value_ptr(transform), sizeof(transform_comp.position));
-    //std::memcpy(&transform_comp.rotation, glm::value_ptr(rotation), sizeof(transform_comp.rotation));
-    //std::memcpy(&transform_comp.scale, glm::value_ptr(scale), sizeof(transform_comp.scale));
-    //const auto controllabe_entity = scene->register_script<project_c::ControllableEntity>(transform_comp,
-    //    model_info.geometries[node_with_geometry->geometry_index],
-    //    model_info.materials[node_with_geometry->material_index],
-    //    skeleton_bones);
-
-    // connect skeletons bones
-    //for (auto i = 0; i < model_info.model_info.nodes_count; i++)
-    //{
-    //    const auto& node = model_info.model_info.nodes_array[i];
-    //    if (node.bone_index != -1 && node.parent)
-    //    {
-    //        const auto go = skeleton_bones.at(node.bone_index);
-    //        engine_game_object_t parent_go = ENGINE_INVALID_GAME_OBJECT_ID;
-    //        if (node.parent->bone_index == -1)
-    //        {
-    //            parent_go = controllabe_entity->get_game_object();
-    //        }
-    //        else
-    //        {
-    //            parent_go = skeleton_bones.at(node.parent->bone_index);
-    //        }
-    //        if (parent_go != ENGINE_INVALID_GAME_OBJECT_ID)
-    //        {
-    //            auto pc = engineSceneAddParentComponent(scene->get_handle(), go);
-    //            pc.parent = parent_go;
-    //            engineSceneUpdateParentComponent(scene->get_handle(), go, &pc);
-    //        }
-    //    }
-    //}
-
+    std::vector<engine_game_object_t> animated_go;
+    for (auto anim_idx = 0; anim_idx < model_info.model_info.animations_counts; anim_idx++)
+    {
+        const auto& anim = model_info.model_info.animations_array[anim_idx];
+        log(fmt::format("Adding animation: {}\n", anim.name));
+        for (auto channel_idx = 0; channel_idx < anim.channels_count; channel_idx++)
+        {
+            const auto& channel = anim.channels[channel_idx];
+            const auto& go = node_id_to_game_object[channel.model_node_index];
+            animated_go.push_back(go);
+            auto anim = engineSceneAddAnimationClipComponent(scene, go);
+            anim.clips_array[anim_idx].animation_dt = 0.0f;
+            copy_anim_channel_data(anim.clips_array[anim_idx].channel_translation, channel.channel_translation);
+            copy_anim_channel_data(anim.clips_array[anim_idx].channel_rotation, channel.channel_rotation);
+            copy_anim_channel_data(anim.clips_array[anim_idx].channel_scale, channel.channel_scale);
+            engineSceneUpdateAnimationClipComponent(scene, go, &anim);
+        }
+    }
+    anim_controller_poc = new AnimationController(scene_cpp, animated_go);
     return true;
 }
 

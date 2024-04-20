@@ -99,14 +99,16 @@ inline void mesh_component_init(engine_mesh_component_t* comp)
 {
     std::memset(comp, 0, sizeof(engine_mesh_component_t));
     comp->geometry = ENGINE_INVALID_OBJECT_HANDLE;
-    comp->skin = ENGINE_INVALID_OBJECT_HANDLE;
 }
 
-inline void skinned_mesh_component_init(engine_skinned_mesh_component_t* comp)
+inline void skin_component_init(engine_skin_component_t* comp)
 {
-    std::memset(comp, 0, sizeof(engine_skinned_mesh_component_t));
-    comp->geometry = ENGINE_INVALID_OBJECT_HANDLE;
+    std::memset(comp, 0, sizeof(engine_skin_component_t));
     static_assert(ENGINE_INVALID_GAME_OBJECT_ID == 0, "Invalid game object id should be 0. If it's not 0 than update this function to initalize skeleton array.");
+    for (auto& bone : comp->bones)
+    {
+        bone = ENGINE_INVALID_GAME_OBJECT_ID;
+    }
 }
 
 inline void rigid_body_component_init(engine_rigid_body_component_t* comp)
@@ -750,29 +752,29 @@ bool engineSceneHasMeshComponent(engine_scene_t scene, engine_game_object_t game
 }
 
 // skinned mesh
-engine_skinned_mesh_component_t engineSceneAddSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_skin_component_t engineSceneAddSkinComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_skinned_mesh_component_t, skinned_mesh_component_init>(scene, game_object);
+    return add_component<engine_skin_component_t, skin_component_init>(scene, game_object);
 }
 
-engine_skinned_mesh_component_t engineSceneGetSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_skin_component_t engineSceneGetSkinComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return get_component<engine_skinned_mesh_component_t>(scene, game_object);
+    return get_component<engine_skin_component_t>(scene, game_object);
 }
 
-void engineSceneUpdateSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_skinned_mesh_component_t* comp)
+void engineSceneUpdateSkinComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_skin_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }
 
-void engineSceneRemoveSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+void engineSceneRemoveSkinComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    remove_component<engine_skinned_mesh_component_t>(scene, game_object);
+    remove_component<engine_skin_component_t>(scene, game_object);
 }
 
-bool engineSceneHasSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+bool engineSceneHasSkinComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return has_component<engine_skinned_mesh_component_t>(scene, game_object);
+    return has_component<engine_skin_component_t>(scene, game_object);
 }
 // -- 
 

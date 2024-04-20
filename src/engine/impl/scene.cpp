@@ -65,20 +65,20 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     rigid_body_create_observer.clear();
 
     // transform component updated, sync it with rigid body
-    for (const auto entt : transform_update_collider_observer)
-    {
-        const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
-        btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
-        //world_transform.setFromOpenGLMatrix(transform_component->local_to_world);
-        world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
-        const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
-        world_transform.setRotation(quaterninon);
-        
-        physcics_component->rigid_body->activate(true);
-        physcics_component->rigid_body->setWorldTransform(world_transform);
-    }
-    transform_update_collider_observer.clear();
+    //for (const auto entt : transform_update_collider_observer)
+    //{
+    //    const auto transform_component = get_component<engine_tranform_component_t>(entt);
+    //    auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
+    //    btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
+    //    //world_transform.setFromOpenGLMatrix(transform_component->local_to_world);
+    //    world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
+    //    const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
+    //    world_transform.setRotation(quaterninon);
+    //    
+    //    physcics_component->rigid_body->activate(true);
+    //    physcics_component->rigid_body->setWorldTransform(world_transform);
+    //}
+    //transform_update_collider_observer.clear();
 
     // detect if rigid body component was updated by the user
     for (const auto entt : rigid_body_update_observer)
@@ -235,8 +235,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         auto transform_comp = get_component<engine_tranform_component_t>(entity);
         std::memcpy(transform_comp->local_to_world, &ltw_matrix, sizeof(ltw_matrix));
     }
-    auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>();
-    auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_skinned_mesh_component_t, const engine_material_component_t>();
+    auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
+    auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_skin_component_t, const engine_material_component_t>();
     auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
 
     for (auto [entity, camera, transform] : camera_view.each()) 
@@ -299,8 +299,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 			}
 		);
 
-        skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component,
-            const engine_skinned_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
+        skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
+            const engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
             {
                 if (mesh_component.disable)
                 {
@@ -321,7 +321,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
                 for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
                 {
-                    const auto& bone_entity = mesh_component.skeleton[i];
+                    const auto& bone_entity = skin_component.bones[i];
                     if (bone_entity == ENGINE_INVALID_GAME_OBJECT_ID)
                     {
                         continue;
