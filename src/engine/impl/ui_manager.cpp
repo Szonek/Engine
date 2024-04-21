@@ -22,11 +22,11 @@ engine::UiManager::UiManager(RenderContext& rdx)
     , current_font_idx_(ENGINE_INVALID_OBJECT_HANDLE) // start with, since 0 is invalid index
 {
     current_font_idx_++;
-    Rml::Initialise();
+    //Rml::Initialise();
     // create context with some aribtrary name and dimension.  (dimensions wil lbe update in update(..))
-    const auto window_size_pixels = rdx_.get_window_size_in_pixels();
-    ui_rml_context_ = Rml::CreateContext("app", Rml::Vector2i(window_size_pixels.width, window_size_pixels.height));
-    assert(ui_rml_context_);
+    //const auto window_size_pixels = rdx_.get_window_size_in_pixels();
+    //ui_rml_context_ = Rml::CreateContext("app", Rml::Vector2i(window_size_pixels.width, window_size_pixels.height));
+    //assert(ui_rml_context_);
 }
 
 engine::UiManager::UiManager(UiManager&& rhs)
@@ -44,6 +44,15 @@ engine::UiManager& engine::UiManager::operator=(UiManager&& rhs)
 
 engine::UiManager::~UiManager()
 {
+    if (ui_rml_sdl_interface_)
+    {
+        delete ui_rml_sdl_interface_;
+    }
+    if (ui_rml_gl3_renderer_)
+    {
+        delete ui_rml_gl3_renderer_;
+    }
+
     if (ui_rml_context_)
     {
         Rml::RemoveContext(ui_rml_context_->GetName());
@@ -87,8 +96,11 @@ void engine::UiManager::parse_sdl_event(SDL_Event ev)
 
 void engine::UiManager::update_state_and_render()
 {
+    // update
     ui_rml_context_->Update();
-    rdx_.begin_frame_ui_rendering();
+
+    // render
+    ui_rml_gl3_renderer_->BeginFrame();
     ui_rml_context_->Render();
-    rdx_.end_frame_ui_rendering();
+    ui_rml_gl3_renderer_->EndFrame();
 }

@@ -40,6 +40,8 @@ private:
     std::uint32_t current_font_idx_ = 0;
 
     Rml::Context* ui_rml_context_;
+    SystemInterface_SDL* ui_rml_sdl_interface_ = nullptr;
+    RenderInterface_GL3* ui_rml_gl3_renderer_ = nullptr;
 };
 
 

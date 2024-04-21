@@ -204,7 +204,7 @@ public:
     };
 
 public:
-	RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen);
+    RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen, std::vector<std::function<void(SDL_Window*, SDL_GLContext*)>> post_create_callbacks = {});
 	
 	RenderContext(const RenderContext&) = delete;
 	RenderContext(RenderContext&& rhs) noexcept;
@@ -223,17 +223,9 @@ public:
 
 	void begin_frame();
 	void end_frame();
-
-    void begin_frame_ui_rendering();
-    void end_frame_ui_rendering();
-
 private:
     SDL_Window* window_ = nullptr;
     SDL_GLContext context_ = nullptr;
-
-    // this 2 are used for UI render
-    SystemInterface_SDL* ui_rml_sdl_interface_ = nullptr;
-    RenderInterface_GL3* ui_rml_gl3_renderer_ = nullptr;
 };
 
 } // namespace engine

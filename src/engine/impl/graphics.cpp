@@ -571,7 +571,8 @@ message_callback(GLenum /*source*/,
 }
 #endif
 
-engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen)
+engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen,
+    std::vector<std::function<void(SDL_Window*, SDL_GLContext*)>> post_create_callbacks)
 {
     std::int32_t result_code = 0;
     result_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
@@ -688,23 +689,26 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 	glEnable(GL_DEPTH_TEST);
     //glEnable(GL_BLEND);
 
-    // UI stuff 
-    ui_rml_sdl_interface_ = new SystemInterface_SDL;
-    ui_rml_gl3_renderer_ = new RenderInterface_GL3;
-    ui_rml_sdl_interface_->SetWindow(window_);
-    const auto window_size = get_window_size_in_pixels();
-    set_viewport(viewport_t{0, 0, (uint32_t)window_size.width, (uint32_t)window_size.height});
+    for (const auto& fn : post_create_callbacks)
+    {
+        fn(window_, &context_);
+    }
 
-    Rml::SetSystemInterface(ui_rml_sdl_interface_);
-    Rml::SetRenderInterface(ui_rml_gl3_renderer_);
-}
+    // UI stuff 
+    //ui_rml_sdl_interface_ = new SystemInterface_SDL;
+    //ui_rml_gl3_renderer_ = new RenderInterface_GL3;
+    //ui_rml_sdl_interface_->SetWindow(window_);
+    //const auto window_size = get_window_size_in_pixels();
+    //set_viewport(viewport_t{0, 0, (uint32_t)window_size.width, (uint32_t)window_size.height});
+    //
+    //Rml::SetSystemInterface(ui_rml_sdl_interface_);
+    //Rml::SetRenderInterface(ui_rml_gl3_renderer_);
+}   //
 
 engine::RenderContext::RenderContext(RenderContext&& rhs) noexcept
 {
 	std::swap(window_, rhs.window_);
 	std::swap(context_, rhs.context_);
-	std::swap(ui_rml_sdl_interface_, rhs.ui_rml_sdl_interface_);
-	std::swap(ui_rml_gl3_renderer_, rhs.ui_rml_gl3_renderer_);
 }
 
 engine::RenderContext& engine::RenderContext::operator=(RenderContext&& rhs) noexcept
@@ -713,24 +717,12 @@ engine::RenderContext& engine::RenderContext::operator=(RenderContext&& rhs) noe
 	{
 		std::swap(window_, rhs.window_);
 		std::swap(context_, rhs.context_);
-        std::swap(ui_rml_sdl_interface_, rhs.ui_rml_sdl_interface_);
-        std::swap(ui_rml_gl3_renderer_, rhs.ui_rml_gl3_renderer_);
 	}
 	return *this;
 }
 
 engine::RenderContext::~RenderContext()
 {
-    if (ui_rml_sdl_interface_)
-    {
-        delete ui_rml_sdl_interface_;
-    }
-    if (ui_rml_gl3_renderer_)
-    {
-        delete ui_rml_gl3_renderer_;
-    }
-
-
     if (context_)
     {
         SDL_GL_DeleteContext(context_);
@@ -757,7 +749,7 @@ engine::RenderContext::window_size_t engine::RenderContext::get_window_size_in_p
 void engine::RenderContext::set_viewport(const viewport_t& viewport)
 {
 	glViewport(0, 0, viewport.width, viewport.height);
-    ui_rml_gl3_renderer_->SetViewport(viewport.width, viewport.height);
+    //ui_rml_gl3_renderer_->SetViewport(viewport.width, viewport.height);
 }
 
 void engine::RenderContext::set_clear_color(float r, float g, float b, float a)
@@ -841,13 +833,10 @@ void engine::RenderContext::begin_frame()
 {
     glClearStencil(0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    //ui_rml_gl3_renderer_->Clear();
-    //ui_rml_gl3_renderer_->BeginFrame();
 }
 
 void engine::RenderContext::end_frame()
 {
-    //ui_rml_gl3_renderer_->EndFrame();
     SDL_GL_SwapWindow(window_);
 
 	// process errors
@@ -859,18 +848,13 @@ void engine::RenderContext::end_frame()
 	//}
 #endif
 }
-
-void engine::RenderContext::begin_frame_ui_rendering()
-{
-    //glClearStencil(0);
-    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    //ui_rml_gl3_renderer_->Clear();
-    //glEnable(GL_BLEND);
-    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    ui_rml_gl3_renderer_->BeginFrame();
-}
-
-void engine::RenderContext::end_frame_ui_rendering()
-{
-    ui_rml_gl3_renderer_->EndFrame();
-}
+//
+//void engine::RenderContext::begin_frame_ui_rendering()
+//{
+//    ui_rml_gl3_renderer_->BeginFrame();
+//}
+//
+//void engine::RenderContext::end_frame_ui_rendering()
+//{
+//    ui_rml_gl3_renderer_->EndFrame();
+//}
