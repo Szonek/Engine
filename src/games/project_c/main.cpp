@@ -386,7 +386,8 @@ public:
         tc.scale[2] = 0.05f;
 
         tc.position[0] += 0.0f;
-        tc.position[1] += 0.20f;
+        //tc.position[1] += 0.20f;
+        tc.position[1] += 0.0f;
         tc.position[2] += 0.0f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
@@ -407,7 +408,7 @@ public:
         // physcis
         auto cc = engineSceneAddColliderComponent(scene, go_);
         cc.type = ENGINE_COLLIDER_TYPE_BOX;
-        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.15f, 0.15f, 0.15f});
+        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.05f, 0.40f, 0.005f});
         cc.is_trigger = true;
         engineSceneUpdateColliderComponent(scene, go_, &cc);
 
@@ -520,7 +521,7 @@ public:
         const auto quat = quat_rot90y * glm::make_quat(tc.rotation);
         for (int i = 0; i < quat.length(); i++)
         {
-            //tc.rotation[i] = quat[i];
+            tc.rotation[i] = quat[i];
         }
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
@@ -565,7 +566,7 @@ public:
         }
 
         const float speed = 0.005f * dt;
-#if 0
+#if 1
         auto tc = engineSceneGetTransformComponent(scene, go_);
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
         {

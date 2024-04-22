@@ -6,7 +6,7 @@
 
 #include <fmt/format.h>
 
-
+#include <glm/gtx/matrix_decompose.hpp>
 #include <SDL3/SDL.h>
 
 #include <RmlUi/Core.h>
@@ -65,32 +65,42 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     rigid_body_create_observer.clear();
 
     // transform component updated, sync it with rigid body
-    //for (const auto entt : transform_update_collider_observer)
-    //{
-    //    const auto transform_component = get_component<engine_tranform_component_t>(entt);
-    //    auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
-    //    btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
-    //    //world_transform.setFromOpenGLMatrix(transform_component->local_to_world);
-    //    world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
-    //    const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
-    //    world_transform.setRotation(quaterninon);
-    //    
-    //    physcics_component->rigid_body->activate(true);
-    //    physcics_component->rigid_body->setWorldTransform(world_transform);
-    //}
-    //transform_update_collider_observer.clear();
+    for (const auto entt : transform_update_collider_observer)
+    {
+        const auto transform_component = get_component<engine_tranform_component_t>(entt);
+        auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
+        btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
+
+        glm::vec3 scale;
+        glm::quat rotation;
+        glm::vec3 translation;
+        glm::vec3 skew;
+        glm::vec4 perspective;
+        glm::decompose(glm::make_mat4(transform_component->local_to_world), scale, rotation, translation, skew, perspective);
+
+        world_transform.setOrigin(btVector3(translation.x, translation.y, translation.z));
+        const btQuaternion quaterninon(rotation.x, rotation.y, rotation.z, rotation.w);
+        world_transform.setRotation(quaterninon);
+        //world_transform.setFromOpenGLMatrix(transform_component->local_to_world);
+        //world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
+        //const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
+        
+        physcics_component->rigid_body->activate(true);
+        physcics_component->rigid_body->setWorldTransform(world_transform);
+    }
+    transform_update_collider_observer.clear();
 
     // detect if rigid body component was updated by the user
-    for (const auto entt : rigid_body_update_observer)
-    {
-        const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
-        auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
+    //for (const auto entt : rigid_body_update_observer)
+    //{
+    //    const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
+    //    auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
 
-        physcics_component->rigid_body->activate(true);
-        physcics_component->rigid_body->setLinearVelocity(btVector3(rigidbody_component->linear_velocity[0], rigidbody_component->linear_velocity[1], rigidbody_component->linear_velocity[2]));
-        physcics_component->rigid_body->setAngularVelocity(btVector3(rigidbody_component->angular_velocity[0], rigidbody_component->angular_velocity[1], rigidbody_component->angular_velocity[2]));
-    }
-    rigid_body_update_observer.clear();
+    //    physcics_component->rigid_body->activate(true);
+    //    physcics_component->rigid_body->setLinearVelocity(btVector3(rigidbody_component->linear_velocity[0], rigidbody_component->linear_velocity[1], rigidbody_component->linear_velocity[2]));
+    //    physcics_component->rigid_body->setAngularVelocity(btVector3(rigidbody_component->angular_velocity[0], rigidbody_component->angular_velocity[1], rigidbody_component->angular_velocity[2]));
+    //}
+    //rigid_body_update_observer.clear();
 
     physics_world_.update(dt / 1000.0f);
 
@@ -117,23 +127,24 @@ engine_result_code_t engine::Scene::physics_update(float dt)
             transform.rotation[1] = euler_rotation.getY();
             transform.rotation[2] = euler_rotation.getZ();
             transform.rotation[3] = euler_rotation.getW();
-
-            glm::mat4 mat;
-            transform_phsycics.getOpenGLMatrix(glm::value_ptr(mat));
-            mat = glm::scale(mat, glm::make_vec3(transform.scale));
-            std::memcpy(transform.local_to_world, &mat, sizeof(mat));
             update_component(entity, transform);
 
-            const auto lin_vel = physcics.rigid_body->getLinearVelocity();
-            rigidbody.linear_velocity[0] = lin_vel.getX();
-            rigidbody.linear_velocity[1] = lin_vel.getY();
-            rigidbody.linear_velocity[2] = lin_vel.getZ();
+            //glm::mat4 mat;
+            //transform_phsycics.getOpenGLMatrix(glm::value_ptr(mat));
+            //mat = glm::scale(mat, glm::make_vec3(transform.scale));
+            //std::memcpy(transform.local_to_world, &mat, sizeof(mat));
+            //update_component(entity, transform);
 
-            const auto ang_vel = physcics.rigid_body->getAngularVelocity();
-            rigidbody.angular_velocity[0] = ang_vel.getX();
-            rigidbody.angular_velocity[1] = ang_vel.getY();
-            rigidbody.angular_velocity[2] = ang_vel.getZ();
-            update_component(entity, rigidbody);
+            //const auto lin_vel = physcics.rigid_body->getLinearVelocity();
+            //rigidbody.linear_velocity[0] = lin_vel.getX();
+            //rigidbody.linear_velocity[1] = lin_vel.getY();
+            //rigidbody.linear_velocity[2] = lin_vel.getZ();
+
+            //const auto ang_vel = physcics.rigid_body->getAngularVelocity();
+            //rigidbody.angular_velocity[0] = ang_vel.getX();
+            //rigidbody.angular_velocity[1] = ang_vel.getY();
+            //rigidbody.angular_velocity[2] = ang_vel.getZ();
+            //update_component(entity, rigidbody);
         }
     );
     return ENGINE_RESULT_CODE_OK;
@@ -179,7 +190,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         });
 
 #if 1
-    auto transform_view = entity_registry_.view<engine_tranform_component_t>(entt::exclude<engine_rigid_body_component_t>);
+    //auto transform_view = entity_registry_.view<engine_tranform_component_t>(entt::exclude<engine_rigid_body_component_t>);
+    auto transform_view = entity_registry_.view<engine_tranform_component_t>();
     transform_view.each([this](engine_tranform_component_t& transform_component)
         {
             const auto glm_pos = glm::make_vec3(transform_component.position);
@@ -234,7 +246,9 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
     {
         auto transform_comp = get_component<engine_tranform_component_t>(entity);
         std::memcpy(transform_comp->local_to_world, &ltw_matrix, sizeof(ltw_matrix));
+        update_component(entity, *transform_comp);
     }
+
     auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
     auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_skin_component_t, const engine_material_component_t>();
     auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
