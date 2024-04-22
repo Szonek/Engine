@@ -1,6 +1,7 @@
 #include "gltf_parser.h"
 #include "math_helpers.h"
 #include "logger.h"
+#include "asset_store.h"
 
 #define TINYGLTF_IMPLEMENTATION
 #include <tiny_gltf.h>
@@ -234,6 +235,8 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
         const auto& index_buffer_view = model.bufferViews[index_accessor.bufferView];
         const auto& index_buffer = model.buffers[index_buffer_view.buffer];
         const auto index_buffer_data = index_buffer.data.data() + index_buffer_view.byteOffset;
+        //ToDo: Indicies are always typed casted to uint32_t, this is not optimal
+        // we can support u16 and u8 as well
         if (index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
         {
             copy_inds_data(ret.indicies, indicies_offset, reinterpret_cast<const std::uint16_t*>(index_buffer_data));
@@ -241,6 +244,10 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
         else if (index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
         {
             copy_inds_data(ret.indicies, indicies_offset, reinterpret_cast<const std::uint32_t*>(index_buffer_data));
+        }
+        else if (index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+        {
+            copy_inds_data(ret.indicies, indicies_offset, reinterpret_cast<const std::uint8_t*>(index_buffer_data));
         }
         else
         {
@@ -255,24 +262,39 @@ inline engine::TextureInfo parse_texture(const tinygltf::Texture& texture, const
 {
     const auto& tex = model.images[texture.source];
     engine::TextureInfo tex_info{};
-    tex_info.name = tex.name;
-    tex_info.width = tex.width;
-    tex_info.height = tex.height;
-    tex_info.layout = ENGINE_DATA_LAYOUT_COUNT;
-    if (tex.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+    if (!tex.uri.empty())
     {
-        if (tex.component == 4)
-        {
-            tex_info.layout = ENGINE_DATA_LAYOUT_RGBA_U8;
-        }
-        else if (tex.component == 3)
-        {
-            tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
-        }
+        const auto tc = engine::AssetStore::get_instance().get_texture_data(tex.uri);
+        tex_info.name = tex.uri;
+        tex_info.width = tc.get_width();
+        tex_info.height = tc.get_height();
+        tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
+        assert(tc.get_type() == engine::TextureAssetContext::TextureAssetDataType::eUchar8);
+        tex_info.data.resize(tc.get_width() * tc.get_height() * tc.get_channels());
+        std::memcpy(tex_info.data.data(), tc.get_data_ptr(), tex_info.data.size());
     }
-    assert(tex_info.layout != ENGINE_DATA_LAYOUT_COUNT);
-    tex_info.data.resize(tex.image.size());
-    std::memcpy(tex_info.data.data(), tex.image.data(), tex_info.data.size());
+    else
+    {
+        tex_info.name = tex.name;
+        tex_info.width = tex.width;
+        tex_info.height = tex.height;
+        tex_info.layout = ENGINE_DATA_LAYOUT_COUNT;
+        if (tex.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+        {
+            if (tex.component == 4)
+            {
+                tex_info.layout = ENGINE_DATA_LAYOUT_RGBA_U8;
+            }
+            else if (tex.component == 3)
+            {
+                tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
+            }
+        }
+        assert(tex_info.layout != ENGINE_DATA_LAYOUT_COUNT);
+        tex_info.data.resize(tex.image.size());
+        std::memcpy(tex_info.data.data(), tex.image.data(), tex_info.data.size());
+    }
+
     return tex_info;
 }
 
@@ -499,62 +521,34 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             out.textures.push_back(parse_texture(texture, model));
         });
 
-    // materials
-    if (model.materials.size() > 1)
-    {
-        log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi material gltf parsing! \n").c_str());
-        return {};
-    }
-    else
-    {
-        out.materials.reserve(model.materials.size());
-        std::for_each(model.materials.begin(), model.materials.end(), [&out](const auto& material)
-            {
-                out.materials.push_back(parse_material(material));
-            });
-    }
+    // 
+    assert(model.materials.size() <= 1 && "ToDo: Add support for multi material gltf parsing!");
+    out.materials.reserve(model.materials.size());
+    std::for_each(model.materials.begin(), model.materials.end(), [&out](const auto& material)
+        {
+            out.materials.push_back(parse_material(material));
+        });
     // meshes
-    if (meshes_root_nodes_idx.size() > 1)
-    {
-        log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi mesh gltf parsing! \n").c_str());
-        return {};
-    }
-    else
-    {
-        out.geometries.reserve(meshes_root_nodes_idx.size());
-        std::for_each(model.meshes.begin(), model.meshes.end(), [&out, &model](const auto& mesh)
-            {
-                out.geometries.push_back(parse_mesh(mesh, model));
-            });
-    }
+    out.geometries.reserve(meshes_root_nodes_idx.size());
+    std::for_each(model.meshes.begin(), model.meshes.end(), [&out, &model](const auto& mesh)
+        {
+            out.geometries.push_back(parse_mesh(mesh, model));
+        });
+
     // skins
-    if (skins_root_nodes_idx.size() > 1)
-    {
-        log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi skim gltf parsing! \n").c_str());
-        return {};
-    }
-    else
-    {
-        out.skins.reserve(skins_root_nodes_idx.size());
-        std::for_each(model.skins.begin(), model.skins.end(), [&out, &model, &nodes](const auto& skin)
-            {
-                out.skins.push_back(parse_skin(skin, model));
-            });
-    }
+    out.skins.reserve(skins_root_nodes_idx.size());
+    std::for_each(model.skins.begin(), model.skins.end(), [&out, &model, &nodes](const auto& skin)
+        {
+            out.skins.push_back(parse_skin(skin, model));
+        });
+
     // animations
-    if (model.animations.size() > 1)
-    {
-        log::log(log::LogLevel::eCritical, fmt::format("ToDo: Add support for multi animation gltf parsing! \n").c_str());
-        return {};
-    }
-    else
-    {
-        out.animations.reserve(model.animations.size());
-        std::for_each(model.animations.begin(), model.animations.end(), [&out, &model](const auto& animation)
-            {
-                out.animations.push_back(parse_animation(animation, model));
-            });
-    }
+    out.animations.reserve(model.animations.size());
+    std::for_each(model.animations.begin(), model.animations.end(), [&out, &model](const auto& animation)
+        {
+            out.animations.push_back(parse_animation(animation, model));
+        });
+
     out.nodes = std::move(nodes);
     return out;
 
