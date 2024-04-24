@@ -246,12 +246,12 @@ private:
 class Floor : public engine::IScript
 {
 public:
-    Floor(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
-        : engine::IScript(my_scene)
+    Floor(engine::IScene* my_scene, engine_game_object_t go)
+        : engine::IScript(my_scene, go)
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
-        auto tc = engineSceneAddTransformComponent(scene, go_);
+        auto tc = engineSceneGetTransformComponent(scene, go_);
         tc.scale[0] = 3.0f;
         tc.scale[1] = 0.1f;
         tc.scale[2] = 3.0f;
@@ -264,20 +264,6 @@ public:
             tc.rotation[i] = q[i];
         }
         engineSceneUpdateTransformComponent(scene, go_, &tc);
-
-        if (node.geometry_index != -1)
-        {
-            auto mc = engineSceneAddMeshComponent(scene, go_);
-            mc.geometry = node.geometry_index != -1 ? model_info.geometries[node.geometry_index] : ENGINE_INVALID_OBJECT_HANDLE;
-            engineSceneUpdateMeshComponent(scene, go_, &mc);
-        }
-
-        if (node.material_index != -1)
-        {
-            auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-            material_comp.material = model_info.materials.at(node.material_index);
-            engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
-        }
 
         // material
         engine_material_create_desc_t mat_cd{};
@@ -302,25 +288,13 @@ public:
 class Enemy : public engine::IScript
 {
 public:
-    Enemy(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
-        : engine::IScript(my_scene)
+    Enemy(engine::IScene* my_scene, engine_game_object_t go)
+        : engine::IScript(my_scene, go)
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
-        auto nc = engineSceneAddNameComponent(scene, go_);
-        if (node.name)
-        {
-            std::strncpy(nc.name, node.name, std::max(std::strlen(node.name), std::size(nc.name)));
-            if (std::strlen(node.name) > std::size(nc.name))
-            {
-                log(fmt::format("Couldnt copy full entity name. Orginal name: {}, entity name: {}!\n", nc.name, node.name));
-            }
-            engineSceneUpdateNameComponent(scene, go_, &nc);
-        }
-        log(fmt::format("Created entity [id: {}] with name: {}\n", go_, nc.name));
-
-        auto tc = engineSceneAddTransformComponent(scene, go_);
+        auto tc = engineSceneGetTransformComponent(scene, go_);
         tc.scale[0] = 0.5f;
         tc.scale[1] = 0.75f;
         tc.scale[2] = 0.5f;
@@ -329,21 +303,6 @@ public:
         tc.position[1] += 2.5f;
         tc.position[2] += 0.0f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
-
-        if (node.geometry_index != -1)
-        {
-            auto mc = engineSceneAddMeshComponent(scene, go_);
-            mc.geometry = node.geometry_index != -1 ? model_info.geometries[node.geometry_index] : ENGINE_INVALID_OBJECT_HANDLE;
-            engineSceneUpdateMeshComponent(scene, go_, &mc);
-        }
-
-        // if mesh is present then definitly we need some material to render it
-        if (node.material_index != -1)
-        {
-            auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-            material_comp.material = model_info.materials.at(node.material_index);
-            engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
-        }
 
         // physcis
         auto cc = engineSceneAddColliderComponent(scene, go_);
@@ -358,90 +317,90 @@ public:
     }
 };
 
-
-class Sword : public engine::IScript
-{
-public:
-    Sword(engine::IScene* my_scene, const engine_model_node_desc_t& node, const ModelInfo& model_info)
-        : IScript(my_scene)
-    {
-        const auto scene = my_scene_->get_handle();
-        const auto app = my_scene_->get_app_handle();
-
-        auto nc = engineSceneAddNameComponent(scene, go_);
-        if (node.name)
-        {
-            std::strncpy(nc.name, node.name, std::max(std::strlen(node.name), std::size(nc.name)));
-            if (std::strlen(node.name) > std::size(nc.name))
-            {
-                log(fmt::format("Couldnt copy full entity name. Orginal name: {}, entity name: {}!\n", nc.name, node.name));
-            }
-            engineSceneUpdateNameComponent(scene, go_, &nc);
-        }
-        log(fmt::format("Created entity [id: {}] with name: {}\n", go_, nc.name));
-
-        auto tc = engineSceneAddTransformComponent(scene, go_);
-        tc.scale[0] = 0.05f;
-        tc.scale[1] = 0.40f;
-        tc.scale[2] = 0.05f;
-
-        tc.position[0] += 0.0f;
-        //tc.position[1] += 0.20f;
-        tc.position[1] += 0.0f;
-        tc.position[2] += 0.0f;
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
-
-        if (node.geometry_index != -1)
-        {
-            auto mc = engineSceneAddMeshComponent(scene, go_);
-            mc.geometry = node.geometry_index != -1 ? model_info.geometries[node.geometry_index] : ENGINE_INVALID_OBJECT_HANDLE;
-            engineSceneUpdateMeshComponent(scene, go_, &mc);
-        }
-
-        if (node.material_index != -1)
-        {
-            auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-            material_comp.material = model_info.materials.at(node.material_index);
-            engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
-        }
-
-        // physcis
-        auto cc = engineSceneAddColliderComponent(scene, go_);
-        cc.type = ENGINE_COLLIDER_TYPE_BOX;
-        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.05f, 0.40f, 0.005f});
-        cc.is_trigger = true;
-        engineSceneUpdateColliderComponent(scene, go_, &cc);
-
-        // parent to hand
-        engine_component_view_t cv{};
-        engineCreateComponentView(&cv);
-        engineSceneComponentViewAttachNameComponent(scene, cv);
-
-        engine_component_iterator_t begin{};
-        engine_component_iterator_t end{};
-        engineComponentViewCreateBeginComponentIterator(cv, &begin);
-        engineComponentViewCreateEndComponentIterator(cv, &end);
-
-        while (!engineComponentIteratorCheckEqual(begin, end))
-        {       
-            auto go_it = engineComponentIteratorGetGameObject(begin);
-            const auto nc = engineSceneGetNameComponent(scene, go_it);
-
-            if (std::strcmp(nc.name, "Skeleton_arm_joint_R__3_") == 0)
-            {
-                auto pc = engineSceneAddParentComponent(scene, go_);
-                pc.parent = go_it;
-                engineSceneUpdateParentComponent(scene, go_, &pc);
-                begin = end;
-            }
-            else
-            {
-                engineComponentIteratorNext(begin);
-            }
-        }
-        engineDestroyComponentView(cv);
-    }
-};
+//
+//class Sword : public engine::IScript
+//{
+//public:
+//    Sword(engine::IScene* my_scene, engine_game_object_t go)
+//        : IScript(my_scene)
+//    {
+//        const auto scene = my_scene_->get_handle();
+//        const auto app = my_scene_->get_app_handle();
+//
+//        auto nc = engineSceneAddNameComponent(scene, go_);
+//        if (node.name)
+//        {
+//            std::strncpy(nc.name, node.name, std::max(std::strlen(node.name), std::size(nc.name)));
+//            if (std::strlen(node.name) > std::size(nc.name))
+//            {
+//                log(fmt::format("Couldnt copy full entity name. Orginal name: {}, entity name: {}!\n", nc.name, node.name));
+//            }
+//            engineSceneUpdateNameComponent(scene, go_, &nc);
+//        }
+//        log(fmt::format("Created entity [id: {}] with name: {}\n", go_, nc.name));
+//
+//        auto tc = engineSceneAddTransformComponent(scene, go_);
+//        tc.scale[0] = 0.05f;
+//        tc.scale[1] = 0.40f;
+//        tc.scale[2] = 0.05f;
+//
+//        tc.position[0] += 0.0f;
+//        //tc.position[1] += 0.20f;
+//        tc.position[1] += 0.0f;
+//        tc.position[2] += 0.0f;
+//        engineSceneUpdateTransformComponent(scene, go_, &tc);
+//
+//        if (node.geometry_index != -1)
+//        {
+//            auto mc = engineSceneAddMeshComponent(scene, go_);
+//            mc.geometry = node.geometry_index != -1 ? model_info.geometries[node.geometry_index] : ENGINE_INVALID_OBJECT_HANDLE;
+//            engineSceneUpdateMeshComponent(scene, go_, &mc);
+//        }
+//
+//        if (node.material_index != -1)
+//        {
+//            auto material_comp = engineSceneAddMaterialComponent(scene, go_);
+//            material_comp.material = model_info.materials.at(node.material_index);
+//            engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
+//        }
+//
+//        // physcis
+//        auto cc = engineSceneAddColliderComponent(scene, go_);
+//        cc.type = ENGINE_COLLIDER_TYPE_BOX;
+//        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.05f, 0.40f, 0.005f});
+//        cc.is_trigger = true;
+//        engineSceneUpdateColliderComponent(scene, go_, &cc);
+//
+//        // parent to hand
+//        engine_component_view_t cv{};
+//        engineCreateComponentView(&cv);
+//        engineSceneComponentViewAttachNameComponent(scene, cv);
+//
+//        engine_component_iterator_t begin{};
+//        engine_component_iterator_t end{};
+//        engineComponentViewCreateBeginComponentIterator(cv, &begin);
+//        engineComponentViewCreateEndComponentIterator(cv, &end);
+//
+//        while (!engineComponentIteratorCheckEqual(begin, end))
+//        {       
+//            auto go_it = engineComponentIteratorGetGameObject(begin);
+//            const auto nc = engineSceneGetNameComponent(scene, go_it);
+//
+//            if (std::strcmp(nc.name, "Skeleton_arm_joint_R__3_") == 0)
+//            {
+//                auto pc = engineSceneAddParentComponent(scene, go_);
+//                pc.parent = go_it;
+//                engineSceneUpdateParentComponent(scene, go_, &pc);
+//                begin = end;
+//            }
+//            else
+//            {
+//                engineComponentIteratorNext(begin);
+//            }
+//        }
+//        engineDestroyComponentView(cv);
+//    }
+//};
 
 class AnimationController
 {
@@ -619,6 +578,18 @@ public:
     }
 };
 
+class Solider : public engine::IScript
+{
+public:
+    Solider(engine::IScene* my_scene, engine_game_object_t go)
+        : engine::IScript(my_scene, go)
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+    }
+};
+
+
 class TestScene : public engine::IScene
 {
 public:
@@ -632,17 +603,10 @@ public:
     static constexpr const char* get_name() { return "TestScene"; }
 };
 
-
-inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* scene_cpp)
+template<typename TScript>
+inline bool parse_model_info_and_create_script(project_c::ModelInfo& model_info, engine::IScene* scene_cpp)
 {
     auto scene = scene_cpp->get_handle();
-    engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
-    project_c::ModelInfo model_info(engine_error_code, app, "CesiumMan.gltf");
-
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-    {
-        return false;
-    }
 
     std::map<std::uint32_t, engine_game_object_t> node_id_to_game_object;
     for (auto i = 0; i < model_info.model_info.nodes_count; i++)
@@ -686,7 +650,7 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
 
         if (!node.parent)
         {
-            scene_cpp->register_script<ControllableEntity>(go);
+            scene_cpp->register_script<TScript>(go);
         }
     }
 
@@ -723,6 +687,10 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
     std::map<uint32_t, std::vector<engine_game_object_t>> skin_to_game_object;
     for (auto skin_idx = 0; skin_idx < model_info.model_info.skins_counts; skin_idx++)
     {
+        if (skin_idx == 1)
+        {
+            break;
+        }
         const auto& skin = model_info.model_info.skins_array[skin_idx];
         log(fmt::format("Adding skin: {}\n", skin.name));
         for (auto bone_idx = 0; bone_idx < skin.bones_count; bone_idx++)
@@ -743,6 +711,10 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
     {
         const auto& node = model_info.model_info.nodes_array[i];
         const auto& go = node_id_to_game_object[i];
+        if (node.skin_index > 0)
+        {
+            break;
+        }
         if (node.skin_index != -1)
         {
             const auto& bones_game_object_arr = skin_to_game_object[node.skin_index];
@@ -773,6 +745,10 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
     std::vector<engine_game_object_t> animated_go;
     for (auto anim_idx = 0; anim_idx < model_info.model_info.animations_counts; anim_idx++)
     {
+        if (anim_idx > 0)
+        {
+            break;
+        }
         const auto& anim = model_info.model_info.animations_array[anim_idx];
         log(fmt::format("Adding animation: {}\n", anim.name));
         for (auto channel_idx = 0; channel_idx < anim.channels_count; channel_idx++)
@@ -788,30 +764,41 @@ inline bool load_controllable_mesh(engine_application_t& app, engine::IScene* sc
             engineSceneUpdateAnimationClipComponent(scene, go, &anim);
         }
     }
-    anim_controller_poc = new AnimationController(scene_cpp, animated_go);
+    //anim_controller_poc = new AnimationController(scene_cpp, animated_go);
     return true;
 }
 
-inline bool load_cube(engine_application_t& app, engine::IScene* scene)
-{
-    engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
-    const auto load_start = std::chrono::high_resolution_clock::now();
-    project_c::ModelInfo model_info(engine_error_code, app, "cube.glb");
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-    {
-        return false;
-    }
-    assert(model_info.model_info.nodes_count == 1);
-    // add nodes
-    const auto& node = model_info.model_info.nodes_array[0];
-
-    // floor
-    scene->register_script<project_c::Floor>(node, model_info);
-    scene->register_script<project_c::Enemy>(node, model_info);
-    scene->register_script<project_c::Sword>(node, model_info);
-    return true;
-}
-
+//inline bool load_cube(engine_application_t& app, engine::IScene* scene)
+//{
+//    engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
+//    const auto load_start = std::chrono::high_resolution_clock::now();
+//    project_c::ModelInfo model_info(engine_error_code, app, "cube.glb");
+//    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+//    {
+//        return false;
+//    }
+//    assert(model_info.model_info.nodes_count == 1);
+//    // add nodes
+//    const auto& node = model_info.model_info.nodes_array[0];
+//
+//    // floor
+//    scene->register_script<project_c::Floor>(node, model_info);
+//    scene->register_script<project_c::Enemy>(node, model_info);
+//    scene->register_script<project_c::Sword>(node, model_info);
+//    return true;
+//}
+//
+//inline bool load_solider(engine_application_t& app, engine::IScene* scene)
+//{
+//    engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
+//    const auto load_start = std::chrono::high_resolution_clock::now();
+//    project_c::ModelInfo model_info(engine_error_code, app, "character-soldier.glb");
+//    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+//    {
+//        return false;
+//    }
+//    return true;
+//}
 
 }  // namespace project_c
 
@@ -857,21 +844,61 @@ int main(int argc, char** argv)
     scene_manager.register_scene<project_c::TestScene>();
     auto scene = scene_manager.get_scene("TestScene");
 
+
     const auto load_start = std::chrono::high_resolution_clock::now();
+
+    project_c::ModelInfo model_info_solider(engine_error_code, app, "character-soldier.glb");
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        return false;
+    }
+
+    project_c::ModelInfo model_info_cesium(engine_error_code, app, "CesiumMan.gltf");
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        return false;
+    }
+    project_c::ModelInfo model_info_cube(engine_error_code, app, "cube.glb");
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        return false;
+    }
+
     bool load_model = true;
-    load_model = project_c::load_controllable_mesh(app, scene);
+
+    load_model = project_c::parse_model_info_and_create_script<project_c::Solider>(model_info_solider, scene);
     if (!load_model)
     {
         log(fmt::format("Loading model failed!\n"));
         return -1;
     }
 
-    load_model = project_c::load_cube(app, scene);
+    //load_model = project_c::parse_model_info_and_create_script<project_c::ControllableEntity>(model_info_cesium, scene);
+    //if (!load_model)
+    //{
+    //    log(fmt::format("Loading model failed!\n"));
+    //    return -1;
+    //}
+
+    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_cube, scene);
     if (!load_model)
     {
         log(fmt::format("Loading model failed!\n"));
         return -1;
     }
+    load_model = project_c::parse_model_info_and_create_script<project_c::Floor>(model_info_cube, scene);
+    if (!load_model)
+    {
+        log(fmt::format("Loading model failed!\n"));
+        return -1;
+    }
+
+    //load_model = project_c::load_solider(app, scene);
+    //if (!load_model)
+    //{
+    //    log(fmt::format("Loading model failed!\n"));
+    //    return -1;
+    //}
 
     const auto load_end = std::chrono::high_resolution_clock::now();
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);

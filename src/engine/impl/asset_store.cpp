@@ -57,10 +57,10 @@ engine::TextureAssetContext::TextureAssetContext(const std::filesystem::path& fi
 	, data_(nullptr)
 	, type_(TextureAssetDataType::eCount)
 {
-	stbi_set_flip_vertically_on_load(true);
+	//stbi_set_flip_vertically_on_load(true);
 	data_ = stbi_load(file_path.string().c_str(), &width_, &height_, &channels_, 0);
 	type_ = TextureAssetDataType::eUchar8;
-	stbi_set_flip_vertically_on_load(false);
+	//stbi_set_flip_vertically_on_load(false);
 }
 
 engine::TextureAssetContext::TextureAssetContext(TextureAssetContext&& rhs)

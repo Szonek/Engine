@@ -5,7 +5,7 @@ extern "C"
 {
 #endif // cpp
 
-#define ENGINE_ANIMATIONS_CLIPS_MAX_COUNT 16
+#define ENGINE_ANIMATIONS_CLIPS_MAX_COUNT 32
 #define ENGINE_ANIMATION_CHANNEL_MAX_DATA_SIZE 256
 
 typedef enum _engine_animation_channel_interpolation_type_t
