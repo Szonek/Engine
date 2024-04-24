@@ -1,5 +1,4 @@
 ﻿#include "scene.h"
-#include "animation.h"
 #include "ui_manager.h"
 #include "logger.h"
 #include "math_helpers.h"
@@ -153,50 +152,6 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
     std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials)
 {
-    auto animation_transform_view = entity_registry_.view<engine_tranform_component_t, engine_animation_clip_component_t>();
-    animation_transform_view.each([this](auto entity, engine_tranform_component_t& transform_component, engine_animation_clip_component_t& animation_clip_component)
-        {
-            //for (std::uint32_t i = 0; i < ENGINE_ANIMATIONS_CLIPS_MAX_COUNT; i++)
-            for (std::uint32_t i = 0; i < 1; i++)
-            {
-                auto& clip = animation_clip_component.clips_array[i];
-                if (clip.channel_translation.timestamps_count)
-                {
-                    const auto translation = compute_animation_translation(
-                        { reinterpret_cast<const glm::vec3*>(clip.channel_translation.data), clip.channel_translation.data_count / 3 },
-                        { clip.channel_translation.timestamps, clip.channel_translation.timestamps_count },
-                        clip.animation_dt);
-                    transform_component.position[0] = translation.x;
-                    transform_component.position[1] = translation.y;
-                    transform_component.position[2] = translation.z;
-                }
-
-                if (clip.channel_rotation.timestamps_count)
-                {
-                    const auto rotation = compute_animation_rotation(
-                        { reinterpret_cast<const glm::quat*>(clip.channel_rotation.data), clip.channel_rotation.data_count / 4 },
-                        { clip.channel_rotation.timestamps, clip.channel_rotation.timestamps_count },
-                        clip.animation_dt);
-                    transform_component.rotation[0] = rotation.x;
-                    transform_component.rotation[1] = rotation.y;
-                    transform_component.rotation[2] = rotation.z;
-                    transform_component.rotation[3] = rotation.w;
-                }
-
-                if (clip.channel_scale.timestamps_count)
-                {
-                    const auto scale = compute_animation_scale(
-                        { reinterpret_cast<const glm::vec3*>(clip.channel_scale.data), clip.channel_scale.data_count / 3 },
-                        { clip.channel_scale.timestamps, clip.channel_scale.timestamps_count },
-                        clip.animation_dt);
-                    transform_component.scale[0] = scale.x;
-                    transform_component.scale[1] = scale.y;
-                    transform_component.scale[2] = scale.z;
-                }
-                update_component(entity, transform_component);
-            }
-        });
-
 #if 1
     //auto transform_view = entity_registry_.view<engine_tranform_component_t>(entt::exclude<engine_rigid_body_component_t>);
     auto transform_view = entity_registry_.view<engine_tranform_component_t>();

@@ -5,7 +5,6 @@
 #include "graphics.h"
 #include "ui_manager.h"
 #include "ui_document.h"
-#include "animation.h"
 
 #include <array>
 #include <string>
