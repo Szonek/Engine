@@ -602,12 +602,18 @@ public:
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
 
-        if (anim_controller_.has_animations_clips())
+
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_N))
         {
-            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_G))
-            {
-                anim_controller_.set_active_animation("attack-melee-right");
-            }
+            anim_controller_.set_active_animation("attack-melee-right");
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_M))
+        {
+            anim_controller_.set_active_animation("attack-melee-left");
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_G))
+        {
+            anim_controller_.set_active_animation("die");
         }
         anim_controller_.update(dt);
     }
