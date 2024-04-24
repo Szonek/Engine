@@ -243,11 +243,251 @@ private:
 };
 
 
-class Floor : public engine::IScript
+template<typename T>
+struct AnimationChannelBase
+{
+    using DataType = T;
+    std::vector<T> data;
+    std::vector<float> timestamps;
+};
+using AnimationChannelVec3 = AnimationChannelBase<glm::vec3>;
+using AnimationChannelQuat = AnimationChannelBase<glm::quat>;
+
+struct AnimationChannelData
+{
+    AnimationChannelVec3 translation;
+    AnimationChannelVec3 scale;
+    AnimationChannelQuat rotation;
+};
+
+class AnimationClip
+{
+public:
+    AnimationClip() = default;
+    AnimationClip(engine_scene_t scene, std::map<engine_game_object_t, AnimationChannelData>&& data)
+        : scene_(scene)
+        , channels_(std::move(data))
+        , duration_(compute_duration())
+    {
+    }
+
+public:
+    void update(float dt)
+    {
+        animation_dt_ += dt;
+
+        for (const auto& [go, channel] : channels_)
+        {
+            auto tc = engineSceneGetTransformComponent(scene_, go);
+            if (!channel.translation.timestamps.empty())
+            {
+                const auto translation = interpolate(channel.translation.timestamps, channel.translation.data, animation_dt_);
+                tc.position[0] = translation.x;
+                tc.position[1] = translation.y;
+                tc.position[2] = translation.z;
+            }
+            if (!channel.scale.timestamps.empty())
+            {
+                const auto scale = interpolate(channel.scale.timestamps, channel.scale.data, animation_dt_);
+                tc.scale[0] = scale.x;
+                tc.scale[1] = scale.y;
+                tc.scale[2] = scale.z;
+            }
+            if (!channel.rotation.timestamps.empty())
+            {
+                const auto rotation = interpolate(channel.rotation.timestamps, channel.rotation.data, animation_dt_);
+                tc.rotation[0] = rotation.x;
+                tc.rotation[1] = rotation.y;
+                tc.rotation[2] = rotation.z;
+                tc.rotation[3] = rotation.w;
+            }
+            engineSceneUpdateTransformComponent(scene_, go, &tc);
+        }
+
+        if (animation_dt_ > duration_)
+        {
+            animation_dt_ = 0.0f;
+        }
+    }
+
+private:
+    inline float compute_duration() const
+    {
+        float max_duration = 0.0f;
+        for (const auto& [go, channel_data] : channels_)
+        {
+            if (!channel_data.translation.timestamps.empty())
+            {
+                max_duration = std::max(max_duration, channel_data.translation.timestamps.back());
+            }
+            if (!channel_data.scale.timestamps.empty())
+            {
+                max_duration = std::max(max_duration, channel_data.scale.timestamps.back());
+            }
+            if (!channel_data.rotation.timestamps.empty())
+            {
+                max_duration = std::max(max_duration, channel_data.rotation.timestamps.back());
+            }
+        }
+        return max_duration;
+    }
+
+    inline std::size_t get_index_timestamp(float animation_time, std::span<const float> timestamps) const
+    {
+        assert(!timestamps.empty());
+        animation_time = std::min(animation_time, timestamps.back());
+        for (auto i = 0; i < timestamps.size() - 1; i++)
+        {
+            if (animation_time <= timestamps[i + 1])
+            {
+                return i;
+            }
+        }
+        assert(false);
+        return 0;
+    };
+
+    glm::quat interpolate(std::span<const float> timestamps, std::span<const glm::quat> channel, float animation_time) const
+    {
+        assert(!channel.empty());
+        assert(!timestamps.empty());
+        const auto timestamp_idx_prev = get_index_timestamp(animation_time, timestamps);
+        const auto timestamp_idx_next = timestamp_idx_prev + 1;
+
+        const auto timestamp_prev = timestamps[timestamp_idx_prev];
+        const auto timestamp_next = timestamps[timestamp_idx_next];
+        const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
+
+        const auto data_prev = channel[timestamp_idx_prev];
+        const auto data_next = channel[timestamp_idx_next];
+
+        const auto slerp = glm::slerp(data_prev, data_next, interpolation_value);
+        return glm::normalize(slerp);
+    }
+
+    glm::vec3 interpolate(std::span<const float> timestamps, std::span<const glm::vec3> channel, float animation_time) const
+    {
+        assert(!channel.empty());
+        assert(!timestamps.empty());
+        const auto timestamp_idx_prev = get_index_timestamp(animation_time, timestamps);
+        const auto timestamp_idx_next = timestamp_idx_prev + 1;
+
+        const auto timestamp_prev = timestamps[timestamp_idx_prev];
+        const auto timestamp_next = timestamps[timestamp_idx_next];
+        const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
+
+        const auto& data_prev = channel[timestamp_idx_prev];
+        const auto& data_next = channel[timestamp_idx_next];
+
+        const auto lerp = glm::mix(data_prev, data_next, interpolation_value);
+        return lerp;
+    }
+
+
+private:
+    engine_scene_t scene_;
+    std::map<engine_game_object_t, AnimationChannelData> channels_;
+    float duration_ = 0.0f;
+    float animation_dt_ = 0.0f;
+};
+
+class AnimationCollection
+{
+public:
+    void add_animation_clip(const std::string& name, const AnimationClip& clip)
+    {
+        animation_clips_[name] = clip;
+    }
+
+    const AnimationClip& get_animation_clip(const std::string& name) const
+    {
+        return animation_clips_.at(name);
+    }
+
+    AnimationClip& get_animation_clip(const std::string& name)
+    {
+        return animation_clips_.at(name);
+    }
+
+    bool has_animation_clip(const std::string& name) const
+    {
+        return animation_clips_.find(name) != animation_clips_.end();
+    }
+
+    void remove_animation_clip(const std::string& name)
+    {
+        animation_clips_.erase(name);
+    }
+
+    void clear()
+    {
+        animation_clips_.clear();
+    }
+
+    bool is_empty() const
+    {
+        return animation_clips_.empty();
+    }
+
+private:
+    std::map<std::string, AnimationClip> animation_clips_;
+};
+
+class AnimationController
+{
+public:
+
+    bool has_animations_clips() const
+    {
+        return !collection_.is_empty();
+    }
+
+    void add_animation_clip(const std::string& name, const AnimationClip& clip)
+    {
+        collection_.add_animation_clip(name, clip);
+    }
+
+    void set_active_animation(const std::string& name)
+    {
+        current_clip_ = &collection_.get_animation_clip(name);
+
+    }
+
+    void update(float dt)
+    {
+        if (current_clip_)
+        {
+            current_clip_->update(dt);
+        }
+    }
+
+private:
+    AnimationClip* current_clip_ = nullptr;
+    AnimationCollection collection_;
+};
+
+
+class BaseNode : public engine::IScript
+{
+public:
+    AnimationController& get_animation_controller() { return anim_controller_; }
+
+protected:
+    BaseNode(engine::IScene* my_scene, engine_game_object_t go)
+        : engine::IScript(my_scene, go)
+    {
+
+    }
+
+protected:
+    AnimationController anim_controller_;
+};
+
+class Floor : public BaseNode
 {
 public:
     Floor(engine::IScene* my_scene, engine_game_object_t go)
-        : engine::IScript(my_scene, go)
+        : BaseNode(my_scene, go)
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
@@ -285,11 +525,11 @@ public:
 };
 
 
-class Enemy : public engine::IScript
+class Enemy : public BaseNode
 {
 public:
     Enemy(engine::IScene* my_scene, engine_game_object_t go)
-        : engine::IScript(my_scene, go)
+        : BaseNode(my_scene, go)
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
@@ -317,275 +557,29 @@ public:
     }
 };
 
-//
-//class Sword : public engine::IScript
-//{
-//public:
-//    Sword(engine::IScene* my_scene, engine_game_object_t go)
-//        : IScript(my_scene)
-//    {
-//        const auto scene = my_scene_->get_handle();
-//        const auto app = my_scene_->get_app_handle();
-//
-//        auto nc = engineSceneAddNameComponent(scene, go_);
-//        if (node.name)
-//        {
-//            std::strncpy(nc.name, node.name, std::max(std::strlen(node.name), std::size(nc.name)));
-//            if (std::strlen(node.name) > std::size(nc.name))
-//            {
-//                log(fmt::format("Couldnt copy full entity name. Orginal name: {}, entity name: {}!\n", nc.name, node.name));
-//            }
-//            engineSceneUpdateNameComponent(scene, go_, &nc);
-//        }
-//        log(fmt::format("Created entity [id: {}] with name: {}\n", go_, nc.name));
-//
-//        auto tc = engineSceneAddTransformComponent(scene, go_);
-//        tc.scale[0] = 0.05f;
-//        tc.scale[1] = 0.40f;
-//        tc.scale[2] = 0.05f;
-//
-//        tc.position[0] += 0.0f;
-//        //tc.position[1] += 0.20f;
-//        tc.position[1] += 0.0f;
-//        tc.position[2] += 0.0f;
-//        engineSceneUpdateTransformComponent(scene, go_, &tc);
-//
-//        if (node.geometry_index != -1)
-//        {
-//            auto mc = engineSceneAddMeshComponent(scene, go_);
-//            mc.geometry = node.geometry_index != -1 ? model_info.geometries[node.geometry_index] : ENGINE_INVALID_OBJECT_HANDLE;
-//            engineSceneUpdateMeshComponent(scene, go_, &mc);
-//        }
-//
-//        if (node.material_index != -1)
-//        {
-//            auto material_comp = engineSceneAddMaterialComponent(scene, go_);
-//            material_comp.material = model_info.materials.at(node.material_index);
-//            engineSceneUpdateMaterialComponent(scene, go_, &material_comp);
-//        }
-//
-//        // physcis
-//        auto cc = engineSceneAddColliderComponent(scene, go_);
-//        cc.type = ENGINE_COLLIDER_TYPE_BOX;
-//        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.05f, 0.40f, 0.005f});
-//        cc.is_trigger = true;
-//        engineSceneUpdateColliderComponent(scene, go_, &cc);
-//
-//        // parent to hand
-//        engine_component_view_t cv{};
-//        engineCreateComponentView(&cv);
-//        engineSceneComponentViewAttachNameComponent(scene, cv);
-//
-//        engine_component_iterator_t begin{};
-//        engine_component_iterator_t end{};
-//        engineComponentViewCreateBeginComponentIterator(cv, &begin);
-//        engineComponentViewCreateEndComponentIterator(cv, &end);
-//
-//        while (!engineComponentIteratorCheckEqual(begin, end))
-//        {       
-//            auto go_it = engineComponentIteratorGetGameObject(begin);
-//            const auto nc = engineSceneGetNameComponent(scene, go_it);
-//
-//            if (std::strcmp(nc.name, "Skeleton_arm_joint_R__3_") == 0)
-//            {
-//                auto pc = engineSceneAddParentComponent(scene, go_);
-//                pc.parent = go_it;
-//                engineSceneUpdateParentComponent(scene, go_, &pc);
-//                begin = end;
-//            }
-//            else
-//            {
-//                engineComponentIteratorNext(begin);
-//            }
-//        }
-//        engineDestroyComponentView(cv);
-//    }
-//};
-
-class AnimationController
-{
-public:
-    AnimationController(engine::IScene* my_scene, const std::vector<engine_game_object_t>& gos)
-        : my_scene_(my_scene)
-        , gos_(gos)
-    {
-    }
-
-    void play_animation()
-    {
-        if (playin_animation_)
-        {
-            return;
-        }
-        playin_animation_ = true;
-        animation_clip_index_ = 0;
-        const auto scene = my_scene_->get_handle();
-        for (const auto& go : gos_)
-        {
-            if (engineSceneHasAnimationClipComponent(scene, go))
-            {
-                auto anim_comp = engineSceneGetAnimationClipComponent(scene, go);
-                auto& animation_clip = anim_comp.clips_array[animation_clip_index_];
-                animation_clip.animation_dt = 0.0f;
-                engineSceneUpdateAnimationClipComponent(scene, go, &anim_comp);
-            }
-        }
-    }
-
-    void update(float dt)
-    {
-        const auto scene = my_scene_->get_handle();
-        if (playin_animation_)
-        {
-            for (const auto& go : gos_)
-            {
-                if (engineSceneHasAnimationClipComponent(scene, go))
-                {
-                    auto anim_comp = engineSceneGetAnimationClipComponent(scene, go);
-                    //ToDo: duration can be pre-computed
-                    auto& animation_clip = anim_comp.clips_array[animation_clip_index_];
-                    const auto duration = animation_clip.channel_rotation.timestamps[animation_clip.channel_rotation.timestamps_count - 1];
-                    animation_clip.animation_dt += dt;
-                    engineSceneUpdateAnimationClipComponent(scene, go, &anim_comp);
-                    if (animation_clip.animation_dt > duration)
-                    {
-                        playin_animation_ = false;
-                    }
-                }
-            }
-        }
-    }
-
-private:
-    bool playin_animation_ = false;
-    std::uint32_t animation_clip_index_ = 0;
-
-    engine::IScene* my_scene_;
-    std::vector<engine_game_object_t> gos_;
-};
-
-inline AnimationController* anim_controller_poc = nullptr;
-
-class ControllableEntity : public engine::IScript
-{
-public:
-    ControllableEntity(engine::IScene* my_scene, engine_game_object_t go)
-        : IScript(my_scene, go)
-    {
-        const auto scene = my_scene->get_handle();
-        const auto app = my_scene_->get_app_handle();
-        // ------------ transform
-        auto tc = engineSceneGetTransformComponent(scene, go_);
-        auto quat_rot90y = glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        const auto quat = quat_rot90y * glm::make_quat(tc.rotation);
-        for (int i = 0; i < quat.length(); i++)
-        {
-            tc.rotation[i] = quat[i];
-        }
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
-
-        // ------------ physcis
-        // collider
-        auto cc = engineSceneAddColliderComponent(scene, go_);
-        cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
-        cc.collider.compound.children[0].type = ENGINE_COLLIDER_TYPE_BOX;
-        const auto position_limits = engineApplicationGeometryGetAttributeLimits(app, engineApplicationGetGeometryByName(app, "unnamed_geometry__0"), ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION);
-        std::array<float, 3> aabb_center{};
-        std::array<float, 3> aabb_half_extent{};
-        for (auto i = 0; i < aabb_half_extent.size(); i++)
-        {
-            aabb_center[i] = (position_limits.min[i] + position_limits.max[i]) / 2.0f;
-            aabb_half_extent[i] = (std::abs(position_limits.min[i]) + std::abs(position_limits.max[i])) / 2.0f;
-        }
-        set_c_array(cc.collider.compound.children[0].rotation_quaternion, std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f});
-        //set_c_array(cc.collider.compound.children[0].rotation_quaternion, std::array<float, 4>{quat.x, quat.y, quat.z, quat.w});
-        set_c_array(cc.collider.compound.children[0].collider.box.size, aabb_half_extent);
-        set_c_array(cc.collider.compound.children[0].transform, aabb_center);
-        engineSceneUpdateColliderComponent(scene, go_, &cc);
-
-        // rigid-body
-        auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
-        rbc.mass = 1.0f;      
-        engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
-    }
-
-    void update(float dt)
-    {
-        
-        const auto scene = my_scene_->get_handle();
-        const auto app = my_scene_->get_app_handle();
-
-        if(anim_controller_poc)
-        {
-            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F))
-            {
-                anim_controller_poc->play_animation();
-            }
-            anim_controller_poc->update(dt);
-        }
-
-        const float speed = 0.005f * dt;
-#if 1
-        auto tc = engineSceneGetTransformComponent(scene, go_);
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
-        {
-            tc.position[0] += speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S))
-        {
-            tc.position[0] -= speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A))
-        {
-            tc.position[2] -= speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D))
-        {
-            tc.position[2] += speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
-        }
-#else
-        auto rbc = engineSceneGetRigidBodyComponent(scene, go_);
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
-        {
-            rbc.linear_velocity[0] += speed;
-            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S))
-        {
-            rbc.linear_velocity[0] -= speed;
-            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A))
-        {
-            rbc.linear_velocity[2] -= speed;
-            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D))
-        {
-            rbc.linear_velocity[2] += speed;
-            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_SPACE))
-        {
-            rbc.linear_velocity[1] += 8.0f * speed;
-            engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
-        }
-#endif
-    }
-};
-
-class Solider : public engine::IScript
+class Solider : public BaseNode
 {
 public:
     Solider(engine::IScene* my_scene, engine_game_object_t go)
-        : engine::IScript(my_scene, go)
+        : BaseNode(my_scene, go)
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
+    }
+
+    void update(float dt)
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+
+        if (anim_controller_.has_animations_clips())
+        {
+            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F))
+            {
+                anim_controller_.set_active_animation("idle");
+            }
+            anim_controller_.update(dt);
+        }
     }
 };
 
@@ -607,7 +601,7 @@ template<typename TScript>
 inline bool parse_model_info_and_create_script(project_c::ModelInfo& model_info, engine::IScene* scene_cpp)
 {
     auto scene = scene_cpp->get_handle();
-
+    TScript* script = nullptr;
     std::map<std::uint32_t, engine_game_object_t> node_id_to_game_object;
     for (auto i = 0; i < model_info.model_info.nodes_count; i++)
     {
@@ -650,7 +644,7 @@ inline bool parse_model_info_and_create_script(project_c::ModelInfo& model_info,
 
         if (!node.parent)
         {
-            scene_cpp->register_script<TScript>(go);
+            script = scene_cpp->register_script<TScript>(go);
         }
     }
 
@@ -711,94 +705,64 @@ inline bool parse_model_info_and_create_script(project_c::ModelInfo& model_info,
     {
         const auto& node = model_info.model_info.nodes_array[i];
         const auto& go = node_id_to_game_object[i];
-        if (node.skin_index > 0)
+        auto skin_index = node.skin_index;
+        if (skin_index != -1)
         {
-            break;
-        }
-        if (node.skin_index != -1)
-        {
-            const auto& bones_game_object_arr = skin_to_game_object[node.skin_index];
+            skin_index = 0;
+            const auto& bones_game_object_arr = skin_to_game_object[skin_index];
             auto sc = engineSceneAddSkinComponent(scene, go);
             for (auto bone_idx = 0; bone_idx < bones_game_object_arr.size(); bone_idx++)
             {
                 sc.bones[bone_idx] = bones_game_object_arr.at(bone_idx);
             }
             engineSceneUpdateSkinComponent(scene, go, &sc);
-            log(fmt::format("Entity: {} added skin component for skin index: \n", go, node.skin_index));
+            log(fmt::format("Entity: {} added skin component for skin index: \n", go, skin_index));
         }
     }
 
     // animations
-    auto copy_anim_channel_data = [](engine_animation_channel_t& out_channel, const engine_animation_channel_data_t& in_channel)
+    auto copy_anim_channel_data_vec3 = [](AnimationChannelVec3& out_channel, const engine_animation_channel_data_t& in_channel)
         {
             //timestamps
-            out_channel.timestamps_count = in_channel.timestamps_count;
-            assert(out_channel.timestamps_count < ENGINE_ANIMATION_CHANNEL_MAX_DATA_SIZE);
-            std::memcpy(out_channel.timestamps, in_channel.timestamps, in_channel.timestamps_count * sizeof(in_channel.timestamps[0]));
+            out_channel.timestamps.resize(in_channel.timestamps_count);
+            std::memcpy(out_channel.timestamps.data(), in_channel.timestamps, in_channel.timestamps_count * sizeof(in_channel.timestamps[0]));
 
             // data
-            out_channel.data_count = in_channel.data_count;
-            assert(out_channel.data_count < ENGINE_ANIMATION_CHANNEL_MAX_DATA_SIZE);
-            std::memcpy(out_channel.data, in_channel.data, in_channel.data_count * sizeof(in_channel.data[0]));
+            out_channel.data.resize(in_channel.data_count / AnimationChannelVec3::DataType::length());
+            std::memcpy(out_channel.data.data(), in_channel.data, in_channel.data_count * sizeof(in_channel.data[0]));
         };
 
-    std::vector<engine_game_object_t> animated_go;
+    auto copy_anim_channel_data_quat = [](AnimationChannelQuat& out_channel, const engine_animation_channel_data_t& in_channel)
+        {
+            //timestamps
+            out_channel.timestamps.resize(in_channel.timestamps_count);
+            std::memcpy(out_channel.timestamps.data(), in_channel.timestamps, in_channel.timestamps_count * sizeof(in_channel.timestamps[0]));
+
+            // data
+            out_channel.data.resize(in_channel.data_count / AnimationChannelQuat::DataType::length());
+            std::memcpy(out_channel.data.data(), in_channel.data, in_channel.data_count * sizeof(in_channel.data[0]));
+        };
+
     for (auto anim_idx = 0; anim_idx < model_info.model_info.animations_counts; anim_idx++)
     {
-        if (anim_idx > 0)
+        const auto& anim_in = model_info.model_info.animations_array[anim_idx];
+        log(fmt::format("Adding animation: {}\n", anim_in.name));
+        std::map<engine_game_object_t, AnimationChannelData> anim_clip_data;
+        for (auto channel_idx = 0; channel_idx < anim_in.channels_count; channel_idx++)
         {
-            break;
+            const auto& in_channel = anim_in.channels[channel_idx];
+            const auto& go = node_id_to_game_object[in_channel.model_node_index];
+            assert(anim_clip_data.find(go) == anim_clip_data.end());
+            AnimationChannelData& out_channel = anim_clip_data[go];
+            copy_anim_channel_data_vec3(out_channel.translation, in_channel.channel_translation);
+            copy_anim_channel_data_vec3(out_channel.scale, in_channel.channel_scale);
+            copy_anim_channel_data_quat(out_channel.rotation, in_channel.channel_rotation);
         }
-        const auto& anim = model_info.model_info.animations_array[anim_idx];
-        log(fmt::format("Adding animation: {}\n", anim.name));
-        for (auto channel_idx = 0; channel_idx < anim.channels_count; channel_idx++)
-        {
-            const auto& channel = anim.channels[channel_idx];
-            const auto& go = node_id_to_game_object[channel.model_node_index];
-            animated_go.push_back(go);
-            auto anim = engineSceneAddAnimationClipComponent(scene, go);
-            anim.clips_array[anim_idx].animation_dt = 0.0f;
-            copy_anim_channel_data(anim.clips_array[anim_idx].channel_translation, channel.channel_translation);
-            copy_anim_channel_data(anim.clips_array[anim_idx].channel_rotation, channel.channel_rotation);
-            copy_anim_channel_data(anim.clips_array[anim_idx].channel_scale, channel.channel_scale);
-            engineSceneUpdateAnimationClipComponent(scene, go, &anim);
-        }
+        script->get_animation_controller().add_animation_clip(anim_in.name, AnimationClip(scene, std::move(anim_clip_data)));
     }
-    //anim_controller_poc = new AnimationController(scene_cpp, animated_go);
+
     return true;
 }
-
-//inline bool load_cube(engine_application_t& app, engine::IScene* scene)
-//{
-//    engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
-//    const auto load_start = std::chrono::high_resolution_clock::now();
-//    project_c::ModelInfo model_info(engine_error_code, app, "cube.glb");
-//    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-//    {
-//        return false;
-//    }
-//    assert(model_info.model_info.nodes_count == 1);
-//    // add nodes
-//    const auto& node = model_info.model_info.nodes_array[0];
-//
-//    // floor
-//    scene->register_script<project_c::Floor>(node, model_info);
-//    scene->register_script<project_c::Enemy>(node, model_info);
-//    scene->register_script<project_c::Sword>(node, model_info);
-//    return true;
-//}
-//
-//inline bool load_solider(engine_application_t& app, engine::IScene* scene)
-//{
-//    engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
-//    const auto load_start = std::chrono::high_resolution_clock::now();
-//    project_c::ModelInfo model_info(engine_error_code, app, "character-soldier.glb");
-//    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-//    {
-//        return false;
-//    }
-//    return true;
-//}
 
 }  // namespace project_c
 
@@ -853,7 +817,7 @@ int main(int argc, char** argv)
         return false;
     }
 
-    project_c::ModelInfo model_info_cesium(engine_error_code, app, "CesiumMan.gltf");
+   // project_c::ModelInfo model_info_cesium(engine_error_code, app, "CesiumMan.gltf");
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         return false;

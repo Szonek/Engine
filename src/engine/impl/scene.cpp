@@ -160,31 +160,39 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             for (std::uint32_t i = 0; i < 1; i++)
             {
                 auto& clip = animation_clip_component.clips_array[i];
-                const auto translation = compute_animation_translation(
-                    { reinterpret_cast<const glm::vec3*>(clip.channel_translation.data), clip.channel_translation.data_count / 3 },
-                    { clip.channel_translation.timestamps, clip.channel_translation.timestamps_count },
-                    clip.animation_dt);
-                const auto rotation = compute_animation_rotation(
-                    { reinterpret_cast<const glm::quat*>(clip.channel_rotation.data), clip.channel_rotation.data_count / 4 },
-                    { clip.channel_rotation.timestamps, clip.channel_rotation.timestamps_count },
-                    clip.animation_dt);
-                const auto scale = compute_animation_scale(
-                    { reinterpret_cast<const glm::vec3*>(clip.channel_scale.data), clip.channel_scale.data_count / 3 },
-                    { clip.channel_scale.timestamps, clip.channel_scale.timestamps_count },
-                    clip.animation_dt);
+                if (clip.channel_translation.timestamps_count)
+                {
+                    const auto translation = compute_animation_translation(
+                        { reinterpret_cast<const glm::vec3*>(clip.channel_translation.data), clip.channel_translation.data_count / 3 },
+                        { clip.channel_translation.timestamps, clip.channel_translation.timestamps_count },
+                        clip.animation_dt);
+                    transform_component.position[0] = translation.x;
+                    transform_component.position[1] = translation.y;
+                    transform_component.position[2] = translation.z;
+                }
 
-                transform_component.position[0] = translation.x;    
-                transform_component.position[1] = translation.y;
-                transform_component.position[2] = translation.z;
+                if (clip.channel_rotation.timestamps_count)
+                {
+                    const auto rotation = compute_animation_rotation(
+                        { reinterpret_cast<const glm::quat*>(clip.channel_rotation.data), clip.channel_rotation.data_count / 4 },
+                        { clip.channel_rotation.timestamps, clip.channel_rotation.timestamps_count },
+                        clip.animation_dt);
+                    transform_component.rotation[0] = rotation.x;
+                    transform_component.rotation[1] = rotation.y;
+                    transform_component.rotation[2] = rotation.z;
+                    transform_component.rotation[3] = rotation.w;
+                }
 
-                transform_component.rotation[0] = rotation.x;
-                transform_component.rotation[1] = rotation.y;
-                transform_component.rotation[2] = rotation.z;
-                transform_component.rotation[3] = rotation.w;
-
-                transform_component.scale[0] = scale.x;
-                transform_component.scale[1] = scale.y;
-                transform_component.scale[2] = scale.z;
+                if (clip.channel_scale.timestamps_count)
+                {
+                    const auto scale = compute_animation_scale(
+                        { reinterpret_cast<const glm::vec3*>(clip.channel_scale.data), clip.channel_scale.data_count / 3 },
+                        { clip.channel_scale.timestamps, clip.channel_scale.timestamps_count },
+                        clip.animation_dt);
+                    transform_component.scale[0] = scale.x;
+                    transform_component.scale[1] = scale.y;
+                    transform_component.scale[2] = scale.z;
+                }
                 update_component(entity, transform_component);
             }
         });
@@ -344,7 +352,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                     const auto& bone_transform = get_component<engine_tranform_component_t>(static_cast<entt::entity>(bone_entity));
                     const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
                     const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
-                    const auto per_bone_final_transform = inverse_transform * bone_matrix;
+                    //const auto per_bone_final_transform = inverse_transform * bone_matrix;
+                    const auto per_bone_final_transform = bone_matrix;
                     const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
                     shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
                 }
