@@ -2,6 +2,9 @@ set(APP_NAME "project_c_game")
 
 set(APP_SOURCES
 	main.cpp
+	animation_controller.h
+	camera_script.h
+	scripts.h
 )
 
 
