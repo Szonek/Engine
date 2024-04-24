@@ -572,14 +572,44 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
+        anim_controller_.set_active_animation("idle");
+
+        const float speed = 0.0005f * dt;
+
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
+        {
+            anim_controller_.set_active_animation("walk");
+            tc.position[0] += speed;
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S))
+        {
+            anim_controller_.set_active_animation("walk");
+            tc.position[0] -= speed;
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A))
+        {
+            anim_controller_.set_active_animation("walk");
+            tc.position[2] -= speed;
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D))
+        {
+            anim_controller_.set_active_animation("walk");
+            tc.position[2] += speed;
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
+
         if (anim_controller_.has_animations_clips())
         {
-            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F))
+            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_G))
             {
-                anim_controller_.set_active_animation("idle");
+                anim_controller_.set_active_animation("attack-melee-right");
             }
-            anim_controller_.update(dt);
         }
+        anim_controller_.update(dt);
     }
 };
 
