@@ -73,6 +73,43 @@ public:
     Sword(engine::IScene* my_scene, engine_game_object_t go)
         : BaseNode(my_scene, go)
     {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+        // physcis
+        //auto cc = engineSceneAddColliderComponent(scene, go_);
+        //cc.type = ENGINE_COLLIDER_TYPE_BOX;
+        //set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.05f, 0.40f, 0.005f});
+        //cc.is_trigger = true;
+        //engineSceneUpdateColliderComponent(scene, go_, &cc);
+
+        // parent to hand
+        engine_component_view_t cv{};
+        engineCreateComponentView(&cv);
+        engineSceneComponentViewAttachNameComponent(scene, cv);
+
+        engine_component_iterator_t begin{};
+        engine_component_iterator_t end{};
+        engineComponentViewCreateBeginComponentIterator(cv, &begin);
+        engineComponentViewCreateEndComponentIterator(cv, &end);
+
+        while (!engineComponentIteratorCheckEqual(begin, end))
+        {       
+            auto go_it = engineComponentIteratorGetGameObject(begin);
+            const auto nc = engineSceneGetNameComponent(scene, go_it);
+
+            if (std::strcmp(nc.name, "arm-right") == 0)
+            {
+                auto pc = engineSceneAddParentComponent(scene, go_);
+                pc.parent = go_it;
+                engineSceneUpdateParentComponent(scene, go_, &pc);
+                begin = end;
+            }
+            else
+            {
+                engineComponentIteratorNext(begin);
+            }
+        }
+        engineDestroyComponentView(cv);
     }
 };
 
