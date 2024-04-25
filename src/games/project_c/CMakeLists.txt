@@ -5,6 +5,7 @@ set(APP_SOURCES
 	animation_controller.h
 	camera_script.h
 	scripts.h
+	model_info.h
 )
 
 
