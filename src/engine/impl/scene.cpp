@@ -307,8 +307,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                     const auto& bone_transform = get_component<engine_tranform_component_t>(static_cast<entt::entity>(bone_entity));
                     const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
                     const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
-                    //const auto per_bone_final_transform = inverse_transform * bone_matrix;
-                    const auto per_bone_final_transform = bone_matrix;
+                    const auto per_bone_final_transform = inverse_transform * bone_matrix;
+                    //const auto per_bone_final_transform = bone_matrix;
                     const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
                     shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
                 }

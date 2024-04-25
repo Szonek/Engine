@@ -75,6 +75,8 @@ public:
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
         // physcis
         //auto cc = engineSceneAddColliderComponent(scene, go_);
         //cc.type = ENGINE_COLLIDER_TYPE_BOX;
