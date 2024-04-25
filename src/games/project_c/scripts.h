@@ -67,6 +67,14 @@ public:
     }
 };
 
+class Sword : public BaseNode
+{
+public:
+    Sword(engine::IScene* my_scene, engine_game_object_t go)
+        : BaseNode(my_scene, go)
+    {
+    }
+};
 
 class Enemy : public BaseNode
 {

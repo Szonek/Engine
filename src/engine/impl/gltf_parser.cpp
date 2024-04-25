@@ -235,6 +235,8 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
         const auto& index_buffer_view = model.bufferViews[index_accessor.bufferView];
         const auto& index_buffer = model.buffers[index_buffer_view.buffer];
         const auto index_buffer_data = index_buffer.data.data() + index_buffer_view.byteOffset;
+        //ToDo: Indicies are always typed casted to uint32_t, this is not optimal
+        // we can support u16 and u8 as well
         if (index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
         {
             copy_inds_data(ret.indicies, indicies_offset, reinterpret_cast<const std::uint16_t*>(index_buffer_data));
@@ -242,6 +244,10 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
         else if (index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
         {
             copy_inds_data(ret.indicies, indicies_offset, reinterpret_cast<const std::uint32_t*>(index_buffer_data));
+        }
+        else if (index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+        {
+            copy_inds_data(ret.indicies, indicies_offset, reinterpret_cast<const std::uint8_t*>(index_buffer_data));
         }
         else
         {

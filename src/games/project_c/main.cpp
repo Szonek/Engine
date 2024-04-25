@@ -264,6 +264,12 @@ int main(int argc, char** argv)
 
     const auto load_start = std::chrono::high_resolution_clock::now();
 
+    project_c::ModelInfo model_info_swrd(engine_error_code, app, "weapon-sword.glb");
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        return false;
+    }
+
     project_c::ModelInfo model_info_solider(engine_error_code, app, "character-soldier.glb");
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
@@ -284,6 +290,13 @@ int main(int argc, char** argv)
     bool load_model = true;
 
     load_model = project_c::parse_model_info_and_create_script<project_c::Solider>(model_info_solider, scene);
+    if (!load_model)
+    {
+        log(fmt::format("Loading model failed!\n"));
+        return -1;
+    }
+
+    load_model = project_c::parse_model_info_and_create_script<project_c::Sword>(model_info_swrd, scene);
     if (!load_model)
     {
         log(fmt::format("Loading model failed!\n"));
