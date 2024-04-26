@@ -29,6 +29,19 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Renderer_GL3.h
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Renderer_GL3.cpp
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Include_GL3.h
+	
+	${ENGINE_SOURCES_DIR}/imgui/imgui.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui.cpp
+	${ENGINE_SOURCES_DIR}/imgui/imconfig.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui_internal.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui_impl_opengl3.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui_impl_opengl3.cpp
+	${ENGINE_SOURCES_DIR}/imgui/imgui_impl_opengl3_loader.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui_impl_sdl3.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui_impl_sdl3.cpp
+	${ENGINE_SOURCES_DIR}/imgui/imstb_rectpack.h
+	${ENGINE_SOURCES_DIR}/imgui/imstb_textedit.h
+	${ENGINE_SOURCES_DIR}/imgui/imstb_truetype.h
 )
 
 set(ENGINE_API "include")

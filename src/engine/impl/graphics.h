@@ -204,7 +204,7 @@ public:
     };
 
 public:
-	RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen);
+	RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen, std::vector<std::function<void(SDL_Window*, SDL_GLContext)>> init_callbacks);
 	
 	RenderContext(const RenderContext&) = delete;
 	RenderContext(RenderContext&& rhs) noexcept;

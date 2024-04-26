@@ -126,10 +126,15 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layou
     return create_tightly_packed_vertex_layout(vertex_layout_simple);
 }
 
+void init_imgui(SDL_Window* wnd, SDL_GLContext gl_ctx)
+{
+
+}
+
 }  // namespace annoymous
 
 engine::Application::Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
-	: rdx_(std::move(RenderContext(desc.name, {0, 0, desc.width, desc.height}, desc.fullscreen)))
+    : rdx_(std::move(RenderContext(desc.name, { 0, 0, desc.width, desc.height }, desc.fullscreen, { init_imgui })))
     , ui_manager_(rdx_)
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
 {

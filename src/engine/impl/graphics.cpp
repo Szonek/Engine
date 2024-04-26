@@ -571,7 +571,7 @@ message_callback(GLenum /*source*/,
 }
 #endif
 
-engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen)
+engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen, std::vector<std::function<void(SDL_Window*, SDL_GLContext)>> init_callbacks)
 {
     std::int32_t result_code = 0;
     result_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
@@ -590,9 +590,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, 0);
 #else
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-#endif
-
-    
+#endif 
 
     const auto displays = []()
     {
@@ -697,6 +695,11 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 
     Rml::SetSystemInterface(ui_rml_sdl_interface_);
     Rml::SetRenderInterface(ui_rml_gl3_renderer_);
+
+    for (const auto& fn : init_callbacks)
+    {
+        fn(window_, context_);
+    }
 }
 
 engine::RenderContext::RenderContext(RenderContext&& rhs) noexcept
