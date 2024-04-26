@@ -14,21 +14,23 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 
-#include <SDL_rwops.h>
+#include <SDL3/SDL_iostream.h>
 
 namespace
 {
 template<typename T>
 T load_data_from_file(std::string_view path)
 {
-	auto* file_handle = SDL_RWFromFile(path.data(), "r");
+    
+	auto* file_handle = SDL_IOFromFile(path.data(), "r");
 	T ret;
 	if(file_handle)
 	{
 		std::array<char8_t, 1024> buffer{0};
 		while(true)
 		{
-			const auto bytes_read = SDL_RWread( file_handle, buffer.data(), sizeof(buffer[0]) * buffer.size() );
+			const auto bytes_read = SDL_ReadIO( file_handle, buffer.data(), sizeof(buffer[0]) * buffer.size() );
+            
 			if(bytes_read == 0)
 			{
 				// end of file
@@ -43,7 +45,7 @@ T load_data_from_file(std::string_view path)
 		}
 
 		//Close file handler
-		SDL_RWclose( file_handle );
+        SDL_CloseIO(file_handle);
 	}
 	return ret;
 }

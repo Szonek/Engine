@@ -250,32 +250,32 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
         }
 		else if(e.type == SDL_EVENT_FINGER_UP)
 		{
-			const auto str = fmt::format("[SDL_EVENT_FINGER_UP]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
+			//const auto str = fmt::format("[SDL_EVENT_FINGER_UP]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
 			//log::log(log::LogLevel::eTrace, str.c_str());
-			auto& f = finger_info_buffer[e.tfinger.fingerId];
-			f.event_type_flags |= ENGINE_FINGER_UP;
-			f.x = e.tfinger.x;
-			f.y = e.tfinger.y;
+			//auto& f = finger_info_buffer[e.tfinger.fingerId];
+			//f.event_type_flags |= ENGINE_FINGER_UP;
+			//f.x = e.tfinger.x;
+			//f.y = e.tfinger.y;
 		}
 		else if(e.type == SDL_EVENT_FINGER_DOWN)
 		{
-			const auto str = fmt::format("[SDL_EVENT_FINGER_DOWN]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
+			//const auto str = fmt::format("[SDL_EVENT_FINGER_DOWN]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
 			//log::log(log::LogLevel::eTrace, str.c_str());
-			auto& f = finger_info_buffer[e.tfinger.fingerId];
-			f.event_type_flags |= ENGINE_FINGER_DOWN;
-			f.x = e.tfinger.x;
-			f.y = e.tfinger.y;
+			//auto& f = finger_info_buffer[e.tfinger.fingerId];
+			//f.event_type_flags |= ENGINE_FINGER_DOWN;
+			//f.x = e.tfinger.x;
+			//f.y = e.tfinger.y;
 		}
 		else if(e.type == SDL_EVENT_FINGER_MOTION)
 		{
-			auto& f = finger_info_buffer[e.tfinger.fingerId];
-			f.event_type_flags |= ENGINE_FINGER_MOTION;
-			f.x = e.tfinger.x;
-			f.y = e.tfinger.y;
-			f.dx += e.tfinger.dx;
-			f.dy += e.tfinger.dy;
-
-			const auto str = fmt::format("[SDL_EVENT_FINGER_MOTION]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
+			//auto& f = finger_info_buffer[e.tfinger.fingerId];
+			//f.event_type_flags |= ENGINE_FINGER_MOTION;
+			//f.x = e.tfinger.x;
+			//f.y = e.tfinger.y;
+			//f.dx += e.tfinger.dx;
+			//f.dy += e.tfinger.dy;
+            //
+			//const auto str = fmt::format("[SDL_EVENT_FINGER_MOTION]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
 			//log::log(log::LogLevel::eTrace, str.c_str());
 		}
         else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN)

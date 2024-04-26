@@ -622,8 +622,8 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 
     if(init_size.width == 0 || init_size.height == 0)
     {
-        init_size.width = display_mode->screen_w;
-        init_size.height = display_mode->screen_h;
+        init_size.width = display_mode->w;
+        init_size.height = display_mode->h;
     }
 
     auto window_init_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
@@ -632,7 +632,6 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
         window_init_flags |= SDL_WINDOW_FULLSCREEN;
     }
     window_ = SDL_CreateWindow(window_name.data(),
-        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
         init_size.width, init_size.height, window_init_flags);
     if(!window_)
     {

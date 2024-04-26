@@ -42,6 +42,9 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/imgui/imstb_rectpack.h
 	${ENGINE_SOURCES_DIR}/imgui/imstb_textedit.h
 	${ENGINE_SOURCES_DIR}/imgui/imstb_truetype.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui_widgets.cpp
+	${ENGINE_SOURCES_DIR}/imgui/imgui_draw.cpp
+	${ENGINE_SOURCES_DIR}/imgui/imgui_tables.cpp
 )
 
 set(ENGINE_API "include")
