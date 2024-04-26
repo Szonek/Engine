@@ -18,7 +18,9 @@
 #include <span>
 #include <iostream>
 
-
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_sdl3.h"
+#include "imgui/imgui_impl_opengl3.h"
 
 namespace
 {
@@ -126,15 +128,59 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layou
     return create_tightly_packed_vertex_layout(vertex_layout_simple);
 }
 
-void init_imgui(SDL_Window* wnd, SDL_GLContext gl_ctx)
+void editor_init(SDL_Window* wnd, SDL_GLContext gl_ctx)
 {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // IF using Docking Branch
 
+    // Setup Platform/Renderer backends
+    assert(ImGui_ImplSDL3_InitForOpenGL(wnd, gl_ctx));
+    assert(ImGui_ImplOpenGL3_Init());
+}
+
+void editor_handle_sdl_events(SDL_Event& e)
+{
+    ImGui_ImplSDL3_ProcessEvent(&e);
+}
+
+bool editor_wants_to_capture_mouse()
+{
+    return ImGui::GetIO().WantCaptureMouse;
+}
+
+void editor_begin_frame()
+{
+    ImGui_ImplSDL3_NewFrame();
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui::NewFrame();
+}
+
+void editor_end_frame()
+{
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+void editor_shutdown()
+{
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
+}
+
+void editor_update(const engine::Scene* scene, float dt)
+{
+    ImGui::ShowDemoWindow();
 }
 
 }  // namespace annoymous
 
 engine::Application::Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
-    : rdx_(std::move(RenderContext(desc.name, { 0, 0, desc.width, desc.height }, desc.fullscreen, { init_imgui })))
+    : rdx_(std::move(RenderContext(desc.name, { 0, 0, desc.width, desc.height }, desc.fullscreen, { editor_init })))
     , ui_manager_(rdx_)
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
 {
@@ -168,6 +214,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
 
 engine::Application::~Application()
 {
+    editor_shutdown();
 }
 
 engine::Scene* engine::Application::create_scene(const engine_scene_create_desc_t& desc)
@@ -196,6 +243,7 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
         materials_atlas_.get_objects_view());
+    editor_update(scene, delta_time);
     return ret_code;
 }
 
@@ -226,6 +274,7 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     SDL_Event e;
     while (SDL_PollEvent(&e) != 0)
     {
+        editor_handle_sdl_events(e);
         ui_manager_.parse_sdl_event(e);
 
         if (e.type == SDL_EVENT_QUIT)
@@ -296,11 +345,13 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     }
 
 	rdx_.begin_frame();
+    editor_begin_frame();
 	return ret;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
+    editor_end_frame();
     ui_manager_.update_state_and_render();
     rdx_.end_frame();
 	engine_application_frame_end_info_t ret{};
@@ -644,6 +695,10 @@ engine_coords_2d_t engine::Application::mouse_get_coords()
 
 bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
 {
+    if (editor_wants_to_capture_mouse())
+    {
+        return false;
+    }
     const auto state = SDL_GetMouseState(nullptr, nullptr);
     return state & SDL_BUTTON(button);
 }

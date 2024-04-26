@@ -45,6 +45,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/imgui/imgui_widgets.cpp
 	${ENGINE_SOURCES_DIR}/imgui/imgui_draw.cpp
 	${ENGINE_SOURCES_DIR}/imgui/imgui_tables.cpp
+	${ENGINE_SOURCES_DIR}/imgui/imgui_demo.cpp
 )
 
 set(ENGINE_API "include")
