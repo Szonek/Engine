@@ -180,10 +180,11 @@ void editor_update(const engine::Scene* scene, float dt)
 }  // namespace annoymous
 
 engine::Application::Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
-    : rdx_(std::move(RenderContext(desc.name, { 0, 0, desc.width, desc.height }, desc.fullscreen, { editor_init })))
+    : rdx_(std::move(RenderContext(desc.name, { 0, 0, desc.width, desc.height }, desc.fullscreen)))
     , ui_manager_(rdx_)
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
 {
+    editor_init(rdx_.get_sdl_window(), *rdx_.get_sdl_gl_context());
 	{
 		//constexpr const std::array<std::uint8_t, 3> default_texture_color = { 160, 50, 168 };
 		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 255, 255, 255 };
