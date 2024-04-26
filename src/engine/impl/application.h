@@ -5,7 +5,7 @@
 #include "graphics.h"
 #include "ui_manager.h"
 #include "ui_document.h"
-
+#include "editor.h"
 #include <array>
 #include <string>
 
@@ -112,7 +112,7 @@ private:
     Atlas<Geometry> geometries_atlas_;;
     Atlas<engine_material_create_desc_t> materials_atlas_;
     UiManager ui_manager_;
-
+    Editor editor_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;
 };
 
