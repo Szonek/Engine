@@ -6,6 +6,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/graphics.h
 	${ENGINE_SOURCES_DIR}/scene.cpp
 	${ENGINE_SOURCES_DIR}/scene.h
+	${ENGINE_SOURCES_DIR}/editor.cpp
+	${ENGINE_SOURCES_DIR}/editor.h
 	${ENGINE_SOURCES_DIR}/asset_store.cpp
 	${ENGINE_SOURCES_DIR}/asset_store.h
 	${ENGINE_SOURCES_DIR}/game_timer.cpp
@@ -29,6 +31,23 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Renderer_GL3.h
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Renderer_GL3.cpp
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Include_GL3.h
+	
+	${ENGINE_SOURCES_DIR}/imgui/imgui.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui.cpp
+	${ENGINE_SOURCES_DIR}/imgui/imconfig.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui_internal.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui_impl_opengl3.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui_impl_opengl3.cpp
+	${ENGINE_SOURCES_DIR}/imgui/imgui_impl_opengl3_loader.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui_impl_sdl3.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui_impl_sdl3.cpp
+	${ENGINE_SOURCES_DIR}/imgui/imstb_rectpack.h
+	${ENGINE_SOURCES_DIR}/imgui/imstb_textedit.h
+	${ENGINE_SOURCES_DIR}/imgui/imstb_truetype.h
+	${ENGINE_SOURCES_DIR}/imgui/imgui_widgets.cpp
+	${ENGINE_SOURCES_DIR}/imgui/imgui_draw.cpp
+	${ENGINE_SOURCES_DIR}/imgui/imgui_tables.cpp
+	${ENGINE_SOURCES_DIR}/imgui/imgui_demo.cpp
 )
 
 set(ENGINE_API "include")

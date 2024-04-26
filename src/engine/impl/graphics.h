@@ -227,6 +227,9 @@ public:
     void begin_frame_ui_rendering();
     void end_frame_ui_rendering();
 
+    SDL_Window* get_sdl_window() { return window_; }
+    SDL_GLContext get_sdl_gl_context() { return context_; }
+
 private:
     SDL_Window* window_ = nullptr;
     SDL_GLContext context_ = nullptr;

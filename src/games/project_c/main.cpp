@@ -248,6 +248,7 @@ int main(int argc, char** argv)
     app_cd.width = K_IS_ANDROID ? 0 : 2280 / 2;
     app_cd.height = K_IS_ANDROID ? 0 : 1080 / 2;
     app_cd.fullscreen = K_IS_ANDROID;
+    app_cd.enable_editor = true;
 
 	auto engine_error_code = engineApplicationCreate(&app, app_cd);
 	if (engine_error_code != ENGINE_RESULT_CODE_OK)

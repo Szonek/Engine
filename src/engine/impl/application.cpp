@@ -129,10 +129,14 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layou
 }  // namespace annoymous
 
 engine::Application::Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
-	: rdx_(std::move(RenderContext(desc.name, {0, 0, desc.width, desc.height}, desc.fullscreen)))
+    : rdx_(std::move(RenderContext(desc.name, { 0, 0, desc.width, desc.height }, desc.fullscreen)))
     , ui_manager_(rdx_)
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
 {
+    if (desc.enable_editor)
+    {
+        editor_ = Editor(rdx_.get_sdl_window(), rdx_.get_sdl_gl_context());
+    }
 	{
 		//constexpr const std::array<std::uint8_t, 3> default_texture_color = { 160, 50, 168 };
 		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 255, 255, 255 };
@@ -191,6 +195,7 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
         materials_atlas_.get_objects_view());
+    editor_.render_scene_hierarchy(scene);
     return ret_code;
 }
 
@@ -221,6 +226,7 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     SDL_Event e;
     while (SDL_PollEvent(&e) != 0)
     {
+        editor_.handle_event(e);
         ui_manager_.parse_sdl_event(e);
 
         if (e.type == SDL_EVENT_QUIT)
@@ -245,32 +251,32 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
         }
 		else if(e.type == SDL_EVENT_FINGER_UP)
 		{
-			const auto str = fmt::format("[SDL_EVENT_FINGER_UP]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
+			//const auto str = fmt::format("[SDL_EVENT_FINGER_UP]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
 			//log::log(log::LogLevel::eTrace, str.c_str());
-			auto& f = finger_info_buffer[e.tfinger.fingerId];
-			f.event_type_flags |= ENGINE_FINGER_UP;
-			f.x = e.tfinger.x;
-			f.y = e.tfinger.y;
+			//auto& f = finger_info_buffer[e.tfinger.fingerId];
+			//f.event_type_flags |= ENGINE_FINGER_UP;
+			//f.x = e.tfinger.x;
+			//f.y = e.tfinger.y;
 		}
 		else if(e.type == SDL_EVENT_FINGER_DOWN)
 		{
-			const auto str = fmt::format("[SDL_EVENT_FINGER_DOWN]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
+			//const auto str = fmt::format("[SDL_EVENT_FINGER_DOWN]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
 			//log::log(log::LogLevel::eTrace, str.c_str());
-			auto& f = finger_info_buffer[e.tfinger.fingerId];
-			f.event_type_flags |= ENGINE_FINGER_DOWN;
-			f.x = e.tfinger.x;
-			f.y = e.tfinger.y;
+			//auto& f = finger_info_buffer[e.tfinger.fingerId];
+			//f.event_type_flags |= ENGINE_FINGER_DOWN;
+			//f.x = e.tfinger.x;
+			//f.y = e.tfinger.y;
 		}
 		else if(e.type == SDL_EVENT_FINGER_MOTION)
 		{
-			auto& f = finger_info_buffer[e.tfinger.fingerId];
-			f.event_type_flags |= ENGINE_FINGER_MOTION;
-			f.x = e.tfinger.x;
-			f.y = e.tfinger.y;
-			f.dx += e.tfinger.dx;
-			f.dy += e.tfinger.dy;
-
-			const auto str = fmt::format("[SDL_EVENT_FINGER_MOTION]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
+			//auto& f = finger_info_buffer[e.tfinger.fingerId];
+			//f.event_type_flags |= ENGINE_FINGER_MOTION;
+			//f.x = e.tfinger.x;
+			//f.y = e.tfinger.y;
+			//f.dx += e.tfinger.dx;
+			//f.dy += e.tfinger.dy;
+            //
+			//const auto str = fmt::format("[SDL_EVENT_FINGER_MOTION]: [{}, {}] {}, {}, {}, {}\n", e.tfinger.fingerId, e.tfinger.touchId, e.tfinger.x, e.tfinger.y, e.tfinger.dx, e.tfinger.dy);
 			//log::log(log::LogLevel::eTrace, str.c_str());
 		}
         else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
@@ -291,11 +297,13 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     }
 
 	rdx_.begin_frame();
+    editor_.begin_frame();
 	return ret;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
+    editor_.end_frame();
     ui_manager_.update_state_and_render();
     rdx_.end_frame();
 	engine_application_frame_end_info_t ret{};
@@ -639,6 +647,10 @@ engine_coords_2d_t engine::Application::mouse_get_coords()
 
 bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
 {
+    if (editor_.wants_to_capture_mouse())
+    {
+        return false;
+    }
     const auto state = SDL_GetMouseState(nullptr, nullptr);
     return state & SDL_BUTTON(button);
 }

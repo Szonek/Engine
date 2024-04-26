@@ -101,6 +101,7 @@ typedef struct _engine_application_create_desc_t
     uint32_t width;
     uint32_t height;
     bool fullscreen;
+    bool enable_editor;
 } engine_application_create_desc_t;
 
 typedef struct _engine_scene_create_desc_t
