@@ -357,7 +357,7 @@ int main(int argc, char** argv)
     engine_error_code = engineApplicationCreateUiDocumentFromFile(app, "project_c_health_bar.rml", &ui_doc);
     if (ui_doc)
     {
-        engineUiDocumentShow(ui_doc);
+        //engineUiDocumentShow(ui_doc);
     }
 
 

@@ -264,6 +264,7 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
         }
     }
 
+    ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::Begin("Scene Panel");
     ImGui::SeparatorText("Hierarchy");
     static hierarchy_context_t ctx;
@@ -296,6 +297,10 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
     }
 
     ImGui::End(); // scene panel
+
+    ImGui::Begin("Geometry inspecotr");
+    ImGui::Text("Geometry inspector");
+    ImGui::End();
 }
 
 void engine::Editor::end_frame()
