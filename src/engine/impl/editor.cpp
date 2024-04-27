@@ -88,12 +88,57 @@ void display_mesh_component(engine::Scene* scene, entt::entity entity)
         if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_None))
         {
             bool enabled = !c->disable;
-            ImGui::Checkbox("Enabled", &enabled);
-            if (enabled == c->disable)
+            if (ImGui::Checkbox("Enabled", &enabled))
             {
-                c->disable = !enabled;
+                c->disable = !c->disable;
             }
             ImGui::Value("Geometry ID", c->geometry);
+        }
+    }
+}
+
+void display_camera_component(engine::Scene* scene, entt::entity entity)
+{
+    if (scene->has_component<engine_camera_component_t>(entity))
+    {
+        auto c = scene->get_component<engine_camera_component_t>(entity);
+        if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_None))
+        {
+            // is it enabled?
+            ImGui::Checkbox("Enabled", &c->enabled);
+
+            // type
+            std::array<const char*, 2> items = {"Orthographic",  "Perspective"};
+            std::int32_t selected_type = c->type;
+            if (ImGui::ListBox("Type", &selected_type, items.data(), items.size()))
+            {
+                c->type = static_cast<engine_camera_projection_type_t>(selected_type);
+            }
+
+            // fov or scale, based on type
+            if (c->type == ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE)
+            {
+                ImGui::DragFloat("FOV", &c->type_union.perspective_fov, 0.1f);
+            }
+            else
+            {
+                ImGui::DragFloat("Scale", &c->type_union.orthographics_scale, 0.1f);
+            }
+
+            // target
+            ImGui::DragFloat3("Target", c->target, 0.1f);
+            
+            //viewport rect
+            ImGui::DragFloat4("Viewport", &c->viewport_rect.x, 0.1f);
+
+            // pitch, yaw, roll
+            ImGui::DragFloat("Pitch", &c->pitch, 0.1f);
+            ImGui::DragFloat("Yaw", &c->yaw, 0.1f);
+            ImGui::DragFloat("Roll", &c->roll, 0.1f);
+
+            // clip planes
+            ImGui::DragFloat("Near Clip Plane", &c->clip_plane_near, 0.1f);
+            ImGui::DragFloat("Far Clip Plane", &c->clip_plane_far, 0.1f);
         }
     }
 }
@@ -198,6 +243,7 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
 
     ImGui::SeparatorText("Entity properties and components.");
     display_transform_component(scene, ctx.selected);
+    display_camera_component(scene, ctx.selected);
     display_mesh_component(scene, ctx.selected);
     ImGui::End(); // scene panel
 }

@@ -8,7 +8,6 @@
 #include "components/material_component.h"
 #include "components/rigid_body_component.h"
 #include "components/collider_component.h"
-#include "components/animation_component.h"
 #include "components/parent_component.h"
 
 
