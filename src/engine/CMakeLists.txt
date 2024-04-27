@@ -6,8 +6,6 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/graphics.h
 	${ENGINE_SOURCES_DIR}/scene.cpp
 	${ENGINE_SOURCES_DIR}/scene.h
-	${ENGINE_SOURCES_DIR}/editor.cpp
-	${ENGINE_SOURCES_DIR}/editor.h
 	${ENGINE_SOURCES_DIR}/asset_store.cpp
 	${ENGINE_SOURCES_DIR}/asset_store.h
 	${ENGINE_SOURCES_DIR}/game_timer.cpp
