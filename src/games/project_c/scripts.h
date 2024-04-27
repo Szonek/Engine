@@ -91,12 +91,21 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
         auto tc = engineSceneGetTransformComponent(scene, go_);
+        tc.position[0] = -0.2f;
+        tc.position[1] = 0.0f;
+        tc.position[2] = 0.1f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
         // physcis
         //auto cc = engineSceneAddColliderComponent(scene, go_);
         //cc.type = ENGINE_COLLIDER_TYPE_BOX;
         //set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.05f, 0.40f, 0.005f});
         //cc.is_trigger = true;
+        //engineSceneUpdateColliderComponent(scene, go_, &cc);
+
+         // physcis
+        //auto cc = engineSceneAddColliderComponent(scene, go_);
+        //cc.type = ENGINE_COLLIDER_TYPE_BOX;
+        //set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
         //engineSceneUpdateColliderComponent(scene, go_, &cc);
 
         // parent to hand
@@ -145,7 +154,7 @@ public:
         tc.scale[2] = 0.5f;
 
         tc.position[0] += 1.0f;
-        tc.position[1] += 2.5f;
+        tc.position[1] += 2.75f;
         tc.position[2] += 0.0f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
@@ -178,32 +187,37 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
-        anim_controller_.set_active_animation("idle");
+
+        anim_controller_.set_active_animation("static");
+        //anim_controller_.set_active_animation("crouch");
+        //anim_controller_.set_active_animation("idle");
+
 
         const float speed = 0.0005f * dt;
-
+        //std::string move_anim = "sprint";// "walk";
+        std::string move_anim = "walk";
         auto tc = engineSceneGetTransformComponent(scene, go_);
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
         {
-            anim_controller_.set_active_animation("walk");
+            anim_controller_.set_active_animation(move_anim);
             tc.position[0] += speed;
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S))
         {
-            anim_controller_.set_active_animation("walk");
+            anim_controller_.set_active_animation(move_anim);
             tc.position[0] -= speed;
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A))
         {
-            anim_controller_.set_active_animation("walk");
+            anim_controller_.set_active_animation(move_anim);
             tc.position[2] -= speed;
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D))
         {
-            anim_controller_.set_active_animation("walk");
+            anim_controller_.set_active_animation(move_anim);
             tc.position[2] += speed;
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }

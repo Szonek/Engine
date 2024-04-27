@@ -48,7 +48,7 @@ public:
     }
 
     template<typename T>
-    T* get_component(entt::entity entity)
+    const T* get_component(entt::entity entity) const
     {
         return &entity_registry_.get<T>(entity);
     }
@@ -88,6 +88,7 @@ private:
     entt::observer transform_model_matrix_update_observer;
     entt::observer mesh_update_observer;
     entt::observer collider_create_observer;
+    entt::observer collider_update_observer;
     entt::observer transform_update_collider_observer;
     entt::observer rigid_body_create_observer;
     entt::observer rigid_body_update_observer;

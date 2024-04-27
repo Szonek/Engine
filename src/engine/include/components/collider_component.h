@@ -6,7 +6,7 @@ extern "C"
 #endif // cpp
 #include <stdint.h>
 
-#define ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS 16
+#define ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS 1
 
 /**
 * @enum _engine_collider_type_t
@@ -37,8 +37,7 @@ extern "C"
 */
 typedef enum _engine_collider_type_t
 {
-    ENGINE_COLLIDER_TYPE_NONE = 0,
-    ENGINE_COLLIDER_TYPE_BOX = 1,
+    ENGINE_COLLIDER_TYPE_BOX = 0,
     ENGINE_COLLIDER_TYPE_SPHERE,
     ENGINE_COLLIDER_TYPE_COMPOUND,
 } engine_collider_type_t;

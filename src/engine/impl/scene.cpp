@@ -2,6 +2,7 @@
 #include "ui_manager.h"
 #include "logger.h"
 #include "math_helpers.h"
+#include "components_utils/components_initializers.h"
 
 #include <fmt/format.h>
 
@@ -10,19 +11,33 @@
 
 #include <RmlUi/Core.h>
 
+
 engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : rdx_(rdx)
     , physics_world_(&rdx_)
     , shader_simple_(Shader("simple.vs", "simple.fs"))
     , shader_vertex_skinning_(Shader("vertex_skinning.vs", "simple.fs"))
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
+    , collider_update_observer(entity_registry_, entt::collector.update<engine_collider_component_t>())
     , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<PhysicsWorld::physcic_internal_component_t>())
     , transform_model_matrix_update_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>())
     , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
     , rigid_body_create_observer(entity_registry_, entt::collector.group<engine_rigid_body_component_t, engine_tranform_component_t, engine_collider_component_t>())
     , rigid_body_update_observer(entity_registry_, entt::collector.update<engine_rigid_body_component_t>().where<engine_tranform_component_t, engine_collider_component_t>())
 {
+    // basic initalizers
+    entity_registry_.on_construct<engine_tranform_component_t>().connect<&initialize_transform_component>();
+    entity_registry_.on_construct<engine_mesh_component_t>().connect<&initialize_mesh_component>();
+    entity_registry_.on_construct<engine_material_component_t>().connect<&initialize_material_component>();
+    entity_registry_.on_construct<engine_parent_component_t>().connect<&initialize_parent_component>();
+    entity_registry_.on_construct<engine_name_component_t>().connect<&initialize_name_component>();
+    entity_registry_.on_construct<engine_camera_component_t>().connect<&initialize_camera_component>();
+    entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
+    entity_registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
+    entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
+
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
+    entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
     out_code = ENGINE_RESULT_CODE_OK;
 
@@ -40,7 +55,11 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     {
         const auto collider_component = get_component<engine_collider_component_t>(entt);
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
+        auto physcics_component = *get_component<PhysicsWorld::physcic_internal_component_t>(entt);
+        if (physcics_component.rigid_body)
+        {
+            physics_world_.remove_rigid_body(entity_registry_, entt);
+        }
 
         // Create dummy rigid body component with mass 0.0f. 
         // Object is not dynamic. Such object cant be moved with velocity
@@ -48,7 +67,8 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         engine_rigid_body_component_t rigidbody_component{};
         rigidbody_component.mass = 0.0f;
 
-        *physcics_component = physics_world_.create_rigid_body(*collider_component, rigidbody_component, *transform_component, static_cast<std::int32_t>(entt));
+        physcics_component = physics_world_.create_rigid_body(*collider_component, rigidbody_component, *transform_component, static_cast<std::int32_t>(entt));
+        update_component(entt, physcics_component);
     }
     collider_create_observer.clear();
 
@@ -58,18 +78,47 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         const auto collider_component = get_component<engine_collider_component_t>(entt);
         const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        auto physcics_component = get_component< PhysicsWorld::physcic_internal_component_t>(entt);
-        *physcics_component = physics_world_.create_rigid_body(*collider_component, *rigidbody_component, *transform_component, static_cast<std::int32_t>(entt));
+        auto physcics_component = *get_component< PhysicsWorld::physcic_internal_component_t>(entt);
+        if (physcics_component.rigid_body)
+        {
+            physics_world_.remove_rigid_body(entity_registry_, entt);
+        }
+        physcics_component = physics_world_.create_rigid_body(*collider_component, *rigidbody_component, *transform_component, static_cast<std::int32_t>(entt));
+        update_component(entt, physcics_component);
     }
     rigid_body_create_observer.clear();
+    
+    // in cases when collider was updated, remove old rigid body and create new one to have physics world updated
+    // this can happen in run-time (saldom), or through editor (more often)
+    for (const auto entt : collider_update_observer)
+    {
+        physics_world_.remove_rigid_body(entity_registry_, entt);
+
+        const auto collider_component = get_component<engine_collider_component_t>(entt);
+        const auto transform_component = get_component<engine_tranform_component_t>(entt);
+        auto physcics_component = *get_component< PhysicsWorld::physcic_internal_component_t>(entt);
+
+        engine_rigid_body_component_t rigidbody_component{};
+        if (has_component<engine_rigid_body_component_t>(entt))
+        {
+            rigidbody_component = *get_component<engine_rigid_body_component_t>(entt);
+        }
+        else
+        {
+            rigidbody_component.mass = 0.0f;
+        }
+        physcics_component = physics_world_.create_rigid_body(*collider_component, rigidbody_component, *transform_component, static_cast<std::int32_t>(entt));
+        update_component(entt, physcics_component);
+    }
+    collider_update_observer.clear();
 
     // transform component updated, sync it with rigid body
+    // as a rule of thumb: if rigid body has mass (is dynamic) than it cant be moved by transform component
     for (const auto entt : transform_update_collider_observer)
     {
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
         auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
-        btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
-
+        //btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
         glm::vec3 scale;
         glm::quat rotation;
         glm::vec3 translation;
@@ -77,13 +126,15 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         glm::vec4 perspective;
         glm::decompose(glm::make_mat4(transform_component->local_to_world), scale, rotation, translation, skew, perspective);
 
+        btTransform world_transform;
+        physcics_component->rigid_body->getMotionState()->getWorldTransform(world_transform);
+
         world_transform.setOrigin(btVector3(translation.x, translation.y, translation.z));
         const btQuaternion quaterninon(rotation.x, rotation.y, rotation.z, rotation.w);
         world_transform.setRotation(quaterninon);
-        //world_transform.setFromOpenGLMatrix(transform_component->local_to_world);
-        //world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
-        //const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
-        
+     
+        physcics_component->rigid_body->translate(btVector3(translation.x, translation.y, translation.z));
+
         physcics_component->rigid_body->activate(true);
         physcics_component->rigid_body->setWorldTransform(world_transform);
     }
@@ -106,7 +157,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     // sync physcis to graphics world
     // ToDo: this could be seperate function or called at the beggning of the graphics update function?
     auto transform_physcis_view = entity_registry_.view<engine_tranform_component_t, const PhysicsWorld::physcic_internal_component_t, engine_rigid_body_component_t>();
-    transform_physcis_view.each([this](auto entity, engine_tranform_component_t transform, const PhysicsWorld::physcic_internal_component_t physcics, engine_rigid_body_component_t rigidbody)
+    transform_physcis_view.each([this](auto entity, engine_tranform_component_t& transform, const PhysicsWorld::physcic_internal_component_t& physcics, engine_rigid_body_component_t& rigidbody)
         {
             //assert(physcics.rigid_body);
             if (!physcics.rigid_body)
@@ -207,9 +258,9 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         });
     for (const auto& [entity, ltw_matrix] : ltw_map)
     {
-        auto transform_comp = get_component<engine_tranform_component_t>(entity);
-        std::memcpy(transform_comp->local_to_world, &ltw_matrix, sizeof(ltw_matrix));
-        update_component(entity, *transform_comp);
+        auto transform_comp = *get_component<engine_tranform_component_t>(entity);
+        std::memcpy(transform_comp.local_to_world, &ltw_matrix, sizeof(ltw_matrix));
+        update_component(entity, transform_comp);
     }
 
     auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
@@ -259,6 +310,11 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 {
                     return;
                 }
+                if (mesh_component.geometry == ENGINE_INVALID_OBJECT_HANDLE)
+                {
+                    log::log(log::LogLevel::eError, fmt::format("Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n"));
+                    return;
+                }
                 const auto& material =materials[material_component.material];
 
                 shader_simple_.bind();
@@ -281,7 +337,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 			}
 		);
 
-        skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
+        skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
             const engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
             {
                 if (mesh_component.disable)
@@ -300,20 +356,19 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
 
                 const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
-
                 for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
                 {
-                    const auto& bone_entity = skin_component.bones[i];
-                    if (bone_entity == ENGINE_INVALID_GAME_OBJECT_ID)
+                    const auto& bone_entity = static_cast<entt::entity>(skin_component.bones[i]);
+                    if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
                     {
                         continue;
                     }
-                    const auto& bone_component = get_component<engine_bone_component_t>(static_cast<entt::entity>(bone_entity));
-                    const auto& bone_transform = get_component<engine_tranform_component_t>(static_cast<entt::entity>(bone_entity));
+
+                    const auto& bone_component = get_component<engine_bone_component_t>(bone_entity);
+                    const auto& bone_transform = get_component<engine_tranform_component_t>(bone_entity);
                     const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
                     const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
                     const auto per_bone_final_transform = inverse_transform * bone_matrix;
-                    //const auto per_bone_final_transform = bone_matrix;
                     const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
                     shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
                 }

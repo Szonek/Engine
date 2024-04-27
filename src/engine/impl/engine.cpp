@@ -49,88 +49,12 @@ inline auto component_iterator_cast(engine_component_iterator_t it)
     return reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(it);
 }
 
-inline void transform_component_init(engine_tranform_component_t* comp)
-{
-    std::memset(comp, 0, sizeof(engine_tranform_component_t));
-    comp->rotation[3] = 1.0f;
-    comp->scale[0] = 1.0f;
-    comp->scale[1] = 1.0f;
-    comp->scale[2] = 1.0f;
-}
-
-inline void camera_component_init(engine_camera_component_t* comp)
-{
-    std::memset(comp, 0, sizeof(engine_camera_component_t));
-    // disabled by default?
-    comp->enabled = 0;
-    // clip
-    comp->clip_plane_near = 0.1f;
-    comp->clip_plane_far = 256.0f;
-    // perspective
-    comp->type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
-    comp->type_union.perspective_fov = 45.0f;
-    // default viewport
-    comp->viewport_rect.x = 0.0f;
-    comp->viewport_rect.y = 0.0f;
-    comp->viewport_rect.width = 1.0f;
-    comp->viewport_rect.height = 1.0f;
-    // direction
-    comp->direction.up[0] = 0.0f;
-    comp->direction.up[1] = 1.0f;
-    comp->direction.up[2] = 0.0f;
-}
-
-inline void material_component_init(engine_material_component_t* comp)
-{
-    std::memset(comp, 0, sizeof(engine_material_component_t));
-    comp->material = ENGINE_INVALID_OBJECT_HANDLE;
-}
-
-inline void parent_component_init(engine_parent_component_t* comp)
-{
-    comp->parent = ENGINE_INVALID_GAME_OBJECT_ID;
-}
-
-inline void mesh_component_init(engine_mesh_component_t* comp)
-{
-    std::memset(comp, 0, sizeof(engine_mesh_component_t));
-    comp->geometry = ENGINE_INVALID_OBJECT_HANDLE;
-}
-
-inline void skin_component_init(engine_skin_component_t* comp)
-{
-    std::memset(comp, 0, sizeof(engine_skin_component_t));
-    static_assert(ENGINE_INVALID_GAME_OBJECT_ID == 0, "Invalid game object id should be 0. If it's not 0 than update this function to initalize skeleton array.");
-    for (auto& bone : comp->bones)
-    {
-        bone = ENGINE_INVALID_GAME_OBJECT_ID;
-    }
-}
-
-inline void rigid_body_component_init(engine_rigid_body_component_t* comp)
-{
-    std::memset(comp, 0, sizeof(engine_rigid_body_component_t));
-}
-
-inline void collider_component_init(engine_collider_component_t* comp)
-{
-    std::memset(comp, 0, sizeof(engine_collider_component_t));
-    comp->friction_static = 0.5f;
-}
-
 template<typename T>
-inline void default_init(T*)
-{
-}
-
-
-template<typename T, void(*F)(T*) = default_init>
 inline T add_component(engine_scene_t scene, engine_game_object_t engine_game_object_t)
 {
     auto sc = scene_cast(scene);
     auto entity = entity_cast(engine_game_object_t);
     auto ret = sc->add_component<T>(entity);
-    F(ret);
     return *ret;
 }
 
@@ -707,7 +631,7 @@ void engineSceneComponentViewAttachNameComponent(engine_scene_t scene, engine_co
 
 engine_tranform_component_t engineSceneAddTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_tranform_component_t, transform_component_init>(scene, game_object);
+    return add_component<engine_tranform_component_t>(scene, game_object);
 }
 
 engine_tranform_component_t engineSceneGetTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
@@ -732,7 +656,7 @@ bool engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t
 
 engine_mesh_component_t engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_mesh_component_t, mesh_component_init>(scene, game_object);
+    return add_component<engine_mesh_component_t>(scene, game_object);
 }
 
 engine_mesh_component_t engineSceneGetMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
@@ -758,7 +682,7 @@ bool engineSceneHasMeshComponent(engine_scene_t scene, engine_game_object_t game
 // skinned mesh
 engine_skin_component_t engineSceneAddSkinComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_skin_component_t, skin_component_init>(scene, game_object);
+    return add_component<engine_skin_component_t>(scene, game_object);
 }
 
 engine_skin_component_t engineSceneGetSkinComponent(engine_scene_t scene, engine_game_object_t game_object)
@@ -811,7 +735,7 @@ bool engineSceneHasBoneComponent(engine_scene_t scene, engine_game_object_t game
 
 engine_material_component_t engineSceneAddMaterialComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_material_component_t, material_component_init>(scene, game_object);
+    return add_component<engine_material_component_t>(scene, game_object);
 }
 
 engine_material_component_t engineSceneGetMaterialComponent(engine_scene_t scene, engine_game_object_t game_object)
@@ -861,7 +785,7 @@ bool engineSceneHasLightComponent(engine_scene_t scene, engine_game_object_t gam
 
 engine_camera_component_t engineSceneAddCameraComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_camera_component_t, camera_component_init>(scene, game_object);
+    return add_component<engine_camera_component_t>(scene, game_object);
 }
 
 engine_camera_component_t engineSceneGetCameraComponent(engine_scene_t scene, engine_game_object_t game_object)
@@ -886,7 +810,7 @@ bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t ga
 
 engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_rigid_body_component_t, rigid_body_component_init>(scene, game_object);
+    return add_component<engine_rigid_body_component_t>(scene, game_object);
 }
 
 engine_rigid_body_component_t engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
@@ -911,7 +835,7 @@ bool engineSceneHasRigidBodyComponent(engine_scene_t scene, engine_game_object_t
 
 engine_collider_component_t engineSceneAddColliderComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_collider_component_t, collider_component_init>(scene, game_object);
+    return add_component<engine_collider_component_t>(scene, game_object);
 }
 
 engine_collider_component_t engineSceneGetColliderComponent(engine_scene_t scene, engine_game_object_t game_object)
@@ -936,7 +860,7 @@ bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t 
 
 engine_parent_component_t engineSceneAddParentComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_parent_component_t, parent_component_init>(scene, game_object);
+    return add_component<engine_parent_component_t>(scene, game_object);
 }
 
 engine_parent_component_t engineSceneGetParentComponent(engine_scene_t scene, engine_game_object_t game_object)

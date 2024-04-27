@@ -96,11 +96,6 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
         for (auto i = 0; i < ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS; i++)
         {
             const auto& child_collider = collider.collider.compound.children[i];
-
-            if (child_collider.type == ENGINE_COLLIDER_TYPE_NONE)
-            {
-                continue;
-            }
             
             auto shape_transform = btTransform();
             shape_transform.setIdentity();
@@ -117,7 +112,7 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
             }
             else
             {
-                assert(false && "Unknown collider type in compound collider!");
+                engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Unknown collider type in compound collider!\n"));
                 return ret;
             }
         }
@@ -149,6 +144,12 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
     {
         ret.rigid_body->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
     }
+
+    //if (rigid_body.mass == 0.0f)
+    //{
+    //    ret.rigid_body->setCollisionFlags(ret.rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+    //    ret.rigid_body->setActivationState(DISABLE_DEACTIVATION);
+    //}
 
     ret.rigid_body->setUserIndex(body_index);
     dynamics_world_->addRigidBody(ret.rigid_body);
