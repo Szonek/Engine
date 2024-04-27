@@ -91,6 +91,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     collider_update_observer.clear();
 
     // transform component updated, sync it with rigid body
+    // as a rule of thumb: if rigid body has mass (is dynamic) than it cant be moved by transform component
     for (const auto entt : transform_update_collider_observer)
     {
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
@@ -107,10 +108,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         world_transform.setOrigin(btVector3(translation.x, translation.y, translation.z));
         const btQuaternion quaterninon(rotation.x, rotation.y, rotation.z, rotation.w);
         world_transform.setRotation(quaterninon);
-        //world_transform.setFromOpenGLMatrix(transform_component->local_to_world);
-        //world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
-        //const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
-        
+     
         physcics_component->rigid_body->activate(true);
         physcics_component->rigid_body->setWorldTransform(world_transform);
     }

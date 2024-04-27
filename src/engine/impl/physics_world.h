@@ -68,7 +68,7 @@ public:
 
     void remove_rigid_body(entt::basic_registry<entt::entity>& reg, entt::entity entt)
     {
-        const auto comp = reg.get<physcic_internal_component_t>(entt);
+        auto& comp = reg.get<physcic_internal_component_t>(entt);
         dynamics_world_->removeRigidBody(comp.rigid_body);
     }
 

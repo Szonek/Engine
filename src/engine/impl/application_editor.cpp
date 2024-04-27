@@ -351,6 +351,11 @@ void engine::ApplicationEditor::on_scene_update(Scene* scene, float delta_time)
         }
     }
 
+    /*
+    here all components should be visible
+        - the one which are not avaialbe in the entitiy (Grayd out) and a "+" button to add them
+        - the one which are available in the entity (whatever color) and a "-" button to remove them
+    */
     ImGui::SeparatorText("Entity properties and components.");
     if (ctx.has_selected_entity())
     {

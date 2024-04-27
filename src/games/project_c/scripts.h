@@ -145,7 +145,7 @@ public:
         tc.scale[2] = 0.5f;
 
         tc.position[0] += 1.0f;
-        tc.position[1] += 2.5f;
+        tc.position[1] += 0.75f;
         tc.position[2] += 0.0f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
@@ -156,9 +156,9 @@ public:
         engineSceneUpdateColliderComponent(scene, go_, &cc);
 
         //rb
-        auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
-        rbc.mass = 1.0f;
-        engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+        //auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+        //rbc.mass = 1.0f;
+        //engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
     }
 };
 
