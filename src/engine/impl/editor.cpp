@@ -25,11 +25,12 @@ inline void display_node(entity_node_t* node, engine::Scene* scene)
 {
     if (node->children.empty())
     {
-        ImGui::Text(node->name.c_str());
+        ImGui::TreeNodeEx(node->name.c_str(), ImGuiTreeNodeFlags_Leaf);
+        ImGui::TreePop();
         return;
     }
-
-    if (ImGui::TreeNode(node->name.c_str()))
+    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+    if (ImGui::TreeNodeEx(node->name.c_str()))
     {
         for (auto& child : node->children)
         {
@@ -130,7 +131,6 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
     }
 
     ImGui::Begin("Scene Hierarchy");  
-    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
     for (auto& [e, f] : entity_map)
     {
         if (!f.displayed_ && !f.parent)
