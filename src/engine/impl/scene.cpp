@@ -16,6 +16,7 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     , shader_simple_(Shader("simple.vs", "simple.fs"))
     , shader_vertex_skinning_(Shader("vertex_skinning.vs", "simple.fs"))
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
+    , collider_update_observer(entity_registry_, entt::collector.update<engine_collider_component_t>())
     , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<PhysicsWorld::physcic_internal_component_t>())
     , transform_model_matrix_update_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>())
     , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
@@ -40,7 +41,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     {
         const auto collider_component = get_component<engine_collider_component_t>(entt);
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
+        auto physcics_component = *get_component<PhysicsWorld::physcic_internal_component_t>(entt);
 
         // Create dummy rigid body component with mass 0.0f. 
         // Object is not dynamic. Such object cant be moved with velocity
@@ -48,7 +49,8 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         engine_rigid_body_component_t rigidbody_component{};
         rigidbody_component.mass = 0.0f;
 
-        *physcics_component = physics_world_.create_rigid_body(*collider_component, rigidbody_component, *transform_component, static_cast<std::int32_t>(entt));
+        physcics_component = physics_world_.create_rigid_body(*collider_component, rigidbody_component, *transform_component, static_cast<std::int32_t>(entt));
+        update_component(entt, physcics_component);
     }
     collider_create_observer.clear();
 
@@ -58,10 +60,35 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         const auto collider_component = get_component<engine_collider_component_t>(entt);
         const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        auto physcics_component = get_component< PhysicsWorld::physcic_internal_component_t>(entt);
-        *physcics_component = physics_world_.create_rigid_body(*collider_component, *rigidbody_component, *transform_component, static_cast<std::int32_t>(entt));
+        auto physcics_component = *get_component< PhysicsWorld::physcic_internal_component_t>(entt);
+        physcics_component = physics_world_.create_rigid_body(*collider_component, *rigidbody_component, *transform_component, static_cast<std::int32_t>(entt));
+        update_component(entt, physcics_component);
     }
     rigid_body_create_observer.clear();
+    
+    // in cases when collider was updated, remove old rigid body and create new one to have physics world updated
+    // this can happen in run-time (saldom), or through editor (more often)
+    for (const auto entt : collider_update_observer)
+    {
+        physics_world_.remove_rigid_body(entity_registry_, entt);
+
+        const auto collider_component = get_component<engine_collider_component_t>(entt);
+        const auto transform_component = get_component<engine_tranform_component_t>(entt);
+        auto physcics_component = *get_component< PhysicsWorld::physcic_internal_component_t>(entt);
+
+        engine_rigid_body_component_t rigidbody_component{};
+        if (has_component<engine_rigid_body_component_t>(entt))
+        {
+            rigidbody_component = *get_component<engine_rigid_body_component_t>(entt);
+        }
+        else
+        {
+            rigidbody_component.mass = 0.0f;
+        }
+        physcics_component = physics_world_.create_rigid_body(*collider_component, rigidbody_component, *transform_component, static_cast<std::int32_t>(entt));
+        update_component(entt, physcics_component);
+    }
+    collider_update_observer.clear();
 
     // transform component updated, sync it with rigid body
     for (const auto entt : transform_update_collider_observer)
@@ -207,9 +234,9 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         });
     for (const auto& [entity, ltw_matrix] : ltw_map)
     {
-        auto transform_comp = get_component<engine_tranform_component_t>(entity);
-        std::memcpy(transform_comp->local_to_world, &ltw_matrix, sizeof(ltw_matrix));
-        update_component(entity, *transform_comp);
+        auto transform_comp = *get_component<engine_tranform_component_t>(entity);
+        std::memcpy(transform_comp.local_to_world, &ltw_matrix, sizeof(ltw_matrix));
+        update_component(entity, transform_comp);
     }
 
     auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
