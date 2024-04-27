@@ -59,6 +59,45 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_co
     }
 }
 
+void display_transform_component(engine::Scene* scene, entt::entity entity)
+{
+    if (scene->has_component<engine_tranform_component_t>(entity))
+    {
+        auto tc = scene->get_component<engine_tranform_component_t>(entity);
+        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_None))
+        {
+            const float v_speed = 0.1f;
+            ImGui::DragFloat3("Position", tc->position, v_speed);
+
+            glm::vec3 rot = glm::degrees(glm::eulerAngles(glm::make_quat(tc->rotation)));
+            if (ImGui::DragFloat3("Rotation", glm::value_ptr(rot), v_speed))
+            {
+                const auto final_rot = glm::quat(glm::radians(rot));
+                std::memcpy(tc->rotation, glm::value_ptr(final_rot), sizeof(tc->rotation));
+            }
+            ImGui::DragFloat3("Scale", tc->scale, v_speed);
+        }
+    }
+}
+
+void display_mesh_component(engine::Scene* scene, entt::entity entity)
+{
+    if (scene->has_component<engine_mesh_component_t>(entity))
+    {
+        auto c = scene->get_component<engine_mesh_component_t>(entity);
+        if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_None))
+        {
+            bool enabled = !c->disable;
+            ImGui::Checkbox("Enabled", &enabled);
+            if (enabled == c->disable)
+            {
+                c->disable = !enabled;
+            }
+            ImGui::Value("Geometry ID", c->geometry);
+        }
+    }
+}
+
 }   // namespace anonymous
 
 engine::Editor::Editor(SDL_Window* wnd, SDL_GLContext gl_ctx)
@@ -158,25 +197,8 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
     }
 
     ImGui::SeparatorText("Entity properties and components.");
-
-    if (scene->has_component<engine_tranform_component_t>(ctx.selected))
-    {
-        auto tc = scene->get_component<engine_tranform_component_t>(ctx.selected);
-        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_None))
-        {
-            const float v_speed = 0.1f;
-            ImGui::DragFloat3("Position", tc->position, v_speed);
-            
-            glm::vec3 rot = glm::degrees(glm::eulerAngles(glm::make_quat(tc->rotation)));  
-            if (ImGui::DragFloat3("Rotation", glm::value_ptr(rot), v_speed))
-            {
-                const auto final_rot = glm::quat(glm::radians(rot));
-                std::memcpy(tc->rotation, glm::value_ptr(final_rot), sizeof(tc->rotation));
-            }
-            ImGui::DragFloat3("Scale",    tc->scale, v_speed);
-        }
-    }
-
+    display_transform_component(scene, ctx.selected);
+    display_mesh_component(scene, ctx.selected);
     ImGui::End(); // scene panel
 }
 
