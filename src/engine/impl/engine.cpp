@@ -1,6 +1,7 @@
 #include <engine.h>
 
 #include "application.h"
+#include "application_editor.h"
 #include "scene.h"
 #include "asset_store.h"
 #include "ui_document.h"
@@ -181,7 +182,15 @@ engine_result_code_t engineApplicationCreate(engine_application_t* handle, engin
         engine::AssetStore::get_instance().configure_base_path(create_desc.asset_store_path);
     }
 	engine_result_code_t ret = ENGINE_RESULT_CODE_FAIL;
-	*handle = reinterpret_cast<engine_application_t>(new engine::Application(create_desc, ret));
+
+    if (create_desc.enable_editor)
+    {
+        *handle = reinterpret_cast<engine_application_t>(new engine::ApplicationEditor(create_desc, ret));
+    }
+    else
+    {
+        *handle = reinterpret_cast<engine_application_t>(new engine::Application(create_desc, ret));
+    }
 
 	return ret;
 }

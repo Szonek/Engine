@@ -31,7 +31,7 @@ typedef struct _engine_camera_direction_t
 
 typedef struct _engine_camera_component_t
 {
-    uint8_t enabled;
+    bool enabled;
     engine_camera_projection_type_t type;
     union
     {

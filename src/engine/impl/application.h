@@ -5,7 +5,6 @@
 #include "graphics.h"
 #include "ui_manager.h"
 #include "ui_document.h"
-#include "editor.h"
 #include <array>
 #include <string>
 
@@ -17,44 +16,52 @@ public:
     Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code);
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
-    Application(Application&&) = default;
-    Application& operator=(Application&&) = default;
-    ~Application();
+    Application(Application&&) = delete;
+    Application& operator=(Application&&) = delete;
+    virtual ~Application();
 
-    class Scene* create_scene(const engine_scene_create_desc_t& desc);
-    void release_scene(class Scene* scene);
+    virtual class Scene* create_scene(const engine_scene_create_desc_t& desc);
+    virtual void release_scene(class Scene* scene);
 
-    engine_result_code_t update_scene(class Scene* scene, float delta_time);
-    engine_application_frame_begine_info_t begine_frame();
-    engine_application_frame_end_info_t end_frame();
+    virtual engine_result_code_t update_scene(class Scene* scene, float delta_time);
+    virtual engine_application_frame_begine_info_t begine_frame();
+    virtual engine_application_frame_end_info_t end_frame();
 
-    std::uint32_t add_texture(const engine_texture_2d_create_desc_t& desc, std::string_view texture_name);
-    std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
-    std::uint32_t get_texture(std::string_view name) const;
+    virtual std::uint32_t add_texture(const engine_texture_2d_create_desc_t& desc, std::string_view texture_name);
+    virtual std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
+    virtual std::uint32_t get_texture(std::string_view name) const;
 
-    std::uint32_t add_font_from_file(std::string_view file_name, std::string_view handle_name);
-    std::uint32_t get_font(std::string_view name) const;
+    virtual std::uint32_t add_font_from_file(std::string_view file_name, std::string_view handle_name);
+    virtual std::uint32_t get_font(std::string_view name) const;
 
-    std::uint32_t add_geometry(const engine_vertex_attributes_layout_t& verts_layout, std::int32_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name);
-    std::uint32_t get_geometry(std::string_view name) const;
-    const Geometry* get_geometry(std::uint32_t idx) const;
+    virtual std::uint32_t add_geometry(const engine_vertex_attributes_layout_t& verts_layout, std::int32_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name);
+    virtual std::uint32_t get_geometry(std::string_view name) const;
+    virtual const Geometry* get_geometry(std::uint32_t idx) const;
 
-    std::uint32_t add_material(const engine_material_create_desc_t& desc, std::string_view name);
-    std::uint32_t get_material(std::string_view name) const;
+    virtual std::uint32_t add_material(const engine_material_create_desc_t& desc, std::string_view name);
+    virtual std::uint32_t get_material(std::string_view name) const;
 
-    engine_model_desc_t load_model_desc_from_file(engine_model_specification_t spec, std::string_view name);
-    void release_model_desc(engine_model_desc_t* info);
+    virtual engine_model_desc_t load_model_desc_from_file(engine_model_specification_t spec, std::string_view name);
+    virtual void release_model_desc(engine_model_desc_t* info);
 
-    UiDocument load_ui_document(std::string_view file_name);
-    UiDataHandle create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
+    virtual UiDocument load_ui_document(std::string_view file_name);
+    virtual UiDataHandle create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
 
-    bool keyboard_is_key_down(engine_keyboard_keys_t key);
+    virtual bool keyboard_is_key_down(engine_keyboard_keys_t key);
 
-    engine_coords_2d_t mouse_get_coords();
-    bool mouse_is_button_down(engine_mouse_button_t button);
+    virtual engine_coords_2d_t mouse_get_coords();
+    virtual bool mouse_is_button_down(engine_mouse_button_t button);
 
-    std::array<engine_finger_info_t, 10> get_finger_info_events() const;
-private:
+    virtual std::array<engine_finger_info_t, 10> get_finger_info_events() const;
+
+protected:
+    virtual void on_frame_begine() {}
+    virtual void on_sdl_event(SDL_Event e) {}
+    virtual void on_frame_end() {}
+    virtual void on_scene_update(class Scene* scene, float delta_time) {}
+    virtual bool is_mouse_enabled() { return true; }
+
+protected:
     RenderContext rdx_;
     GameTimer timer_;
 
@@ -112,7 +119,6 @@ private:
     Atlas<Geometry> geometries_atlas_;;
     Atlas<engine_material_create_desc_t> materials_atlas_;
     UiManager ui_manager_;
-    Editor editor_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;
 };
 

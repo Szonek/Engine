@@ -133,10 +133,6 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     , ui_manager_(rdx_)
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
 {
-    if (desc.enable_editor)
-    {
-        editor_ = Editor(rdx_.get_sdl_window(), rdx_.get_sdl_gl_context());
-    }
 	{
 		//constexpr const std::array<std::uint8_t, 3> default_texture_color = { 160, 50, 168 };
 		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 255, 255, 255 };
@@ -195,7 +191,7 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
         materials_atlas_.get_objects_view());
-    editor_.render_scene_hierarchy(scene);
+    on_scene_update(scene, delta_time);
     return ret_code;
 }
 
@@ -226,7 +222,7 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     SDL_Event e;
     while (SDL_PollEvent(&e) != 0)
     {
-        editor_.handle_event(e);
+        on_sdl_event(e);
         ui_manager_.parse_sdl_event(e);
 
         if (e.type == SDL_EVENT_QUIT)
@@ -297,13 +293,13 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     }
 
 	rdx_.begin_frame();
-    editor_.begin_frame();
+    on_frame_begine();
 	return ret;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
-    editor_.end_frame();
+    on_frame_end();
     ui_manager_.update_state_and_render();
     rdx_.end_frame();
 	engine_application_frame_end_info_t ret{};
@@ -632,6 +628,10 @@ bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
 
 engine_coords_2d_t engine::Application::mouse_get_coords()
 {
+    if (!is_mouse_enabled())
+    {
+        return {};
+    }
 	float coord_x = 0.;
 	float coord_y = 0.;
     SDL_GetMouseState(&coord_x, &coord_y);
@@ -647,7 +647,7 @@ engine_coords_2d_t engine::Application::mouse_get_coords()
 
 bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
 {
-    if (editor_.wants_to_capture_mouse())
+    if (!is_mouse_enabled())
     {
         return false;
     }

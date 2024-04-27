@@ -267,7 +267,12 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
                 shader_simple_.set_uniform_mat_f4("model", transform_component.local_to_world);
 
-                const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
+                auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
+                if (texture_diffuse_idx > textures.size())
+                {
+                    log::log(log::LogLevel::eError, fmt::format("Texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
+                    texture_diffuse_idx = 0;  //ToDo: point to default texture
+                }
                 shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
 
                 geometries[mesh_component.geometry].bind();
@@ -339,6 +344,19 @@ void engine::Scene::destroy_entity(entt::entity entity)
 entt::runtime_view engine::Scene::create_runtime_view()
 {
     return entt::runtime_view{};
+}
+
+std::vector<entt::entity> engine::Scene::get_all_entities() const
+{
+    std::vector<entt::entity> entities;
+    for (const auto entity : entity_registry_.view<entt::entity>())
+    {
+        if (static_cast<std::uint32_t>(entity) != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            entities.push_back(entity);
+        }
+    }
+    return entities;
 }
 
 void engine::Scene::set_physcis_gravity(std::array<float, 3> g)

@@ -6,14 +6,14 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/graphics.h
 	${ENGINE_SOURCES_DIR}/scene.cpp
 	${ENGINE_SOURCES_DIR}/scene.h
-	${ENGINE_SOURCES_DIR}/editor.cpp
-	${ENGINE_SOURCES_DIR}/editor.h
 	${ENGINE_SOURCES_DIR}/asset_store.cpp
 	${ENGINE_SOURCES_DIR}/asset_store.h
 	${ENGINE_SOURCES_DIR}/game_timer.cpp
 	${ENGINE_SOURCES_DIR}/game_timer.h
 	${ENGINE_SOURCES_DIR}/application.cpp
 	${ENGINE_SOURCES_DIR}/application.h
+	${ENGINE_SOURCES_DIR}/application_editor.cpp
+	${ENGINE_SOURCES_DIR}/application_editor.h
 	${ENGINE_SOURCES_DIR}/engine.cpp
 	${ENGINE_SOURCES_DIR}/ui_manager.cpp
 	${ENGINE_SOURCES_DIR}/ui_manager.h
@@ -62,7 +62,6 @@ set(ENGINE_API_SOURCES
 	${ENGINE_API_COMPONENTS}/name_component.h
 	${ENGINE_API_COMPONENTS}/rigid_body_component.h
 	${ENGINE_API_COMPONENTS}/collider_component.h
-    ${ENGINE_API_COMPONENTS}/animation_component.h
     ${ENGINE_API_COMPONENTS}/parent_component.h
 )
 
