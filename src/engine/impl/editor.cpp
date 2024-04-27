@@ -92,7 +92,19 @@ void display_mesh_component(engine::Scene* scene, entt::entity entity)
             {
                 c->disable = !c->disable;
             }
-            ImGui::Value("Geometry ID", c->geometry);
+            ImGui::InputInt("Geometry ID", reinterpret_cast<std::int32_t*>(&c->geometry));
+        }
+    }
+}
+
+void display_material_component(engine::Scene* scene, entt::entity entity)
+{
+    if (scene->has_component<engine_material_component_t>(entity))
+    {
+        auto c = scene->get_component<engine_material_component_t>(entity);
+        if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_None))
+        {
+            ImGui::InputInt("Material ID", reinterpret_cast<std::int32_t*>(&c->material));
         }
     }
 }
@@ -245,6 +257,7 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
     display_transform_component(scene, ctx.selected);
     display_camera_component(scene, ctx.selected);
     display_mesh_component(scene, ctx.selected);
+    display_material_component(scene, ctx.selected);
     ImGui::End(); // scene panel
 }
 

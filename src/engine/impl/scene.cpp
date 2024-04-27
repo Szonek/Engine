@@ -267,7 +267,12 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
                 shader_simple_.set_uniform_mat_f4("model", transform_component.local_to_world);
 
-                const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
+                auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
+                if (texture_diffuse_idx > textures.size())
+                {
+                    log::log(log::LogLevel::eError, fmt::format("Texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
+                    texture_diffuse_idx = 0;  //ToDo: point to default texture
+                }
                 shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
 
                 geometries[mesh_component.geometry].bind();
