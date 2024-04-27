@@ -6,6 +6,41 @@
 #include "imgui/imgui_impl_opengl3.h"
 
 #include <string>
+#include <map>
+
+namespace
+{
+struct entity_node_t
+{
+    entt::entity entity = entt::null;
+    std::string name = "";
+
+    entity_node_t* parent = nullptr;
+    std::vector<entity_node_t*> children;
+
+    bool displayed_ = false;
+};
+
+inline void display_node(entity_node_t* node, engine::Scene* scene)
+{
+    if (node->children.empty())
+    {
+        ImGui::Text(node->name.c_str());
+        return;
+    }
+
+    if (ImGui::TreeNode(node->name.c_str()))
+    {
+        for (auto& child : node->children)
+        {
+            display_node(child, scene);
+        }
+
+        ImGui::TreePop();
+    }
+}
+
+}   // namespace anonymous
 
 engine::Editor::Editor(SDL_Window* wnd, SDL_GLContext gl_ctx)
     : is_enabled_(true)
@@ -65,24 +100,45 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
     {
         return;
     }
-    ImGui::Begin("Scene Hierarchy");
-    const auto entites = scene->get_all_entities();
-    for (auto entity : entites)
-    {
-        if (scene->has_component<engine_name_component_t>(entity))
-        {
-            const auto& nc = scene->get_component<engine_name_component_t>(entity);          
-            ImGui::Text(nc->name);
-        }
-        else
-        {
 
-            ImGui::Text("Entity_%d", entity);
+
+
+    // build memory with all the entites
+    std::map<entt::entity, entity_node_t> entity_map;
+    for (auto e : scene->get_all_entities())
+    {
+        std::string name = "Entity " + std::to_string(static_cast<std::uint32_t>(e));
+        if (scene->has_component<engine_name_component_t>(e))
+        {
+            const auto nc = scene->get_component<engine_name_component_t>(e);
+            name = nc->name;
         }
-       
+        entity_map.insert({ e, entity_node_t{ e, name } });
+    }
+
+    for (auto& [e, node] : entity_map)
+    {
+        if (scene->has_component<engine_parent_component_t>(e))
+        {
+            const auto& pc = scene->get_component<engine_parent_component_t>(e);
+            const auto& e_parent = static_cast<entt::entity>(pc->parent);
+            auto& parent_node = entity_map[e_parent];
+            assert(node.parent == nullptr);
+            node.parent = &parent_node;
+            parent_node.children.push_back(&node);
+        }
+    }
+
+    ImGui::Begin("Scene Hierarchy");  
+    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+    for (auto& [e, f] : entity_map)
+    {
+        if (!f.displayed_ && !f.parent)
+        {
+            display_node(&f, scene);
+        }
     }
     ImGui::End();
-
 }
 
 void engine::Editor::end_frame()
