@@ -64,6 +64,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_co
     {
         dispaly_flags |= ImGuiTreeNodeFlags_OpenOnDoubleClick;
     }
+
     if (ImGui::TreeNodeEx(node->name.c_str(), dispaly_flags))
     {
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
@@ -85,19 +86,20 @@ void display_transform_component(engine::Scene* scene, entt::entity entity)
 {
     if (scene->has_component<engine_tranform_component_t>(entity))
     {
-        auto tc = scene->get_component<engine_tranform_component_t>(entity);
+        auto c = scene->get_component<engine_tranform_component_t>(entity);
         if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_None))
         {
             const float v_speed = 0.1f;
-            ImGui::DragFloat3("Position", tc->position, v_speed);
+            ImGui::DragFloat3("Position", c->position, v_speed);
 
-            glm::vec3 rot = glm::degrees(glm::eulerAngles(glm::make_quat(tc->rotation)));
+            glm::vec3 rot = glm::degrees(glm::eulerAngles(glm::make_quat(c->rotation)));
             if (ImGui::DragFloat3("Rotation", glm::value_ptr(rot), v_speed))
             {
                 const auto final_rot = glm::quat(glm::radians(rot));
-                std::memcpy(tc->rotation, glm::value_ptr(final_rot), sizeof(tc->rotation));
+                std::memcpy(c->rotation, glm::value_ptr(final_rot), sizeof(c->rotation));
             }
-            ImGui::DragFloat3("Scale", tc->scale, v_speed);
+            ImGui::DragFloat3("Scale", c->scale, v_speed);
+            scene->update_component(entity, *c);
         }
     }
 }
@@ -115,6 +117,7 @@ void display_mesh_component(engine::Scene* scene, entt::entity entity)
                 c->disable = !c->disable;
             }
             ImGui::InputInt("Geometry ID", reinterpret_cast<std::int32_t*>(&c->geometry));
+            scene->update_component(entity, *c);
         }
     }
 }
@@ -127,6 +130,45 @@ void display_material_component(engine::Scene* scene, entt::entity entity)
         if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_None))
         {
             ImGui::InputInt("Material ID", reinterpret_cast<std::int32_t*>(&c->material));
+            scene->update_component(entity, *c);
+        }
+    }
+}
+
+void display_collider_component(engine::Scene* scene, entt::entity entity)
+{
+    if (scene->has_component<engine_collider_component_t>(entity))
+    {
+        auto c = scene->get_component<engine_collider_component_t>(entity);
+        if (ImGui::CollapsingHeader("Collider", ImGuiTreeNodeFlags_None))
+        {
+            // list of types
+            const char* items[] = { "None", "Box", "Sphere", "Compound"};
+            std::int32_t selected_type = c->type;
+            if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
+            {
+                c->type = static_cast<engine_collider_type_t>(selected_type);
+            }
+            // data for concrete type
+            if (c->type == ENGINE_COLLIDER_TYPE_BOX)
+            {
+                ImGui::DragFloat3("Size", c->collider.box.size, 0.1f);
+            }
+            else if (c->type == ENGINE_COLLIDER_TYPE_SPHERE)
+            {
+                ImGui::DragFloat("Radius", &c->collider.sphere.radius, 0.1f);
+            }
+            else if (c->type == ENGINE_COLLIDER_TYPE_COMPOUND)
+            {
+                ImGui::Text("Compound collider is not supported yet.");
+            }
+            // trigger
+            ImGui::Checkbox("Is Trigger", &c->is_trigger);
+            // bouncies
+            ImGui::DragFloat("Bounciness", &c->bounciness, 0.1f);
+            // friction
+            ImGui::DragFloat("Friction", &c->friction_static, 0.1f);
+            scene->update_component(entity, *c);
         }
     }
 }
@@ -142,9 +184,9 @@ void display_camera_component(engine::Scene* scene, entt::entity entity)
             ImGui::Checkbox("Enabled", &c->enabled);
 
             // type
-            std::array<const char*, 2> items = {"Orthographic",  "Perspective"};
+            const char* items[] = {"Orthographic",  "Perspective"};
             std::int32_t selected_type = c->type;
-            if (ImGui::ListBox("Type", &selected_type, items.data(), items.size()))
+            if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
             {
                 c->type = static_cast<engine_camera_projection_type_t>(selected_type);
             }
@@ -173,6 +215,7 @@ void display_camera_component(engine::Scene* scene, entt::entity entity)
             // clip planes
             ImGui::DragFloat("Near Clip Plane", &c->clip_plane_near, 0.1f);
             ImGui::DragFloat("Far Clip Plane", &c->clip_plane_far, 0.1f);
+            scene->update_component(entity, *c);
         }
     }
 }
@@ -266,6 +309,7 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
 
     ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::Begin("Scene Panel");
+
     ImGui::SeparatorText("Hierarchy");
     static hierarchy_context_t ctx;
 
@@ -290,6 +334,7 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
         display_camera_component(scene, selected);
         display_mesh_component(scene, selected);
         display_material_component(scene, selected);
+        display_collider_component(scene, selected);
     }
     else
     {

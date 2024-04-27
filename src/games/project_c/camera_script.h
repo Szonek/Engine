@@ -43,6 +43,7 @@ public:
 
     void update(float dt) override
     {
+        const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
         const auto mouse_coords = engineApplicationGetMouseCoords(app);
 
@@ -58,7 +59,15 @@ public:
 
         if (engineApplicationIsMouseButtonDown(app, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_LEFT))
         {
-            rotate({ dx * move_speed, dy * move_speed });
+            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_LSHIFT))
+            {
+                // strafe left/right adn top/down with left mouse button + left shift
+                strafe(dx * move_speed, dy * move_speed);
+            }
+            else
+            {
+                rotate({ dx * move_speed, dy * move_speed });
+            }
         }
 
         if (engineApplicationIsMouseButtonDown(app, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_RIGHT))
@@ -108,6 +117,33 @@ private:
             tc.position[2] = new_position[2] + cc.target[2];
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
+    }
+
+    inline void strafe(float delta_x, float delta_y)
+    {
+        const auto scene = my_scene_->get_handle();
+        // Get the current camera orientation
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        auto cc = engineSceneGetCameraComponent(scene, go_);
+
+        // Compute the right vector from the camera's orientation
+        glm::vec3 forward(cc.target[0] - tc.position[0], cc.target[1] - tc.position[1], cc.target[2] - tc.position[2]);
+        glm::vec3 up(0.0f, 1.0f, 0.0f); // Assuming the up vector is (0, 1, 0)
+        glm::vec3 right = glm::normalize(glm::cross(forward, up));
+
+        // Update the camera's position
+        tc.position[0] += delta_x * right.x;
+        tc.position[1] += delta_x * right.y + delta_y;
+        tc.position[2] += delta_x * right.z;
+
+        // Update the camera's target
+        cc.target[0] += delta_x * right.x;
+        cc.target[1] += delta_x * right.y + delta_y;
+        cc.target[2] += delta_x * right.z;
+
+        // Update the transform and camera components
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+        engineSceneUpdateCameraComponent(scene, go_, &cc);
     }
 
     inline auto get_spherical_coordinates(const auto& cartesian)
