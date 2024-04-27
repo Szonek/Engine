@@ -10,6 +10,11 @@
 
 namespace
 {
+struct hierarchy_context_t
+{
+    entt::entity selected = entt::null;
+};
+
 struct entity_node_t
 {
     entt::entity entity = entt::null;
@@ -23,24 +28,23 @@ struct entity_node_t
 
 
 
-inline void display_node(entity_node_t* node, engine::Scene* scene, engine::hierarchy_context_t& ctx)
+inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_context_t& ctx)
 {
     node->displayed = true;
-    uint32_t dispaly_flags = ImGuiTreeNodeFlags_None;
+    uint32_t dispaly_flags = ctx.selected == node->entity ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None;
     if (node->children.empty()) // if is leaf
     {
         dispaly_flags |= ImGuiTreeNodeFlags_Leaf;
     }
     else
     {
-        dispaly_flags |= ImGuiTreeNodeFlags_OpenOnArrow;
+        dispaly_flags |= ImGuiTreeNodeFlags_OpenOnDoubleClick;
     }
     if (ImGui::TreeNodeEx(node->name.c_str(), dispaly_flags))
     {
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         {
-            ctx.selected = static_cast<std::uint32_t>(node->entity);
-            printf("Entity %d clicked: %s\n", ctx.selected, node->name.c_str());
+            ctx.selected = node->entity;
         }
         else
         {
@@ -141,11 +145,12 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
     }
 
     ImGui::Begin("Scene Hierarchy");  
+    static hierarchy_context_t ctx;
     for (auto& [e, f] : entity_map)
     {
         if (!f.displayed && !f.parent)
         {
-            display_node(&f, scene, hierarchy_context_);
+            display_node(&f, scene, ctx);
         }
     }
     ImGui::End();
