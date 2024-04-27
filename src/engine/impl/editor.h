@@ -1,7 +1,12 @@
 #include "graphics.h"
+#include "engine.h"
 
 namespace engine
 {
+struct hierarchy_context_t
+{
+    std::uint32_t selected = ENGINE_INVALID_GAME_OBJECT_ID;
+};
 
 class Editor
 {
@@ -25,5 +30,6 @@ public:
 
 private:
     bool is_enabled_ = false;
+    hierarchy_context_t hierarchy_context_{};
 };
 } // namespace engine

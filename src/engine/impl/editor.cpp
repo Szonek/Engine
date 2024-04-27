@@ -18,25 +18,37 @@ struct entity_node_t
     entity_node_t* parent = nullptr;
     std::vector<entity_node_t*> children;
 
-    bool displayed_ = false;
+    bool displayed = false;
 };
 
-inline void display_node(entity_node_t* node, engine::Scene* scene)
-{
-    if (node->children.empty())
-    {
-        ImGui::TreeNodeEx(node->name.c_str(), ImGuiTreeNodeFlags_Leaf);
-        ImGui::TreePop();
-        return;
-    }
-    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
-    if (ImGui::TreeNodeEx(node->name.c_str()))
-    {
-        for (auto& child : node->children)
-        {
-            display_node(child, scene);
-        }
 
+
+inline void display_node(entity_node_t* node, engine::Scene* scene, engine::hierarchy_context_t& ctx)
+{
+    node->displayed = true;
+    uint32_t dispaly_flags = ImGuiTreeNodeFlags_None;
+    if (node->children.empty()) // if is leaf
+    {
+        dispaly_flags |= ImGuiTreeNodeFlags_Leaf;
+    }
+    else
+    {
+        dispaly_flags |= ImGuiTreeNodeFlags_OpenOnArrow;
+    }
+    if (ImGui::TreeNodeEx(node->name.c_str(), dispaly_flags))
+    {
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+        {
+            ctx.selected = static_cast<std::uint32_t>(node->entity);
+            printf("Entity %d clicked: %s\n", ctx.selected, node->name.c_str());
+        }
+        else
+        {
+            for (auto& child : node->children)
+            {
+                display_node(child, scene, ctx);
+            }
+        }
         ImGui::TreePop();
     }
 }
@@ -102,8 +114,6 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
         return;
     }
 
-
-
     // build memory with all the entites
     std::map<entt::entity, entity_node_t> entity_map;
     for (auto e : scene->get_all_entities())
@@ -133,9 +143,9 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
     ImGui::Begin("Scene Hierarchy");  
     for (auto& [e, f] : entity_map)
     {
-        if (!f.displayed_ && !f.parent)
+        if (!f.displayed && !f.parent)
         {
-            display_node(&f, scene);
+            display_node(&f, scene, hierarchy_context_);
         }
     }
     ImGui::End();
