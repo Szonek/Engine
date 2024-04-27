@@ -2,6 +2,7 @@
 
 #include "scene.h"
 #include "math_helpers.h"
+#include "logger.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_sdl3.h"
@@ -140,6 +141,18 @@ void display_material_component(engine::Scene* scene, entt::entity entity)
 
 void display_collider_component(engine::Scene* scene, entt::entity entity)
 {
+    auto print_collider_type = [](engine_collider_type_t type)
+     {
+        switch (type)
+        {
+            case ENGINE_COLLIDER_TYPE_NONE: return "None";
+            case ENGINE_COLLIDER_TYPE_BOX: return "Box";
+            case ENGINE_COLLIDER_TYPE_SPHERE: return "Sphere";
+            case ENGINE_COLLIDER_TYPE_COMPOUND: return "Compound";
+            default: return "Unknown";
+        }
+    };
+
     if (scene->has_component<engine_collider_component_t>(entity))
     {
         auto c = *scene->get_component<engine_collider_component_t>(entity);
@@ -165,7 +178,26 @@ void display_collider_component(engine::Scene* scene, entt::entity entity)
             }
             else if (c.type == ENGINE_COLLIDER_TYPE_COMPOUND)
             {
-                ImGui::Text("Compound collider is not supported yet.");
+                engine::log::log(engine::log::LogLevel::eError, "Compound collider not implemented for editor yet\n");
+                c.type = ENGINE_COLLIDER_TYPE_BOX; // to avoid crash, remove when this code will support compud collider
+                //for (std::size_t i = 0; i < ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS; i++)
+                //{
+                    //auto& child = c.collider.compound.children[i];
+                    //if (child.type != ENGINE_COLLIDER_TYPE_BOX)
+                    //{
+                    //    continue;
+                    //}
+                    //ImGui::Text("Child %d", i);
+                    //std::int32_t child_selected_type = c.type;
+                    //if (ImGui::ListBox("Child Type", &child_selected_type, items, std::size(items)))
+                    //{
+                    //    requires_component_updated = true;
+                    //    c.type = static_cast<engine_collider_type_t>(selected_type);
+                    //}
+                    //ImGui::DragFloat3("Position", child.transform, 0.1f);
+                    //ImGui::DragFloat3("Rotation", child.rotation, 0.1f);
+                    //ImGui::DragFloat3("Scale", child.scale, 0.1f);
+                //}
             }
             // trigger
             requires_component_updated |= ImGui::Checkbox("Is Trigger", &c.is_trigger);

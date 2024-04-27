@@ -117,7 +117,7 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
             }
             else
             {
-                assert(false && "Unknown collider type in compound collider!");
+                engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Unknown collider type in compound collider!\n"));
                 return ret;
             }
         }
