@@ -11,9 +11,30 @@
 
 namespace
 {
-struct hierarchy_context_t
+class hierarchy_context_t
 {
-    entt::entity selected = entt::null;
+public:
+    void set_selected_entity(entt::entity e)
+    {
+        selected_ = e;
+    }
+    entt::entity get_selected_entity() const
+    {
+        return selected_;
+    }
+
+    bool has_selected_entity() const
+    {
+        return selected_ != entt::null;
+    }
+
+    void unselect_entity()
+    {
+        selected_ = entt::null;
+    }
+
+private:
+    entt::entity selected_ = entt::null;
 };
 
 struct entity_node_t
@@ -32,7 +53,7 @@ struct entity_node_t
 inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_context_t& ctx)
 {
     node->displayed = true;
-    uint32_t dispaly_flags = ctx.selected == node->entity ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None;
+    uint32_t dispaly_flags = ctx.get_selected_entity() == node->entity ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None;
     if (node->children.empty()) // if is leaf
     {
         dispaly_flags |= ImGuiTreeNodeFlags_Leaf;
@@ -46,7 +67,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_co
     {
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         {
-            ctx.selected = node->entity;
+            ctx.set_selected_entity(node->entity);
         }
         else
         {
@@ -245,6 +266,12 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
     ImGui::Begin("Scene Panel");
     ImGui::SeparatorText("Hierarchy");
     static hierarchy_context_t ctx;
+
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+    {
+        ctx.unselect_entity();
+    }
+
     for (auto& [e, f] : entity_map)
     {
         if (!f.displayed && !f.parent)
@@ -254,10 +281,19 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
     }
 
     ImGui::SeparatorText("Entity properties and components.");
-    display_transform_component(scene, ctx.selected);
-    display_camera_component(scene, ctx.selected);
-    display_mesh_component(scene, ctx.selected);
-    display_material_component(scene, ctx.selected);
+    if (ctx.has_selected_entity())
+    {
+        const auto selected = ctx.get_selected_entity();
+        display_transform_component(scene, selected);
+        display_camera_component(scene, selected);
+        display_mesh_component(scene, selected);
+        display_material_component(scene, selected);
+    }
+    else
+    {
+        ImGui::Text("Select entity to display its components.");
+    }
+
     ImGui::End(); // scene panel
 }
 
