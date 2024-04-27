@@ -86,25 +86,15 @@ inline void display_node(entity_node_t* node, const engine::Scene* scene, hierar
     }
 }
 
-void display_transform_component(engine::Scene* scene, entt::entity entity)
+template<typename T>
+inline void display_component(std::string_view name, engine::Scene* scene, entt::entity entity, std::function<void()> fn)
 {
-    const bool has_component = scene->has_component<engine_tranform_component_t>(entity);
-    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_AllowItemOverlap))
+    const bool has_component = scene->has_component<T>(entity);
+    if (ImGui::CollapsingHeader(name.data(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_AllowItemOverlap))
     {
         if (has_component)
         {
-            auto c = *scene->get_component<engine_tranform_component_t>(entity);
-            const float v_speed = 0.1f;
-            ImGui::DragFloat3("Position", c.position, v_speed);
-
-            glm::vec3 rot = glm::degrees(glm::eulerAngles(glm::make_quat(c.rotation)));
-            if (ImGui::DragFloat3("Rotation", glm::value_ptr(rot), v_speed))
-            {
-                const auto final_rot = glm::quat(glm::radians(rot));
-                std::memcpy(c.rotation, glm::value_ptr(final_rot), sizeof(c.rotation));
-            }
-            ImGui::DragFloat3("Scale", c.scale, v_speed);
-            scene->update_component(entity, c);
+            fn();
         }
     }
     else
@@ -114,18 +104,37 @@ void display_transform_component(engine::Scene* scene, entt::entity entity)
         {
             if (ImGui::Button("Remove"))
             {
-                scene->remove_component<engine_tranform_component_t>(entity);
+                scene->remove_component<T>(entity);
             }
         }
         else
         {
             if (ImGui::Button("Add"))
             {
-                scene->add_component<engine_tranform_component_t>(entity);
+                scene->add_component<T>(entity);
             }
         }
     }
+}
 
+void display_transform_component(engine::Scene* scene, entt::entity entity)
+{
+    auto display_transform = [&scene, &entity]()
+    {
+        auto c = *scene->get_component<engine_tranform_component_t>(entity);
+        const float v_speed = 0.1f;
+        ImGui::DragFloat3("Position", c.position, v_speed);
+
+        glm::vec3 rot = glm::degrees(glm::eulerAngles(glm::make_quat(c.rotation)));
+        if (ImGui::DragFloat3("Rotation", glm::value_ptr(rot), v_speed))
+        {
+            const auto final_rot = glm::quat(glm::radians(rot));
+            std::memcpy(c.rotation, glm::value_ptr(final_rot), sizeof(c.rotation));
+        }
+        ImGui::DragFloat3("Scale", c.scale, v_speed);
+        scene->update_component(entity, c);
+    };
+    display_component<engine_tranform_component_t>("Transform", scene, entity, display_transform);
 }
 
 void display_mesh_component(engine::Scene* scene, entt::entity entity)
@@ -376,7 +385,7 @@ void engine::ApplicationEditor::on_scene_update(Scene* scene, float delta_time)
         - the one which are not avaialbe in the entitiy (Grayd out) and a "+" button to add them
         - the one which are available in the entity (whatever color) and a "-" button to remove them
     */
-    ImGui::SeparatorText("Entity properties and components.");
+    ImGui::SeparatorText("Entity properties.");
     if (ctx.has_selected_entity())
     {
         const auto selected = ctx.get_selected_entity();
