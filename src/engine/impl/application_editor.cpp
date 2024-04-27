@@ -88,11 +88,12 @@ inline void display_node(entity_node_t* node, const engine::Scene* scene, hierar
 
 void display_transform_component(engine::Scene* scene, entt::entity entity)
 {
-    if (scene->has_component<engine_tranform_component_t>(entity))
+    const bool has_component = scene->has_component<engine_tranform_component_t>(entity);
+    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_AllowItemOverlap))
     {
-        auto c = *scene->get_component<engine_tranform_component_t>(entity);
-        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_None))
+        if (has_component)
         {
+            auto c = *scene->get_component<engine_tranform_component_t>(entity);
             const float v_speed = 0.1f;
             ImGui::DragFloat3("Position", c.position, v_speed);
 
@@ -106,6 +107,25 @@ void display_transform_component(engine::Scene* scene, entt::entity entity)
             scene->update_component(entity, c);
         }
     }
+    else
+    {
+        ImGui::SameLine();
+        if (has_component)
+        {
+            if (ImGui::Button("Remove"))
+            {
+                scene->remove_component<engine_tranform_component_t>(entity);
+            }
+        }
+        else
+        {
+            if (ImGui::Button("Add"))
+            {
+                scene->add_component<engine_tranform_component_t>(entity);
+            }
+        }
+    }
+
 }
 
 void display_mesh_component(engine::Scene* scene, entt::entity entity)
