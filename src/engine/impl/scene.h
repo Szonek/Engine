@@ -27,6 +27,8 @@ public:
 
     entt::runtime_view create_runtime_view();
 
+    std::vector<entt::entity> get_all_entities() const;
+
     template<typename T>
     void attach_component_to_runtime_view(entt::runtime_view& rv)
     {
@@ -72,7 +74,7 @@ public:
     }
 
     template<typename T>
-    bool has_component(entt::entity entity)
+    bool has_component(entt::entity entity) const
     {
         return entity_registry_.any_of<T>(entity);
     }

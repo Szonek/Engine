@@ -7,6 +7,20 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+namespace
+{
+inline void set_name(engine_scene_t scene, engine_game_object_t go, const char* name)
+{
+    engine_name_component_t nc{};
+    if (!engineSceneHasNameComponent(scene, go))
+    {
+        engineSceneAddNameComponent(scene, go);
+    }
+    std::strncpy(nc.name, name, strlen(name));
+    engineSceneUpdateNameComponent(scene, go, &nc);
+}
+}
+
 namespace project_c
 {
 
@@ -34,6 +48,7 @@ public:
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
+        set_name(scene, go_, "floor");
         auto tc = engineSceneGetTransformComponent(scene, go_);
         tc.scale[0] = 3.0f;
         tc.scale[1] = 0.1f;
@@ -123,7 +138,7 @@ public:
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
-
+        set_name(scene, go_, "enemy");
         auto tc = engineSceneGetTransformComponent(scene, go_);
         tc.scale[0] = 0.5f;
         tc.scale[1] = 0.75f;
@@ -155,6 +170,7 @@ public:
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
+        set_name(scene, go_, "solider");
     }
 
     void update(float dt)

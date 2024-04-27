@@ -341,6 +341,19 @@ entt::runtime_view engine::Scene::create_runtime_view()
     return entt::runtime_view{};
 }
 
+std::vector<entt::entity> engine::Scene::get_all_entities() const
+{
+    std::vector<entt::entity> entities;
+    for (const auto entity : entity_registry_.view<entt::entity>())
+    {
+        if (static_cast<std::uint32_t>(entity) != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            entities.push_back(entity);
+        }
+    }
+    return entities;
+}
+
 void engine::Scene::set_physcis_gravity(std::array<float, 3> g)
 {
     physics_world_.set_gravity(g);

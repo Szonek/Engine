@@ -15,6 +15,9 @@ public:
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
+        auto nc = engineSceneAddNameComponent(scene, go_);
+        std::strncpy(nc.name, "camera", strlen("camera"));
+        engineSceneUpdateNameComponent(scene, go_, &nc);
 
         auto camera_comp = engineSceneAddCameraComponent(scene, go_);
         camera_comp.enabled = true;
