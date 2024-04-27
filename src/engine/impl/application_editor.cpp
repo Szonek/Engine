@@ -1,4 +1,5 @@
-#include "editor.h"
+#include "application_editor.h"
+
 #include "scene.h"
 #include "math_helpers.h"
 
@@ -9,8 +10,11 @@
 #include <string>
 #include <map>
 
+
+
 namespace
 {
+
 class hierarchy_context_t
 {
 public:
@@ -47,7 +51,6 @@ struct entity_node_t
 
     bool displayed = false;
 };
-
 
 
 inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_context_t& ctx)
@@ -143,7 +146,7 @@ void display_collider_component(engine::Scene* scene, entt::entity entity)
         if (ImGui::CollapsingHeader("Collider", ImGuiTreeNodeFlags_None))
         {
             // list of types
-            const char* items[] = { "None", "Box", "Sphere", "Compound"};
+            const char* items[] = { "None", "Box", "Sphere", "Compound" };
             std::int32_t selected_type = c->type;
             if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
             {
@@ -184,7 +187,7 @@ void display_camera_component(engine::Scene* scene, entt::entity entity)
             ImGui::Checkbox("Enabled", &c->enabled);
 
             // type
-            const char* items[] = {"Orthographic",  "Perspective"};
+            const char* items[] = { "Orthographic",  "Perspective" };
             std::int32_t selected_type = c->type;
             if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
             {
@@ -203,7 +206,7 @@ void display_camera_component(engine::Scene* scene, entt::entity entity)
 
             // target
             ImGui::DragFloat3("Target", c->target, 0.1f);
-            
+
             //viewport rect
             ImGui::DragFloat4("Viewport", &c->viewport_rect.x, 0.1f);
 
@@ -220,10 +223,11 @@ void display_camera_component(engine::Scene* scene, entt::entity entity)
     }
 }
 
-}   // namespace anonymous
+} // namespace anonymous
 
-engine::Editor::Editor(SDL_Window* wnd, SDL_GLContext gl_ctx)
-    : is_enabled_(true)
+
+engine::ApplicationEditor::ApplicationEditor(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
+    : Application(desc, out_code)
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -233,54 +237,37 @@ engine::Editor::Editor(SDL_Window* wnd, SDL_GLContext gl_ctx)
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // IF using Docking Branch
 
     // Setup Platform/Renderer backends
-    assert(ImGui_ImplSDL3_InitForOpenGL(wnd, gl_ctx));
+    assert(ImGui_ImplSDL3_InitForOpenGL(rdx_.get_sdl_window(), rdx_.get_sdl_gl_context()));
     assert(ImGui_ImplOpenGL3_Init());
 }
 
-engine::Editor::Editor(Editor&& rhs) noexcept
+engine::ApplicationEditor::~ApplicationEditor()
 {
-    std::swap(is_enabled_, rhs.is_enabled_);
-}
-
-engine::Editor& engine::Editor::operator=(Editor&& rhs) noexcept
-{
-    if (this != &rhs)
-    {
-        std::swap(is_enabled_, rhs.is_enabled_);
-    }
-    return *this;
-}
-
-engine::Editor::~Editor()
-{
-    if (!is_enabled_)
-    {
-        return;
-    }
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
-
 }
 
-void engine::Editor::begin_frame()
+void engine::ApplicationEditor::on_frame_begine()
 {
-    if (!is_enabled_)
-    {
-        return;
-    }
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
 }
 
-void engine::Editor::render_scene_hierarchy(Scene* scene)
+void engine::ApplicationEditor::on_frame_end()
 {
-    if (!is_enabled_)
-    {
-        return;
-    }
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
 
+void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
+{
+    ImGui_ImplSDL3_ProcessEvent(&e);
+}
+
+void engine::ApplicationEditor::on_scene_update(Scene* scene, float delta_time)
+{
     // build memory with all the entites
     std::map<entt::entity, entity_node_t> entity_map;
     for (auto e : scene->get_all_entities())
@@ -348,30 +335,7 @@ void engine::Editor::render_scene_hierarchy(Scene* scene)
     ImGui::End();
 }
 
-void engine::Editor::end_frame()
+bool engine::ApplicationEditor::is_mouse_enabled()
 {
-    if (!is_enabled_)
-    {
-        return;
-    }
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-}
-
-void engine::Editor::handle_event(SDL_Event& ev)
-{
-    if (!is_enabled_)
-    {
-        return;
-    }
-    ImGui_ImplSDL3_ProcessEvent(&ev);
-}
-
-bool engine::Editor::wants_to_capture_mouse()
-{
-    if (!is_enabled_)
-    {
-        return false;
-    }
-    return ImGui::GetIO().WantCaptureMouse;
+    return !ImGui::GetIO().WantCaptureMouse;
 }
