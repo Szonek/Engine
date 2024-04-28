@@ -2,6 +2,7 @@
 #include "ui_manager.h"
 #include "logger.h"
 #include "math_helpers.h"
+#include "components_utils/components_initializers.h"
 
 #include <fmt/format.h>
 
@@ -9,6 +10,7 @@
 #include <SDL3/SDL.h>
 
 #include <RmlUi/Core.h>
+
 
 engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : rdx_(rdx)
@@ -23,6 +25,17 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     , rigid_body_create_observer(entity_registry_, entt::collector.group<engine_rigid_body_component_t, engine_tranform_component_t, engine_collider_component_t>())
     , rigid_body_update_observer(entity_registry_, entt::collector.update<engine_rigid_body_component_t>().where<engine_tranform_component_t, engine_collider_component_t>())
 {
+    // basic initalizers
+    entity_registry_.on_construct<engine_tranform_component_t>().connect<&initialize_transform_component>();
+    entity_registry_.on_construct<engine_mesh_component_t>().connect<&initialize_mesh_component>();
+    entity_registry_.on_construct<engine_material_component_t>().connect<&initialize_material_component>();
+    entity_registry_.on_construct<engine_parent_component_t>().connect<&initialize_parent_component>();
+    entity_registry_.on_construct<engine_name_component_t>().connect<&initialize_name_component>();
+    entity_registry_.on_construct<engine_camera_component_t>().connect<&initialize_camera_component>();
+    entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
+    entity_registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
+    entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
+
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
     out_code = ENGINE_RESULT_CODE_OK;
