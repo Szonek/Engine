@@ -100,19 +100,19 @@ inline void display_component(std::string_view name, engine::Scene* scene, entt:
     else
     {
         ImGui::SameLine();
-        if (has_component)
+    }
+    if (has_component)
+    {
+        if (ImGui::Button("Remove"))
         {
-            if (ImGui::Button("Remove"))
-            {
-                scene->remove_component<T>(entity);
-            }
+            scene->remove_component<T>(entity);
         }
-        else
+    }
+    else
+    {
+        if (ImGui::Button("Add"))
         {
-            if (ImGui::Button("Add"))
-            {
-                scene->add_component<T>(entity);
-            }
+            scene->add_component<T>(entity);
         }
     }
 }
