@@ -70,6 +70,9 @@ public:
     {
         auto& comp = reg.get<physcic_internal_component_t>(entt);
         dynamics_world_->removeRigidBody(comp.rigid_body);
+
+        delete comp.rigid_body;
+        comp.rigid_body = nullptr;
     }
 
     void update(float dt);

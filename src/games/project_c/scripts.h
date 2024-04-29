@@ -99,6 +99,12 @@ public:
         //cc.is_trigger = true;
         //engineSceneUpdateColliderComponent(scene, go_, &cc);
 
+         // physcis
+        //auto cc = engineSceneAddColliderComponent(scene, go_);
+        //cc.type = ENGINE_COLLIDER_TYPE_BOX;
+        //set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
+        //engineSceneUpdateColliderComponent(scene, go_, &cc);
+
         // parent to hand
         engine_component_view_t cv{};
         engineCreateComponentView(&cv);

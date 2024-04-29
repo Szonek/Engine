@@ -150,6 +150,12 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
         ret.rigid_body->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
     }
 
+    //if (rigid_body.mass == 0.0f)
+    //{
+    //    ret.rigid_body->setCollisionFlags(ret.rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+    //    ret.rigid_body->setActivationState(DISABLE_DEACTIVATION);
+    //}
+
     ret.rigid_body->setUserIndex(body_index);
     dynamics_world_->addRigidBody(ret.rigid_body);
 

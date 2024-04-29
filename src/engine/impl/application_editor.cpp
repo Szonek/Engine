@@ -87,14 +87,19 @@ inline void display_node(entity_node_t* node, const engine::Scene* scene, hierar
 }
 
 template<typename T>
-inline void display_component(std::string_view name, engine::Scene* scene, entt::entity entity, std::function<void()> fn)
+inline void display_component(std::string_view name, engine::Scene* scene, entt::entity entity, std::function<bool(T& comp)> fn)
 {
     const bool has_component = scene->has_component<T>(entity);
     if (ImGui::CollapsingHeader(name.data(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_AllowItemOverlap))
     {
         if (has_component)
         {
-            fn();
+            auto comp = *scene->get_component<T>(entity);
+            if (fn(comp))
+            {
+                scene->update_component<T>(entity, comp);
+            }
+
         }
     }
     else
@@ -103,72 +108,55 @@ inline void display_component(std::string_view name, engine::Scene* scene, entt:
     }
     if (has_component)
     {
-        if (ImGui::Button("Remove"))
+        const std::string label = std::string("Remove##") + std::string(name);
+        if (ImGui::Button(label.c_str()))
         {
             scene->remove_component<T>(entity);
         }
     }
     else
     {
-        if (ImGui::Button("Add"))
+        const std::string label = std::string("Add##") + std::string(name);
+        if (ImGui::Button(label.c_str()))
         {
             scene->add_component<T>(entity);
         }
     }
 }
 
-void display_transform_component(engine::Scene* scene, entt::entity entity)
+bool display_transform_component(engine_tranform_component_t& c)
 {
-    auto display_transform = [&scene, &entity]()
-    {
-        auto c = *scene->get_component<engine_tranform_component_t>(entity);
-        const float v_speed = 0.1f;
-        ImGui::DragFloat3("Position", c.position, v_speed);
+    const float v_speed = 0.1f;
+    ImGui::DragFloat3("Position", c.position, v_speed);
 
-        glm::vec3 rot = glm::degrees(glm::eulerAngles(glm::make_quat(c.rotation)));
-        if (ImGui::DragFloat3("Rotation", glm::value_ptr(rot), v_speed))
-        {
-            const auto final_rot = glm::quat(glm::radians(rot));
-            std::memcpy(c.rotation, glm::value_ptr(final_rot), sizeof(c.rotation));
-        }
-        ImGui::DragFloat3("Scale", c.scale, v_speed);
-        scene->update_component(entity, c);
-    };
-    display_component<engine_tranform_component_t>("Transform", scene, entity, display_transform);
-}
-
-void display_mesh_component(engine::Scene* scene, entt::entity entity)
-{
-    if (scene->has_component<engine_mesh_component_t>(entity))
+    glm::vec3 rot = glm::degrees(glm::eulerAngles(glm::make_quat(c.rotation)));
+    if (ImGui::DragFloat3("Rotation", glm::value_ptr(rot), v_speed))
     {
-        auto c = *scene->get_component<engine_mesh_component_t>(entity);
-        if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_None))
-        {
-            bool enabled = !c.disable;
-            if (ImGui::Checkbox("Enabled", &enabled))
-            {
-                c.disable = !c.disable;
-            }
-            ImGui::InputInt("Geometry ID", reinterpret_cast<std::int32_t*>(&c.geometry));
-            scene->update_component(entity, c);
-        }
+        const auto final_rot = glm::quat(glm::radians(rot));
+        std::memcpy(c.rotation, glm::value_ptr(final_rot), sizeof(c.rotation));
     }
+    ImGui::DragFloat3("Scale", c.scale, v_speed);
+    return true;
 }
 
-void display_material_component(engine::Scene* scene, entt::entity entity)
+bool display_mesh_component(engine_mesh_component_t& c)
 {
-    if (scene->has_component<engine_material_component_t>(entity))
+    bool enabled = !c.disable;
+    if (ImGui::Checkbox("Enabled", &enabled))
     {
-        auto c = *scene->get_component<engine_material_component_t>(entity);
-        if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_None))
-        {
-            ImGui::InputInt("Material ID", reinterpret_cast<std::int32_t*>(&c.material));
-            scene->update_component(entity, c);
-        }
+        c.disable = !c.disable;
     }
+    ImGui::InputInt("Geometry ID", reinterpret_cast<std::int32_t*>(&c.geometry));
+    return true;
 }
 
-void display_collider_component(engine::Scene* scene, entt::entity entity)
+bool display_material_component(engine_material_component_t& c)
+{
+    ImGui::InputInt("Material ID", reinterpret_cast<std::int32_t*>(&c.material));
+    return true;
+}
+
+bool display_collider_component(engine_collider_component_t& c)
 {
     auto print_collider_type = [](engine_collider_type_t type)
      {
@@ -181,113 +169,94 @@ void display_collider_component(engine::Scene* scene, entt::entity entity)
             default: return "Unknown";
         }
     };
-
-    if (scene->has_component<engine_collider_component_t>(entity))
+     bool requires_component_updated = false;
+    // list of types
+    const char* items[] = { "None", "Box", "Sphere", "Compound" };
+    std::int32_t selected_type = c.type;
+    if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
     {
-        auto c = *scene->get_component<engine_collider_component_t>(entity);
-        bool requires_component_updated = false;
-        if (ImGui::CollapsingHeader("Collider", ImGuiTreeNodeFlags_None))
-        {
-            // list of types
-            const char* items[] = { "None", "Box", "Sphere", "Compound" };
-            std::int32_t selected_type = c.type;
-            if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
-            {
-                requires_component_updated = true;
-                c.type = static_cast<engine_collider_type_t>(selected_type);
-            }
-            // data for concrete type
-            if (c.type == ENGINE_COLLIDER_TYPE_BOX)
-            {
-                requires_component_updated |= ImGui::DragFloat3("Size", c.collider.box.size, 0.1f);
-            }
-            else if (c.type == ENGINE_COLLIDER_TYPE_SPHERE)
-            {
-                requires_component_updated |= ImGui::DragFloat("Radius", &c.collider.sphere.radius, 0.1f);
-            }
-            else if (c.type == ENGINE_COLLIDER_TYPE_COMPOUND)
-            {
-                engine::log::log(engine::log::LogLevel::eError, "Compound collider not implemented for editor yet\n");
-                c.type = ENGINE_COLLIDER_TYPE_BOX; // to avoid crash, remove when this code will support compud collider
-                //for (std::size_t i = 0; i < ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS; i++)
-                //{
-                    //auto& child = c.collider.compound.children[i];
-                    //if (child.type != ENGINE_COLLIDER_TYPE_BOX)
-                    //{
-                    //    continue;
-                    //}
-                    //ImGui::Text("Child %d", i);
-                    //std::int32_t child_selected_type = c.type;
-                    //if (ImGui::ListBox("Child Type", &child_selected_type, items, std::size(items)))
-                    //{
-                    //    requires_component_updated = true;
-                    //    c.type = static_cast<engine_collider_type_t>(selected_type);
-                    //}
-                    //ImGui::DragFloat3("Position", child.transform, 0.1f);
-                    //ImGui::DragFloat3("Rotation", child.rotation, 0.1f);
-                    //ImGui::DragFloat3("Scale", child.scale, 0.1f);
-                //}
-            }
-            // trigger
-            requires_component_updated |= ImGui::Checkbox("Is Trigger", &c.is_trigger);
-            // bouncies
-            requires_component_updated |= ImGui::DragFloat("Bounciness", &c.bounciness, 0.1f);
-            // friction
-            requires_component_updated |= ImGui::DragFloat("Friction", &c.friction_static, 0.1f);
-
-            if (requires_component_updated)
-            {
-                scene->update_component(entity, c);
-            }
-        }
+        requires_component_updated = true;
+        c.type = static_cast<engine_collider_type_t>(selected_type);
     }
+    // data for concrete type
+    if (c.type == ENGINE_COLLIDER_TYPE_BOX)
+    {
+        requires_component_updated |= ImGui::DragFloat3("Size", c.collider.box.size, 0.1f);
+    }
+    else if (c.type == ENGINE_COLLIDER_TYPE_SPHERE)
+    {
+        requires_component_updated |= ImGui::DragFloat("Radius", &c.collider.sphere.radius, 0.1f);
+    }
+    else if (c.type == ENGINE_COLLIDER_TYPE_COMPOUND)
+    {
+        engine::log::log(engine::log::LogLevel::eError, "Compound collider not implemented for editor yet\n");
+        c.type = ENGINE_COLLIDER_TYPE_BOX; // to avoid crash, remove when this code will support compud collider
+        //for (std::size_t i = 0; i < ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS; i++)
+        //{
+            //auto& child = c.collider.compound.children[i];
+            //if (child.type != ENGINE_COLLIDER_TYPE_BOX)
+            //{
+            //    continue;
+            //}
+            //ImGui::Text("Child %d", i);
+            //std::int32_t child_selected_type = c.type;
+            //if (ImGui::ListBox("Child Type", &child_selected_type, items, std::size(items)))
+            //{
+            //    requires_component_updated = true;
+            //    c.type = static_cast<engine_collider_type_t>(selected_type);
+            //}
+            //ImGui::DragFloat3("Position", child.transform, 0.1f);
+            //ImGui::DragFloat3("Rotation", child.rotation, 0.1f);
+            //ImGui::DragFloat3("Scale", child.scale, 0.1f);
+        //}
+    }
+    // trigger
+    requires_component_updated |= ImGui::Checkbox("Is Trigger", &c.is_trigger);
+    // bouncies
+    requires_component_updated |= ImGui::DragFloat("Bounciness", &c.bounciness, 0.1f);
+    // friction
+    requires_component_updated |= ImGui::DragFloat("Friction", &c.friction_static, 0.1f);
+    return requires_component_updated;
 }
 
-void display_camera_component(engine::Scene* scene, entt::entity entity)
+bool display_camera_component(engine_camera_component_t& c)
 {
-    if (scene->has_component<engine_camera_component_t>(entity))
+    // is it enabled?
+    ImGui::Checkbox("Enabled", &c.enabled);
+
+    // type
+    const char* items[] = { "Orthographic",  "Perspective" };
+    std::int32_t selected_type = c.type;
+    if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
     {
-        auto c = *scene->get_component<engine_camera_component_t>(entity);
-        if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_None))
-        {
-            // is it enabled?
-            ImGui::Checkbox("Enabled", &c.enabled);
-
-            // type
-            const char* items[] = { "Orthographic",  "Perspective" };
-            std::int32_t selected_type = c.type;
-            if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
-            {
-                c.type = static_cast<engine_camera_projection_type_t>(selected_type);
-            }
-
-            // fov or scale, based on type
-            if (c.type == ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE)
-            {
-                ImGui::DragFloat("FOV", &c.type_union.perspective_fov, 0.1f);
-            }
-            else
-            {
-                ImGui::DragFloat("Scale", &c.type_union.orthographics_scale, 0.1f);
-            }
-
-            // target
-            ImGui::DragFloat3("Target", c.target, 0.1f);
-
-            //viewport rect
-            ImGui::DragFloat4("Viewport", &c.viewport_rect.x, 0.1f);
-
-            // pitch, yaw, roll
-            ImGui::DragFloat("Pitch", &c.pitch, 0.1f);
-            ImGui::DragFloat("Yaw", &c.yaw, 0.1f);
-            ImGui::DragFloat("Roll", &c.roll, 0.1f);
-
-            // clip planes
-            ImGui::DragFloat("Near Clip Plane", &c.clip_plane_near, 0.1f);
-            ImGui::DragFloat("Far Clip Plane", &c.clip_plane_far, 0.1f);
-            scene->update_component(entity, c);
-        }
+        c.type = static_cast<engine_camera_projection_type_t>(selected_type);
     }
+
+    // fov or scale, based on type
+    if (c.type == ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE)
+    {
+        ImGui::DragFloat("FOV", &c.type_union.perspective_fov, 0.1f);
+    }
+    else
+    {
+        ImGui::DragFloat("Scale", &c.type_union.orthographics_scale, 0.1f);
+    }
+
+    // target
+    ImGui::DragFloat3("Target", c.target, 0.1f);
+
+    //viewport rect
+    ImGui::DragFloat4("Viewport", &c.viewport_rect.x, 0.1f);
+
+    // pitch, yaw, roll
+    ImGui::DragFloat("Pitch", &c.pitch, 0.1f);
+    ImGui::DragFloat("Yaw", &c.yaw, 0.1f);
+    ImGui::DragFloat("Roll", &c.roll, 0.1f);
+
+    // clip planes
+    ImGui::DragFloat("Near Clip Plane", &c.clip_plane_near, 0.1f);
+    ImGui::DragFloat("Far Clip Plane", &c.clip_plane_far, 0.1f);
+    return true;
 }
 
 } // namespace anonymous
@@ -389,11 +358,11 @@ void engine::ApplicationEditor::on_scene_update(Scene* scene, float delta_time)
     if (ctx.has_selected_entity())
     {
         const auto selected = ctx.get_selected_entity();
-        display_transform_component(scene, selected);
-        display_camera_component(scene, selected);
-        display_mesh_component(scene, selected);
-        display_material_component(scene, selected);
-        display_collider_component(scene, selected);
+        display_component<engine_tranform_component_t>("Transform", scene, selected, display_transform_component);
+        display_component<engine_camera_component_t>("Camera", scene, selected, display_camera_component);
+        display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
+        display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
+        display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);
     }
     else
     {

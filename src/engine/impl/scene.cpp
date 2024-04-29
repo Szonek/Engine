@@ -37,6 +37,7 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
 
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
+    entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
     out_code = ENGINE_RESULT_CODE_OK;
 
@@ -55,6 +56,10 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         const auto collider_component = get_component<engine_collider_component_t>(entt);
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
         auto physcics_component = *get_component<PhysicsWorld::physcic_internal_component_t>(entt);
+        if (physcics_component.rigid_body)
+        {
+            physics_world_.remove_rigid_body(entity_registry_, entt);
+        }
 
         // Create dummy rigid body component with mass 0.0f. 
         // Object is not dynamic. Such object cant be moved with velocity
@@ -74,6 +79,10 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
         auto physcics_component = *get_component< PhysicsWorld::physcic_internal_component_t>(entt);
+        if (physcics_component.rigid_body)
+        {
+            physics_world_.remove_rigid_body(entity_registry_, entt);
+        }
         physcics_component = physics_world_.create_rigid_body(*collider_component, *rigidbody_component, *transform_component, static_cast<std::int32_t>(entt));
         update_component(entt, physcics_component);
     }
@@ -295,6 +304,11 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 if (mesh_component.disable)
                 {
+                    return;
+                }
+                if (mesh_component.geometry == ENGINE_INVALID_OBJECT_HANDLE)
+                {
+                    log::log(log::LogLevel::eError, fmt::format("Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n"));
                     return;
                 }
                 const auto& material =materials[material_component.material];
