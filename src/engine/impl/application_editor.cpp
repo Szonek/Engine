@@ -162,7 +162,6 @@ bool display_collider_component(engine_collider_component_t& c)
      {
         switch (type)
         {
-            case ENGINE_COLLIDER_TYPE_NONE: return "None";
             case ENGINE_COLLIDER_TYPE_BOX: return "Box";
             case ENGINE_COLLIDER_TYPE_SPHERE: return "Sphere";
             case ENGINE_COLLIDER_TYPE_COMPOUND: return "Compound";
@@ -171,12 +170,37 @@ bool display_collider_component(engine_collider_component_t& c)
     };
      bool requires_component_updated = false;
     // list of types
-    const char* items[] = { "None", "Box", "Sphere", "Compound" };
+    const char* items[] = { "Box", "Sphere", "Compound" };
     std::int32_t selected_type = c.type;
     if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
     {
         requires_component_updated = true;
         c.type = static_cast<engine_collider_type_t>(selected_type);
+        
+        // set some valid values when changeed the type
+        std::memset(&c.collider, 0, sizeof(c.collider));
+        if (c.type == ENGINE_COLLIDER_TYPE_BOX)
+        {
+            c.collider.box.size[0] = 1.0f;
+            c.collider.box.size[1] = 1.0f;
+            c.collider.box.size[2] = 1.0f;
+        }
+        else if (c.type == ENGINE_COLLIDER_TYPE_SPHERE)
+        {
+            c.collider.sphere.radius = 1.0f;
+        }
+        else if (c.type == ENGINE_COLLIDER_TYPE_COMPOUND)
+        {
+            auto& child = c.collider.compound.children[0];
+
+            // important to set valid rotation quaternion!
+            child.rotation_quaternion[3] = 1.0f;
+
+            child.type = ENGINE_COLLIDER_TYPE_BOX;
+            child.collider.box.size[0] = 1.0f;
+            child.collider.box.size[1] = 1.0f;
+            child.collider.box.size[2] = 1.0f;
+        }
     }
     // data for concrete type
     if (c.type == ENGINE_COLLIDER_TYPE_BOX)
@@ -189,8 +213,37 @@ bool display_collider_component(engine_collider_component_t& c)
     }
     else if (c.type == ENGINE_COLLIDER_TYPE_COMPOUND)
     {
-        engine::log::log(engine::log::LogLevel::eError, "Compound collider not implemented for editor yet\n");
-        c.type = ENGINE_COLLIDER_TYPE_BOX; // to avoid crash, remove when this code will support compud collider
+        for (std::size_t i = 0; i < ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS; i++)
+        {
+            auto& child = c.collider.compound.children[i];
+            ImGui::Text("Child %d", i);
+            std::int32_t child_selected_type = child.type;
+            const char* items_child[] = { "Box", "Sphere" };
+            if (ImGui::ListBox("Child Type", &child_selected_type, items_child, std::size(items_child)))
+            {
+                requires_component_updated = true;
+                child.type = static_cast<engine_collider_type_t>(child_selected_type);
+            }
+            if (child.type == ENGINE_COLLIDER_TYPE_BOX)
+            {
+                requires_component_updated |= ImGui::DragFloat3("Size", child.collider.box.size, 0.1f);
+            }
+            else if (child.type == ENGINE_COLLIDER_TYPE_SPHERE)
+            {
+                requires_component_updated |= ImGui::DragFloat("Radius", &child.collider.sphere.radius, 0.1f);
+            }
+            requires_component_updated |= ImGui::DragFloat3("Position", child.transform, 0.1f);
+
+            glm::vec3 rot = glm::degrees(glm::eulerAngles(glm::make_quat(child.rotation_quaternion)));
+            if (ImGui::DragFloat3("Rotation", glm::value_ptr(rot), 0.1f))
+            {
+                requires_component_updated = true;
+                const auto final_rot = glm::normalize(glm::quat(glm::radians(rot)));
+                std::memcpy(child.rotation_quaternion, glm::value_ptr(final_rot), sizeof(child.rotation_quaternion));
+            }
+        }
+        //engine::log::log(engine::log::LogLevel::eError, "Compound collider not implemented for editor yet\n");
+        //c.type = ENGINE_COLLIDER_TYPE_BOX; // to avoid crash, remove when this code will support compud collider
         //for (std::size_t i = 0; i < ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS; i++)
         //{
             //auto& child = c.collider.compound.children[i];

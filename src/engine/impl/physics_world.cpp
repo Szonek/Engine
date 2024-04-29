@@ -96,11 +96,6 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
         for (auto i = 0; i < ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS; i++)
         {
             const auto& child_collider = collider.collider.compound.children[i];
-
-            if (child_collider.type == ENGINE_COLLIDER_TYPE_NONE)
-            {
-                continue;
-            }
             
             auto shape_transform = btTransform();
             shape_transform.setIdentity();
