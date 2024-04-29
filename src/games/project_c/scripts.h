@@ -187,7 +187,7 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
-
+        return;
         anim_controller_.set_active_animation("static");
         //anim_controller_.set_active_animation("crouch");
         //anim_controller_.set_active_animation("idle");

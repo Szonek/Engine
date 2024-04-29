@@ -53,12 +53,21 @@ struct entity_node_t
     bool displayed = false;
 };
 
+inline void traverse_hierarchy(entity_node_t* node, std::function<void(entity_node_t*)> fn)
+{
+    fn(node);
+    for (auto& child : node->children)
+    {
+        traverse_hierarchy(child, fn);
+    }
+}
 
-inline void display_node(entity_node_t* node, const engine::Scene* scene, hierarchy_context_t& ctx)
+inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_context_t& ctx)
 {
     node->displayed = true;
     uint32_t dispaly_flags = ctx.get_selected_entity() == node->entity ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None;
     dispaly_flags |= ImGuiTreeNodeFlags_DefaultOpen;
+    dispaly_flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
     if (node->children.empty()) // if is leaf
     {
         dispaly_flags |= ImGuiTreeNodeFlags_Leaf;
@@ -66,7 +75,7 @@ inline void display_node(entity_node_t* node, const engine::Scene* scene, hierar
     }
     else
     {
-        dispaly_flags |= ImGuiTreeNodeFlags_OpenOnDoubleClick;
+        dispaly_flags |= ImGuiTreeNodeFlags_OpenOnArrow;
     }
 
     if (ImGui::TreeNodeEx(node->name.c_str(), dispaly_flags))
@@ -75,6 +84,16 @@ inline void display_node(entity_node_t* node, const engine::Scene* scene, hierar
         {
             ctx.set_selected_entity(node->entity);
         }
+
+        if (ImGui::BeginPopupContextItem())
+        {
+            if (ImGui::MenuItem("Delete"))
+            {
+                traverse_hierarchy(node, [&scene](entity_node_t* n) { scene->destroy_entity(n->entity); });                
+            }
+            ImGui::EndPopup();
+        }
+
         else
         {
             for (auto& child : node->children)
@@ -390,17 +409,16 @@ void engine::ApplicationEditor::on_scene_update(Scene* scene, float delta_time)
         }
     }
 
+    static hierarchy_context_t ctx;
     ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::Begin("Scene Panel");
 
-    ImGui::SeparatorText("Hierarchy");
-    static hierarchy_context_t ctx;
-
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+    if(ImGui::Button("Add entity"))
     {
-        ctx.unselect_entity();
+        scene->create_new_entity();
     }
 
+    ImGui::SeparatorText("Scene hierarchy");
     for (auto& [e, f] : entity_map)
     {
         if (!f.displayed && !f.parent)

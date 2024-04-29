@@ -264,7 +264,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
     }
 
     auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
-    auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_skin_component_t, const engine_material_component_t>();
+    auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
     auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
 
     for (auto [entity, camera, transform] : camera_view.each()) 
@@ -338,7 +338,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 		);
 
         skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
-            const engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
+            engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
             {
                 if (mesh_component.disable)
                 {
@@ -364,6 +364,12 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         continue;
                     }
 
+                    if (has_component<engine_bone_component_t>(bone_entity) == false)
+                    {
+                        log::log(log::LogLevel::eError, fmt::format("Bone entity does not have bone component. Are you sure you are doing valid thing?\n"));
+                        skin_component.bones[i] = ENGINE_INVALID_GAME_OBJECT_ID;
+                        continue;
+                    }
                     const auto& bone_component = get_component<engine_bone_component_t>(bone_entity);
                     const auto& bone_transform = get_component<engine_tranform_component_t>(bone_entity);
                     const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
