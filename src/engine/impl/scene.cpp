@@ -337,7 +337,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 			}
 		);
 
-        skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
+        skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
             const engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
             {
                 if (mesh_component.disable)
@@ -356,20 +356,19 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
 
                 const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
-
                 for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
                 {
-                    const auto& bone_entity = skin_component.bones[i];
-                    if (bone_entity == ENGINE_INVALID_GAME_OBJECT_ID)
+                    const auto& bone_entity = static_cast<entt::entity>(skin_component.bones[i]);
+                    if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
                     {
                         continue;
                     }
-                    const auto& bone_component = get_component<engine_bone_component_t>(static_cast<entt::entity>(bone_entity));
-                    const auto& bone_transform = get_component<engine_tranform_component_t>(static_cast<entt::entity>(bone_entity));
+
+                    const auto& bone_component = get_component<engine_bone_component_t>(bone_entity);
+                    const auto& bone_transform = get_component<engine_tranform_component_t>(bone_entity);
                     const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
                     const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
                     const auto per_bone_final_transform = inverse_transform * bone_matrix;
-                    //const auto per_bone_final_transform = bone_matrix;
                     const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
                     shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
                 }
