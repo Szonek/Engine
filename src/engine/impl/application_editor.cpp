@@ -132,7 +132,7 @@ bool display_transform_component(engine_tranform_component_t& c)
     glm::vec3 rot = glm::degrees(glm::eulerAngles(glm::make_quat(c.rotation)));
     if (ImGui::DragFloat3("Rotation", glm::value_ptr(rot), v_speed))
     {
-        const auto final_rot = glm::quat(glm::radians(rot));
+        const auto final_rot = glm::normalize(glm::quat(glm::radians(rot)));
         std::memcpy(c.rotation, glm::value_ptr(final_rot), sizeof(c.rotation));
     }
     ImGui::DragFloat3("Scale", c.scale, v_speed);

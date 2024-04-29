@@ -184,7 +184,10 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
+
+        //anim_controller_.set_active_animation("static");
         anim_controller_.set_active_animation("idle");
+
 
         const float speed = 0.0005f * dt;
 
