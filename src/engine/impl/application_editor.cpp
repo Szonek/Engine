@@ -219,6 +219,13 @@ bool display_collider_component(engine_collider_component_t& c)
     return requires_component_updated;
 }
 
+bool display_rigidbody_component(engine_rigid_body_component_t& c)
+{
+    bool requires_update = ImGui::SliderFloat("Mass", &c.mass, 0.0f, 100.0f);
+
+    return requires_update;
+}
+
 bool display_camera_component(engine_camera_component_t& c)
 {
     // is it enabled?
@@ -363,6 +370,16 @@ void engine::ApplicationEditor::on_scene_update(Scene* scene, float delta_time)
         display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
         display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
         display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);
+        display_component<engine_rigid_body_component_t>("Rigid Body", scene, selected, display_rigidbody_component);
+
+        //if (scene->has_component<engine_rigid_body_component_t>(selected))
+        //{
+        //    if(ImGui::Button("Move"))
+        //    {
+        //        auto c = scene->get_component<PhysicsWorld::physcic_internal_component_t>(selected);
+        //        c->rigid_body->translate(btVector3(0.5f, 0.0f, 0.0f));
+        //    }
+        //}
     }
     else
     {

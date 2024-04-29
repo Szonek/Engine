@@ -118,8 +118,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     {
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
         auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
-        btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
-
+        //btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
         glm::vec3 scale;
         glm::quat rotation;
         glm::vec3 translation;
@@ -127,10 +126,15 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         glm::vec4 perspective;
         glm::decompose(glm::make_mat4(transform_component->local_to_world), scale, rotation, translation, skew, perspective);
 
+        btTransform world_transform;
+        physcics_component->rigid_body->getMotionState()->getWorldTransform(world_transform);
+
         world_transform.setOrigin(btVector3(translation.x, translation.y, translation.z));
         const btQuaternion quaterninon(rotation.x, rotation.y, rotation.z, rotation.w);
         world_transform.setRotation(quaterninon);
      
+        physcics_component->rigid_body->translate(btVector3(translation.x, translation.y, translation.z));
+
         physcics_component->rigid_body->activate(true);
         physcics_component->rigid_body->setWorldTransform(world_transform);
     }
@@ -153,7 +157,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     // sync physcis to graphics world
     // ToDo: this could be seperate function or called at the beggning of the graphics update function?
     auto transform_physcis_view = entity_registry_.view<engine_tranform_component_t, const PhysicsWorld::physcic_internal_component_t, engine_rigid_body_component_t>();
-    transform_physcis_view.each([this](auto entity, engine_tranform_component_t transform, const PhysicsWorld::physcic_internal_component_t physcics, engine_rigid_body_component_t rigidbody)
+    transform_physcis_view.each([this](auto entity, engine_tranform_component_t& transform, const PhysicsWorld::physcic_internal_component_t& physcics, engine_rigid_body_component_t& rigidbody)
         {
             //assert(physcics.rigid_body);
             if (!physcics.rigid_body)
