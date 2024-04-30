@@ -80,11 +80,13 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_co
 
     if (ImGui::TreeNodeEx(node->name.c_str(), dispaly_flags))
     {
+        // select entity with LMB
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         {
             ctx.set_selected_entity(node->entity);
         }
 
+        // context menu with RMB
         if (ImGui::BeginPopupContextItem())
         {
             if (ImGui::MenuItem("Delete"))
@@ -92,6 +94,39 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_co
                 traverse_hierarchy(node, [&scene](entity_node_t* n) { scene->destroy_entity(n->entity); });                
             }
             ImGui::EndPopup();
+        }
+
+        // drag and drop
+        if (ImGui::BeginDragDropSource())
+        {
+            ImGui::SetDragDropPayload("DND_ENTITY", &node->entity, sizeof(entt::entity));
+            ImGui::Text("Drag and drop. Entity: %s", node->name.c_str());
+            ImGui::EndDragDropSource();
+        }
+
+        if (ImGui::BeginDragDropTarget())
+        {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ENTITY"))
+            {
+                IM_ASSERT(payload->DataSize == sizeof(entt::entity));
+                entt::entity payload_n = *static_cast<entt::entity*>(payload->Data);
+                //engine::log::log(engine::log::LogLevel::eInfo, "Dropped entity %d to %d\n", payload_n, node->entity);
+
+
+                if (scene->has_component<engine_parent_component_t>(payload_n))
+                {
+                    engine_parent_component_t pc{};
+                    pc.parent = static_cast<std::uint32_t>(node->entity);
+                    scene->update_component<engine_parent_component_t>(payload_n, pc);
+                }
+                else
+                {
+                    auto pc = *scene->add_component<engine_parent_component_t>(payload_n);
+                    pc.parent = static_cast<std::uint32_t>(node->entity);
+                    scene->update_component<engine_parent_component_t>(payload_n, pc);
+                }
+            }
+            ImGui::EndDragDropTarget();
         }
 
         else
@@ -427,14 +462,33 @@ void engine::ApplicationEditor::on_scene_update(Scene* scene, float delta_time)
     }
 
     ImGui::SeparatorText("Scene hierarchy");
-    for (auto& [e, f] : entity_map)
+    if (ImGui::TreeNodeEx("Scene Collection", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth))
     {
-        if (!f.displayed && !f.parent)
+        if (ImGui::BeginDragDropTarget())
         {
-            display_node(&f, scene, ctx);
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ENTITY"))
+            {
+                IM_ASSERT(payload->DataSize == sizeof(entt::entity));
+                entt::entity payload_n = *static_cast<entt::entity*>(payload->Data);
+                //engine::log::log(engine::log::LogLevel::eInfo, "Dropped entity %d to %d\n", payload_n, node->entity);
+                if (scene->has_component<engine_parent_component_t>(payload_n))
+                {
+                    scene->remove_component<engine_parent_component_t>(payload_n);
+                }
+            }
+            ImGui::EndDragDropTarget();
         }
-    }
 
+        for (auto& [e, f] : entity_map)
+        {
+            if (!f.displayed && !f.parent)
+            {
+                display_node(&f, scene, ctx);
+            }
+        }
+
+        ImGui::TreePop();
+    }
     /*
     here all components should be visible
         - the one which are not avaialbe in the entitiy (Grayd out) and a "+" button to add them
@@ -450,15 +504,6 @@ void engine::ApplicationEditor::on_scene_update(Scene* scene, float delta_time)
         display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
         display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);
         display_component<engine_rigid_body_component_t>("Rigid Body", scene, selected, display_rigidbody_component);
-
-        //if (scene->has_component<engine_rigid_body_component_t>(selected))
-        //{
-        //    if(ImGui::Button("Move"))
-        //    {
-        //        auto c = scene->get_component<PhysicsWorld::physcic_internal_component_t>(selected);
-        //        c->rigid_body->translate(btVector3(0.5f, 0.0f, 0.0f));
-        //    }
-        //}
     }
     else
     {
