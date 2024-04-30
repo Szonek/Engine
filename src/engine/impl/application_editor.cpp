@@ -109,6 +109,10 @@ template<typename T>
 inline void display_component(std::string_view name, engine::Scene* scene, entt::entity entity, std::function<bool(T& comp)> fn)
 {
     const bool has_component = scene->has_component<T>(entity);
+    if (!has_component)
+    {
+        ImGui::BeginDisabled();
+    }
     if (ImGui::CollapsingHeader(name.data(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_AllowItemOverlap))
     {
         if (has_component)
@@ -124,6 +128,10 @@ inline void display_component(std::string_view name, engine::Scene* scene, entt:
     else
     {
         ImGui::SameLine();
+    }
+    if (!has_component)
+    {
+        ImGui::EndDisabled();
     }
     if (has_component)
     {
