@@ -80,6 +80,9 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_co
 
     if (ImGui::TreeNodeEx(node->name.c_str(), dispaly_flags))
     {
+        // tooltip the id
+        ImGui::SetItemTooltip("ID: %d", node->entity);
+
         // select entity with LMB
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         {
@@ -320,26 +323,6 @@ bool display_collider_component(engine_collider_component_t& c)
                 std::memcpy(child.rotation_quaternion, glm::value_ptr(final_rot), sizeof(child.rotation_quaternion));
             }
         }
-        //engine::log::log(engine::log::LogLevel::eError, "Compound collider not implemented for editor yet\n");
-        //c.type = ENGINE_COLLIDER_TYPE_BOX; // to avoid crash, remove when this code will support compud collider
-        //for (std::size_t i = 0; i < ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS; i++)
-        //{
-            //auto& child = c.collider.compound.children[i];
-            //if (child.type != ENGINE_COLLIDER_TYPE_BOX)
-            //{
-            //    continue;
-            //}
-            //ImGui::Text("Child %d", i);
-            //std::int32_t child_selected_type = c.type;
-            //if (ImGui::ListBox("Child Type", &child_selected_type, items, std::size(items)))
-            //{
-            //    requires_component_updated = true;
-            //    c.type = static_cast<engine_collider_type_t>(selected_type);
-            //}
-            //ImGui::DragFloat3("Position", child.transform, 0.1f);
-            //ImGui::DragFloat3("Rotation", child.rotation, 0.1f);
-            //ImGui::DragFloat3("Scale", child.scale, 0.1f);
-        //}
     }
     // trigger
     requires_component_updated |= ImGui::Checkbox("Is Trigger", &c.is_trigger);
