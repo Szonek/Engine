@@ -208,16 +208,17 @@ inline void display_component(std::string_view name, engine::Scene* scene, entt:
 bool display_transform_component(engine_tranform_component_t& c)
 {
     const float v_speed = 0.1f;
-    ImGui::DragFloat3("Position", c.position, v_speed);
+    bool requires_update = ImGui::DragFloat3("Position", c.position, v_speed);
 
     glm::vec3 rot = glm::degrees(glm::eulerAngles(glm::make_quat(c.rotation)));
     if (ImGui::DragFloat3("Rotation", glm::value_ptr(rot), v_speed))
     {
+        requires_update = true;
         const auto final_rot = glm::normalize(glm::quat(glm::radians(rot)));
         std::memcpy(c.rotation, glm::value_ptr(final_rot), sizeof(c.rotation));
     }
-    ImGui::DragFloat3("Scale", c.scale, v_speed);
-    return true;
+    requires_update |= ImGui::DragFloat3("Scale", c.scale, v_speed);
+    return requires_update;
 }
 
 bool display_mesh_component(engine_mesh_component_t& c)

@@ -193,6 +193,12 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+
+        const auto direction = get_direction_to_mouse_pointer(tc.position[0], tc.position[2]);
+        const auto rotation = glm::angleAxis(glm::atan(direction.y, direction.x), glm::vec3(0.0f, 1.0f, 0.0f));
+        std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
         //return;
         anim_controller_.set_active_animation("static");
         //anim_controller_.set_active_animation("crouch");
@@ -202,7 +208,7 @@ public:
         const float speed = 0.0005f * dt;
         //std::string move_anim = "sprint";// "walk";
         std::string move_anim = "walk";
-        auto tc = engineSceneGetTransformComponent(scene, go_);
+
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
         {
             anim_controller_.set_active_animation(move_anim);
@@ -242,6 +248,20 @@ public:
             anim_controller_.set_active_animation("die");
         }
         anim_controller_.update(dt);
+    }
+
+private:
+    glm::vec2 get_direction_to_mouse_pointer(const float character_pos_x, const float character_pos_y) const
+    {
+        const auto app = my_scene_->get_app_handle();
+        const auto mouse_coords = engineApplicationGetMouseCoords(app);
+        
+        /*
+        mouse coords are in range 0 - 1
+        character position is in world space
+        */
+
+        return glm::vec2(mouse_coords.x - character_pos_x, mouse_coords.y - character_pos_y);
     }
 };
 
