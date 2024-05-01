@@ -89,10 +89,26 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_co
         // context menu with RMB
         if (ImGui::BeginPopupContextItem())
         {
+            // delete entity
             if (ImGui::MenuItem("Delete"))
             {
                 traverse_hierarchy(node, [&scene](entity_node_t* n) { scene->destroy_entity(n->entity); });                
             }
+            
+            //rename entity
+            static decltype(engine_name_component_t::name) new_name = "New name";
+            if(ImGui::Button("Rename"))
+            {   
+                // update component
+                auto nc = *scene->get_component<engine_name_component_t>(node->entity);
+                std::strcpy(nc.name, new_name);
+                scene->update_component<engine_name_component_t>(node->entity, nc);
+
+                // reset static new name
+                std::strcpy(new_name, "New name");
+            }
+            ImGui::SameLine();        
+            ImGui::InputText("##edit", new_name, IM_ARRAYSIZE(new_name));
             ImGui::EndPopup();
         }
 
@@ -430,7 +446,7 @@ void engine::ApplicationEditor::on_scene_update(Scene* scene, float delta_time)
     std::map<entt::entity, entity_node_t> entity_map;
     for (auto e : scene->get_all_entities())
     {
-        std::string name = "Entity " + std::to_string(static_cast<std::uint32_t>(e));
+        std::string name = "Unnamed";
         if (scene->has_component<engine_name_component_t>(e))
         {
             const auto nc = scene->get_component<engine_name_component_t>(e);
@@ -458,7 +474,10 @@ void engine::ApplicationEditor::on_scene_update(Scene* scene, float delta_time)
 
     if(ImGui::Button("Add entity"))
     {
-        scene->create_new_entity();
+        auto e = scene->create_new_entity();
+        auto nc = scene->add_component<engine_name_component_t>(e);
+        const auto new_name = "Entity " + std::to_string(static_cast<std::uint32_t>(e));
+        std::memcpy(nc->name, new_name.c_str(), new_name.size());
     }
 
     ImGui::SeparatorText("Scene hierarchy");
