@@ -808,6 +808,13 @@ bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t ga
     return has_component<engine_camera_component_t>(scene, game_object);
 }
 
+void engineSceneComponentViewAttachCameraComponent(engine_scene_t scene, engine_component_view_t view)
+{
+    auto sc = scene_cast(scene);
+    auto rv = runtime_view_cast(view);
+    sc->attach_component_to_runtime_view<engine_camera_component_t>(*rv);
+}
+
 engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return add_component<engine_rigid_body_component_t>(scene, game_object);

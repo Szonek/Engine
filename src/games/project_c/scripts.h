@@ -19,6 +19,63 @@ inline void set_name(engine_scene_t scene, engine_game_object_t go, const char* 
     std::strncpy(nc.name, name, strlen(name));
     engineSceneUpdateNameComponent(scene, go, &nc);
 }
+
+
+template<typename T>
+inline std::vector<engine_game_object_t> get_active_camera_game_objects(engine_scene_t scene)
+{
+    engine_component_view_t cv{};
+    engineCreateComponentView(&cv);
+    engineSceneComponentViewAttachCameraComponent(scene, cv);
+
+    engine_component_iterator_t begin{};
+    engine_component_iterator_t end{};
+    engineComponentViewCreateBeginComponentIterator(cv, &begin);
+    engineComponentViewCreateEndComponentIterator(cv, &end);
+
+    std::vector<engine_game_object_t> ret{};
+    while (!engineComponentIteratorCheckEqual(begin, end))
+    {
+        auto go_it = engineComponentIteratorGetGameObject(begin);
+        if (engineSceneHasCameraComponent(scene, go_it))
+        {
+            if (engineSceneGetCameraComponent(scene, go_it).enabled)
+            {
+                ret.push_back(go_it);
+            }
+        }
+        engineComponentIteratorNext(begin);
+    }
+    engineDestroyComponentView(cv);
+    return ret;
+}
+
+glm::vec3 unprojectMouseTo3DWorld(float mouseX, float mouseY, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const glm::vec4& viewport)
+{
+    // Normalize the mouse coordinates to -1 to 1
+    glm::vec2 mousePos;
+    mousePos.x = (mouseX / viewport.z - 0.5f) * 2.0f;
+    mousePos.y = (mouseY / viewport.w - 0.5f) * 2.0f;
+
+    // Unproject the mouse position to a point in 3D space
+    glm::vec4 start(mousePos.x, mousePos.y, 0.0f, 1.0f);
+    glm::vec4 end(mousePos.x, mousePos.y, 1.0f, 1.0f);
+
+    glm::mat4 invVP = glm::inverse(projectionMatrix * viewMatrix);
+    glm::vec4 startWorld = invVP * start;
+    glm::vec4 endWorld = invVP * end;
+
+    // Divide by w to get the 3D coordinates
+    startWorld /= startWorld.w;
+    endWorld /= endWorld.w;
+
+    // Calculate the direction from the camera position to the mouse position
+    glm::vec3 dir = glm::normalize(glm::vec3(endWorld - startWorld));
+
+    // Return the direction
+    return dir;
+}
+
 }
 
 namespace project_c
@@ -256,6 +313,7 @@ private:
         const auto app = my_scene_->get_app_handle();
         const auto mouse_coords = engineApplicationGetMouseCoords(app);
         
+        const auto active_camera = get_active_camera_game_objects<engine_camera_component_t>(my_scene_->get_handle())[0];
         /*
         mouse coords are in range 0 - 1
         character position is in world space

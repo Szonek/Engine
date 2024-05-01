@@ -583,6 +583,7 @@ ENGINE_API engine_camera_component_t engineSceneGetCameraComponent(engine_scene_
 ENGINE_API void engineSceneUpdateCameraComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_camera_component_t* comp);
 ENGINE_API void engineSceneRemoveCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneComponentViewAttachCameraComponent(engine_scene_t scene, engine_component_view_t view);
 
 ENGINE_API engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_rigid_body_component_t engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
