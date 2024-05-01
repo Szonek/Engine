@@ -484,7 +484,7 @@ ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_applicat
 ENGINE_API engine_font_t engineApplicationGetFontByName(engine_application_t handle, const char* name);
 
 // model loading
-ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, engine_model_desc_t* out);
+ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t* out);
 ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info);
 
 // geometry

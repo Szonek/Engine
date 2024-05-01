@@ -41,7 +41,7 @@ public:
     virtual std::uint32_t add_material(const engine_material_create_desc_t& desc, std::string_view name);
     virtual std::uint32_t get_material(std::string_view name) const;
 
-    virtual engine_model_desc_t load_model_desc_from_file(engine_model_specification_t spec, std::string_view name);
+    virtual engine_model_desc_t load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir);
     virtual void release_model_desc(engine_model_desc_t* info);
 
     virtual UiDocument load_ui_document(std::string_view file_name);

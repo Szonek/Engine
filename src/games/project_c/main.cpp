@@ -265,19 +265,19 @@ int main(int argc, char** argv)
 
     const auto load_start = std::chrono::high_resolution_clock::now();
 
-    project_c::ModelInfo model_info_swrd(engine_error_code, app, "weapon-sword.glb");
+    project_c::ModelInfo model_info_swrd(engine_error_code, app, "weapon-sword.glb", "Textures_mini_arena");
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         return false;
     }
 
-    project_c::ModelInfo model_info_solider(engine_error_code, app, "character-soldier.glb");
+    project_c::ModelInfo model_info_solider(engine_error_code, app, "character-soldier.glb", "Textures_mini_arena");
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         return false;
     }
 
-   // project_c::ModelInfo model_info_cesium(engine_error_code, app, "CesiumMan.gltf");
+    project_c::ModelInfo model_info_orc(engine_error_code, app, "character-orc.glb", "Textures_mini_dungeon");
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         return false;
@@ -311,7 +311,8 @@ int main(int argc, char** argv)
     //    return -1;
     //}
 
-    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_cube, scene);
+    //load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_cube, scene);
+    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene);
     if (!load_model)
     {
         log(fmt::format("Loading model failed!\n"));

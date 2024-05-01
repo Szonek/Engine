@@ -149,9 +149,6 @@ public:
         const auto app = my_scene_->get_app_handle();
         set_name(scene, go_, "enemy");
         auto tc = engineSceneGetTransformComponent(scene, go_);
-        tc.scale[0] = 0.5f;
-        tc.scale[1] = 0.75f;
-        tc.scale[2] = 0.5f;
 
         tc.position[0] += 1.0f;
         tc.position[1] += 2.75f;
@@ -160,8 +157,17 @@ public:
 
         // physcis
         auto cc = engineSceneAddColliderComponent(scene, go_);
-        cc.type = ENGINE_COLLIDER_TYPE_BOX;
-        set_c_array(cc.collider.box.size, std::array<float, 3>{ 1.0f, 1.0f, 1.0f});
+        cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
+        auto& child_c = cc.collider.compound.children[0];
+        {
+            child_c.type = ENGINE_COLLIDER_TYPE_BOX;
+            child_c.transform[0] = 0.0f;
+            child_c.transform[1] = 0.35f;
+            child_c.transform[2] = 0.0f;
+            child_c.rotation_quaternion[3] = 1.0f;
+            set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.3f, 0.35f, 0.3f});
+        }
+
         engineSceneUpdateColliderComponent(scene, go_, &cc);
 
         //rb

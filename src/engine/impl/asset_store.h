@@ -77,6 +77,7 @@ public:
 	RawDataFileContext get_font_data(std::string_view name) const;
     std::filesystem::path get_font_base_path() const;
     std::filesystem::path get_ui_docs_base_path() const;
+    std::filesystem::path get_textures_base_path() const;
 	TextureAssetContext get_texture_data(std::string_view name) const;
 	RawDataFileContext get_model_data(std::string_view name) const;
     void save_texture(std::string_view name, const void* data, std::uint32_t width, std::uint32_t height, std::uint32_t channels);

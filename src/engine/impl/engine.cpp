@@ -312,14 +312,14 @@ engine_texture2d_t engineApplicationGetTextured2DByName(engine_application_t han
     return app->get_texture(name);
 }
 
-engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, engine_model_desc_t* out)
+engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, const char* base_dir, engine_model_desc_t* out)
 {
     if (!out)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
     auto* app = application_cast(handle);
-    *out = app->load_model_desc_from_file(spec, file_name);
+    *out = app->load_model_desc_from_file(spec, file_name, base_dir);
     if (!out->internal_handle)
     {
         return ENGINE_RESULT_CODE_FAIL;

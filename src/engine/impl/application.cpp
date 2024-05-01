@@ -376,7 +376,7 @@ std::uint32_t engine::Application::get_material(std::string_view name) const
     return materials_atlas_.get_object(name);
 }
 
-engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_specification_t spec, std::string_view name)
+engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir)
 {
     assert(spec == ENGINE_MODEL_SPECIFICATION_GLTF_2);
 
@@ -385,7 +385,9 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     {
         return {};
     }
-    const auto model_info = new engine::ModelInfo(parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }));
+
+    const auto assets_dir = engine::AssetStore::get_instance().get_textures_base_path()/base_dir;
+    const auto model_info = new engine::ModelInfo(parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string()));
 
     engine_model_desc_t ret{};
     ret.internal_handle = reinterpret_cast<const void*>(model_info);

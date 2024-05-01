@@ -74,12 +74,6 @@ void engine::initialize_rigidbody_component(entt::registry& registry, entt::enti
 void engine::initialize_collider_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_collider_component_t>(registry, entity);
-    comp.type = ENGINE_COLLIDER_TYPE_BOX;
-    comp.collider.box.size[0] = 1.0f;
-    comp.collider.box.size[1] = 1.0f;
-    comp.collider.box.size[2] = 1.0f;
-    comp.is_trigger = false;
-    comp.friction_static = 0.5f;
 }
 
 void engine::initialize_skin_component(entt::registry& registry, entt::entity entity)

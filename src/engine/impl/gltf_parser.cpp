@@ -262,7 +262,7 @@ inline engine::TextureInfo parse_texture(const tinygltf::Texture& texture, const
 {
     const auto& tex = model.images[texture.source];
     engine::TextureInfo tex_info{};
-    if (!tex.uri.empty())
+    if (tex.image.empty() && !tex.uri.empty())
     {
         const auto tc = engine::AssetStore::get_instance().get_texture_data(tex.uri);
         tex_info.name = tex.uri;
@@ -403,7 +403,7 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
 
 }  // namespace anonymous
 
-engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8_t> data)
+engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8_t> data, const std::string& base_dir)
 {
     assert(!data.empty());
 
@@ -418,11 +418,11 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     if(is_binary)
     {
         load_success = loader.LoadBinaryFromMemory(&model, &load_error_msg, &load_warning_msg,
-            data.data(), static_cast<std::uint32_t>(data.size_bytes()), "");
+            data.data(), static_cast<std::uint32_t>(data.size_bytes()), base_dir);
     }
     else
     {
-        load_success = loader.LoadASCIIFromString(&model, &load_error_msg, &load_warning_msg, reinterpret_cast<const char*>(data.data()), static_cast<std::uint32_t>(data.size()), {});
+        load_success = loader.LoadASCIIFromString(&model, &load_error_msg, &load_warning_msg, reinterpret_cast<const char*>(data.data()), static_cast<std::uint32_t>(data.size()), base_dir, {});
     }
     if (!load_warning_msg.empty())
     {

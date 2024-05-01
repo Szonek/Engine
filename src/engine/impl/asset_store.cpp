@@ -117,12 +117,16 @@ void engine::AssetStore::configure_base_path(std::string_view path)
 	base_path_ = path;
 }
 
+std::filesystem::path engine::AssetStore::get_textures_base_path() const
+{
+    const std::filesystem::path textures_folder = "textures";
+    const auto textures_assets_path = base_path_ / textures_folder;
+    return textures_assets_path;
+}
+
 engine::TextureAssetContext engine::AssetStore::get_texture_data(std::string_view name) const
 {
-	const std::filesystem::path textures_folder = "textures";
-	const auto textures_assets_path = base_path_ / textures_folder;
-	const auto full_path = textures_assets_path / name.data();
-
+	const auto full_path = get_textures_base_path() / name.data();
 	return TextureAssetContext(full_path);
 }
 
