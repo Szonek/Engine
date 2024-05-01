@@ -1,11 +1,23 @@
 body {
 	font-family: Tahoma;
 	font-size: 18px;
-	color: #02475e;
-	background: #fefecc;
-	text-align: center;
+	text-align: right;
+    margin: 0;
+    height: 100%;
+    width: 100%;
 }
-		
+
+div.container 
+{
+	position: absolute;
+	width: 10%;
+	margin-left: auto;
+	background-color: yellow;
+	padding: 5px;
+	text-align: center;
+	color: #f6470a;
+}
+	
 h1 {
 	color: #f6470a;
 	font-size: 1.5em;

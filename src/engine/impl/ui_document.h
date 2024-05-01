@@ -10,6 +10,7 @@
 
 namespace Rml
 {
+    class Context;
     class ElementDocument;
     class Element;
     class DataModelConstructor;
@@ -92,7 +93,7 @@ private:
 class UiDocument
 {
 public:
-    UiDocument(Rml::ElementDocument* doc);
+    UiDocument(Rml::Context* ctx, std::string_view file_name);
     UiDocument(const UiDocument& rhs) = delete;
     UiDocument& operator=(const UiDocument& rhs) = delete;
     UiDocument(UiDocument&&);
@@ -105,9 +106,8 @@ public:
     UiElement* get_element_by_id(std::string_view id, engine_result_code_t& err_out);
 
 private:
-    UiManager* ui_mng_ = nullptr;
     Rml::ElementDocument* doc_ = nullptr;
-
+    Rml::Context* context_;
     std::map<std::string, UiElement> cached_ui_elements_;
 };
 }

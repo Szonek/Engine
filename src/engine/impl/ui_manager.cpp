@@ -19,9 +19,7 @@
 
 engine::UiManager::UiManager(RenderContext& rdx)
     : rdx_(rdx)
-    , current_font_idx_(ENGINE_INVALID_OBJECT_HANDLE) // start with, since 0 is invalid index
 {
-    current_font_idx_++;
     Rml::Initialise();
     // create context with some aribtrary name and dimension.  (dimensions wil lbe update in update(..))
     const auto window_size_pixels = rdx_.get_window_size_in_pixels();
@@ -59,25 +57,14 @@ engine::UiDataHandle engine::UiManager::create_data_handle(std::string_view name
 
 engine::UiDocument engine::UiManager::load_document_from_file(std::string_view file_name)
 {
-    Rml::ElementDocument* document = ui_rml_context_->LoadDocument((AssetStore::get_instance().get_ui_docs_base_path() / file_name).string());
-    return UiDocument(document);
+    return UiDocument(ui_rml_context_, file_name);
 }
 
-std::uint32_t engine::UiManager::load_font_from_file(std::string_view file_name, std::string_view /*handle_name*/)
+bool engine::UiManager::load_font_from_file(std::string_view file_name, std::string_view /*handle_name*/)
 {
     const auto font_path = AssetStore::get_instance().get_font_base_path() / file_name;
-    bool success = Rml::LoadFontFace(font_path.string(), true);
-    if (success)
-    {
-        return current_font_idx_++;
-    }
-    return ENGINE_INVALID_OBJECT_HANDLE;
-}
-
-std::uint32_t engine::UiManager::get_font(std::string_view /*name*/) const
-{
-    assert(false && "Not implemented!");
-    return std::uint32_t();
+    const auto success = Rml::LoadFontFace(font_path.string(), true);
+    return success;
 }
 
 void engine::UiManager::parse_sdl_event(SDL_Event ev)

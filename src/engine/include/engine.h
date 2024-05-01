@@ -47,13 +47,25 @@ typedef struct _engine_ui_element_t* engine_ui_element_t;
 typedef uint32_t engine_material_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
-typedef uint32_t engine_font_t;
 
 typedef struct _engine_coords_2d_t
 {
     float x;
     float y;
 } engine_coords_2d_t;
+
+typedef struct _engine_ray_t
+{
+    float origin[3];
+    float direction[3];
+} engine_ray_t;
+
+typedef struct _engine_ray_hit_info_t
+{
+    engine_game_object_t go;
+    float position[3];
+    float normal[3];
+} engine_ray_hit_info_t;
 
 typedef enum _engine_ui_document_data_binding_data_type_t
 {
@@ -461,7 +473,7 @@ ENGINE_API void engineApplicationSceneDestroy(engine_application_t handle, engin
 
 // game objects in scene
 ENGINE_API engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene);
-ENGINE_API void                     engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void                 engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object);
 
 // user input hangling
 ENGINE_API bool engineApplicationIsKeyboardButtonDown(engine_application_t handle, engine_keyboard_keys_t key);
@@ -480,11 +492,10 @@ ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpd
 ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engine_application_t handle);
 
 // fonts
-ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name, engine_font_t* out);
-ENGINE_API engine_font_t engineApplicationGetFontByName(engine_application_t handle, const char* name);
+ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name);
 
 // model loading
-ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, engine_model_desc_t* out);
+ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t* out);
 ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info);
 
 // geometry
@@ -502,8 +513,9 @@ ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromFile(engine_app
 ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
 
 // physics 
-ENGINE_API void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);
-ENGINE_API void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
+ENGINE_API void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3]);
+ENGINE_API void engineScenePhysicsGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
+ENGINE_API engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_ray_t* ray, float max_distance);
 
 // ui
 // create data handel first, before loading document!
@@ -514,6 +526,7 @@ ENGINE_API void engineUiDataHandleDirtyVariable(engine_ui_data_handle_t handle, 
 
 // if document uses data model than creata data model first with function: engineApplicationCreateUiDataHandle(...)
 ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out);
+ENGINE_API void engineApplicationUiDocumentDestroy(engine_ui_document_t doc);
 ENGINE_API void engineUiDocumentShow(engine_ui_document_t ui_doc);
 ENGINE_API void engineUiDocumentHide(engine_ui_document_t ui_doc);
 // interanlly it caches elements, so it's safe to call it multiple times to get the same object
@@ -583,6 +596,7 @@ ENGINE_API engine_camera_component_t engineSceneGetCameraComponent(engine_scene_
 ENGINE_API void engineSceneUpdateCameraComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_camera_component_t* comp);
 ENGINE_API void engineSceneRemoveCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneComponentViewAttachCameraComponent(engine_scene_t scene, engine_component_view_t view);
 
 ENGINE_API engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_rigid_body_component_t engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
@@ -596,12 +610,16 @@ ENGINE_API void engineSceneUpdateColliderComponent(engine_scene_t scene, engine_
 ENGINE_API void engineSceneRemoveColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
 
+// parent component
 ENGINE_API engine_parent_component_t engineSceneAddParentComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_parent_component_t engineSceneGetParentComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void engineSceneUpdateParentComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_parent_component_t* comp);
 ENGINE_API void engineSceneRemoveParentComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasParentComponent(engine_scene_t scene, engine_game_object_t game_object);
 
+// children component - only getters - it's managed internally by engine and user can't update it's state 
+ENGINE_API engine_children_component_t engineSceneGetChildrenComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasChildrenComponent(engine_scene_t scene, engine_game_object_t game_object);
 #ifdef __cplusplus
 }
 #endif  // #ifndef __cplusplus

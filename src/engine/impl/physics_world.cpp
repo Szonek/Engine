@@ -193,7 +193,7 @@ const std::vector<engine_collision_info_t>& engine::PhysicsWorld::get_collisions
             const auto pt = manifold->getContactPoint(j);
 
             const auto position_a = pt.getPositionWorldOnA();
-            const auto position_b = pt.getPositionWorldOnA();
+            const auto position_b = pt.getPositionWorldOnB();
 
             engine_collision_contact_point_t new_contact_point{};
             new_contact_point.lifetime = pt.getLifeTime();
@@ -219,6 +219,30 @@ const std::vector<engine_collision_info_t>& engine::PhysicsWorld::get_collisions
 void engine::PhysicsWorld::set_gravity(std::span<const float> g)
 {
     dynamics_world_->setGravity(btVector3(g[0], g[1], g[2]));
+}
+
+engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, float max_distance)
+{
+    btCollisionWorld::ClosestRayResultCallback closest_result(
+        btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
+        btVector3(ray.direction[0], ray.direction[1], ray.direction[2]));
+    dynamics_world_->rayTest(
+        btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
+        btVector3(ray.direction[0], ray.direction[1], ray.direction[2]),
+        closest_result
+    );
+    engine_ray_hit_info_t ret{};
+    if (closest_result.hasHit())
+    {
+        ret.go = closest_result.m_collisionObject->getUserIndex();
+        ret.position[0] = closest_result.m_hitPointWorld.getX();
+        ret.position[1] = closest_result.m_hitPointWorld.getY();
+        ret.position[2] = closest_result.m_hitPointWorld.getZ();
+        ret.normal[0] = closest_result.m_hitNormalWorld.getX();
+        ret.normal[1] = closest_result.m_hitNormalWorld.getY();
+        ret.normal[2] = closest_result.m_hitNormalWorld.getZ();
+    }
+    return ret;
 }
 
 engine::PhysicsWorld::DebugDrawer::DebugDrawer(class RenderContext* renderer)
@@ -278,7 +302,7 @@ void engine::PhysicsWorld::DebugDrawer::end_frame()
 
 void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
 {
-    static auto shader = Shader("debug_physics_lines.vs", "debug_physics_lines.fs");
+    static auto shader = Shader({ "simple_vertex_definitions.h", "debug_physics_lines.vs" }, { "debug_physics_lines.fs" });
     if (!lines_.empty())
     {
         shader.bind();

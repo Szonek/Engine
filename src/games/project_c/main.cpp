@@ -37,6 +37,14 @@
 
 namespace project_c
 {
+struct UI_data
+{
+    engine_ui_document_t doc;
+    engine_ui_data_handle_t handle;
+    std::uint32_t character_health = 100;
+    std::uint32_t enemy_health = 100;
+};
+
 class TestScene : public engine::IScene
 {
 public:
@@ -44,10 +52,50 @@ public:
         : IScene(app_handle, scn_mgn, engine_error_code)
     {
         auto camera_script = register_script<CameraScript>();
+
+
+        if (engineApplicationAddFontFromFile(app_handle, "tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
+        {
+            log(fmt::format("Couldnt load font!\n"));
+            return;
+        }
+        std::array<engine_ui_document_data_binding_t, 2> bindings{};
+        bindings[0].data_uint32_t = &ui_data_.character_health;
+        bindings[0].name = "character_health";
+        bindings[0].type = ENGINE_DATA_TYPE_UINT32;
+
+        bindings[1].data_uint32_t = &ui_data_.enemy_health;
+        bindings[1].name = "enemy_health";
+        bindings[1].type = ENGINE_DATA_TYPE_UINT32;
+
+        engine_error_code = engineApplicationCreateUiDocumentDataHandle(app_handle, "health", bindings.data(), bindings.size(), &ui_data_.handle);
+
+        // load ui doc
+        engine_error_code = engineApplicationCreateUiDocumentFromFile(app_handle, "project_c_health_bar.rml", &ui_data_.doc);
+        if (ui_data_.doc)
+        {
+            engineUiDocumentShow(ui_data_.doc);
+        }
+
     }
 
-    ~TestScene() = default;
+    void update_hook_begin() override
+    {
+        engineUiDataHandleDirtyVariable(ui_data_.handle, "character_health");
+        engineUiDataHandleDirtyVariable(ui_data_.handle, "enemy_health");
+    }
+
+    ~TestScene() 
+    {
+        engineUiDataHandleDestroy(ui_data_.handle);
+        engineApplicationUiDocumentDestroy(ui_data_.doc);
+    }
     static constexpr const char* get_name() { return "TestScene"; }
+
+    UI_data& get_ui_data() { return ui_data_; }
+    const UI_data& get_ui_data() const { return ui_data_; }
+private:   
+    UI_data ui_data_;
 };
 
 template<typename TScript>
@@ -265,19 +313,19 @@ int main(int argc, char** argv)
 
     const auto load_start = std::chrono::high_resolution_clock::now();
 
-    project_c::ModelInfo model_info_swrd(engine_error_code, app, "weapon-sword.glb");
+    project_c::ModelInfo model_info_swrd(engine_error_code, app, "weapon-sword.glb", "Textures_mini_arena");
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         return false;
     }
 
-    project_c::ModelInfo model_info_solider(engine_error_code, app, "character-soldier.glb");
+    project_c::ModelInfo model_info_solider(engine_error_code, app, "character-soldier.glb", "Textures_mini_arena");
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         return false;
     }
 
-   // project_c::ModelInfo model_info_cesium(engine_error_code, app, "CesiumMan.gltf");
+    project_c::ModelInfo model_info_orc(engine_error_code, app, "character-orc.glb", "Textures_mini_dungeon");
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         return false;
@@ -311,7 +359,8 @@ int main(int argc, char** argv)
     //    return -1;
     //}
 
-    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_cube, scene);
+    //load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_cube, scene);
+    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene);
     if (!load_model)
     {
         log(fmt::format("Loading model failed!\n"));
@@ -334,33 +383,6 @@ int main(int argc, char** argv)
     const auto load_end = std::chrono::high_resolution_clock::now();
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
     log(fmt::format("Model loading took: {}\n", ms_load_time));
-
-    engine_font_t font_handle{};
-    if (engineApplicationAddFontFromFile(app, "tahoma.ttf", "tahoma_font", &font_handle) != ENGINE_RESULT_CODE_OK)
-    {
-        log(fmt::format("Couldnt load font!\n"));
-        return -1;
-    }
-
-
-
-    std::array<engine_ui_document_data_binding_t, 1> bindings{};
-    std::uint32_t health = 100;
-    bindings[0].data_uint32_t = &health;
-    bindings[0].name = "value";
-    bindings[0].type = ENGINE_DATA_TYPE_UINT32;
-    engine_ui_data_handle_t ui_data_handle{};
-    engine_error_code = engineApplicationCreateUiDocumentDataHandle(app, "health", bindings.data(), bindings.size(), &ui_data_handle);
-
-    // load ui doc
-    engine_ui_document_t ui_doc{};
-    engine_error_code = engineApplicationCreateUiDocumentFromFile(app, "project_c_health_bar.rml", &ui_doc);
-    if (ui_doc)
-    {
-        //engineUiDocumentShow(ui_doc);
-    }
-
-
 
     struct fps_counter_t
     {
@@ -393,7 +415,6 @@ int main(int argc, char** argv)
                 fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count));
             fps_counter = {};
         }
-        engineUiDataHandleDirtyVariable(ui_data_handle, "value");
 
         scene_manager.update(frame_begin.delta_time);
 
@@ -404,8 +425,6 @@ int main(int argc, char** argv)
 			break;
 		}
 	}
-
-	engineApplicationDestroy(app);
-
+    engineApplicationDestroy(app);
 	return 0;
 }

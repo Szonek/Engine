@@ -204,17 +204,11 @@ engine_application_frame_end_info_t engineApplicationFrameEnd(engine_application
 	return app->end_frame();
 }
 
-ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name, engine_font_t* out)
+engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name)
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
-    *out = app->add_font_from_file(file_name, handle_name);
-    return ENGINE_RESULT_CODE_OK;
-}
-
-engine_font_t engineApplicationGetFontByName(engine_application_t handle, const char* name)
-{
-    const auto* app = application_cast(handle);
-    return app->get_font(name);
+    const auto result = app->add_font_from_file(file_name, handle_name);
+    return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
 engine_result_code_t engineApplicationAddGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out)
@@ -312,14 +306,14 @@ engine_texture2d_t engineApplicationGetTextured2DByName(engine_application_t han
     return app->get_texture(name);
 }
 
-engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, engine_model_desc_t* out)
+engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, const char* base_dir, engine_model_desc_t* out)
 {
     if (!out)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
     auto* app = application_cast(handle);
-    *out = app->load_model_desc_from_file(spec, file_name);
+    *out = app->load_model_desc_from_file(spec, file_name, base_dir);
     if (!out->internal_handle)
     {
         return ENGINE_RESULT_CODE_FAIL;
@@ -376,16 +370,22 @@ void engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t gam
     sc->destroy_entity(entity_cast(game_object));
 }
 
-void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3])
+void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3])
 {
     auto sc = scene_cast(scene);
     sc->set_physcis_gravity(std::array<float, 3>{gravity[0], gravity[1], gravity[2]});
 }
 
-void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions)
+void engineScenePhysicsGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions)
 {
     auto sc = scene_cast(scene);
     sc->get_physcis_collisions_list(*collisions, num_collision);
+}
+
+engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_ray_t* ray, float max_distance)
+{
+    auto sc = scene_cast(scene);
+    return sc->raycast_into_physics_world(*ray, max_distance);
 }
 
 engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)
@@ -448,6 +448,15 @@ engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_applicatio
         }    
     }
     return ENGINE_RESULT_CODE_FAIL;
+}
+
+void engineApplicationUiDocumentDestroy(engine_ui_document_t doc)
+{
+    if (doc)
+    {
+        auto* doc_handle = ui_document_cast(doc);
+        delete doc_handle;  
+    }
 }
 
 void engineUiDocumentShow(engine_ui_document_t ui_doc)
@@ -808,6 +817,13 @@ bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t ga
     return has_component<engine_camera_component_t>(scene, game_object);
 }
 
+void engineSceneComponentViewAttachCameraComponent(engine_scene_t scene, engine_component_view_t view)
+{
+    auto sc = scene_cast(scene);
+    auto rv = runtime_view_cast(view);
+    sc->attach_component_to_runtime_view<engine_camera_component_t>(*rv);
+}
+
 engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return add_component<engine_rigid_body_component_t>(scene, game_object);
@@ -881,4 +897,14 @@ void engineSceneRemoveParentComponent(engine_scene_t scene, engine_game_object_t
 bool engineSceneHasParentComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return has_component<engine_parent_component_t>(scene, game_object);
+}
+
+engine_children_component_t engineSceneGetChildrenComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_children_component_t>(scene, game_object);
+}
+
+bool engineSceneHasChildrenComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_children_component_t>(scene, game_object);
 }

@@ -12,13 +12,43 @@
 #include <RmlUi/Core.h>
 
 
+void update_parent_component(entt::registry& registry, entt::entity entity)
+{
+    auto& parent = registry.get<engine_parent_component_t>(entity);
+    if (parent.parent == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has invalid parent id. If entity doesnt have parent than just delete it. Are you sure you are doing valid thing?\n"));
+        return;
+    }
+    const auto parent_entt = static_cast<entt::entity>(parent.parent);
+    engine_children_component_t* cc = registry.try_get<engine_children_component_t>(parent_entt);
+    if (!cc)
+    {
+        cc = &registry.emplace<engine_children_component_t>(parent_entt);
+    }
+    for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
+    {
+        if (cc->child[i] == ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            cc->child[i] = static_cast<std::uint32_t>(entity);
+            return;
+        }
+              
+    }
+    engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has no more space for children. Are you sure you are doing valid thing?\n"));
+}
+
+
 engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : rdx_(rdx)
     , physics_world_(&rdx_)
-    , shader_simple_(Shader("simple.vs", "simple.fs"))
-    , shader_vertex_skinning_(Shader("vertex_skinning.vs", "simple.fs"))
+    , shader_simple_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "simple.fs" }))
+    , shader_vertex_skinning_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "simple.fs" }))
+    , shader_full_screen_quad_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
+    , fbo_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, true)
+    , empty_vao_for_full_screen_quad_draw_(6)
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
-    , collider_update_observer(entity_registry_, entt::collector.update<engine_collider_component_t>())
+    , collider_update_observer(entity_registry_, entt::collector.update<engine_collider_component_t>().where<engine_tranform_component_t>())
     , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<PhysicsWorld::physcic_internal_component_t>())
     , transform_model_matrix_update_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>())
     , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
@@ -35,7 +65,8 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
     entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
-
+    
+    entity_registry_.on_update<engine_parent_component_t>().connect<&update_parent_component>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
@@ -203,6 +234,40 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
     std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials)
 {
+
+    class FBOFrameContext
+    {
+    public:
+        FBOFrameContext(Framebuffer& fbo, const RenderContext& rdx, Shader& full_screen_quad, Geometry& empty_vao)
+            : fbo_(fbo)
+            , full_screen_quad_shader_(full_screen_quad)
+            , empty_vao(empty_vao)
+        {
+            fbo_.bind();
+            const auto& [fbo_w, fbo_h] = fbo_.get_size();
+            const auto& [win_w, win_h] = rdx.get_window_size_in_pixels();
+            if (fbo_w != win_w || fbo_h != win_h)
+            {
+                fbo_.resize(win_w, win_h);
+            }
+            fbo_.clear();
+        }
+
+        ~FBOFrameContext()
+        {
+            fbo_.unbind();
+            full_screen_quad_shader_.bind();
+            full_screen_quad_shader_.set_texture("screen_texture", fbo_.get_color_attachment(0));
+            empty_vao.bind();
+            empty_vao.draw(Geometry::Mode::eTriangles);
+        }
+
+    private:
+        Framebuffer& fbo_;
+        Shader& full_screen_quad_shader_;
+        Geometry& empty_vao;
+    };
+    FBOFrameContext fbo_frame(fbo_, rdx_, shader_full_screen_quad_, empty_vao_for_full_screen_quad_draw_);
 #if 1
     //auto transform_view = entity_registry_.view<engine_tranform_component_t>(entt::exclude<engine_rigid_body_component_t>);
     auto transform_view = entity_registry_.view<engine_tranform_component_t>();
@@ -387,8 +452,6 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
         physics_world_.debug_draw(view, projection);
     }
-
-
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -431,5 +494,10 @@ void engine::Scene::get_physcis_collisions_list(const engine_collision_info_t*& 
     const auto& collisions = physics_world_.get_collisions();
     ptr_first = collisions.data();
     *count = collisions.size();
+}
+
+engine_ray_hit_info_t engine::Scene::raycast_into_physics_world(const engine_ray_t& ray, float max_distance)
+{
+    return physics_world_.raycast(ray, max_distance);
 }
 

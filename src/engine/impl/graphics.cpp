@@ -36,6 +36,8 @@ inline std::uint32_t to_ogl_datatype(engine::DataLayout layout)
     case engine::DataLayout::eRGBA_FP32:
     case engine::DataLayout::eR_FP32:
         return GL_FLOAT;
+    case engine::DataLayout::eDEPTH24_STENCIL8_U32:
+        return GL_UNSIGNED_INT_24_8;
     default:
         assert(false && "Unknown texture data type.");
         break;
@@ -55,13 +57,26 @@ inline std::uint32_t to_ogl_format(engine::DataLayout layout)
     case engine::DataLayout::eR_U8:
     case engine::DataLayout::eR_FP32:
         return GL_RED;
+    case engine::DataLayout::eDEPTH24_STENCIL8_U32:
+        return GL_DEPTH24_STENCIL8;
     default:
-        assert(false && "Unknown texture data type.");
+        assert(false && "Unknown OGL data type!");
         break;
     }
     return GL_FALSE;
 }
 
+inline std::uint32_t to_ogl_host_format(engine::DataLayout layout)
+{
+    if (layout == engine::DataLayout::eDEPTH24_STENCIL8_U32)
+    {
+        return GL_DEPTH_STENCIL;
+    }
+    else
+    {
+        return to_ogl_format(layout);
+    }
+}
 inline std::uint8_t data_layout_bytes_width(engine::DataLayout layout)
 {
     switch (layout)
@@ -72,6 +87,7 @@ inline std::uint8_t data_layout_bytes_width(engine::DataLayout layout)
     case engine::DataLayout::eRGBA_U8: return 4 * sizeof(unsigned char);
     case engine::DataLayout::eRGB_U8: return 3 * sizeof(unsigned char);
     case engine::DataLayout::eR_U8: return 1 * sizeof(unsigned char);
+    case engine::DataLayout::eDEPTH24_STENCIL8_U32: return sizeof(std::uint32_t);
     default:
         assert(false && "Unknown texture data type.");
         break;
@@ -96,22 +112,25 @@ inline std::uint32_t to_ogl_texture_border_clamp_mode(engine::TextureAddressClam
 }
 
 
-engine::Shader::Shader(std::string_view vertex_shader_name, std::string fragment_shader_name)
+engine::Shader::Shader(std::vector<std::string_view> vertex_shader_name, std::vector<std::string_view> fragment_shader_name)
 : vertex_shader_(0)
 , fragment_shader_(0)
 , program_(glCreateProgram())
 {
 	// compile shaders and link to program
 	{
-		const auto vertex_shader_definitions = AssetStore::get_instance().get_shader_source("simple_vertex_definitions.h");
-		const auto vertex_shader_source = AssetStore::get_instance().get_shader_source(vertex_shader_name);
+        std::vector<std::string> sources;
+        sources.reserve(vertex_shader_name.size());
+        std::for_each(vertex_shader_name.begin(), vertex_shader_name.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });
 		vertex_shader_ = glCreateShader(GL_VERTEX_SHADER);
-        compile_and_attach_to_program(vertex_shader_, { vertex_shader_definitions, vertex_shader_source });
+        compile_and_attach_to_program(vertex_shader_, sources);
 	}
 	{
-		const auto fragment_shader_source = AssetStore::get_instance().get_shader_source(fragment_shader_name);
+        std::vector<std::string> sources;
+        sources.reserve(fragment_shader_name.size());
+        std::for_each(fragment_shader_name.begin(), fragment_shader_name.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });
 		fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
-        compile_and_attach_to_program(fragment_shader_, { fragment_shader_source });
+        compile_and_attach_to_program(fragment_shader_, sources);
 	}
 	// link attached shaders
 	glLinkProgram(program_);
@@ -185,11 +204,9 @@ void engine::Shader::set_uniform_mat_f4(std::string_view name, std::span<const f
 void engine::Shader::set_texture(std::string_view name, const Texture2D* texture)
 {
     assert(texture &&  "[ERROR] Nullptr texture ptr");
-    assert(texture->is_valid() && "[ERROR] Invalid texture");
     const auto loc = get_uniform_location(name);
     std::int32_t bind_slot = 0;
-    glGetUniformiv(program_, loc, &bind_slot);
-    assert(bind_slot > 0);
+    glGetUniformiv(program_, loc, &bind_slot);;
     texture->bind(static_cast<std::uint32_t>(bind_slot));
 }
 
@@ -210,7 +227,7 @@ std::int32_t engine::Shader::get_uniform_location(std::string_view name)
 	return uniform_location;
 }
 
-void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::vector<std::string_view> sources)
+void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::span<const std::string> sources)
 {
 	// set source
     std::vector<const char*> sources_ptrs;
@@ -241,18 +258,21 @@ inline auto generate_opengl_texture(std::uint32_t width, std::uint32_t height, e
 	assert(width != 0);
 	assert(height != 0);
 
-    const auto rows_width = width * data_layout_bytes_width(layout);
-    const std::array<std::uint32_t, 4> rows_alignemnts = { 8, 4, 2, 1 };
-    for (const auto& ra : rows_alignemnts)
+    if (data)
     {
-        if (rows_width % ra == 0)
+        const auto rows_width = width * data_layout_bytes_width(layout);
+        const std::array<std::uint32_t, 4> rows_alignemnts = { 8, 4, 2, 1 };
+        for (const auto& ra : rows_alignemnts)
         {
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            if (rows_width % ra == 0)
+            {
+                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            }
         }
     }
 
     const auto gl_internal_format = to_ogl_format(layout);
-	const auto gl_host_format = to_ogl_format(layout);
+	const auto gl_host_format = to_ogl_host_format(layout);
 
 	std::uint32_t tex_id{ 0 };
 	glGenTextures(1, &tex_id);
@@ -316,6 +336,16 @@ engine::Texture2D::Texture2D(std::string_view texture_name, bool generate_mipmap
 	texture_ = generate_opengl_texture(texture_data.get_width(), texture_data.get_height(), dt, generate_mipmaps, texture_data.get_data_ptr(), TextureAddressClampMode::eClampToEdge);
 }
 
+engine::Texture2D engine::Texture2D::create_and_attach_to_frame_buffer(std::uint32_t width, std::uint32_t height, DataLayout layout, std::size_t idx)
+{
+    Texture2D ret(width, height, false, nullptr, layout, engine::TextureAddressClampMode::eClampToEdge);
+    const auto attachment_idx = layout == DataLayout::eDEPTH24_STENCIL8_U32 ? GL_DEPTH_STENCIL_ATTACHMENT : GL_COLOR_ATTACHMENT0 + idx;
+    glBindTexture(GL_TEXTURE_2D, ret.texture_);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, attachment_idx, GL_TEXTURE_2D, ret.texture_, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    return std::move(ret);
+}
+
 engine::Texture2D::Texture2D(Texture2D&& rhs) noexcept
 {
 	std::swap(texture_, rhs.texture_);
@@ -338,11 +368,6 @@ engine::Texture2D::~Texture2D()
 	}
 }
 
-bool engine::Texture2D::is_valid() const
-{
-    return texture_ != ENGINE_INVALID_OBJECT_HANDLE;
-}
-
 bool engine::Texture2D::upload_region(std::uint32_t x_pos, std::uint32_t y_pos, std::uint32_t width, std::uint32_t height, const void* data, DataLayout layout)
 {
     glBindTexture(GL_TEXTURE_2D, texture_);
@@ -351,6 +376,10 @@ bool engine::Texture2D::upload_region(std::uint32_t x_pos, std::uint32_t y_pos, 
     return false;
 }
 
+bool engine::Texture2D::is_valid() const
+{
+    return texture_ != 0;
+}
 
 void engine::Texture2D::bind(std::uint32_t slot) const
 {
@@ -447,6 +476,12 @@ engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, st
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
+engine::Geometry::Geometry(std::uint32_t vertex_count)
+    : vertex_count_(vertex_count)
+{
+    glGenVertexArrays(1, &vao_);
+}
+
 engine::Geometry::Geometry(Geometry&& rhs) noexcept
 {
 	std::swap(vbo_, rhs.vbo_);
@@ -520,12 +555,6 @@ engine::Geometry::vertex_attribute_t engine::Geometry::get_vertex_attribute(std:
 {
     return attribs_.at(idx);
 }
-
-//inline void framebuffer_size_callback(struct GLFWwindow* window, std::int32_t width, std::int32_t height)
-//{
-//	glViewport(0, 0, width, height);
-//}
-
 #if defined(GLAD_GL_IMPLEMENTATION)
 inline void GLAPIENTRY
 message_callback(GLenum /*source*/,
@@ -566,8 +595,8 @@ message_callback(GLenum /*source*/,
 	default:
 		severity_str = "";
 	}
-	std::cerr << fmt::format("[OpenGL] Type: {}, severity: {}, message: {} \n",
-		type_str, severity_str, message);
+	engine::log::log(engine::log::LogLevel::eCritical, fmt::format("[OpenGL] Type: {}, severity: {}, message: {} \n",
+		type_str, severity_str, message));
 }
 #endif
 
@@ -583,7 +612,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
         return;
     }
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 #if __ANDROID__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
@@ -641,8 +670,17 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     }
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
+#if _DEBUG
+    result_code = SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+
+    if (result_code < 0)
+    {
+        const auto err_msg = SDL_GetError();
+        log::log(log::LogLevel::eCritical, fmt::format("Cant init sdl: %s\n", err_msg));
+        return;
+    }
+#endif
     context_ = SDL_GL_CreateContext(window_);
     if (!context_)
     {
@@ -672,18 +710,27 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
         log::log(log::LogLevel::eTrace, fmt::format("Sucesfully loaded Opengl ver: {}, {}.\n",
             GLAD_VERSION_MAJOR(gl_version), GLAD_VERSION_MINOR(gl_version)));
 	}
-//#if _DEBUG && defined(GLAD_GLES2_IMPLEMENTATION)
-//    log::log(log::LogLevel::eCritical, "[INFO] Debug build. Building with debug context.\n");
-//	glEnable(GL_DEBUG_OUTPUT);
-//	glDebugMessageCallback(message_callback, 0);
-//#endif
 
-	int32_t vertex_attributes_limit = 0;
+    std::int32_t gl_context_flags;
+    glGetIntegerv(GL_CONTEXT_FLAGS, &gl_context_flags);
+
+	std::int32_t vertex_attributes_limit = 0;
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &vertex_attributes_limit);
     log::log(log::LogLevel::eTrace, fmt::format("Maximum nr of vertex attributes supported: {}\n", vertex_attributes_limit));
 	// enable depth test
 	glEnable(GL_DEPTH_TEST);
     //glEnable(GL_BLEND);
+
+#if _DEBUG
+    if (gl_context_flags & GL_CONTEXT_FLAG_DEBUG_BIT)
+    {
+        log::log(log::LogLevel::eCritical, "[INFO] Debug build. Building with debug context.\n");
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        glDebugMessageCallback(message_callback, nullptr);
+    }
+#endif
 
     // UI stuff 
     ui_rml_sdl_interface_ = new SystemInterface_SDL;
@@ -870,4 +917,129 @@ void engine::RenderContext::begin_frame_ui_rendering()
 void engine::RenderContext::end_frame_ui_rendering()
 {
     ui_rml_gl3_renderer_->EndFrame();
+}
+
+engine::Framebuffer::Framebuffer(std::uint32_t width, std::uint32_t height, std::uint32_t color_attachment_count, bool has_depth_attachment)
+    : fbo_(0)
+    , depth_attachment_()
+    , color_attachments_()
+    , width_(width)
+    , height_(height)
+{
+    glGenFramebuffers(1, &fbo_);
+    bind();
+    //ToDo: investigare framebuffers which may have better performance, (but cant read from them directly!!)
+    for (std::uint32_t i = 0; i < color_attachment_count; i++)
+    {
+        color_attachments_.push_back(Texture2D::create_and_attach_to_frame_buffer(width, height, DataLayout::eRGBA_U8, i));
+    }
+
+    if (has_depth_attachment)
+    {
+        depth_attachment_ = Texture2D::create_and_attach_to_frame_buffer(width, height, DataLayout::eDEPTH24_STENCIL8_U32, 0ull);
+    }
+    const auto framebuffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE)
+    {
+        log::log(log::LogLevel::eCritical, "ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
+    }
+    unbind();
+}
+
+engine::Framebuffer::Framebuffer(Framebuffer&& rhs) noexcept
+    : fbo_(rhs.fbo_)
+    , depth_attachment_(std::move(rhs.depth_attachment_))
+    , color_attachments_(std::move(rhs.color_attachments_))
+    , height_(rhs.height_)
+    , width_(rhs.width_)
+{
+    rhs.fbo_ = 0;
+    rhs.width_ = 0;
+    rhs.height_ = 0;
+    rhs.depth_attachment_ = Texture2D();
+    color_attachments_.clear();
+}
+
+engine::Framebuffer& engine::Framebuffer::operator=(Framebuffer&& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        std::swap(fbo_, rhs.fbo_);
+        std::swap(width_, rhs.width_);
+        std::swap(height_, rhs.height_);
+
+        std::swap(depth_attachment_, rhs.depth_attachment_);
+        std::swap(color_attachments_, rhs.color_attachments_);
+    }
+    return *this;
+}
+
+engine::Framebuffer::~Framebuffer()
+{
+    if (fbo_)
+    {
+        glDeleteFramebuffers(1, &fbo_);
+    }
+}
+
+void engine::Framebuffer::bind()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
+}
+
+void engine::Framebuffer::unbind()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void engine::Framebuffer::resize(std::uint32_t width, std::uint32_t height)
+{
+    width_ = width;
+    height_ = height;
+
+    const auto color_attachments_count = color_attachments_.size();
+    const auto has_depth_attachment = depth_attachment_.is_valid();
+    color_attachments_.clear();
+    depth_attachment_ = Texture2D();
+
+    for (std::uint32_t i = 0; i < color_attachments_count; i++)
+    {
+        color_attachments_.push_back(Texture2D::create_and_attach_to_frame_buffer(width, height, DataLayout::eRGBA_U8, i));
+    }
+
+    if (has_depth_attachment)
+    {
+        depth_attachment_ = Texture2D::create_and_attach_to_frame_buffer(width, height, DataLayout::eDEPTH24_STENCIL8_U32, 0ull);
+    }
+}
+
+void engine::Framebuffer::clear()
+{
+    GLbitfield mask = 0;
+    if (!color_attachments_.empty())
+    {
+        mask |= GL_COLOR_BUFFER_BIT;
+    }
+    if (depth_attachment_.is_valid())
+    {
+        mask |= GL_DEPTH_BUFFER_BIT;
+    }
+    glClear(mask);
+}
+
+engine::Texture2D* engine::Framebuffer::get_color_attachment(std::size_t idx)
+{
+    assert(idx < color_attachments_.size());
+    Texture2D& tex = color_attachments_[idx];
+    return tex.is_valid() ? &tex : nullptr;
+}
+
+engine::Texture2D* engine::Framebuffer::get_depth_attachment()
+{
+    return depth_attachment_.is_valid()? &depth_attachment_ : nullptr;
+}
+
+std::pair<std::uint32_t, std::uint32_t> engine::Framebuffer::get_size() const
+{
+    return { width_, height_ };
 }

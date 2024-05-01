@@ -192,6 +192,7 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 		geometries_atlas_.get_objects_view(),
         materials_atlas_.get_objects_view());
     on_scene_update(scene, delta_time);
+
     return ret_code;
 }
 
@@ -338,16 +339,10 @@ std::uint32_t engine::Application::get_texture(std::string_view name) const
     return ret;
 }
 
-std::uint32_t engine::Application::add_font_from_file(std::string_view file_name, std::string_view handle_name)
+bool engine::Application::add_font_from_file(std::string_view file_name, std::string_view handle_name)
 {
     const auto res = ui_manager_.load_font_from_file(file_name, handle_name);
-    assert(res != ENGINE_INVALID_OBJECT_HANDLE && "Failed loading font from file!");
     return res;
-}
-
-std::uint32_t engine::Application::get_font(std::string_view name) const
-{
-    return ui_manager_.get_font(name);
 }
 
 std::uint32_t engine::Application::add_geometry(const engine_vertex_attributes_layout_t& api_verts_layout, std::int32_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name)
@@ -376,7 +371,7 @@ std::uint32_t engine::Application::get_material(std::string_view name) const
     return materials_atlas_.get_object(name);
 }
 
-engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_specification_t spec, std::string_view name)
+engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir)
 {
     assert(spec == ENGINE_MODEL_SPECIFICATION_GLTF_2);
 
@@ -385,7 +380,9 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     {
         return {};
     }
-    const auto model_info = new engine::ModelInfo(parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }));
+
+    const auto assets_dir = engine::AssetStore::get_instance().get_textures_base_path()/base_dir;
+    const auto model_info = new engine::ModelInfo(parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string()));
 
     engine_model_desc_t ret{};
     ret.internal_handle = reinterpret_cast<const void*>(model_info);

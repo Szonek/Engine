@@ -13,11 +13,11 @@ struct ModelInfo
     std::vector<engine_texture2d_t> textures;
     std::vector<engine_material_t> materials;
 
-    ModelInfo(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name)
+    ModelInfo(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name, std::string_view base_dir = "")
         : app(app)
     {
 
-        engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), &model_info);
+        engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_info);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed loading TABLE model. Exiting!\n");

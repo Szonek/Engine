@@ -61,12 +61,35 @@ public:
     }
 
     template<typename T>
+    T* register_script(T* t)
+    {
+        scripts_register_queue_.push_back(t);
+        //std::unique_ptr<IScript> script = std::make_unique<T>(this);
+        //const auto game_object = script->get_game_object();
+        //scripts_[game_object] = std::move(script);
+        return (T*)scripts_register_queue_.back();
+        //return (T*)scripts_[game_object].get();
+    }
+
+    template<typename T>
     void unregister_script(T* script)
     {
         assert(script);
         scripts_unregister_queue_.push_front(script);
         //const auto game_object = script->get_game_object();
         //scripts_.erase(game_object);
+    }
+
+    template<typename T>
+    T* get_script(engine_game_object_t go)
+    {
+        return dynamic_cast<T*>(scripts_.at(go).get());
+    }
+
+    template<typename T>
+    const T* get_script(engine_game_object_t go) const
+    {
+        return dynamic_cast<const T*>(scripts_.at(go).get());
     }
 
     engine_scene_t& get_handle() { return scene_; }

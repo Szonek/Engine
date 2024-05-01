@@ -34,6 +34,9 @@ enum class DataLayout
     // ..
     eRGBA_FP32,
     eR_FP32,
+
+    // depth and stencil formats
+    eDEPTH24_STENCIL8_U32,
     eCount
 };
 
@@ -55,7 +58,7 @@ public:
 		eCount
 	};
 public:
-	Shader(std::string_view vertex_shader_name, std::string fragment_shader_name);
+	Shader(std::vector<std::string_view> vertex_shader_name, std::vector<std::string_view> fragment_shader_name);
 	Shader(const Shader& rhs) = delete;
 	Shader(Shader&& rhs) noexcept = default;
 	Shader& operator=(const Shader& rhs) = delete;
@@ -74,7 +77,7 @@ public:
 
 private:
 	std::int32_t get_uniform_location(std::string_view name);
-	void compile_and_attach_to_program(std::uint32_t shader, std::vector<std::string_view> sources);
+	void compile_and_attach_to_program(std::uint32_t shader, std::span<const std::string> sources);
 
 private:
 	std::uint32_t vertex_shader_;
@@ -88,10 +91,12 @@ private:
 
 class Texture2D
 {
+    friend class Framebuffer;
 public:
 	Texture2D() = default;
 	Texture2D(std::uint32_t width, std::uint32_t height, bool generate_mipmaps, const void* data, DataLayout layout, TextureAddressClampMode clamp_mode);
-	Texture2D(std::string_view texture_name, bool generate_mipmaps);
+	Texture2D(std::string_view texture_name, bool generate_mipmaps);  
+    static Texture2D create_and_attach_to_frame_buffer(std::uint32_t width, std::uint32_t height, DataLayout layout, std::size_t idx);
 
 	Texture2D(const Texture2D& rhs) = delete;
 	Texture2D(Texture2D&& rhs) noexcept;
@@ -100,14 +105,41 @@ public:
 
 	~Texture2D();
 
-    bool is_valid() const;
-
     bool upload_region(std::uint32_t x_pos, std::uint32_t y_pos, std::uint32_t width, std::uint32_t height, const void* data, DataLayout layout);
-
+    bool is_valid() const;
 	void bind(std::uint32_t slot) const;
 
 private:
 	std::uint32_t texture_ = 0;
+};
+
+class Framebuffer
+{
+public:
+    Framebuffer(std::uint32_t width, std::uint32_t height, std::uint32_t color_attachment_count, bool has_depth_attachment);
+    Framebuffer(const Framebuffer& rhs) = delete;
+    Framebuffer(Framebuffer&& rhs) noexcept;
+    Framebuffer& operator=(const Framebuffer& rhs) = delete;
+    Framebuffer& operator=(Framebuffer&& rhs)  noexcept;
+    ~Framebuffer();
+
+    void bind();
+    void unbind();
+    void resize(std::uint32_t width, std::uint32_t height);
+    void clear();
+
+    Texture2D* get_color_attachment(std::size_t idx);
+    Texture2D* get_depth_attachment();
+
+    std::pair<std::uint32_t, std::uint32_t> get_size() const;
+
+private:
+    std::uint32_t fbo_{0};
+    std::vector<Texture2D> color_attachments_;
+    Texture2D depth_attachment_;
+
+    std::uint32_t width_;
+    std::uint32_t height_;
 };
 
 class Geometry
@@ -150,6 +182,7 @@ public:
 public:
 	Geometry() = default;
 	Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const std::byte> vertex_data, std::int32_t vertex_count, std::span<const std::uint32_t> index_data = {});
+    Geometry(std::uint32_t vertex_count); // empty geometry, no data (used for full screen quad rendering when vertex data is already present in the shader)
 	Geometry(const Geometry& rhs) = delete;
 	Geometry(Geometry&& rhs) noexcept;
 	Geometry& operator=(const Geometry& rhs) = delete;

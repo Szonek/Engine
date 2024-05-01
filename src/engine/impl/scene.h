@@ -81,6 +81,7 @@ public:
 
     void set_physcis_gravity(std::array<float, 3> g);
     void get_physcis_collisions_list(const engine_collision_info_t*& ptr_first, size_t* count);
+    engine_ray_hit_info_t raycast_into_physics_world(const engine_ray_t& ray, float max_distance);
 
 private:
     RenderContext& rdx_;
@@ -97,5 +98,9 @@ private:
 
     Shader shader_simple_;
     Shader shader_vertex_skinning_;
+    Shader shader_full_screen_quad_;
+
+    Framebuffer fbo_;
+    Geometry empty_vao_for_full_screen_quad_draw_;
 };
 }  // namespace engine
