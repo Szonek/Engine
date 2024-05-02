@@ -196,7 +196,7 @@ public:
         auto tc = engineSceneGetTransformComponent(scene, go_);
 
         tc.position[0] += 1.0f;
-        tc.position[1] += 2.75f;
+        tc.position[1] -= 0.25f;
         tc.position[2] += 0.0f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
@@ -216,9 +216,30 @@ public:
         engineSceneUpdateColliderComponent(scene, go_, &cc);
 
         //rb
-        auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
-        rbc.mass = 1.0f;
-        engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+        //auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+        //rbc.mass = 1.0f;
+        //engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+    }
+
+    void update(float dt)
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+        {
+            anim_controller_.set_active_animation("idle");
+            anim_controller_.update(dt);
+        }
+        {
+            const auto player = get_game_objects_with_name(scene, "solider")[0];
+            auto tc = engineSceneGetTransformComponent(scene, go_);
+            auto ec = engineSceneGetTransformComponent(scene, player);
+            // rotate toward enemy
+            auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
+            // use slerp to interpolate between current rotation and target rotation
+            quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
+            std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
     }
 };
 
@@ -231,25 +252,16 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
         set_name(scene, go_, "solider");
+
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        tc.position[0] = -0.25f;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
     }
 
     void update(float dt)
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
-
-        const auto enemies = get_game_objects_with_name(scene, "enemy");
-        for (const auto& e : enemies)
-        {
-            auto tc = engineSceneGetTransformComponent(scene, go_);
-            auto ec = engineSceneGetTransformComponent(scene, e);
-            // rotate toward enemy
-            auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
-            // use slerp to interpolate between current rotation and target rotation
-            //quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.01f * dt);
-            std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
-        }
 
         auto tc = engineSceneGetTransformComponent(scene, go_);
         anim_controller_.set_active_animation("static");
