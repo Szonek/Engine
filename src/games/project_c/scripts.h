@@ -5,6 +5,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 namespace
@@ -20,8 +21,6 @@ inline void set_name(engine_scene_t scene, engine_game_object_t go, const char* 
     engineSceneUpdateNameComponent(scene, go, &nc);
 }
 
-
-template<typename T>
 inline std::vector<engine_game_object_t> get_active_camera_game_objects(engine_scene_t scene)
 {
     engine_component_view_t cv{};
@@ -50,30 +49,39 @@ inline std::vector<engine_game_object_t> get_active_camera_game_objects(engine_s
     return ret;
 }
 
-glm::vec3 unprojectMouseTo3DWorld(float mouseX, float mouseY, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const glm::vec4& viewport)
+inline std::vector<engine_game_object_t> get_game_objects_with_name(engine_scene_t scene, std::string_view name)
 {
-    // Normalize the mouse coordinates to -1 to 1
-    glm::vec2 mousePos;
-    mousePos.x = (mouseX / viewport.z - 0.5f) * 2.0f;
-    mousePos.y = (mouseY / viewport.w - 0.5f) * 2.0f;
+    engine_component_view_t cv{};
+    engineCreateComponentView(&cv);
+    engineSceneComponentViewAttachNameComponent(scene, cv);
 
-    // Unproject the mouse position to a point in 3D space
-    glm::vec4 start(mousePos.x, mousePos.y, 0.0f, 1.0f);
-    glm::vec4 end(mousePos.x, mousePos.y, 1.0f, 1.0f);
+    engine_component_iterator_t begin{};
+    engine_component_iterator_t end{};
+    engineComponentViewCreateBeginComponentIterator(cv, &begin);
+    engineComponentViewCreateEndComponentIterator(cv, &end);
 
-    glm::mat4 invVP = glm::inverse(projectionMatrix * viewMatrix);
-    glm::vec4 startWorld = invVP * start;
-    glm::vec4 endWorld = invVP * end;
+    std::vector<engine_game_object_t> ret{};
+    while (!engineComponentIteratorCheckEqual(begin, end))
+    {
+        auto go_it = engineComponentIteratorGetGameObject(begin);
+        if (engineSceneHasNameComponent(scene, go_it))
+        {
+            if (0 == std::strcmp(engineSceneGetNameComponent(scene, go_it).name, name.data()))
+            {
+                ret.push_back(go_it);
+            }
+        }
+        engineComponentIteratorNext(begin);
+    }
+    engineDestroyComponentView(cv);
+    return ret;
+}
 
-    // Divide by w to get the 3D coordinates
-    startWorld /= startWorld.w;
-    endWorld /= endWorld.w;
-
-    // Calculate the direction from the camera position to the mouse position
-    glm::vec3 dir = glm::normalize(glm::vec3(endWorld - startWorld));
-
-    // Return the direction
-    return dir;
+inline glm::quat rotate_toward(glm::vec3 origin, glm::vec3 target)
+{
+    const auto dir = glm::normalize(target - origin);
+    const auto angle = glm::degrees(std::atan2(dir.x, dir.z));
+    return glm::angleAxis(glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
 }
@@ -166,33 +174,13 @@ public:
         //engineSceneUpdateColliderComponent(scene, go_, &cc);
 
         // parent to hand
-        engine_component_view_t cv{};
-        engineCreateComponentView(&cv);
-        engineSceneComponentViewAttachNameComponent(scene, cv);
-
-        engine_component_iterator_t begin{};
-        engine_component_iterator_t end{};
-        engineComponentViewCreateBeginComponentIterator(cv, &begin);
-        engineComponentViewCreateEndComponentIterator(cv, &end);
-
-        while (!engineComponentIteratorCheckEqual(begin, end))
-        {       
-            auto go_it = engineComponentIteratorGetGameObject(begin);
-            const auto nc = engineSceneGetNameComponent(scene, go_it);
-
-            if (std::strcmp(nc.name, "arm-right") == 0)
-            {
-                auto pc = engineSceneAddParentComponent(scene, go_);
-                pc.parent = go_it;
-                engineSceneUpdateParentComponent(scene, go_, &pc);
-                begin = end;
-            }
-            else
-            {
-                engineComponentIteratorNext(begin);
-            }
+        const auto parent = get_game_objects_with_name(scene, "arm-right")[0];
+        if (parent != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            auto pc = engineSceneAddParentComponent(scene, go_);
+            pc.parent = parent;
+            engineSceneUpdateParentComponent(scene, go_, &pc);
         }
-        engineDestroyComponentView(cv);
     }
 };
 
@@ -250,13 +238,26 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
-        auto tc = engineSceneGetTransformComponent(scene, go_);
+        const auto enemies = get_game_objects_with_name(scene, "enemy");
+        for (const auto& e : enemies)
+        {
+            auto tc = engineSceneGetTransformComponent(scene, go_);
+            auto ec = engineSceneGetTransformComponent(scene, e);
+            // move to enemy
+            //const auto dir = glm::normalize(glm::vec3(ec.position[0], ec.position[1], ec.position[2]) - glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
+            //tc.position[0] += dir.x * 0.0001f * dt;
+            //tc.position[2] += dir.z * 0.0001f * dt;
+            //engineSceneUpdateTransformComponent(scene, go_, &tc);
 
-        const auto direction = get_direction_to_mouse_pointer(tc.position[0], tc.position[2]);
-        const auto rotation = glm::angleAxis(glm::atan(direction.y, direction.x), glm::vec3(0.0f, 1.0f, 0.0f));
-        std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
-        //return;
+            // rotate toward enemy
+            auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
+            
+            quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.01f * dt);
+            std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
+
+        auto tc = engineSceneGetTransformComponent(scene, go_);
         anim_controller_.set_active_animation("static");
         //anim_controller_.set_active_animation("crouch");
         //anim_controller_.set_active_animation("idle");
@@ -305,21 +306,6 @@ public:
             anim_controller_.set_active_animation("die");
         }
         anim_controller_.update(dt);
-    }
-
-private:
-    glm::vec2 get_direction_to_mouse_pointer(const float character_pos_x, const float character_pos_y) const
-    {
-        const auto app = my_scene_->get_app_handle();
-        const auto mouse_coords = engineApplicationGetMouseCoords(app);
-        
-        const auto active_camera = get_active_camera_game_objects<engine_camera_component_t>(my_scene_->get_handle())[0];
-        /*
-        mouse coords are in range 0 - 1
-        character position is in world space
-        */
-
-        return glm::vec2(mouse_coords.x - character_pos_x, mouse_coords.y - character_pos_y);
     }
 };
 
