@@ -243,16 +243,10 @@ public:
         {
             auto tc = engineSceneGetTransformComponent(scene, go_);
             auto ec = engineSceneGetTransformComponent(scene, e);
-            // move to enemy
-            //const auto dir = glm::normalize(glm::vec3(ec.position[0], ec.position[1], ec.position[2]) - glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
-            //tc.position[0] += dir.x * 0.0001f * dt;
-            //tc.position[2] += dir.z * 0.0001f * dt;
-            //engineSceneUpdateTransformComponent(scene, go_, &tc);
-
             // rotate toward enemy
             auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
-            
-            quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.01f * dt);
+            // use slerp to interpolate between current rotation and target rotation
+            //quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.01f * dt);
             std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
