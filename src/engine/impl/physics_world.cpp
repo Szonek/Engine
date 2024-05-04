@@ -278,7 +278,7 @@ void engine::PhysicsWorld::DebugDrawer::end_frame()
 
 void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
 {
-    static auto shader = Shader("debug_physics_lines.vs", "debug_physics_lines.fs");
+    static auto shader = Shader({ "simple_vertex_definitions.h", "debug_physics_lines.vs" }, { "debug_physics_lines.fs" });
     if (!lines_.empty())
     {
         shader.bind();

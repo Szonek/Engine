@@ -55,7 +55,7 @@ public:
 		eCount
 	};
 public:
-	Shader(std::string_view vertex_shader_name, std::string fragment_shader_name);
+	Shader(std::vector<std::string_view> vertex_shader_name, std::vector<std::string_view> fragment_shader_name);
 	Shader(const Shader& rhs) = delete;
 	Shader(Shader&& rhs) noexcept = default;
 	Shader& operator=(const Shader& rhs) = delete;
@@ -74,7 +74,7 @@ public:
 
 private:
 	std::int32_t get_uniform_location(std::string_view name);
-	void compile_and_attach_to_program(std::uint32_t shader, std::vector<std::string_view> sources);
+	void compile_and_attach_to_program(std::uint32_t shader, std::span<const std::string> sources);
 
 private:
 	std::uint32_t vertex_shader_;
@@ -88,6 +88,7 @@ private:
 
 class Texture2D
 {
+    friend class Framebuffer;
 public:
 	Texture2D() = default;
 	Texture2D(std::uint32_t width, std::uint32_t height, bool generate_mipmaps, const void* data, DataLayout layout, TextureAddressClampMode clamp_mode);
@@ -100,14 +101,38 @@ public:
 
 	~Texture2D();
 
-    bool is_valid() const;
-
     bool upload_region(std::uint32_t x_pos, std::uint32_t y_pos, std::uint32_t width, std::uint32_t height, const void* data, DataLayout layout);
 
 	void bind(std::uint32_t slot) const;
 
 private:
 	std::uint32_t texture_ = 0;
+};
+
+class Framebuffer
+{
+public:
+    Framebuffer(std::uint32_t width, std::uint32_t height, std::uint32_t color_attachment_count, bool has_depth_attachment);
+    Framebuffer(const Framebuffer& rhs) = delete;
+    Framebuffer(Framebuffer&& rhs) noexcept;
+    Framebuffer& operator=(const Framebuffer& rhs) = delete;
+    Framebuffer& operator=(Framebuffer&& rhs)  noexcept;
+    ~Framebuffer();
+
+    void bind();
+    void unbind();
+    void resize(std::uint32_t width, std::uint32_t height);
+    void clear(bool clear_color, bool clear_depth);
+
+    std::pair<std::uint32_t, std::uint32_t> get_size() const;
+    
+private:
+    std::uint32_t fbo_{0};
+    std::vector<std::uint32_t> color_attachments_;
+    std::uint32_t depth_attachment_;
+
+    std::uint32_t width_;
+    std::uint32_t height_;
 };
 
 class Geometry

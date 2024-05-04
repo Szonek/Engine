@@ -96,22 +96,25 @@ inline std::uint32_t to_ogl_texture_border_clamp_mode(engine::TextureAddressClam
 }
 
 
-engine::Shader::Shader(std::string_view vertex_shader_name, std::string fragment_shader_name)
+engine::Shader::Shader(std::vector<std::string_view> vertex_shader_name, std::vector<std::string_view> fragment_shader_name)
 : vertex_shader_(0)
 , fragment_shader_(0)
 , program_(glCreateProgram())
 {
 	// compile shaders and link to program
 	{
-		const auto vertex_shader_definitions = AssetStore::get_instance().get_shader_source("simple_vertex_definitions.h");
-		const auto vertex_shader_source = AssetStore::get_instance().get_shader_source(vertex_shader_name);
+        std::vector<std::string> sources;
+        sources.reserve(vertex_shader_name.size());
+        std::for_each(vertex_shader_name.begin(), vertex_shader_name.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });
 		vertex_shader_ = glCreateShader(GL_VERTEX_SHADER);
-        compile_and_attach_to_program(vertex_shader_, { vertex_shader_definitions, vertex_shader_source });
+        compile_and_attach_to_program(vertex_shader_, sources);
 	}
 	{
-		const auto fragment_shader_source = AssetStore::get_instance().get_shader_source(fragment_shader_name);
+        std::vector<std::string> sources;
+        sources.reserve(fragment_shader_name.size());
+        std::for_each(fragment_shader_name.begin(), fragment_shader_name.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });
 		fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
-        compile_and_attach_to_program(fragment_shader_, { fragment_shader_source });
+        compile_and_attach_to_program(fragment_shader_, sources);
 	}
 	// link attached shaders
 	glLinkProgram(program_);
@@ -185,7 +188,6 @@ void engine::Shader::set_uniform_mat_f4(std::string_view name, std::span<const f
 void engine::Shader::set_texture(std::string_view name, const Texture2D* texture)
 {
     assert(texture &&  "[ERROR] Nullptr texture ptr");
-    assert(texture->is_valid() && "[ERROR] Invalid texture");
     const auto loc = get_uniform_location(name);
     std::int32_t bind_slot = 0;
     glGetUniformiv(program_, loc, &bind_slot);
@@ -210,7 +212,7 @@ std::int32_t engine::Shader::get_uniform_location(std::string_view name)
 	return uniform_location;
 }
 
-void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::vector<std::string_view> sources)
+void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::span<const std::string> sources)
 {
 	// set source
     std::vector<const char*> sources_ptrs;
@@ -336,11 +338,6 @@ engine::Texture2D::~Texture2D()
 	{
 		glDeleteTextures(1, &texture_);
 	}
-}
-
-bool engine::Texture2D::is_valid() const
-{
-    return texture_ != ENGINE_INVALID_OBJECT_HANDLE;
 }
 
 bool engine::Texture2D::upload_region(std::uint32_t x_pos, std::uint32_t y_pos, std::uint32_t width, std::uint32_t height, const void* data, DataLayout layout)
@@ -870,4 +867,115 @@ void engine::RenderContext::begin_frame_ui_rendering()
 void engine::RenderContext::end_frame_ui_rendering()
 {
     ui_rml_gl3_renderer_->EndFrame();
+}
+
+engine::Framebuffer::Framebuffer(std::uint32_t width, std::uint32_t height, std::uint32_t color_attachment_count, bool has_depth_attachment)
+    : fbo_(0)
+    , depth_attachment_(0)
+    , color_attachments_({})
+    , width_(width)
+    , height_(height)
+{
+    glGenFramebuffers(1, &fbo_);
+    bind();
+    //ToDo: investigare framebuffers which may have better performance, (but cant read from them directly!!)
+    for (std::uint32_t i = 0; i < color_attachment_count; i++)
+    {
+        std::uint32_t color_tex_id = 0;
+        glGenTextures(1, &color_tex_id);
+        glBindTexture(GL_TEXTURE_2D, color_tex_id);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, color_tex_id, 0);
+        color_attachments_.push_back(color_tex_id);
+    }
+
+    if (has_depth_attachment)
+    {
+        std::uint32_t depth_tex_id = 0;
+        glGenTextures(1, &depth_tex_id);
+        glBindTexture(GL_TEXTURE_2D, depth_tex_id);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, width, height, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_tex_id, 0);
+        depth_attachment_ = depth_tex_id;
+    }
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        log::log(log::LogLevel::eCritical, "ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
+    }
+    unbind();
+}
+
+engine::Framebuffer::Framebuffer(Framebuffer&& rhs) noexcept
+    : fbo_(rhs.fbo_)
+    , depth_attachment_(rhs.depth_attachment_)
+{
+    rhs.fbo_ = 0;
+    rhs.depth_attachment_ = 0;
+}
+
+engine::Framebuffer& engine::Framebuffer::operator=(Framebuffer&& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        std::swap(fbo_, rhs.fbo_);
+    }
+    return *this;
+}
+
+engine::Framebuffer::~Framebuffer()
+{
+    if (fbo_)
+    {
+        glDeleteFramebuffers(1, &fbo_);
+    }
+}
+
+void engine::Framebuffer::bind()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
+}
+
+void engine::Framebuffer::unbind()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void engine::Framebuffer::resize(std::uint32_t width, std::uint32_t height)
+{
+    width_ = width;
+    height_ = height;
+    for (std::uint32_t i = 0; i < color_attachments_.size(); i++)
+    {
+        glBindTexture(GL_TEXTURE_2D, color_attachments_[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    }
+
+    if (depth_attachment_)
+    {
+        glBindTexture(GL_TEXTURE_2D, depth_attachment_);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    }
+}
+
+void engine::Framebuffer::clear(bool clear_color, bool clear_depth)
+{
+    GLbitfield mask = 0;
+    if (clear_color)
+    {
+        mask |= GL_COLOR_BUFFER_BIT;
+    }
+    if (clear_depth)
+    {
+        mask |= GL_DEPTH_BUFFER_BIT;
+    }
+    glClear(mask);
+}
+
+std::pair<std::uint32_t, std::uint32_t> engine::Framebuffer::get_size() const
+{
+    return { width_, height_ };
 }

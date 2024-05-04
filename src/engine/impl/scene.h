@@ -97,5 +97,7 @@ private:
 
     Shader shader_simple_;
     Shader shader_vertex_skinning_;
+
+    Framebuffer fbo_;
 };
 }  // namespace engine
