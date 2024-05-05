@@ -911,12 +911,12 @@ void engine::RenderContext::begin_frame_ui_rendering()
     //ui_rml_gl3_renderer_->Clear();
     //glEnable(GL_BLEND);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    //ui_rml_gl3_renderer_->BeginFrame();
+    ui_rml_gl3_renderer_->BeginFrame();
 }
 
 void engine::RenderContext::end_frame_ui_rendering()
 {
-   // ui_rml_gl3_renderer_->EndFrame();
+    ui_rml_gl3_renderer_->EndFrame();
 }
 
 engine::Framebuffer::Framebuffer(std::uint32_t width, std::uint32_t height, std::uint32_t color_attachment_count, bool has_depth_attachment)

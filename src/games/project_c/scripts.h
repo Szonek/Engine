@@ -238,6 +238,12 @@ public:
             engineSceneUpdateParentComponent(scene, go_, &pc);
         }
     }
+
+
+    void on_collision(const collision_t& info)
+    {
+        engineLog(fmt::format("hit: {}\n", info.other).c_str());
+    }
 };
 
 class Enemy : public BaseNode
@@ -332,7 +338,7 @@ public:
             if (ENGINE_INVALID_GAME_OBJECT_ID != hit_go)
             {
                 const auto name = engineSceneGetNameComponent(scene, hit_go).name;
-                if (std::strcmp(name, "floor") != 0)
+                if (std::strcmp(name, "enemy") == 0)
                 {
                     // rotate toward enemy
                     auto ec = engineSceneGetTransformComponent(scene, hit_go);

@@ -6,6 +6,11 @@ body {
 	text-align: center;
 }
 		
+div.text-align-right 
+{
+  text-align: right;
+} 
+		
 h1 {
 	color: #f6470a;
 	font-size: 1.5em;
