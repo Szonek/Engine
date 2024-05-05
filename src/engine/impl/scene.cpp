@@ -17,7 +17,9 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     , physics_world_(&rdx_)
     , shader_simple_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "simple.fs" }))
     , shader_vertex_skinning_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "simple.fs" }))
+    , shader_full_screen_quad_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
     , fbo_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, true)
+    , empty_vao_for_full_screen_quad_draw_(6)
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
     , collider_update_observer(entity_registry_, entt::collector.update<engine_collider_component_t>())
     , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<PhysicsWorld::physcic_internal_component_t>())
@@ -204,12 +206,13 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
     std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials)
 {
-    // resize fbo if needed
     class FBOFrameContext
     {
     public:
-        FBOFrameContext(Framebuffer& fbo, const RenderContext& rdx)
+        FBOFrameContext(Framebuffer& fbo, const RenderContext& rdx, Shader& full_screen_quad, Geometry& empty_vao)
             : fbo_(fbo)
+            , full_screen_quad_shader_(full_screen_quad)
+            , empty_vao(empty_vao)
         {
             fbo_.bind();
             const auto& [fbo_w, fbo_h] = fbo_.get_size();
@@ -218,21 +221,24 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 fbo_.resize(win_w, win_h);
             }
-            fbo_.clear(true, true);
+            fbo_.clear();
         }
+
         ~FBOFrameContext()
         {
             fbo_.unbind();
+            full_screen_quad_shader_.bind();
+            full_screen_quad_shader_.set_texture("screen_texture", fbo_.get_color_attachment(0));
+            empty_vao.bind();
+            empty_vao.draw(Geometry::Mode::eTriangles);
         }
 
     private:
         Framebuffer& fbo_;
+        Shader& full_screen_quad_shader_;
+        Geometry& empty_vao;
     };
-    {
-        fbo_.bind();
-
-    }
-    FBOFrameContext fbo_frame(fbo_, rdx_);
+    FBOFrameContext fbo_frame(fbo_, rdx_, shader_full_screen_quad_, empty_vao_for_full_screen_quad_draw_);
 #if 1
     //auto transform_view = entity_registry_.view<engine_tranform_component_t>(entt::exclude<engine_rigid_body_component_t>);
     auto transform_view = entity_registry_.view<engine_tranform_component_t>();
@@ -415,10 +421,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             }
         );
 
-        physics_world_.debug_draw(view, projection);
+        //physics_world_.debug_draw(view, projection);
     }
-
-    fbo_.unbind();
     return ENGINE_RESULT_CODE_OK;
 }
 

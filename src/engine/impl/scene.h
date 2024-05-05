@@ -97,7 +97,9 @@ private:
 
     Shader shader_simple_;
     Shader shader_vertex_skinning_;
+    Shader shader_full_screen_quad_;
 
     Framebuffer fbo_;
+    Geometry empty_vao_for_full_screen_quad_draw_;
 };
 }  // namespace engine

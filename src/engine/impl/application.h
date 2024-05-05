@@ -120,8 +120,6 @@ protected:
     Atlas<engine_material_create_desc_t> materials_atlas_;
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;
-
-    Shader shader_full_screen_quad_;
 };
 
 }  // namespace engine

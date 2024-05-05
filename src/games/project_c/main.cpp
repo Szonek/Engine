@@ -406,6 +406,8 @@ int main(int argc, char** argv)
 		}
 	}
 
+    engineUiDataHandleDestroy(ui_data_handle);
+    //ToDo: release ui document, but API for it is missing
 	engineApplicationDestroy(app);
 
 	return 0;
