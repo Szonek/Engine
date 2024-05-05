@@ -422,7 +422,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             }
         );
 
-        physics_world_.debug_draw(view, projection);
+        //physics_world_.debug_draw(view, projection);
     }
     return ENGINE_RESULT_CODE_OK;
 }

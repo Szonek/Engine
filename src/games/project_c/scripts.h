@@ -216,18 +216,18 @@ public:
         auto rotation = glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
         engineSceneUpdateTransformComponent(scene, go_, &tc);
+        
+        
         // physcis
-        //auto cc = engineSceneAddColliderComponent(scene, go_);
-        //cc.type = ENGINE_COLLIDER_TYPE_BOX;
-        //set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.05f, 0.40f, 0.005f});
-        //cc.is_trigger = true;
-        //engineSceneUpdateColliderComponent(scene, go_, &cc);
-
-         // physcis
-        //auto cc = engineSceneAddColliderComponent(scene, go_);
-        //cc.type = ENGINE_COLLIDER_TYPE_BOX;
-        //set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
-        //engineSceneUpdateColliderComponent(scene, go_, &cc);
+        auto cc = engineSceneAddColliderComponent(scene, go_);
+        cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
+        cc.is_trigger = true;
+        auto& cc_child = cc.collider.compound.children[0];
+        cc_child.rotation_quaternion[3] = 1.0f;
+        cc_child.transform[1] -= 0.2f;
+        cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
+        set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.05f, 0.20f, 0.005f});
+        engineSceneUpdateColliderComponent(scene, go_, &cc);
 
         // parent to hand
         const auto parent = get_game_objects_with_name(scene, "arm-right")[0];
@@ -384,15 +384,18 @@ public:
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
 
-
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_N))
+        if (engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT))
         {
             anim_controller_.set_active_animation("attack-melee-right");
         }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_M))
-        {
-            anim_controller_.set_active_animation("attack-melee-left");
-        }
+        //if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_N))
+        //{
+        //    anim_controller_.set_active_animation("attack-melee-right");
+        //}
+        //if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_M))
+        //{
+        //    anim_controller_.set_active_animation("attack-melee-left");
+        //}
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_G))
         {
             anim_controller_.set_active_animation("die");
