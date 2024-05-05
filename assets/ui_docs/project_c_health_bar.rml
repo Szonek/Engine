@@ -5,8 +5,9 @@
 	<link type="text/rcss" href="window_health_bar.rcss"/>
 </head>
 <body>
-	<div class="text-align-right"
-		<h1 data-model="health">{{value}}</h1>
+	<div class="container" data-model="health">
+		{{character_health}} <br/>
+		{{enemy_health}}
 	</div>
 </body>
 </rml>
