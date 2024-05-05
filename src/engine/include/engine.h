@@ -47,7 +47,6 @@ typedef struct _engine_ui_element_t* engine_ui_element_t;
 typedef uint32_t engine_material_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
-typedef uint32_t engine_font_t;
 
 typedef struct _engine_coords_2d_t
 {
@@ -480,8 +479,7 @@ ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpd
 ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engine_application_t handle);
 
 // fonts
-ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name, engine_font_t* out);
-ENGINE_API engine_font_t engineApplicationGetFontByName(engine_application_t handle, const char* name);
+ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name);
 
 // model loading
 ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t* out);

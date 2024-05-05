@@ -204,17 +204,11 @@ engine_application_frame_end_info_t engineApplicationFrameEnd(engine_application
 	return app->end_frame();
 }
 
-ENGINE_API engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name, engine_font_t* out)
+engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name)
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
-    *out = app->add_font_from_file(file_name, handle_name);
-    return ENGINE_RESULT_CODE_OK;
-}
-
-engine_font_t engineApplicationGetFontByName(engine_application_t handle, const char* name)
-{
-    const auto* app = application_cast(handle);
-    return app->get_font(name);
+    const auto result = app->add_font_from_file(file_name, handle_name);
+    return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
 engine_result_code_t engineApplicationAddGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out)

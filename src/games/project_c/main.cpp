@@ -336,8 +336,7 @@ int main(int argc, char** argv)
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
     log(fmt::format("Model loading took: {}\n", ms_load_time));
 
-    engine_font_t font_handle{};
-    if (engineApplicationAddFontFromFile(app, "tahoma.ttf", "tahoma_font", &font_handle) != ENGINE_RESULT_CODE_OK)
+    if (engineApplicationAddFontFromFile(app, "tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
     {
         log(fmt::format("Couldnt load font!\n"));
         return -1;
