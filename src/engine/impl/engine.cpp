@@ -370,16 +370,22 @@ void engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t gam
     sc->destroy_entity(entity_cast(game_object));
 }
 
-void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3])
+void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3])
 {
     auto sc = scene_cast(scene);
     sc->set_physcis_gravity(std::array<float, 3>{gravity[0], gravity[1], gravity[2]});
 }
 
-void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions)
+void engineScenePhysicsGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions)
 {
     auto sc = scene_cast(scene);
     sc->get_physcis_collisions_list(*collisions, num_collision);
+}
+
+engine_game_object_t engineScenePhysicsRayCastGetClosestGameObject(engine_scene_t scene, const engine_ray_t* ray, float max_distance)
+{
+    auto sc = scene_cast(scene);
+    return static_cast<engine_game_object_t>(sc->get_entity_by_raycast_into_physics_world(*ray, max_distance));
 }
 
 engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)
@@ -442,6 +448,15 @@ engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_applicatio
         }    
     }
     return ENGINE_RESULT_CODE_FAIL;
+}
+
+void engineApplicationUiDocumentDestroy(engine_ui_document_t doc)
+{
+    if (doc)
+    {
+        auto* doc_handle = ui_document_cast(doc);
+        delete doc_handle;  
+    }
 }
 
 void engineUiDocumentShow(engine_ui_document_t ui_doc)

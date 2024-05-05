@@ -221,6 +221,23 @@ void engine::PhysicsWorld::set_gravity(std::span<const float> g)
     dynamics_world_->setGravity(btVector3(g[0], g[1], g[2]));
 }
 
+entt::entity engine::PhysicsWorld::raycast(const engine_ray_t& ray, float max_distance)
+{
+    btCollisionWorld::ClosestRayResultCallback closest_result(
+        btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
+        btVector3(ray.direction[0], ray.direction[1], ray.direction[2]));
+    dynamics_world_->rayTest(
+        btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
+        btVector3(ray.direction[0], ray.direction[1], ray.direction[2]),
+        closest_result
+    );
+    if (closest_result.hasHit())
+    {
+        return entt::entity{ static_cast<entt::entity>(closest_result.m_collisionObject->getUserIndex()) };
+    }
+    return entt::entity();
+}
+
 engine::PhysicsWorld::DebugDrawer::DebugDrawer(class RenderContext* renderer)
     : renderer_(renderer)
 {

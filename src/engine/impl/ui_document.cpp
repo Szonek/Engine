@@ -9,8 +9,9 @@
 #include <RmlUi/Core/ID.h>
 #include <RmlUi/Core/DataModelHandle.h>
 
-engine::UiDocument::UiDocument(Rml::ElementDocument* doc)
-    : doc_(doc)
+engine::UiDocument::UiDocument(Rml::Context* ctx, std::string_view file_name)
+    : doc_(ctx->LoadDocument((AssetStore::get_instance().get_ui_docs_base_path() / file_name).string()))
+    , context_(ctx)
 {   
 }
 
@@ -30,7 +31,7 @@ engine::UiDocument& engine::UiDocument::operator=(UiDocument&& rhs)
 
 engine::UiDocument::~UiDocument()
 {
-    // ToDo: release document!!
+    context_->UnloadDocument(doc_);
 }
 
 void engine::UiDocument::show()

@@ -81,6 +81,7 @@ public:
 
     void set_physcis_gravity(std::array<float, 3> g);
     void get_physcis_collisions_list(const engine_collision_info_t*& ptr_first, size_t* count);
+    entt::entity get_entity_by_raycast_into_physics_world(const engine_ray_t& ray, float max_distance);
 
 private:
     RenderContext& rdx_;

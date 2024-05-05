@@ -57,8 +57,7 @@ engine::UiDataHandle engine::UiManager::create_data_handle(std::string_view name
 
 engine::UiDocument engine::UiManager::load_document_from_file(std::string_view file_name)
 {
-    Rml::ElementDocument* document = ui_rml_context_->LoadDocument((AssetStore::get_instance().get_ui_docs_base_path() / file_name).string());
-    return UiDocument(document);
+    return UiDocument(ui_rml_context_, file_name);
 }
 
 bool engine::UiManager::load_font_from_file(std::string_view file_name, std::string_view /*handle_name*/)

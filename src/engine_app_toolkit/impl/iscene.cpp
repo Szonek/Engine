@@ -33,7 +33,7 @@ engine_result_code_t propagate_collisions_events(engine_application_t app, engin
 {
     std::size_t num_collisions = 0;
     const engine_collision_info_t* collisions_list = nullptr;
-    engineSceneGetCollisions(scene, &num_collisions, &collisions_list);
+    engineScenePhysicsGetCollisions(scene, &num_collisions, &collisions_list);
     for (std::size_t i = 0; i < num_collisions; i++)
     {
         const auto& col = collisions_list[i];

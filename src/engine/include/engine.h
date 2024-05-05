@@ -54,6 +54,12 @@ typedef struct _engine_coords_2d_t
     float y;
 } engine_coords_2d_t;
 
+typedef struct _engine_ray_t
+{
+    float origin[3];
+    float direction[3];
+} engine_ray_t;
+
 typedef enum _engine_ui_document_data_binding_data_type_t
 {
     ENGINE_DATA_TYPE_UNKNOWN = 0,
@@ -460,7 +466,7 @@ ENGINE_API void engineApplicationSceneDestroy(engine_application_t handle, engin
 
 // game objects in scene
 ENGINE_API engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene);
-ENGINE_API void                     engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void                 engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object);
 
 // user input hangling
 ENGINE_API bool engineApplicationIsKeyboardButtonDown(engine_application_t handle, engine_keyboard_keys_t key);
@@ -500,9 +506,9 @@ ENGINE_API engine_result_code_t engineApplicationAddTexture2DFromFile(engine_app
 ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
 
 // physics 
-ENGINE_API void engineSceneSetGravityVector(engine_scene_t scene, const float gravity[3]);
-ENGINE_API void engineSceneGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
-
+ENGINE_API void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3]);
+ENGINE_API void engineScenePhysicsGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
+ENGINE_API engine_game_object_t engineScenePhysicsRayCastGetClosestGameObject(engine_scene_t scene, const engine_ray_t* ray, float max_distance);
 // ui
 // create data handel first, before loading document!
 ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out);
@@ -512,6 +518,7 @@ ENGINE_API void engineUiDataHandleDirtyVariable(engine_ui_data_handle_t handle, 
 
 // if document uses data model than creata data model first with function: engineApplicationCreateUiDataHandle(...)
 ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out);
+ENGINE_API void engineApplicationUiDocumentDestroy(engine_ui_document_t doc);
 ENGINE_API void engineUiDocumentShow(engine_ui_document_t ui_doc);
 ENGINE_API void engineUiDocumentHide(engine_ui_document_t ui_doc);
 // interanlly it caches elements, so it's safe to call it multiple times to get the same object

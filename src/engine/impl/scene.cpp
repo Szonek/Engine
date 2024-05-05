@@ -206,6 +206,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
     std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials)
 {
+
     class FBOFrameContext
     {
     public:
@@ -421,7 +422,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             }
         );
 
-        //physics_world_.debug_draw(view, projection);
+        physics_world_.debug_draw(view, projection);
     }
     return ENGINE_RESULT_CODE_OK;
 }
@@ -465,5 +466,10 @@ void engine::Scene::get_physcis_collisions_list(const engine_collision_info_t*& 
     const auto& collisions = physics_world_.get_collisions();
     ptr_first = collisions.data();
     *count = collisions.size();
+}
+
+entt::entity engine::Scene::get_entity_by_raycast_into_physics_world(const engine_ray_t& ray, float max_distance)
+{
+    return entt::entity();
 }
 
