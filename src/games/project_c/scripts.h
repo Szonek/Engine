@@ -212,6 +212,9 @@ public:
         tc.position[0] = -0.2f;
         tc.position[1] = 0.0f;
         tc.position[2] = 0.1f;
+
+        auto rotation = glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
         engineSceneUpdateTransformComponent(scene, go_, &tc);
         // physcis
         //auto cc = engineSceneAddColliderComponent(scene, go_);
@@ -344,28 +347,40 @@ public:
         //std::string move_anim = "sprint";// "walk";
         std::string move_anim = "walk";
 
+        glm::quat rotation = glm::make_quat(tc.rotation); // Convert the rotation to a glm::quat
+        glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f); // Get the forward direction vector
+        glm::vec3 right = glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)); // Calculate the right direction vector
+
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
         {
             anim_controller_.set_active_animation(move_anim);
-            tc.position[0] += speed;
+            tc.position[0] += forward.x * speed;
+            tc.position[1] += forward.y * speed;
+            tc.position[2] += forward.z * speed;
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S))
         {
             anim_controller_.set_active_animation(move_anim);
-            tc.position[0] -= speed;
+            tc.position[0] -= forward.x * speed;
+            tc.position[1] -= forward.y * speed;
+            tc.position[2] -= forward.z * speed;
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A))
         {
             anim_controller_.set_active_animation(move_anim);
-            tc.position[2] -= speed;
+            tc.position[0] -= right.x * speed;
+            tc.position[1] -= right.y * speed;
+            tc.position[2] -= right.z * speed;
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D))
         {
             anim_controller_.set_active_animation(move_anim);
-            tc.position[2] += speed;
+            tc.position[0] += right.x * speed;
+            tc.position[1] += right.y * speed;
+            tc.position[2] += right.z * speed;
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
 

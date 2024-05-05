@@ -60,23 +60,24 @@ public:
         const bool lmb = engineApplicationIsMouseButtonDown(app, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_LEFT);
         const bool rmb = engineApplicationIsMouseButtonDown(app, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_RIGHT);
 
-        if (lmb)
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_LCTRL))
         {
-            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_LSHIFT))
+            if (lmb)
             {
-                // strafe left/right adn top/down with left mouse button + left shift
                 strafe(dx * move_speed, dy * move_speed);
             }
-            else if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_LCTRL))
+            else if(rmb)
+            {
+                translate({ 0.0f, 0.0f, dy * move_speed });
+            }
+        }
+
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_LSHIFT))
+        {
+            if (rmb)
             {
                 rotate({ dx * move_speed, dy * move_speed });
             }
-        }
-        if (rmb)
-        {
-            // zoom in/out with right mouse button 
-            // update spherical coordinates (radius -> sc_[0])
-            translate({ 0.0f, 0.0f, dy * move_speed });
         }
     }
 
