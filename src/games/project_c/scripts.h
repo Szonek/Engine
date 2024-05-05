@@ -328,7 +328,8 @@ public:
             const auto hit_go = engineScenePhysicsRayCastGetClosestGameObject(scene, &ray, 1000.0f);
             if (ENGINE_INVALID_GAME_OBJECT_ID != hit_go)
             {
-                if (engineSceneHasColliderComponent(scene, hit_go))
+                const auto name = engineSceneGetNameComponent(scene, hit_go).name;
+                if (std::strcmp(name, "floor") != 0)
                 {
                     // rotate toward enemy
                     auto ec = engineSceneGetTransformComponent(scene, hit_go);
