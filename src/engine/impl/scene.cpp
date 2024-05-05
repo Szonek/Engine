@@ -470,6 +470,6 @@ void engine::Scene::get_physcis_collisions_list(const engine_collision_info_t*& 
 
 entt::entity engine::Scene::get_entity_by_raycast_into_physics_world(const engine_ray_t& ray, float max_distance)
 {
-    return entt::entity();
+    return physics_world_.raycast(ray, max_distance);
 }
 

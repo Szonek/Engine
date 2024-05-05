@@ -8,6 +8,9 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+
+#include <fmt/format.h>
+
 namespace
 {
 inline void set_name(engine_scene_t scene, engine_game_object_t go, const char* name)
@@ -82,6 +85,56 @@ inline glm::quat rotate_toward(glm::vec3 origin, glm::vec3 target)
     const auto dir = glm::normalize(target - origin);
     const auto angle = glm::degrees(std::atan2(dir.x, dir.z));
     return glm::angleAxis(glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
+}
+
+inline engine_ray_t get_ray_from_mouse_position(engine_application_t app, engine_scene_t scene, engine_game_object_t go_camera)
+{
+    engine_ray_t ray{};
+    // ray origin
+    const auto camera_transform = engineSceneGetTransformComponent(scene, go_camera);
+    ray.origin[0] = camera_transform.position[0];
+    ray.origin[1] = camera_transform.position[1];
+    ray.origin[2] = camera_transform.position[2];
+
+    //unproject mouse coords to 3d space to get direction
+    glm::vec4 viewport(0.0f, 0.0f, 1140.0f, 540.0f);
+    const auto camera = engineSceneGetCameraComponent(scene, go_camera);
+    const auto mouse_coords = engineApplicationGetMouseCoords(app);
+    const auto mouse_x = mouse_coords.x * viewport.z;
+    const auto mouse_y = mouse_coords.y * viewport.w;
+
+    glm::mat4 view = glm::mat4(0.0);
+    glm::mat4 projection = glm::mat4(0.0);
+    // update camera: view and projection
+    {
+        const auto z_near = camera.clip_plane_near;
+        const auto z_far = camera.clip_plane_far;
+        // ToD: multi camera - this should use resolution of camera!!!
+
+        const auto adjusted_width = viewport.z * (camera.viewport_rect.width - camera.viewport_rect.x);
+        const auto adjusted_height = viewport.w * (camera.viewport_rect.height - camera.viewport_rect.y);
+        const float aspect = adjusted_width / adjusted_height;
+
+        if (camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC)
+        {
+            const float scale = camera.type_union.orthographics_scale;
+            projection = glm::ortho(-aspect * scale, aspect * scale, -scale, scale, z_near, z_far);
+        }
+        else
+        {
+            projection = glm::perspective(glm::radians(camera.type_union.perspective_fov), aspect, z_near, z_far);
+        }
+        const auto eye_position = glm::make_vec3(camera_transform.position);
+        const auto up = glm::make_vec3(camera.direction.up);
+        const auto target = glm::make_vec3(camera.target);
+        view = glm::lookAt(eye_position, target, up);
+    }
+
+    const auto ray_dir = glm::unProject(glm::vec3(mouse_x, mouse_y, 1.0f), view, projection, viewport);
+    ray.direction[0] = ray_dir.x;
+    ray.direction[1] = ray_dir.y;
+    ray.direction[2] = ray_dir.z;
+    return ray;
 }
 
 }
@@ -268,6 +321,23 @@ public:
         //anim_controller_.set_active_animation("crouch");
         //anim_controller_.set_active_animation("idle");
 
+        // raycast
+        if (engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT))
+        {
+            const auto ray = get_ray_from_mouse_position(app, scene, get_active_camera_game_objects(scene)[0]);
+            const auto hit_go = engineScenePhysicsRayCastGetClosestGameObject(scene, &ray, 1000.0f);
+            if (ENGINE_INVALID_GAME_OBJECT_ID != hit_go)
+            {
+                if (engineSceneHasColliderComponent(scene, hit_go))
+                {
+                    // rotate toward enemy
+                    auto ec = engineSceneGetTransformComponent(scene, hit_go);
+                    auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
+                    std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
+                    engineSceneUpdateTransformComponent(scene, go_, &tc);
+                }
+            }
+        }
 
         const float speed = 0.0005f * dt;
         //std::string move_anim = "sprint";// "walk";
