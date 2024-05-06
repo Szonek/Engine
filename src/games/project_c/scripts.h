@@ -310,6 +310,7 @@ class Solider : public BaseNode
 public:
     Solider(engine::IScene* my_scene, engine_game_object_t go)
         : BaseNode(my_scene, go)
+        , target_move_hit_({ENGINE_INVALID_GAME_OBJECT_ID})
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
@@ -325,69 +326,66 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
+        const float speed_cooef = 0.005f;
+        const float speed = speed_cooef * dt;
+
         auto tc = engineSceneGetTransformComponent(scene, go_);
         anim_controller_.set_active_animation("static");
-        //anim_controller_.set_active_animation("crouch");
-        //anim_controller_.set_active_animation("idle");
+
 
         // raycast
-        if (engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT))
+        const auto lmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT);
+        const auto rmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT);
+        if (lmb || rmb)
         {
             const auto ray = get_ray_from_mouse_position(app, scene, get_active_camera_game_objects(scene)[0]);
             const auto hit_info = engineScenePhysicsRayCast(scene, &ray, 1000.0f);
             if (ENGINE_INVALID_GAME_OBJECT_ID != hit_info.go)
             {
                 const auto name = engineSceneGetNameComponent(scene, hit_info.go).name;
-                if (std::strcmp(name, "enemy") == 0)
+                const auto distance = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(hit_info.position[0], hit_info.position[2]));
+                if (distance < speed)
                 {
-                    // rotate toward enemy
-                    auto ec = engineSceneGetTransformComponent(scene, hit_info.go);
-                    auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
-                    std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
-                    engineSceneUpdateTransformComponent(scene, go_, &tc);
+                    target_move_hit_ = {};
+                }
+                else
+                {
+                    target_move_hit_ = hit_info;
                 }
             }
         }
 
-        const float speed = 0.0005f * dt;
-        //std::string move_anim = "sprint";// "walk";
-        std::string move_anim = "walk";
 
-        glm::quat rotation = glm::make_quat(tc.rotation); // Convert the rotation to a glm::quat
-        glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f); // Get the forward direction vector
-        glm::vec3 right = glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)); // Calculate the right direction vector
 
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W))
+
+        if (target_move_hit_.go != ENGINE_INVALID_GAME_OBJECT_ID)
         {
-            anim_controller_.set_active_animation(move_anim);
-            tc.position[0] += forward.x * speed;
-            tc.position[1] += forward.y * speed;
-            tc.position[2] += forward.z * speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S))
-        {
-            anim_controller_.set_active_animation(move_anim);
-            tc.position[0] -= forward.x * speed;
-            tc.position[1] -= forward.y * speed;
-            tc.position[2] -= forward.z * speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A))
-        {
-            anim_controller_.set_active_animation(move_anim);
-            tc.position[0] -= right.x * speed;
-            tc.position[1] -= right.y * speed;
-            tc.position[2] -= right.z * speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
-        }
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D))
-        {
-            anim_controller_.set_active_animation(move_anim);
-            tc.position[0] += right.x * speed;
-            tc.position[1] += right.y * speed;
-            tc.position[2] += right.z * speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
+            const auto distance = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(target_move_hit_.position[0], target_move_hit_.position[2]));
+            if (distance < speed)
+            {
+                anim_controller_.set_active_animation("idle");
+                target_move_hit_ = {};
+            }
+            else
+            {
+                anim_controller_.set_active_animation("walk");
+
+                // rotate
+                auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(target_move_hit_.position[0], target_move_hit_.position[1], target_move_hit_.position[2]));
+                std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
+
+                // helper math to move forward
+                const glm::quat rotation = glm::make_quat(tc.rotation); // Convert the rotation to a glm::quat
+                const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f); // Get the forward direction vector
+                const glm::vec3 right = glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)); // Calculate the right direction vector
+
+                // move
+                tc.position[0] += forward.x * speed;
+                //tc.position[1] += forward.y * speed;  // dont go up!
+                tc.position[2] += forward.z * speed;
+                engineSceneUpdateTransformComponent(scene, go_, &tc);
+            }
+
         }
 
         if (engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT))
@@ -408,6 +406,9 @@ public:
         }
         anim_controller_.update(dt);
     }
+
+    private:
+        engine_ray_hit_info_t target_move_hit_{};
 };
 
 }

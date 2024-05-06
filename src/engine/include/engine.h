@@ -63,7 +63,8 @@ typedef struct _engine_ray_t
 typedef struct _engine_ray_hit_info_t
 {
     engine_game_object_t go;
-
+    float position[3];
+    float normal[3];
 } engine_ray_hit_info_t;
 
 typedef enum _engine_ui_document_data_binding_data_type_t

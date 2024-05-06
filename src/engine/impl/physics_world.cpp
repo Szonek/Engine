@@ -235,6 +235,12 @@ engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, flo
     if (closest_result.hasHit())
     {
         ret.go = closest_result.m_collisionObject->getUserIndex();
+        ret.position[0] = closest_result.m_hitPointWorld.getX();
+        ret.position[1] = closest_result.m_hitPointWorld.getY();
+        ret.position[2] = closest_result.m_hitPointWorld.getZ();
+        ret.normal[0] = closest_result.m_hitNormalWorld.getX();
+        ret.normal[1] = closest_result.m_hitNormalWorld.getY();
+        ret.normal[2] = closest_result.m_hitNormalWorld.getZ();
     }
     return ret;
 }
