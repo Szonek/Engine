@@ -35,7 +35,8 @@ public:
     }
 
 public:
-    void update(float dt)
+    // return true if finished
+    bool update(float dt)
     {
         animation_dt_ += dt;
 
@@ -70,7 +71,9 @@ public:
         if (animation_dt_ > duration_)
         {
             animation_dt_ = 0.0f;
+            return true;
         }
+        return false;
     }
 
 private:
@@ -213,19 +216,29 @@ public:
     void set_active_animation(const std::string& name)
     {
         current_clip_ = &collection_.get_animation_clip(name);
+        current_clip_name_ = name;
+    }
 
+    bool is_active_animation(const std::string& name) const
+    {
+        return name == current_clip_name_;
     }
 
     void update(float dt)
     {
         if (current_clip_)
         {
-            current_clip_->update(dt);
+            if (current_clip_->update(dt))
+            {
+                current_clip_ = nullptr;
+                current_clip_name_ = "";
+            }
         }
     }
 
 private:
     AnimationClip* current_clip_ = nullptr;
+    std::string current_clip_name_ = "";
     AnimationCollection collection_;
 };
 

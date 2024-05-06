@@ -323,6 +323,12 @@ public:
 
     void update(float dt)
     {
+        anim_controller_.update(dt);
+        if (anim_controller_.is_active_animation("attack-melee-right"))
+        {
+            return;
+        }
+
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
@@ -407,7 +413,6 @@ public:
         {
             anim_controller_.set_active_animation("die");
         }
-        anim_controller_.update(dt);
     }
 
     private:
