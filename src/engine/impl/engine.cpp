@@ -382,10 +382,10 @@ void engineScenePhysicsGetCollisions(engine_scene_t scene, size_t* num_collision
     sc->get_physcis_collisions_list(*collisions, num_collision);
 }
 
-engine_game_object_t engineScenePhysicsRayCastGetClosestGameObject(engine_scene_t scene, const engine_ray_t* ray, float max_distance)
+engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_ray_t* ray, float max_distance)
 {
     auto sc = scene_cast(scene);
-    return static_cast<engine_game_object_t>(sc->get_entity_by_raycast_into_physics_world(*ray, max_distance));
+    return sc->raycast_into_physics_world(*ray, max_distance);
 }
 
 engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)

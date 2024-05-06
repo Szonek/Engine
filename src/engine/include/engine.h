@@ -60,6 +60,12 @@ typedef struct _engine_ray_t
     float direction[3];
 } engine_ray_t;
 
+typedef struct _engine_ray_hit_info_t
+{
+    engine_game_object_t go;
+
+} engine_ray_hit_info_t;
+
 typedef enum _engine_ui_document_data_binding_data_type_t
 {
     ENGINE_DATA_TYPE_UNKNOWN = 0,
@@ -508,7 +514,8 @@ ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_appl
 // physics 
 ENGINE_API void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3]);
 ENGINE_API void engineScenePhysicsGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
-ENGINE_API engine_game_object_t engineScenePhysicsRayCastGetClosestGameObject(engine_scene_t scene, const engine_ray_t* ray, float max_distance);
+ENGINE_API engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_ray_t* ray, float max_distance);
+
 // ui
 // create data handel first, before loading document!
 ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out);

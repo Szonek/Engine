@@ -334,14 +334,14 @@ public:
         if (engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT))
         {
             const auto ray = get_ray_from_mouse_position(app, scene, get_active_camera_game_objects(scene)[0]);
-            const auto hit_go = engineScenePhysicsRayCastGetClosestGameObject(scene, &ray, 1000.0f);
-            if (ENGINE_INVALID_GAME_OBJECT_ID != hit_go)
+            const auto hit_info = engineScenePhysicsRayCast(scene, &ray, 1000.0f);
+            if (ENGINE_INVALID_GAME_OBJECT_ID != hit_info.go)
             {
-                const auto name = engineSceneGetNameComponent(scene, hit_go).name;
+                const auto name = engineSceneGetNameComponent(scene, hit_info.go).name;
                 if (std::strcmp(name, "enemy") == 0)
                 {
                     // rotate toward enemy
-                    auto ec = engineSceneGetTransformComponent(scene, hit_go);
+                    auto ec = engineSceneGetTransformComponent(scene, hit_info.go);
                     auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
                     std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
                     engineSceneUpdateTransformComponent(scene, go_, &tc);
