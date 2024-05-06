@@ -326,7 +326,7 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
-        const float speed_cooef = 0.005f;
+        const float speed_cooef = 0.001f;
         const float speed = speed_cooef * dt;
 
         auto tc = engineSceneGetTransformComponent(scene, go_);
@@ -351,10 +351,18 @@ public:
                 else
                 {
                     target_move_hit_ = hit_info;
+                    // rotate
+                    auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(target_move_hit_.position[0], target_move_hit_.position[1], target_move_hit_.position[2]));
+                    std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
+                    engineSceneUpdateTransformComponent(scene, go_, &tc);
                 }
             }
-        }
 
+            if (rmb)
+            {
+                target_move_hit_ = {};
+            }
+        }
 
 
 
@@ -369,11 +377,6 @@ public:
             else
             {
                 anim_controller_.set_active_animation("walk");
-
-                // rotate
-                auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(target_move_hit_.position[0], target_move_hit_.position[1], target_move_hit_.position[2]));
-                std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
-
                 // helper math to move forward
                 const glm::quat rotation = glm::make_quat(tc.rotation); // Convert the rotation to a glm::quat
                 const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f); // Get the forward direction vector
