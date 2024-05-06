@@ -200,6 +200,82 @@ public:
     }
 };
 
+
+class Enemy : public BaseNode
+{
+public:
+    std::int32_t hp = 100;
+    Enemy(engine::IScene* my_scene, engine_game_object_t go)
+        : BaseNode(my_scene, go)
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+        set_name(scene, go_, "enemy");
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+
+        tc.position[0] += 1.0f;
+        tc.position[1] -= 0.25f;
+        tc.position[2] += 0.0f;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        // physcis
+        auto cc = engineSceneAddColliderComponent(scene, go_);
+        cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
+        auto& child_c = cc.collider.compound.children[0];
+        {
+            child_c.type = ENGINE_COLLIDER_TYPE_BOX;
+            child_c.transform[0] = 0.0f;
+            child_c.transform[1] = 0.35f;
+            child_c.transform[2] = 0.0f;
+            child_c.rotation_quaternion[3] = 1.0f;
+            set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.3f, 0.35f, 0.3f});
+        }
+
+        engineSceneUpdateColliderComponent(scene, go_, &cc);
+
+        //rb
+        //auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+        //rbc.mass = 1.0f;
+        //engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+    }
+
+    void update(float dt)
+    {
+        anim_controller_.update(dt);
+        if (!is_alive_)
+        {
+            return;
+        }
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+
+        if (hp < 100)
+        {
+            anim_controller_.set_active_animation("die");
+            is_alive_ = false;
+        }
+        else
+        {
+            anim_controller_.set_active_animation("idle");
+
+        }
+        {
+            const auto player = get_game_objects_with_name(scene, "solider")[0];
+            auto tc = engineSceneGetTransformComponent(scene, go_);
+            auto ec = engineSceneGetTransformComponent(scene, player);
+            // rotate toward enemy
+            auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
+            // use slerp to interpolate between current rotation and target rotation
+            quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
+            std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
+    }
+
+private:
+    bool is_alive_ = true;
+};
+
 class Sword : public BaseNode
 {
 public:
@@ -243,67 +319,15 @@ public:
     void on_collision(const collision_t& info)
     {
         engineLog(fmt::format("hit: {}\n", info.other).c_str());
-    }
-};
-
-class Enemy : public BaseNode
-{
-public:
-    Enemy(engine::IScene* my_scene, engine_game_object_t go)
-        : BaseNode(my_scene, go)
-    {
-        const auto scene = my_scene_->get_handle();
-        const auto app = my_scene_->get_app_handle();
-        set_name(scene, go_, "enemy");
-        auto tc = engineSceneGetTransformComponent(scene, go_);
-
-        tc.position[0] += 1.0f;
-        tc.position[1] -= 0.25f;
-        tc.position[2] += 0.0f;
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
-
-        // physcis
-        auto cc = engineSceneAddColliderComponent(scene, go_);
-        cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
-        auto& child_c = cc.collider.compound.children[0];
+        if (info.other == 13)
         {
-            child_c.type = ENGINE_COLLIDER_TYPE_BOX;
-            child_c.transform[0] = 0.0f;
-            child_c.transform[1] = 0.35f;
-            child_c.transform[2] = 0.0f;
-            child_c.rotation_quaternion[3] = 1.0f;
-            set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.3f, 0.35f, 0.3f});
-        }
-
-        engineSceneUpdateColliderComponent(scene, go_, &cc);
-
-        //rb
-        //auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
-        //rbc.mass = 1.0f;
-        //engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
-    }
-
-    void update(float dt)
-    {
-        const auto scene = my_scene_->get_handle();
-        const auto app = my_scene_->get_app_handle();
-        {
-            anim_controller_.set_active_animation("idle");
-            anim_controller_.update(dt);
-        }
-        {
-            const auto player = get_game_objects_with_name(scene, "solider")[0];
-            auto tc = engineSceneGetTransformComponent(scene, go_);
-            auto ec = engineSceneGetTransformComponent(scene, player);
-            // rotate toward enemy
-            auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
-            // use slerp to interpolate between current rotation and target rotation
-            quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
-            std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
+            auto* enemy = my_scene_->get_script<Enemy>(info.other);
+            enemy->hp -= 10;
         }
     }
 };
+
+
 
 class Solider : public BaseNode
 {
@@ -317,7 +341,7 @@ public:
         set_name(scene, go_, "solider");
 
         auto tc = engineSceneGetTransformComponent(scene, go_);
-        tc.position[0] = -0.25f;
+        tc.position[1] = -0.25f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
     }
 
@@ -336,7 +360,7 @@ public:
         const float speed = speed_cooef * dt;
 
         auto tc = engineSceneGetTransformComponent(scene, go_);
-        anim_controller_.set_active_animation("static");
+        anim_controller_.set_active_animation("idle");
 
 
         // raycast

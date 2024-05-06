@@ -37,6 +37,14 @@
 
 namespace project_c
 {
+struct UI_data
+{
+    engine_ui_document_t doc;
+    engine_ui_data_handle_t handle;
+    std::uint32_t character_health = 100;
+    std::uint32_t enemy_health = 100;
+};
+
 class TestScene : public engine::IScene
 {
 public:
@@ -84,15 +92,8 @@ public:
     }
     static constexpr const char* get_name() { return "TestScene"; }
 
-private:
-    struct UI_data
-    {
-        engine_ui_document_t doc;
-        engine_ui_data_handle_t handle;
-        std::uint32_t character_health = 100;
-        std::uint32_t enemy_health = 100;
-    };
-
+    UI_data& get_ui_data() { return ui_data_; }
+    const UI_data& get_ui_data() const { return ui_data_; }
 private:   
     UI_data ui_data_;
 };

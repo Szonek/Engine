@@ -69,6 +69,18 @@ public:
         //scripts_.erase(game_object);
     }
 
+    template<typename T>
+    T* get_script(engine_game_object_t go)
+    {
+        return dynamic_cast<T*>(scripts_.at(go).get());
+    }
+
+    template<typename T>
+    const T* get_script(engine_game_object_t go) const
+    {
+        return dynamic_cast<const T*>(scripts_.at(go).get());
+    }
+
     engine_scene_t& get_handle() { return scene_; }
     engine_application_t& get_app_handle() { return app_; }
     SceneManager* get_scene_manager() { return scene_manager_; }
