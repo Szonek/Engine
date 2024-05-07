@@ -12,6 +12,24 @@
 #include <RmlUi/Core.h>
 
 
+void update_parent_component(entt::registry& registry, entt::entity entity)
+{
+    auto& parent = registry.get<engine_parent_component_t>(entity);
+    if (parent.parent == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has invalid parent id. If entity doesnt have parent than just delete it. Are you sure you are doing valid thing?\n"));
+        return;
+    }
+    const auto parent_entt = static_cast<entt::entity>(parent.parent);
+    engine::engine_internal_component_children_t* cc = registry.try_get<engine::engine_internal_component_children_t>(parent_entt);
+    if (!cc)
+    {
+        cc = &registry.emplace<engine::engine_internal_component_children_t>(parent_entt);
+    }
+    cc->children.push_back(entity);
+}
+
+
 engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : rdx_(rdx)
     , physics_world_(&rdx_)
@@ -38,7 +56,8 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
     entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
-
+    
+    entity_registry_.on_update<engine_parent_component_t>().connect<&update_parent_component>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
