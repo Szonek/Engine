@@ -204,7 +204,7 @@ public:
 class Enemy : public BaseNode
 {
 public:
-    std::int32_t hp = 100;
+    std::int32_t hp = 20;
     Enemy(engine::IScene* my_scene, engine_game_object_t go)
         : BaseNode(my_scene, go)
     {
@@ -249,7 +249,7 @@ public:
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
-        if (hp < 100)
+        if (hp < 0)
         {
             anim_controller_.set_active_animation("die");
             is_alive_ = false;
@@ -315,16 +315,21 @@ public:
         }
     }
 
-
-    void on_collision(const collision_t& info)
+    void on_collision_enter(const collision_t& info) override
     {
-        engineLog(fmt::format("hit: {}\n", info.other).c_str());
-        if (info.other == 13)
+        if (active_ && info.other == 13)
         {
+            engineLog(fmt::format("hit: {}\n", info.other).c_str());
             auto* enemy = my_scene_->get_script<Enemy>(info.other);
             enemy->hp -= 10;
+            active_ = false;
         }
     }
+
+    void set_active(bool value) { active_ = value; }
+
+private:
+    bool active_ = false;
 };
 
 
@@ -355,6 +360,9 @@ public:
 
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
+
+        Sword* sword_script = my_scene_->get_script<Sword>(get_game_objects_with_name(scene, "weapon-sword")[0]);
+        sword_script->set_active(false);
 
         const float speed_cooef = 0.001f;
         const float speed = speed_cooef * dt;
@@ -424,6 +432,7 @@ public:
         if (engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT))
         {
             anim_controller_.set_active_animation("attack-melee-right");
+            sword_script->set_active(true);
         }
         //if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_N))
         //{

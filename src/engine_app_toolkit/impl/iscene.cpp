@@ -6,6 +6,7 @@
 #include <fmt/format.h>
 
 #include <iostream>
+#include <map>
 
 namespace
 {
@@ -34,9 +35,19 @@ engine_result_code_t propagate_collisions_events(engine_application_t app, engin
     std::size_t num_collisions = 0;
     const engine_collision_info_t* collisions_list = nullptr;
     engineScenePhysicsGetCollisions(scene, &num_collisions, &collisions_list);
+
+    static std::map<std::uint64_t, engine::IScript::collision_t> collision_cache{};
+
     for (std::size_t i = 0; i < num_collisions; i++)
     {
         const auto& col = collisions_list[i];
+        //const std::uint64_t cache_key = (static_cast<std::uint64_t>(col.object_a) << 32) | col.object_b;
+        //if (collision_cache.find(cache_key) != collision_cache.end())
+        //{
+        //    auto& collision = collision_cache[cache_key];
+        //    collision.
+        //    continue;
+        //}
         engine::IScript::collision_t collision{};
         collision.contact_points.resize(col.contact_points_count);
         for (std::size_t j = 0; j < col.contact_points_count; j++)
@@ -50,7 +61,7 @@ engine_result_code_t propagate_collisions_events(engine_application_t app, engin
         collision.other = col.object_b;
         if (scripts.find(col.object_a) != scripts.end())
         {
-            scripts[col.object_a]->on_collision(collision);
+           scripts[col.object_a]->on_collision_enter(collision);
         }
         else
         {
@@ -60,7 +71,7 @@ engine_result_code_t propagate_collisions_events(engine_application_t app, engin
         collision.other = col.object_a;
         if (scripts.find(col.object_b) != scripts.end())
         {
-            scripts[col.object_b]->on_collision(collision);
+            scripts[col.object_b]->on_collision_enter(collision);
         }
         else
         {

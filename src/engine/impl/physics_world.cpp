@@ -193,7 +193,7 @@ const std::vector<engine_collision_info_t>& engine::PhysicsWorld::get_collisions
             const auto pt = manifold->getContactPoint(j);
 
             const auto position_a = pt.getPositionWorldOnA();
-            const auto position_b = pt.getPositionWorldOnA();
+            const auto position_b = pt.getPositionWorldOnB();
 
             engine_collision_contact_point_t new_contact_point{};
             new_contact_point.lifetime = pt.getLifeTime();
