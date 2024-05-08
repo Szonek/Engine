@@ -4,12 +4,6 @@
 
 namespace engine
 {
-
-struct engine_internal_component_children_t
-{
-    std::vector<entt::entity> children;
-};
-
 void initialize_transform_component(entt::registry& registry, entt::entity entity);
 void initialize_mesh_component(entt::registry& registry, entt::entity entity);
 void initialize_material_component(entt::registry& registry, entt::entity entity);

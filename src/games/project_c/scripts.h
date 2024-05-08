@@ -13,6 +13,23 @@
 
 namespace
 {
+
+inline void delete_game_objects_hierarchy(engine_scene_t scene, engine_game_object_t go)
+{
+    if (engineSceneHasChildrenComponent(scene, go))
+    {
+        auto cc = engineSceneGetChildrenComponent(scene, go);
+        for (auto i = 0; i < std::size(cc.child); i++)
+        {
+            if (cc.child[i] != ENGINE_INVALID_GAME_OBJECT_ID)
+            {
+                delete_game_objects_hierarchy(scene, cc.child[i]);
+                engineSceneDestroyGameObject(scene, cc.child[i]);
+            }
+        }
+    }
+}
+
 inline void set_name(engine_scene_t scene, engine_game_object_t go, const char* name)
 {
     engine_name_component_t nc{};
@@ -239,20 +256,20 @@ public:
         //engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
     }
 
+    virtual ~Enemy()
+    {
+        delete_game_objects_hierarchy(my_scene_->get_handle(), go_);
+    }
+
     void update(float dt)
     {
         anim_controller_.update(dt);
-        if (!is_alive_)
-        {
-            return;
-        }
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
         if (hp < 0)
         {
-            anim_controller_.set_active_animation("die");
-            is_alive_ = false;
+            my_scene_->unregister_script(this);
         }
         else
         {
@@ -271,9 +288,6 @@ public:
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
     }
-
-private:
-    bool is_alive_ = true;
 };
 
 class Sword : public BaseNode

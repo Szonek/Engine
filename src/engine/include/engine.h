@@ -610,12 +610,16 @@ ENGINE_API void engineSceneUpdateColliderComponent(engine_scene_t scene, engine_
 ENGINE_API void engineSceneRemoveColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
 
+// parent component
 ENGINE_API engine_parent_component_t engineSceneAddParentComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_parent_component_t engineSceneGetParentComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void engineSceneUpdateParentComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_parent_component_t* comp);
 ENGINE_API void engineSceneRemoveParentComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasParentComponent(engine_scene_t scene, engine_game_object_t game_object);
 
+// children component - only getters - it's managed internally by engine and user can't update it's state 
+ENGINE_API engine_children_component_t engineSceneGetChildrenComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasChildrenComponent(engine_scene_t scene, engine_game_object_t game_object);
 #ifdef __cplusplus
 }
 #endif  // #ifndef __cplusplus

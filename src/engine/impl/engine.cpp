@@ -898,3 +898,13 @@ bool engineSceneHasParentComponent(engine_scene_t scene, engine_game_object_t ga
 {
     return has_component<engine_parent_component_t>(scene, game_object);
 }
+
+engine_children_component_t engineSceneGetChildrenComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_children_component_t>(scene, game_object);
+}
+
+bool engineSceneHasChildrenComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_children_component_t>(scene, game_object);
+}

@@ -21,12 +21,21 @@ void update_parent_component(entt::registry& registry, entt::entity entity)
         return;
     }
     const auto parent_entt = static_cast<entt::entity>(parent.parent);
-    engine::engine_internal_component_children_t* cc = registry.try_get<engine::engine_internal_component_children_t>(parent_entt);
+    engine_children_component_t* cc = registry.try_get<engine_children_component_t>(parent_entt);
     if (!cc)
     {
-        cc = &registry.emplace<engine::engine_internal_component_children_t>(parent_entt);
+        cc = &registry.emplace<engine_children_component_t>(parent_entt);
     }
-    cc->children.push_back(entity);
+    for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
+    {
+        if (cc->child[i] == ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            cc->child[i] = static_cast<std::uint32_t>(entity);
+            return;
+        }
+              
+    }
+    engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has no more space for children. Are you sure you are doing valid thing?\n"));
 }
 
 
