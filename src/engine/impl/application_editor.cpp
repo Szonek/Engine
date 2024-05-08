@@ -66,7 +66,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_co
 {
     node->displayed = true;
     uint32_t dispaly_flags = ctx.get_selected_entity() == node->entity ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None;
-    dispaly_flags |= ImGuiTreeNodeFlags_DefaultOpen;
+    //dispaly_flags |= ImGuiTreeNodeFlags_DefaultOpen;
     dispaly_flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
     if (node->children.empty()) // if is leaf
     {
