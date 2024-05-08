@@ -165,10 +165,12 @@ public:
     AnimationController& get_animation_controller() { return anim_controller_; }
 
 protected:
-    BaseNode(engine::IScene* my_scene, engine_game_object_t go)
+    BaseNode(engine::IScene* my_scene, engine_game_object_t go, std::string_view name)
         : engine::IScript(my_scene, go)
     {
-
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+        set_name(scene, go_, name.data());
     }
 
 protected:
@@ -179,11 +181,11 @@ class Floor : public BaseNode
 {
 public:
     Floor(engine::IScene* my_scene, engine_game_object_t go)
-        : BaseNode(my_scene, go)
+        : BaseNode(my_scene, go, "floor")
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
-        set_name(scene, go_, "floor");
+
         auto tc = engineSceneGetTransformComponent(scene, go_);
         tc.scale[0] = 3.0f;
         tc.scale[1] = 0.1f;
@@ -223,11 +225,11 @@ class Enemy : public BaseNode
 public:
     std::int32_t hp = 20;
     Enemy(engine::IScene* my_scene, engine_game_object_t go)
-        : BaseNode(my_scene, go)
+        : BaseNode(my_scene, go, "enemy")
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
-        set_name(scene, go_, "enemy");
+
         auto tc = engineSceneGetTransformComponent(scene, go_);
 
         tc.position[0] += 1.0f;
@@ -294,7 +296,7 @@ class Sword : public BaseNode
 {
 public:
     Sword(engine::IScene* my_scene, engine_game_object_t go)
-        : BaseNode(my_scene, go)
+        : BaseNode(my_scene, go, "weapon-sword")
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
@@ -329,39 +331,85 @@ public:
         }
     }
 
-    void on_collision_enter(const collision_t& info) override
-    {
-        if (active_ && info.other == 13)
-        {
-            engineLog(fmt::format("hit: {}\n", info.other).c_str());
-            auto* enemy = my_scene_->get_script<Enemy>(info.other);
-            enemy->hp -= 10;
-            active_ = false;
-        }
-    }
+    //void on_collision_enter(const collision_t& info) override
+    //{
+    //    auto* enemy = my_scene_->get_script<Enemy>(info.other);
+    //    if (active_ && enemy)
+    //    {
+    //       // engineLog(fmt::format("hit: {}\n", info.other).c_str());
+    //        enemy->hp -= 10;
+    //        active_ = false;
+    //    }
+    //}
 
-    void set_active(bool value) { active_ = value; }
+    //void set_active(bool value) { active_ = value; }
 
-private:
-    bool active_ = false;
+//private:
+//    bool active_ = false;
 };
 
+class AttackTrigger : public BaseNode
+{
+public:
+    AttackTrigger(engine::IScene* my_scene, engine_game_object_t go)
+        : BaseNode(my_scene, go, "attack-trigger")
+    {
 
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+
+        // transform
+        auto tc = engineSceneAddTransformComponent(scene, go_);
+        tc.position[0] = 0.0f;
+        tc.position[1] = 0.0f;
+        tc.position[2] = 0.0f;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        // physcis
+        auto cc = engineSceneAddColliderComponent(scene, go_);
+        cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
+        cc.is_trigger = true;
+        auto& cc_child = cc.collider.compound.children[0];
+        cc_child.rotation_quaternion[3] = 1.0f;
+        cc_child.transform[1] = 0.21f;
+        cc_child.transform[2] = 0.6f;
+        cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
+        set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.3f, 0.05f, 0.3f});
+        engineSceneUpdateColliderComponent(scene, go_, &cc);
+
+        // parent to root
+        const auto gos_with_root_name = get_game_objects_with_name(scene, "solider");
+        for (auto& parent : gos_with_root_name)
+        {
+            if (parent != ENGINE_INVALID_GAME_OBJECT_ID)
+            {
+                auto pc = engineSceneAddParentComponent(scene, go_);
+                pc.parent = parent;
+                engineSceneUpdateParentComponent(scene, go_, &pc);
+                break;
+            }
+        }
+
+    }
+private:
+
+};
 
 class Solider : public BaseNode
 {
 public:
     Solider(engine::IScene* my_scene, engine_game_object_t go)
-        : BaseNode(my_scene, go)
+        : BaseNode(my_scene, go, "solider")
         , target_move_hit_({ENGINE_INVALID_GAME_OBJECT_ID})
+        , attack_trigger_(my_scene, engineSceneCreateGameObject(my_scene->get_handle()))
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
-        set_name(scene, go_, "solider");
 
         auto tc = engineSceneGetTransformComponent(scene, go_);
         tc.position[1] = -0.25f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
+
     }
 
     void update(float dt)
@@ -376,7 +424,7 @@ public:
         const auto app = my_scene_->get_app_handle();
 
         Sword* sword_script = my_scene_->get_script<Sword>(get_game_objects_with_name(scene, "weapon-sword")[0]);
-        sword_script->set_active(false);
+        //sword_script->set_active(false);
 
         const float speed_cooef = 0.001f;
         const float speed = speed_cooef * dt;
@@ -446,7 +494,7 @@ public:
         if (engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT))
         {
             anim_controller_.set_active_animation("attack-melee-right");
-            sword_script->set_active(true);
+            //sword_script->set_active(true);
         }
         //if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_N))
         //{
@@ -464,6 +512,7 @@ public:
 
     private:
         engine_ray_hit_info_t target_move_hit_{};
+        AttackTrigger attack_trigger_;
 };
 
 }

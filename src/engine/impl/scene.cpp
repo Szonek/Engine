@@ -48,7 +48,7 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     , fbo_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, true)
     , empty_vao_for_full_screen_quad_draw_(6)
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
-    , collider_update_observer(entity_registry_, entt::collector.update<engine_collider_component_t>())
+    , collider_update_observer(entity_registry_, entt::collector.update<engine_collider_component_t>().where<engine_tranform_component_t>())
     , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<PhysicsWorld::physcic_internal_component_t>())
     , transform_model_matrix_update_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>())
     , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
