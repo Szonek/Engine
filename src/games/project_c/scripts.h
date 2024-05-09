@@ -390,9 +390,50 @@ public:
             }
         }
 
+        // WA 
+        // ToDo: fix me
+        my_scene_->register_script(this);
     }
-private:
 
+    void activate()
+    {
+        is_active_ = true;
+    }
+
+    void update(float dt) override
+    {
+        if (is_active_)
+        {
+            engineLog("attack trigger active\n");
+            auto scene = my_scene_->get_handle();
+            std::size_t collisions_count = 0;
+            const engine_collision_info_t* collisions = nullptr;
+            engineScenePhysicsGetCollisions(scene, &collisions_count, &collisions);
+
+            for (auto i = 0; i < collisions_count; i++)
+            {
+                const auto obj_a = collisions[i].object_a;
+                const auto obj_b = collisions[i].object_b;
+                auto* enemy_a = my_scene_->get_script<Enemy>(obj_a);
+                auto* enemy_b = my_scene_->get_script<Enemy>(obj_b);
+                Enemy* enemy = nullptr;
+                if (enemy_a || enemy_b)
+                {
+                    //engineLog("enemy hit!\n");
+                    enemy = enemy_a ? enemy_a : enemy_b;
+                }
+                if (enemy)
+                {
+                    enemy->hp -= 10;
+                }
+            }
+
+            is_active_ = false;
+        }
+    }
+
+private:
+    bool is_active_ = false;
 };
 
 class Solider : public BaseNode
@@ -494,6 +535,7 @@ public:
         if (engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT))
         {
             anim_controller_.set_active_animation("attack-melee-right");
+            attack_trigger_.activate();
             //sword_script->set_active(true);
         }
         //if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_N))

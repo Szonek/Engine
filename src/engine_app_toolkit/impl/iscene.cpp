@@ -65,7 +65,7 @@ engine_result_code_t propagate_collisions_events(engine_application_t app, engin
         }
         else
         {
-            engineLog(fmt::format("Possible bug. Tried to send event to object without attached script, go id: {}\n", col.object_a).c_str());
+            //engineLog(fmt::format("Possible bug. Tried to send event to object without attached script, go id: {}\n", col.object_a).c_str());
         }
 
         collision.other = col.object_a;
@@ -75,7 +75,7 @@ engine_result_code_t propagate_collisions_events(engine_application_t app, engin
         }
         else
         {
-            engineLog(fmt::format("Possible bug. Tried to send event to object without attached script, go id: {}\n", col.object_b).c_str());
+            //engineLog(fmt::format("Possible bug. Tried to send event to object without attached script, go id: {}\n", col.object_b).c_str());
         }
     }
     return ENGINE_RESULT_CODE_OK;
