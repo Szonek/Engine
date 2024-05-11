@@ -311,7 +311,7 @@ class Enemy : public BaseNode
 {
 public:
     std::int32_t hp = 20;
-    Enemy(engine::IScene* my_scene, engine_game_object_t go)
+    Enemy(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z)
         : BaseNode(my_scene, go, "enemy")
     {
         const auto scene = my_scene_->get_handle();
@@ -319,10 +319,10 @@ public:
 
         auto tc = engineSceneGetTransformComponent(scene, go_);
 
-        tc.position[0] += 1.0f;
+        tc.position[0] += 1.0f + offset_x;
         tc.position[1] -= 0.25f;
         //tc.position[1] += 1.25f;
-        tc.position[2] += 0.0f;
+        tc.position[2] += 0.0f + offset_z;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
         // physcis
@@ -496,7 +496,7 @@ public:
             std::size_t collisions_count = 0;
             const engine_collision_info_t* collisions = nullptr;
             engineScenePhysicsGetCollisions(scene, &collisions_count, &collisions);
-
+            std::vector<engine_game_object_t> gos_already_hit;
             for (auto i = 0; i < collisions_count; i++)
             {
                 const auto obj_a = collisions[i].object_a;
@@ -516,8 +516,13 @@ public:
                 }
                 if (enemy)
                 {
+                    //ToDo: WA hack to avoid multiple hits for the same enemy - physics shouldnt report diffeent collisions for 2 same objects?
+                    if (std::find(gos_already_hit.begin(), gos_already_hit.end(), enemy->get_game_object()) != gos_already_hit.end())
+                    {
+                        continue;
+                    }
+                    gos_already_hit.push_back(enemy->get_game_object());
                     enemy->hp -= 10;
-                    break;  //ToDo: physics seems to be buggy - why there can be multiple collisions for 2 same objects?
                 }
             }
 

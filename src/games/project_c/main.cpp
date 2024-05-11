@@ -98,8 +98,8 @@ private:
     UI_data ui_data_;
 };
 
-template<typename TScript>
-inline bool parse_model_info_and_create_script(project_c::ModelInfo& model_info, engine::IScene* scene_cpp)
+template<typename TScript, typename... Targs>
+inline bool parse_model_info_and_create_script(project_c::ModelInfo& model_info, engine::IScene* scene_cpp, Targs... targs)
 {
     auto scene = scene_cpp->get_handle();
     TScript* script = nullptr;
@@ -145,7 +145,7 @@ inline bool parse_model_info_and_create_script(project_c::ModelInfo& model_info,
 
         if (!node.parent)
         {
-            script = scene_cpp->register_script<TScript>(go);
+            script = scene_cpp->register_script<TScript>(go, targs...);
         }
     }
 
@@ -365,7 +365,9 @@ int main(int argc, char** argv)
     //}
 
     //load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_cube, scene);
-    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene);
+    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, -1.0f);
+    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, 0.0f);
+    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, 1.0f);
     if (!load_model)
     {
         log(fmt::format("Loading model failed!\n"));
