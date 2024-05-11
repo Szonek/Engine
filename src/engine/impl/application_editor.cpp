@@ -14,7 +14,7 @@
 
 namespace
 {
-
+constexpr const char* g_editor_camera_name = "__engine__camera-editor__";
 inline auto get_spherical_coordinates(const auto& cartesian)
 {
     const float r = std::sqrt(
@@ -425,6 +425,11 @@ void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
             const auto nc = scene->get_component<engine_name_component_t>(e);
             name = nc->name;
         }
+        if (name.compare(g_editor_camera_name) == 0)
+        {
+            // dont' add camera editor to hierarchy, so user can't manipulate it
+            continue;
+        }
         entity_map.insert({ e, entity_node_t{ e, name } });
     }
 
@@ -589,7 +594,9 @@ engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
 {
     auto nc = scene->add_component<engine_name_component_t>(go_);
     scene->patch_component<engine_name_component_t>(go_, [nc](engine_name_component_t& c)
-        { std::memcpy(c.name, "camera-editor", std::strlen("camera-editor")); });
+        {
+            std::memcpy(c.name, g_editor_camera_name, std::strlen(g_editor_camera_name));
+        });
 
     auto camera_comp = scene->add_component<engine_camera_component_t>(go_);
     scene->patch_component<engine_camera_component_t>(go_, [camera_comp](engine_camera_component_t& c)
@@ -630,6 +637,7 @@ void engine::CameraScript::disable()
             c.enabled = false;
         });
 }
+
 void engine::CameraScript::update(float dt)
 {
     auto cc = my_scene_->get_component<engine_camera_component_t>(go_);

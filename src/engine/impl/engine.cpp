@@ -351,7 +351,6 @@ engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, e
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    assert(ENGINE_INVALID_OBJECT_HANDLE != engineSceneCreateGameObject(*out)); // add invalid game object id
     return ENGINE_RESULT_CODE_OK;
 }
 
