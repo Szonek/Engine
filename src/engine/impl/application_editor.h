@@ -69,7 +69,7 @@ private:
         std::map<engine::Scene*, camera_data_t> cameras_;
     };
     CameraContext camera_context_;
-    bool editor_controlling_scene_ = true;
+    bool editor_controlling_scene_ = false;
 };
 
 } // namespace engine

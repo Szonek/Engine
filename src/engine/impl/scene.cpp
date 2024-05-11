@@ -150,40 +150,41 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 
     // transform component updated, sync it with rigid body
     // as a rule of thumb: if rigid body has mass (is dynamic) than it cant be moved by transform component
-    for (const auto entt : transform_update_collider_observer)
-    {
-        const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
-
-
-        btTransform world_transform;
-        //physcics_component->rigid_body->getMotionState()->getWorldTransform(world_transform);
-        world_transform = physcics_component->rigid_body->getWorldTransform();
-
-        if (has_component<engine_parent_component_t>(entt))
+    for (const auto entity : transform_update_collider_observer)
+    //auto transform_physcis_preupdate = entity_registry_.view<const engine_tranform_component_t, PhysicsWorld::physcic_internal_component_t>();
+    //transform_physcis_preupdate.each([this](auto entity, const engine_tranform_component_t& transform_component, PhysicsWorld::physcic_internal_component_t& physcics_component)
         {
-            btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
-            glm::vec3 scale;
-            glm::quat rotation;
-            glm::vec3 translation;
-            glm::vec3 skew;
-            glm::vec4 perspective;
-            glm::decompose(glm::make_mat4(transform_component->local_to_world), scale, rotation, translation, skew, perspective);
-            world_transform.setOrigin(btVector3(translation.x, translation.y, translation.z));
-            const btQuaternion quaterninon(rotation.x, rotation.y, rotation.z, rotation.w);
-            world_transform.setRotation(quaterninon);
+            const auto transform_component = *get_component<engine_tranform_component_t>(entity);
+            auto& physcics_component = *get_component<PhysicsWorld::physcic_internal_component_t>(entity);
+            btTransform world_transform;
+            //physcics_component->rigid_body->getMotionState()->getWorldTransform(world_transform);
+            world_transform = physcics_component.rigid_body->getWorldTransform();
+
+            if (has_component<engine_parent_component_t>(entity))
+            {
+                //btTransform& world_transform = physcics_component.rigid_body->getWorldTransform();
+                glm::vec3 scale;
+                glm::quat rotation;
+                glm::vec3 translation;
+                glm::vec3 skew;
+                glm::vec4 perspective;
+                glm::decompose(glm::make_mat4(transform_component.local_to_world), scale, rotation, translation, skew, perspective);
+                world_transform.setOrigin(btVector3(translation.x, translation.y, translation.z));
+                const btQuaternion quaterninon(rotation.x, rotation.y, rotation.z, rotation.w);
+                world_transform.setRotation(quaterninon);
+            }
+            else
+            {
+                world_transform.setOrigin(btVector3(transform_component.position[0], transform_component.position[1], transform_component.position[2]));
+                const btQuaternion quaterninon(transform_component.rotation[0], transform_component.rotation[1], transform_component.rotation[2], transform_component.rotation[3]);
+                world_transform.setRotation(quaterninon);
+            }
+
+            //physcics_component->rigid_body->translate(btVector3(translation.x, translation.y, translation.z));
+            physcics_component.rigid_body->activate(true);
+            physcics_component.rigid_body->setWorldTransform(world_transform);
         }
-        else
-        {
-            world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
-            const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
-            world_transform.setRotation(quaterninon);
-        }
- 
-        //physcics_component->rigid_body->translate(btVector3(translation.x, translation.y, translation.z));
-        physcics_component->rigid_body->activate(true);
-        physcics_component->rigid_body->setWorldTransform(world_transform);
-    }
+    //);
     transform_update_collider_observer.clear();
 
     // detect if rigid body component was updated by the user
@@ -202,8 +203,8 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 
     // sync physcis to graphics world
     // ToDo: this could be seperate function or called at the beggning of the graphics update function?
-    auto transform_physcis_view = entity_registry_.view<engine_tranform_component_t, const PhysicsWorld::physcic_internal_component_t, engine_rigid_body_component_t>();
-    transform_physcis_view.each([this](auto entity, engine_tranform_component_t& transform, const PhysicsWorld::physcic_internal_component_t& physcics, engine_rigid_body_component_t& rigidbody)
+    auto transform_physcis_view_post_update = entity_registry_.view<engine_tranform_component_t, const PhysicsWorld::physcic_internal_component_t, engine_rigid_body_component_t>();
+    transform_physcis_view_post_update.each([this](auto entity, engine_tranform_component_t& transform, const PhysicsWorld::physcic_internal_component_t& physcics, engine_rigid_body_component_t& rigidbody)
         {
             //assert(physcics.rigid_body);
             if (!physcics.rigid_body)
