@@ -174,6 +174,7 @@ engine::Scene* engine::Application::create_scene(const engine_scene_create_desc_
         delete ret;
         return nullptr;
     }
+    on_scene_create(ret);
     return ret;
 }
 
@@ -181,17 +182,19 @@ void engine::Application::release_scene(Scene* scene)
 {
     if (scene)
     {
+        on_scene_release(scene);
         delete scene;
     }
 }
 
 engine_result_code_t engine::Application::update_scene(Scene* scene, float delta_time)
 {
+    on_scene_update_pre(scene, delta_time);
 	const auto ret_code = scene->update(delta_time,
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
         materials_atlas_.get_objects_view());
-    on_scene_update(scene, delta_time);
+    on_scene_update_post(scene, delta_time);
 
     return ret_code;
 }
@@ -625,10 +628,6 @@ bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
 
 engine_coords_2d_t engine::Application::mouse_get_coords()
 {
-    if (!is_mouse_enabled())
-    {
-        return {};
-    }
 	float coord_x = 0.;
 	float coord_y = 0.;
     SDL_GetMouseState(&coord_x, &coord_y);
@@ -644,10 +643,6 @@ engine_coords_2d_t engine::Application::mouse_get_coords()
 
 bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
 {
-    if (!is_mouse_enabled())
-    {
-        return false;
-    }
     const auto state = SDL_GetMouseState(nullptr, nullptr);
     return state & SDL_BUTTON(button);
 }

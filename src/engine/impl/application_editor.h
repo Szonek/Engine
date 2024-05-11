@@ -1,7 +1,33 @@
 #include "application.h"
+#include <map>
+#include <entt/entt.hpp>
 
 namespace engine
 {
+class ApplicationEditor;
+class CameraScript
+{
+public:
+    CameraScript() = default;
+    CameraScript(Scene* scene, ApplicationEditor* app);
+
+    void enable();
+    void disable();
+
+    void update(float dt);
+
+private:
+    void translate(const glm::vec3& delta);
+    void rotate(const glm::vec2 delta);
+    void strafe(float delta_x, float delta_y);
+
+private:
+    Scene* my_scene_ = nullptr;
+    ApplicationEditor* app_ = nullptr;
+    entt::entity go_ = entt::null;
+    std::array<float, 3> sc_;  // {radius, phi, theta}
+    engine_coords_2d_t mouse_coords_prev_{};
+};
 
 class ApplicationEditor : public Application
 {
@@ -17,8 +43,30 @@ protected:
     void on_frame_begine() override;
     void on_sdl_event(SDL_Event e) override;
     void on_frame_end() override;
-    void on_scene_update(class Scene* scene, float delta_time) override;
+    void on_scene_update_post(class Scene* scene, float delta_time) override;
+    void on_scene_update_pre(class Scene* scene, float delta_time) override;
     bool is_mouse_enabled() override;
+    bool is_keyboard_enabled() override;
+    void on_scene_create(class Scene* scene) override;
+    void on_scene_release(class Scene* scene) override;
+private:
+    class CameraContext
+    {
+    public:
+        void attach_scene(Scene* scene, ApplicationEditor* app);
+        void detach_scene(Scene* scene);
+        void on_scene_update_pre(Scene* scene, float dt);
+        void on_scene_update_post(Scene* scene, float dt);
+        bool is_enabled() const { return enabled_; }
+    private:
+
+        bool enabled_ = true;
+        std::map<engine::Scene*, CameraScript> cameras_;
+        std::map<engine::Scene*, std::vector<entt::entity>> camera_entities_to_enable_back_;
+
+
+    };
+    CameraContext camera_context_;
 };
 
 } // namespace engine
