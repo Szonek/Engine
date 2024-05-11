@@ -14,7 +14,7 @@
 
 namespace
 {
-
+constexpr const char* g_editor_camera_name = "__engine__camera-editor__";
 inline auto get_spherical_coordinates(const auto& cartesian)
 {
     const float r = std::sqrt(
@@ -425,6 +425,11 @@ void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
             const auto nc = scene->get_component<engine_name_component_t>(e);
             name = nc->name;
         }
+        if (name.compare(g_editor_camera_name) == 0)
+        {
+            // dont' add camera editor to hierarchy, so user can't manipulate it
+            continue;
+        }
         entity_map.insert({ e, entity_node_t{ e, name } });
     }
 
@@ -442,7 +447,7 @@ void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
     }
 
     static hierarchy_context_t ctx;
-    ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+    
     ImGui::Begin("Scene Panel");
 
     if (ImGui::Button("Add entity"))
@@ -535,6 +540,13 @@ void engine::ApplicationEditor::on_frame_begine()
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
+    ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+    ImGui::Begin("Editor Controllers");
+    if (ImGui::Button("Enable/Disable Editor Controller"))
+    {
+        editor_controlling_scene_ = !editor_controlling_scene_;
+    }
+    ImGui::End();
 }
 
 void engine::ApplicationEditor::on_frame_end()
@@ -551,7 +563,10 @@ void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
 
 void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_time)
 {
-    camera_context_.on_scene_update_pre(scene, delta_time);
+    if (editor_controlling_scene_)
+    {
+        camera_context_.on_scene_update_pre(scene, delta_time);
+    }
 }
 
 void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_time)
@@ -562,13 +577,14 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_t
 
 bool engine::ApplicationEditor::is_mouse_enabled()
 {
-    const bool editor_is_using_mouse = camera_context_.is_enabled() || ImGui::GetIO().WantCaptureMouse;
+    const bool editor_is_using_mouse = editor_controlling_scene_ || ImGui::GetIO().WantCaptureMouse;
     return !editor_is_using_mouse;
 }
 
 bool engine::ApplicationEditor::is_keyboard_enabled()
 {
-    return camera_context_.is_enabled();
+    const bool editor_is_using_keybord = editor_controlling_scene_ || ImGui::GetIO().WantCaptureKeyboard;
+    return !editor_is_using_keybord;
 }
 
 void engine::ApplicationEditor::on_scene_create(Scene* scene)
@@ -588,7 +604,9 @@ engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
 {
     auto nc = scene->add_component<engine_name_component_t>(go_);
     scene->patch_component<engine_name_component_t>(go_, [nc](engine_name_component_t& c)
-        { std::memcpy(c.name, "camera-editor", std::strlen("camera-editor")); });
+        {
+            std::memcpy(c.name, g_editor_camera_name, std::strlen(g_editor_camera_name));
+        });
 
     auto camera_comp = scene->add_component<engine_camera_component_t>(go_);
     scene->patch_component<engine_camera_component_t>(go_, [camera_comp](engine_camera_component_t& c)
@@ -629,6 +647,7 @@ void engine::CameraScript::disable()
             c.enabled = false;
         });
 }
+
 void engine::CameraScript::update(float dt)
 {
     auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
@@ -650,24 +669,21 @@ void engine::CameraScript::update(float dt)
 
     const bool lmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT);
     const bool rmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_RIGHT);
-
-    if (app_->keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL))
-    {
-        if (lmb)
-        {
-            strafe(dx * move_speed, dy * move_speed);
-        }
-        else if (rmb)
-        {
-            translate({ 0.0f, 0.0f, dy * move_speed });
-        }
-    }
+    const bool mmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_MIDDLE);
 
     if (app_->keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LSHIFT))
     {
-        if (rmb)
+        if (lmb)
         {
-            rotate({ dx * move_speed, dy * move_speed });
+            rotate({ dx * move_speed, dy * move_speed });            
+        }
+        else if (rmb)
+        {
+            strafe(dx * move_speed, dy * move_speed);
+        }
+        else if (mmb)
+        {
+            translate({ 0.0f, 0.0f, dy * move_speed });
         }
     }
 }
@@ -745,7 +761,7 @@ void engine::ApplicationEditor::CameraContext::attach_scene(Scene* scene, Applic
 {
     if (cameras_.find(scene) == cameras_.end())
     {
-        cameras_.insert({ scene, CameraScript{ scene, app } });
+        cameras_.insert({ scene, { true, CameraScript{ scene, app }, {} } });
     }
     else
     {
@@ -767,47 +783,42 @@ void engine::ApplicationEditor::CameraContext::detach_scene(Scene* scene)
 
 void engine::ApplicationEditor::CameraContext::on_scene_update_pre(Scene* scene, float dt)
 {
-
-    auto& camera_script = cameras_[scene];
-    ImGui::Begin("Camera Editor");
-
-    if (ImGui::Button("SwitchCamera"))
-    {
-        enabled_ = !enabled_;
-    }
-    if (enabled_)
+    auto& camera_data = cameras_[scene];
+    if (camera_data.is_enabled)
     {
         // disable all active scene cameras
         auto view = scene->create_runtime_view();
         scene->attach_component_to_runtime_view<engine_camera_component_t>(view);
-        view.each([scene, this](const auto& entity)
+        view.each([scene, this, &camera_data](const auto& entity)
             {
                 const auto cc = scene->get_component<engine_camera_component_t>(entity);
                 if (cc->enabled)
                 {
-                    camera_entities_to_enable_back_[scene].push_back(entity);
+                    camera_data.user_camera_entities_to_enable_back.push_back(entity);
                     scene->patch_component<engine_camera_component_t>(entity, [](auto& c) { c.enabled = false; });
                 }
             });
         // enable and update the editor camera
-        camera_script.enable();
-        camera_script.update(dt);
+        camera_data.camera.enable();
+        camera_data.camera.update(dt);
     }
-    ImGui::End();
 }
 
 void engine::ApplicationEditor::CameraContext::on_scene_update_post(Scene* scene, float dt)
 {
-    for (auto& ec : cameras_)
+    for (auto& [script, camera_data] : cameras_)
     {
-        ec.second.disable();
-    }
-    for (auto& [scene, entities] : camera_entities_to_enable_back_)
-    {
-        for (auto e : entities)
+        camera_data.camera.disable();
+        for (auto e : camera_data.user_camera_entities_to_enable_back)
         {
             scene->patch_component<engine_camera_component_t>(e, [](auto& c) { c.enabled = true; });
         }
+        camera_data.user_camera_entities_to_enable_back.clear();
     }
-    camera_entities_to_enable_back_.clear();
+
+}
+
+bool engine::ApplicationEditor::CameraContext::is_enabled(engine::Scene* scene) const
+{
+    return cameras_.at(scene).is_enabled;
 }
