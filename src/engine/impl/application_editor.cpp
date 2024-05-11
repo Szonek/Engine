@@ -460,10 +460,7 @@ void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
 
     static bool phys_debug_draw_check = true;
     ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check);
-    if (phys_debug_draw_check)
-    {
-        scene->enable_physics_debug_draw(phys_debug_draw_check);
-    }
+    scene->enable_physics_debug_draw(phys_debug_draw_check);
 
     ImGui::SeparatorText("Scene hierarchy");
     if (ImGui::TreeNodeEx("Scene Collection", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth))
@@ -531,8 +528,10 @@ engine::ApplicationEditor::ApplicationEditor(const engine_application_create_des
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // IF using Docking Branch
 
     // Setup Platform/Renderer backends
-    assert(ImGui_ImplSDL3_InitForOpenGL(rdx_.get_sdl_window(), rdx_.get_sdl_gl_context()));
-    assert(ImGui_ImplOpenGL3_Init());
+    const auto init_sdl3 = ImGui_ImplSDL3_InitForOpenGL(rdx_.get_sdl_window(), rdx_.get_sdl_gl_context());
+    assert(init_sdl3);
+    const auto init_ogl = ImGui_ImplOpenGL3_Init();
+    assert(init_ogl);
 }
 
 engine::ApplicationEditor::~ApplicationEditor()
