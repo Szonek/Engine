@@ -18,6 +18,8 @@ public:
     Scene& operator=(Scene&& rhs) = delete;
     ~Scene();
 
+    void enable_physics_debug_draw(bool enable);
+
     engine_result_code_t physics_update(float dt);
     engine_result_code_t update(float dt, std::span<const class Texture2D> textures, 
         std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials);

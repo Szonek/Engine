@@ -458,6 +458,12 @@ void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
         std::memcpy(nc->name, new_name.c_str(), new_name.size());
     }
 
+    static bool phys_debug_draw_check = false;
+    if (ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check))
+    {
+        scene->enable_physics_debug_draw(phys_debug_draw_check);
+    }
+
     ImGui::SeparatorText("Scene hierarchy");
     if (ImGui::TreeNodeEx("Scene Collection", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth))
     {
@@ -535,7 +541,7 @@ engine::ApplicationEditor::~ApplicationEditor()
     ImGui::DestroyContext();
 }
 
-void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_begine_info_t& frame_begin_info)
+void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_begine_info_t & frame_begin_info)
 {
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();

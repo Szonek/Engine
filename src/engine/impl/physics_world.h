@@ -45,7 +45,7 @@ public:
      *       OpenGL state is correctly set up for rendering lines and points.
      */
     void enable_debug_draw(bool enable);
-
+    bool is_debug_drawer_enabled() const;
     /**
      * @brief Draws the debug information for the physics world.
      *

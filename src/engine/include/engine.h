@@ -117,7 +117,6 @@ typedef struct _engine_application_create_desc_t
 
 typedef struct _engine_scene_create_desc_t
 {
-    bool enable_physics_debug_draw;
 } engine_scene_create_desc_t;
 
 typedef enum _engine_begin_frame_event_flags_t

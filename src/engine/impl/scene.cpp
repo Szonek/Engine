@@ -72,11 +72,16 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
     out_code = ENGINE_RESULT_CODE_OK;
 
-    physics_world_.enable_debug_draw(config.enable_physics_debug_draw);
+    
 }
 
 engine::Scene::~Scene()
 {  
+}
+
+void engine::Scene::enable_physics_debug_draw(bool enable)
+{
+    physics_world_.enable_debug_draw(enable);
 }
 
 engine_result_code_t engine::Scene::physics_update(float dt)
@@ -449,8 +454,10 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
             }
         );
-
-        physics_world_.debug_draw(view, projection);
+        if (physics_world_.is_debug_drawer_enabled())
+        {
+            physics_world_.debug_draw(view, projection);
+        }
     }
     return ENGINE_RESULT_CODE_OK;
 }

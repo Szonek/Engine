@@ -126,7 +126,6 @@ inline engine_scene_t create_scene(engine_application_t& app_handle)
     engine_scene_t scene = nullptr;
 
     engine_scene_create_desc_t desc{};
-    desc.enable_physics_debug_draw = true;
 
     auto engine_error_code = engineApplicationSceneCreate(app_handle, desc, &scene);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)

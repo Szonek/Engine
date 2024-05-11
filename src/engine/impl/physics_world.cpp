@@ -40,10 +40,9 @@ engine::PhysicsWorld::PhysicsWorld(RenderContext* renderer)
 
 void engine::PhysicsWorld::enable_debug_draw(bool enable)
 {
-    if (enable && dynamics_world_->getDebugDrawer() != nullptr)
+    if (enable && is_debug_drawer_enabled())
     {
-        engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Physics debug draw is already enabled, you cant do enable it again!\n"));
-        return;
+        return; // nothing to do
     }
     if(enable)
     {
@@ -60,9 +59,14 @@ void engine::PhysicsWorld::enable_debug_draw(bool enable)
     }
 }
 
+bool engine::PhysicsWorld::is_debug_drawer_enabled() const
+{
+    return dynamics_world_->getDebugDrawer() != nullptr;
+}
+
 void engine::PhysicsWorld::debug_draw(const glm::mat4& view, const glm::mat4& projection)
 {
-    if (debug_drawer_)
+    if (is_debug_drawer_enabled())
     {
         debug_drawer_->begin_frame(view, projection);
         dynamics_world_->debugDrawWorld();
