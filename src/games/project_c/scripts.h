@@ -288,8 +288,21 @@ public:
         const auto app = my_scene_->get_app_handle();
 
         auto tc = engineSceneGetTransformComponent(scene, go_);
+        tc.position[1] -= 0.15f;
         tc.position[2] += 1.0f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        // physcis
+        auto cc = engineSceneAddColliderComponent(scene, go_);
+        cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
+        auto& child_c = cc.collider.compound.children[0];
+        {
+            child_c.type = ENGINE_COLLIDER_TYPE_BOX;
+            child_c.transform[1] = 0.2f;
+            child_c.rotation_quaternion[3] = 1.0f;
+            set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.2f, 0.2f, 0.2f});
+        }
+        engineSceneUpdateColliderComponent(scene, go_, &cc);
     }
 };
 
@@ -307,8 +320,8 @@ public:
         auto tc = engineSceneGetTransformComponent(scene, go_);
 
         tc.position[0] += 1.0f;
-        //tc.position[1] -= 0.25f;
-        tc.position[1] += 1.25f;
+        tc.position[1] -= 0.25f;
+        //tc.position[1] += 1.25f;
         tc.position[2] += 0.0f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
@@ -327,9 +340,9 @@ public:
         engineSceneUpdateColliderComponent(scene, go_, &cc);
 
         //rb
-        auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
-        rbc.mass = 1.0f;
-        engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+        //auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+        //rbc.mass = 1.0f;
+        //engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
     }
 
     virtual ~Enemy()
@@ -488,6 +501,11 @@ public:
             {
                 const auto obj_a = collisions[i].object_a;
                 const auto obj_b = collisions[i].object_b;
+                if (obj_a != go_ && obj_b != go_)
+                {
+                    //ToDo: we need API to expose collisions with concrete game object
+                    continue;
+                }
                 auto* enemy_a = my_scene_->get_script<Enemy>(obj_a);
                 auto* enemy_b = my_scene_->get_script<Enemy>(obj_b);
                 Enemy* enemy = nullptr;
@@ -499,6 +517,7 @@ public:
                 if (enemy)
                 {
                     enemy->hp -= 10;
+                    break;  //ToDo: physics seems to be buggy - why there can be multiple collisions for 2 same objects?
                 }
             }
 
