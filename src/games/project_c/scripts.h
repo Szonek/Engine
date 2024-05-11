@@ -278,6 +278,17 @@ public:
     }
 };
 
+class Barrel : public BaseNode
+{
+public:
+    Barrel(engine::IScene* my_scene, engine_game_object_t go)
+        : BaseNode(my_scene, go, "barrel")
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+    }
+};
+
 
 class Enemy : public BaseNode
 {

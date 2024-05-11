@@ -380,7 +380,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                     log::log(log::LogLevel::eError, fmt::format("Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n"));
                     return;
                 }
-                const auto& material =materials[material_component.material];
+                const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material ];
 
                 shader_simple_.bind();
                 shader_simple_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
@@ -409,7 +409,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 {
                     return;
                 }
-                const auto& material = materials[material_component.material];
+                const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
 
                 shader_vertex_skinning_.bind();
                 shader_vertex_skinning_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });

@@ -330,6 +330,11 @@ int main(int argc, char** argv)
     {
         return false;
     }
+    project_c::ModelInfo model_info_barrel(engine_error_code, app, "barrel.glb", "Textures_mini_dungeon");
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        return false;
+    }
     project_c::ModelInfo model_info_cube(engine_error_code, app, "cube.glb");
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
@@ -372,7 +377,12 @@ int main(int argc, char** argv)
         log(fmt::format("Loading model failed!\n"));
         return -1;
     }
-
+    load_model = project_c::parse_model_info_and_create_script<project_c::Barrel>(model_info_barrel, scene);
+    if (!load_model)
+    {
+        log(fmt::format("Loading model failed!\n"));
+        return -1;
+    }
     //load_model = project_c::load_solider(app, scene);
     //if (!load_model)
     //{
