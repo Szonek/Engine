@@ -568,7 +568,8 @@ bool engine::ApplicationEditor::is_mouse_enabled()
 
 bool engine::ApplicationEditor::is_keyboard_enabled()
 {
-    return camera_context_.is_enabled();
+    const bool editor_is_using_keybord = camera_context_.is_enabled() || ImGui::GetIO().WantCaptureKeyboard;
+    return !editor_is_using_keybord;
 }
 
 void engine::ApplicationEditor::on_scene_create(Scene* scene)
@@ -650,24 +651,21 @@ void engine::CameraScript::update(float dt)
 
     const bool lmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT);
     const bool rmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_RIGHT);
-
-    if (app_->keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL))
-    {
-        if (lmb)
-        {
-            strafe(dx * move_speed, dy * move_speed);
-        }
-        else if (rmb)
-        {
-            translate({ 0.0f, 0.0f, dy * move_speed });
-        }
-    }
+    const bool mmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_MIDDLE);
 
     if (app_->keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LSHIFT))
     {
-        if (rmb)
+        if (lmb)
         {
-            rotate({ dx * move_speed, dy * move_speed });
+            rotate({ dx * move_speed, dy * move_speed });            
+        }
+        else if (rmb)
+        {
+            strafe(dx * move_speed, dy * move_speed);
+        }
+        else if (mmb)
+        {
+            translate({ 0.0f, 0.0f, dy * move_speed });
         }
     }
 }
