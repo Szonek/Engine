@@ -57,7 +57,7 @@ public:
     virtual std::array<engine_finger_info_t, 10> get_finger_info_events() const;
 
 protected:
-    virtual void on_frame_begine() {}
+    virtual void on_frame_begine(const engine_application_frame_begine_info_t&) {}
     virtual void on_sdl_event(SDL_Event e) {}
     virtual void on_frame_end() {}
     virtual void on_scene_create(class Scene* scene) {}

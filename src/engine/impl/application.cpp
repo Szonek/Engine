@@ -299,7 +299,7 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     }
 
 	rdx_.begin_frame();
-    on_frame_begine();
+    on_frame_begine(ret);
 	return ret;
 }
 

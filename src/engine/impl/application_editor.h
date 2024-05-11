@@ -41,7 +41,7 @@ public:
     ~ApplicationEditor();
 
 protected:
-    void on_frame_begine() override;
+    void on_frame_begine(const engine_application_frame_begine_info_t&) override;
     void on_sdl_event(SDL_Event e) override;
     void on_frame_end() override;
     void on_scene_update_post(class Scene* scene, float delta_time) override;

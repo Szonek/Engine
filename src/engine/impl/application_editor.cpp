@@ -10,7 +10,7 @@
 
 #include <string>
 #include <map>
-
+#include <numeric>
 
 namespace
 {
@@ -535,7 +535,7 @@ engine::ApplicationEditor::~ApplicationEditor()
     ImGui::DestroyContext();
 }
 
-void engine::ApplicationEditor::on_frame_begine()
+void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_begine_info_t& frame_begin_info)
 {
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
@@ -546,6 +546,13 @@ void engine::ApplicationEditor::on_frame_begine()
     {
         editor_controlling_scene_ = !editor_controlling_scene_;
     }
+    assert(frame_begin_info.delta_time > 0.0f);
+    static float avg_fps = 0; 
+    static std::vector<float> fps_values(60);
+    static std::size_t fps_idx = 0;
+    fps_values[fps_idx % fps_values.size()] = 1000.0f / frame_begin_info.delta_time;
+    fps_idx++;
+    ImGui::Text("FPS: %d", static_cast<std::uint32_t>(std::accumulate(fps_values.begin(), fps_values.end(), 0) / (fps_idx < fps_values.size() ? fps_idx : fps_values.size())));
     ImGui::End();
 }
 
