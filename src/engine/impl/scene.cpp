@@ -154,23 +154,33 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     {
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
         auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
-        //btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
-        glm::vec3 scale;
-        glm::quat rotation;
-        glm::vec3 translation;
-        glm::vec3 skew;
-        glm::vec4 perspective;
-        glm::decompose(glm::make_mat4(transform_component->local_to_world), scale, rotation, translation, skew, perspective);
+
 
         btTransform world_transform;
-        physcics_component->rigid_body->getMotionState()->getWorldTransform(world_transform);
+        //physcics_component->rigid_body->getMotionState()->getWorldTransform(world_transform);
+        world_transform = physcics_component->rigid_body->getWorldTransform();
 
-        world_transform.setOrigin(btVector3(translation.x, translation.y, translation.z));
-        const btQuaternion quaterninon(rotation.x, rotation.y, rotation.z, rotation.w);
-        world_transform.setRotation(quaterninon);
-     
-        physcics_component->rigid_body->translate(btVector3(translation.x, translation.y, translation.z));
-
+        if (has_component<engine_parent_component_t>(entt))
+        {
+            btTransform& world_transform = physcics_component->rigid_body->getWorldTransform();
+            glm::vec3 scale;
+            glm::quat rotation;
+            glm::vec3 translation;
+            glm::vec3 skew;
+            glm::vec4 perspective;
+            glm::decompose(glm::make_mat4(transform_component->local_to_world), scale, rotation, translation, skew, perspective);
+            world_transform.setOrigin(btVector3(translation.x, translation.y, translation.z));
+            const btQuaternion quaterninon(rotation.x, rotation.y, rotation.z, rotation.w);
+            world_transform.setRotation(quaterninon);
+        }
+        else
+        {
+            world_transform.setOrigin(btVector3(transform_component->position[0], transform_component->position[1], transform_component->position[2]));
+            const btQuaternion quaterninon(transform_component->rotation[0], transform_component->rotation[1], transform_component->rotation[2], transform_component->rotation[3]);
+            world_transform.setRotation(quaterninon);
+        }
+ 
+        //physcics_component->rigid_body->translate(btVector3(translation.x, translation.y, translation.z));
         physcics_component->rigid_body->activate(true);
         physcics_component->rigid_body->setWorldTransform(world_transform);
     }
@@ -201,7 +211,8 @@ engine_result_code_t engine::Scene::physics_update(float dt)
                 return;
             }
             btTransform transform_phsycics{};
-            physcics.rigid_body->getMotionState()->getWorldTransform(transform_phsycics);   
+            transform_phsycics = physcics.rigid_body->getWorldTransform();
+            //physcics.rigid_body->getMotionState()->getWorldTransform(transform_phsycics);   
 
             const auto origin = transform_phsycics.getOrigin();
             transform.position[0] = origin.getX();

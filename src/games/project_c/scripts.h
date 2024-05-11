@@ -286,6 +286,10 @@ public:
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
+
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        tc.position[2] += 1.0f;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
     }
 };
 
@@ -303,7 +307,8 @@ public:
         auto tc = engineSceneGetTransformComponent(scene, go_);
 
         tc.position[0] += 1.0f;
-        tc.position[1] -= 0.25f;
+        //tc.position[1] -= 0.25f;
+        tc.position[1] += 1.25f;
         tc.position[2] += 0.0f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
@@ -319,13 +324,12 @@ public:
             child_c.rotation_quaternion[3] = 1.0f;
             set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.3f, 0.35f, 0.3f});
         }
-
         engineSceneUpdateColliderComponent(scene, go_, &cc);
 
         //rb
-        //auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
-        //rbc.mass = 1.0f;
-        //engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+        auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+        rbc.mass = 1.0f;
+        engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
     }
 
     virtual ~Enemy()
@@ -521,6 +525,22 @@ public:
         tc.position[1] = -0.25f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
+        // physcis
+        auto cc = engineSceneAddColliderComponent(scene, go_);
+        cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
+        cc.is_trigger = false;
+        auto& cc_child = cc.collider.compound.children[0];
+        cc_child.rotation_quaternion[3] = 1.0f;
+        cc_child.transform[1] = 0.45f;
+        cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
+        set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.3f, 0.35f, 0.2f});
+        engineSceneUpdateColliderComponent(scene, go_, &cc);
+
+        //rb
+        auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+        rbc.mass = 1.0f;
+        engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+
     }
 
     void update(float dt)
@@ -537,7 +557,7 @@ public:
         Sword* sword_script = my_scene_->get_script<Sword>(get_game_objects_with_name(scene, "weapon-sword")[0]);
         //sword_script->set_active(false);
 
-        const float speed_cooef = 0.001f;
+        const float speed_cooef = 0.0025f;
         const float speed = speed_cooef * dt;
 
         auto tc = engineSceneGetTransformComponent(scene, go_);

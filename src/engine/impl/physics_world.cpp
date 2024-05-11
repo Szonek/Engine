@@ -130,7 +130,8 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
 
     ret.collision_shape->setLocalScaling(btVector3(transform.scale[0], transform.scale[1], transform.scale[2]));
     btVector3 local_inertia(0, 0, 0);
-    if (rigid_body.mass)
+    //if (rigid_body.mass)
+    if(!collider.is_trigger)
     {
         ret.collision_shape->calculateLocalInertia(rigid_body.mass, local_inertia);
     }
@@ -141,7 +142,7 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
     transform_init.setRotation(btQuaternion(transform.rotation[0], transform.rotation[1], transform.rotation[2], transform.rotation[3]));
 
     //using motionstate is optional, it provides interpolation capabilities, and only synchronizes 'active' objects
-    btDefaultMotionState* my_motion_state = new btDefaultMotionState(transform_init);
+    btDefaultMotionState* my_motion_state = nullptr;// new btDefaultMotionState(transform_init);
     btRigidBody::btRigidBodyConstructionInfo rbInfo(rigid_body.mass, my_motion_state, ret.collision_shape, local_inertia);
     ret.rigid_body = new btRigidBody(rbInfo);
     if (collider.is_trigger)
