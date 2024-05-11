@@ -11,7 +11,198 @@
 #include <string>
 #include <map>
 
+namespace camera_editor
+{
+class CameraScript
+{
+public:
+    CameraScript(engine::Scene* scene, engine::ApplicationEditor* app)
+        : my_scene_(scene)
+        , app_(app)
+        , go_(scene->create_new_entity())
+    {
+        auto nc = scene->add_component<engine_name_component_t>(go_);
+        scene->patch_component<engine_name_component_t>(go_, [nc](engine_name_component_t& c) 
+            { std::memcpy(c.name, "camera-editor", std::strlen("camera-editor")); });
 
+        auto camera_comp = scene->add_component<engine_camera_component_t>(go_);
+        scene->patch_component<engine_camera_component_t>(go_, [camera_comp](engine_camera_component_t& c)
+            {
+                c.enabled = true;
+                c.clip_plane_near = 0.1f;
+                c.clip_plane_far = 1000.0f;
+                c.type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
+                c.type_union.perspective_fov = 45.0f;
+                c.target[0] = 0.0f;
+                c.target[1] = 0.0f;
+                c.target[2] = 0.0f;
+            });
+
+        auto camera_transform_comp = scene->add_component<engine_tranform_component_t>(go_);
+        scene->patch_component<engine_tranform_component_t>(go_, [](engine_tranform_component_t& c)
+            {
+                c.position[0] = -2.273151f;
+                c.position[1] = 4.3652916f;
+                c.position[2] = 1.3330482f;
+            });
+
+        sc_ = get_spherical_coordinates(camera_transform_comp->position);
+    }
+
+    void update(float dt)
+    {
+        auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
+        my_scene_->patch_component<engine_camera_component_t>(go_, [cc](engine_camera_component_t& c)
+            {
+                c.enabled = true;
+            });
+        const auto mouse_coords = app_->mouse_get_coords();
+
+        const auto dx = mouse_coords.x - mouse_coords_prev_.x;
+        const auto dy = mouse_coords.y - mouse_coords_prev_.y;
+
+        if (mouse_coords.x != mouse_coords_prev_.x || mouse_coords.y != mouse_coords_prev_.y)
+        {
+            mouse_coords_prev_ = mouse_coords;
+        }
+
+        const float move_speed = 1.0f * dt;
+
+        const bool lmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT);
+        const bool rmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_RIGHT);
+
+        if (app_->keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL))
+        {
+            if (lmb)
+            {
+                strafe(dx * move_speed, dy * move_speed);
+            }
+            else if (rmb)
+            {
+                translate({ 0.0f, 0.0f, dy * move_speed });
+            }
+        }
+
+        if (app_->keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LSHIFT))
+        {
+            if (rmb)
+            {
+                rotate({ dx * move_speed, dy * move_speed });
+            }
+        }
+    }
+
+private:
+    inline void translate(const glm::vec3& delta)
+    {
+        // Decrease the radius based on the delta's z value
+        sc_[0] -= delta.z;
+        // Make sure the radius doesn't go below a certain threshold to prevent the camera from going inside the target
+        sc_[0] = std::max(sc_[0], 0.1f);
+        // Update the camera's position based on the new spherical coordinates
+        const auto new_position = get_cartesian_coordinates(sc_);
+        auto tc = my_scene_->get_component<engine_tranform_component_t>(go_);
+        auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
+        my_scene_->patch_component<engine_tranform_component_t>(go_, [tc, new_position, cc](engine_tranform_component_t& c)
+            {
+                c.position[0] = new_position[0] + cc->target[0];
+                c.position[1] = new_position[1] + cc->target[1];
+                c.position[2] = new_position[2] + cc->target[2];
+            });
+    }
+
+    inline void rotate(const glm::vec2 delta)
+    {
+        // https://nerdhut.de/2020/05/09/unity-arcball-camera-spherical-coordinates/
+        if (delta.x != 0 || delta.y != 0)
+        {
+            auto tc = my_scene_->get_component<engine_tranform_component_t>(go_);
+            // Rotate the camera left and right
+            sc_[1] += delta.x;
+
+            // Rotate the camera up and down
+            // Prevent the camera from turning upside down (1.5f = approx. Pi / 2)
+            sc_[2] = std::clamp(sc_[2] + delta.y, -1.5f, 1.5f);
+
+            const auto new_position = get_cartesian_coordinates(sc_);
+            auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
+
+            my_scene_->patch_component<engine_tranform_component_t>(go_, [tc, new_position, cc](engine_tranform_component_t& c)
+                {
+                    c.position[0] = new_position[0] + cc->target[0];
+                    c.position[1] = new_position[1] + cc->target[1];
+                    c.position[2] = new_position[2] + cc->target[2];
+                });
+        }
+    }
+
+    inline void strafe(float delta_x, float delta_y)
+    {
+        // Get the current camera orientation
+        auto tc = *my_scene_->get_component<engine_tranform_component_t>(go_);
+        auto cc = *my_scene_->add_component<engine_camera_component_t>(go_);
+
+        // Compute the right vector from the camera's orientation
+        glm::vec3 forward(cc.target[0] - tc.position[0], cc.target[1] - tc.position[1], cc.target[2] - tc.position[2]);
+        glm::vec3 up(0.0f, 1.0f, 0.0f); // Assuming the up vector is (0, 1, 0)
+        glm::vec3 right = glm::normalize(glm::cross(forward, up));
+
+        // Update the camera's position
+        tc.position[0] += delta_x * right.x;
+        tc.position[1] += delta_x * right.y + delta_y;
+        tc.position[2] += delta_x * right.z;
+
+        // Update the camera's target
+        cc.target[0] += delta_x * right.x;
+        cc.target[1] += delta_x * right.y + delta_y;
+        cc.target[2] += delta_x * right.z;
+
+        // Update the transform and camera components
+        my_scene_->update_component<engine_tranform_component_t>(go_, tc);
+        my_scene_->update_component<engine_camera_component_t>(go_, cc);
+    }
+
+    inline auto get_spherical_coordinates(const auto& cartesian)
+    {
+        const float r = std::sqrt(
+            std::pow(cartesian[0], 2) +
+            std::pow(cartesian[1], 2) +
+            std::pow(cartesian[2], 2)
+        );
+
+
+        float phi = std::atan2(cartesian[2] / cartesian[0], cartesian[0]);
+        const float theta = std::acos(cartesian[1] / r);
+
+        if (cartesian[0] < 0)
+            phi += 3.1415f;
+
+        std::array<float, 3> ret{ 0.0f };
+        ret[0] = r;
+        ret[1] = phi;
+        ret[2] = theta;
+        return ret;
+    }
+
+    inline auto get_cartesian_coordinates(const auto& spherical)
+    {
+        std::array<float, 3> ret{ 0.0f };
+
+        ret[0] = spherical[0] * std::cos(spherical[2]) * std::cos(spherical[1]);
+        ret[1] = spherical[0] * std::sin(spherical[2]);
+        ret[2] = spherical[0] * std::cos(spherical[2]) * std::sin(spherical[1]);
+
+        return ret;
+    }
+
+private:
+    engine::Scene* my_scene_ = nullptr;
+    engine::ApplicationEditor* app_ = nullptr;
+    entt::entity go_ = entt::null;
+    std::array<float, 3> sc_;  // {radius, phi, theta}
+    engine_coords_2d_t mouse_coords_prev_{};
+};
+}  // namespace camera_editor
 
 namespace
 {
@@ -381,50 +572,7 @@ bool display_camera_component(engine_camera_component_t& c)
     return true;
 }
 
-} // namespace anonymous
-
-
-engine::ApplicationEditor::ApplicationEditor(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
-    : Application(desc, out_code)
-{
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // IF using Docking Branch
-
-    // Setup Platform/Renderer backends
-    assert(ImGui_ImplSDL3_InitForOpenGL(rdx_.get_sdl_window(), rdx_.get_sdl_gl_context()));
-    assert(ImGui_ImplOpenGL3_Init());
-}
-
-engine::ApplicationEditor::~ApplicationEditor()
-{
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplSDL3_Shutdown();
-    ImGui::DestroyContext();
-}
-
-void engine::ApplicationEditor::on_frame_begine()
-{
-    ImGui_ImplSDL3_NewFrame();
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui::NewFrame();
-}
-
-void engine::ApplicationEditor::on_frame_end()
-{
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-}
-
-void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
-{
-    ImGui_ImplSDL3_ProcessEvent(&e);
-}
-
-void engine::ApplicationEditor::on_scene_update(Scene* scene, float delta_time)
+void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
 {
     // build memory with all the entites
     std::map<entt::entity, entity_node_t> entity_map;
@@ -456,7 +604,7 @@ void engine::ApplicationEditor::on_scene_update(Scene* scene, float delta_time)
     ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::Begin("Scene Panel");
 
-    if(ImGui::Button("Add entity"))
+    if (ImGui::Button("Add entity"))
     {
         auto e = scene->create_new_entity();
         auto nc = scene->add_component<engine_name_component_t>(e);
@@ -514,10 +662,93 @@ void engine::ApplicationEditor::on_scene_update(Scene* scene, float delta_time)
     }
 
     ImGui::End(); // scene panel
+}
 
-    ImGui::Begin("Geometry inspecotr");
-    ImGui::Text("Geometry inspector");
-    ImGui::End();
+} // namespace anonymous
+
+
+engine::ApplicationEditor::ApplicationEditor(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
+    : Application(desc, out_code)
+{
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // IF using Docking Branch
+
+    // Setup Platform/Renderer backends
+    assert(ImGui_ImplSDL3_InitForOpenGL(rdx_.get_sdl_window(), rdx_.get_sdl_gl_context()));
+    assert(ImGui_ImplOpenGL3_Init());
+}
+
+engine::ApplicationEditor::~ApplicationEditor()
+{
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
+}
+
+void engine::ApplicationEditor::on_frame_begine()
+{
+    ImGui_ImplSDL3_NewFrame();
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui::NewFrame();
+}
+
+void engine::ApplicationEditor::on_frame_end()
+{
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
+{
+    ImGui_ImplSDL3_ProcessEvent(&e);
+}
+
+void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_time)
+{
+    // disable all active scene cameras
+    auto view = scene->create_runtime_view();
+    scene->attach_component_to_runtime_view<engine_camera_component_t>(view);
+    view.each([scene](const auto& entity)
+        {
+            scene->patch_component<engine_camera_component_t>(entity, [](auto& c) { c.enabled = false; });
+        });
+    //static std::map<Scene*
+    static camera_editor::CameraScript camera_script{ scene, this };
+    camera_script.update(delta_time);
+    //static auto editor_camera = scene->create_new_entity();
+    //if (scene->has_component<engine_camera_component_t>(editor_camera))
+    //{
+    //    auto& cam = *scene->get_component<engine_camera_component_t>(editor_camera);
+    //    scene->patch_component<engine_camera_component_t>(editor_camera, [](auto& c) { c.enabled = true; });
+    //}
+    //else
+    //{
+    //    auto cam = *scene->add_component<engine_camera_component_t>(editor_camera);
+    //    cam.enabled = true;
+    //    cam.type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
+    //    cam.type_union.perspective_fov = 45.0f;
+    //    cam.clip_plane_near = 0.1f;
+    //    cam.clip_plane_far = 100.0f;
+    //    cam.target[0] = 0.0f;
+    //    cam.target[1] = 0.0f;
+    //    cam.target[2] = 0.0f;
+    //    cam.pitch = 0.0f;
+    //    cam.yaw = 0.0f;
+    //    cam.roll = 0.0f;
+    //    cam.viewport_rect.x = 0.0f;
+    //    cam.viewport_rect.y = 0.0f;
+    //    cam.viewport_rect.width = 1.0f;
+    //    cam.viewport_rect.height = 1.0f;
+    //}
+}
+
+void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_time)
+{
+    render_scene_hierarchy_panel(scene, delta_time);
 }
 
 bool engine::ApplicationEditor::is_mouse_enabled()

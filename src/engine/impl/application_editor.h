@@ -17,7 +17,8 @@ protected:
     void on_frame_begine() override;
     void on_sdl_event(SDL_Event e) override;
     void on_frame_end() override;
-    void on_scene_update(class Scene* scene, float delta_time) override;
+    void on_scene_update_post(class Scene* scene, float delta_time) override;
+    void on_scene_update_pre(class Scene* scene, float delta_time) override;
     bool is_mouse_enabled() override;
 };
 

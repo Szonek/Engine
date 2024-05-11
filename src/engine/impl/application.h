@@ -57,7 +57,8 @@ protected:
     virtual void on_frame_begine() {}
     virtual void on_sdl_event(SDL_Event e) {}
     virtual void on_frame_end() {}
-    virtual void on_scene_update(class Scene* scene, float delta_time) {}
+    virtual void on_scene_update_pre(class Scene* scene, float delta_time) {}
+    virtual void on_scene_update_post(class Scene* scene, float delta_time) {}
     virtual bool is_mouse_enabled() { return true; }
 
 protected:

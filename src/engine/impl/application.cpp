@@ -187,11 +187,12 @@ void engine::Application::release_scene(Scene* scene)
 
 engine_result_code_t engine::Application::update_scene(Scene* scene, float delta_time)
 {
+    on_scene_update_pre(scene, delta_time);
 	const auto ret_code = scene->update(delta_time,
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
         materials_atlas_.get_objects_view());
-    on_scene_update(scene, delta_time);
+    on_scene_update_post(scene, delta_time);
 
     return ret_code;
 }
