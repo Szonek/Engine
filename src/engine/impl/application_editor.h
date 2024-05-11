@@ -58,16 +58,18 @@ private:
         void detach_scene(Scene* scene);
         void on_scene_update_pre(Scene* scene, float dt);
         void on_scene_update_post(Scene* scene, float dt);
-        bool is_enabled() const { return enabled_; }
+        bool is_enabled(engine::Scene* scene) const;
     private:
-
-        bool enabled_ = true;
-        std::map<engine::Scene*, CameraScript> cameras_;
-        std::map<engine::Scene*, std::vector<entt::entity>> camera_entities_to_enable_back_;
-
-
+        struct camera_data_t
+        {
+            bool is_enabled;
+            CameraScript camera;
+            std::vector<entt::entity> user_camera_entities_to_enable_back;
+        };
+        std::map<engine::Scene*, camera_data_t> cameras_;
     };
     CameraContext camera_context_;
+    bool editor_controlling_scene_ = true;
 };
 
 } // namespace engine
