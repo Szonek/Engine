@@ -335,6 +335,26 @@ int main(int argc, char** argv)
     {
         return false;
     }
+    project_c::ModelInfo model_info_floor(engine_error_code, app, "floor.glb", "Textures_mini_dungeon");
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        return false;
+    }
+
+    project_c::ModelInfo model_info_floor_detail(engine_error_code, app, "floor-detail.glb", "Textures_mini_dungeon");
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        return false;
+    }
+
+
+    project_c::ModelInfo model_info_wall(engine_error_code, app, "wall.glb", "Textures_mini_dungeon");
+    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    {
+        return false;
+    }
+
+
     project_c::ModelInfo model_info_cube(engine_error_code, app, "cube.glb");
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
@@ -357,12 +377,12 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    //load_model = project_c::parse_model_info_and_create_script<project_c::ControllableEntity>(model_info_cesium, scene);
-    //if (!load_model)
-    //{
-    //    log(fmt::format("Loading model failed!\n"));
-    //    return -1;
-    //}
+    load_model = project_c::parse_model_info_and_create_script<project_c::Sword>(model_info_swrd, scene);
+    if (!load_model)
+    {
+        log(fmt::format("Loading model failed!\n"));
+        return -1;
+    }
 
     //load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_cube, scene);
     load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, -1.0f);
@@ -373,7 +393,21 @@ int main(int argc, char** argv)
         log(fmt::format("Loading model failed!\n"));
         return -1;
     }
-    load_model = project_c::parse_model_info_and_create_script<project_c::Floor>(model_info_cube, scene);
+    for (int x = -3; x <= 3; x++)
+    {
+        for (int z = -3; z <= 3; z++)
+        {
+            if (x == 0 && z == 0)
+            {
+                load_model = project_c::parse_model_info_and_create_script<project_c::FloorWithCollider>(model_info_floor_detail, scene, 3.5f);
+            }
+            else
+            {
+                load_model = project_c::parse_model_info_and_create_script<project_c::Floor>(model_info_floor, scene, x, z);
+            }
+        }
+    }
+
     if (!load_model)
     {
         log(fmt::format("Loading model failed!\n"));

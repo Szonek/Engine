@@ -417,7 +417,8 @@ void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
 {
     // build memory with all the entites
     std::map<entt::entity, entity_node_t> entity_map;
-    for (auto e : scene->get_all_entities())
+    static auto all_e = scene->get_all_entities();
+    for (auto e : all_e)
     {
         std::string name = "Unnamed";
         if (scene->has_component<engine_name_component_t>(e))

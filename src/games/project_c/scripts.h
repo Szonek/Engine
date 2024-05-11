@@ -239,41 +239,39 @@ protected:
 class Floor : public BaseNode
 {
 public:
-    Floor(engine::IScene* my_scene, engine_game_object_t go)
+    Floor(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z)
         : BaseNode(my_scene, go, "floor")
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
         auto tc = engineSceneGetTransformComponent(scene, go_);
-        tc.scale[0] = 3.0f;
-        tc.scale[1] = 0.1f;
-        tc.scale[2] = 3.0f;
-
-        tc.position[1] -= 0.25f;
-
-        const auto q = glm::rotate(glm::make_quat(tc.rotation), glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        for (auto i = 0; i < q.length(); i++)
-        {
-            tc.rotation[i] = q[i];
-        }
+        tc.position[0] += offset_x;
+        tc.position[2] += offset_z;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
-
-        // material
-        engine_material_create_desc_t mat_cd{};
-        set_c_array(mat_cd.diffuse_color, std::array<float, 4>({ 0.23, 0.7, 0.44f, 1.0f }));
-        engine_material_t mat{};
-        if (engineApplicationAddMaterialFromDesc(app, &mat_cd, "floor_material", &mat) == ENGINE_RESULT_CODE_OK)
-        {
-            auto mc = engineSceneGetMaterialComponent(scene, go_);
-            mc.material = mat;
-            engineSceneUpdateMaterialComponent(scene, go_, &mc);
-        }
 
         // physcis
         auto cc = engineSceneAddColliderComponent(scene, go_);
         cc.type = ENGINE_COLLIDER_TYPE_BOX;
-        set_c_array(cc.collider.box.size, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
+        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.5f, 0.01f, 0.5f });
+        engineSceneUpdateColliderComponent(scene, go_, &cc);
+    }
+};
+
+class FloorWithCollider : public BaseNode
+{
+public:
+    FloorWithCollider(engine::IScene* my_scene, engine_game_object_t go, float collider_scale)
+        : BaseNode(my_scene, go, "floor_with_collider")
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+
+        // physcis
+        auto cc = engineSceneAddColliderComponent(scene, go_);
+        cc.type = ENGINE_COLLIDER_TYPE_BOX;
+        //set_c_array(cc.collider.box.size, std::array<float, 3>{ collider_scale, 0.01f, collider_scale });
+        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.5f, 0.01f, 0.5f });
         engineSceneUpdateColliderComponent(scene, go_, &cc);
     }
 };
@@ -340,9 +338,10 @@ public:
         engineSceneUpdateColliderComponent(scene, go_, &cc);
 
         //rb
-        //auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+        auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
         //rbc.mass = 1.0f;
-        //engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+        rbc.mass = 0.0f;
+        engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
     }
 
     virtual ~Enemy()
