@@ -174,6 +174,7 @@ engine::Scene* engine::Application::create_scene(const engine_scene_create_desc_
         delete ret;
         return nullptr;
     }
+    on_scene_create(ret);
     return ret;
 }
 
@@ -181,6 +182,7 @@ void engine::Application::release_scene(Scene* scene)
 {
     if (scene)
     {
+        on_scene_release(scene);
         delete scene;
     }
 }

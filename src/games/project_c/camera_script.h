@@ -59,6 +59,7 @@ public:
 
         const bool lmb = engineApplicationIsMouseButtonDown(app, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_LEFT);
         const bool rmb = engineApplicationIsMouseButtonDown(app, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_RIGHT);
+        const bool mmb = engineApplicationIsMouseButtonDown(app, engine_mouse_button_t::ENGINE_MOUSE_BUTTON_MIDDLE);
 
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_LCTRL))
         {
@@ -68,17 +69,14 @@ public:
             }
             else if(rmb)
             {
+                rotate({ dx * move_speed, dy * move_speed });
+            }
+            else if (mmb)
+            {
                 translate({ 0.0f, 0.0f, dy * move_speed });
             }
         }
 
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_LSHIFT))
-        {
-            if (rmb)
-            {
-                rotate({ dx * move_speed, dy * move_speed });
-            }
-        }
     }
 
 private:
