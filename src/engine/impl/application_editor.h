@@ -20,6 +20,7 @@ protected:
     void on_scene_update_post(class Scene* scene, float delta_time) override;
     void on_scene_update_pre(class Scene* scene, float delta_time) override;
     bool is_mouse_enabled() override;
+    bool is_keyboard_enabled() override;
 };
 
 } // namespace engine

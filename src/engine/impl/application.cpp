@@ -626,10 +626,6 @@ bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
 
 engine_coords_2d_t engine::Application::mouse_get_coords()
 {
-    if (!is_mouse_enabled())
-    {
-        return {};
-    }
 	float coord_x = 0.;
 	float coord_y = 0.;
     SDL_GetMouseState(&coord_x, &coord_y);
@@ -645,10 +641,6 @@ engine_coords_2d_t engine::Application::mouse_get_coords()
 
 bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
 {
-    if (!is_mouse_enabled())
-    {
-        return false;
-    }
     const auto state = SDL_GetMouseState(nullptr, nullptr);
     return state & SDL_BUTTON(button);
 }

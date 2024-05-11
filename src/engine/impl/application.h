@@ -46,6 +46,9 @@ public:
     virtual UiDocument load_ui_document(std::string_view file_name);
     virtual UiDataHandle create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
 
+    virtual bool is_mouse_enabled() { return true; }
+    virtual bool is_keyboard_enabled() { return true; }
+
     virtual bool keyboard_is_key_down(engine_keyboard_keys_t key);
 
     virtual engine_coords_2d_t mouse_get_coords();
@@ -59,7 +62,6 @@ protected:
     virtual void on_frame_end() {}
     virtual void on_scene_update_pre(class Scene* scene, float delta_time) {}
     virtual void on_scene_update_post(class Scene* scene, float delta_time) {}
-    virtual bool is_mouse_enabled() { return true; }
 
 protected:
     RenderContext rdx_;

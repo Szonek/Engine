@@ -128,6 +128,10 @@ void engineApplicationDestroy(engine_application_t handle)
 bool engineApplicationIsKeyboardButtonDown(engine_application_t handle, engine_keyboard_keys_t key)
 {
 	auto* app = reinterpret_cast<engine::Application*>(handle);
+    if (!app->is_keyboard_enabled())
+    {
+        return false;
+    }
 	return app->keyboard_is_key_down(key);
 }
 
@@ -139,12 +143,20 @@ bool engineApplicationIsKeyboardButtonUp(engine_application_t handle, engine_key
 engine_coords_2d_t engineApplicationGetMouseCoords(engine_application_t handle)
 {
 	auto* app = reinterpret_cast<engine::Application*>(handle);
+    if (!app->is_mouse_enabled())
+    {
+        return {};
+    }
 	return app->mouse_get_coords();
 }
 
 bool engineApplicationIsMouseButtonDown(engine_application_t handle, engine_mouse_button_t button)
 {
 	auto* app = reinterpret_cast<engine::Application*>(handle);
+    if (!app->is_mouse_enabled())
+    {
+        return false;
+    }
 	return app->mouse_is_button_down(button);
 }
 
