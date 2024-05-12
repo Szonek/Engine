@@ -74,17 +74,17 @@ public:
 	void set_uniform_mat_f4(std::string_view name, std::span<const float> host_data);
 
     void set_texture(std::string_view name, const class Texture2D* textur);
+    void set_ssbo(std::string_view name, const class ShaderStorageBuffer* buffer);
 
 private:
-	std::int32_t get_uniform_location(std::string_view name);
+    std::int32_t get_resource_location(std::string_view name, std::int32_t resource_interface);
+    std::int32_t get_uniform_location(std::string_view name);
 	void compile_and_attach_to_program(std::uint32_t shader, std::span<const std::string> sources);
 
 private:
 	std::uint32_t vertex_shader_;
 	std::uint32_t fragment_shader_;
 	std::uint32_t program_;
-
-	std::unordered_map<std::string, std::int32_t> uniforms_locations_;
 };
 
 
@@ -192,6 +192,7 @@ public:
 
 	void bind() const;
 	void draw(Mode mode) const;
+    void draw_instances(Mode mode, std::uint32_t instance_count) const;
 
     vertex_attribute_t get_vertex_attribute(std::size_t idx) const;
 
@@ -202,6 +203,100 @@ private:
 	std::uint32_t vao_{0};
 	std::uint32_t vertex_count_{0};
 	std::uint32_t index_count_{0};
+};
+
+class UniformBuffer
+{
+public:
+    UniformBuffer() = default;
+    UniformBuffer(std::size_t size);
+    UniformBuffer(const UniformBuffer& rhs) = delete;
+    UniformBuffer(UniformBuffer&& rhs) noexcept;
+    UniformBuffer& operator=(const UniformBuffer& rhs) = delete;
+    UniformBuffer& operator=(UniformBuffer&& rhs) noexcept;
+    ~UniformBuffer();
+
+    inline bool is_valid() const { return ubo_ != 0; }
+    inline std::size_t get_size() const { return size_; }
+
+    void bind(std::uint32_t slot) const;
+
+    void* map(bool read, bool write);
+    void unmap();
+
+private:
+    void bind() const;
+    void unbind() const;
+
+private:
+    std::size_t size_{ 0 };
+    std::uint32_t ubo_{ 0 };
+};
+
+class ShaderStorageBuffer
+{
+public:
+    ShaderStorageBuffer() = default;
+    ShaderStorageBuffer(std::size_t size);
+    ShaderStorageBuffer(const ShaderStorageBuffer& rhs) = delete;
+    ShaderStorageBuffer(ShaderStorageBuffer&& rhs) noexcept;
+    ShaderStorageBuffer& operator=(const ShaderStorageBuffer& rhs) = delete;
+    ShaderStorageBuffer& operator=(ShaderStorageBuffer&& rhs) noexcept;
+    ~ShaderStorageBuffer();
+
+    inline bool is_valid() const { return ssbo_ != 0; }
+    inline std::size_t get_size() const { return size_; }
+
+    void bind(std::uint32_t slot) const;
+
+    void* map(bool read, bool write);
+    void unmap();
+
+private:
+    void bind() const;
+    void unbind() const;
+
+private:
+    std::size_t size_{ 0 };
+    std::uint32_t ssbo_{ 0 };
+};
+
+
+template<typename DataT, typename BufferT>
+struct BufferMapContext
+{
+private:
+    BufferT& buffer_;
+public:
+    DataT* data = nullptr;
+
+    BufferMapContext(BufferT& buffer, bool read, bool write)
+        : buffer_(buffer)
+        , data(reinterpret_cast<DataT*>(buffer_.map(read, write)))
+    {
+    }
+    // delete copy constructor
+    BufferMapContext(const BufferMapContext& rhs) = delete;
+    // delete copy assignment
+    BufferMapContext& operator=(const BufferMapContext& rhs) = delete;
+    // default move constructor
+    BufferMapContext(BufferMapContext&& rhs) noexcept = default;
+    // default move assignment
+    BufferMapContext& operator=(BufferMapContext&& rhs) noexcept = default;
+    ~BufferMapContext()
+    {
+        if (data)
+        {
+            unmap();
+        }
+    }
+
+    void unmap()
+    {
+        buffer_.unmap();
+        data = nullptr;
+    }
+
 };
 
 class RenderContext
@@ -236,6 +331,13 @@ public:
         std::int32_t height;
     };
 
+    struct limits_t
+    {
+        std::int32_t vertex_attributes_limit{ 0 };
+        std::int32_t ubo_max_size{ 0 };
+        std::int32_t ssbo_max_size{ 0 };
+    };
+
 public:
 	RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen);
 	
@@ -263,6 +365,8 @@ public:
     SDL_Window* get_sdl_window() { return window_; }
     SDL_GLContext get_sdl_gl_context() { return context_; }
 
+    const limits_t& get_limits() const { return limits_; }
+
 private:
     SDL_Window* window_ = nullptr;
     SDL_GLContext context_ = nullptr;
@@ -270,6 +374,8 @@ private:
     // this 2 are used for UI render
     SystemInterface_SDL* ui_rml_sdl_interface_ = nullptr;
     RenderInterface_GL3* ui_rml_gl3_renderer_ = nullptr;
+
+    limits_t limits_;
 };
 
 } // namespace engine
