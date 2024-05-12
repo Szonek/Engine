@@ -398,11 +398,12 @@ int main(int argc, char** argv)
     std::mt19937 rng(42);
     std::uniform_int_distribution<std::mt19937::result_type> dist6(0, 1);
 
-    for (int x = -3; x <= 3; x++)
+    const std::int32_t map_border_distance = 9;
+    for (std::int32_t x = -map_border_distance; x <= map_border_distance; x++)
     {
-        for (int z = -3; z <= 3; z++)
+        for (std::int32_t z = -map_border_distance; z <= map_border_distance; z++)
         {
-            if (x == -3 || x == 3 || z == -3 || z == 3)
+            if (x == -map_border_distance || x == map_border_distance || z == -map_border_distance || z == map_border_distance)
             {
                 load_model = project_c::parse_model_info_and_create_script<project_c::Wall>(model_info_wall, scene, x, z);
             }
