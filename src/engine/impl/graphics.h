@@ -207,6 +207,43 @@ private:
 class UniformBuffer
 {
 public:
+    template<typename T>
+    struct MappingContext
+    {
+    private:
+        UniformBuffer& buffer_;
+    public:
+        T* data = nullptr;
+
+        MappingContext(UniformBuffer& buffer, bool read, bool write)
+            : buffer_(buffer)
+            , data(reinterpret_cast<T*>(buffer_.map(read, write)))
+        {
+        }
+        // delete copy constructor
+        MappingContext(const MappingContext& rhs) = delete;
+        // delete copy assignment
+        MappingContext& operator=(const MappingContext& rhs) = delete;
+        // default move constructor
+        MappingContext(MappingContext&& rhs) noexcept = default;
+        // default move assignment
+        MappingContext& operator=(MappingContext&& rhs) noexcept = default;
+        ~MappingContext()
+        {
+            if (data)
+            {
+                unmap();
+            }
+        }
+
+        void unmap()
+        {
+            buffer_.unmap();
+            data = nullptr;
+        }
+
+    };
+public:
     UniformBuffer() = default;
     UniformBuffer(std::size_t size);
     UniformBuffer(const UniformBuffer& rhs) = delete;
@@ -218,8 +255,15 @@ public:
     inline bool is_valid() const { return ubo_ != 0; }
     inline std::size_t get_size() const { return size_; }
 
-    //void bind(std::uint32_t slot) const;
-    //void update(std::span<const std::byte> data);
+    void bind(std::uint32_t slot) const;
+
+    void* map(bool read, bool write);
+    void unmap();
+
+private:
+    void bind() const;
+    void unbind() const;
+
 private:
     std::size_t size_{ 0 };
     std::uint32_t ubo_{ 0 };

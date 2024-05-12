@@ -1061,11 +1061,10 @@ engine::UniformBuffer::UniformBuffer(std::size_t size)
     }
 
     glGenBuffers(1, &ubo_);
-    glBindBuffer(GL_UNIFORM_BUFFER, ubo_);
+    bind();
     // GL_STATIC_DRAW? 
     glBufferData(GL_UNIFORM_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
+    unbind();
 }
 
 engine::UniformBuffer::UniformBuffer(UniformBuffer&& rhs) noexcept
@@ -1091,3 +1090,37 @@ engine::UniformBuffer::~UniformBuffer()
         glDeleteBuffers(1, &ubo_);
     }
 }
+
+void engine::UniformBuffer::bind(std::uint32_t slot) const
+{
+    assert(is_valid() && "Invalid uniform buffer object");
+    glBindBufferBase(GL_UNIFORM_BUFFER, 2, ubo_);
+}
+
+void* engine::UniformBuffer::map(bool read, bool write)
+{
+    bind();
+    void* ret =  glMapBuffer(GL_UNIFORM_BUFFER, GL_READ_WRITE);
+    unbind();
+    return ret;
+}
+
+void engine::UniformBuffer::unmap()
+{
+    bind();
+    glUnmapBuffer(GL_UNIFORM_BUFFER);
+    unbind();
+}
+
+void engine::UniformBuffer::bind() const
+{
+    assert(is_valid() && "Invalid uniform buffer object");
+    glBindBuffer(GL_UNIFORM_BUFFER, ubo_);
+}
+
+void engine::UniformBuffer::unbind() const
+{
+    assert(is_valid() && "Invalid uniform buffer object");
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
