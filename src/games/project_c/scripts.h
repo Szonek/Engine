@@ -258,21 +258,25 @@ public:
     }
 };
 
-class FloorWithCollider : public BaseNode
+class Wall : public BaseNode
 {
 public:
-    FloorWithCollider(engine::IScene* my_scene, engine_game_object_t go, float collider_scale)
-        : BaseNode(my_scene, go, "floor_with_collider")
+    Wall(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z)
+        : BaseNode(my_scene, go, "wall")
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        tc.position[0] += offset_x;
+        tc.position[2] += offset_z;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
         // physcis
-        auto cc = engineSceneAddColliderComponent(scene, go_);
-        cc.type = ENGINE_COLLIDER_TYPE_BOX;
-        //set_c_array(cc.collider.box.size, std::array<float, 3>{ collider_scale, 0.01f, collider_scale });
-        set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.5f, 0.01f, 0.5f });
-        engineSceneUpdateColliderComponent(scene, go_, &cc);
+        //auto cc = engineSceneAddColliderComponent(scene, go_);
+        //cc.type = ENGINE_COLLIDER_TYPE_BOX;
+        //set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.5f, 0.01f, 0.5f });
+        //engineSceneUpdateColliderComponent(scene, go_, &cc);
     }
 };
 

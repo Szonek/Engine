@@ -34,6 +34,7 @@
 #include <deque>
 #include <functional>
 #include <chrono>
+#include <random>
 
 namespace project_c
 {
@@ -393,21 +394,34 @@ int main(int argc, char** argv)
         log(fmt::format("Loading model failed!\n"));
         return -1;
     }
+    
+    std::mt19937 rng(42);
+    std::uniform_int_distribution<std::mt19937::result_type> dist6(0, 1);
+
     for (int x = -3; x <= 3; x++)
     {
         for (int z = -3; z <= 3; z++)
         {
-            if (x == 0 && z == 0)
+            if (x == -3 || x == 3 || z == -3 || z == 3)
             {
-                load_model = project_c::parse_model_info_and_create_script<project_c::FloorWithCollider>(model_info_floor_detail, scene, 3.5f);
+                load_model = project_c::parse_model_info_and_create_script<project_c::Wall>(model_info_wall, scene, x, z);
             }
             else
             {
-                load_model = project_c::parse_model_info_and_create_script<project_c::Floor>(model_info_floor, scene, x, z);
+                project_c::ModelInfo* model_info = nullptr;
+                if (dist6(rng))
+                {
+                    model_info = &model_info_floor_detail;
+                }
+                else
+                {
+                    model_info = &model_info_floor;
+                }
+                load_model = project_c::parse_model_info_and_create_script<project_c::Floor>(*model_info, scene, x, z);
             }
+
         }
     }
-
     if (!load_model)
     {
         log(fmt::format("Loading model failed!\n"));
