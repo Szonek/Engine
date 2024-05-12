@@ -254,7 +254,7 @@ engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, flo
 engine::PhysicsWorld::DebugDrawer::DebugDrawer(RenderContext* renderer)
     : renderer_(renderer)
 {
-    const auto projected_max_lines_count = 2048;  // ToDo: make it configurable? this is for optimization purposes to not use UBO and not resize std vector
+    const auto projected_max_lines_count = 2048;  // ToDo: make it configurable? 
     const auto ssbo_size = sizeof(LineDrawPacket) * projected_max_lines_count;
     if (renderer_->get_limits().ssbo_max_size < ssbo_size)
     {
@@ -319,59 +319,38 @@ void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
         return;
     }
 
-    auto shader_bind = [this](auto& shader)
-        {
-            shader.bind();
-            shader.set_uniform_mat_f4("view", { glm::value_ptr(view_), sizeof(view_) / sizeof(float) });
-            shader.set_uniform_mat_f4("projection", { glm::value_ptr(projection_), sizeof(projection_) / sizeof(float) });
-        };
 
-    //ToDo: Lifetime of lines is not taken into account. It should be removed after some time, but curretnly all lines are removed at the end of this function.
-    const auto can_use_ssbo = lines_.size() < ssbo_.get_size() / sizeof(LineDrawPacket);
-    if (can_use_ssbo)
+    //ToDo: Lifetime of lines is not taken into account. It should be removed after some time (lifeteam decreased with each update), but curretnly all lines are removed at the end of this function.
+    //ToDo: limit the renderable lines for only visisble? or use some kind of frustrum culling?
+
+    static Shader shader_ssbo({ "debug_physics_lines_ssbo.vs" }, { "debug_physics_lines_ssbo.fs" });
+    static Geometry line_geo_simple(2);
+
+    const auto ssbo_limit = ssbo_.get_size() / sizeof(LineDrawPacket);
+    const auto lines_count = lines_.size();
+
+    if (lines_count > ssbo_limit)
     {
-        static Shader shader_ssbo({ "debug_physics_lines_ssbo.vs" }, { "debug_physics_lines_ssbo.fs" });
-        static Geometry line_geo_simple(2);
-        BufferMapContext<LineDrawPacket, ShaderStorageBuffer> mapping_context(ssbo_, false, true);
-        for (auto i = 0; i < lines_.size(); i++)
-        {
-            mapping_context.data[i].from = lines_[i].from;
-            mapping_context.data[i].to = lines_[i].to;
-            mapping_context.data[i].color = lines_[i].color;
-        }
-        mapping_context.unmap();
-        shader_bind(shader_ssbo);
-        //shader_ssbo.set_ssbo("LinePacketSSBO", &ssbo_);
-        ssbo_.bind(2);
-        line_geo_simple.bind();
-        line_geo_simple.draw_instances(Geometry::Mode::eLines, lines_.size());
+        engine::log::log(engine::log::LogLevel::eTrace, fmt::format("Resizeing SSBO for line drawer in physics visual debugger. Limit is: {}. Current lines count: {}\n", ssbo_limit, lines_count));
+        ssbo_ = ShaderStorageBuffer(sizeof(LineDrawPacket) * lines_count);
     }
-    else
+
+    BufferMapContext<LineDrawPacket, ShaderStorageBuffer> mapping_context(ssbo_, false, true);
+    for (auto i = 0; i < lines_count; i++)
     {
-        // unotpimized, very slow path
-        auto draw_line_slow = [](Shader& shader, const glm::vec3& from_v, const glm::vec3& to_v, const glm::vec3& color)
-            {
-                std::array<glm::vec3, 2> vertices = { from_v, to_v };
-                std::array<Geometry::vertex_attribute_t, 1> vertex_attributes = {
-                    { 0u, 3u, 0u, 0u, Geometry::vertex_attribute_t::Type::eFloat32 }
-                };
-                Geometry line_geo(vertex_attributes, { reinterpret_cast<const std::byte*>(vertices.data()), vertices.size() * sizeof(vertices[0]) }, vertices.size());
-
-                // set color
-                shader.set_uniform_f4("color", std::array<float, 4>{color.x, color.y, color.z, 1.0f});
-
-                // Draw the line
-                line_geo.bind();
-                line_geo.draw(Geometry::Mode::eLines);
-            };
-        static auto shader_slow = Shader({ "simple_vertex_definitions.h", "debug_physics_lines.vs" }, { "debug_physics_lines.fs" });
-        shader_bind(shader_slow);
-        for (auto i = 0; i < lines_.size(); i++)
-        {
-            auto& line = lines_.at(i);
-            draw_line_slow(shader_slow, line.from, line.to, line.color);
-        }
+        mapping_context.data[i].from = lines_[i].from;
+        mapping_context.data[i].to = lines_[i].to;
+        mapping_context.data[i].color = lines_[i].color;
     }
+    mapping_context.unmap();
+        
+    shader_ssbo.bind();
+    shader_ssbo.set_uniform_mat_f4("view", { glm::value_ptr(view_), sizeof(view_) / sizeof(float) });
+    shader_ssbo.set_uniform_mat_f4("projection", { glm::value_ptr(projection_), sizeof(projection_) / sizeof(float) });
+
+    ssbo_.bind(2);
+    line_geo_simple.bind();
+    line_geo_simple.draw_instances(Geometry::Mode::eLines, lines_.size());
 
     lines_.clear();
 
