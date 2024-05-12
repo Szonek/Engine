@@ -216,7 +216,7 @@ void engine::Shader::set_ssbo(std::string_view name, const ShaderStorageBuffer* 
     const auto loc = get_resource_location(name, GL_SHADER_STORAGE_BLOCK);
     std::int32_t bind_slot = 0;
     //glGetS
-    //glGetUniformiv(program_, loc, &bind_slot);
+    glGetUniformiv(program_, loc, &bind_slot);
     buffer->bind(static_cast<std::uint32_t>(loc));
 }
 

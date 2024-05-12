@@ -341,7 +341,8 @@ void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
         }
         mapping_context.unmap();
         shader_bind(shader_ssbo);
-        shader_ssbo.set_ssbo("LinePacketSSBO", &ssbo_);
+        //shader_ssbo.set_ssbo("LinePacketSSBO", &ssbo_);
+        ssbo_.bind(2);
         line_geo_simple.bind();
         line_geo_simple.draw_instances(Geometry::Mode::eLines, lines_.size());
     }
