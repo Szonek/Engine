@@ -129,12 +129,6 @@ private:
             glm::vec3 to;
             float pad1;
             glm::vec3 color;
-            float pad2;
-        };
-        struct DrawableLine {
-            glm::vec3 from;
-            glm::vec3 to;
-            glm::vec3 color;
             std::int32_t life_time = 0;
         };
     private:
@@ -144,7 +138,7 @@ private:
         glm::mat4 projection_;
         std::int32_t debug_mode_;
 
-        std::vector<DrawableLine> lines_;
+        std::vector<LineDrawPacket> lines_;
     };
 
 private:

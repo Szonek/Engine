@@ -270,7 +270,7 @@ void engine::PhysicsWorld::DebugDrawer::drawLine(const btVector3& from, const bt
     const auto to_v = glm::vec3(to.getX(), to.getY(), to.getZ());
     const auto color_v = glm::vec3(color.getX(), color.getY(), color.getZ());
 
-    lines_.push_back({ from_v, to_v, color_v, 1 });
+    lines_.push_back({ from_v, 0.0f, to_v, 0.0f, color_v, 1 });
     //engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw line \n"));
 }
 
@@ -326,22 +326,20 @@ void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
     static Shader shader_ssbo({ "debug_physics_lines_ssbo.vs" }, { "debug_physics_lines_ssbo.fs" });
     static Geometry line_geo_simple(2);
 
-    const auto ssbo_limit = ssbo_.get_size() / sizeof(LineDrawPacket);
-    const auto lines_count = lines_.size();
-
-    if (lines_count > ssbo_limit)
     {
-        engine::log::log(engine::log::LogLevel::eTrace, fmt::format("Resizeing SSBO for line drawer in physics visual debugger. Limit is: {}. Current lines count: {}\n", ssbo_limit, lines_count));
-        ssbo_ = ShaderStorageBuffer(sizeof(LineDrawPacket) * lines_count);
+        const auto lines_count = lines_.size();
+        const auto ssbo_limit = ssbo_.get_size() / sizeof(LineDrawPacket);
+
+        if (lines_count > ssbo_limit)
+        {
+            engine::log::log(engine::log::LogLevel::eTrace, fmt::format("Resizeing SSBO for line drawer in physics visual debugger. Limit is: {}. Current lines count: {}\n", ssbo_limit, lines_count));
+            ssbo_ = ShaderStorageBuffer(sizeof(LineDrawPacket) * lines_count);
+        }
     }
+
 
     BufferMapContext<LineDrawPacket, ShaderStorageBuffer> mapping_context(ssbo_, false, true);
-    for (auto i = 0; i < lines_count; i++)
-    {
-        mapping_context.data[i].from = lines_[i].from;
-        mapping_context.data[i].to = lines_[i].to;
-        mapping_context.data[i].color = lines_[i].color;
-    }
+    std::memcpy(mapping_context.data, lines_.data(), lines_.size() * sizeof(LineDrawPacket));
     mapping_context.unmap();
         
     shader_ssbo.bind();
