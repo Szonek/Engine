@@ -255,10 +255,10 @@ engine::PhysicsWorld::DebugDrawer::DebugDrawer(RenderContext* renderer)
     : renderer_(renderer)
 {
     const auto projected_max_lines_count = 2048;  // ToDo: make it configurable? this is for optimization purposes to not use UBO and not resize std vector
-    const auto ubo_size = sizeof(LineDrawPacket) * projected_max_lines_count;
-    if (renderer_->get_limits().ubo_max_size < ubo_size)
+    const auto ssbo_size = sizeof(LineDrawPacket) * projected_max_lines_count;
+    if (renderer_->get_limits().ssbo_max_size < ssbo_size)
     {
-        ubo_ = UniformBuffer(ubo_size);
+        ssbo_ = ShaderStorageBuffer(ssbo_size);
     }
     lines_.reserve(projected_max_lines_count);
 }
@@ -314,14 +314,25 @@ void engine::PhysicsWorld::DebugDrawer::end_frame()
 
 void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
 {
-    //ToDo: Lifetime of lines is not taken into account. It should be removed after some time, but curretnly all lines are removed at the end of this function.
-
-    const auto can_use_ubo = lines_.size() < ubo_.get_size() / sizeof(LineDrawPacket);
-    if (can_use_ubo)
+    if (lines_.empty())
     {
-        static Shader shader_ubo({ "debug_physics_lines_ubo.vs" }, { "debug_physics_lines_ubo.fs" });
+        return;
+    }
+
+    auto shader_bind = [this](auto& shader)
+        {
+            shader.bind();
+            shader.set_uniform_mat_f4("view", { glm::value_ptr(view_), sizeof(view_) / sizeof(float) });
+            shader.set_uniform_mat_f4("projection", { glm::value_ptr(projection_), sizeof(projection_) / sizeof(float) });
+        };
+
+    //ToDo: Lifetime of lines is not taken into account. It should be removed after some time, but curretnly all lines are removed at the end of this function.
+    const auto can_use_ssbo = lines_.size() < ssbo_.get_size() / sizeof(LineDrawPacket);
+    if (can_use_ssbo)
+    {
+        static Shader shader_ssbo({ "debug_physics_lines_ssbo.vs" }, { "debug_physics_lines_ssbo.fs" });
         static Geometry line_geo_simple(2);
-        UniformBuffer::MappingContext<LineDrawPacket> mapping_context(ubo_, false, true);
+        BufferMapContext<LineDrawPacket, ShaderStorageBuffer> mapping_context(ssbo_, false, true);
         for (auto i = 0; i < lines_.size(); i++)
         {
             mapping_context.data[i].from = lines_[i].from;
@@ -329,12 +340,10 @@ void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
             mapping_context.data[i].color = lines_[i].color;
         }
         mapping_context.unmap();
-        //ubo_.bind();
-        //ubo_.set_data(lines_.data(), lines_.size() * sizeof(LineDrawPacket));
-        //ubo_.unbind();
-        //shader.bind();
-        //shader.set_uniform_i("use_ubo", 1);
-        //ubo_.bind_base(0);
+        shader_bind(shader_ssbo);
+        shader_ssbo.set_ssbo("LinePacketSSBO", &ssbo_);
+        line_geo_simple.bind();
+        line_geo_simple.draw_instances(Geometry::Mode::eLines, lines_.size());
     }
     else
     {
@@ -355,12 +364,7 @@ void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
                 line_geo.draw(Geometry::Mode::eLines);
             };
         static auto shader_slow = Shader({ "simple_vertex_definitions.h", "debug_physics_lines.vs" }, { "debug_physics_lines.fs" });
-        if (!lines_.empty())
-        {
-            shader_slow.bind();
-            shader_slow.set_uniform_mat_f4("view", { glm::value_ptr(view_), sizeof(view_) / sizeof(float) });
-            shader_slow.set_uniform_mat_f4("projection", { glm::value_ptr(projection_), sizeof(projection_) / sizeof(float) });
-        }
+        shader_bind(shader_slow);
         for (auto i = 0; i < lines_.size(); i++)
         {
             auto& line = lines_.at(i);

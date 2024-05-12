@@ -74,17 +74,17 @@ public:
 	void set_uniform_mat_f4(std::string_view name, std::span<const float> host_data);
 
     void set_texture(std::string_view name, const class Texture2D* textur);
+    void set_ssbo(std::string_view name, const class ShaderStorageBuffer* buffer);
 
 private:
-	std::int32_t get_uniform_location(std::string_view name);
+    std::int32_t get_resource_location(std::string_view name, std::int32_t resource_interface);
+    std::int32_t get_uniform_location(std::string_view name);
 	void compile_and_attach_to_program(std::uint32_t shader, std::span<const std::string> sources);
 
 private:
 	std::uint32_t vertex_shader_;
 	std::uint32_t fragment_shader_;
 	std::uint32_t program_;
-
-	std::unordered_map<std::string, std::int32_t> uniforms_locations_;
 };
 
 
@@ -192,6 +192,7 @@ public:
 
 	void bind() const;
 	void draw(Mode mode) const;
+    void draw_instances(Mode mode, std::uint32_t instance_count) const;
 
     vertex_attribute_t get_vertex_attribute(std::size_t idx) const;
 
@@ -206,43 +207,6 @@ private:
 
 class UniformBuffer
 {
-public:
-    template<typename T>
-    struct MappingContext
-    {
-    private:
-        UniformBuffer& buffer_;
-    public:
-        T* data = nullptr;
-
-        MappingContext(UniformBuffer& buffer, bool read, bool write)
-            : buffer_(buffer)
-            , data(reinterpret_cast<T*>(buffer_.map(read, write)))
-        {
-        }
-        // delete copy constructor
-        MappingContext(const MappingContext& rhs) = delete;
-        // delete copy assignment
-        MappingContext& operator=(const MappingContext& rhs) = delete;
-        // default move constructor
-        MappingContext(MappingContext&& rhs) noexcept = default;
-        // default move assignment
-        MappingContext& operator=(MappingContext&& rhs) noexcept = default;
-        ~MappingContext()
-        {
-            if (data)
-            {
-                unmap();
-            }
-        }
-
-        void unmap()
-        {
-            buffer_.unmap();
-            data = nullptr;
-        }
-
-    };
 public:
     UniformBuffer() = default;
     UniformBuffer(std::size_t size);
@@ -267,6 +231,72 @@ private:
 private:
     std::size_t size_{ 0 };
     std::uint32_t ubo_{ 0 };
+};
+
+class ShaderStorageBuffer
+{
+public:
+    ShaderStorageBuffer() = default;
+    ShaderStorageBuffer(std::size_t size);
+    ShaderStorageBuffer(const ShaderStorageBuffer& rhs) = delete;
+    ShaderStorageBuffer(ShaderStorageBuffer&& rhs) noexcept;
+    ShaderStorageBuffer& operator=(const ShaderStorageBuffer& rhs) = delete;
+    ShaderStorageBuffer& operator=(ShaderStorageBuffer&& rhs) noexcept;
+    ~ShaderStorageBuffer();
+
+    inline bool is_valid() const { return ssbo_ != 0; }
+    inline std::size_t get_size() const { return size_; }
+
+    void bind(std::uint32_t slot) const;
+
+    void* map(bool read, bool write);
+    void unmap();
+
+private:
+    void bind() const;
+    void unbind() const;
+
+private:
+    std::size_t size_{ 0 };
+    std::uint32_t ssbo_{ 0 };
+};
+
+
+template<typename DataT, typename BufferT>
+struct BufferMapContext
+{
+private:
+    BufferT& buffer_;
+public:
+    DataT* data = nullptr;
+
+    BufferMapContext(BufferT& buffer, bool read, bool write)
+        : buffer_(buffer)
+        , data(reinterpret_cast<DataT*>(buffer_.map(read, write)))
+    {
+    }
+    // delete copy constructor
+    BufferMapContext(const BufferMapContext& rhs) = delete;
+    // delete copy assignment
+    BufferMapContext& operator=(const BufferMapContext& rhs) = delete;
+    // default move constructor
+    BufferMapContext(BufferMapContext&& rhs) noexcept = default;
+    // default move assignment
+    BufferMapContext& operator=(BufferMapContext&& rhs) noexcept = default;
+    ~BufferMapContext()
+    {
+        if (data)
+        {
+            unmap();
+        }
+    }
+
+    void unmap()
+    {
+        buffer_.unmap();
+        data = nullptr;
+    }
+
 };
 
 class RenderContext
@@ -305,6 +335,7 @@ public:
     {
         std::int32_t vertex_attributes_limit{ 0 };
         std::int32_t ubo_max_size{ 0 };
+        std::int32_t ssbo_max_size{ 0 };
     };
 
 public:

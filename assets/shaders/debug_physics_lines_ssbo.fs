@@ -1,4 +1,3 @@
-#version 320
 #version 430
 
 in mediump vec3 line_color;

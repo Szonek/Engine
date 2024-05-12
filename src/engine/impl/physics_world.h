@@ -139,7 +139,7 @@ private:
         };
     private:
         RenderContext* renderer_ = nullptr;
-        UniformBuffer ubo_;
+        ShaderStorageBuffer ssbo_;
         glm::mat4 view_;
         glm::mat4 projection_;
         std::int32_t debug_mode_;

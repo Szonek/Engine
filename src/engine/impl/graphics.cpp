@@ -168,7 +168,7 @@ void engine::Shader::bind() const
 void engine::Shader::set_uniform_f4(std::string_view name, std::span<const float> host_data)
 {
 	assert(host_data.size() == 4 && "[ERROR] Wrong size of data");
-	const auto loc = get_uniform_location(name);
+    const auto loc = get_uniform_location(name);
 	glUniform4f(loc, host_data[0], host_data[1], host_data[2], host_data[3]);
 }
 
@@ -197,7 +197,7 @@ void engine::Shader::set_uniform_ui2(std::string_view name, std::span<const std:
 void engine::Shader::set_uniform_mat_f4(std::string_view name, std::span<const float> host_data)
 {
 	assert(host_data.size() == 16 && "[ERROR] Wrong size of data");
-	const auto loc = get_uniform_location(name);
+    const auto loc = get_uniform_location(name);
 	glUniformMatrix4fv(loc, 1, GL_FALSE, host_data.data());
 }
 
@@ -210,21 +210,30 @@ void engine::Shader::set_texture(std::string_view name, const Texture2D* texture
     texture->bind(static_cast<std::uint32_t>(bind_slot));
 }
 
+void engine::Shader::set_ssbo(std::string_view name, const ShaderStorageBuffer* buffer)
+{
+    assert(buffer && "[ERROR] Nullptr buffer ptr");
+    const auto loc = get_resource_location(name, GL_SHADER_STORAGE_BLOCK);
+    std::int32_t bind_slot = 0;
+    //glGetS
+    //glGetUniformiv(program_, loc, &bind_slot);
+    buffer->bind(static_cast<std::uint32_t>(loc));
+}
+
+
+std::int32_t engine::Shader::get_resource_location(std::string_view name, std::int32_t resource_interface)
+{
+    // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glGetProgramResourceIndex.xhtml
+    const auto location = glGetProgramResourceIndex(program_, resource_interface, name.data());
+	assert(location != -1 && "[ERROR] Cant find uniform location in the shader.");
+	return location;
+}
 
 std::int32_t engine::Shader::get_uniform_location(std::string_view name)
 {
-	std::int32_t uniform_location = -1;
-	if (auto find_itr = uniforms_locations_.find(name.data()); find_itr != uniforms_locations_.end())
-	{
-		uniform_location = find_itr->second;
-	}
-	else
-	{
-		uniform_location = glGetUniformLocation(program_, name.data());
-		uniforms_locations_.insert({ name.data(), uniform_location });
-	}
-	assert(uniform_location != -1 && "[ERROR] Cant find uniform location in the shader.");
-	return uniform_location;
+    const auto location = glGetUniformLocation(program_, name.data());
+    assert(location != -1 && "[ERROR] Cant find uniform location in the shader.");
+    return location;
 }
 
 void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::span<const std::string> sources)
@@ -537,8 +546,9 @@ void engine::Geometry::draw(Mode mode) const
 		break;
     case Geometry::Mode::eLines:
         gl_mode = GL_LINES;
+        break;
 	default:
-		assert("[OpenGl Render Context] Unknown draw mode.");
+		assert(!"[OpenGl Render Context] Unknown draw mode.");
 	}
 
 	if (ibo_)
@@ -549,6 +559,31 @@ void engine::Geometry::draw(Mode mode) const
 	{
 		glDrawArrays(gl_mode, 0, vertex_count_);
 	}
+}
+
+void engine::Geometry::draw_instances(Mode mode, std::uint32_t instance_count) const
+{
+    std::uint32_t gl_mode = 0;
+    switch (mode)
+    {
+    case Geometry::Mode::eTriangles:
+        gl_mode = GL_TRIANGLES;
+        break;
+    case Geometry::Mode::eLines:
+        gl_mode = GL_LINES;
+        break;
+    default:
+        assert(!"[OpenGl Render Context] Unknown draw mode.");
+    }
+
+    if (ibo_)
+    {
+        glDrawElementsInstanced(gl_mode, index_count_, GL_UNSIGNED_INT, nullptr, instance_count);
+    }
+    else
+    {
+        glDrawArraysInstanced(gl_mode, 0, vertex_count_, instance_count);
+    }
 }
 
 engine::Geometry::vertex_attribute_t engine::Geometry::get_vertex_attribute(std::size_t idx) const
@@ -733,7 +768,8 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     // initalize limits
     fetch_and_print_limit(GL_MAX_VERTEX_ATTRIBS, limits_.vertex_attributes_limit, "vertex attributes");
     fetch_and_print_limit(GL_MAX_UNIFORM_BLOCK_SIZE, limits_.ubo_max_size, "uniform block");
-
+    fetch_and_print_limit(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, limits_.ssbo_max_size, "shader storage block");
+    
     // UI stuff 
     ui_rml_sdl_interface_ = new SystemInterface_SDL;
     ui_rml_gl3_renderer_ = new RenderInterface_GL3;
@@ -1122,5 +1158,78 @@ void engine::UniformBuffer::unbind() const
 {
     assert(is_valid() && "Invalid uniform buffer object");
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+engine::ShaderStorageBuffer::ShaderStorageBuffer(std::size_t size)
+    : size_(size)
+{
+    if (size == 0)
+    {
+        log::log(log::LogLevel::eCritical, "Shader storage buffer size cant be 0!");
+        return;
+    }
+
+    glGenBuffers(1, &ssbo_);
+    bind();
+    // GL_STATIC_DRAW? 
+    glBufferData(GL_SHADER_STORAGE_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
+    unbind();
+}
+
+engine::ShaderStorageBuffer::ShaderStorageBuffer(ShaderStorageBuffer&& rhs) noexcept
+{
+    std::swap(ssbo_, rhs.ssbo_);
+    std::swap(size_, rhs.size_);
+}
+
+engine::ShaderStorageBuffer& engine::ShaderStorageBuffer::operator=(ShaderStorageBuffer&& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        std::swap(ssbo_, rhs.ssbo_);
+        std::swap(size_, rhs.size_);
+    }
+    return *this;
+}
+
+engine::ShaderStorageBuffer::~ShaderStorageBuffer()
+{
+    if (ssbo_)
+    {
+        glDeleteBuffers(1, &ssbo_);
+    }
+}
+
+void engine::ShaderStorageBuffer::bind(std::uint32_t slot) const
+{
+    assert(is_valid() && "Invalid uniform buffer object");
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, slot, ssbo_);
+}
+
+void* engine::ShaderStorageBuffer::map(bool read, bool write)
+{
+    bind();
+    void* ret = glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_WRITE);
+    unbind();
+    return ret;
+}
+
+void engine::ShaderStorageBuffer::unmap()
+{
+    bind();
+    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+    unbind();
+}
+
+void engine::ShaderStorageBuffer::bind() const
+{
+    assert(is_valid() && "Invalid uniform buffer object");
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_);
+}
+
+void engine::ShaderStorageBuffer::unbind() const
+{
+    assert(is_valid() && "Invalid uniform buffer object");
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
