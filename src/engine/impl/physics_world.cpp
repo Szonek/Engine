@@ -251,10 +251,16 @@ engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, flo
     return ret;
 }
 
-engine::PhysicsWorld::DebugDrawer::DebugDrawer(class RenderContext* renderer)
+engine::PhysicsWorld::DebugDrawer::DebugDrawer(RenderContext* renderer)
     : renderer_(renderer)
 {
-    lines_.reserve(1024);
+    const auto projected_max_lines_count = 2048;  // ToDo: make it configurable? this is for optimization purposes to not use UBO and not resize std vector
+    const auto ubo_size = sizeof(LineDrawPacket) * projected_max_lines_count;
+    if (renderer_->get_limits().ubo_max_size < ubo_size)
+    {
+        ubo_ = UniformBuffer(ubo_size);
+    }
+    lines_.reserve(projected_max_lines_count);
 }
 
 void engine::PhysicsWorld::DebugDrawer::drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
@@ -315,12 +321,8 @@ void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
         shader.set_uniform_mat_f4("view", { glm::value_ptr(view_), sizeof(view_) / sizeof(float) });
         shader.set_uniform_mat_f4("projection", { glm::value_ptr(projection_), sizeof(projection_) / sizeof(float) });
     }
-    //ToDo: this can be optimized by using single geometry for all lines
-    // i.e. store all lines in single buffer and draw them all at once
-    // or use instanced rendering
-    // or create single geometry and just set uniform for each line for from_v and to_v vectors and offset vertices in the shader
-    // or use geometry shader to create lines from points
-    auto draw_line = [this](const glm::vec3& from_v, const glm::vec3& to_v, const glm::vec3& color)
+    // unotpimized, very slow path
+    auto draw_line_slow = [this](const glm::vec3& from_v, const glm::vec3& to_v, const glm::vec3& color)
     {
         std::array<glm::vec3, 2> vertices = { from_v, to_v };
         std::array<Geometry::vertex_attribute_t, 1> vertex_attributes = {
@@ -336,22 +338,43 @@ void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
         line_geo.draw(Geometry::Mode::eLines);
     };
 
+    bool can_use_ubo = false;
+    if (lines_.size() < ubo_.get_size() / sizeof(LineDrawPacket))
+    {
+        can_use_ubo = true;
+        //ubo_.bind();
+        //ubo_.set_data(lines_.data(), lines_.size() * sizeof(LineDrawPacket));
+        //ubo_.unbind();
+        //shader.bind();
+        //shader.set_uniform_i("use_ubo", 1);
+        //ubo_.bind_base(0);
+    }
+
     for (auto it = lines_.begin(); it != lines_.end(); /* no increment here */)
     {
         auto& line = *it;
-        draw_line(line.from, line.to, line.color);
-
-        if (line.life_time > 0)
+        if (can_use_ubo)
         {
-            line.life_time--;
-        }
-        if (line.life_time == 0)
-        {
-            it = lines_.erase(it);
+            draw_line_slow(line.from, line.to, line.color);
         }
         else
         {
-            ++it;
+            draw_line_slow(line.from, line.to, line.color);
         }
+
+        //if (line.life_time > 0)
+        //{
+        //    line.life_time--;
+        //}
+        //if (line.life_time == 0)
+        //{
+            //it = lines_.erase(it);
+        //}
+        //else
+        //{
+            ++it;
+        //}
     }
+    lines_.clear();
+
 }

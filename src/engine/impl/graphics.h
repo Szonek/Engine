@@ -204,6 +204,27 @@ private:
 	std::uint32_t index_count_{0};
 };
 
+class UniformBuffer
+{
+public:
+    UniformBuffer() = default;
+    UniformBuffer(std::size_t size);
+    UniformBuffer(const UniformBuffer& rhs) = delete;
+    UniformBuffer(UniformBuffer&& rhs) noexcept;
+    UniformBuffer& operator=(const UniformBuffer& rhs) = delete;
+    UniformBuffer& operator=(UniformBuffer&& rhs) noexcept;
+    ~UniformBuffer();
+
+    inline bool is_valid() const { return ubo_ != 0; }
+    inline std::size_t get_size() const { return size_; }
+
+    //void bind(std::uint32_t slot) const;
+    //void update(std::span<const std::byte> data);
+private:
+    std::size_t size_{ 0 };
+    std::uint32_t ubo_{ 0 };
+};
+
 class RenderContext
 {
 public:
@@ -236,6 +257,12 @@ public:
         std::int32_t height;
     };
 
+    struct limits_t
+    {
+        std::int32_t vertex_attributes_limit{ 0 };
+        std::int32_t ubo_max_size{ 0 };
+    };
+
 public:
 	RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen);
 	
@@ -263,6 +290,8 @@ public:
     SDL_Window* get_sdl_window() { return window_; }
     SDL_GLContext get_sdl_gl_context() { return context_; }
 
+    const limits_t& get_limits() const { return limits_; }
+
 private:
     SDL_Window* window_ = nullptr;
     SDL_GLContext context_ = nullptr;
@@ -270,6 +299,8 @@ private:
     // this 2 are used for UI render
     SystemInterface_SDL* ui_rml_sdl_interface_ = nullptr;
     RenderInterface_GL3* ui_rml_gl3_renderer_ = nullptr;
+
+    limits_t limits_;
 };
 
 } // namespace engine

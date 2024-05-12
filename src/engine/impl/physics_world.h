@@ -18,6 +18,8 @@
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 
+#include "graphics.h"
+
 namespace engine
 {
 class PhysicsWorld
@@ -86,7 +88,7 @@ private:
     class DebugDrawer : public btIDebugDraw
     {
     public:
-        DebugDrawer(class RenderContext* renderer);
+        DebugDrawer(RenderContext* renderer);
         void drawLine(const btVector3& from, const btVector3& to, const btVector3& color) override;
         void drawContactPoint(const btVector3& point_on_B, const btVector3& normal_on_B, btScalar distance, int life_time, const btVector3& color) override;
         void reportErrorWarning(const char* warning_string) override;
@@ -120,6 +122,15 @@ private:
         void process_lines_buffer();
 
     private:
+        struct LineDrawPacket
+        {
+            glm::vec3 from;
+            float pad0;
+            glm::vec3 to;
+            float pad1;
+            glm::vec3 color;
+            float pad2;
+        };
         struct DrawableLine {
             glm::vec3 from;
             glm::vec3 to;
@@ -127,7 +138,8 @@ private:
             std::int32_t life_time = 0;
         };
     private:
-        class RenderContext* renderer_ = nullptr;
+        RenderContext* renderer_ = nullptr;
+        UniformBuffer ubo_;
         glm::mat4 view_;
         glm::mat4 projection_;
         std::int32_t debug_mode_;

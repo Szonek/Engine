@@ -713,14 +713,6 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 
     std::int32_t gl_context_flags;
     glGetIntegerv(GL_CONTEXT_FLAGS, &gl_context_flags);
-
-	std::int32_t vertex_attributes_limit = 0;
-	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &vertex_attributes_limit);
-    log::log(log::LogLevel::eTrace, fmt::format("Maximum nr of vertex attributes supported: {}\n", vertex_attributes_limit));
-	// enable depth test
-	glEnable(GL_DEPTH_TEST);
-    //glEnable(GL_BLEND);
-
 #if _DEBUG
     if (gl_context_flags & GL_CONTEXT_FLAG_DEBUG_BIT)
     {
@@ -732,6 +724,16 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     }
 #endif
 
+    auto fetch_and_print_limit = [](std::uint32_t ogl_type, auto& limit, const auto& name)
+    {
+            glGetIntegerv(ogl_type, &limit);
+            log::log(log::LogLevel::eTrace, fmt::format("Max {} size: {}\n", name, limit));
+    };
+
+    // initalize limits
+    fetch_and_print_limit(GL_MAX_VERTEX_ATTRIBS, limits_.vertex_attributes_limit, "vertex attributes");
+    fetch_and_print_limit(GL_MAX_UNIFORM_BLOCK_SIZE, limits_.ubo_max_size, "uniform block");
+
     // UI stuff 
     ui_rml_sdl_interface_ = new SystemInterface_SDL;
     ui_rml_gl3_renderer_ = new RenderInterface_GL3;
@@ -741,6 +743,11 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 
     Rml::SetSystemInterface(ui_rml_sdl_interface_);
     Rml::SetRenderInterface(ui_rml_gl3_renderer_);
+
+
+    // enable depth test
+    glEnable(GL_DEPTH_TEST);
+    //glEnable(GL_BLEND);
 }
 
 engine::RenderContext::RenderContext(RenderContext&& rhs) noexcept
@@ -1042,4 +1049,45 @@ engine::Texture2D* engine::Framebuffer::get_depth_attachment()
 std::pair<std::uint32_t, std::uint32_t> engine::Framebuffer::get_size() const
 {
     return { width_, height_ };
+}
+
+engine::UniformBuffer::UniformBuffer(std::size_t size)
+    : size_(size)
+{
+    if (size == 0)
+    {
+        log::log(log::LogLevel::eCritical, "Uniform buffer size cant be 0!");
+        return;
+    }
+
+    glGenBuffers(1, &ubo_);
+    glBindBuffer(GL_UNIFORM_BUFFER, ubo_);
+    // GL_STATIC_DRAW? 
+    glBufferData(GL_UNIFORM_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+}
+
+engine::UniformBuffer::UniformBuffer(UniformBuffer&& rhs) noexcept
+{
+    std::swap(ubo_, rhs.ubo_);
+    std::swap(size_, rhs.size_);
+}
+
+engine::UniformBuffer& engine::UniformBuffer::operator=(UniformBuffer&& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        std::swap(ubo_, rhs.ubo_);
+        std::swap(size_, rhs.size_);
+    }
+    return *this;
+}
+
+engine::UniformBuffer::~UniformBuffer()
+{
+    if (ubo_)
+    {
+        glDeleteBuffers(1, &ubo_);
+    }
 }
