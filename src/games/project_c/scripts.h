@@ -205,8 +205,8 @@ public:
             const auto character_tc = engineSceneGetTransformComponent(scene, character_go);
             auto tc = engineSceneGetTransformComponent(scene, go_);
             tc.position[0] = character_tc.position[0] - 2.0f;
-            tc.position[1] = character_tc.position[1] + 4.0f;
-            tc.position[2] = character_tc.position[2] + 1.0f;
+            tc.position[1] = character_tc.position[1] + 7.0f;
+            tc.position[2] = character_tc.position[2] + 2.5f;
             engineSceneUpdateTransformComponent(scene, go_, &tc);
             // update targer to point to character go position
             auto camera_comp = engineSceneGetCameraComponent(scene, go_);
@@ -343,8 +343,8 @@ public:
 
         //rb
         auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
-        //rbc.mass = 1.0f;
-        rbc.mass = 0.0f;
+        rbc.mass = 1.0f;
+        //rbc.mass = 0.0f;
         engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
     }
 
@@ -356,6 +356,10 @@ public:
     void update(float dt)
     {
         anim_controller_.update(dt);
+        if(anim_controller_.is_active_animation(attack_right_ ? "attack-melee-right" : "attack-melee-left"))
+        {
+            return;
+        }
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
@@ -373,13 +377,49 @@ public:
             auto tc = engineSceneGetTransformComponent(scene, go_);
             auto ec = engineSceneGetTransformComponent(scene, player);
             // rotate toward enemy
-            auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
-            // use slerp to interpolate between current rotation and target rotation
-            quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
-            std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+            // distance to player - if small enough move toward player
+            const auto distance = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
+            if (distance <= 3.0f)
+            {
+                triggered_ = true;
+            }
+            else if (distance > 5.0f)
+            {
+                triggered_ = false;
+            }
+            if(triggered_)
+            {
+
+                auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
+                // use slerp to interpolate between current rotation and target rotation
+                quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
+                std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
+
+                //attack or move to player
+                if (distance < 0.8f)
+                {
+                    attack_right_ = !attack_right_;
+                    anim_controller_.set_active_animation(attack_right_ ? "attack-melee-right" : "attack-melee-left");
+                }
+                else
+                {
+                    const float speed_cooef = 0.0005f;
+                    const float speed = speed_cooef * dt;
+                    const glm::vec3 forward = glm::normalize(quat * glm::vec3(0.0f, 0.0f, 1.0f));
+                    tc.position[0] += forward.x * speed;
+                    //tc.position[1] += forward.y * speed;
+                    tc.position[2] += forward.z * speed;
+                }
+
+                engineSceneUpdateTransformComponent(scene, go_, &tc);
+            }
         }
     }
+
+private:
+    bool triggered_ = false;
+    bool attack_right_ = false;
 };
 
 class Sword : public BaseNode
@@ -565,7 +605,7 @@ public:
 
         //rb
         auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
-        rbc.mass = 1.0f;
+        rbc.mass = 100000.0f;
         engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 
     }
