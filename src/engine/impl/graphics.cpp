@@ -789,8 +789,9 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     Rml::SetRenderInterface(ui_rml_gl3_renderer_);
 
 
-    // enable depth test
+    // enable depth test and face culling
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
     //glEnable(GL_BLEND);
 
 
