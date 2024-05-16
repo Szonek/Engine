@@ -2,6 +2,7 @@
 #include "math_helpers.h"
 #include "logger.h"
 #include "graphics.h"
+#include "profiler.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -314,6 +315,7 @@ void engine::PhysicsWorld::DebugDrawer::end_frame()
 
 void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
 {
+    ENGINE_PROFILE_SECTION_N("physics_process_lines_buffer");
     if (lines_.empty())
     {
         return;

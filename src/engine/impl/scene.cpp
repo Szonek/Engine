@@ -3,6 +3,8 @@
 #include "logger.h"
 #include "math_helpers.h"
 #include "components_utils/components_initializers.h"
+#include "profiler.h"
+
 
 #include <fmt/format.h>
 
@@ -86,6 +88,7 @@ void engine::Scene::enable_physics_debug_draw(bool enable)
 
 engine_result_code_t engine::Scene::physics_update(float dt)
 {
+    ENGINE_PROFILE_SECTION_N("physics_update");
     // collider created, create internal rigid body
     for (const auto entt : collider_create_observer)
     {
@@ -251,7 +254,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
     std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials)
 {
-
+    ENGINE_PROFILE_SECTION_N("scene_update");
     class FBOFrameContext
     {
     public:
@@ -285,192 +288,215 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         Geometry& empty_vao;
     };
     FBOFrameContext fbo_frame(fbo_, rdx_, shader_full_screen_quad_, empty_vao_for_full_screen_quad_draw_);
+    {
+        ENGINE_PROFILE_SECTION_N("transform_view");
 #if 1
-    //auto transform_view = entity_registry_.view<engine_tranform_component_t>(entt::exclude<engine_rigid_body_component_t>);
-    auto transform_view = entity_registry_.view<engine_tranform_component_t>();
-    transform_view.each([this](engine_tranform_component_t& transform_component)
+        //auto transform_view = entity_registry_.view<engine_tranform_component_t>(entt::exclude<engine_rigid_body_component_t>);
+        auto transform_view = entity_registry_.view<engine_tranform_component_t>();
+        transform_view.each([this](engine_tranform_component_t& transform_component)
+            {
+                //ZoneScopedN("scene_transform_view");
+                const auto glm_pos = glm::make_vec3(transform_component.position);
+                const auto glm_rot = glm::make_quat(transform_component.rotation);
+                const auto glm_scl = glm::make_vec3(transform_component.scale);
+
+                auto model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
+                std::memcpy(transform_component.local_to_world, &model_matrix, sizeof(model_matrix));
+            });
+#else
+        // transform component updated, calculate new model matrix
+        for (const auto entt : transform_model_matrix_update_observer)
         {
-            const auto glm_pos = glm::make_vec3(transform_component.position);
-            const auto glm_rot = glm::make_quat(transform_component.rotation);
-            const auto glm_scl = glm::make_vec3(transform_component.scale);
+            const auto transform_component = get_component<engine_tranform_component_t>(entt);
+            const auto glm_pos = glm::make_vec3(transform_component->position);
+            const auto glm_rot = glm::make_quat(transform_component->rotation);
+            const auto glm_scl = glm::make_vec3(transform_component->scale);
 
             auto model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
-            std::memcpy(transform_component.local_to_world, &model_matrix, sizeof(model_matrix));
-        });
-#else
-    // transform component updated, calculate new model matrix
-    for (const auto entt : transform_model_matrix_update_observer)
-    {
-        const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        const auto glm_pos = glm::make_vec3(transform_component->position);
-        const auto glm_rot = glm::make_quat(transform_component->rotation);
-        const auto glm_scl = glm::make_vec3(transform_component->scale);
-
-        auto model_matrix = compute_model_matrix(glm_pos, glm_rot, glm_scl);
-        std::memcpy(transform_component->local_to_world, &model_matrix, sizeof(model_matrix));
-    }
-    transform_model_matrix_update_observer.clear();
+            std::memcpy(transform_component->local_to_world, &model_matrix, sizeof(model_matrix));
+        }
+        transform_model_matrix_update_observer.clear();
 #endif
 
-    std::map<entt::entity, glm::mat4> ltw_map;
-    //ToDo: this coule be optimized if entityies are sorted, so parents are always computed first
-    auto parent_to_child_transform_view = entity_registry_.view<engine_tranform_component_t, const engine_parent_component_t>();
-    parent_to_child_transform_view.each([this, &ltw_map](auto entity, engine_tranform_component_t& transform_comp, const engine_parent_component_t& parent_comp)
-        {
-            //engine::log::log(engine::log::LogLevel::eTrace, fmt::format("updating ent: {}\n", static_cast<std::uint32_t>(entity)));
-            auto ltw_matrix = glm::make_mat4(transform_comp.local_to_world);
-            auto parent = parent_comp.parent;
-            while (parent != ENGINE_INVALID_GAME_OBJECT_ID)
+    }
+
+    {
+        ENGINE_PROFILE_SECTION_N("parent_to_child_transform_view");
+        std::map<entt::entity, glm::mat4> ltw_map;
+        //ToDo: this coule be optimized if entityies are sorted, so parents are always computed first
+        auto parent_to_child_transform_view = entity_registry_.view<engine_tranform_component_t, const engine_parent_component_t>();
+        parent_to_child_transform_view.each([this, &ltw_map](auto entity, engine_tranform_component_t& transform_comp, const engine_parent_component_t& parent_comp)
             {
-                const auto parent_entt = static_cast<entt::entity>(parent);
-                const auto parent_ltw_matrix = get_component<engine_tranform_component_t>(parent_entt);
-                ltw_matrix = glm::make_mat4(parent_ltw_matrix->local_to_world) * ltw_matrix;
-                if (has_component<engine_parent_component_t>(parent_entt))
+                //engine::log::log(engine::log::LogLevel::eTrace, fmt::format("updating ent: {}\n", static_cast<std::uint32_t>(entity)));
+                auto ltw_matrix = glm::make_mat4(transform_comp.local_to_world);
+                auto parent = parent_comp.parent;
+                while (parent != ENGINE_INVALID_GAME_OBJECT_ID)
                 {
-                    const auto pc = get_component<engine_parent_component_t>(parent_entt);
-                    parent = pc->parent;
+                    const auto parent_entt = static_cast<entt::entity>(parent);
+                    const auto parent_ltw_matrix = get_component<engine_tranform_component_t>(parent_entt);
+                    ltw_matrix = glm::make_mat4(parent_ltw_matrix->local_to_world) * ltw_matrix;
+                    if (has_component<engine_parent_component_t>(parent_entt))
+                    {
+                        const auto pc = get_component<engine_parent_component_t>(parent_entt);
+                        parent = pc->parent;
+                    }
+                    else
+                    {
+                        // break the recussion
+                        parent = ENGINE_INVALID_GAME_OBJECT_ID;
+                    }
+                }
+                ltw_map[entity] = ltw_matrix;
+            });
+        {
+            ENGINE_PROFILE_SECTION_N("update_ltws_with_parents");
+            for (const auto& [entity, ltw_matrix] : ltw_map)
+            {
+                auto transform_comp = *get_component<engine_tranform_component_t>(entity);
+                std::memcpy(transform_comp.local_to_world, &ltw_matrix, sizeof(ltw_matrix));
+                update_component(entity, transform_comp);
+            }
+        }
+
+    }
+
+
+    {
+        ENGINE_PROFILE_SECTION_N("camera_loop");
+        auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
+        auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
+        auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
+
+        for (auto [entity, camera, transform] : camera_view.each()) 
+        {
+            if (!camera.enabled)
+            {
+                continue;
+            }
+
+            const auto window_size_pixels = rdx_.get_window_size_in_pixels();
+
+            glm::mat4 view = glm::mat4(0.0);
+            glm::mat4 projection = glm::mat4(0.0);
+            // update camera: view and projection
+            {
+                ENGINE_PROFILE_SECTION_N("camera_update");
+                const auto z_near = camera.clip_plane_near;
+                const auto z_far = camera.clip_plane_far;
+                // ToD: multi camera - this should use resolution of camera!!!
+
+                const auto adjusted_width = window_size_pixels.width * (camera.viewport_rect.width - camera.viewport_rect.x);
+                const auto adjusted_height = window_size_pixels.height * (camera.viewport_rect.height - camera.viewport_rect.y);
+                const float aspect = adjusted_width / adjusted_height;
+
+                if (camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC)
+                {
+                    const float scale = camera.type_union.orthographics_scale;
+                    projection = glm::ortho(-aspect * scale, aspect * scale, -scale, scale, z_near, z_far);
                 }
                 else
                 {
-                    // break the recussion
-                    parent = ENGINE_INVALID_GAME_OBJECT_ID;
+                    projection = glm::perspective(glm::radians(camera.type_union.perspective_fov), aspect, z_near, z_far);
                 }
-            }    
-            ltw_map[entity] = ltw_matrix;
-        });
-    for (const auto& [entity, ltw_matrix] : ltw_map)
-    {
-        auto transform_comp = *get_component<engine_tranform_component_t>(entity);
-        std::memcpy(transform_comp.local_to_world, &ltw_matrix, sizeof(ltw_matrix));
-        update_component(entity, transform_comp);
-    }
-
-    auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
-    auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
-    auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
-
-    for (auto [entity, camera, transform] : camera_view.each()) 
-    {
-        if (!camera.enabled)
-        {
-            continue;
-        }
-
-        const auto window_size_pixels = rdx_.get_window_size_in_pixels();
-
-        glm::mat4 view = glm::mat4(0.0);
-        glm::mat4 projection = glm::mat4(0.0);
-        // update camera: view and projection
-        {
-            const auto z_near = camera.clip_plane_near;
-            const auto z_far = camera.clip_plane_far;
-            // ToD: multi camera - this should use resolution of camera!!!
-
-            const auto adjusted_width = window_size_pixels.width * (camera.viewport_rect.width - camera.viewport_rect.x);
-            const auto adjusted_height = window_size_pixels.height * (camera.viewport_rect.height - camera.viewport_rect.y);
-            const float aspect = adjusted_width / adjusted_height;
-
-            if (camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC)
-            {
-                const float scale = camera.type_union.orthographics_scale;
-                projection = glm::ortho(-aspect * scale, aspect * scale, -scale, scale, z_near, z_far);
+                const auto eye_position = glm::make_vec3(transform.position);
+                const auto up = glm::make_vec3(camera.direction.up);
+                const auto target = glm::make_vec3(camera.target);
+                view = glm::lookAt(eye_position, target, up);
             }
-            else
+
             {
-                projection = glm::perspective(glm::radians(camera.type_union.perspective_fov), aspect, z_near, z_far);
-            }
-            const auto eye_position = glm::make_vec3(transform.position);
-            const auto up = glm::make_vec3(camera.direction.up);
-            const auto target = glm::make_vec3(camera.target);
-            view = glm::lookAt(eye_position, target, up);
-        }
-
-        //rdx.set_polygon_mode(RenderContext::PolygonFaceType::eFrontAndBack, RenderContext::PolygonMode::eLine);
-        geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
-            {
-                if (mesh_component.disable)
-                {
-                    return;
-                }
-                if (mesh_component.geometry == ENGINE_INVALID_OBJECT_HANDLE)
-                {
-                    log::log(log::LogLevel::eError, fmt::format("Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n"));
-                    return;
-                }
-                const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material ];
-
-                shader_simple_.bind();
-                shader_simple_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
-                shader_simple_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
-                shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
-                shader_simple_.set_uniform_mat_f4("model", transform_component.local_to_world);
-
-                auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
-                if (texture_diffuse_idx > textures.size())
-                {
-                    log::log(log::LogLevel::eError, fmt::format("Texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
-                    texture_diffuse_idx = 0;  //ToDo: point to default texture
-                }
-                shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
-
-                geometries[mesh_component.geometry].bind();
-                geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
-
-			}
-		);
-
-        skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
-            engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
-            {
-                if (mesh_component.disable)
-                {
-                    return;
-                }
-                const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
-
-                shader_vertex_skinning_.bind();
-                shader_vertex_skinning_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
-                shader_vertex_skinning_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
-                shader_vertex_skinning_.set_uniform_f4("diffuse_color", material.diffuse_color);
-                shader_vertex_skinning_.set_uniform_mat_f4("model", transform_component.local_to_world);
-
-                const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
-                shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
-
-                const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
-                for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
-                {
-                    const auto& bone_entity = static_cast<entt::entity>(skin_component.bones[i]);
-                    if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
+                ENGINE_PROFILE_SECTION_N("geometry_renderer");
+                geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
                     {
-                        continue;
+                        if (mesh_component.disable)
+                        {
+                            return;
+                        }
+                        if (mesh_component.geometry == ENGINE_INVALID_OBJECT_HANDLE)
+                        {
+                            log::log(log::LogLevel::eError, fmt::format("Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n"));
+                            return;
+                        }
+                        const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
+
+                        shader_simple_.bind();
+                        shader_simple_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
+                        shader_simple_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
+                        shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
+                        shader_simple_.set_uniform_mat_f4("model", transform_component.local_to_world);
+
+                        auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
+                        if (texture_diffuse_idx > textures.size())
+                        {
+                            log::log(log::LogLevel::eError, fmt::format("Texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
+                            texture_diffuse_idx = 0;  //ToDo: point to default texture
+                        }
+                        shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+
+                        geometries[mesh_component.geometry].bind();
+                        geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
+
                     }
-
-                    if (has_component<engine_bone_component_t>(bone_entity) == false)
-                    {
-                        log::log(log::LogLevel::eError, fmt::format("Bone entity does not have bone component. Are you sure you are doing valid thing?\n"));
-                        skin_component.bones[i] = ENGINE_INVALID_GAME_OBJECT_ID;
-                        continue;
-                    }
-                    const auto& bone_component = get_component<engine_bone_component_t>(bone_entity);
-                    const auto& bone_transform = get_component<engine_tranform_component_t>(bone_entity);
-                    const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
-                    const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
-                    const auto per_bone_final_transform = inverse_transform * bone_matrix;
-                    const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
-                    shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
-                }
-
-                geometries[mesh_component.geometry].bind();
-                geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
-
+                );
             }
-        );
-        if (physics_world_.is_debug_drawer_enabled())
-        {
-            physics_world_.debug_draw(view, projection);
+
+            {
+                ENGINE_PROFILE_SECTION_N("skinned_geometry_renderer");
+                skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
+                    engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
+                    {
+                        if (mesh_component.disable)
+                        {
+                            return;
+                        }
+                        const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
+
+                        shader_vertex_skinning_.bind();
+                        shader_vertex_skinning_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
+                        shader_vertex_skinning_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
+                        shader_vertex_skinning_.set_uniform_f4("diffuse_color", material.diffuse_color);
+                        shader_vertex_skinning_.set_uniform_mat_f4("model", transform_component.local_to_world);
+
+                        const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
+                        shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+
+                        const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
+                        for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
+                        {
+                            const auto& bone_entity = static_cast<entt::entity>(skin_component.bones[i]);
+                            if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
+                            {
+                                continue;
+                            }
+
+                            if (has_component<engine_bone_component_t>(bone_entity) == false)
+                            {
+                                log::log(log::LogLevel::eError, fmt::format("Bone entity does not have bone component. Are you sure you are doing valid thing?\n"));
+                                skin_component.bones[i] = ENGINE_INVALID_GAME_OBJECT_ID;
+                                continue;
+                            }
+                            const auto& bone_component = get_component<engine_bone_component_t>(bone_entity);
+                            const auto& bone_transform = get_component<engine_tranform_component_t>(bone_entity);
+                            const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
+                            const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
+                            const auto per_bone_final_transform = inverse_transform * bone_matrix;
+                            const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
+                            shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
+                        }
+
+                        geometries[mesh_component.geometry].bind();
+                        geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
+
+                    }
+                );
+            }
+
+            if (physics_world_.is_debug_drawer_enabled())
+            {
+                physics_world_.debug_draw(view, projection);
+            }
         }
-    }
+        }
     return ENGINE_RESULT_CODE_OK;
 }
 

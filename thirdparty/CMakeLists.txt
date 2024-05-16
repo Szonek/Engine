@@ -17,6 +17,9 @@ add_subdirectory(glm)
 # entt
 add_subdirectory(entt)
 
+# profiler
+add_subdirectory(tracy-0.10)
+
 # rapidJson
 add_subdirectory(rapidjson)
 

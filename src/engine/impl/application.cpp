@@ -18,7 +18,7 @@
 #include <span>
 #include <iostream>
 
-
+#include "profiler.h"
 
 namespace
 {
@@ -308,6 +308,7 @@ engine_application_frame_end_info_t engine::Application::end_frame()
     on_frame_end();
     ui_manager_.update_state_and_render();
     rdx_.end_frame();
+    ENGINE_PROFILE_FRAME;
 	engine_application_frame_end_info_t ret{};
 	//ret.success = !glfwWindowShouldClose(rdx_.get_glfw_window());;
     ret.success = true;

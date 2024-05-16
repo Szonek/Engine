@@ -3,6 +3,7 @@
 #include "scene.h"
 #include "math_helpers.h"
 #include "logger.h"
+#include "profiler.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_sdl3.h"
@@ -96,6 +97,7 @@ inline void traverse_hierarchy(entity_node_t* node, std::function<void(entity_no
 
 inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_context_t& ctx)
 {
+    ENGINE_PROFILE_SECTION_N("editor-display_node");
     node->displayed = true;
     uint32_t dispaly_flags = ctx.get_selected_entity() == node->entity ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None;
     //dispaly_flags |= ImGuiTreeNodeFlags_DefaultOpen;
@@ -194,6 +196,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_co
 template<typename T>
 inline void display_component(std::string_view name, engine::Scene* scene, entt::entity entity, std::function<bool(T& comp)> fn)
 {
+    ENGINE_PROFILE_SECTION_N("editor-display_component");
     const bool has_component = scene->has_component<T>(entity);
     if (!has_component)
     {
@@ -415,6 +418,7 @@ bool display_camera_component(engine_camera_component_t& c)
 
 void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
 {
+    ENGINE_PROFILE_SECTION_N("editor-render_scene_hierarchy_panel");
     // build memory with all the entites
     std::map<entt::entity, entity_node_t> entity_map;
     for (auto e : scene->get_all_entities())
@@ -576,6 +580,7 @@ void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
 
 void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_time)
 {
+    ENGINE_PROFILE_SECTION_N("editor-on_scene_update_pre");
     if (editor_controlling_scene_)
     {
         camera_context_.on_scene_update_pre(scene, delta_time);
@@ -584,6 +589,7 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
 
 void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_time)
 {
+    ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
     camera_context_.on_scene_update_post(scene, delta_time);
     render_scene_hierarchy_panel(scene, delta_time);
 }

@@ -10,7 +10,12 @@
 #define GLAD_GL_IMPLEMENTATION
 #include <glad/gl.h>
 #endif
+#include "profiler.h"
 
+#include "tracy/TracyOpenGL.hpp"
+#define ENGINE_PROFILER_GPU_CONTEXT TracyGpuContext
+#define ENGINE_PROFILER_GPU_SWAP_WINDOW TracyGpuCollect
+#define ENGINE_PROFILER_GPU_SECTION(x) TracyGpuZone(x)
 
 #include <SDL3/SDL.h>
 
@@ -538,6 +543,7 @@ void engine::Geometry::bind() const
 
 void engine::Geometry::draw(Mode mode) const
 {
+    ENGINE_PROFILER_GPU_SECTION("Draw geometry");
 	std::uint32_t gl_mode = 0;
 	switch (mode)
 	{
@@ -563,6 +569,7 @@ void engine::Geometry::draw(Mode mode) const
 
 void engine::Geometry::draw_instances(Mode mode, std::uint32_t instance_count) const
 {
+    ENGINE_PROFILER_GPU_SECTION("Draw geometry instances");
     std::uint32_t gl_mode = 0;
     switch (mode)
     {
@@ -717,6 +724,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     }
 #endif
     context_ = SDL_GL_CreateContext(window_);
+
     if (!context_)
     {
         log::log(log::LogLevel::eCritical, fmt::format("Failed to create OGL context: Error: {}\n", SDL_GetError()));
@@ -784,6 +792,10 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     // enable depth test
     glEnable(GL_DEPTH_TEST);
     //glEnable(GL_BLEND);
+
+
+    // profiler init
+    ENGINE_PROFILER_GPU_CONTEXT;
 }
 
 engine::RenderContext::RenderContext(RenderContext&& rhs) noexcept
@@ -936,7 +948,7 @@ void engine::RenderContext::end_frame()
 {
     //ui_rml_gl3_renderer_->EndFrame();
     SDL_GL_SwapWindow(window_);
-
+    ENGINE_PROFILER_GPU_SWAP_WINDOW;
 	// process errors
 #if _DEBUG
 	//GLenum err;
