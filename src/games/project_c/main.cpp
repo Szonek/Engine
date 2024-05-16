@@ -389,6 +389,10 @@ int main(int argc, char** argv)
     load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, -1.0f);
     load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, 0.0f);
     load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, 1.0f);
+
+    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 2.5f, -1.0f);
+    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 2.5f, 0.0f);
+    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 2.5f, 1.0f);
     if (!load_model)
     {
         log(fmt::format("Loading model failed!\n"));
@@ -398,12 +402,13 @@ int main(int argc, char** argv)
     std::mt19937 rng(42);
     std::uniform_int_distribution<std::mt19937::result_type> dist6(0, 1);
 
-    const std::int32_t map_border_distance = 9;
-    for (std::int32_t x = -map_border_distance; x <= map_border_distance; x++)
+    const std::int32_t map_border_distance_x = 9;
+    const std::int32_t map_border_distance_z = 3;
+    for (std::int32_t x = -map_border_distance_x; x <= map_border_distance_x; x++)
     {
-        for (std::int32_t z = -map_border_distance; z <= map_border_distance; z++)
+        for (std::int32_t z = -map_border_distance_z; z <= map_border_distance_z; z++)
         {
-            if (x == -map_border_distance || x == map_border_distance || z == -map_border_distance || z == map_border_distance)
+            if (x == -map_border_distance_x || x == map_border_distance_x || z == -map_border_distance_z || z == map_border_distance_z)
             {
                 load_model = project_c::parse_model_info_and_create_script<project_c::Wall>(model_info_wall, scene, x, z);
             }

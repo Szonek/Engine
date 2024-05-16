@@ -136,6 +136,8 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
         ret.collision_shape->calculateLocalInertia(rigid_body.mass, local_inertia);
     }
 
+
+
     btTransform transform_init;
     transform_init.setIdentity();
     transform_init.setOrigin(btVector3(transform.position[0], transform.position[1], transform.position[2]));
@@ -151,6 +153,12 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
     {
         ret.rigid_body->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
     }
+    //if (body_index == 3)
+    //{
+    //    // dont allow rigid body with index 3 to be pushed by other objects
+    //    ret.rigid_body->setAngularFactor(0.0f);
+    //    ret.rigid_body->setLinearFactor(btVector3(0.0f, 0.0f, 0.0f));
+    //}
 
     //if (rigid_body.mass == 0.0f)
     //{
