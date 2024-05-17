@@ -355,23 +355,23 @@ public:
 
     void update(float dt)
     {
+        if (hp < 0)
+        {
+            my_scene_->unregister_script(this);
+            return;
+        }
         anim_controller_.update(dt);
         if(anim_controller_.is_active_animation(attack_right_ ? "attack-melee-right" : "attack-melee-left"))
         {
             return;
-        }
-        const auto scene = my_scene_->get_handle();
-        const auto app = my_scene_->get_app_handle();
-
-        if (hp < 0)
-        {
-            my_scene_->unregister_script(this);
         }
         else
         {
             anim_controller_.set_active_animation("idle");
 
         }
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
         {
             const auto player = get_game_objects_with_name(scene, "solider")[0];
             auto tc = engineSceneGetTransformComponent(scene, go_);
