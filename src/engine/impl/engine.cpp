@@ -188,7 +188,7 @@ engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_appli
 	return app->begine_frame();
 }
 
-engine_result_code_t engineApplicationFrameSceneUpdateGraphics(engine_application_t handle, engine_scene_t scene, float delta_time)
+engine_result_code_t engineApplicationFrameSceneUpdate(engine_application_t handle, engine_scene_t scene, float delta_time)
 {
     if (!handle && !scene)
     {

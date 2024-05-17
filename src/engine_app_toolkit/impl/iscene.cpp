@@ -10,9 +10,9 @@
 
 namespace
 {
-engine_result_code_t update_graphics(engine_application_t app, engine_scene_t scene, float dt)
+engine_result_code_t update_scene(engine_application_t app, engine_scene_t scene, float dt)
 {
-    auto engine_error_code = engineApplicationFrameSceneUpdateGraphics(app, scene, dt);
+    auto engine_error_code = engineApplicationFrameSceneUpdate(app, scene, dt);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         log(fmt::format("Scene update failed. Exiting.\n"));
@@ -188,7 +188,7 @@ engine_result_code_t engine::IScene::update(float dt)
     propagate_collisions_events(app_, scene_, scripts_);
 
     update_scripts(scripts_, dt);
-    update_graphics(app_, scene_, dt);
+    update_scene(app_, scene_, dt);
 
     update_hook_end();
 
