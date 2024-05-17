@@ -19,8 +19,6 @@ public:
     ~Scene();
 
     void enable_physics_debug_draw(bool enable);
-
-    engine_result_code_t physics_update(float dt);
     engine_result_code_t update(float dt, std::span<const class Texture2D> textures, 
         std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials);
 
@@ -84,6 +82,9 @@ public:
     void set_physcis_gravity(std::array<float, 3> g);
     void get_physcis_collisions_list(const engine_collision_info_t*& ptr_first, size_t* count);
     engine_ray_hit_info_t raycast_into_physics_world(const engine_ray_t& ray, float max_distance);
+
+private:
+    engine_result_code_t physics_update(float dt);
 
 private:
     RenderContext& rdx_;

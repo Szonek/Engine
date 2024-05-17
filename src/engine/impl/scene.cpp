@@ -255,6 +255,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
     std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials)
 {
     ENGINE_PROFILE_SECTION_N("scene_update");
+    physics_update(dt);
     class FBOFrameContext
     {
     public:

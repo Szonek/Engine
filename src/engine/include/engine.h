@@ -486,7 +486,6 @@ ENGINE_API bool engineApplicationGetFingerInfo(engine_application_t handle, engi
 
 //frame handling
 ENGINE_API engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_application_t handle);
-ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpdatePhysics(engine_application_t handle, engine_scene_t scene, float delta_time);
 ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpdateGraphics(engine_application_t handle, engine_scene_t scene, float delta_time);
 ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engine_application_t handle);
 

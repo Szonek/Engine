@@ -188,17 +188,6 @@ engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_appli
 	return app->begine_frame();
 }
 
-engine_result_code_t engineApplicationFrameSceneUpdatePhysics(engine_application_t handle, engine_scene_t scene, float delta_time)
-{
-    if (!handle && !scene)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    //auto* app = application_cast(handle);
-    auto* scene_typed = scene_cast(scene);
-    return scene_typed->physics_update(delta_time);
-}
-
 engine_result_code_t engineApplicationFrameSceneUpdateGraphics(engine_application_t handle, engine_scene_t scene, float delta_time)
 {
     if (!handle && !scene)
