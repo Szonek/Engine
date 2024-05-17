@@ -255,6 +255,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
     std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials)
 {
     ENGINE_PROFILE_SECTION_N("scene_update");
+    physics_update(dt);
     class FBOFrameContext
     {
     public:
@@ -541,8 +542,8 @@ void engine::Scene::get_physcis_collisions_list(const engine_collision_info_t*& 
     *count = collisions.size();
 }
 
-engine_ray_hit_info_t engine::Scene::raycast_into_physics_world(const engine_ray_t& ray, float max_distance)
+engine_ray_hit_info_t engine::Scene::raycast_into_physics_world(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance)
 {
-    return physics_world_.raycast(ray, max_distance);
+    return physics_world_.raycast(ray, ignore_list, max_distance);
 }
 

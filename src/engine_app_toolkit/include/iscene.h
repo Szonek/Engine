@@ -53,22 +53,14 @@ public:
     T* register_script(TArgs&&... args)
     {
         scripts_register_queue_.push_back(new T(this, args...));
-        //std::unique_ptr<IScript> script = std::make_unique<T>(this);
-        //const auto game_object = script->get_game_object();
-        //scripts_[game_object] = std::move(script);
         return (T*)scripts_register_queue_.back();
-        //return (T*)scripts_[game_object].get();
     }
 
     template<typename T>
     T* register_script(T* t)
     {
         scripts_register_queue_.push_back(t);
-        //std::unique_ptr<IScript> script = std::make_unique<T>(this);
-        //const auto game_object = script->get_game_object();
-        //scripts_[game_object] = std::move(script);
         return (T*)scripts_register_queue_.back();
-        //return (T*)scripts_[game_object].get();
     }
 
     template<typename T>
