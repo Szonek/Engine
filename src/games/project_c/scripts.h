@@ -484,7 +484,6 @@ public:
     AttackTrigger(engine::IScene* my_scene, engine_game_object_t go)
         : BaseNode(my_scene, go, "attack-trigger")
     {
-
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
@@ -519,10 +518,6 @@ public:
                 break;
             }
         }
-
-        // WA 
-        // ToDo: fix me
-        my_scene_->register_script(this);
     }
 
     void activate()
@@ -583,7 +578,7 @@ public:
     Solider(engine::IScene* my_scene, engine_game_object_t go)
         : BaseNode(my_scene, go, "solider")
         , target_move_hit_({ENGINE_INVALID_GAME_OBJECT_ID})
-        , attack_trigger_(my_scene, engineSceneCreateGameObject(my_scene->get_handle()))
+        , attack_trigger_(nullptr)
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
@@ -608,6 +603,8 @@ public:
         rbc.mass = 100000.0f;
         engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 
+        // add attack trigger
+        attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(my_scene->get_handle()));
     }
 
     void update(float dt)
@@ -692,7 +689,7 @@ public:
         if (engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT))
         {
             anim_controller_.set_active_animation("attack-melee-right");
-            attack_trigger_.activate();
+            attack_trigger_->activate();
             //sword_script->set_active(true);
         }
         //if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_N))
@@ -709,9 +706,9 @@ public:
         }
     }
 
-    private:
-        engine_ray_hit_info_t target_move_hit_{};
-        AttackTrigger attack_trigger_;
+private:
+    engine_ray_hit_info_t target_move_hit_{};
+    AttackTrigger* attack_trigger_;
 };
 
 }
