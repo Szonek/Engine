@@ -586,11 +586,23 @@ class Solider : public BaseNode
 private:
     enum class States
     {
-        DECISION_MAKE = 0,
-        IDLE = 1,
+        IDLE = 0,
         ATTACK,
-        DIE,
-        MOVE
+        MOVE,
+    };
+
+    struct GlobalStateData
+    {
+        engine_ray_hit_info_t last_mouse_hit = {};
+    };
+
+    struct AttackStateData
+    {
+        bool animation_started = false;
+        inline const char* get_animation_name() const
+        {
+            return "attack-melee-right";
+        }
     };
 
 public:
@@ -598,6 +610,7 @@ public:
         : BaseNode(my_scene, go, "solider")
         , target_move_hit_({ENGINE_INVALID_GAME_OBJECT_ID})
         , attack_trigger_(nullptr)
+        , state_(States::IDLE)
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
@@ -628,7 +641,92 @@ public:
 
     void update(float dt)
     {
-#if 0
+#if 1
+        anim_controller_.update(dt);
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+
+
+        auto rotate_towards_global_target = [&]()
+        {
+            auto tc = engineSceneGetTransformComponent(scene, go_);
+            auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(global_data_.last_mouse_hit.position[0], global_data_.last_mouse_hit.position[1], global_data_.last_mouse_hit.position[2]));
+            std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+        };
+
+        const auto lmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT);
+        const auto rmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT);
+        if (lmb || rmb)
+        {
+            state_ = lmb ? States::MOVE : States::ATTACK;
+            const auto ray = get_ray_from_mouse_position(app, scene, get_active_camera_game_objects(scene)[0]);
+            const auto hit_info = engineScenePhysicsRayCast(scene, &ray, 1000.0f);
+            global_data_.last_mouse_hit = hit_info;
+        }
+        switch (state_)
+        {
+        case States::IDLE:
+        {
+            anim_controller_.set_active_animation("idle");
+            break;
+        }
+        case States::ATTACK:
+        {
+            if (attack_data_.animation_started)
+            {
+                if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
+                {
+                    state_ = States::IDLE;
+                    attack_data_ = {};
+                }
+            }
+            else
+            {
+                rotate_towards_global_target();
+                anim_controller_.set_active_animation(attack_data_.get_animation_name());
+                attack_data_.animation_started = true;
+            }
+
+            break;
+        }
+        case States::MOVE:
+        {
+            const float speed_cooef = 0.0025f;
+            const float speed = speed_cooef * dt;
+
+            auto tc = engineSceneGetTransformComponent(scene, go_);
+            const auto distance = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(global_data_.last_mouse_hit.position[0], global_data_.last_mouse_hit.position[2]));
+            if (distance < 0.05f)
+            {
+                state_ = States::IDLE;
+            }
+            else
+            {
+                anim_controller_.set_active_animation("walk");
+
+                rotate_towards_global_target();
+                auto tc = engineSceneGetTransformComponent(scene, go_);
+                const float speed_cooef = 0.0025f;
+                const float speed = speed_cooef * dt;
+                // move
+                const glm::quat rotation = glm::make_quat(tc.rotation); // Convert the rotation to a glm::quat
+                const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f); // Get the forward direction vector
+                const glm::vec3 right = glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)); // Calculate the right direction vector
+                tc.position[0] += forward.x * speed;
+                //tc.position[1] += forward.y * speed;  // dont go up!
+                tc.position[2] += forward.z * speed;
+                engineSceneUpdateTransformComponent(scene, go_, &tc);
+            }
+
+            break;
+        }
+        default:
+        {
+            engineLog("Unknown solider state\n");
+            break;
+        }
+        }
 #else
         anim_controller_.update(dt);
         if (anim_controller_.is_active_animation("attack-melee-right"))
@@ -731,6 +829,10 @@ public:
 private:
     engine_ray_hit_info_t target_move_hit_{};
     AttackTrigger* attack_trigger_;
+    States state_;
+    AttackStateData attack_data_;
+    GlobalStateData global_data_;
+
 };
 
 }
