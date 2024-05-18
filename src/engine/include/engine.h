@@ -513,7 +513,7 @@ ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_appl
 // physics 
 ENGINE_API void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3]);
 ENGINE_API void engineScenePhysicsGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
-ENGINE_API engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_ray_t* ray, float max_distance);
+ENGINE_API engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance);
 
 // ui
 // create data handel first, before loading document!

@@ -11,6 +11,7 @@
 
 #include <fmt/format.h>
 #include <random>
+#include <array>
 
 namespace
 {
@@ -657,10 +658,14 @@ public:
         const auto rmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT);
         if (lmb || rmb)
         {
-            state_ = lmb ? States::MOVE : States::ATTACK;
             const auto ray = get_ray_from_mouse_position(app, scene, get_active_camera_game_objects(scene)[0]);
-            const auto hit_info = engineScenePhysicsRayCast(scene, &ray, 1000.0f);
-            global_data_.last_mouse_hit = hit_info;
+            const std::array<engine_game_object_t, 1> raycast_ignore_list = { attack_trigger_->get_game_object() };
+            const auto hit_info = engineScenePhysicsRayCast(scene, raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000.0f);
+            if (hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID)
+            {
+                global_data_.last_mouse_hit = hit_info;
+                state_ = lmb ? States::MOVE : States::ATTACK;
+            }
         }
 
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_1))

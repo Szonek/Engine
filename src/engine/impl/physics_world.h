@@ -82,7 +82,7 @@ public:
 
     void set_gravity(std::span<const float> g);
 
-    engine_ray_hit_info_t raycast(const engine_ray_t& ray, float max_distance);
+    engine_ray_hit_info_t raycast(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance);
 
 private:
     class DebugDrawer : public btIDebugDraw

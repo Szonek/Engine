@@ -151,7 +151,7 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
     {
         ret.rigid_body->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
     }
-
+    //dynamics_world_->getCollisionWorld().
     //if (rigid_body.mass == 0.0f)
     //{
     //    ret.rigid_body->setCollisionFlags(ret.rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
@@ -228,11 +228,36 @@ void engine::PhysicsWorld::set_gravity(std::span<const float> g)
     dynamics_world_->setGravity(btVector3(g[0], g[1], g[2]));
 }
 
-engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, float max_distance)
+engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance)
 {
-    btCollisionWorld::ClosestRayResultCallback closest_result(
+    struct RayWithIgnoreResultCallback : public btCollisionWorld::ClosestRayResultCallback
+    {
+        RayWithIgnoreResultCallback(const btVector3& rayFromWorld, const btVector3& rayToWorld, std::span<const engine_game_object_t>& ignore_list)
+            : btCollisionWorld::ClosestRayResultCallback(rayFromWorld, rayToWorld)
+            , ignore_list_(ignore_list)
+        {
+        }
+
+
+        virtual btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace)
+        {
+            for(const auto& go : ignore_list_)
+            {
+                if (rayResult.m_collisionObject->getUserIndex() == go)
+                    return 1.0;
+            }
+
+            return ClosestRayResultCallback::addSingleResult(rayResult, normalInWorldSpace);
+        }
+
+    protected:
+        std::span<const engine_game_object_t>& ignore_list_;
+    };
+
+    RayWithIgnoreResultCallback closest_result(
         btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
-        btVector3(ray.direction[0], ray.direction[1], ray.direction[2]));
+        btVector3(ray.direction[0], ray.direction[1], ray.direction[2]),
+        ignore_list);
     dynamics_world_->rayTest(
         btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
         btVector3(ray.direction[0], ray.direction[1], ray.direction[2]),
