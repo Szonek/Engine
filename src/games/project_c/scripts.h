@@ -311,10 +311,26 @@ public:
 
 class Enemy : public BaseNode
 {
+private:
+    enum class States
+    {
+        DECISION_MAKE = 0,
+        IDLE = 1,
+        ATTACK,
+        DIE,
+        MOVE
+    };
+
+    struct IdleStateData {};
+    struct AttackStateData{};
+    struct DyingStateData{};
+    struct MoveStateData{};
+
 public:
     std::int32_t hp = 20;
     Enemy(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z)
         : BaseNode(my_scene, go, "enemy")
+        , state_(States::DECISION_MAKE)
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
@@ -355,71 +371,92 @@ public:
 
     void update(float dt)
     {
-        if (hp < 0)
-        {
-            my_scene_->unregister_script(this);
-            return;
-        }
         anim_controller_.update(dt);
-        if(anim_controller_.is_active_animation(attack_right_ ? "attack-melee-right" : "attack-melee-left"))
-        {
-            return;
-        }
-        else
-        {
-            anim_controller_.set_active_animation("idle");
-
-        }
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
+
+        const auto player = get_game_objects_with_name(scene, "solider")[0];
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        auto ec = engineSceneGetTransformComponent(scene, player);
+        const auto distance_to_player = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
+
+        switch (state_)
         {
-            const auto player = get_game_objects_with_name(scene, "solider")[0];
-            auto tc = engineSceneGetTransformComponent(scene, go_);
-            auto ec = engineSceneGetTransformComponent(scene, player);
-            // rotate toward enemy
-
-            // distance to player - if small enough move toward player
-            const auto distance = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
-            if (distance <= 3.0f)
+        case States::DECISION_MAKE:
+        {
+            if (hp <= 0)
             {
-                triggered_ = true;
+                state_ = States::DIE;
+                anim_controller_.set_active_animation("die");
             }
-            else if (distance > 5.0f)
+            else
             {
-                triggered_ = false;
-            }
-            if(triggered_)
-            {
-
-                auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
-                // use slerp to interpolate between current rotation and target rotation
-                quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
-                std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
-
-                //attack or move to player
-                if (distance < 0.8f)
+                if (distance_to_player < 0.8f)
                 {
-                    attack_right_ = !attack_right_;
-                    anim_controller_.set_active_animation(attack_right_ ? "attack-melee-right" : "attack-melee-left");
+                    state_ = States::ATTACK;
+                    anim_controller_.set_active_animation("attack-melee-right");
+                }
+                else if (distance_to_player < 3.0f)
+                {
+                    state_ = States::MOVE;
                 }
                 else
                 {
-                    const float speed_cooef = 0.0005f;
-                    const float speed = speed_cooef * dt;
-                    const glm::vec3 forward = glm::normalize(quat * glm::vec3(0.0f, 0.0f, 1.0f));
-                    tc.position[0] += forward.x * speed;
-                    //tc.position[1] += forward.y * speed;
-                    tc.position[2] += forward.z * speed;
+                    state_ = States::IDLE;
                 }
-
-                engineSceneUpdateTransformComponent(scene, go_, &tc);
             }
+            break;
+        }
+        case States::IDLE:
+        {
+            anim_controller_.set_active_animation("idle");
+            state_ = States::DECISION_MAKE;
+        }
+        case States::ATTACK:
+        {
+            if (!anim_controller_.is_active_animation("attack-melee-right"))
+            {
+                state_ = States::DECISION_MAKE;
+            }           
+            break;
+        }
+        case States::DIE:
+        {
+            if (!anim_controller_.is_active_animation("die"))
+            {
+                my_scene_->unregister_script(this);
+            }         
+            break;
+        }
+        case States::MOVE:
+        {
+            anim_controller_.set_active_animation("walk");
+
+            auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
+            quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
+            std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
+            const float speed_cooef = 0.0005f;
+            const float speed = speed_cooef * dt;
+            const glm::vec3 forward = glm::normalize(quat * glm::vec3(0.0f, 0.0f, 1.0f));
+            tc.position[0] += forward.x * speed;
+            //tc.position[1] += forward.y * speed;
+            tc.position[2] += forward.z * speed;
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+            state_ = States::DECISION_MAKE;
+            break;
+        }
+        default:
+        {
+            engineLog("Unknown enemy state\n");
+            break;
+        }
         }
     }
 
 private:
     bool triggered_ = false;
     bool attack_right_ = false;
+    States state_;
 };
 
 class Sword : public BaseNode
@@ -460,22 +497,6 @@ public:
             engineSceneUpdateParentComponent(scene, go_, &pc);
         }
     }
-
-    //void on_collision_enter(const collision_t& info) override
-    //{
-    //    auto* enemy = my_scene_->get_script<Enemy>(info.other);
-    //    if (active_ && enemy)
-    //    {
-    //       // engineLog(fmt::format("hit: {}\n", info.other).c_str());
-    //        enemy->hp -= 10;
-    //        active_ = false;
-    //    }
-    //}
-
-    //void set_active(bool value) { active_ = value; }
-
-//private:
-//    bool active_ = false;
 };
 
 class AttackTrigger : public BaseNode
@@ -531,7 +552,6 @@ public:
         {
             if (auto* enemy = my_scene_->get_script<Enemy>(info.other))
             {
-                engineLog("attack trigger active\n");
                 enemy->hp -= 10;
             }
         }
