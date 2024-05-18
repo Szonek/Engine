@@ -40,6 +40,18 @@ void update_parent_component(entt::registry& registry, entt::entity entity)
     engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has no more space for children. Are you sure you are doing valid thing?\n"));
 }
 
+struct camera_ubo_data_t
+{
+    glm::mat4 view;
+    glm::mat4 projection;
+};
+
+struct engine_camera_internal_component_t
+{
+    engine::UniformBuffer camera_ubo = engine::UniformBuffer(sizeof(camera_ubo_data_t));
+};
+
+
 
 engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : rdx_(rdx)
@@ -64,6 +76,7 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     entity_registry_.on_construct<engine_parent_component_t>().connect<&initialize_parent_component>();
     entity_registry_.on_construct<engine_name_component_t>().connect<&initialize_name_component>();
     entity_registry_.on_construct<engine_camera_component_t>().connect<&initialize_camera_component>();
+    entity_registry_.on_construct<engine_camera_component_t>().connect<&entt::registry::emplace<engine_camera_internal_component_t>>();
     entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
     entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
@@ -366,9 +379,9 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         ENGINE_PROFILE_SECTION_N("camera_loop");
         auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
-        auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t>();
+        auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, engine_camera_internal_component_t>();
 
-        for (auto [entity, camera, transform] : camera_view.each()) 
+        for (auto [entity, camera, transform, camera_internal] : camera_view.each()) 
         {
             if (!camera.enabled)
             {
@@ -405,8 +418,18 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 view = glm::lookAt(eye_position, target, up);
             }
 
+            // bind camera view and projection to the UBO buffer
+            {
+                ENGINE_PROFILE_SECTION_N("camera_ubo_update");
+                BufferMapContext<camera_ubo_data_t, UniformBuffer> camera_ubo(camera_internal.camera_ubo, false, true);
+                camera_ubo.data->view = view;
+                camera_ubo.data->projection = projection;
+            }
+
             {
                 ENGINE_PROFILE_SECTION_N("geometry_renderer");
+                shader_simple_.bind();
+                shader_simple_.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
                 geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
                     {
                         if (mesh_component.disable)
@@ -420,9 +443,6 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         }
                         const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
 
-                        shader_simple_.bind();
-                        shader_simple_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
-                        shader_simple_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
                         shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
                         shader_simple_.set_uniform_mat_f4("model", transform_component.local_to_world);
 
@@ -443,6 +463,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
             {
                 ENGINE_PROFILE_SECTION_N("skinned_geometry_renderer");
+                shader_vertex_skinning_.bind();
+                shader_vertex_skinning_.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
                 skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
                     engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
                     {
@@ -451,10 +473,6 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             return;
                         }
                         const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
-
-                        shader_vertex_skinning_.bind();
-                        shader_vertex_skinning_.set_uniform_mat_f4("view", { glm::value_ptr(view), sizeof(view) / sizeof(float) });
-                        shader_vertex_skinning_.set_uniform_mat_f4("projection", { glm::value_ptr(projection), sizeof(projection) / sizeof(float) });
                         shader_vertex_skinning_.set_uniform_f4("diffuse_color", material.diffuse_color);
                         shader_vertex_skinning_.set_uniform_mat_f4("model", transform_component.local_to_world);
 

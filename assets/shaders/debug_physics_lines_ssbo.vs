@@ -14,6 +14,8 @@ layout (binding = 2, std430) readonly buffer LinePacketSSBO
 {
 	DrawLinePacket data[];
 };
+
+
 out mediump vec3 line_color;
 
 void main()

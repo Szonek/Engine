@@ -72,9 +72,9 @@ public:
 	void set_uniform_f1(std::string_view name, const float host_data);
 	void set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data);
 	void set_uniform_mat_f4(std::string_view name, std::span<const float> host_data);
+	void set_uniform_block(std::string_view name, class UniformBuffer* buffer, std::uint32_t bind_index);
 
     void set_texture(std::string_view name, const class Texture2D* textur);
-    void set_ssbo(std::string_view name, const class ShaderStorageBuffer* buffer);
 
 private:
     std::int32_t get_resource_location(std::string_view name, std::int32_t resource_interface);

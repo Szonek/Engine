@@ -1,4 +1,4 @@
-#version 320 es
+#version 430
 
 layout (location = 0) in mediump vec3 in_vertex_position;
 layout (location = 1) in mediump vec2 in_vertex_tex_coord;
@@ -8,6 +8,10 @@ layout (location = 4) in mediump vec4 in_weights_0;
 
 out mediump vec2 out_uv;
 
+layout (binding = 1, std140) uniform CameraData
+{
+	mat4 view;
+    mat4 projection;
+};
+
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;

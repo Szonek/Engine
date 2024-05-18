@@ -1,4 +1,4 @@
-#version 320 es
+#version 430
 
 in mediump vec2 out_uv;
 

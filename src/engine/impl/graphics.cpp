@@ -197,7 +197,12 @@ void engine::Shader::set_uniform_ui2(std::string_view name, std::span<const std:
     glUniform2ui(loc, host_data[0], host_data[1]);
 }
 
-
+void engine::Shader::set_uniform_block(std::string_view name, UniformBuffer* buffer, std::uint32_t bind_index)
+{
+    const auto block_index = glGetUniformBlockIndex(program_, name.data());
+    glUniformBlockBinding(program_, block_index, bind_index);
+    buffer->bind(bind_index);
+}
 
 void engine::Shader::set_uniform_mat_f4(std::string_view name, std::span<const float> host_data)
 {
@@ -213,16 +218,6 @@ void engine::Shader::set_texture(std::string_view name, const Texture2D* texture
     std::int32_t bind_slot = 0;
     glGetUniformiv(program_, loc, &bind_slot);;
     texture->bind(static_cast<std::uint32_t>(bind_slot));
-}
-
-void engine::Shader::set_ssbo(std::string_view name, const ShaderStorageBuffer* buffer)
-{
-    assert(buffer && "[ERROR] Nullptr buffer ptr");
-    const auto loc = get_resource_location(name, GL_SHADER_STORAGE_BLOCK);
-    std::int32_t bind_slot = 0;
-    //glGetS
-    glGetUniformiv(program_, loc, &bind_slot);
-    buffer->bind(static_cast<std::uint32_t>(loc));
 }
 
 
@@ -1112,7 +1107,7 @@ engine::UniformBuffer::UniformBuffer(std::size_t size)
     glGenBuffers(1, &ubo_);
     bind();
     // GL_STATIC_DRAW? 
-    glBufferData(GL_UNIFORM_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
+    glBufferData(GL_UNIFORM_BUFFER, size, nullptr, GL_STATIC_DRAW);
     unbind();
 }
 
@@ -1143,20 +1138,20 @@ engine::UniformBuffer::~UniformBuffer()
 void engine::UniformBuffer::bind(std::uint32_t slot) const
 {
     assert(is_valid() && "Invalid uniform buffer object");
-    glBindBufferBase(GL_UNIFORM_BUFFER, 2, ubo_);
+    glBindBufferBase(GL_UNIFORM_BUFFER, slot, ubo_);
 }
 
 void* engine::UniformBuffer::map(bool read, bool write)
 {
     bind();
     void* ret =  glMapBuffer(GL_UNIFORM_BUFFER, GL_READ_WRITE);
-    unbind();
+    //unbind();
     return ret;
 }
 
 void engine::UniformBuffer::unmap()
 {
-    bind();
+    //bind();
     glUnmapBuffer(GL_UNIFORM_BUFFER);
     unbind();
 }
