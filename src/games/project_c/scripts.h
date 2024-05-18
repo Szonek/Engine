@@ -12,6 +12,7 @@
 #include <fmt/format.h>
 #include <random>
 #include <array>
+#include <chrono>
 
 namespace
 {
@@ -590,11 +591,60 @@ private:
         IDLE = 0,
         ATTACK,
         MOVE,
+        DODGE,
     };
 
     struct GlobalStateData
     {
         engine_ray_hit_info_t last_mouse_hit = {};
+    };
+
+    struct DodgeStateData
+    {
+        std::chrono::milliseconds dodge_timer_cooldown = std::chrono::milliseconds(0);
+        std::chrono::milliseconds dodge_timer_animation = std::chrono::milliseconds(0);
+        
+        void update(float dt)
+        {
+            if (animation_playing_)
+            {
+                dodge_timer_animation += std::chrono::milliseconds(static_cast<std::int64_t>(dt));
+            }
+            if (cooldown_playing_)
+            {
+                dodge_timer_cooldown += std::chrono::milliseconds(static_cast<std::int64_t>(dt));
+            }
+
+            if (dodge_timer_animation >= std::chrono::milliseconds(150))
+            {
+                dodge_timer_animation = std::chrono::milliseconds(0);
+                animation_playing_ = false;
+            }
+            if (dodge_timer_cooldown >= std::chrono::milliseconds(3000))
+            {
+                dodge_timer_cooldown = std::chrono::milliseconds(0);
+                cooldown_playing_ = false;
+            }
+        }
+
+        inline bool animation_is_playing() const
+        {
+            return animation_playing_;
+        }
+
+        inline void activate()
+        {
+            animation_playing_ = true;
+            cooldown_playing_  = true;
+        }
+
+        inline bool can_dodge() const
+        {
+            return !cooldown_playing_;
+        }
+    private:
+        bool animation_playing_ = false;
+        bool cooldown_playing_ = false;
     };
 
     struct AttackStateData
@@ -642,6 +692,7 @@ public:
     void update(float dt)
     {
         anim_controller_.update(dt);
+        dodge_data_.update(dt);
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
@@ -656,7 +707,7 @@ public:
 
         const auto lmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT);
         const auto rmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT);
-        if (lmb || rmb)
+        if ((lmb || rmb) && state_ != States::DODGE)
         {
             const auto ray = get_ray_from_mouse_position(app, scene, get_active_camera_game_objects(scene)[0]);
             const std::array<engine_game_object_t, 1> raycast_ignore_list = { attack_trigger_->get_game_object() };
@@ -666,6 +717,13 @@ public:
                 global_data_.last_mouse_hit = hit_info;
                 state_ = lmb ? States::MOVE : States::ATTACK;
             }
+        }
+        
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_SPACE) && dodge_data_.can_dodge())
+        {
+            state_ = States::DODGE;
+            dodge_data_.activate();
+            const auto ray = get_ray_from_mouse_position(app, scene, get_active_camera_game_objects(scene)[0]);
         }
 
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_1))
@@ -688,6 +746,29 @@ public:
         case States::IDLE:
         {
             anim_controller_.set_active_animation("idle");
+            break;
+        }
+        case States::DODGE:
+        {
+            if (!dodge_data_.animation_is_playing())
+            {
+                state_ = States::IDLE;
+            }
+            else
+            {
+                anim_controller_.set_active_animation("crouch");
+                const float speed_cooef = 0.015f;
+                const float speed = speed_cooef * dt;
+                auto tc = engineSceneGetTransformComponent(scene, go_);
+                // move
+                const glm::quat rotation = glm::make_quat(tc.rotation); // Convert the rotation to a glm::quat
+                const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f); // Get the forward direction vector
+                const glm::vec3 right = glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)); // Calculate the right direction vector
+                tc.position[0] += forward.x * speed;
+                //tc.position[1] += forward.y * speed;  // dont go up!
+                tc.position[2] += forward.z * speed;
+                engineSceneUpdateTransformComponent(scene, go_, &tc);
+            }
             break;
         }
         case States::ATTACK:
@@ -754,6 +835,7 @@ private:
     States state_;
     AttackStateData attack_data_;
     GlobalStateData global_data_;
+    DodgeStateData dodge_data_;
 
 };
 
