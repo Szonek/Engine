@@ -12,6 +12,7 @@
 #include <fmt/format.h>
 #include <random>
 #include <array>
+#include <chrono>
 
 namespace
 {
@@ -590,11 +591,45 @@ private:
         IDLE = 0,
         ATTACK,
         MOVE,
+        DODGE,
     };
 
     struct GlobalStateData
     {
         engine_ray_hit_info_t last_mouse_hit = {};
+    };
+
+    struct DodgeStateData
+    {
+        std::chrono::milliseconds dodge_timer_cooldown = std::chrono::milliseconds(500);
+        std::chrono::milliseconds dodge_timer_animation = std::chrono::milliseconds(0);
+        
+        bool activated = false;
+
+        void update(float dt)
+        {
+            //if (activated)
+            //{
+            //    dodge_timer_cooldown += std::chrono::milliseconds(static_cast<std::int64_t>(dt));
+            //    if(dodge_timer_cooldown >= std::chrono::milliseconds(500))
+            //    {
+            //        dodge_timer_cooldown = std::chrono::milliseconds(0);
+            //        activated = false;
+            //    }
+            //}
+            
+        }
+
+        inline bool can_dodge() const
+        {
+            return true;
+            //return dodge_timer >= dodge_cooldown;
+        }
+
+        void reset()
+        {
+            //dodge_timer = std::chrono::milliseconds(0);
+        }
     };
 
     struct AttackStateData
@@ -642,6 +677,7 @@ public:
     void update(float dt)
     {
         anim_controller_.update(dt);
+        dodge_data_.update(dt);
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
@@ -667,6 +703,11 @@ public:
                 state_ = lmb ? States::MOVE : States::ATTACK;
             }
         }
+        
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_SPACE) && dodge_data_.can_dodge())
+        {
+            state_ = States::DODGE;
+        }
 
         if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_1))
         {
@@ -688,6 +729,25 @@ public:
         case States::IDLE:
         {
             anim_controller_.set_active_animation("idle");
+            break;
+        }
+        case States::DODGE:
+        {
+            anim_controller_.set_active_animation("crouch");
+            auto tc = engineSceneGetTransformComponent(scene, go_);
+            const float speed_cooef = 0.015f;
+            const float speed = speed_cooef * dt;
+            // move
+            const glm::quat rotation = glm::make_quat(tc.rotation); // Convert the rotation to a glm::quat
+            const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f); // Get the forward direction vector
+            const glm::vec3 right = glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)); // Calculate the right direction vector
+            tc.position[0] += forward.x * speed;
+            //tc.position[1] += forward.y * speed;  // dont go up!
+            tc.position[2] += forward.z * speed;
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+            dodge_data_.reset();
+            state_ = States::IDLE;
             break;
         }
         case States::ATTACK:
@@ -754,6 +814,7 @@ private:
     States state_;
     AttackStateData attack_data_;
     GlobalStateData global_data_;
+    DodgeStateData dodge_data_;
 
 };
 
