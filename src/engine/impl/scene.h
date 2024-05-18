@@ -99,7 +99,7 @@ private:
 
     PhysicsWorld physics_world_;
 
-    Shader shader_simple_;
+    Shader shader_unlit;
     Shader shader_vertex_skinning_;
     Shader shader_full_screen_quad_;
 
