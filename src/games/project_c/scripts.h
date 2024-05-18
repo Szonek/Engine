@@ -525,45 +525,23 @@ public:
         is_active_ = true;
     }
 
-    void update(float dt) override
+    void on_collision_enter(const collision_t& info) override
     {
         if (is_active_)
         {
-            engineLog("attack trigger active\n");
-            auto scene = my_scene_->get_handle();
-            std::size_t collisions_count = 0;
-            const engine_collision_info_t* collisions = nullptr;
-            engineScenePhysicsGetCollisions(scene, &collisions_count, &collisions);
-            std::vector<engine_game_object_t> gos_already_hit;
-            for (auto i = 0; i < collisions_count; i++)
+            if (auto* enemy = my_scene_->get_script<Enemy>(info.other))
             {
-                const auto obj_a = collisions[i].object_a;
-                const auto obj_b = collisions[i].object_b;
-                if (obj_a != go_ && obj_b != go_)
-                {
-                    //ToDo: we need API to expose collisions with concrete game object
-                    continue;
-                }
-                auto* enemy_a = my_scene_->get_script<Enemy>(obj_a);
-                auto* enemy_b = my_scene_->get_script<Enemy>(obj_b);
-                Enemy* enemy = nullptr;
-                if (enemy_a || enemy_b)
-                {
-                    //engineLog("enemy hit!\n");
-                    enemy = enemy_a ? enemy_a : enemy_b;
-                }
-                if (enemy)
-                {
-                    //ToDo: WA hack to avoid multiple hits for the same enemy - physics shouldnt report diffeent collisions for 2 same objects?
-                    if (std::find(gos_already_hit.begin(), gos_already_hit.end(), enemy->get_game_object()) != gos_already_hit.end())
-                    {
-                        continue;
-                    }
-                    gos_already_hit.push_back(enemy->get_game_object());
-                    enemy->hp -= 10;
-                }
+                engineLog("attack trigger active\n");
+                enemy->hp -= 10;
             }
+        }
+    }
 
+    void update(float dt) override
+    {
+        // deactivate trigger after one frame?
+        if (is_active_)
+        {
             is_active_ = false;
         }
     }
