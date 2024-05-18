@@ -10,6 +10,7 @@
 
 
 #include <fmt/format.h>
+#include <random>
 
 namespace
 {
@@ -322,7 +323,14 @@ private:
     };
 
     struct IdleStateData {};
-    struct AttackStateData{};
+    struct AttackStateData
+    {
+        bool attack_with_right = false;
+        inline const char* get_animation_name() const
+        {
+            return attack_with_right ? "attack-melee-right" : "attack-melee-left";
+        }
+    };
     struct DyingStateData{};
     struct MoveStateData{};
 
@@ -394,7 +402,7 @@ public:
                 if (distance_to_player < 0.8f)
                 {
                     state_ = States::ATTACK;
-                    anim_controller_.set_active_animation("attack-melee-right");
+                    anim_controller_.set_active_animation(attack_data_.get_animation_name());
                 }
                 else if (distance_to_player < 3.0f)
                 {
@@ -414,10 +422,11 @@ public:
         }
         case States::ATTACK:
         {
-            if (!anim_controller_.is_active_animation("attack-melee-right"))
+            if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
             {
                 state_ = States::DECISION_MAKE;
-            }           
+                attack_data_.attack_with_right = !attack_data_.attack_with_right;
+            }        
             break;
         }
         case States::DIE:
@@ -457,6 +466,8 @@ private:
     bool triggered_ = false;
     bool attack_right_ = false;
     States state_;
+    AttackStateData attack_data_;
+
 };
 
 class Sword : public BaseNode
@@ -572,6 +583,16 @@ private:
 
 class Solider : public BaseNode
 {
+private:
+    enum class States
+    {
+        DECISION_MAKE = 0,
+        IDLE = 1,
+        ATTACK,
+        DIE,
+        MOVE
+    };
+
 public:
     Solider(engine::IScene* my_scene, engine_game_object_t go)
         : BaseNode(my_scene, go, "solider")
@@ -607,6 +628,8 @@ public:
 
     void update(float dt)
     {
+#if 0
+#else
         anim_controller_.update(dt);
         if (anim_controller_.is_active_animation("attack-melee-right"))
         {
@@ -702,6 +725,7 @@ public:
         {
             anim_controller_.set_active_animation("die");
         }
+#endif
     }
 
 private:
