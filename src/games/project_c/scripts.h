@@ -444,7 +444,7 @@ public:
             auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
             quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
             std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
-            const float speed_cooef = 0.0005f;
+            const float speed_cooef = 0.001f;
             const float speed = speed_cooef * dt;
             const glm::vec3 forward = glm::normalize(quat * glm::vec3(0.0f, 0.0f, 1.0f));
             tc.position[0] += forward.x * speed;
@@ -686,6 +686,7 @@ public:
                 rotate_towards_global_target();
                 anim_controller_.set_active_animation(attack_data_.get_animation_name());
                 attack_data_.animation_started = true;
+                attack_trigger_->activate();
             }
 
             break;
