@@ -608,7 +608,6 @@ private:
 public:
     Solider(engine::IScene* my_scene, engine_game_object_t go)
         : BaseNode(my_scene, go, "solider")
-        , target_move_hit_({ENGINE_INVALID_GAME_OBJECT_ID})
         , attack_trigger_(nullptr)
         , state_(States::IDLE)
     {
@@ -641,7 +640,6 @@ public:
 
     void update(float dt)
     {
-#if 1
         anim_controller_.update(dt);
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
@@ -663,6 +661,22 @@ public:
             const auto ray = get_ray_from_mouse_position(app, scene, get_active_camera_game_objects(scene)[0]);
             const auto hit_info = engineScenePhysicsRayCast(scene, &ray, 1000.0f);
             global_data_.last_mouse_hit = hit_info;
+        }
+
+        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_1))
+        {
+            auto cc = engineSceneGetColliderComponent(scene, attack_trigger_->get_game_object());
+            cc.collider.compound.children->collider.box.size[0] = 2.6f;
+            cc.collider.compound.children->collider.box.size[2] = 2.6f;
+            engineSceneUpdateColliderComponent(scene, attack_trigger_->get_game_object(), &cc);
+
+        }
+        else if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_2))
+        {
+            auto cc = engineSceneGetColliderComponent(scene, attack_trigger_->get_game_object());
+            cc.collider.compound.children->collider.box.size[0] = 0.3f;
+            cc.collider.compound.children->collider.box.size[2] = 0.3f;
+            engineSceneUpdateColliderComponent(scene, attack_trigger_->get_game_object(), &cc);
         }
         switch (state_)
         {
@@ -728,107 +742,9 @@ public:
             break;
         }
         }
-#else
-        anim_controller_.update(dt);
-        if (anim_controller_.is_active_animation("attack-melee-right"))
-        {
-            return;
-        }
-
-        const auto scene = my_scene_->get_handle();
-        const auto app = my_scene_->get_app_handle();
-
-        Sword* sword_script = my_scene_->get_script<Sword>(get_game_objects_with_name(scene, "weapon-sword")[0]);
-        //sword_script->set_active(false);
-
-        const float speed_cooef = 0.0025f;
-        const float speed = speed_cooef * dt;
-
-        auto tc = engineSceneGetTransformComponent(scene, go_);
-        anim_controller_.set_active_animation("idle");
-
-
-        // raycast
-        const auto lmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT);
-        const auto rmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT);
-        if (lmb || rmb)
-        {
-            const auto ray = get_ray_from_mouse_position(app, scene, get_active_camera_game_objects(scene)[0]);
-            const auto hit_info = engineScenePhysicsRayCast(scene, &ray, 1000.0f);
-            if (ENGINE_INVALID_GAME_OBJECT_ID != hit_info.go)
-            {
-                const auto name = engineSceneGetNameComponent(scene, hit_info.go).name;
-                const auto distance = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(hit_info.position[0], hit_info.position[2]));
-                if (distance < speed)
-                {
-                    target_move_hit_ = {};
-                }
-                else
-                {
-                    target_move_hit_ = hit_info;
-                    // rotate
-                    auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(target_move_hit_.position[0], target_move_hit_.position[1], target_move_hit_.position[2]));
-                    std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
-                    engineSceneUpdateTransformComponent(scene, go_, &tc);
-                }
-            }
-
-            if (rmb)
-            {
-                target_move_hit_ = {};
-            }
-        }
-
-
-
-        if (target_move_hit_.go != ENGINE_INVALID_GAME_OBJECT_ID)
-        {
-            const auto distance = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(target_move_hit_.position[0], target_move_hit_.position[2]));
-            if (distance < speed)
-            {
-                anim_controller_.set_active_animation("idle");
-                target_move_hit_ = {};
-            }
-            else
-            {
-                anim_controller_.set_active_animation("walk");
-                // helper math to move forward
-                const glm::quat rotation = glm::make_quat(tc.rotation); // Convert the rotation to a glm::quat
-                const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f); // Get the forward direction vector
-                const glm::vec3 right = glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)); // Calculate the right direction vector
-
-                // move
-                tc.position[0] += forward.x * speed;
-                //tc.position[1] += forward.y * speed;  // dont go up!
-                tc.position[2] += forward.z * speed;
-                engineSceneUpdateTransformComponent(scene, go_, &tc);
-            }
-
-        }
-
-        if (engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT))
-        {
-            anim_controller_.set_active_animation("attack-melee-right");
-            attack_trigger_->activate();
-            //sword_script->set_active(true);
-        }
-        //if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_N))
-        //{
-        //    anim_controller_.set_active_animation("attack-melee-right");
-        //}
-        //if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_M))
-        //{
-        //    anim_controller_.set_active_animation("attack-melee-left");
-        //}
-        if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_G))
-        {
-            anim_controller_.set_active_animation("die");
-        }
-#endif
     }
 
 private:
-    engine_ray_hit_info_t target_move_hit_{};
     AttackTrigger* attack_trigger_;
     States state_;
     AttackStateData attack_data_;
