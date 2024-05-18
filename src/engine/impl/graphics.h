@@ -58,16 +58,20 @@ public:
 		eCount
 	};
 public:
+    Shader() = default;
 	Shader(std::vector<std::string_view> vertex_shader_name, std::vector<std::string_view> fragment_shader_name);
 	Shader(const Shader& rhs) = delete;
-	Shader(Shader&& rhs) noexcept = default;
+    Shader(Shader&& rhs) noexcept;
 	Shader& operator=(const Shader& rhs) = delete;
-	Shader& operator=(Shader&& rhs)  noexcept = default;
+    Shader& operator=(Shader&& rhs)  noexcept;
 
 	~Shader();
 
+    bool is_valid() const;
+
 	void bind() const;
 	void set_uniform_f4(std::string_view name, std::span<const float> host_data);
+	void set_uniform_f3(std::string_view name, std::span<const float> host_data);
 	void set_uniform_f2(std::string_view name, std::span<const float> host_data);
 	void set_uniform_f1(std::string_view name, const float host_data);
 	void set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data);
@@ -82,9 +86,9 @@ private:
 	void compile_and_attach_to_program(std::uint32_t shader, std::span<const std::string> sources);
 
 private:
-	std::uint32_t vertex_shader_;
-	std::uint32_t fragment_shader_;
-	std::uint32_t program_;
+    std::uint32_t vertex_shader_{ 0 };
+    std::uint32_t fragment_shader_{ 0 };
+    std::uint32_t program_{ 0 };
 };
 
 

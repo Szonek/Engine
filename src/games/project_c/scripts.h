@@ -227,6 +227,11 @@ public:
     AnimationController& get_animation_controller() { return anim_controller_; }
 
 protected:
+    BaseNode(engine::IScene* my_scene, std::string_view name)
+        : BaseNode(my_scene, engineSceneCreateGameObject(my_scene->get_handle()), name)
+    {
+    }
+
     BaseNode(engine::IScene* my_scene, engine_game_object_t go, std::string_view name)
         : engine::IScript(my_scene, go)
     {
@@ -237,6 +242,142 @@ protected:
 
 protected:
     AnimationController anim_controller_;
+};
+
+class MainLight : public BaseNode
+{
+public:
+    MainLight(engine::IScene* my_scene)
+        : BaseNode(my_scene, "main-light")
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+
+        // position in world
+        auto tc = engineSceneAddTransformComponent(scene, go_);
+        tc.position[0] = 0.0f;
+        tc.position[1] = 10.0f;
+        tc.position[2] = 0.0f;
+
+        tc.scale[0] = 0.1f;
+        tc.scale[1] = 0.1f;
+        tc.scale[2] = 0.1f;
+
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        // for visulastuion add mesh component
+        auto mc = engineSceneAddMeshComponent(scene, go_);
+        mc.geometry = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
+        engineSceneUpdateMeshComponent(scene, go_, &mc);
+
+        // and basic material
+        auto mat = engineSceneAddMaterialComponent(scene, go_);
+        mat.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "light_material");
+        engineSceneUpdateMaterialComponent(scene, go_, &mat);
+
+        // light component
+        auto lc = engineSceneAddLightComponent(scene, go_);
+        lc.type = ENGINE_LIGHT_TYPE_DIRECTIONAL;
+        set_c_array(lc.intensity.ambient, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
+        set_c_array(lc.intensity.diffuse, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
+        set_c_array(lc.intensity.specular, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
+        set_c_array(lc.directional.direction, std::array<float, 3>{ 0.0f, 1.0f, 0.0f });
+        engineSceneUpdateLightComponent(scene, go_, &lc);
+    }
+
+};
+
+class PointLight : public BaseNode
+{
+public:
+    PointLight(engine::IScene* my_scene)
+        : BaseNode(my_scene, "point-light")
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+
+        // position in world
+        auto tc = engineSceneAddTransformComponent(scene, go_);
+        tc.position[0] = 3.0f;
+        tc.position[1] = 1.0f;
+        tc.position[2] = 0.0f;
+
+        tc.scale[0] = 0.1f;
+        tc.scale[1] = 0.1f;
+        tc.scale[2] = 0.1f;
+
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        // for visulastuion add mesh component
+        auto mc = engineSceneAddMeshComponent(scene, go_);
+        mc.geometry = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
+        engineSceneUpdateMeshComponent(scene, go_, &mc);
+
+        // and basic material
+        auto mat = engineSceneAddMaterialComponent(scene, go_);
+        mat.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "light_material");
+        engineSceneUpdateMaterialComponent(scene, go_, &mat);
+
+        // light component
+        auto lc = engineSceneAddLightComponent(scene, go_);
+        lc.type = ENGINE_LIGHT_TYPE_POINT;
+        set_c_array(lc.intensity.ambient, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
+        set_c_array(lc.intensity.diffuse, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
+        set_c_array(lc.intensity.specular, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
+        lc.point.constant = 1.0f;
+        lc.point.linear = 0.09f;
+        lc.point.quadratic = 0.032f;
+        engineSceneUpdateLightComponent(scene, go_, &lc);
+    }
+
+};
+
+class SpotLight : public BaseNode
+{
+public:
+    SpotLight(engine::IScene* my_scene)
+        : BaseNode(my_scene, "spot-light")
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+
+        // position in world
+        auto tc = engineSceneAddTransformComponent(scene, go_);
+        tc.position[0] = -3.0f;
+        tc.position[1] = 1.0f;
+        tc.position[2] = 0.0f;
+
+        tc.scale[0] = 0.1f;
+        tc.scale[1] = 0.1f;
+        tc.scale[2] = 0.1f;
+
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        // for visulastuion add mesh component
+        auto mc = engineSceneAddMeshComponent(scene, go_);
+        mc.geometry = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
+        engineSceneUpdateMeshComponent(scene, go_, &mc);
+
+        // and basic material
+        auto mat = engineSceneAddMaterialComponent(scene, go_);
+        mat.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "light_material");
+        engineSceneUpdateMaterialComponent(scene, go_, &mat);
+
+        // light component
+        auto lc = engineSceneAddLightComponent(scene, go_);
+        lc.type = ENGINE_LIGHT_TYPE_SPOT;
+        set_c_array(lc.intensity.ambient, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
+        set_c_array(lc.intensity.diffuse, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
+        set_c_array(lc.intensity.specular, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
+        set_c_array(lc.spot.direction, std::array<float, 3>{ 0.0f, -1.0f, 0.0f });
+        lc.spot.cut_off = 12.5f;
+        lc.spot.outer_cut_off = 17.5f;
+        lc.spot.constant = 1.0f;
+        lc.spot.linear = 0.09f;
+        lc.spot.quadratic = 0.032f;
+        engineSceneUpdateLightComponent(scene, go_, &lc);
+    }
+
 };
 
 class Floor : public BaseNode

@@ -122,6 +122,15 @@ engine::Shader::Shader(std::vector<std::string_view> vertex_shader_name, std::ve
 , fragment_shader_(0)
 , program_(glCreateProgram())
 {
+    log::log(log::LogLevel::eTrace, fmt::format("[Trace][Program] Creating shaders: \t\n"));
+    for (const auto& s : vertex_shader_name)
+    {
+        log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Vertex shader: {}\n", s));
+    }
+    for (const auto& s : fragment_shader_name)
+    {
+        log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Fragment shader: {}\n", s));
+    }
 	// compile shaders and link to program
 	{
         std::vector<std::string> sources;
@@ -149,6 +158,24 @@ engine::Shader::Shader(std::vector<std::string_view> vertex_shader_name, std::ve
 	}
 }
 
+engine::Shader::Shader(Shader&& rhs) noexcept
+{
+    std::swap(vertex_shader_, rhs.vertex_shader_);
+    std::swap(fragment_shader_, rhs.fragment_shader_);
+    std::swap(program_, rhs.program_);
+}
+
+engine::Shader& engine::Shader::operator=(Shader&& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        std::swap(vertex_shader_, rhs.vertex_shader_);
+        std::swap(fragment_shader_, rhs.fragment_shader_);
+        std::swap(program_, rhs.program_);
+    }
+    return *this;
+}
+
 engine::Shader::~Shader()
 {
 	if (vertex_shader_)
@@ -165,8 +192,14 @@ engine::Shader::~Shader()
 	}
 }
 
+bool engine::Shader::is_valid() const
+{
+    return program_ != 0;
+}
+
 void engine::Shader::bind() const
 {
+    assert(is_valid() && "[ERROR] Invalid shader program.");
 	glUseProgram(program_);
 }
 
@@ -176,6 +209,14 @@ void engine::Shader::set_uniform_f4(std::string_view name, std::span<const float
     const auto loc = get_uniform_location(name);
 	glUniform4f(loc, host_data[0], host_data[1], host_data[2], host_data[3]);
 }
+
+void engine::Shader::set_uniform_f3(std::string_view name, std::span<const float> host_data)
+{
+    assert(host_data.size() == 3 && "[ERROR] Wrong size of data");
+    const auto loc = get_uniform_location(name);
+    glUniform3f(loc, host_data[0], host_data[1], host_data[2]);
+}
+
 
 void engine::Shader::set_uniform_f2(std::string_view name, std::span<const float> host_data)
 {
@@ -200,6 +241,7 @@ void engine::Shader::set_uniform_ui2(std::string_view name, std::span<const std:
 void engine::Shader::set_uniform_block(std::string_view name, UniformBuffer* buffer, std::uint32_t bind_index)
 {
     const auto block_index = glGetUniformBlockIndex(program_, name.data());
+    assert(block_index != -1 && "[ERROR] Cant find uniform block index in the shader.");
     glUniformBlockBinding(program_, block_index, bind_index);
     buffer->bind(bind_index);
 }
@@ -1107,7 +1149,7 @@ engine::UniformBuffer::UniformBuffer(std::size_t size)
     glGenBuffers(1, &ubo_);
     bind();
     // GL_STATIC_DRAW? 
-    glBufferData(GL_UNIFORM_BUFFER, size, nullptr, GL_STATIC_DRAW);
+    glBufferData(GL_UNIFORM_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
     unbind();
 }
 
@@ -1144,7 +1186,20 @@ void engine::UniformBuffer::bind(std::uint32_t slot) const
 void* engine::UniformBuffer::map(bool read, bool write)
 {
     bind();
-    void* ret =  glMapBuffer(GL_UNIFORM_BUFFER, GL_READ_WRITE);
+    std::uint32_t flags = 0;
+    if (read && write)
+    {
+        flags = GL_READ_WRITE;
+    }
+    else if (read)
+    {
+        flags = GL_READ_ONLY;
+    }
+    else if (write)
+    {
+        flags = GL_WRITE_ONLY;
+    }
+    void* ret =  glMapBuffer(GL_UNIFORM_BUFFER, flags);
     //unbind();
     return ret;
 }
@@ -1217,7 +1272,21 @@ void engine::ShaderStorageBuffer::bind(std::uint32_t slot) const
 void* engine::ShaderStorageBuffer::map(bool read, bool write)
 {
     bind();
-    void* ret = glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_WRITE);
+    std::uint32_t flags = 0;
+    if (read && write)
+    {
+        flags = GL_READ_WRITE;
+    }
+    else if (read)
+    {
+        flags = GL_READ_ONLY;
+    }
+    else if (write)
+    {
+        flags = GL_WRITE_ONLY;
+    }
+
+    void* ret = glMapBuffer(GL_SHADER_STORAGE_BUFFER, flags);
     unbind();
     return ret;
 }

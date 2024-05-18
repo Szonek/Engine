@@ -40,15 +40,42 @@ void update_parent_component(entt::registry& registry, entt::entity entity)
     engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has no more space for children. Are you sure you are doing valid thing?\n"));
 }
 
-struct camera_ubo_data_t
+struct SceneGpuData
+{
+    std::uint32_t direction_light_count = 0;
+    std::uint32_t point_light_count = 0;
+    std::uint32_t spot_light_count = 0;
+    float pad3_;
+};
+
+struct LightGpuData
+{
+    glm::vec3 position;
+    float cutoff;
+    glm::vec3 direction;
+    float outer_cutoff;
+    float constant;
+    float linear;
+    float quadratic;
+    float pad0_;
+    glm::vec3 ambient;
+    float pad1_;
+    glm::vec3 diffuse;
+    float pad2_;
+    glm::vec3 specular;
+    float pad3_;
+};
+
+struct CameraGpuData
 {
     glm::mat4 view;
     glm::mat4 projection;
+    glm::vec3 position;
 };
 
 struct engine_camera_internal_component_t
 {
-    engine::UniformBuffer camera_ubo = engine::UniformBuffer(sizeof(camera_ubo_data_t));
+    engine::UniformBuffer camera_ubo = engine::UniformBuffer(sizeof(CameraGpuData));
 };
 
 
@@ -56,9 +83,6 @@ struct engine_camera_internal_component_t
 engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : rdx_(rdx)
     , physics_world_(&rdx_)
-    , shader_simple_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "simple.fs" }))
-    , shader_vertex_skinning_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "simple.fs" }))
-    , shader_full_screen_quad_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
     , fbo_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, true)
     , empty_vao_for_full_screen_quad_draw_(6)
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
@@ -68,7 +92,16 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
     , rigid_body_create_observer(entity_registry_, entt::collector.group<engine_rigid_body_component_t, engine_tranform_component_t, engine_collider_component_t>())
     , rigid_body_update_observer(entity_registry_, entt::collector.update<engine_rigid_body_component_t>().where<engine_tranform_component_t, engine_collider_component_t>())
+    , scene_ubo_(sizeof(SceneGpuData))
+    , light_data_ssbo_(1'000 * sizeof(LightGpuData))
 {
+    // shaders
+    shaders_[static_cast<std::uint32_t>(ShaderType::eUnlit)] = Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "unlit.fs" });
+    shaders_[static_cast<std::uint32_t>(ShaderType::eLit)] = Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "lit_helpers.h", "lit.fs" });
+    shaders_[static_cast<std::uint32_t>(ShaderType::eVertexSkinningUnlit)] = Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "unlit.fs" });
+    shaders_[static_cast<std::uint32_t>(ShaderType::eVertexSkinningLit)] = Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "lit_helpers.h", "lit.fs" });
+    shaders_[static_cast<std::uint32_t>(ShaderType::eFullScreenQuad)] = Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" });
+
     // basic initalizers
     entity_registry_.on_construct<engine_tranform_component_t>().connect<&initialize_transform_component>();
     entity_registry_.on_construct<engine_mesh_component_t>().connect<&initialize_mesh_component>();
@@ -80,6 +113,7 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
     entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
+    entity_registry_.on_construct<engine_light_component_t>().connect<&initialize_light_component>();
     
     entity_registry_.on_update<engine_parent_component_t>().connect<&update_parent_component>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
@@ -301,7 +335,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         Shader& full_screen_quad_shader_;
         Geometry& empty_vao;
     };
-    FBOFrameContext fbo_frame(fbo_, rdx_, shader_full_screen_quad_, empty_vao_for_full_screen_quad_draw_);
+    FBOFrameContext fbo_frame(fbo_, rdx_, shaders_[static_cast<std::uint32_t>(ShaderType::eFullScreenQuad)], empty_vao_for_full_screen_quad_draw_);
     {
         ENGINE_PROFILE_SECTION_N("transform_view");
 #if 1
@@ -374,14 +408,103 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
     }
 
+    std::uint32_t directional_light_count = 0;
+    std::uint32_t point_light_count = 0;
+    std::uint32_t spot_light_count = 0;
+    // copy lights data to the GPU
+    {
+        ENGINE_PROFILE_SECTION_N("lights update");
+        auto lights_view = entity_registry_.view<const engine_tranform_component_t, const engine_light_component_t>();
+        {
+            ENGINE_PROFILE_SECTION_N("lights counter");
+            lights_view.each([&directional_light_count, &point_light_count, &spot_light_count](const engine_tranform_component_t& transform, const engine_light_component_t& light)
+                {
+                    if (light.type == ENGINE_LIGHT_TYPE_DIRECTIONAL)
+                    {
+                        directional_light_count++;
+                    }
+                    else if (light.type == ENGINE_LIGHT_TYPE_POINT)
+                    {
+                        point_light_count++;
+                    }
+                    else if (light.type == ENGINE_LIGHT_TYPE_SPOT)
+                    {
+                        spot_light_count++;
+                    }
+                });
+        }
+
+        {
+            ENGINE_PROFILE_SECTION_N("lights_ssbo update");
+            const auto total_lights = directional_light_count + point_light_count + spot_light_count;
+            if (total_lights > light_data_ssbo_.get_size())
+            {
+                log::log(log::LogLevel::eTrace, fmt::format("Light data SSBO is too small. Increasing the size of the buffer. Current size: {}. Required size: {}\n", light_data_ssbo_.get_size(), total_lights));
+                light_data_ssbo_ = ShaderStorageBuffer(total_lights * sizeof(LightGpuData));
+            }
+            BufferMapContext<LightGpuData, ShaderStorageBuffer> light_data(light_data_ssbo_, false, true);
+            std::int32_t dir_idx = 0;
+            std::int32_t point_idx = directional_light_count;
+            std::int32_t spot_idx = directional_light_count + point_light_count;
+            lights_view.each([&light_data, &dir_idx, &point_idx, &spot_idx](const engine_tranform_component_t& transform, const engine_light_component_t& light)
+                {
+                    LightGpuData* light_data_ptr = nullptr;;
+                    if (light.type == ENGINE_LIGHT_TYPE_DIRECTIONAL)
+                    {
+                        light_data_ptr = &light_data.data[dir_idx++];
+                        light_data_ptr->direction = glm::make_vec3(light.directional.direction);
+                    }
+                    else if (light.type == ENGINE_LIGHT_TYPE_POINT)
+                    {
+                        light_data_ptr = &light_data.data[point_idx++];
+                        light_data_ptr->position = glm::make_vec3(transform.position);
+                        light_data_ptr->constant = light.point.constant;
+                        light_data_ptr->linear = light.point.linear;
+                        light_data_ptr->quadratic = light.point.quadratic;
+                    }
+                    else if (light.type == ENGINE_LIGHT_TYPE_SPOT)
+                    {
+                        light_data_ptr = &light_data.data[spot_idx++];
+                        light_data_ptr->position = glm::make_vec3(transform.position);
+                        light_data_ptr->direction = glm::make_vec3(light.spot.direction);
+                        light_data_ptr->cutoff = glm::cos(glm::radians(light.spot.cut_off));
+                        light_data_ptr->outer_cutoff = glm::cos(glm::radians(light.spot.outer_cut_off));
+                        light_data_ptr->constant = light.spot.constant;
+                        light_data_ptr->linear = light.spot.linear;
+                        light_data_ptr->quadratic = light.spot.quadratic;
+                    }
+                    assert(light_data_ptr);
+                    light_data_ptr->ambient = glm::make_vec3(light.intensity.ambient);
+                    light_data_ptr->diffuse = glm::make_vec3(light.intensity.diffuse);
+                    light_data_ptr->specular = glm::make_vec3(light.intensity.specular);
+                });
+            light_data.unmap();
+            light_data_ssbo_.bind(2);
+
+            assert(dir_idx == directional_light_count);
+            assert(point_idx == directional_light_count + point_light_count);
+            assert(spot_idx == directional_light_count + point_light_count + spot_light_count);
+        }
+
+    }
+
+    {
+        ENGINE_PROFILE_SECTION_N("scene_ubo update");
+        BufferMapContext<SceneGpuData, UniformBuffer> scene_ubo(scene_ubo_, false, true);
+        scene_ubo.data->direction_light_count = directional_light_count;
+        scene_ubo.data->point_light_count = point_light_count;
+        scene_ubo.data->spot_light_count = spot_light_count;
+        scene_ubo.unmap();
+    }
 
     {
         ENGINE_PROFILE_SECTION_N("camera_loop");
+
         auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
         auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, engine_camera_internal_component_t>();
 
-        for (auto [entity, camera, transform, camera_internal] : camera_view.each()) 
+        for (auto [entity, camera, camera_transform, camera_internal] : camera_view.each()) 
         {
             if (!camera.enabled)
             {
@@ -412,25 +535,26 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 {
                     projection = glm::perspective(glm::radians(camera.type_union.perspective_fov), aspect, z_near, z_far);
                 }
-                const auto eye_position = glm::make_vec3(transform.position);
+                const auto eye_position = glm::make_vec3(camera_transform.position);
                 const auto up = glm::make_vec3(camera.direction.up);
                 const auto target = glm::make_vec3(camera.target);
                 view = glm::lookAt(eye_position, target, up);
             }
 
-            // bind camera view and projection to the UBO buffer
+            // copy camera view and projection to the GPU
             {
                 ENGINE_PROFILE_SECTION_N("camera_ubo_update");
-                BufferMapContext<camera_ubo_data_t, UniformBuffer> camera_ubo(camera_internal.camera_ubo, false, true);
+                BufferMapContext<CameraGpuData, UniformBuffer> camera_ubo(camera_internal.camera_ubo, false, true);
                 camera_ubo.data->view = view;
                 camera_ubo.data->projection = projection;
+                camera_ubo.data->position = glm::make_vec3(camera_transform.position);
             }
+
 
             {
                 ENGINE_PROFILE_SECTION_N("geometry_renderer");
-                shader_simple_.bind();
-                shader_simple_.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
-                geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
+
+                geometry_renderer.each([this, &camera_internal, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
                     {
                         if (mesh_component.disable)
                         {
@@ -442,17 +566,44 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             return;
                         }
                         const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
+                        
+                        const auto shader_type = [](engine_shader_type_t shader_type)
+                            {
+                                switch (shader_type)
+                                {
+                                    case ENGINE_SHADER_TYPE_LIT:
+                                        return ShaderType::eLit;
+                                    case ENGINE_SHADER_TYPE_UNLIT:
+                                        return ShaderType::eUnlit;
+                                    default:
+                                        log::log(log::LogLevel::eError, fmt::format("Unknown shader type: {}. Are you sure you are doing valid thing?\n", shader_type));
+                                        assert(false);
+                                }
+                                return ShaderType::eUnlit;
+                            }(material.shader_type);
+                        auto& shader = shaders_[static_cast<std::uint32_t>(shader_type)];
+                        shader.bind();
 
-                        shader_simple_.set_uniform_f4("diffuse_color", material.diffuse_color);
-                        shader_simple_.set_uniform_mat_f4("model", transform_component.local_to_world);
+                        shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);    
+                        shader.set_uniform_mat_f4("model", transform_component.local_to_world);                       
 
                         auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
                         if (texture_diffuse_idx > textures.size())
                         {
                             log::log(log::LogLevel::eError, fmt::format("Texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
-                            texture_diffuse_idx = 0;  //ToDo: point to default texture
+                            assert(false);
+                            texture_diffuse_idx = 0;
                         }
-                        shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+                        shader.set_uniform_f3("diffuse_color", material.diffuse_color);
+                        shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+
+                        if (shader_type == ShaderType::eLit)
+                        {
+                            shader.set_uniform_block("SceneData", &scene_ubo_, 1);
+                            shader.set_uniform_f1("shininess", static_cast<float>(material.shininess));
+                            const auto texture_specular_idx = material.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.specular_texture;
+                            shader.set_texture("texture_specular", &textures[texture_specular_idx]);
+                        }
 
                         geometries[mesh_component.geometry].bind();
                         geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
@@ -463,9 +614,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
             {
                 ENGINE_PROFILE_SECTION_N("skinned_geometry_renderer");
-                shader_vertex_skinning_.bind();
-                shader_vertex_skinning_.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
-                skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
+
+                skinned_geometry_renderer.each([this, &camera_internal, &textures, &geometries, &materials](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
                     engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
                     {
                         if (mesh_component.disable)
@@ -473,11 +623,38 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             return;
                         }
                         const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
-                        shader_vertex_skinning_.set_uniform_f4("diffuse_color", material.diffuse_color);
-                        shader_vertex_skinning_.set_uniform_mat_f4("model", transform_component.local_to_world);
+                        
+                        const auto shader_type = [](engine_shader_type_t shader_type)
+                            {
+                                switch (shader_type)
+                                {
+                                case ENGINE_SHADER_TYPE_LIT:
+                                    return ShaderType::eVertexSkinningLit;
+                                case ENGINE_SHADER_TYPE_UNLIT:
+                                    return ShaderType::eVertexSkinningUnlit;
+                                default:
+                                    log::log(log::LogLevel::eError, fmt::format("Unknown shader type: {}. Are you sure you are doing valid thing?\n", shader_type));
+                                    assert(false);
+                                }
+                                return ShaderType::eUnlit;
+                            }(material.shader_type);
+                        auto& shader = shaders_[static_cast<std::uint32_t>(shader_type)];
+                        shader.bind();
+                        shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
+                        shader.set_uniform_mat_f4("model", transform_component.local_to_world);
 
                         const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
-                        shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+                        shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+                        shader.set_uniform_f3("diffuse_color", material.diffuse_color);
+
+                        if (shader_type == ShaderType::eVertexSkinningLit)
+                        {
+                            shader.set_uniform_block("SceneData", &scene_ubo_, 1);
+                            shader.set_uniform_f1("shininess", static_cast<float>(material.shininess));
+                            const auto texture_specular_idx = material.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.specular_texture;
+                            shader.set_texture("texture_specular", &textures[texture_specular_idx]);
+                        }
+
 
                         const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
                         for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
@@ -500,7 +677,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
                             const auto per_bone_final_transform = inverse_transform * bone_matrix;
                             const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
-                            shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
+                            shader.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
                         }
 
                         geometries[mesh_component.geometry].bind();

@@ -361,6 +361,11 @@ int main(int argc, char** argv)
     {
         return false;
     }
+    engine_material_create_desc_t cube_material_desc = engineApplicationInitMaterialDesc(app);
+    cube_material_desc.shader_type = ENGINE_SHADER_TYPE_UNLIT;
+    set_c_array(cube_material_desc.diffuse_color, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
+    engineApplicationAddMaterialFromDesc(app, &cube_material_desc, "light_material", nullptr);
+
 
     bool load_model = true;
 
@@ -385,7 +390,6 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    //load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_cube, scene);
     load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, -1.0f);
     load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, 0.0f);
     load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, 1.0f);
@@ -399,6 +403,11 @@ int main(int argc, char** argv)
         return -1;
     }
     
+    // light
+    scene->register_script<project_c::MainLight>();
+    scene->register_script<project_c::PointLight>();
+    scene->register_script<project_c::SpotLight>();
+
     std::mt19937 rng(42);
     std::uniform_int_distribution<std::mt19937::result_type> dist6(0, 1);
 

@@ -6,12 +6,17 @@ layout (location = 2) in mediump vec3 in_normals;
 layout (location = 3) in mediump uvec4 in_bone_id_0;
 layout (location = 4) in mediump vec4 in_weights_0;
 
-out mediump vec2 out_uv;
+out VS_OUT
+{
+    vec2 uv;
+    vec3 normals;
+	vec3 world_pos;
+} vs_out;
 
-layout (binding = 1, std140) uniform CameraData
+layout (binding = 0, std140) uniform CameraData
 {
 	mat4 view;
     mat4 projection;
+	vec4 view_pos;
 };
-
 uniform mat4 model;

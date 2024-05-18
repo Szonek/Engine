@@ -27,6 +27,28 @@ void engine::initialize_mesh_component(entt::registry& registry, entt::entity en
     comp.geometry = ENGINE_INVALID_OBJECT_HANDLE;
 }
 
+void engine::initialize_light_component(entt::registry& registry, entt::entity entity)
+{
+    auto& comp = get_zero_init_component<engine_light_component_t>(registry, entity);
+    comp.type = ENGINE_LIGHT_TYPE_POINT;
+    // base point light params
+    comp.point.constant = 1.0f;
+    comp.point.linear = 0.09f;
+    comp.point.quadratic = 0.032f;
+    // base intensity
+    comp.intensity.ambient[0] = 0.1f;
+    comp.intensity.ambient[1] = 0.1f;
+    comp.intensity.ambient[2] = 0.1f;
+    comp.intensity.diffuse[0] = 1.0f;
+    comp.intensity.diffuse[1] = 1.0f;
+    comp.intensity.diffuse[2] = 1.0f;
+    comp.intensity.specular[0] = 1.0f;
+    comp.intensity.specular[1] = 1.0f;
+    comp.intensity.specular[2] = 1.0f;
+
+}
+
+
 void engine::initialize_material_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_material_component_t>(registry, entity);

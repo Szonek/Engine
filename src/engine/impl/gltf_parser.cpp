@@ -32,6 +32,7 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
         {
             std::map<std::string, engine_vertex_attribute_type_t> ret;
             ret["POSITION"]   = ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION;
+            ret["NORMAL"]   = ENGINE_VERTEX_ATTRIBUTE_TYPE_NORMALS;
             ret["TEXCOORD_0"] = ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0;
             ret["JOINTS_0"]   = ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0;
             ret["WEIGHTS_0"]  = ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0;
@@ -303,10 +304,11 @@ inline engine::MaterialInfo parse_material(const tinygltf::Material& material)
     engine::MaterialInfo new_material{};
     new_material.name = material.name;
     // copy diffuse color
-    for (std::size_t c = 0; c < 4; c++)
+    for (std::size_t c = 0; c < 3; c++)
     {
         new_material.diffuse_factor[c] = static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[c]);
     }
+    assert(static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[3]) == 1.0f);
     // copy diffuse texture
     new_material.diffuse_texture = material.pbrMetallicRoughness.baseColorTexture.index;
     return new_material;
