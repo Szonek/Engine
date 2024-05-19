@@ -68,6 +68,7 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
 {
     // shaders
     shaders_[static_cast<std::uint32_t>(ShaderType::eUnlit)] = Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "unlit.fs" });
+    shaders_[static_cast<std::uint32_t>(ShaderType::eLit)] = Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "lit.fs" });
     shaders_[static_cast<std::uint32_t>(ShaderType::eVertexSkinning)] = Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "unlit.fs" });
     shaders_[static_cast<std::uint32_t>(ShaderType::eFullScreenQuad)] = Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" });
 
@@ -444,8 +445,10 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         }
                         const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
                         
-                        auto& shader = shaders_[static_cast<std::uint32_t>(ShaderType::eUnlit)];
+                        const auto shader_type = ShaderType::eLit;
+                        auto& shader = shaders_[static_cast<std::uint32_t>(shader_type)];
                         shader.bind();
+
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
                         shader.set_uniform_f4("diffuse_color", material.diffuse_color);
                         shader.set_uniform_mat_f4("model", transform_component.local_to_world);
