@@ -10,6 +10,15 @@ namespace engine
 {
 class Scene
 {
+    enum class ShaderType
+    {
+        eUnlit = 0,
+        eLit,
+        eFullScreenQuad,
+        eVertexSkinning,
+        eCount
+    };
+
 public:
     Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code);
     Scene(const Scene&) = delete;
@@ -99,9 +108,7 @@ private:
 
     PhysicsWorld physics_world_;
 
-    Shader shader_unlit;
-    Shader shader_vertex_skinning_;
-    Shader shader_full_screen_quad_;
+    std::array<Shader, static_cast<std::size_t>(ShaderType::eCount)> shaders_;
 
     Framebuffer fbo_;
     Geometry empty_vao_for_full_screen_quad_draw_;

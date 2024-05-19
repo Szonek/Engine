@@ -149,6 +149,24 @@ engine::Shader::Shader(std::vector<std::string_view> vertex_shader_name, std::ve
 	}
 }
 
+engine::Shader::Shader(Shader&& rhs) noexcept
+{
+    std::swap(vertex_shader_, rhs.vertex_shader_);
+    std::swap(fragment_shader_, rhs.fragment_shader_);
+    std::swap(program_, rhs.program_);
+}
+
+engine::Shader& engine::Shader::operator=(Shader&& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        std::swap(vertex_shader_, rhs.vertex_shader_);
+        std::swap(fragment_shader_, rhs.fragment_shader_);
+        std::swap(program_, rhs.program_);
+    }
+    return *this;
+}
+
 engine::Shader::~Shader()
 {
 	if (vertex_shader_)
@@ -165,8 +183,14 @@ engine::Shader::~Shader()
 	}
 }
 
+bool engine::Shader::is_valid() const
+{
+    return program_ != 0;
+}
+
 void engine::Shader::bind() const
 {
+    assert(is_valid() && "[ERROR] Invalid shader program.");
 	glUseProgram(program_);
 }
 
@@ -200,6 +224,7 @@ void engine::Shader::set_uniform_ui2(std::string_view name, std::span<const std:
 void engine::Shader::set_uniform_block(std::string_view name, UniformBuffer* buffer, std::uint32_t bind_index)
 {
     const auto block_index = glGetUniformBlockIndex(program_, name.data());
+    assert(block_index != -1 && "[ERROR] Cant find uniform block index in the shader.");
     glUniformBlockBinding(program_, block_index, bind_index);
     buffer->bind(bind_index);
 }

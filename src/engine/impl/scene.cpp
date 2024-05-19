@@ -56,9 +56,6 @@ struct engine_camera_internal_component_t
 engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : rdx_(rdx)
     , physics_world_(&rdx_)
-    , shader_unlit(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "unlit.fs" }))
-    , shader_vertex_skinning_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "unlit.fs" }))
-    , shader_full_screen_quad_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
     , fbo_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, true)
     , empty_vao_for_full_screen_quad_draw_(6)
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
@@ -69,6 +66,11 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     , rigid_body_create_observer(entity_registry_, entt::collector.group<engine_rigid_body_component_t, engine_tranform_component_t, engine_collider_component_t>())
     , rigid_body_update_observer(entity_registry_, entt::collector.update<engine_rigid_body_component_t>().where<engine_tranform_component_t, engine_collider_component_t>())
 {
+    // shaders
+    shaders_[static_cast<std::uint32_t>(ShaderType::eUnlit)] = Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "unlit.fs" });
+    shaders_[static_cast<std::uint32_t>(ShaderType::eVertexSkinning)] = Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "unlit.fs" });
+    shaders_[static_cast<std::uint32_t>(ShaderType::eFullScreenQuad)] = Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" });
+
     // basic initalizers
     entity_registry_.on_construct<engine_tranform_component_t>().connect<&initialize_transform_component>();
     entity_registry_.on_construct<engine_mesh_component_t>().connect<&initialize_mesh_component>();
@@ -301,7 +303,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         Shader& full_screen_quad_shader_;
         Geometry& empty_vao;
     };
-    FBOFrameContext fbo_frame(fbo_, rdx_, shader_full_screen_quad_, empty_vao_for_full_screen_quad_draw_);
+    FBOFrameContext fbo_frame(fbo_, rdx_, shaders_[static_cast<std::uint32_t>(ShaderType::eFullScreenQuad)], empty_vao_for_full_screen_quad_draw_);
     {
         ENGINE_PROFILE_SECTION_N("transform_view");
 #if 1
@@ -428,9 +430,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
             {
                 ENGINE_PROFILE_SECTION_N("geometry_renderer");
-                shader_unlit.bind();
-                shader_unlit.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
-                geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
+
+                geometry_renderer.each([this, &camera_internal, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
                     {
                         if (mesh_component.disable)
                         {
@@ -442,9 +443,12 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             return;
                         }
                         const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
-
-                        shader_unlit.set_uniform_f4("diffuse_color", material.diffuse_color);
-                        shader_unlit.set_uniform_mat_f4("model", transform_component.local_to_world);
+                        
+                        auto& shader = shaders_[static_cast<std::uint32_t>(ShaderType::eUnlit)];
+                        shader.bind();
+                        shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
+                        shader.set_uniform_f4("diffuse_color", material.diffuse_color);
+                        shader.set_uniform_mat_f4("model", transform_component.local_to_world);
 
                         auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
                         if (texture_diffuse_idx > textures.size())
@@ -452,7 +456,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             log::log(log::LogLevel::eError, fmt::format("Texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
                             texture_diffuse_idx = 0;  //ToDo: point to default texture
                         }
-                        shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+                        shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
 
                         geometries[mesh_component.geometry].bind();
                         geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
@@ -463,9 +467,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
             {
                 ENGINE_PROFILE_SECTION_N("skinned_geometry_renderer");
-                shader_vertex_skinning_.bind();
-                shader_vertex_skinning_.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
-                skinned_geometry_renderer.each([this, &view, &projection, &textures, &geometries, &materials](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
+
+                skinned_geometry_renderer.each([this, &camera_internal, &textures, &geometries, &materials](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
                     engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
                     {
                         if (mesh_component.disable)
@@ -473,11 +476,15 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             return;
                         }
                         const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
-                        shader_vertex_skinning_.set_uniform_f4("diffuse_color", material.diffuse_color);
-                        shader_vertex_skinning_.set_uniform_mat_f4("model", transform_component.local_to_world);
+                        
+                        auto& shader = shaders_[static_cast<std::uint32_t>(ShaderType::eVertexSkinning)];
+                        shader.bind();
+                        shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
+                        shader.set_uniform_f4("diffuse_color", material.diffuse_color);
+                        shader.set_uniform_mat_f4("model", transform_component.local_to_world);
 
                         const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
-                        shader_vertex_skinning_.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+                        shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
 
                         const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
                         for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
@@ -500,7 +507,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
                             const auto per_bone_final_transform = inverse_transform * bone_matrix;
                             const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
-                            shader_vertex_skinning_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
+                            shader.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
                         }
 
                         geometries[mesh_component.geometry].bind();
