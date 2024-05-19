@@ -8,7 +8,9 @@ layout(binding=2) uniform sampler2D texture_diffuse;
 
 struct LightPacket
 {
-	vec4 color;
+	vec4 ambient;
+	vec4 diffuse;
+	vec4 specular;
 };
 
 layout (binding = 3, std430) readonly buffer LightPacketSSBO
@@ -21,5 +23,5 @@ layout (binding = 3, std430) readonly buffer LightPacketSSBO
 void main()
 {
 	mediump vec4 diffuse_texture_color = texture(texture_diffuse, out_uv);
-	out_fragment_color = diffuse_texture_color * diffuse_color * light_data[0].color;
+	out_fragment_color = diffuse_texture_color * diffuse_color * light_data[0].diffuse;
 } 

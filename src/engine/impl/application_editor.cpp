@@ -267,6 +267,54 @@ bool display_mesh_component(engine_mesh_component_t& c)
     return true;
 }
 
+bool display_light_component(engine_light_component_t& c)
+{
+    bool requires_update = false;
+    // intensity
+    requires_update |= ImGui::DragFloat3("Ambient", c.intensity.ambient, 0.1f);
+    requires_update |= ImGui::DragFloat3("Diffuse", c.intensity.diffuse, 0.1f);
+    requires_update |= ImGui::DragFloat3("Specular", c.intensity.specular, 0.1f);
+    
+    //type 
+    const char* items[] = { "Point", "Directional", "Spot" };
+    std::int32_t selected_type = c.type;
+    
+    if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
+    {
+        requires_update = true;
+        c.type = static_cast<engine_light_type_t>(selected_type);
+    }
+    // detials about the type
+    switch (c.type)
+    {
+        case ENGINE_LIGHT_TYPE_POINT:
+        {
+            requires_update |= ImGui::DragFloat("Constant", &c.point.constant, 0.1f);
+            requires_update |= ImGui::DragFloat("Linear", &c.point.linear, 0.1f);
+            requires_update |= ImGui::DragFloat("Quadratic", &c.point.quadratic, 0.1f);
+            break;
+        }
+        case ENGINE_LIGHT_TYPE_DIRECTIONAL:
+        {
+            requires_update |= ImGui::DragFloat3("Direction", c.directional.direction, 0.1f);
+            break;
+        }
+        case ENGINE_LIGHT_TYPE_SPOT:
+        {
+            requires_update |= ImGui::DragFloat3("Direction", c.spot.direction, 0.1f);
+            requires_update |= ImGui::DragFloat("CutOff", &c.spot.cut_off, 0.1f);
+            requires_update |= ImGui::DragFloat("OuterCutOff", &c.spot.outer_cut_off, 0.1f);
+            requires_update |= ImGui::DragFloat("Constant", &c.spot.constant, 0.02f);
+            requires_update |= ImGui::DragFloat("Linear", &c.spot.linear, 0.02f);
+            requires_update |= ImGui::DragFloat("Quadratic", &c.spot.quadratic, 0.02f);
+            break;
+        }
+    }
+
+    return requires_update;
+}
+
+
 bool display_material_component(engine_material_component_t& c)
 {
     ImGui::InputInt("Material ID", reinterpret_cast<std::int32_t*>(&c.material));
@@ -504,6 +552,7 @@ void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
     {
         const auto selected = ctx.get_selected_entity();
         display_component<engine_tranform_component_t>("Transform", scene, selected, display_transform_component);
+        display_component<engine_light_component_t>("Light", scene, selected, display_light_component);
         display_component<engine_camera_component_t>("Camera", scene, selected, display_camera_component);
         display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
         display_component<engine_material_component_t>("Material", scene, selected, display_material_component);

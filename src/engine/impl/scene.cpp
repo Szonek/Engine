@@ -43,7 +43,12 @@ void update_parent_component(entt::registry& registry, entt::entity entity)
 
 struct LightGpuData
 {
-    glm::vec4 color;
+    glm::vec3 ambient;
+    float pad0_;
+    glm::vec3 diffuse;
+    float pad1_;
+    glm::vec3 specular;
+    float pad2_;
 };
 
 struct CameraGpuData
@@ -387,6 +392,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
     {
         ENGINE_PROFILE_SECTION_N("camera_loop");
+        auto lights_view = entity_registry_.view<const engine_tranform_component_t, const engine_light_component_t>();
         auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
         auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, engine_camera_internal_component_t>();
@@ -440,11 +446,16 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             static ShaderStorageBuffer light_data_ssbo(1'000 * sizeof(LightGpuData));
             {
                 ENGINE_PROFILE_SECTION_N("light buffer");
-                {
-                    BufferMapContext<LightGpuData, ShaderStorageBuffer> light_data(light_data_ssbo, false, true);
-                    light_data.data->color = { 1.0f, 1.0f, 1.0f, 1.0f };
-                }
-                
+                BufferMapContext<LightGpuData, ShaderStorageBuffer> light_data(light_data_ssbo, false, true);
+                lights_view.each([&light_data](const engine_tranform_component_t& transform, const engine_light_component_t& light)
+                    {
+                        light_data.data->ambient  = glm::make_vec3(light.intensity.ambient);
+                        light_data.data->diffuse  = glm::make_vec3(light.intensity.diffuse);
+                        light_data.data->specular = glm::make_vec3(light.intensity.specular);
+                        light_data.data++;
+                    });
+                light_data.unmap();
+                light_data_ssbo.bind(3);
             }
 
             {
@@ -466,7 +477,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         const auto shader_type = ShaderType::eLit;
                         auto& shader = shaders_[static_cast<std::uint32_t>(shader_type)];
                         shader.bind();
-                        light_data_ssbo.bind(3);
+
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
                         shader.set_uniform_f4("diffuse_color", material.diffuse_color);
                         shader.set_uniform_mat_f4("model", transform_component.local_to_world);
