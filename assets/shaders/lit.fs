@@ -22,6 +22,7 @@ layout (binding = 3, std430) readonly buffer LightPacketSSBO
 
 void main()
 {
-	mediump vec4 diffuse_texture_color = texture(texture_diffuse, out_uv);
-	out_fragment_color = diffuse_texture_color * diffuse_color * light_data[0].diffuse;
+	vec4 frag_color = texture(texture_diffuse, out_uv) * diffuse_color;
+	vec4 ambient = frag_color * light_data[0].ambient;
+	out_fragment_color = ambient;
 } 
