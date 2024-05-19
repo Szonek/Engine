@@ -15,7 +15,8 @@ class Scene
         eUnlit = 0,
         eLit,
         eFullScreenQuad,
-        eVertexSkinning,
+        eVertexSkinningUnlit,
+        eVertexSkinningLit,
         eCount
     };
 
