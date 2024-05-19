@@ -399,6 +399,9 @@ int main(int argc, char** argv)
         return -1;
     }
     
+    // light
+    scene->register_script<project_c::MainLight>();
+
     std::mt19937 rng(42);
     std::uniform_int_distribution<std::mt19937::result_type> dist6(0, 1);
 

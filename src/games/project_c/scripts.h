@@ -227,6 +227,11 @@ public:
     AnimationController& get_animation_controller() { return anim_controller_; }
 
 protected:
+    BaseNode(engine::IScene* my_scene, std::string_view name)
+        : BaseNode(my_scene, engineSceneCreateGameObject(my_scene->get_handle()), name)
+    {
+    }
+
     BaseNode(engine::IScene* my_scene, engine_game_object_t go, std::string_view name)
         : engine::IScript(my_scene, go)
     {
@@ -237,6 +242,34 @@ protected:
 
 protected:
     AnimationController anim_controller_;
+};
+
+class MainLight : public BaseNode
+{
+public:
+    MainLight(engine::IScene* my_scene)
+        : BaseNode(my_scene, "main-light")
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+
+        // position in world
+        auto tc = engineSceneAddTransformComponent(scene, go_);
+        tc.position[0] = 0.0f;
+        tc.position[1] = 10.0f;
+        tc.position[2] = 0.0f;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        // light component
+        auto lc = engineSceneAddLightComponent(scene, go_);
+        lc.type = ENGINE_LIGHT_TYPE_DIRECTIONAL;
+        set_c_array(lc.intensity.ambient, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
+        set_c_array(lc.intensity.diffuse, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
+        set_c_array(lc.intensity.specular, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
+        set_c_array(lc.directional.direction, std::array<float, 3>{ 0.0f, -1.0f, 0.0f });
+        engineSceneUpdateLightComponent(scene, go_, &lc);
+    }
+
 };
 
 class Floor : public BaseNode
