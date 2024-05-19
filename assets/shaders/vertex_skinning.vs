@@ -23,5 +23,5 @@ void main()
 	//vec3 normals = apply_bone_transform(vec4(in_normals, 0.0));
 	
 	gl_Position = projection * view * model * vec4(world_position, 1.0f);
-	out_uv = in_vertex_tex_coord;
+	vs_out.uv = in_vertex_tex_coord;
 }

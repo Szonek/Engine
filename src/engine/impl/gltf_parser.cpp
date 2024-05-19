@@ -32,6 +32,7 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
         {
             std::map<std::string, engine_vertex_attribute_type_t> ret;
             ret["POSITION"]   = ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION;
+            ret["NORMAL"]   = ENGINE_VERTEX_ATTRIBUTE_TYPE_NORMALS;
             ret["TEXCOORD_0"] = ENGINE_VERTEX_ATTRIBUTE_TYPE_UV_0;
             ret["JOINTS_0"]   = ENGINE_VERTEX_ATTRIBUTE_TYPE_JOINTS_0;
             ret["WEIGHTS_0"]  = ENGINE_VERTEX_ATTRIBUTE_TYPE_WEIGHTS_0;
