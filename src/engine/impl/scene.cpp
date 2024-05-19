@@ -40,7 +40,13 @@ void update_parent_component(entt::registry& registry, entt::entity entity)
     engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has no more space for children. Are you sure you are doing valid thing?\n"));
 }
 
-struct camera_ubo_data_t
+
+struct LightGpuData
+{
+    glm::vec4 color;
+};
+
+struct CameraGpuData
 {
     glm::mat4 view;
     glm::mat4 projection;
@@ -48,7 +54,7 @@ struct camera_ubo_data_t
 
 struct engine_camera_internal_component_t
 {
-    engine::UniformBuffer camera_ubo = engine::UniformBuffer(sizeof(camera_ubo_data_t));
+    engine::UniformBuffer camera_ubo = engine::UniformBuffer(sizeof(CameraGpuData));
 };
 
 
@@ -422,12 +428,23 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 view = glm::lookAt(eye_position, target, up);
             }
 
-            // bind camera view and projection to the UBO buffer
+            // copy camera view and projection to the GPU
             {
                 ENGINE_PROFILE_SECTION_N("camera_ubo_update");
-                BufferMapContext<camera_ubo_data_t, UniformBuffer> camera_ubo(camera_internal.camera_ubo, false, true);
+                BufferMapContext<CameraGpuData, UniformBuffer> camera_ubo(camera_internal.camera_ubo, false, true);
                 camera_ubo.data->view = view;
                 camera_ubo.data->projection = projection;
+            }
+
+            // copy lights data to the GPU
+            static ShaderStorageBuffer light_data_ssbo(1'000 * sizeof(LightGpuData));
+            {
+                ENGINE_PROFILE_SECTION_N("light buffer");
+                {
+                    BufferMapContext<LightGpuData, ShaderStorageBuffer> light_data(light_data_ssbo, false, true);
+                    light_data.data->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+                }
+                
             }
 
             {
@@ -449,7 +466,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         const auto shader_type = ShaderType::eLit;
                         auto& shader = shaders_[static_cast<std::uint32_t>(shader_type)];
                         shader.bind();
-
+                        light_data_ssbo.bind(3);
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
                         shader.set_uniform_f4("diffuse_color", material.diffuse_color);
                         shader.set_uniform_mat_f4("model", transform_component.local_to_world);

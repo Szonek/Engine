@@ -1132,7 +1132,7 @@ engine::UniformBuffer::UniformBuffer(std::size_t size)
     glGenBuffers(1, &ubo_);
     bind();
     // GL_STATIC_DRAW? 
-    glBufferData(GL_UNIFORM_BUFFER, size, nullptr, GL_STATIC_DRAW);
+    glBufferData(GL_UNIFORM_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
     unbind();
 }
 
@@ -1169,7 +1169,20 @@ void engine::UniformBuffer::bind(std::uint32_t slot) const
 void* engine::UniformBuffer::map(bool read, bool write)
 {
     bind();
-    void* ret =  glMapBuffer(GL_UNIFORM_BUFFER, GL_READ_WRITE);
+    std::uint32_t flags = 0;
+    if (read && write)
+    {
+        flags = GL_READ_WRITE;
+    }
+    else if (read)
+    {
+        flags = GL_READ_ONLY;
+    }
+    else if (write)
+    {
+        flags = GL_WRITE_ONLY;
+    }
+    void* ret =  glMapBuffer(GL_UNIFORM_BUFFER, flags);
     //unbind();
     return ret;
 }
@@ -1242,7 +1255,21 @@ void engine::ShaderStorageBuffer::bind(std::uint32_t slot) const
 void* engine::ShaderStorageBuffer::map(bool read, bool write)
 {
     bind();
-    void* ret = glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_WRITE);
+    std::uint32_t flags = 0;
+    if (read && write)
+    {
+        flags = GL_READ_WRITE;
+    }
+    else if (read)
+    {
+        flags = GL_READ_ONLY;
+    }
+    else if (write)
+    {
+        flags = GL_WRITE_ONLY;
+    }
+
+    void* ret = glMapBuffer(GL_SHADER_STORAGE_BUFFER, flags);
     unbind();
     return ret;
 }
