@@ -10,6 +10,7 @@ out VS_OUT
 {
     vec2 uv;
     vec3 normals;
+	vec3 world_pos;
 } vs_out;
 
 layout (binding = 1, std140) uniform CameraData

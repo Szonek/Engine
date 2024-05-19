@@ -18,10 +18,13 @@ vec3 apply_bone_transform(vec4 p)
 void main()
 {
 	// postions is a point: homegenous coordiate = 1.0f
-	vec3 world_position = apply_bone_transform(vec4(in_vertex_position, 1.0));
+	vec3 position = apply_bone_transform(vec4(in_vertex_position, 1.0));
 	// normals is a vector: homegenous coordiate = 0.0f
-	//vec3 normals = apply_bone_transform(vec4(in_normals, 0.0));
+	vec3 normals = apply_bone_transform(vec4(in_normals, 0.0));
 	
-	gl_Position = projection * view * model * vec4(world_position, 1.0f);
+	vec4 world_position = model * vec4(position, 1.0f);
+	gl_Position = projection * view * world_position;
 	vs_out.uv = in_vertex_tex_coord;
+	vs_out.world_pos = world_position.xyz;
+	vs_out.normals = normals;
 }

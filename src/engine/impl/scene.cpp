@@ -43,12 +43,14 @@ void update_parent_component(entt::registry& registry, entt::entity entity)
 
 struct LightGpuData
 {
-    glm::vec3 ambient;
+    glm::vec3 position;
     float pad0_;
-    glm::vec3 diffuse;
+    glm::vec3 ambient;
     float pad1_;
-    glm::vec3 specular;
+    glm::vec3 diffuse;
     float pad2_;
+    glm::vec3 specular;
+    float pad3_;
 };
 
 struct CameraGpuData
@@ -449,6 +451,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 BufferMapContext<LightGpuData, ShaderStorageBuffer> light_data(light_data_ssbo, false, true);
                 lights_view.each([&light_data](const engine_tranform_component_t& transform, const engine_light_component_t& light)
                     {
+                        light_data.data->position = glm::make_vec3(transform.position);
                         light_data.data->ambient  = glm::make_vec3(light.intensity.ambient);
                         light_data.data->diffuse  = glm::make_vec3(light.intensity.diffuse);
                         light_data.data->specular = glm::make_vec3(light.intensity.specular);
