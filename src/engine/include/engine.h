@@ -379,11 +379,10 @@ typedef struct _engine_animation_clip_create_desc_t
 
 typedef struct _engine_material_create_desc_t
 {
-    float ambient_color[3];
     float diffuse_color[3];
-    float specular_color[3];
     uint32_t shininess;
     engine_texture2d_t diffuse_texture;
+    engine_texture2d_t specular_texture;
 } engine_material_create_desc_t;
 
 typedef struct _engine_bones_create_desc_t

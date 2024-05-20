@@ -483,22 +483,24 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         shader.bind();
 
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
-                        shader.set_uniform_mat_f4("model", transform_component.local_to_world);
+                        shader.set_uniform_mat_f4("model", transform_component.local_to_world);                       
 
-                        if (shader_type == ShaderType::eLit)
-                        {
-                            shader.set_uniform_f3("ambient_color", material.ambient_color);
-                            shader.set_uniform_f4("specular_color", std::array<float, 4>{material.specular_color[0], material.specular_color[1], material.specular_color[2], static_cast<float>(material.shininess)});
-                        }
-                        
-                        shader.set_uniform_f3("diffuse_color", material.diffuse_color);
                         auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
                         if (texture_diffuse_idx > textures.size())
                         {
                             log::log(log::LogLevel::eError, fmt::format("Texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
-                            texture_diffuse_idx = 0;  //ToDo: point to default texture
+                            assert(false);
+                            texture_diffuse_idx = 0;
                         }
+                        shader.set_uniform_f3("diffuse_color", material.diffuse_color);
                         shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+
+                        if (shader_type == ShaderType::eLit)
+                        {
+                            shader.set_uniform_f1("shininess", static_cast<float>(material.shininess));
+                            const auto texture_specular_idx = material.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.specular_texture;
+                            shader.set_texture("texture_specular", &textures[texture_specular_idx]);
+                        }
 
                         geometries[mesh_component.geometry].bind();
                         geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
@@ -525,14 +527,17 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
                         shader.set_uniform_mat_f4("model", transform_component.local_to_world);
 
-                        if (shader_type == ShaderType::eLit)
-                        {
-                            shader.set_uniform_f3("ambient_color", material.ambient_color);
-                            shader.set_uniform_f4("specular_color", std::array<float, 4>{material.specular_color[0], material.specular_color[1], material.specular_color[2], static_cast<float>(material.shininess)});
-                        }
-                        shader.set_uniform_f3("diffuse_color", material.diffuse_color);
                         const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
                         shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
+                        shader.set_uniform_f3("diffuse_color", material.diffuse_color);
+
+                        if (shader_type == ShaderType::eVertexSkinningLit)
+                        {
+                            shader.set_uniform_f1("shininess", static_cast<float>(material.shininess));
+                            const auto texture_specular_idx = material.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.specular_texture;
+                            shader.set_texture("texture_specular", &textures[texture_specular_idx]);
+                        }
+
 
                         const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
                         for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)

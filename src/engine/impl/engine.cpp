@@ -261,11 +261,10 @@ engine_material_create_desc_t engineApplicationInitMaterialDesc(engine_applicati
     for (auto i = 0; i < 3; i++)
     {
         ret.diffuse_color[i] = 1.0f;
-        ret.specular_color[i] = 1.0f;
-        ret.ambient_color[i] = 1.0f;
     }
     ret.shininess = 32;
     ret.diffuse_texture = ENGINE_INVALID_OBJECT_HANDLE;
+    ret.specular_texture = ENGINE_INVALID_OBJECT_HANDLE;
     return ret;
 }
 

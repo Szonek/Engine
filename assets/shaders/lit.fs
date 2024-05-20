@@ -17,10 +17,10 @@ layout (binding = 1, std140) uniform CameraData
 out mediump vec4 out_fragment_color;
 
 
-uniform mediump vec3 ambient_color;
 uniform mediump vec3 diffuse_color;
-uniform mediump vec4 specular_color;  // color in rgb, shiness in w
-layout(binding=2) uniform sampler2D texture_diffuse;
+uniform mediump float shininess;
+layout(binding=5) uniform sampler2D texture_diffuse;
+layout(binding=6) uniform sampler2D texture_specular;
 
 struct LightPacket
 {
@@ -43,12 +43,13 @@ void main()
 	vec3 normal = normalize(fs_in.normals);
 	vec3 view_dir = normalize(view_pos.xyz - fs_in.world_pos);
 	vec3 frag_color = texture(texture_diffuse, fs_in.uv).xyz;
+	vec3 specular_color = texture(texture_specular, fs_in.uv).xyz;
 		
 	// light specific
 	vec3 light_dir = normalize(light_data[0].position.xyz - fs_in.world_pos); 
 	
 	// ambient
-	vec3 ambient = light_data[0].ambient.xyz * ambient_color;
+	vec3 ambient = light_data[0].ambient.xyz * diffuse_color;
 	
 	// diffuse
 
@@ -56,9 +57,8 @@ void main()
 	vec3 diffuse = light_data[0].diffuse.xyz * diffuse_factor * diffuse_color;
 	
 	// specular
-	float specular_strength = 0.5f;
 	vec3 reflect_dir = reflect(-light_dir, normal);
-	float specular_factor = specular_strength * pow(max(dot(view_dir, reflect_dir), 0.0), uint(specular_color.w));
+	float specular_factor = pow(max(dot(view_dir, reflect_dir), 0.0), uint(shininess));
 	vec3 specular = light_data[0].specular.xyz * specular_factor * specular_color.xyz;
 	
 	// final result
