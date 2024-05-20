@@ -26,5 +26,5 @@ void main()
 	gl_Position = projection * view * world_position;
 	vs_out.uv = in_vertex_tex_coord;
 	vs_out.world_pos = world_position.xyz;
-	vs_out.normals = mat3(transpose(inverse(model))) * normals;
+	vs_out.normals = mat3(transpose(inverse(model))) * normals;  //ToDo: optimize by sending transpose(inverse) from CPU
 }

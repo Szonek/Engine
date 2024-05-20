@@ -17,5 +17,6 @@ layout (binding = 1, std140) uniform CameraData
 {
 	mat4 view;
     mat4 projection;
+	vec4 view_pos;
 };
 uniform mat4 model;
