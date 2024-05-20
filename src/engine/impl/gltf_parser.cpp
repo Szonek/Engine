@@ -304,10 +304,11 @@ inline engine::MaterialInfo parse_material(const tinygltf::Material& material)
     engine::MaterialInfo new_material{};
     new_material.name = material.name;
     // copy diffuse color
-    for (std::size_t c = 0; c < 4; c++)
+    for (std::size_t c = 0; c < 3; c++)
     {
         new_material.diffuse_factor[c] = static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[c]);
     }
+    assert(static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[3]) == 1.0f);
     // copy diffuse texture
     new_material.diffuse_texture = material.pbrMetallicRoughness.baseColorTexture.index;
     return new_material;

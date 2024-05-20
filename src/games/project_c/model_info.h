@@ -53,7 +53,7 @@ struct ModelInfo
         for (std::uint32_t i = 0; i < model_info.materials_count; i++)
         {
             const auto& mat = model_info.materials_array[i];
-            engine_material_create_desc_t mat_create_desc{};
+            engine_material_create_desc_t mat_create_desc = engineApplicationInitMaterialDesc(app);
             set_c_array(mat_create_desc.diffuse_color, mat.diffuse_color);
             if (mat.diffuse_texture_index != -1)
             {

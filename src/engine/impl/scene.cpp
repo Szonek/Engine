@@ -483,9 +483,15 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         shader.bind();
 
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
-                        shader.set_uniform_f4("diffuse_color", material.diffuse_color);
                         shader.set_uniform_mat_f4("model", transform_component.local_to_world);
 
+                        if (shader_type == ShaderType::eLit)
+                        {
+                            shader.set_uniform_f3("ambient_color", material.ambient_color);
+                            shader.set_uniform_f4("specular_color", std::array<float, 4>{material.specular_color[0], material.specular_color[1], material.specular_color[2], static_cast<float>(material.shininess)});
+                        }
+                        
+                        shader.set_uniform_f3("diffuse_color", material.diffuse_color);
                         auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
                         if (texture_diffuse_idx > textures.size())
                         {
@@ -517,9 +523,14 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         auto& shader = shaders_[static_cast<std::uint32_t>(shader_type)];
                         shader.bind();
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
-                        shader.set_uniform_f4("diffuse_color", material.diffuse_color);
                         shader.set_uniform_mat_f4("model", transform_component.local_to_world);
 
+                        if (shader_type == ShaderType::eLit)
+                        {
+                            shader.set_uniform_f3("ambient_color", material.ambient_color);
+                            shader.set_uniform_f4("specular_color", std::array<float, 4>{material.specular_color[0], material.specular_color[1], material.specular_color[2], static_cast<float>(material.shininess)});
+                        }
+                        shader.set_uniform_f3("diffuse_color", material.diffuse_color);
                         const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
                         shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
 

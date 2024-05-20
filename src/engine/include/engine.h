@@ -379,7 +379,10 @@ typedef struct _engine_animation_clip_create_desc_t
 
 typedef struct _engine_material_create_desc_t
 {
-    float diffuse_color[4];
+    float ambient_color[3];
+    float diffuse_color[3];
+    float specular_color[3];
+    uint32_t shininess;
     engine_texture2d_t diffuse_texture;
 } engine_material_create_desc_t;
 
@@ -399,7 +402,7 @@ typedef struct _engine_skin_reate_desc_t
 typedef struct _engine_model_material_desc_t
 {
     const char* name;
-    float diffuse_color[4];
+    float diffuse_color[3];
     uint32_t diffuse_texture_index;  // -1 if not used
 } engine_model_material_desc_t;
 
@@ -502,6 +505,7 @@ ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_applicati
 ENGINE_API engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_application_t handle, engine_geometry_t geometry, engine_vertex_attribute_type_t type);
 
 // material
+ENGINE_API engine_material_create_desc_t engineApplicationInitMaterialDesc(engine_application_t handle);
 ENGINE_API engine_result_code_t engineApplicationAddMaterialFromDesc(engine_application_t handle, const engine_material_create_desc_t* desc, const char* name, engine_material_t* out);
 ENGINE_API engine_material_t    engineApplicationGetMaterialByName(engine_application_t handle, const char* name);
 

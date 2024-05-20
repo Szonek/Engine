@@ -122,6 +122,15 @@ engine::Shader::Shader(std::vector<std::string_view> vertex_shader_name, std::ve
 , fragment_shader_(0)
 , program_(glCreateProgram())
 {
+    log::log(log::LogLevel::eTrace, fmt::format("[Trace][Program] Creating shaders: \t\n"));
+    for (const auto& s : vertex_shader_name)
+    {
+        log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Vertex shader: {}\n", s));
+    }
+    for (const auto& s : fragment_shader_name)
+    {
+        log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Fragment shader: {}\n", s));
+    }
 	// compile shaders and link to program
 	{
         std::vector<std::string> sources;
@@ -200,6 +209,14 @@ void engine::Shader::set_uniform_f4(std::string_view name, std::span<const float
     const auto loc = get_uniform_location(name);
 	glUniform4f(loc, host_data[0], host_data[1], host_data[2], host_data[3]);
 }
+
+void engine::Shader::set_uniform_f3(std::string_view name, std::span<const float> host_data)
+{
+    assert(host_data.size() == 3 && "[ERROR] Wrong size of data");
+    const auto loc = get_uniform_location(name);
+    glUniform3f(loc, host_data[0], host_data[1], host_data[2]);
+}
+
 
 void engine::Shader::set_uniform_f2(std::string_view name, std::span<const float> host_data)
 {

@@ -71,6 +71,7 @@ public:
 
 	void bind() const;
 	void set_uniform_f4(std::string_view name, std::span<const float> host_data);
+	void set_uniform_f3(std::string_view name, std::span<const float> host_data);
 	void set_uniform_f2(std::string_view name, std::span<const float> host_data);
 	void set_uniform_f1(std::string_view name, const float host_data);
 	void set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data);

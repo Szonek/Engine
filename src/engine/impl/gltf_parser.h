@@ -36,7 +36,7 @@ struct TextureInfo
 struct MaterialInfo
 {
     std::string name;
-    std::array<float, 4> diffuse_factor;
+    std::array<float, 3> diffuse_factor;
     std::int32_t diffuse_texture = INVALID_VALUE;
 };
 
