@@ -28,8 +28,7 @@ struct ModelInfo
         for (std::uint32_t i = 0; i < model_info.geometries_count; i++)
         {
             const auto& geo = model_info.geometries_array[i];
-            const auto name = "unnamed_geometry__" + std::to_string(i);
-            engine_error_code = engineApplicationAddGeometryFromDesc(app, &geo, name.c_str(), &geometries[i]);
+            engine_error_code = engineApplicationAddGeometryFromDesc(app, &geo, model_file_name.data(), &geometries[i]);
             if (engine_error_code != ENGINE_RESULT_CODE_OK)
             {
                 engineLog("Failed creating geometry for loaded model. Exiting!\n");

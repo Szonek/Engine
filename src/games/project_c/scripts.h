@@ -244,6 +244,29 @@ protected:
     AnimationController anim_controller_;
 };
 
+class SpecularBox : public BaseNode
+{
+public:
+    SpecularBox(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_y, float offset_z)
+        : BaseNode(my_scene, go, "specular-box")
+    {
+        const auto scene = my_scene_->get_handle();
+        const auto app = my_scene_->get_app_handle();
+        // transform
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        tc.position[0] += offset_x;
+        tc.position[1] += offset_y;
+        tc.position[2] += offset_z;
+        
+        tc.scale[0] = 0.5f;
+        tc.scale[1] = 0.5f;
+        tc.scale[2] = 0.5f;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+    }
+
+};
+
 class MainLight : public BaseNode
 {
 public:
@@ -258,7 +281,21 @@ public:
         tc.position[0] = 0.0f;
         tc.position[1] = 10.0f;
         tc.position[2] = 0.0f;
+
+        tc.scale[0] = 0.1f;
+        tc.scale[1] = 0.1f;
+        tc.scale[2] = 0.1f;
+
         engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        // for visulastuion add mesh component
+        auto mc = engineSceneAddMeshComponent(scene, go_);
+        mc.geometry = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
+        engineSceneUpdateMeshComponent(scene, go_, &mc);
+
+        // and basic material
+        auto mat = engineSceneAddMaterialComponent(scene, go_);
+        engineSceneUpdateMaterialComponent(scene, go_, &mat);
 
         // light component
         auto lc = engineSceneAddLightComponent(scene, go_);
