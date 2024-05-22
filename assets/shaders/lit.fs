@@ -24,7 +24,7 @@ layout(binding=6) uniform sampler2D texture_specular;
 
 struct LightPacket
 {
-	vec4 position; //xyz
+	vec4 data; //direction or position based on type of light
 	vec4 ambient;  //xyz
 	vec4 diffuse;  //xyz
 	vec4 specular; //xyz
@@ -46,7 +46,8 @@ void main()
 	vec3 specular_color = texture(texture_specular, fs_in.uv).xyz;
 		
 	// light specific
-	vec3 light_dir = normalize(light_data[0].position.xyz - fs_in.world_pos); 
+	//vec3 light_dir = normalize(light_data[0].position.xyz - fs_in.world_pos); 
+	vec3 light_dir = normalize(light_data[0].data.xyz); 
 	
 	// ambient
 	vec3 ambient = light_data[0].ambient.xyz * diffuse_color;
