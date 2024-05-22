@@ -361,6 +361,13 @@ int main(int argc, char** argv)
     {
         return false;
     }
+    engineApplicationAddTexture2DFromFile(app, "container2.png", ENGINE_TEXTURE_COLOR_SPACE_LINEAR, "cube_diffuse", nullptr);
+    engineApplicationAddTexture2DFromFile(app, "container2_specular.png", ENGINE_TEXTURE_COLOR_SPACE_LINEAR, "cube_specular", nullptr);
+    engine_material_create_desc_t cube_material_desc = engineApplicationInitMaterialDesc(app);
+    cube_material_desc.diffuse_texture = engineApplicationGetTextured2DByName(app, "cube_diffuse");
+    cube_material_desc.specular_texture = engineApplicationGetTextured2DByName(app, "cube_specular");
+    engineApplicationAddMaterialFromDesc(app, &cube_material_desc, "cube_material", nullptr);
+
 
     bool load_model = true;
 

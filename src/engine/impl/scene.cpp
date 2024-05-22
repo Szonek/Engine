@@ -480,7 +480,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         }
                         const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
                         
-                        const auto shader_type = ShaderType::eLit;
+                        const auto shader_type = ShaderType::eUnlit;
                         auto& shader = shaders_[static_cast<std::uint32_t>(shader_type)];
                         shader.bind();
 

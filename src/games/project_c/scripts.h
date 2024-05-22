@@ -263,6 +263,11 @@ public:
         tc.scale[2] = 0.5f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
 
+        // material
+        auto mc = engineSceneGetMaterialComponent(scene, go_);
+        mc.material = engineApplicationGetMaterialByName(app, "cube_material");
+        engineSceneUpdateMaterialComponent(scene, go_, &mc);
+
     }
 
 };
