@@ -392,7 +392,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    load_model = project_c::parse_model_info_and_create_script<project_c::SpecularBox>(model_info_cube, scene, 0.0f, 1.0f, 0.0f);
+    //load_model = project_c::parse_model_info_and_create_script<project_c::SpecularBox>(model_info_cube, scene, 0.0f, 1.0f, 0.0f);
     if (!load_model)
     {
         log(fmt::format("Loading model failed!\n"));
