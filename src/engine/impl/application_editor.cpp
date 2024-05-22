@@ -271,12 +271,14 @@ bool display_light_component(engine_light_component_t& c)
 {
     bool requires_update = false;
     // intensity
-    requires_update |= ImGui::DragFloat3("Ambient", c.intensity.ambient, 0.1f);
-    requires_update |= ImGui::DragFloat3("Diffuse", c.intensity.diffuse, 0.1f);
-    requires_update |= ImGui::DragFloat3("Specular", c.intensity.specular, 0.1f);
+    constexpr const float intensity_min = 0.0f;
+    constexpr const float intensity_max = 1.0f;
+    requires_update |= ImGui::DragFloat3("Ambient", c.intensity.ambient, 0.05f, intensity_min, intensity_max);
+    requires_update |= ImGui::DragFloat3("Diffuse", c.intensity.diffuse, 0.05f, intensity_min, intensity_max);
+    requires_update |= ImGui::DragFloat3("Specular", c.intensity.specular, 0.05f, intensity_min, intensity_max);
     
     //type 
-    const char* items[] = { "Point", "Directional", "Spot" };
+    const char* items[] = { "Directional", "Point",  "Spot" };
     std::int32_t selected_type = c.type;
     
     if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
