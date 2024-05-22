@@ -57,7 +57,7 @@ void main()
 	vec3 diffuse = light_data[0].diffuse.xyz * diffuse_factor * diffuse_color;
 	
 	// specular
-	vec3 reflect_dir = reflect(-light_dir, normal);
+	vec3 reflect_dir = reflect(-light_dir, normal);  // -light_dir?
 	float specular_factor = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
 	vec3 specular = light_data[0].specular.xyz * specular_factor * specular_color.xyz;
 	

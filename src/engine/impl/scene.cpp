@@ -57,6 +57,7 @@ struct CameraGpuData
 {
     glm::mat4 view;
     glm::mat4 projection;
+    glm::vec3 position;
 };
 
 struct engine_camera_internal_component_t
@@ -400,7 +401,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
         auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, engine_camera_internal_component_t>();
 
-        for (auto [entity, camera, transform, camera_internal] : camera_view.each()) 
+        for (auto [entity, camera, camera_transform, camera_internal] : camera_view.each()) 
         {
             if (!camera.enabled)
             {
@@ -431,7 +432,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 {
                     projection = glm::perspective(glm::radians(camera.type_union.perspective_fov), aspect, z_near, z_far);
                 }
-                const auto eye_position = glm::make_vec3(transform.position);
+                const auto eye_position = glm::make_vec3(camera_transform.position);
                 const auto up = glm::make_vec3(camera.direction.up);
                 const auto target = glm::make_vec3(camera.target);
                 view = glm::lookAt(eye_position, target, up);
@@ -443,6 +444,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 BufferMapContext<CameraGpuData, UniformBuffer> camera_ubo(camera_internal.camera_ubo, false, true);
                 camera_ubo.data->view = view;
                 camera_ubo.data->projection = projection;
+                camera_ubo.data->position = glm::make_vec3(camera_transform.position);
             }
 
             // copy lights data to the GPU
