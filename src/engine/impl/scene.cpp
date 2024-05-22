@@ -40,6 +40,13 @@ void update_parent_component(entt::registry& registry, entt::entity entity)
     engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has no more space for children. Are you sure you are doing valid thing?\n"));
 }
 
+struct SceneGpuData
+{
+    std::uint32_t direction_light_count = 0;
+    std::uint32_t point_light_count = 0;
+    std::uint32_t spot_light_count = 0;
+    float pad3_;
+};
 
 struct LightGpuData
 {
@@ -78,6 +85,8 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
     , rigid_body_create_observer(entity_registry_, entt::collector.group<engine_rigid_body_component_t, engine_tranform_component_t, engine_collider_component_t>())
     , rigid_body_update_observer(entity_registry_, entt::collector.update<engine_rigid_body_component_t>().where<engine_tranform_component_t, engine_collider_component_t>())
+    , scene_ubo_(sizeof(SceneGpuData))
+    , light_data_ssbo_(1'000 * sizeof(LightGpuData))
 {
     // shaders
     shaders_[static_cast<std::uint32_t>(ShaderType::eUnlit)] = Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "unlit.fs" });
@@ -393,9 +402,53 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
     }
 
 
+    // copy lights data to the GPU
+    {
+        ENGINE_PROFILE_SECTION_N("light buffer");
+        std::size_t directional_light_count = 0;
+        std::size_t point_light_count = 0;
+        std::size_t spot_light_count = 0;
+        auto lights_view = entity_registry_.view<const engine_tranform_component_t, const engine_light_component_t>();
+        lights_view.each([&directional_light_count, &point_light_count, &spot_light_count](const engine_tranform_component_t& transform, const engine_light_component_t& light)
+            {        
+                if(light.type == ENGINE_LIGHT_TYPE_DIRECTIONAL)
+                {
+                    directional_light_count++;
+                }
+                else if (light.type == ENGINE_LIGHT_TYPE_POINT)
+                {
+                    point_light_count++;
+                }
+                else if (light.type == ENGINE_LIGHT_TYPE_SPOT)
+                {
+                    spot_light_count++;
+                }
+            });
+        const auto total_lights = directional_light_count + point_light_count + spot_light_count;
+        if (total_lights > light_data_ssbo_.get_size())
+        {
+            log::log(log::LogLevel::eTrace, fmt::format("Light data SSBO is too small. Increasing the size of the buffer. Current size: {}. Required size: {}\n", light_data_ssbo_.get_size(), total_lights));
+            light_data_ssbo_ = ShaderStorageBuffer(total_lights * sizeof(LightGpuData));
+        }
+        BufferMapContext<LightGpuData, ShaderStorageBuffer> light_data(light_data_ssbo_, false, true);
+        lights_view.each([&light_data](const engine_tranform_component_t& transform, const engine_light_component_t& light)
+            {
+                if (light.type == ENGINE_LIGHT_TYPE_DIRECTIONAL)
+                {
+                    light_data.data->data = glm::vec4(glm::make_vec3(light.directional.direction), 1.0f);
+                }
+                light_data.data->ambient = glm::make_vec3(light.intensity.ambient);
+                light_data.data->diffuse = glm::make_vec3(light.intensity.diffuse);
+                light_data.data->specular = glm::make_vec3(light.intensity.specular);
+                light_data.data++;
+            });
+        light_data.unmap();
+        light_data_ssbo_.bind(3);
+    }
+
     {
         ENGINE_PROFILE_SECTION_N("camera_loop");
-        auto lights_view = entity_registry_.view<const engine_tranform_component_t, const engine_light_component_t>();
+
         auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
         auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, engine_camera_internal_component_t>();
@@ -446,25 +499,6 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 camera_ubo.data->position = glm::make_vec3(camera_transform.position);
             }
 
-            // copy lights data to the GPU
-            static ShaderStorageBuffer light_data_ssbo(1'000 * sizeof(LightGpuData));
-            {
-                ENGINE_PROFILE_SECTION_N("light buffer");
-                BufferMapContext<LightGpuData, ShaderStorageBuffer> light_data(light_data_ssbo, false, true);
-                lights_view.each([&light_data](const engine_tranform_component_t& transform, const engine_light_component_t& light)
-                    {
-                        if (light.type == ENGINE_LIGHT_TYPE_DIRECTIONAL)
-                        {
-                            light_data.data->data = glm::vec4(glm::make_vec3(light.directional.direction), 1.0f);
-                        }
-                        light_data.data->ambient  = glm::make_vec3(light.intensity.ambient);
-                        light_data.data->diffuse  = glm::make_vec3(light.intensity.diffuse);
-                        light_data.data->specular = glm::make_vec3(light.intensity.specular);
-                        light_data.data++;
-                    });
-                light_data.unmap();
-                light_data_ssbo.bind(3);
-            }
 
             {
                 ENGINE_PROFILE_SECTION_N("geometry_renderer");

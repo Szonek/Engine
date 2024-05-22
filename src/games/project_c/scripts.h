@@ -308,7 +308,7 @@ public:
         set_c_array(lc.intensity.ambient, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
         set_c_array(lc.intensity.diffuse, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
         set_c_array(lc.intensity.specular, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
-        set_c_array(lc.directional.direction, std::array<float, 3>{ 0.0f, 0.0f, 0.0f });
+        set_c_array(lc.directional.direction, std::array<float, 3>{ 0.0f, 1.0f, 0.0f });
         engineSceneUpdateLightComponent(scene, go_, &lc);
     }
 

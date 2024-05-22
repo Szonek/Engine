@@ -111,6 +111,9 @@ private:
 
     std::array<Shader, static_cast<std::size_t>(ShaderType::eCount)> shaders_;
 
+    UniformBuffer scene_ubo_;
+    ShaderStorageBuffer light_data_ssbo_;
+
     Framebuffer fbo_;
     Geometry empty_vao_for_full_screen_quad_draw_;
 };
