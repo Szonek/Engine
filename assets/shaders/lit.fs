@@ -65,11 +65,11 @@ vec3 calc_dir_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_col
 	return ambient + diffuse + specular;
 }  
 
-vec3 calc_point_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_color, vec3 specular_color)
+vec3 calc_point_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_world_pos, vec3 frag_color, vec3 specular_color)
 {
 	// point light specfific 
-	vec3 light_dir = normalize(light.position.xyz - fs_in.world_pos); 
-	float distance = length(light.position.xyz - fs_in.world_pos);
+	vec3 light_dir = normalize(light.position.xyz - frag_world_pos); 
+	float distance = length(light.position.xyz - frag_world_pos);
 	float light_constant = light.attenuation.x;
 	float light_linear = light.attenuation.y * distance;
 	float light_quadratic = light.attenuation.z * (distance * distance);
@@ -113,7 +113,7 @@ void main()
 	// point
 	for(uint i = direction_light_count; i < direction_light_count + point_light_count; i++)
 	{
-		out_color += calc_point_light(light_data[i], normal, view_dir, frag_color, specular_color);
+		out_color += calc_point_light(light_data[i], normal, view_dir, fs_in.world_pos, frag_color, specular_color);
 	}
 	
 	// final result
