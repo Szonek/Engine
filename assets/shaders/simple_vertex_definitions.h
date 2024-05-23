@@ -13,7 +13,7 @@ out VS_OUT
 	vec3 world_pos;
 } vs_out;
 
-layout (binding = 1, std140) uniform CameraData
+layout (binding = 0, std140) uniform CameraData
 {
 	mat4 view;
     mat4 projection;

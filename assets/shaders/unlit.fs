@@ -10,7 +10,7 @@ in VS_OUT
 out mediump vec4 out_fragment_color;
 
 uniform mediump vec3 diffuse_color;
-layout(binding=1) uniform sampler2D texture_diffuse;
+layout(binding=5) uniform sampler2D texture_diffuse;
 
 void main()
 {

@@ -401,49 +401,65 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
     }
 
-
+    std::uint32_t directional_light_count = 0;
+    std::uint32_t point_light_count = 0;
+    std::uint32_t spot_light_count = 0;
     // copy lights data to the GPU
     {
-        ENGINE_PROFILE_SECTION_N("light buffer");
-        std::size_t directional_light_count = 0;
-        std::size_t point_light_count = 0;
-        std::size_t spot_light_count = 0;
+        ENGINE_PROFILE_SECTION_N("lights update");
         auto lights_view = entity_registry_.view<const engine_tranform_component_t, const engine_light_component_t>();
-        lights_view.each([&directional_light_count, &point_light_count, &spot_light_count](const engine_tranform_component_t& transform, const engine_light_component_t& light)
-            {        
-                if(light.type == ENGINE_LIGHT_TYPE_DIRECTIONAL)
-                {
-                    directional_light_count++;
-                }
-                else if (light.type == ENGINE_LIGHT_TYPE_POINT)
-                {
-                    point_light_count++;
-                }
-                else if (light.type == ENGINE_LIGHT_TYPE_SPOT)
-                {
-                    spot_light_count++;
-                }
-            });
-        const auto total_lights = directional_light_count + point_light_count + spot_light_count;
-        if (total_lights > light_data_ssbo_.get_size())
         {
-            log::log(log::LogLevel::eTrace, fmt::format("Light data SSBO is too small. Increasing the size of the buffer. Current size: {}. Required size: {}\n", light_data_ssbo_.get_size(), total_lights));
-            light_data_ssbo_ = ShaderStorageBuffer(total_lights * sizeof(LightGpuData));
-        }
-        BufferMapContext<LightGpuData, ShaderStorageBuffer> light_data(light_data_ssbo_, false, true);
-        lights_view.each([&light_data](const engine_tranform_component_t& transform, const engine_light_component_t& light)
-            {
-                if (light.type == ENGINE_LIGHT_TYPE_DIRECTIONAL)
+            ENGINE_PROFILE_SECTION_N("lights counter");
+            lights_view.each([&directional_light_count, &point_light_count, &spot_light_count](const engine_tranform_component_t& transform, const engine_light_component_t& light)
                 {
-                    light_data.data->data = glm::vec4(glm::make_vec3(light.directional.direction), 1.0f);
-                }
-                light_data.data->ambient = glm::make_vec3(light.intensity.ambient);
-                light_data.data->diffuse = glm::make_vec3(light.intensity.diffuse);
-                light_data.data->specular = glm::make_vec3(light.intensity.specular);
-                light_data.data++;
-            });
-        light_data.unmap();
-        light_data_ssbo_.bind(3);
+                    if (light.type == ENGINE_LIGHT_TYPE_DIRECTIONAL)
+                    {
+                        directional_light_count++;
+                    }
+                    else if (light.type == ENGINE_LIGHT_TYPE_POINT)
+                    {
+                        point_light_count++;
+                    }
+                    else if (light.type == ENGINE_LIGHT_TYPE_SPOT)
+                    {
+                        spot_light_count++;
+                    }
+                });
+        }
+
+        {
+            ENGINE_PROFILE_SECTION_N("lights_ssbo update");
+            const auto total_lights = directional_light_count + point_light_count + spot_light_count;
+            if (total_lights > light_data_ssbo_.get_size())
+            {
+                log::log(log::LogLevel::eTrace, fmt::format("Light data SSBO is too small. Increasing the size of the buffer. Current size: {}. Required size: {}\n", light_data_ssbo_.get_size(), total_lights));
+                light_data_ssbo_ = ShaderStorageBuffer(total_lights * sizeof(LightGpuData));
+            }
+            BufferMapContext<LightGpuData, ShaderStorageBuffer> light_data(light_data_ssbo_, false, true);
+            lights_view.each([&light_data](const engine_tranform_component_t& transform, const engine_light_component_t& light)
+                {
+                    if (light.type == ENGINE_LIGHT_TYPE_DIRECTIONAL)
+                    {
+                        light_data.data->data = glm::vec4(glm::make_vec3(light.directional.direction), 1.0f);
+                    }
+                    light_data.data->ambient = glm::make_vec3(light.intensity.ambient);
+                    light_data.data->diffuse = glm::make_vec3(light.intensity.diffuse);
+                    light_data.data->specular = glm::make_vec3(light.intensity.specular);
+                    light_data.data++;
+                });
+            light_data.unmap();
+            light_data_ssbo_.bind(2);
+        }
+
+    }
+
+    {
+        ENGINE_PROFILE_SECTION_N("scene_ubo update");
+        BufferMapContext<SceneGpuData, UniformBuffer> scene_ubo(scene_ubo_, false, true);
+        scene_ubo.data->direction_light_count = directional_light_count;
+        scene_ubo.data->point_light_count = point_light_count;
+        scene_ubo.data->spot_light_count = spot_light_count;
+        scene_ubo.unmap();
     }
 
     {
@@ -520,7 +536,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         auto& shader = shaders_[static_cast<std::uint32_t>(shader_type)];
                         shader.bind();
 
-                        shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
+                        shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);    
                         shader.set_uniform_mat_f4("model", transform_component.local_to_world);                       
 
                         auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
@@ -535,6 +551,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
                         if (shader_type == ShaderType::eLit)
                         {
+                            shader.set_uniform_block("SceneData", &scene_ubo_, 1);
                             shader.set_uniform_f1("shininess", static_cast<float>(material.shininess));
                             const auto texture_specular_idx = material.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.specular_texture;
                             shader.set_texture("texture_specular", &textures[texture_specular_idx]);
@@ -562,7 +579,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         const auto shader_type = ShaderType::eVertexSkinningLit;
                         auto& shader = shaders_[static_cast<std::uint32_t>(shader_type)];
                         shader.bind();
-                        shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 1);
+                        shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
                         shader.set_uniform_mat_f4("model", transform_component.local_to_world);
 
                         const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
@@ -571,6 +588,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
                         if (shader_type == ShaderType::eVertexSkinningLit)
                         {
+                            shader.set_uniform_block("SceneData", &scene_ubo_, 1);
                             shader.set_uniform_f1("shininess", static_cast<float>(material.shininess));
                             const auto texture_specular_idx = material.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.specular_texture;
                             shader.set_texture("texture_specular", &textures[texture_specular_idx]);

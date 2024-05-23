@@ -7,11 +7,30 @@ in VS_OUT
 	vec3 world_pos;
 } fs_in;
 
-layout (binding = 1, std140) uniform CameraData
+struct LightPacket
+{
+	vec4 data; //direction or position based on type of light
+	vec4 ambient;  //xyz
+	vec4 diffuse;  //xyz
+	vec4 specular; //xyz
+};
+
+layout (binding = 0, std140) uniform CameraData
 {
 	mat4 view;
     mat4 projection;
 	vec4 view_pos;
+};
+layout (binding = 1, std140) uniform SceneData
+{
+    uint direction_light_count;
+    uint point_light_count;
+    uint spot_light_count;
+	float pad0_;
+};
+layout (binding = 2, std430) readonly buffer LightPacketSSBO
+{
+	LightPacket light_data[];
 };
 
 out mediump vec4 out_fragment_color;
@@ -21,21 +40,6 @@ uniform mediump vec3 diffuse_color;
 uniform mediump float shininess;
 layout(binding=5) uniform sampler2D texture_diffuse;
 layout(binding=6) uniform sampler2D texture_specular;
-
-struct LightPacket
-{
-	vec4 data; //direction or position based on type of light
-	vec4 ambient;  //xyz
-	vec4 diffuse;  //xyz
-	vec4 specular; //xyz
-};
-
-layout (binding = 3, std430) readonly buffer LightPacketSSBO
-{
-	LightPacket light_data[];
-};
-
-
 
 void main()
 {
@@ -58,7 +62,7 @@ void main()
 	vec3 diffuse = light_data[0].diffuse.xyz * diffuse_factor * diffuse_color;
 	
 	// specular
-	vec3 reflect_dir = reflect(-light_dir, normal);  // -light_dir?
+	vec3 reflect_dir = reflect(-light_dir, normal);
 	float specular_factor = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
 	vec3 specular = light_data[0].specular.xyz * specular_factor * specular_color.xyz;
 	
