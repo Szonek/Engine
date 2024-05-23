@@ -34,8 +34,8 @@ typedef struct _engine_point_light_data_t
 typedef struct _engine_spot_light_data_t
 {
     float direction[3];
-    float cut_off;  // radians
-    float outer_cut_off; // radians
+    float cut_off;  // degrees
+    float outer_cut_off; // degrees
     float constant;
     float linear;
     float quadratic;

@@ -414,6 +414,7 @@ int main(int argc, char** argv)
     // light
     scene->register_script<project_c::MainLight>();
     scene->register_script<project_c::PointLight>();
+    scene->register_script<project_c::SpotLight>();
 
     std::mt19937 rng(42);
     std::uniform_int_distribution<std::mt19937::result_type> dist6(0, 1);
