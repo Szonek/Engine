@@ -45,6 +45,52 @@ uniform mediump float shininess;
 layout(binding=5) uniform sampler2D texture_diffuse;
 layout(binding=6) uniform sampler2D texture_specular;
 
+
+vec3 calc_dir_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_color, vec3 specular_color)
+{
+	vec3 light_dir = normalize(light.direction.xyz); 
+	
+	// ambient
+	vec3 ambient = light.ambient.xyz * frag_color;
+	
+	// diffuse
+	float diffuse_factor = max(dot(normal, light_dir), 0.0);
+	vec3 diffuse = light.diffuse.xyz * diffuse_factor * frag_color;
+	
+	// specular
+	vec3 reflect_dir = reflect(-light_dir, normal);
+	float specular_factor = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
+	vec3 specular = light.specular.xyz * specular_factor * specular_color;
+	
+	return ambient + diffuse + specular;
+}  
+
+vec3 calc_point_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_color, vec3 specular_color)
+{
+	// point light specfific 
+	vec3 light_dir = normalize(light.position.xyz - fs_in.world_pos); 
+	float distance = length(light.position.xyz - fs_in.world_pos);
+	float light_constant = light.attenuation.x;
+	float light_linear = light.attenuation.y * distance;
+	float light_quadratic = light.attenuation.z * (distance * distance);
+	float attenuation = 1.0f / (light_constant + light_linear * light_quadratic);
+	
+	// ambient
+	vec3 ambient = light.ambient.xyz * frag_color * attenuation;
+	
+	// diffuse
+	float diffuse_factor = max(dot(normal, light_dir), 0.0);
+	vec3 diffuse = light.diffuse.xyz * diffuse_factor * frag_color * attenuation;
+	
+	// specular
+	vec3 reflect_dir = reflect(-light_dir, normal);
+	float specular_factor = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
+	vec3 specular = light.specular.xyz * specular_factor * specular_color.xyz * attenuation;
+	
+	return ambient + diffuse + specular;
+}  
+
+
 void main()
 {
 	// fragment specific
@@ -53,6 +99,7 @@ void main()
 	vec3 frag_color = texture(texture_diffuse, fs_in.uv).xyz * diffuse_color;
 	vec3 specular_color = texture(texture_specular, fs_in.uv).xyz;
 	
+	vec3 out_color = vec3(0.0f);
 	vec3 ambient = vec3(0.0f);
 	vec3 diffuse = vec3(0.0f);
 	vec3 specular = vec3(0.0f);
@@ -60,46 +107,15 @@ void main()
 	// directional
 	for(uint i = 0; i < direction_light_count; i++)
 	{
-		// directiononal light specfific 
-		vec3 light_dir = normalize(light_data[i].direction.xyz); 
-		
-		// ambient
-		ambient += light_data[i].ambient.xyz * frag_color;
-		
-		// diffuse
-		float diffuse_factor = max(dot(normal, light_dir), 0.0);
-		diffuse += light_data[i].diffuse.xyz * diffuse_factor * frag_color;
-		
-		// specular
-		vec3 reflect_dir = reflect(-light_dir, normal);
-		float specular_factor = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
-		specular += light_data[i].specular.xyz * specular_factor * specular_color.xyz;
+		out_color += calc_dir_light(light_data[i], normal, view_dir, frag_color, specular_color);
 	}
 	
 	// point
 	for(uint i = direction_light_count; i < direction_light_count + point_light_count; i++)
 	{
-		// point light specfific 
-		vec3 light_dir = normalize(light_data[i].position.xyz - fs_in.world_pos); 
-		float distance = length(light_data[i].position.xyz - fs_in.world_pos);
-		float light_constant = light_data[i].attenuation.x;
-		float light_linear = light_data[i].attenuation.y * distance;
-		float light_quadratic = light_data[i].attenuation.z * (distance * distance);
-		float attenuation = 1.0f / (light_constant + light_linear * light_quadratic);
-		
-		// ambient
-		ambient += light_data[i].ambient.xyz * frag_color * attenuation;
-		
-		// diffuse
-		float diffuse_factor = max(dot(normal, light_dir), 0.0);
-		diffuse += light_data[i].diffuse.xyz * diffuse_factor * frag_color * attenuation;
-		
-		// specular
-		vec3 reflect_dir = reflect(-light_dir, normal);
-		float specular_factor = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
-		specular += light_data[i].specular.xyz * specular_factor * specular_color.xyz * attenuation;
+		out_color += calc_point_light(light_data[i], normal, view_dir, frag_color, specular_color);
 	}
 	
 	// final result
-	out_fragment_color = vec4((ambient + diffuse + specular), 1.0f);
+	out_fragment_color = vec4((out_color + ambient + diffuse + specular), 1.0f);
 } 
