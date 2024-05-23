@@ -58,6 +58,12 @@ void main()
 		out_color += calc_point_light(light_data[i], normal, view_dir, fs_in.world_pos, frag_color, specular_color, shininess);
 	}
 	
+	// spot
+	for(uint i = direction_light_count + point_light_count; i < direction_light_count + point_light_count + spot_light_count; i++)
+	{
+		out_color += calc_point_light(light_data[i], normal, view_dir, fs_in.world_pos, frag_color, specular_color, shininess);
+	}
+	
 	// final result
 	out_fragment_color = vec4((out_color + ambient + diffuse + specular), 1.0f);
 } 

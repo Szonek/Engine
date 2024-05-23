@@ -33,7 +33,6 @@ vec3 calc_dir_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_col
 
 vec3 calc_point_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_world_pos, vec3 frag_color, vec3 specular_color, float shininess)
 {
-	// point light specfific 
 	vec3 light_dir = normalize(light.position.xyz - frag_world_pos); 
 	float distance = length(light.position.xyz - frag_world_pos);
 	float light_constant = light.attenuation.x;
@@ -56,3 +55,33 @@ vec3 calc_point_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_w
 	return ambient + diffuse + specular;
 }  
 
+vec3 calc_spot_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_world_pos, vec3 frag_color, vec3 specular_color, float shininess)
+{
+	// point light specfific 
+	vec3 light_dir = normalize(light.position.xyz - frag_world_pos); 
+	float distance = length(light.position.xyz - frag_world_pos);
+	float light_constant = light.attenuation.x;
+	float light_linear = light.attenuation.y * distance;
+	float light_quadratic = light.attenuation.z * (distance * distance);
+	float attenuation = 1.0f / (light_constant + light_linear * light_quadratic);
+	
+	// ambient
+	vec3 ambient = light.ambient.xyz * frag_color * attenuation;
+	
+	float theta = dot(light_dir, normalize(-light.direction.xyz));
+	float cut_off = light.position.w; // we packed cutoff into "W" component of position
+	if(theta <= cut_off)   // this is cosine!
+	{ 
+		return ambient;
+	}	
+	// diffuse
+	float diffuse_factor = max(dot(normal, light_dir), 0.0);
+	vec3 diffuse = light.diffuse.xyz * diffuse_factor * frag_color * attenuation;
+	
+	// specular
+	vec3 reflect_dir = reflect(-light_dir, normal);
+	float specular_factor = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
+	vec3 specular = light.specular.xyz * specular_factor * specular_color.xyz * attenuation;
+	
+	return ambient + diffuse + specular;
+}  

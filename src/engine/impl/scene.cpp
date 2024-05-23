@@ -467,8 +467,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         light_data_ptr = &light_data.data[spot_idx++];
                         light_data_ptr->position = glm::make_vec3(transform.position);
                         light_data_ptr->direction = glm::make_vec3(light.spot.direction);
-                        light_data_ptr->cutoff = light.spot.cut_off;
-                        light_data_ptr->outer_cutoff = light.spot.outer_cut_off;
+                        light_data_ptr->cutoff = glm::cos(light.spot.cut_off);
+                        light_data_ptr->outer_cutoff = glm::cos(light.spot.outer_cut_off);
                         light_data_ptr->constant = light.spot.constant;
                         light_data_ptr->linear = light.spot.linear;
                         light_data_ptr->quadratic = light.spot.quadratic;
