@@ -46,7 +46,7 @@ void main()
 	// fragment specific
 	vec3 normal = normalize(fs_in.normals);
 	vec3 view_dir = normalize(view_pos.xyz - fs_in.world_pos);
-	vec3 frag_color = texture(texture_diffuse, fs_in.uv).xyz;
+	vec3 frag_color = texture(texture_diffuse, fs_in.uv).xyz * diffuse_color;
 	vec3 specular_color = texture(texture_specular, fs_in.uv).xyz;
 		
 	// light specific
@@ -54,12 +54,12 @@ void main()
 	vec3 light_dir = normalize(light_data[0].data.xyz); 
 	
 	// ambient
-	vec3 ambient = light_data[0].ambient.xyz * diffuse_color;
+	vec3 ambient = light_data[0].ambient.xyz * frag_color;
 	
 	// diffuse
 
 	float diffuse_factor = max(dot(normal, light_dir), 0.0);
-	vec3 diffuse = light_data[0].diffuse.xyz * diffuse_factor * diffuse_color;
+	vec3 diffuse = light_data[0].diffuse.xyz * diffuse_factor * frag_color;
 	
 	// specular
 	vec3 reflect_dir = reflect(-light_dir, normal);
@@ -67,5 +67,5 @@ void main()
 	vec3 specular = light_data[0].specular.xyz * specular_factor * specular_color.xyz;
 	
 	// final result
-	out_fragment_color = vec4((ambient + diffuse + specular) * frag_color, 1.0f);
+	out_fragment_color = vec4((ambient + diffuse + specular), 1.0f);
 } 
