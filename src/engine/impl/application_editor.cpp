@@ -741,7 +741,7 @@ void engine::CameraScript::update(float dt)
     const bool rmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_RIGHT);
     const bool mmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_MIDDLE);
 
-    if (app_->keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LSHIFT))
+    //if (app_->keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LSHIFT))
     {
         if (lmb)
         {

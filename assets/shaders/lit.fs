@@ -11,9 +11,9 @@ in VS_OUT
 // ToDo: get rid of padding areas
 struct LightPacket
 {
-	vec4 position;  // Point and Spot: XYZ: position;          Spot: W: cutoff
-	vec4 direction; // Directional and Spot: XYZ: direction;   Spot: W: outer_cutoff
-	vec4 data;      // Point and Spot: XYZ: constant, linear, quadratic
+	vec4 position;      // Point and Spot: XYZ: position;          Spot: W: cutoff
+	vec4 direction;    // Directional and Spot: XYZ: direction;   Spot: W: outer_cutoff
+	vec4 attenuation;  // Point and Spot: XYZ: constant, linear, quadratic
 	vec4 ambient;  //xyz
 	vec4 diffuse;  //xyz
 	vec4 specular; //xyz
@@ -77,14 +77,14 @@ void main()
 	}
 	
 	// point
-	for(uint i = direction_light_count; i < point_light_count; i++)
+	for(uint i = direction_light_count; i < direction_light_count + point_light_count; i++)
 	{
 		// point light specfific 
 		vec3 light_dir = normalize(light_data[i].position.xyz - fs_in.world_pos); 
 		float distance = length(light_data[i].position.xyz - fs_in.world_pos);
-		float light_constant = light_data[i].data.x;
-		float light_linear = light_data[i].data.y * distance;
-		float light_quadratic = light_data[i].data.z * (distance * distance);
+		float light_constant = light_data[i].attenuation.x;
+		float light_linear = light_data[i].attenuation.y * distance;
+		float light_quadratic = light_data[i].attenuation.z * (distance * distance);
 		float attenuation = 1.0f / (light_constant + light_linear * light_quadratic);
 		
 		// ambient
