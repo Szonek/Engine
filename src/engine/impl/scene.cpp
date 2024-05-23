@@ -50,7 +50,14 @@ struct SceneGpuData
 
 struct LightGpuData
 {
-    glm::vec4 data;
+    glm::vec3 position;
+    float cutoff;
+    glm::vec3 direction;
+    float outer_cutoff;
+    float constant;
+    float linear;
+    float quadratic;
+    float pad0_;
     glm::vec3 ambient;
     float pad1_;
     glm::vec3 diffuse;
@@ -440,7 +447,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 {
                     if (light.type == ENGINE_LIGHT_TYPE_DIRECTIONAL)
                     {
-                        light_data.data->data = glm::vec4(glm::make_vec3(light.directional.direction), 1.0f);
+                        light_data.data->direction = glm::make_vec3(light.directional.direction);
                     }
                     light_data.data->ambient = glm::make_vec3(light.intensity.ambient);
                     light_data.data->diffuse = glm::make_vec3(light.intensity.diffuse);

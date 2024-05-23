@@ -7,9 +7,13 @@ in VS_OUT
 	vec3 world_pos;
 } fs_in;
 
+// This wastes memory and can be tighly packed for better performance
+// ToDo: get rid of padding areas
 struct LightPacket
 {
-	vec4 data; //direction or position based on type of light
+	vec4 position;  // Point and Spot: XYZ: position;          Spot: W: cutoff
+	vec4 direction; // Directional and Spot: XYZ: direction;   Spot: W: outer_cutoff
+	vec4 data;      // Point and Spot: XYZ: constant, linear, quadratic
 	vec4 ambient;  //xyz
 	vec4 diffuse;  //xyz
 	vec4 specular; //xyz
@@ -57,7 +61,7 @@ void main()
 	for(int i = 0; i < direction_light_count; i++)
 	{
 		// directiononal light specfific 
-		vec3 light_dir = normalize(light_data[i].data.xyz); 
+		vec3 light_dir = normalize(light_data[i].direction.xyz); 
 		
 		// ambient
 		ambient += light_data[i].ambient.xyz * frag_color;
