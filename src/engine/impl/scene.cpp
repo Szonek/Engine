@@ -443,19 +443,47 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 light_data_ssbo_ = ShaderStorageBuffer(total_lights * sizeof(LightGpuData));
             }
             BufferMapContext<LightGpuData, ShaderStorageBuffer> light_data(light_data_ssbo_, false, true);
-            lights_view.each([&light_data](const engine_tranform_component_t& transform, const engine_light_component_t& light)
+            std::int32_t dir_idx = 0;
+            std::int32_t point_idx = directional_light_count;
+            std::int32_t spot_idx = directional_light_count + point_light_count;
+            lights_view.each([&light_data, &dir_idx, &point_idx, &spot_idx](const engine_tranform_component_t& transform, const engine_light_component_t& light)
                 {
+                    LightGpuData* light_data_ptr = nullptr;;
                     if (light.type == ENGINE_LIGHT_TYPE_DIRECTIONAL)
                     {
-                        light_data.data->direction = glm::make_vec3(light.directional.direction);
+                        light_data_ptr = &light_data.data[dir_idx++];
+                        light_data_ptr->direction = glm::make_vec3(light.directional.direction);
                     }
-                    light_data.data->ambient = glm::make_vec3(light.intensity.ambient);
-                    light_data.data->diffuse = glm::make_vec3(light.intensity.diffuse);
-                    light_data.data->specular = glm::make_vec3(light.intensity.specular);
-                    light_data.data++;
+                    else if (light.type == ENGINE_LIGHT_TYPE_POINT)
+                    {
+                        light_data_ptr = &light_data.data[point_idx++];
+                        light_data_ptr->position = glm::make_vec3(transform.position);
+                        light_data_ptr->constant = light.point.constant;
+                        light_data_ptr->linear = light.point.linear;
+                        light_data_ptr->quadratic = light.point.quadratic;
+                    }
+                    else if (light.type == ENGINE_LIGHT_TYPE_SPOT)
+                    {
+                        light_data_ptr = &light_data.data[spot_idx++];
+                        light_data_ptr->position = glm::make_vec3(transform.position);
+                        light_data_ptr->direction = glm::make_vec3(light.spot.direction);
+                        light_data_ptr->cutoff = light.spot.cut_off;
+                        light_data_ptr->outer_cutoff = light.spot.outer_cut_off;
+                        light_data_ptr->constant = light.spot.constant;
+                        light_data_ptr->linear = light.spot.linear;
+                        light_data_ptr->quadratic = light.spot.quadratic;
+                    }
+                    assert(light_data_ptr);
+                    light_data_ptr->ambient = glm::make_vec3(light.intensity.ambient);
+                    light_data_ptr->diffuse = glm::make_vec3(light.intensity.diffuse);
+                    light_data_ptr->specular = glm::make_vec3(light.intensity.specular);
                 });
             light_data.unmap();
             light_data_ssbo_.bind(2);
+
+            assert(dir_idx == directional_light_count);
+            assert(point_idx == directional_light_count + point_light_count);
+            assert(spot_idx == directional_light_count + point_light_count + spot_light_count);
         }
 
     }
