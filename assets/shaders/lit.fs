@@ -58,7 +58,7 @@ void main()
 	vec3 specular = vec3(0.0f);
 	
 	// directional
-	for(int i = 0; i < direction_light_count; i++)
+	for(uint i = 0; i < direction_light_count; i++)
 	{
 		// directiononal light specfific 
 		vec3 light_dir = normalize(light_data[i].direction.xyz); 
@@ -75,7 +75,30 @@ void main()
 		float specular_factor = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
 		specular += light_data[i].specular.xyz * specular_factor * specular_color.xyz;
 	}
-
+	
+	// point
+	for(uint i = direction_light_count; i < point_light_count; i++)
+	{
+		// point light specfific 
+		vec3 light_dir = normalize(light_data[i].position.xyz - fs_in.world_pos); 
+		float distance = length(light_data[i].position.xyz - fs_in.world_pos);
+		float light_constant = light_data[i].data.x;
+		float light_linear = light_data[i].data.y * distance;
+		float light_quadratic = light_data[i].data.z * (distance * distance);
+		float attenuation = 1.0f / (light_constant + light_linear * light_quadratic);
+		
+		// ambient
+		ambient += light_data[i].ambient.xyz * frag_color * attenuation;
+		
+		// diffuse
+		float diffuse_factor = max(dot(normal, light_dir), 0.0);
+		diffuse += light_data[i].diffuse.xyz * diffuse_factor * frag_color * attenuation;
+		
+		// specular
+		vec3 reflect_dir = reflect(-light_dir, normal);
+		float specular_factor = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
+		specular += light_data[i].specular.xyz * specular_factor * specular_color.xyz * attenuation;
+	}
 	
 	// final result
 	out_fragment_color = vec4((ambient + diffuse + specular), 1.0f);
