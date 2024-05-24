@@ -262,6 +262,7 @@ engine_material_create_desc_t engineApplicationInitMaterialDesc(engine_applicati
     {
         ret.diffuse_color[i] = 1.0f;
     }
+    ret.shader_type = ENGINE_SHADER_TYPE_LIT;
     ret.shininess = 32;
     ret.diffuse_texture = ENGINE_INVALID_OBJECT_HANDLE;
     ret.specular_texture = ENGINE_INVALID_OBJECT_HANDLE;

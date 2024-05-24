@@ -244,34 +244,6 @@ protected:
     AnimationController anim_controller_;
 };
 
-class SpecularBox : public BaseNode
-{
-public:
-    SpecularBox(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_y, float offset_z)
-        : BaseNode(my_scene, go, "specular-box")
-    {
-        const auto scene = my_scene_->get_handle();
-        const auto app = my_scene_->get_app_handle();
-        // transform
-        auto tc = engineSceneGetTransformComponent(scene, go_);
-        tc.position[0] += offset_x;
-        tc.position[1] += offset_y;
-        tc.position[2] += offset_z;
-        
-        tc.scale[0] = 0.5f;
-        tc.scale[1] = 0.5f;
-        tc.scale[2] = 0.5f;
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
-
-        // material
-        auto mc = engineSceneGetMaterialComponent(scene, go_);
-        mc.material = engineApplicationGetMaterialByName(app, "cube_material");
-        engineSceneUpdateMaterialComponent(scene, go_, &mc);
-
-    }
-
-};
-
 class MainLight : public BaseNode
 {
 public:
@@ -300,6 +272,7 @@ public:
 
         // and basic material
         auto mat = engineSceneAddMaterialComponent(scene, go_);
+        mat.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "light_material");
         engineSceneUpdateMaterialComponent(scene, go_, &mat);
 
         // light component
@@ -342,6 +315,7 @@ public:
 
         // and basic material
         auto mat = engineSceneAddMaterialComponent(scene, go_);
+        mat.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "light_material");
         engineSceneUpdateMaterialComponent(scene, go_, &mat);
 
         // light component
@@ -386,6 +360,7 @@ public:
 
         // and basic material
         auto mat = engineSceneAddMaterialComponent(scene, go_);
+        mat.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "light_material");
         engineSceneUpdateMaterialComponent(scene, go_, &mat);
 
         // light component

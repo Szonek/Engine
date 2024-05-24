@@ -377,11 +377,19 @@ typedef struct _engine_animation_clip_create_desc_t
     uint32_t channels_count;
 } engine_animation_clip_create_desc_t;
 
+typedef enum _engine_shader_type_t
+{
+    ENGINE_SHADER_TYPE_LIT = 0, // phong shading, directional, point, spot lights
+    ENGINE_SHADER_TYPE_UNLIT,   // no lights
+    ENGINE_SHADER_TYPE_COUNT
+} engine_shader_type_t;
+
 typedef struct _engine_material_create_desc_t
 {
+    engine_shader_type_t shader_type;
     float diffuse_color[3];
-    uint32_t shininess;
     engine_texture2d_t diffuse_texture;
+    uint32_t shininess;
     engine_texture2d_t specular_texture;
 } engine_material_create_desc_t;
 

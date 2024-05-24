@@ -567,7 +567,20 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         }
                         const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
                         
-                        const auto shader_type = ShaderType::eLit;
+                        const auto shader_type = [](engine_shader_type_t shader_type)
+                            {
+                                switch (shader_type)
+                                {
+                                    case ENGINE_SHADER_TYPE_LIT:
+                                        return ShaderType::eLit;
+                                    case ENGINE_SHADER_TYPE_UNLIT:
+                                        return ShaderType::eUnlit;
+                                    default:
+                                        log::log(log::LogLevel::eError, fmt::format("Unknown shader type: {}. Are you sure you are doing valid thing?\n", shader_type));
+                                        assert(false);
+                                }
+                                return ShaderType::eUnlit;
+                            }(material.shader_type);
                         auto& shader = shaders_[static_cast<std::uint32_t>(shader_type)];
                         shader.bind();
 
@@ -611,7 +624,20 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         }
                         const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
                         
-                        const auto shader_type = ShaderType::eVertexSkinningLit;
+                        const auto shader_type = [](engine_shader_type_t shader_type)
+                            {
+                                switch (shader_type)
+                                {
+                                case ENGINE_SHADER_TYPE_LIT:
+                                    return ShaderType::eVertexSkinningLit;
+                                case ENGINE_SHADER_TYPE_UNLIT:
+                                    return ShaderType::eVertexSkinningUnlit;
+                                default:
+                                    log::log(log::LogLevel::eError, fmt::format("Unknown shader type: {}. Are you sure you are doing valid thing?\n", shader_type));
+                                    assert(false);
+                                }
+                                return ShaderType::eUnlit;
+                            }(material.shader_type);
                         auto& shader = shaders_[static_cast<std::uint32_t>(shader_type)];
                         shader.bind();
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);

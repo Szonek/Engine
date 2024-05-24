@@ -361,12 +361,10 @@ int main(int argc, char** argv)
     {
         return false;
     }
-    engineApplicationAddTexture2DFromFile(app, "container2.png", ENGINE_TEXTURE_COLOR_SPACE_LINEAR, "cube_diffuse", nullptr);
-    engineApplicationAddTexture2DFromFile(app, "container2_specular.png", ENGINE_TEXTURE_COLOR_SPACE_LINEAR, "cube_specular", nullptr);
     engine_material_create_desc_t cube_material_desc = engineApplicationInitMaterialDesc(app);
-    cube_material_desc.diffuse_texture = engineApplicationGetTextured2DByName(app, "cube_diffuse");
-    cube_material_desc.specular_texture = engineApplicationGetTextured2DByName(app, "cube_specular");
-    engineApplicationAddMaterialFromDesc(app, &cube_material_desc, "cube_material", nullptr);
+    cube_material_desc.shader_type = ENGINE_SHADER_TYPE_UNLIT;
+    set_c_array(cube_material_desc.diffuse_color, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
+    engineApplicationAddMaterialFromDesc(app, &cube_material_desc, "light_material", nullptr);
 
 
     bool load_model = true;
@@ -392,12 +390,6 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    //load_model = project_c::parse_model_info_and_create_script<project_c::SpecularBox>(model_info_cube, scene, 0.0f, 1.0f, 0.0f);
-    if (!load_model)
-    {
-        log(fmt::format("Loading model failed!\n"));
-        return -1;
-    }
     load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, -1.0f);
     load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, 0.0f);
     load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, 1.0f);
