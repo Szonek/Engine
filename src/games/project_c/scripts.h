@@ -362,7 +362,7 @@ class SpotLight : public BaseNode
 {
 public:
     SpotLight(engine::IScene* my_scene)
-        : BaseNode(my_scene, "point-light")
+        : BaseNode(my_scene, "spot-light")
     {
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
@@ -396,6 +396,7 @@ public:
         set_c_array(lc.intensity.specular, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
         set_c_array(lc.spot.direction, std::array<float, 3>{ 0.0f, -1.0f, 0.0f });
         lc.spot.cut_off = 12.5f;
+        lc.spot.outer_cut_off = 17.5f;
         lc.spot.constant = 1.0f;
         lc.spot.linear = 0.09f;
         lc.spot.quadratic = 0.032f;
