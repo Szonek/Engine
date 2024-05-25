@@ -129,7 +129,7 @@ inline engine_scene_t create_scene(engine_application_t& app_handle)
 }  // namespace
 
 
-engine::IScene::IScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
+engine::IScene::IScene(engine_application_t app_handle, engine::SceneManager* scn_mgn)
     : app_(app_handle)
     , scene_(create_scene(app_handle))
     , scene_manager_(scn_mgn)
@@ -137,11 +137,9 @@ engine::IScene::IScene(engine_application_t app_handle, engine::SceneManager* sc
 {
     if (!scene_)
     {
-        log(fmt::format("Couldn't create scene!\n"));
-        return;
+        throw std::runtime_error("Couldn't create scene!\n");
     }
     scripts_.reserve(1024);
-    engine_error_code = ENGINE_RESULT_CODE_OK;
 }
 
 engine::IScene::~IScene()

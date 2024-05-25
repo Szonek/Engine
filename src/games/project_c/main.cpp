@@ -308,8 +308,8 @@ struct UI_data
 class TestScene : public engine::IScene
 {
 public:
-    TestScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
-        : IScene(app_handle, scn_mgn, engine_error_code)
+    TestScene(engine_application_t app_handle, engine::SceneManager* scn_mgn)
+        : IScene(app_handle, scn_mgn)
     {
         auto camera_script = register_script<CameraScript>();
 
@@ -328,10 +328,10 @@ public:
         bindings[1].name = "enemy_health";
         bindings[1].type = ENGINE_DATA_TYPE_UINT32;
 
-        engine_error_code = engineApplicationCreateUiDocumentDataHandle(app_handle, "health", bindings.data(), bindings.size(), &ui_data_.handle);
+        engineApplicationCreateUiDocumentDataHandle(app_handle, "health", bindings.data(), bindings.size(), &ui_data_.handle);
 
         // load ui doc
-        engine_error_code = engineApplicationCreateUiDocumentFromFile(app_handle, "project_c_health_bar.rml", &ui_data_.doc);
+        engineApplicationCreateUiDocumentFromFile(app_handle, "project_c_health_bar.rml", &ui_data_.doc);
         if (ui_data_.doc)
         {
             engineUiDocumentShow(ui_data_.doc);
@@ -380,8 +380,8 @@ private:
 class CityScene : public engine::IScene
 {
 public:
-    CityScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
-        : IScene(app_handle, scn_mgn, engine_error_code)
+    CityScene(engine_application_t app_handle, engine::SceneManager* scn_mgn)
+        : IScene(app_handle, scn_mgn)
     {
         auto camera_script = register_script<CameraScript>();
     }
@@ -434,21 +434,21 @@ int main(int argc, char** argv)
                 break;
             }
 
-            static bool button_1_frames[2] = { false, false };
-            button_1_frames[fps_counter.frames_count % 2] = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_5);
-            if (button_1_frames[0] && !button_1_frames[1])
-            {
-                if (scene->is_active())
-                {
-                    scene->deactivate();
-                    scene_city->activate();
-                }
-                else
-                {
-                    scene->activate();
-                    scene_city->deactivate();
-                };
-            }
+            //static bool button_1_frames[2] = { false, false };
+            //button_1_frames[fps_counter.frames_count % 2] = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_5);
+            //if (button_1_frames[0] && !button_1_frames[1])
+            //{
+            //    if (scene->is_active())
+            //    {
+            //        scene->deactivate();
+            //        scene_city->activate();
+            //    }
+            //    else
+            //    {
+            //        scene->activate();
+            //        scene_city->deactivate();
+            //    };
+            //}
 
             fps_counter.frames_count += 1;
             fps_counter.frames_total_time += frame_begin.delta_time;

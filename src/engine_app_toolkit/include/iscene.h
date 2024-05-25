@@ -42,7 +42,7 @@ public:
     using ScriptsQueue = std::deque<IScript*>;
 
 public:
-    IScene(engine_application_t app_handle, SceneManager* sc_mng, engine_result_code_t& engine_error_code);
+    IScene(engine_application_t app_handle, SceneManager* sc_mng);
     IScene(const IScene& rhs) = delete;
     IScene(IScene&& rhs) noexcept = default;
     IScene& operator=(const IScene& rhs) = delete;
