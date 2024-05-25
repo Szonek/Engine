@@ -7,12 +7,36 @@ namespace project_c
 {
 struct ModelInfo
 {
-    engine_application_t app;
-    engine_model_desc_t model_info{};
-    std::vector<engine_geometry_t> geometries;
-    std::vector<engine_texture2d_t> textures;
-    std::vector<engine_material_t> materials;
+    engine_application_t app = nullptr;
+    engine_model_desc_t model_info = {};
+    std::vector<engine_geometry_t> geometries = {};
+    std::vector<engine_texture2d_t> textures = {};
+    std::vector<engine_material_t> materials = {};
     ModelInfo() = default;
+    // delete copy constructor and default move constructor
+    ModelInfo(const ModelInfo&) = delete;
+    ModelInfo& operator=(const ModelInfo&) = delete;
+    ModelInfo(ModelInfo&& rhs)
+    {
+        std::swap(app, rhs.app);
+        std::swap(model_info, rhs.model_info);
+        std::swap(geometries, rhs.geometries);
+        std::swap(textures, rhs.textures);
+        std::swap(materials, rhs.materials);
+    }
+    ModelInfo& operator=(ModelInfo&& rhs)
+    {
+        if (this != &rhs)
+        {
+            std::swap(app, rhs.app);
+            std::swap(model_info, rhs.model_info);
+            std::swap(geometries, rhs.geometries);
+            std::swap(textures, rhs.textures);
+            std::swap(materials, rhs.materials);
+        }
+        return *this;
+    }
+
     ModelInfo(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name, std::string_view base_dir = "")
         : app(app)
     {
