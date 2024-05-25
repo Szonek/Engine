@@ -200,7 +200,8 @@ public:
         const auto mouse_coords = engineApplicationGetMouseCoords(app);
 
         const float move_speed = 1.0f * dt;
-        const auto character_go = get_game_objects_with_name(scene, "solider")[0];
+        const auto all_soliders = get_game_objects_with_name(scene, "solider");
+        const auto character_go = all_soliders.size() > 0 ? all_soliders[0] : ENGINE_INVALID_GAME_OBJECT_ID;
         // follow character go
         if (character_go != ENGINE_INVALID_GAME_OBJECT_ID)
         {

@@ -35,9 +35,87 @@
 #include <functional>
 #include <chrono>
 #include <random>
+#include <unordered_map>
+
 
 namespace project_c
 {
+enum PrefabType
+{
+    PREFAB_TYPE_SOLIDER,
+    PREFAB_TYPE_SWORD,
+    PREFAB_TYPE_ORC,
+    PREFAB_TYPE_BARREL,
+    PREFAB_TYPE_FLOOR,
+    PREFAB_TYPE_FLOOR_DETAIL,
+    PREFAB_TYPE_WALL,
+    PREFAB_TYPE_CUBE,
+    PREFAB_TYPE_COUNT
+};
+
+class AppContext
+{
+public:
+    AppContext(engine_application_t app_handle)
+        : app_handle_(app_handle)
+    {
+        const auto load_start = std::chrono::high_resolution_clock::now();
+
+        const std::unordered_map<PrefabType, std::pair<std::string, std::string>> prefabs_data =
+        {
+            { PREFAB_TYPE_SWORD,        { "weapon-sword.glb", "Textures_mini_arena" }},
+            { PREFAB_TYPE_SOLIDER,      { "character-soldier.glb", "Textures_mini_arena" }},
+            { PREFAB_TYPE_ORC,          { "character-orc.glb", "Textures_mini_dungeon" }},
+            { PREFAB_TYPE_BARREL,       { "barrel.glb", "Textures_mini_dungeon" }},
+            { PREFAB_TYPE_FLOOR,        { "floor.glb", "Textures_mini_dungeon" }},
+            { PREFAB_TYPE_FLOOR_DETAIL, { "floor-detail.glb", "Textures_mini_dungeon" }},
+            { PREFAB_TYPE_WALL,         { "wall.glb", "Textures_mini_dungeon" }},
+            { PREFAB_TYPE_CUBE,         { "cube.glb", ""}}
+        };
+
+        for (const auto& [type, file_and_basedir] : prefabs_data)
+        {
+            const auto& [model_file_name, base_dir] = file_and_basedir;
+            engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
+            prefabs_[type] = ModelInfo(engine_error_code, app_handle, model_file_name, base_dir);
+            if (engine_error_code != ENGINE_RESULT_CODE_OK)
+            {
+                log(fmt::format("Failed loading prefab: {}\n", type));
+            }
+        }
+
+
+        const auto load_end = std::chrono::high_resolution_clock::now();
+        const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
+        log(fmt::format("Model loading took: {}\n", ms_load_time));
+    }
+
+    engine_application_t get_app_handle() const { return app_handle_; }
+
+    template<typename Tscript, typename... Targs>
+    Tscript instantiate_prefab(PrefabType type, engine::IScene* scene, Targs... targs)
+    {
+        if (type >= PREFAB_TYPE_COUNT)
+        {
+            log(fmt::format("Invalid prefab type: {}\n", type));
+            return;
+        }
+
+        const auto& prefab = prefabs_[type];
+        if (!prefab.is_valid())
+        {
+            log(fmt::format("Prefab: {} is not valid\n", type));
+            return;
+        }
+
+        return parse_model_info_and_create_script<Solider>(prefab, scene, targs...);
+    }
+
+private:
+    engine_application_t app_handle_;
+    std::array<ModelInfo, PREFAB_TYPE_COUNT> prefabs_;
+};
+
 struct UI_data
 {
     engine_ui_document_t doc;
@@ -80,6 +158,24 @@ public:
 
     }
 
+    void activate()
+    {
+        IScene::activate();
+        if (ui_data_.doc)
+        {
+            engineUiDocumentShow(ui_data_.doc);
+        }
+    }
+
+    void deactivate()
+    {
+        IScene::deactivate();
+        if (ui_data_.doc)
+        {
+            engineUiDocumentHide(ui_data_.doc);
+        }
+    }
+
     void update_hook_begin() override
     {
         engineUiDataHandleDirtyVariable(ui_data_.handle, "character_health");
@@ -99,8 +195,23 @@ private:
     UI_data ui_data_;
 };
 
+
+class CityScene : public engine::IScene
+{
+public:
+    CityScene(engine_application_t app_handle, engine::SceneManager* scn_mgn, engine_result_code_t& engine_error_code)
+        : IScene(app_handle, scn_mgn, engine_error_code)
+    {
+        auto camera_script = register_script<CameraScript>();
+    }
+
+    static constexpr const char* get_name() { return "CityScene"; }
+private:
+
+};
+
 template<typename TScript, typename... Targs>
-inline bool parse_model_info_and_create_script(project_c::ModelInfo& model_info, engine::IScene* scene_cpp, Targs... targs)
+inline TScript* parse_model_info_and_create_script(project_c::ModelInfo& model_info, engine::IScene* scene_cpp, Targs... targs)
 {
     auto scene = scene_cpp->get_handle();
     TScript* script = nullptr;
@@ -263,7 +374,7 @@ inline bool parse_model_info_and_create_script(project_c::ModelInfo& model_info,
         script->get_animation_controller().add_animation_clip(anim_in.name, AnimationClip(scene, std::move(anim_clip_data)));
     }
 
-    return true;
+    return script;
 }
 
 }  // namespace project_c
@@ -307,147 +418,150 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
+    project_c::AppContext app_context(app);
+
     engine::SceneManager scene_manager(app);
     scene_manager.register_scene<project_c::TestScene>();
+    scene_manager.register_scene<project_c::CityScene>();
     auto scene = scene_manager.get_scene("TestScene");
+    auto scene_city = scene_manager.get_scene("CityScene");
 
 
-    const auto load_start = std::chrono::high_resolution_clock::now();
+    //project_c::ModelInfo model_info_swrd(engine_error_code, app, "weapon-sword.glb", "Textures_mini_arena");
+    //if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    //{
+    //    return false;
+    //}
 
-    project_c::ModelInfo model_info_swrd(engine_error_code, app, "weapon-sword.glb", "Textures_mini_arena");
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-    {
-        return false;
-    }
+    //project_c::ModelInfo model_info_solider(engine_error_code, app, "character-soldier.glb", "Textures_mini_arena");
+    //if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    //{
+    //    return false;
+    //}
 
-    project_c::ModelInfo model_info_solider(engine_error_code, app, "character-soldier.glb", "Textures_mini_arena");
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-    {
-        return false;
-    }
+    //project_c::ModelInfo model_info_orc(engine_error_code, app, "character-orc.glb", "Textures_mini_dungeon");
+    //if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    //{
+    //    return false;
+    //}
+    //project_c::ModelInfo model_info_barrel(engine_error_code, app, "barrel.glb", "Textures_mini_dungeon");
+    //if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    //{
+    //    return false;
+    //}
+    //project_c::ModelInfo model_info_floor(engine_error_code, app, "floor.glb", "Textures_mini_dungeon");
+    //if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    //{
+    //    return false;
+    //}
 
-    project_c::ModelInfo model_info_orc(engine_error_code, app, "character-orc.glb", "Textures_mini_dungeon");
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-    {
-        return false;
-    }
-    project_c::ModelInfo model_info_barrel(engine_error_code, app, "barrel.glb", "Textures_mini_dungeon");
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-    {
-        return false;
-    }
-    project_c::ModelInfo model_info_floor(engine_error_code, app, "floor.glb", "Textures_mini_dungeon");
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-    {
-        return false;
-    }
-
-    project_c::ModelInfo model_info_floor_detail(engine_error_code, app, "floor-detail.glb", "Textures_mini_dungeon");
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-    {
-        return false;
-    }
+    //project_c::ModelInfo model_info_floor_detail(engine_error_code, app, "floor-detail.glb", "Textures_mini_dungeon");
+    //if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    //{
+    //    return false;
+    //}
 
 
-    project_c::ModelInfo model_info_wall(engine_error_code, app, "wall.glb", "Textures_mini_dungeon");
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-    {
-        return false;
-    }
+    //project_c::ModelInfo model_info_wall(engine_error_code, app, "wall.glb", "Textures_mini_dungeon");
+    //if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    //{
+    //    return false;
+    //}
 
 
-    project_c::ModelInfo model_info_cube(engine_error_code, app, "cube.glb");
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-    {
-        return false;
-    }
-    engine_material_create_desc_t cube_material_desc = engineApplicationInitMaterialDesc(app);
-    cube_material_desc.shader_type = ENGINE_SHADER_TYPE_UNLIT;
-    set_c_array(cube_material_desc.diffuse_color, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
-    engineApplicationAddMaterialFromDesc(app, &cube_material_desc, "light_material", nullptr);
+    //project_c::ModelInfo model_info_cube(engine_error_code, app, "cube.glb");
+    //if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    //{
+    //    return false;
+    //}
+    //engine_material_create_desc_t cube_material_desc = engineApplicationInitMaterialDesc(app);
+    //cube_material_desc.shader_type = ENGINE_SHADER_TYPE_UNLIT;
+    //set_c_array(cube_material_desc.diffuse_color, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
+    //engineApplicationAddMaterialFromDesc(app, &cube_material_desc, "light_material", nullptr);
 
 
-    bool load_model = true;
+    //bool load_model = true;
 
-    load_model = project_c::parse_model_info_and_create_script<project_c::Solider>(model_info_solider, scene);
-    if (!load_model)
-    {
-        log(fmt::format("Loading model failed!\n"));
-        return -1;
-    }
+    //load_model = project_c::parse_model_info_and_create_script<project_c::Solider>(model_info_solider, scene);
+    //load_model = project_c::parse_model_info_and_create_script<project_c::Solider>(model_info_solider, scene_city);
+    //if (!load_model)
+    //{
+    //    log(fmt::format("Loading model failed!\n"));
+    //    return -1;
+    //}
 
-    load_model = project_c::parse_model_info_and_create_script<project_c::Sword>(model_info_swrd, scene);
-    if (!load_model)
-    {
-        log(fmt::format("Loading model failed!\n"));
-        return -1;
-    }
+    //load_model = project_c::parse_model_info_and_create_script<project_c::Sword>(model_info_swrd, scene);
+    //if (!load_model)
+    //{
+    //    log(fmt::format("Loading model failed!\n"));
+    //    return -1;
+    //}
 
-    load_model = project_c::parse_model_info_and_create_script<project_c::Sword>(model_info_swrd, scene);
-    if (!load_model)
-    {
-        log(fmt::format("Loading model failed!\n"));
-        return -1;
-    }
+    //load_model = project_c::parse_model_info_and_create_script<project_c::Sword>(model_info_swrd, scene);
+    //if (!load_model)
+    //{
+    //    log(fmt::format("Loading model failed!\n"));
+    //    return -1;
+    //}
 
-    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, -1.0f);
-    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, 0.0f);
-    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, 1.0f);
+    //project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, -1.0f);
+    //project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, 0.0f);
+    //project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 0.0f, 1.0f);
 
-    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 2.5f, -1.0f);
-    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 2.5f, 0.0f);
-    load_model = project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 2.5f, 1.0f);
-    if (!load_model)
-    {
-        log(fmt::format("Loading model failed!\n"));
-        return -1;
-    }
-    
-    // light
-    scene->register_script<project_c::MainLight>();
-    scene->register_script<project_c::PointLight>();
-    scene->register_script<project_c::SpotLight>();
+    //project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 2.5f, -1.0f);
+    //project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 2.5f, 0.0f);
+    //project_c::parse_model_info_and_create_script<project_c::Enemy>(model_info_orc, scene, 2.5f, 1.0f);
 
-    std::mt19937 rng(42);
-    std::uniform_int_distribution<std::mt19937::result_type> dist6(0, 1);
+    //// light
+    //scene->register_script<project_c::MainLight>();
+    //scene_city->register_script<project_c::MainLight>();
+    //scene->register_script<project_c::PointLight>();
+    //scene->register_script<project_c::SpotLight>();
+   
+    //auto generate_floor = [&model_info_wall, &model_info_floor_detail, &model_info_floor](std::int32_t map_border_distance_x, std::int32_t map_border_distance_z, auto& scene)
+    //{
+    //    std::mt19937 rng(42);
+    //    std::uniform_int_distribution<std::mt19937::result_type> dist6(0, 1);
+    //    for (std::int32_t x = -map_border_distance_x; x <= map_border_distance_x; x++)
+    //    {
+    //        for (std::int32_t z = -map_border_distance_z; z <= map_border_distance_z; z++)
+    //        {
+    //            if (x == -map_border_distance_x || x == map_border_distance_x || z == -map_border_distance_z || z == map_border_distance_z)
+    //            {
+    //                project_c::parse_model_info_and_create_script<project_c::Wall>(model_info_wall, scene, x, z);
+    //            }
+    //            else
+    //            {
+    //                project_c::ModelInfo* model_info = nullptr;
+    //                if (dist6(rng))
+    //                {
+    //                    model_info = &model_info_floor_detail;
+    //                }
+    //                else
+    //                {
+    //                    model_info = &model_info_floor;
+    //                }
+    //                project_c::parse_model_info_and_create_script<project_c::Floor>(*model_info, scene, x, z);
+    //            }
 
-    const std::int32_t map_border_distance_x = 9;
-    const std::int32_t map_border_distance_z = 3;
-    for (std::int32_t x = -map_border_distance_x; x <= map_border_distance_x; x++)
-    {
-        for (std::int32_t z = -map_border_distance_z; z <= map_border_distance_z; z++)
-        {
-            if (x == -map_border_distance_x || x == map_border_distance_x || z == -map_border_distance_z || z == map_border_distance_z)
-            {
-                load_model = project_c::parse_model_info_and_create_script<project_c::Wall>(model_info_wall, scene, x, z);
-            }
-            else
-            {
-                project_c::ModelInfo* model_info = nullptr;
-                if (dist6(rng))
-                {
-                    model_info = &model_info_floor_detail;
-                }
-                else
-                {
-                    model_info = &model_info_floor;
-                }
-                load_model = project_c::parse_model_info_and_create_script<project_c::Floor>(*model_info, scene, x, z);
-            }
+    //        }
+    //    }
+    //};
 
-        }
-    }
-    if (!load_model)
-    {
-        log(fmt::format("Loading model failed!\n"));
-        return -1;
-    }
-    load_model = project_c::parse_model_info_and_create_script<project_c::Barrel>(model_info_barrel, scene);
-    if (!load_model)
-    {
-        log(fmt::format("Loading model failed!\n"));
-        return -1;
-    }
+    //generate_floor(9, 3, scene);
+    //generate_floor(3, 3, scene_city);
+
+    //if (!load_model)
+    //{
+    //    log(fmt::format("Loading model failed!\n"));
+    //    return -1;
+    //}
+    //load_model = project_c::parse_model_info_and_create_script<project_c::Barrel>(model_info_barrel, scene);
+    //if (!load_model)
+    //{
+    //    log(fmt::format("Loading model failed!\n"));
+    //    return -1;
+    //}
     //load_model = project_c::load_solider(app, scene);
     //if (!load_model)
     //{
@@ -455,9 +569,6 @@ int main(int argc, char** argv)
     //    return -1;
     //}
 
-    const auto load_end = std::chrono::high_resolution_clock::now();
-    const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
-    log(fmt::format("Model loading took: {}\n", ms_load_time));
 
     struct fps_counter_t
     {
@@ -481,6 +592,22 @@ int main(int argc, char** argv)
 			log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
 			break;
 		}
+
+        static bool button_1_frames[2] = { false, false };
+        button_1_frames[fps_counter.frames_count % 2] = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_5);
+        if (button_1_frames[0] && !button_1_frames[1])
+        {
+            if (scene->is_active())
+            {
+                scene->deactivate();
+                scene_city->activate();
+            }
+            else
+            {
+                scene->activate();
+                scene_city->deactivate();
+            };
+        }
 
         fps_counter.frames_count += 1;
         fps_counter.frames_total_time += frame_begin.delta_time;

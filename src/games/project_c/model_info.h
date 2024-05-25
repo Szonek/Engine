@@ -7,12 +7,12 @@ namespace project_c
 {
 struct ModelInfo
 {
-    engine_application_t& app;
+    engine_application_t app;
     engine_model_desc_t model_info{};
     std::vector<engine_geometry_t> geometries;
     std::vector<engine_texture2d_t> textures;
     std::vector<engine_material_t> materials;
-
+    ModelInfo() = default;
     ModelInfo(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name, std::string_view base_dir = "")
         : app(app)
     {
@@ -69,9 +69,14 @@ struct ModelInfo
         }
     }
 
+    bool is_valid() const
+    {
+        return model_info.nodes_count > 0;
+    }
+
     ~ModelInfo()
     {
-        if (model_info.nodes_count > 0)
+        if (is_valid())
         {
             engineApplicationReleaseModelDesc(app, &model_info);
         }
