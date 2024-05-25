@@ -1,5 +1,6 @@
 #include <engine.h>
 
+#include "iapplication.h"
 #include "scene_manager.h"
 #include "iscene.h"
 #include "utils.h"
@@ -53,11 +54,11 @@ enum PrefabType
     PREFAB_TYPE_COUNT
 };
 
-class AppContext
+class AppProjectC : public engine::IApplication
 {
 public:
-    AppContext(engine_application_t app_handle)
-        : app_handle_(app_handle)
+    AppProjectC()
+        : engine::IApplication(app_cd())
     {
         const auto load_start = std::chrono::high_resolution_clock::now();
 
@@ -77,7 +78,7 @@ public:
         {
             const auto& [model_file_name, base_dir] = file_and_basedir;
             engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
-            prefabs_[type] = std::move(ModelInfo(engine_error_code, app_handle, model_file_name, base_dir));
+            prefabs_[type] = std::move(ModelInfo(engine_error_code, app_handle_, model_file_name, base_dir));
             if (engine_error_code != ENGINE_RESULT_CODE_OK)
             {
                 log(fmt::format("Failed loading prefab: {}\n", type));
@@ -112,6 +113,18 @@ public:
     }
 
 private:
+
+    inline engine_application_create_desc_t app_cd()
+    {
+        engine_application_create_desc_t app_cd{};
+        app_cd.name = "Project_C";
+        app_cd.asset_store_path = "C:\\WORK\\OpenGLPlayground\\assets";
+        app_cd.width = K_IS_ANDROID ? 0 : 2280 / 2;
+        app_cd.height = K_IS_ANDROID ? 0 : 1080 / 2;
+        app_cd.fullscreen = K_IS_ANDROID;
+        app_cd.enable_editor = true;
+        return app_cd;
+    }
 
     template<typename TScript, typename... Targs>
     inline TScript* parse_prefab_and_create_script(const project_c::ModelInfo& model_info, engine::IScene* scene_cpp, Targs... targs)
@@ -281,7 +294,6 @@ private:
     }
 
 private:
-    engine_application_t app_handle_;
     std::array<ModelInfo, PREFAB_TYPE_COUNT> prefabs_;
 };
 
@@ -386,51 +398,118 @@ private:
 
 int main(int argc, char** argv)
 {
-	std::string assets_path = "";
-	if (argc > 1)
-	{
-		assets_path = argv[1];
-        log(fmt::format("Reading assets from path: {}\n", assets_path));
-	}
-
-    bool run_test_model = false;
-    if (argc > 2)
+    try
     {
-        std::string str = argv[2];
-        if (str == "test")
+        project_c::AppProjectC app_project_c;
+        auto app = app_project_c.get_app_handle();
+        engine::SceneManager scene_manager(app);
+        scene_manager.register_scene<project_c::TestScene>();
+        scene_manager.register_scene<project_c::CityScene>();
+        auto scene = scene_manager.get_scene("TestScene");
+        auto scene_city = scene_manager.get_scene("CityScene");
+
+        app_project_c.instantiate_prefab<project_c::Solider>(project_c::PREFAB_TYPE_SOLIDER, scene);
+        app_project_c.instantiate_prefab<project_c::Solider>(project_c::PREFAB_TYPE_SOLIDER, scene_city);
+
+        struct fps_counter_t
         {
-            run_test_model = true;
+            float frames_total_time = 0.0f;
+            std::uint32_t frames_count = 0;
+        };
+        fps_counter_t fps_counter{};
+
+        while (true)
+        {
+            const auto frame_begin = engineApplicationFrameBegine(app);
+
+            if (frame_begin.events & ENGINE_EVENT_QUIT)
+            {
+                log(fmt::format("Engine requested app quit. Exiting.\n"));
+                break;
+            }
+
+            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_ESCAPE))
+            {
+                log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
+                break;
+            }
+
+            static bool button_1_frames[2] = { false, false };
+            button_1_frames[fps_counter.frames_count % 2] = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_5);
+            if (button_1_frames[0] && !button_1_frames[1])
+            {
+                if (scene->is_active())
+                {
+                    scene->deactivate();
+                    scene_city->activate();
+                }
+                else
+                {
+                    scene->activate();
+                    scene_city->deactivate();
+                };
+            }
+
+            fps_counter.frames_count += 1;
+            fps_counter.frames_total_time += frame_begin.delta_time;
+            if (fps_counter.frames_total_time > 1000.0f)
+            {
+                log(fmt::format("FPS: {}, latency: {} ms. \n",
+                    fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count));
+                fps_counter = {};
+            }
+
+            scene_manager.update(frame_begin.delta_time);
+
+            const auto frame_end = engineApplicationFrameEnd(app);
+            if (!frame_end.success)
+            {
+                log(fmt::format("Frame not finished sucesfully. Exiting.\n"));
+                break;
+            }
         }
+
+        return 0;
     }
-    log(fmt::format("Running test model: {}\n", run_test_model));
+    catch (const std::exception& e)
+    {
+        log(fmt::format("Exception: {}\n", e.what()));
+        return -1;
+    }
+    //std::string assets_path = "";
+    //if (argc > 1)
+    //{
+    //    assets_path = argv[1];
+    //    log(fmt::format("Reading assets from path: {}\n", assets_path));
+    //}
 
-	engine_application_t app{};
-	engine_application_create_desc_t app_cd{};
-	app_cd.name = "Project_C";
-	app_cd.asset_store_path = assets_path.c_str();
-    app_cd.width = K_IS_ANDROID ? 0 : 2280 / 2;
-    app_cd.height = K_IS_ANDROID ? 0 : 1080 / 2;
-    app_cd.fullscreen = K_IS_ANDROID;
-    app_cd.enable_editor = true;
+    //bool run_test_model = false;
+    //if (argc > 2)
+    //{
+    //    std::string str = argv[2];
+    //    if (str == "test")
+    //    {
+    //        run_test_model = true;
+    //    }
+    //}
+    //log(fmt::format("Running test model: {}\n", run_test_model));
 
-	auto engine_error_code = engineApplicationCreate(&app, app_cd);
-	if (engine_error_code != ENGINE_RESULT_CODE_OK)
-	{
-		engineApplicationDestroy(app);
-        log(fmt::format("Couldnt create engine application!\n"));
-		return -1;
-	}
+	//engine_application_t app{};
+	//engine_application_create_desc_t app_cd{};
+	//app_cd.name = "Project_C";
+	//app_cd.asset_store_path = assets_path.c_str();
+ //   app_cd.width = K_IS_ANDROID ? 0 : 2280 / 2;
+ //   app_cd.height = K_IS_ANDROID ? 0 : 1080 / 2;
+ //   app_cd.fullscreen = K_IS_ANDROID;
+ //   app_cd.enable_editor = true;
 
-    project_c::AppContext app_context(app);
-
-    engine::SceneManager scene_manager(app);
-    scene_manager.register_scene<project_c::TestScene>();
-    scene_manager.register_scene<project_c::CityScene>();
-    auto scene = scene_manager.get_scene("TestScene");
-    auto scene_city = scene_manager.get_scene("CityScene");
-
-    app_context.instantiate_prefab<project_c::Solider>(project_c::PREFAB_TYPE_SOLIDER, scene);
-    app_context.instantiate_prefab<project_c::Solider>(project_c::PREFAB_TYPE_SOLIDER, scene_city);
+	//auto engine_error_code = engineApplicationCreate(&app, app_cd);
+	//if (engine_error_code != ENGINE_RESULT_CODE_OK)
+	//{
+	//	engineApplicationDestroy(app);
+ //       log(fmt::format("Couldnt create engine application!\n"));
+	//	return -1;
+	//}
 
     //project_c::ModelInfo model_info_swrd(engine_error_code, app, "weapon-sword.glb", "Textures_mini_arena");
     //if (engine_error_code != ENGINE_RESULT_CODE_OK)
@@ -575,63 +654,63 @@ int main(int argc, char** argv)
     //}
 
 
-    struct fps_counter_t
-    {
-        float frames_total_time = 0.0f;
-        std::uint32_t frames_count = 0;
-    };
-    fps_counter_t fps_counter{};
+ //   struct fps_counter_t
+ //   {
+ //       float frames_total_time = 0.0f;
+ //       std::uint32_t frames_count = 0;
+ //   };
+ //   fps_counter_t fps_counter{};
 
-	while (true)
-	{
-		const auto frame_begin = engineApplicationFrameBegine(app);
+	//while (true)
+	//{
+	//	const auto frame_begin = engineApplicationFrameBegine(app);
 
-        if (frame_begin.events & ENGINE_EVENT_QUIT)
-        {
-            log(fmt::format("Engine requested app quit. Exiting.\n"));
-            break;
-        }
+ //       if (frame_begin.events & ENGINE_EVENT_QUIT)
+ //       {
+ //           log(fmt::format("Engine requested app quit. Exiting.\n"));
+ //           break;
+ //       }
 
-		if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_ESCAPE))
-		{
-			log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
-			break;
-		}
+	//	if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_ESCAPE))
+	//	{
+	//		log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
+	//		break;
+	//	}
 
-        static bool button_1_frames[2] = { false, false };
-        button_1_frames[fps_counter.frames_count % 2] = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_5);
-        if (button_1_frames[0] && !button_1_frames[1])
-        {
-            if (scene->is_active())
-            {
-                scene->deactivate();
-                scene_city->activate();
-            }
-            else
-            {
-                scene->activate();
-                scene_city->deactivate();
-            };
-        }
+ //       static bool button_1_frames[2] = { false, false };
+ //       button_1_frames[fps_counter.frames_count % 2] = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_5);
+ //       if (button_1_frames[0] && !button_1_frames[1])
+ //       {
+ //           if (scene->is_active())
+ //           {
+ //               scene->deactivate();
+ //               scene_city->activate();
+ //           }
+ //           else
+ //           {
+ //               scene->activate();
+ //               scene_city->deactivate();
+ //           };
+ //       }
 
-        fps_counter.frames_count += 1;
-        fps_counter.frames_total_time += frame_begin.delta_time;
-        if (fps_counter.frames_total_time > 1000.0f)
-        {
-            log(fmt::format("FPS: {}, latency: {} ms. \n",
-                fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count));
-            fps_counter = {};
-        }
+ //       fps_counter.frames_count += 1;
+ //       fps_counter.frames_total_time += frame_begin.delta_time;
+ //       if (fps_counter.frames_total_time > 1000.0f)
+ //       {
+ //           log(fmt::format("FPS: {}, latency: {} ms. \n",
+ //               fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count));
+ //           fps_counter = {};
+ //       }
 
-        scene_manager.update(frame_begin.delta_time);
+ //       scene_manager.update(frame_begin.delta_time);
 
-		const auto frame_end = engineApplicationFrameEnd(app);
-		if (!frame_end.success)
-		{
-			log(fmt::format("Frame not finished sucesfully. Exiting.\n"));
-			break;
-		}
-	}
-    engineApplicationDestroy(app);
+	//	const auto frame_end = engineApplicationFrameEnd(app);
+	//	if (!frame_end.success)
+	//	{
+	//		log(fmt::format("Frame not finished sucesfully. Exiting.\n"));
+	//		break;
+	//	}
+	//}
+    //engineApplicationDestroy(app);
 	return 0;
 }

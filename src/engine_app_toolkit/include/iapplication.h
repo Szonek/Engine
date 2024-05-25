@@ -1,0 +1,26 @@
+#pragma once
+#include "utils.h"
+#include "engine.h"
+
+#include <string>
+
+namespace engine
+{
+
+class ENGINE_APP_TOOLKIT_API IApplication
+{
+public:
+    IApplication(engine_application_create_desc_t create_desc);
+    IApplication(const IApplication& rhs) = delete;
+    IApplication(IApplication&& rhs) noexcept = default;
+    IApplication& operator=(const IApplication& rhs) = delete;
+    IApplication& operator=(IApplication&& rhs) noexcept = default;
+    virtual ~IApplication();
+    engine_application_t get_handle() const { return app_handle_; }
+
+protected:
+    engine_application_t app_handle_;
+};
+
+
+} // namespace engine
