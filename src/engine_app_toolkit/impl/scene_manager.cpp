@@ -1,7 +1,7 @@
 #include "scene_manager.h"
 #include "iscene.h"
 
-engine::SceneManager::SceneManager(engine_application_t& app)
+engine::SceneManager::SceneManager(IApplication* app)
     : app_(app)
 {
 }
@@ -20,6 +20,15 @@ engine::IScene* engine::SceneManager::get_scene(std::string_view name)
     {
         return nullptr;
     }
-    //return scenes_[name.data()].get();
-    return scenes_[name.data()];
+    return scenes_[name.data()].get();
+}
+
+void engine::SceneManager::unregister_scene(std::string_view name)
+{
+    if (!scenes_.contains(name.data()))
+    {
+        assert(false && "Scene not found - cant unregister!");
+        return;
+    }
+    scenes_.erase(name.data());
 }

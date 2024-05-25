@@ -1,7 +1,10 @@
 #pragma once
+#include "engine.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <string>
+#include <span>
 #include <map>
 
 namespace project_c

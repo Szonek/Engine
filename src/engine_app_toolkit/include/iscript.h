@@ -6,7 +6,6 @@
 namespace engine
 {
 class IScene;
-class SceneManager;
 
 class ENGINE_APP_TOOLKIT_API IScript
 {
@@ -16,17 +15,10 @@ public:
         float point[3];
         std::int32_t lifetime;
     };
-    enum class CollisionState
-    {
-        eEnter,
-        eStay,
-        eExit
-    };
     struct collision_t
     {
         engine_game_object_t other;
         std::vector<contact_point_t> contact_points;
-        CollisionState state;
     };
 
 public:
@@ -38,15 +30,10 @@ public:
 
     virtual void update(float dt) {}
     //ToDo: this should be moved to seperate class like  ICollidableScript
-    virtual void on_collision_enter(const collision_t& info) {}
-    virtual void on_collision_stay(const collision_t& info) {}
-    virtual void on_collision_exit(const collision_t& info) {}
+    virtual void on_collision(const collision_t& info) {}
     
 
     virtual engine_game_object_t get_game_object() const { return go_; }
-
-protected:
-    SceneManager* get_scene_manager();
 
 protected:
     IScene* my_scene_ = nullptr;

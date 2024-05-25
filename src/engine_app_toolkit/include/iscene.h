@@ -3,8 +3,6 @@
 #include "iscript.h"
 #include "utils.h"
 
-#include "event_system.h"
-
 #include <unordered_map>
 #include <deque>
 #include <functional>
@@ -35,6 +33,7 @@ private:
     std::unordered_map<std::uint32_t, std::vector<std::function<void()>>> callbacks_;
 };
 
+class IApplication;
 class ENGINE_APP_TOOLKIT_API IScene
 {
 public:
@@ -42,7 +41,7 @@ public:
     using ScriptsQueue = std::deque<IScript*>;
 
 public:
-    IScene(engine_application_t app_handle, SceneManager* sc_mng, engine_result_code_t& engine_error_code);
+    IScene(IApplication* app);
     IScene(const IScene& rhs) = delete;
     IScene(IScene&& rhs) noexcept = default;
     IScene& operator=(const IScene& rhs) = delete;
@@ -68,8 +67,6 @@ public:
     {
         assert(script);
         scripts_unregister_queue_.push_front(script);
-        //const auto game_object = script->get_game_object();
-        //scripts_.erase(game_object);
     }
 
     template<typename T>
@@ -84,10 +81,9 @@ public:
         return dynamic_cast<const T*>(scripts_.at(go).get());
     }
 
+    IApplication* get_app() { return app_; }
     engine_scene_t& get_handle() { return scene_; }
-    engine_application_t& get_app_handle() { return app_; }
-    SceneManager* get_scene_manager() { return scene_manager_; }
-
+    engine_application_t get_app_handle();
 
     virtual void activate();
     virtual void deactivate();
@@ -106,14 +102,12 @@ protected:
     virtual void update_hook_end() {}
 
 protected:
-    engine_application_t app_{};
+    IApplication* app_ = nullptr;
     engine_scene_t scene_{};
-    SceneManager* scene_manager_ = nullptr;
 
     ScriptsMap scripts_{};
     ScriptsQueue scripts_register_queue_{};
     ScriptsQueue scripts_unregister_queue_{};
-    InputEventSystem input_event_system_;
     UserEventSystem user_event_system_;
     bool is_activate_ = true;
 };

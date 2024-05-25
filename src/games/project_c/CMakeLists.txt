@@ -2,9 +2,36 @@ set(APP_NAME "project_c_game")
 
 set(APP_SOURCES
 	main.cpp
+	
+	prefab.h
+	prefab.cpp
+	prefab_types.h
+	
+	app.h
+	app.cpp
+	
+	
 	animation_controller.h
-	scripts.h
-	model_info.h
+	animation_controller.cpp
+	
+	scenes/scene_city.h
+	scenes/scene_city.cpp	
+	scenes/scene_test.h
+	scenes/scene_test.cpp
+	
+	scripts/base_script.h
+	scripts/base_script.cpp
+	scripts/camera_script.h
+	scripts/camera_script.cpp
+	scripts/enemy_script.h
+	scripts/enemy_script.cpp
+	scripts/enviorment_script.h
+	scripts/enviorment_script.cpp
+	scripts/solider_script.h
+	scripts/solider_script.cpp
+	
+	scripts/scripts_utils.h
+	scripts/scripts_utils.cpp
 )
 
 

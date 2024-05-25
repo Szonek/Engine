@@ -59,8 +59,11 @@ engine::UiElement* engine::UiDocument::get_element_by_id(std::string_view id, en
     return err_out == ENGINE_RESULT_CODE_OK ? &cached_ui_elements_[id.data()] : nullptr;
 }
 
-engine::UiDataHandle::UiDataHandle(Rml::DataModelConstructor* constructor, std::span<const engine_ui_document_data_binding_t> bindings)
+engine::UiDataHandle::UiDataHandle(Rml::Context* ctx, std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
+    : context_(ctx)
+    , name_(name)
 {
+    auto constructor = ctx->CreateDataModel(name.data());
     if (!constructor)
     {
         return;
@@ -72,24 +75,26 @@ engine::UiDataHandle::UiDataHandle(Rml::DataModelConstructor* constructor, std::
         {
         case ENGINE_DATA_TYPE_BOOL:
         {
-            constructor->Bind(bind.name, bind.data_bool);
+            constructor.Bind(bind.name, bind.data_bool);
             break;
         }
         case ENGINE_DATA_TYPE_UINT32:
         {
-            constructor->Bind(bind.name, bind.data_uint32_t);
+            constructor.Bind(bind.name, bind.data_uint32_t);
             break;
         }
         default:
             log::log(log::LogLevel::eError, "Unknown engine data type. Cant create data binding for UI.");
         }
     }
-    handle_ = new Rml::DataModelHandle(constructor->GetModelHandle());
+    handle_ = new Rml::DataModelHandle(constructor.GetModelHandle());
 }
 
 engine::UiDataHandle::UiDataHandle(UiDataHandle&& rhs)
 {
+    std::swap(context_, rhs.context_);
     std::swap(handle_, rhs.handle_);
+    std::swap(name_, rhs.name_);
 }
 
 engine::UiDataHandle& engine::UiDataHandle::operator=(UiDataHandle&& rhs)
@@ -105,6 +110,7 @@ engine::UiDataHandle::~UiDataHandle()
 {
     if (handle_)
     {
+        context_->RemoveDataModel(name_);
         delete handle_;
     }
 }
