@@ -5,22 +5,22 @@
 
 project_c::Prefab::Prefab(Prefab&& rhs) noexcept
 {
-    std::swap(app, rhs.app);
-    std::swap(model_info, rhs.model_info);
-    std::swap(geometries, rhs.geometries);
-    std::swap(textures, rhs.textures);
-    std::swap(materials, rhs.materials);
+    std::swap(app_, rhs.app_);
+    std::swap(model_info_, rhs.model_info_);
+    std::swap(geometries_, rhs.geometries_);
+    std::swap(textures_, rhs.textures_);
+    std::swap(materials_, rhs.materials_);
 }
 
 project_c::Prefab& project_c::Prefab::operator=(Prefab&& rhs) noexcept
 {
     if (this != &rhs)
     {
-        std::swap(app, rhs.app);
-        std::swap(model_info, rhs.model_info);
-        std::swap(geometries, rhs.geometries);
-        std::swap(textures, rhs.textures);
-        std::swap(materials, rhs.materials);
+        std::swap(app_, rhs.app_);
+        std::swap(model_info_, rhs.model_info_);
+        std::swap(geometries_, rhs.geometries_);
+        std::swap(textures_, rhs.textures_);
+        std::swap(materials_, rhs.materials_);
     }
     return *this;
 }
@@ -29,26 +29,26 @@ project_c::Prefab::~Prefab()
 {
     if (is_valid())
     {
-        engineApplicationReleaseModelDesc(app, &model_info);
+        engineApplicationReleaseModelDesc(app_, &model_info_);
     }
 }
 
 project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name, std::string_view base_dir)
-    : app(app)
+    : app_(app)
 {
 
-    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_info);
+    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_info_);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed loading TABLE model. Exiting!\n");
         return;
     }
 
-    geometries = std::vector(model_info.geometries_count, ENGINE_INVALID_OBJECT_HANDLE);
-    for (std::uint32_t i = 0; i < model_info.geometries_count; i++)
+    geometries_ = std::vector(model_info_.geometries_count, ENGINE_INVALID_OBJECT_HANDLE);
+    for (std::uint32_t i = 0; i < model_info_.geometries_count; i++)
     {
-        const auto& geo = model_info.geometries_array[i];
-        engine_error_code = engineApplicationAddGeometryFromDesc(app, &geo, model_file_name.data(), &geometries[i]);
+        const auto& geo = model_info_.geometries_array[i];
+        engine_error_code = engineApplicationAddGeometryFromDesc(app, &geo, model_file_name.data(), &geometries_[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating geometry for loaded model. Exiting!\n");
@@ -56,11 +56,11 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         }
     }
 
-    textures = std::vector<engine_texture2d_t>(model_info.textures_count, ENGINE_INVALID_OBJECT_HANDLE);
-    for (std::uint32_t i = 0; i < model_info.textures_count; i++)
+    textures_ = std::vector<engine_texture2d_t>(model_info_.textures_count, ENGINE_INVALID_OBJECT_HANDLE);
+    for (std::uint32_t i = 0; i < model_info_.textures_count; i++)
     {
         const auto name = "unnamed_texture_" + std::to_string(i);
-        engine_error_code = engineApplicationAddTexture2DFromDesc(app, &model_info.textures_array[i], name.c_str(), &textures[i]);
+        engine_error_code = engineApplicationAddTexture2DFromDesc(app, &model_info_.textures_array[i], name.c_str(), &textures_[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating texture for loaded model. Exiting!\n");
@@ -68,18 +68,18 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         }
     }
 
-    materials = std::vector<engine_material_t>(model_info.materials_count, ENGINE_INVALID_OBJECT_HANDLE);
-    for (std::uint32_t i = 0; i < model_info.materials_count; i++)
+    materials_ = std::vector<engine_material_t>(model_info_.materials_count, ENGINE_INVALID_OBJECT_HANDLE);
+    for (std::uint32_t i = 0; i < model_info_.materials_count; i++)
     {
-        const auto& mat = model_info.materials_array[i];
+        const auto& mat = model_info_.materials_array[i];
         engine_material_create_desc_t mat_create_desc = engineApplicationInitMaterialDesc(app);
         mat_create_desc.shader_type = ENGINE_SHADER_TYPE_LIT;
         set_c_array(mat_create_desc.diffuse_color, mat.diffuse_color);
         if (mat.diffuse_texture_index != -1)
         {
-            mat_create_desc.diffuse_texture = textures.at(mat.diffuse_texture_index);
+            mat_create_desc.diffuse_texture = textures_.at(mat.diffuse_texture_index);
         }
-        engine_error_code = engineApplicationAddMaterialFromDesc(app, &mat_create_desc, mat.name, &materials[i]);
+        engine_error_code = engineApplicationAddMaterialFromDesc(app, &mat_create_desc, mat.name, &materials_[i]);
 
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
@@ -96,9 +96,9 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     ret.go = ENGINE_INVALID_GAME_OBJECT_ID;
 
     std::map<std::uint32_t, engine_game_object_t> node_id_to_game_object;
-    for (auto i = 0; i < model_info.nodes_count; i++)
+    for (auto i = 0; i < model_info_.nodes_count; i++)
     {
-        const auto& node = model_info.nodes_array[i];
+        const auto& node = model_info_.nodes_array[i];
         node_id_to_game_object[i] = engineSceneCreateGameObject(scene);
         const auto& go = node_id_to_game_object[i];
         if (node.name)
@@ -122,7 +122,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         if (node.geometry_index != -1)
         {
             auto mc = engineSceneAddMeshComponent(scene, go);
-            mc.geometry = geometries.at(node.geometry_index);
+            mc.geometry = geometries_.at(node.geometry_index);
             engineSceneUpdateMeshComponent(scene, go, &mc);
             log(fmt::format("\tAdded mesh component\n", go));
         }
@@ -130,7 +130,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         if (node.material_index != -1)
         {
             auto material_comp = engineSceneAddMaterialComponent(scene, go);
-            material_comp.material = materials.at(node.material_index);
+            material_comp.material = materials_.at(node.material_index);
             engineSceneUpdateMaterialComponent(scene, go, &material_comp);
             log(fmt::format("\tAdded material component\n", go));
         }
@@ -143,18 +143,18 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     assert(ret.go != ENGINE_INVALID_GAME_OBJECT_ID);
 
     // hierarchy
-    for (auto i = 0; i < model_info.nodes_count; i++)
+    for (auto i = 0; i < model_info_.nodes_count; i++)
     {
-        const auto& node = model_info.nodes_array[i];
+        const auto& node = model_info_.nodes_array[i];
         const auto& go = node_id_to_game_object[i];
         if (node.parent)
         {
             // find parent index - not optimal. ToDo: consider having parent index instead parent pointer
             const std::uint32_t parent_index = [&]()
                 {
-                    for (std::uint32_t j = 0; j < model_info.nodes_count; j++)
+                    for (std::uint32_t j = 0; j < model_info_.nodes_count; j++)
                     {
-                        if (&model_info.nodes_array[j] == node.parent)
+                        if (&model_info_.nodes_array[j] == node.parent)
                         {
                             return j;
                         }
@@ -173,13 +173,13 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
 
     // bones
     std::map<uint32_t, std::vector<engine_game_object_t>> skin_to_game_object;
-    for (auto skin_idx = 0; skin_idx < model_info.skins_counts; skin_idx++)
+    for (auto skin_idx = 0; skin_idx < model_info_.skins_counts; skin_idx++)
     {
         if (skin_idx == 1)
         {
             break;
         }
-        const auto& skin = model_info.skins_array[skin_idx];
+        const auto& skin = model_info_.skins_array[skin_idx];
         log(fmt::format("Adding skin: {}\n", skin.name));
         for (auto bone_idx = 0; bone_idx < skin.bones_count; bone_idx++)
         {
@@ -195,9 +195,9 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     }
 
     // update nodes with skin components
-    for (auto i = 0; i < model_info.nodes_count; i++)
+    for (auto i = 0; i < model_info_.nodes_count; i++)
     {
-        const auto& node = model_info.nodes_array[i];
+        const auto& node = model_info_.nodes_array[i];
         const auto& go = node_id_to_game_object[i];
         auto skin_index = node.skin_index;
         if (skin_index != -1)
@@ -237,9 +237,9 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             std::memcpy(out_channel.data.data(), in_channel.data, in_channel.data_count * sizeof(in_channel.data[0]));
         };
 
-    for (auto anim_idx = 0; anim_idx < model_info.animations_counts; anim_idx++)
+    for (auto anim_idx = 0; anim_idx < model_info_.animations_counts; anim_idx++)
     {
-        const auto& anim_in = model_info.animations_array[anim_idx];
+        const auto& anim_in = model_info_.animations_array[anim_idx];
         log(fmt::format("Adding animation: {}\n", anim_in.name));
         std::map<engine_game_object_t, project_c::AnimationChannelData> anim_clip_data;
         for (auto channel_idx = 0; channel_idx < anim_in.channels_count; channel_idx++)
@@ -260,5 +260,5 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
 
 bool project_c::Prefab::is_valid() const
 {
-    return model_info.nodes_count > 0;
+    return model_info_.nodes_count > 0;
 }

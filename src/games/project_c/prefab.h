@@ -35,10 +35,10 @@ struct Prefab
     bool is_valid() const;
 
 private:
-    engine_application_t app = nullptr;
-    engine_model_desc_t model_info = {};
-    std::vector<engine_geometry_t> geometries = {};
-    std::vector<engine_texture2d_t> textures = {};
-    std::vector<engine_material_t> materials = {};
+    engine_application_t app_ = nullptr;
+    engine_model_desc_t model_info_ = {};
+    std::vector<engine_geometry_t> geometries_ = {};
+    std::vector<engine_texture2d_t> textures_ = {};
+    std::vector<engine_material_t> materials_ = {};
 };
 }
