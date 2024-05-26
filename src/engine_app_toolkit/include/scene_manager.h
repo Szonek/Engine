@@ -26,7 +26,7 @@ public:
         {
             throw std::runtime_error("Scene already exists");
         }
-        auto ret = std::make_shared<T>(app_, this, args...);
+        auto ret = std::make_shared<T>(app_, args...);
         scenes_[T::get_name()] = ret;
         return ret.get();
     }

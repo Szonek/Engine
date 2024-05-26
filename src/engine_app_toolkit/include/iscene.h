@@ -42,7 +42,7 @@ public:
     using ScriptsQueue = std::deque<IScript*>;
 
 public:
-    IScene(engine_application_t app_handle, SceneManager* sc_mng);
+    IScene(engine_application_t app_handle);
     IScene(const IScene& rhs) = delete;
     IScene(IScene&& rhs) noexcept = default;
     IScene& operator=(const IScene& rhs) = delete;
@@ -68,8 +68,6 @@ public:
     {
         assert(script);
         scripts_unregister_queue_.push_front(script);
-        //const auto game_object = script->get_game_object();
-        //scripts_.erase(game_object);
     }
 
     template<typename T>
@@ -86,8 +84,6 @@ public:
 
     engine_scene_t& get_handle() { return scene_; }
     engine_application_t& get_app_handle() { return app_; }
-    SceneManager* get_scene_manager() { return scene_manager_; }
-
 
     virtual void activate();
     virtual void deactivate();
@@ -108,7 +104,6 @@ protected:
 protected:
     engine_application_t app_{};
     engine_scene_t scene_{};
-    SceneManager* scene_manager_ = nullptr;
 
     ScriptsMap scripts_{};
     ScriptsQueue scripts_register_queue_{};

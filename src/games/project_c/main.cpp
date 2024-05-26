@@ -308,8 +308,8 @@ struct UI_data
 class TestScene : public engine::IScene
 {
 public:
-    TestScene(engine_application_t app_handle, engine::SceneManager* scn_mgn)
-        : IScene(app_handle, scn_mgn)
+    TestScene(engine_application_t app_handle)
+        : IScene(app_handle)
     {
         auto camera_script = register_script<CameraScript>();
 
@@ -380,8 +380,8 @@ private:
 class CityScene : public engine::IScene
 {
 public:
-    CityScene(engine_application_t app_handle, engine::SceneManager* scn_mgn)
-        : IScene(app_handle, scn_mgn)
+    CityScene(engine_application_t app_handle)
+        : IScene(app_handle)
     {
         auto camera_script = register_script<CameraScript>();
     }

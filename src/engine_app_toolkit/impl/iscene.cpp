@@ -129,10 +129,9 @@ inline engine_scene_t create_scene(engine_application_t& app_handle)
 }  // namespace
 
 
-engine::IScene::IScene(engine_application_t app_handle, engine::SceneManager* scn_mgn)
+engine::IScene::IScene(engine_application_t app_handle)
     : app_(app_handle)
     , scene_(create_scene(app_handle))
-    , scene_manager_(scn_mgn)
     , input_event_system_(app_, scene_)
 {
     if (!scene_)
