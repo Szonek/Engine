@@ -30,7 +30,7 @@ private:
 
 public:
     std::int32_t hp = 20;
-    Enemy(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z);
+    Enemy(engine::IScene* my_scene, const PrefabResult& pr, float offset_x, float offset_z);
     virtual ~Enemy();
 
     void update(float dt);

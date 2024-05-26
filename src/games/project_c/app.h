@@ -4,7 +4,9 @@
 #include "scene_manager.h"
 #include "iscene.h"
 
-#include "model_info.h"
+#include "prefab.h"
+#include "animation_controller.h"
+#include "prefab_types.h"
 
 #include <fmt/format.h>
 #include <fmt/chrono.h>
@@ -14,25 +16,13 @@
 
 namespace project_c
 {
-enum PrefabType
-{
-    PREFAB_TYPE_SOLIDER,
-    PREFAB_TYPE_SWORD,
-    PREFAB_TYPE_ORC,
-    PREFAB_TYPE_BARREL,
-    PREFAB_TYPE_FLOOR,
-    PREFAB_TYPE_FLOOR_DETAIL,
-    PREFAB_TYPE_WALL,
-    PREFAB_TYPE_CUBE,
-    PREFAB_TYPE_COUNT
-};
 
 class AppProjectC : public engine::IApplication
 {
 public:
     AppProjectC();
 
-    engine_game_object_t instantiate_prefab(PrefabType type, engine::IScene* scene);
+    PrefabResult instantiate_prefab(PrefabType type, engine::IScene* scene);
     void run();
 
 private:

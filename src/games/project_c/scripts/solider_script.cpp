@@ -108,8 +108,8 @@ void project_c::AttackTrigger::activate()
     is_active_ = true;
 }
 
-project_c::Solider::Solider(engine::IScene* my_scene, engine_game_object_t go)
-    : BaseNode(my_scene, go, "solider")
+project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
+    : BaseNode(my_scene, pr, "solider")
     , attack_trigger_(nullptr)
     , state_(States::IDLE)
 {

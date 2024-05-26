@@ -8,8 +8,8 @@
 #include <glm/gtc/type_ptr.hpp>
 
 
-project_c::Enemy::Enemy(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z)
-    : BaseNode(my_scene, go, "enemy")
+project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, float offset_x, float offset_z)
+    : BaseNode(my_scene, pr, "enemy")
     , state_(States::DECISION_MAKE)
 {
     const auto scene = my_scene_->get_handle();

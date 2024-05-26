@@ -2,10 +2,17 @@ set(APP_NAME "project_c_game")
 
 set(APP_SOURCES
 	main.cpp
-	model_info.h
+	
+	prefab.h
+	prefab.cpp
+	prefab_types.h
 	
 	app.h
 	app.cpp
+	
+	
+	animation_controller.h
+	animation_controller.cpp
 	
 	scenes/scene_city.h
 	scenes/scene_city.cpp	

@@ -20,12 +20,12 @@ inline void generate_floor(std::int32_t map_border_distance_x, std::int32_t map_
         {
             if (x == -map_border_distance_x || x == map_border_distance_x || z == -map_border_distance_z || z == map_border_distance_z)
             {
-                scene.register_script<project_c::Wall>(app.instantiate_prefab(project_c::PREFAB_TYPE_WALL, &scene), x, z);
+                scene.register_script<project_c::Wall>(app.instantiate_prefab(project_c::PREFAB_TYPE_WALL, &scene).go, x, z);
             }
             else
             {
                 auto flor_moodel = dist6(rng) ? project_c::PREFAB_TYPE_FLOOR_DETAIL : project_c::PREFAB_TYPE_FLOOR;
-                scene.register_script<project_c::Floor>(app.instantiate_prefab(flor_moodel, &scene), x, z);
+                scene.register_script<project_c::Floor>(app.instantiate_prefab(flor_moodel, &scene).go, x, z);
             }
 
         }

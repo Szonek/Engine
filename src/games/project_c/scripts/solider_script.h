@@ -98,7 +98,7 @@ private:
     };
 
 public:
-    Solider(engine::IScene* my_scene, engine_game_object_t go);
+    Solider(engine::IScene* my_scene, const PrefabResult& pr);
 
     void update(float dt);
 

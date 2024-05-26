@@ -27,9 +27,6 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/physics_world.h
 	${ENGINE_SOURCES_DIR}/physics_world.cpp
 	
-	${ENGINE_SOURCES_DIR}/animation_controller.h
-	${ENGINE_SOURCES_DIR}/animation_controller.cpp
-	
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.h
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.cpp
 	

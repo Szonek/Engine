@@ -19,7 +19,7 @@ project_c::CityScene::CityScene(engine::IApplication* app)
     {
         for (std::int32_t j = -3; j < 3; j++)
         {
-            register_script<project_c::Floor>(typed_app->instantiate_prefab(project_c::PREFAB_TYPE_FLOOR, this), i, j);
+            register_script<project_c::Floor>(typed_app->instantiate_prefab(project_c::PREFAB_TYPE_FLOOR, this).go, i, j);
         }
     }
     register_script<MainLight>();
