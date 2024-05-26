@@ -11,11 +11,11 @@
 namespace engine
 {
 class IScene;
-
+class IApplication;
 class ENGINE_APP_TOOLKIT_API SceneManager
 {
 public:
-    SceneManager(engine_application_t& app);
+    SceneManager(IApplication* app);
     ~SceneManager() = default;
     void update(float dt);
     
@@ -34,8 +34,8 @@ public:
     IScene* get_scene(std::string_view name);
 
 private:
+    IApplication* app_ = nullptr;
     std::unordered_map<std::string,std::shared_ptr<IScene>> scenes_;  //ToDo: should use unique_ptr
-    engine_application_t app_;
 };
 
 

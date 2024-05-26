@@ -1,5 +1,5 @@
 #include "iscene.h"
-#include "scene_manager.h"
+#include "iapplication.h"
 
 #include "event_types_defs.h"
 
@@ -71,37 +71,6 @@ engine_result_code_t propagate_collisions_events(engine_application_t app, engin
     return ENGINE_RESULT_CODE_OK;
 }
 
-void propagte_input_events(engine_application_t app, engine_scene_t scene, const std::vector<engine::InputEventSystem::UpdateResult>& input_events, engine::IScene::ScriptsMap& scripts)
-{
-
-    for (const auto& input_event : input_events)
-    {
-        if (input_event.pointer_clicked_event)
-        {
-            if (!scripts.contains(input_event.event_data.pointer_click_object))
-            {
-                engineLog(fmt::format("Bug!! Tried to send event to object without attached script, go id: {}\n", input_event.event_data.pointer_click_object).c_str());
-            }
-            else
-            {
-                //scripts[input_event.event_data.pointer_click_object]->on_pointer_click(&input_event.event_data);
-            }
-        }
-
-        if (input_event.pointer_down_event)
-        {
-            if (!scripts.contains(input_event.event_data.pointer_down_object))
-            {
-                engineLog(fmt::format("Bug!! Tried to send event to object without attached script, go id: {}\n", input_event.event_data.pointer_down_object).c_str());
-            }
-            else
-            {
-                //scripts[input_event.event_data.pointer_down_object]->on_pointer_down(&input_event.event_data);
-            }
-        }
-    }
-}
-
 engine_result_code_t update_scripts(std::unordered_map<engine_game_object_t, std::unique_ptr<engine::IScript>>& scripts, float dt)
 {
     for (auto& [go, script] : scripts)
@@ -111,7 +80,7 @@ engine_result_code_t update_scripts(std::unordered_map<engine_game_object_t, std
     return ENGINE_RESULT_CODE_OK;
 }
 
-inline engine_scene_t create_scene(engine_application_t& app_handle)
+inline engine_scene_t create_scene(engine_application_t app_handle)
 {
     engine_scene_t scene = nullptr;
 
@@ -129,10 +98,9 @@ inline engine_scene_t create_scene(engine_application_t& app_handle)
 }  // namespace
 
 
-engine::IScene::IScene(engine_application_t app_handle)
-    : app_(app_handle)
-    , scene_(create_scene(app_handle))
-    , input_event_system_(app_, scene_)
+engine::IScene::IScene(IApplication* app)
+    : app_(app)
+    , scene_(create_scene(get_app_handle()))
 {
     if (!scene_)
     {
@@ -148,8 +116,13 @@ engine::IScene::~IScene()
     // delete scene
     if (scene_)
     {
-        engineApplicationSceneDestroy(app_, scene_);
+        engineApplicationSceneDestroy(get_app_handle(), scene_);
     }
+}
+
+engine_application_t engine::IScene::get_app_handle()
+{
+    return app_->get_handle();
 }
 
 void engine::IScene::activate()
@@ -182,13 +155,10 @@ engine_result_code_t engine::IScene::update(float dt)
 
     update_hook_begin();
 
-    //
-    const auto input_events = input_event_system_.update();
-    //propagte_input_events(app_, scene_, input_events, scripts_);
-    propagate_collisions_events(app_, scene_, scripts_);
+    propagate_collisions_events(get_app_handle(), scene_, scripts_);
 
     update_scripts(scripts_, dt);
-    update_scene(app_, scene_, dt);
+    update_scene(get_app_handle(), scene_, dt);
 
     update_hook_end();
 

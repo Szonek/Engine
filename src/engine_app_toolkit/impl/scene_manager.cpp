@@ -1,7 +1,7 @@
 #include "scene_manager.h"
 #include "iscene.h"
 
-engine::SceneManager::SceneManager(engine_application_t& app)
+engine::SceneManager::SceneManager(IApplication* app)
     : app_(app)
 {
 }

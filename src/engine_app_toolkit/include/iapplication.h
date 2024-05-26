@@ -16,9 +16,11 @@ public:
     IApplication& operator=(const IApplication& rhs) = delete;
     IApplication& operator=(IApplication&& rhs) noexcept = default;
     virtual ~IApplication();
-    engine_application_t get_handle() const { return app_handle_; }
 
-protected:
+    const engine_application_t& get_handle() const { return app_handle_; }
+    engine_application_t& get_handle() { return app_handle_; }
+
+private:
     engine_application_t app_handle_;
 };
 
