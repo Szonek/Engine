@@ -35,4 +35,13 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         engineUiDocumentShow(ui_data_.doc);
     }
 
+
+    for (std::int32_t i = -5; i < 5; i++)
+    {
+        for (std::int32_t j = -3; j < 3; j++)
+        {
+            typed_app->instantiate_prefab<project_c::Floor>(project_c::PREFAB_TYPE_FLOOR, this, i, j);
+        }
+    }
+    register_script<MainLight>();
 }
