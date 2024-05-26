@@ -1,0 +1,113 @@
+#pragma
+#include "base_script.h"
+
+#include <chrono>
+
+namespace project_c
+{
+class Sword : public BaseNode
+{
+public:
+    Sword(engine::IScene* my_scene, engine_game_object_t go);
+};
+
+class AttackTrigger : public BaseNode
+{
+public:
+    AttackTrigger(engine::IScene* my_scene, engine_game_object_t go);
+
+    void activate();
+    void on_collision(const collision_t& info) override;
+    void update(float dt) override;
+
+private:
+    bool is_active_ = false;
+};
+
+class Solider : public BaseNode
+{
+private:
+    enum class States
+    {
+        IDLE = 0,
+        ATTACK,
+        MOVE,
+        DODGE,
+    };
+
+    struct GlobalStateData
+    {
+        engine_ray_hit_info_t last_mouse_hit = {};
+    };
+
+    struct DodgeStateData
+    {
+        std::chrono::milliseconds dodge_timer_cooldown = std::chrono::milliseconds(0);
+        std::chrono::milliseconds dodge_timer_animation = std::chrono::milliseconds(0);
+
+        void update(float dt)
+        {
+            if (animation_playing_)
+            {
+                dodge_timer_animation += std::chrono::milliseconds(static_cast<std::int64_t>(dt));
+            }
+            if (cooldown_playing_)
+            {
+                dodge_timer_cooldown += std::chrono::milliseconds(static_cast<std::int64_t>(dt));
+            }
+
+            if (dodge_timer_animation >= std::chrono::milliseconds(150))
+            {
+                dodge_timer_animation = std::chrono::milliseconds(0);
+                animation_playing_ = false;
+            }
+            if (dodge_timer_cooldown >= std::chrono::milliseconds(3000))
+            {
+                dodge_timer_cooldown = std::chrono::milliseconds(0);
+                cooldown_playing_ = false;
+            }
+        }
+
+        inline bool animation_is_playing() const
+        {
+            return animation_playing_;
+        }
+
+        inline void activate()
+        {
+            animation_playing_ = true;
+            cooldown_playing_ = true;
+        }
+
+        inline bool can_dodge() const
+        {
+            return !cooldown_playing_;
+        }
+    private:
+        bool animation_playing_ = false;
+        bool cooldown_playing_ = false;
+    };
+
+    struct AttackStateData
+    {
+        bool animation_started = false;
+        inline const char* get_animation_name() const
+        {
+            return "attack-melee-right";
+        }
+    };
+
+public:
+    Solider(engine::IScene* my_scene, engine_game_object_t go);
+
+    void update(float dt);
+
+private:
+    AttackTrigger* attack_trigger_;
+    States state_;
+    AttackStateData attack_data_;
+    GlobalStateData global_data_;
+    DodgeStateData dodge_data_;
+
+};
+} //namespace project_c

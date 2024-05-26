@@ -2,7 +2,6 @@ set(APP_NAME "project_c_game")
 
 set(APP_SOURCES
 	main.cpp
-	scripts.h
 	model_info.h
 	
 	app.h
@@ -12,6 +11,20 @@ set(APP_SOURCES
 	scenes/scene_city.cpp	
 	scenes/scene_test.h
 	scenes/scene_test.cpp
+	
+	scripts/base_script.h
+	scripts/base_script.cpp
+	scripts/camera_script.h
+	scripts/camera_script.cpp
+	scripts/enemy_script.h
+	scripts/enemy_script.cpp
+	scripts/enviorment_script.h
+	scripts/enviorment_script.cpp
+	scripts/solider_script.h
+	scripts/solider_script.cpp
+	
+	scripts/scripts_utils.h
+	scripts/scripts_utils.cpp
 )
 
 

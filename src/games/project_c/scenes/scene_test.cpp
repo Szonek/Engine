@@ -1,7 +1,12 @@
 #include "scene_test.h"
 
 #include "../app.h"
-#include "../scripts.h"
+#include "../scripts/camera_script.h"
+#include "../scripts/enviorment_script.h"
+#include "../scripts/enemy_script.h"
+#include "../scripts/solider_script.h"
+
+#include <random>
 
 namespace
 {
