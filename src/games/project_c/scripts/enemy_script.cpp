@@ -51,7 +51,7 @@ project_c::Enemy::~Enemy()
 
 void project_c::Enemy::update(float dt)
 {
-    //anim_controller_.update(dt);
+    anim_controller_.update(dt);
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
 
@@ -67,14 +67,14 @@ void project_c::Enemy::update(float dt)
         if (hp <= 0)
         {
             state_ = States::DIE;
-            //anim_controller_.set_active_animation("die");
+            anim_controller_.set_active_animation("die");
         }
         else
         {
             if (distance_to_player < 0.8f)
             {
                 state_ = States::ATTACK;
-                //anim_controller_.set_active_animation(attack_data_.get_animation_name());
+                anim_controller_.set_active_animation(attack_data_.get_animation_name());
             }
             else if (distance_to_player < 3.0f)
             {
@@ -89,13 +89,12 @@ void project_c::Enemy::update(float dt)
     }
     case States::IDLE:
     {
-        //anim_controller_.set_active_animation("idle");
+        anim_controller_.set_active_animation("idle");
         state_ = States::DECISION_MAKE;
     }
     case States::ATTACK:
     {
-        //if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
-        if (true)
+        if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
         {
             state_ = States::DECISION_MAKE;
             attack_data_.attack_with_right = !attack_data_.attack_with_right;
@@ -104,8 +103,7 @@ void project_c::Enemy::update(float dt)
     }
     case States::DIE:
     {
-        //if (!anim_controller_.is_active_animation("die"))
-        if (true)
+        if (!anim_controller_.is_active_animation("die"))
         {
             my_scene_->unregister_script(this);
         }
@@ -113,7 +111,7 @@ void project_c::Enemy::update(float dt)
     }
     case States::MOVE:
     {
-        //anim_controller_.set_active_animation("walk");
+        anim_controller_.set_active_animation("walk");
 
         auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
         quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);

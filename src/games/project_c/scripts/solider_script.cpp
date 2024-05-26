@@ -142,7 +142,7 @@ project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
 
 void project_c::Solider::update(float dt)
 {
-    //anim_controller_.update(dt);
+    anim_controller_.update(dt);
     dodge_data_.update(dt);
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
@@ -196,7 +196,7 @@ void project_c::Solider::update(float dt)
     {
     case States::IDLE:
     {
-        //anim_controller_.set_active_animation("idle");
+        anim_controller_.set_active_animation("idle");
         break;
     }
     case States::DODGE:
@@ -207,7 +207,7 @@ void project_c::Solider::update(float dt)
         }
         else
         {
-            //anim_controller_.set_active_animation("crouch");
+            anim_controller_.set_active_animation("crouch");
             const float speed_cooef = 0.015f;
             const float speed = speed_cooef * dt;
             auto tc = engineSceneGetTransformComponent(scene, go_);
@@ -226,8 +226,7 @@ void project_c::Solider::update(float dt)
     {
         if (attack_data_.animation_started)
         {
-            //if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
-            if (true)
+            if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
             {
                 state_ = States::IDLE;
                 attack_data_ = {};
@@ -236,7 +235,7 @@ void project_c::Solider::update(float dt)
         else
         {
             rotate_towards_global_target();
-            //anim_controller_.set_active_animation(attack_data_.get_animation_name());
+            anim_controller_.set_active_animation(attack_data_.get_animation_name());
             attack_data_.animation_started = true;
             attack_trigger_->activate();
         }
@@ -256,7 +255,7 @@ void project_c::Solider::update(float dt)
         }
         else
         {
-            //anim_controller_.set_active_animation("walk");
+            anim_controller_.set_active_animation("walk");
 
             rotate_towards_global_target();
             auto tc = engineSceneGetTransformComponent(scene, go_);
