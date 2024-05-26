@@ -11,8 +11,6 @@
 #include "scripts.h"
 #include "model_info.h"
 
-#include <network/net_client.h>
-
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -78,7 +76,7 @@ public:
         {
             const auto& [model_file_name, base_dir] = file_and_basedir;
             engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
-            prefabs_[type] = std::move(ModelInfo(engine_error_code, app_handle_, model_file_name, base_dir));
+            prefabs_[type] = std::move(ModelInfo(engine_error_code, get_handle(), model_file_name, base_dir));
             if (engine_error_code != ENGINE_RESULT_CODE_OK)
             {
                 log(fmt::format("Failed loading prefab: {}\n", type));
@@ -90,8 +88,6 @@ public:
         const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
         log(fmt::format("Model loading took: {}\n", ms_load_time));
     }
-
-    engine_application_t get_app_handle() const { return app_handle_; }
 
     template<typename Tscript, typename... Targs>
     Tscript* instantiate_prefab(PrefabType type, engine::IScene* scene, Targs... targs)
@@ -110,6 +106,51 @@ public:
         }
 
         return parse_prefab_and_create_script<Tscript>(prefab, scene, targs...);
+    }
+
+    void run()
+    {
+        struct fps_counter_t
+        {
+            float frames_total_time = 0.0f;
+            std::uint32_t frames_count = 0;
+        };
+        fps_counter_t fps_counter{};
+
+        while (true)
+        {
+            const auto frame_begin = engineApplicationFrameBegine(get_handle());
+
+            if (frame_begin.events & ENGINE_EVENT_QUIT)
+            {
+                log(fmt::format("Engine requested app quit. Exiting.\n"));
+                break;
+            }
+
+            if (engineApplicationIsKeyboardButtonDown(get_handle(), ENGINE_KEYBOARD_KEY_ESCAPE))
+            {
+                log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
+                break;
+            }
+
+            fps_counter.frames_count += 1;
+            fps_counter.frames_total_time += frame_begin.delta_time;
+            if (fps_counter.frames_total_time > 1000.0f)
+            {
+                log(fmt::format("FPS: {}, latency: {} ms. \n",
+                    fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count));
+                fps_counter = {};
+            }
+
+            update_scenes(frame_begin.delta_time);
+
+            const auto frame_end = engineApplicationFrameEnd(get_handle());
+            if (!frame_end.success)
+            {
+                log(fmt::format("Frame not finished sucesfully. Exiting.\n"));
+                break;
+            }
+        }
     }
 
 private:
@@ -308,11 +349,14 @@ struct UI_data
 class TestScene : public engine::IScene
 {
 public:
-    TestScene(engine_application_t app_handle)
-        : IScene(app_handle)
+    TestScene(engine::IApplication* app)
+        : IScene(app)
     {
+        auto app_handle = app->get_handle();
         auto camera_script = register_script<CameraScript>();
 
+        auto typed_app = dynamic_cast<AppProjectC*>(app);
+        typed_app->instantiate_prefab<project_c::Solider>(project_c::PREFAB_TYPE_SOLIDER, this);
 
         if (engineApplicationAddFontFromFile(app_handle, "tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
         {
@@ -380,10 +424,13 @@ private:
 class CityScene : public engine::IScene
 {
 public:
-    CityScene(engine_application_t app_handle)
-        : IScene(app_handle)
+    CityScene(engine::IApplication* app)
+        : IScene(app)
     {
         auto camera_script = register_script<CameraScript>();
+
+        auto typed_app = dynamic_cast<AppProjectC*>(app);
+        typed_app->instantiate_prefab<project_c::Solider>(project_c::PREFAB_TYPE_SOLIDER, this);
     }
 
     static constexpr const char* get_name() { return "CityScene"; }
@@ -401,73 +448,82 @@ int main(int argc, char** argv)
     try
     {
         project_c::AppProjectC app_project_c;
-        auto app = app_project_c.get_app_handle();
-        engine::SceneManager scene_manager(app);
-        scene_manager.register_scene<project_c::TestScene>();
-        scene_manager.register_scene<project_c::CityScene>();
-        auto scene = scene_manager.get_scene("TestScene");
-        auto scene_city = scene_manager.get_scene("CityScene");
 
-        app_project_c.instantiate_prefab<project_c::Solider>(project_c::PREFAB_TYPE_SOLIDER, scene);
-        app_project_c.instantiate_prefab<project_c::Solider>(project_c::PREFAB_TYPE_SOLIDER, scene_city);
+        auto scene_city = app_project_c.register_scene<project_c::CityScene>();
+        auto scene_test = app_project_c.register_scene<project_c::TestScene>();
 
-        struct fps_counter_t
-        {
-            float frames_total_time = 0.0f;
-            std::uint32_t frames_count = 0;
-        };
-        fps_counter_t fps_counter{};
+        app_project_c.run();
 
-        while (true)
-        {
-            const auto frame_begin = engineApplicationFrameBegine(app);
+        auto app = app_project_c.get_handle();
 
-            if (frame_begin.events & ENGINE_EVENT_QUIT)
-            {
-                log(fmt::format("Engine requested app quit. Exiting.\n"));
-                break;
-            }
 
-            if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_ESCAPE))
-            {
-                log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
-                break;
-            }
 
-            //static bool button_1_frames[2] = { false, false };
-            //button_1_frames[fps_counter.frames_count % 2] = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_5);
-            //if (button_1_frames[0] && !button_1_frames[1])
-            //{
-            //    if (scene->is_active())
-            //    {
-            //        scene->deactivate();
-            //        scene_city->activate();
-            //    }
-            //    else
-            //    {
-            //        scene->activate();
-            //        scene_city->deactivate();
-            //    };
-            //}
+        //engine::SceneManager scene_manager(&app_project_c);
+        //scene_manager.register_scene<project_c::TestScene>();
+        //scene_manager.register_scene<project_c::CityScene>();
+        //auto scene = scene_manager.get_scene("TestScene");
+        //auto scene_city = scene_manager.get_scene("CityScene");
 
-            fps_counter.frames_count += 1;
-            fps_counter.frames_total_time += frame_begin.delta_time;
-            if (fps_counter.frames_total_time > 1000.0f)
-            {
-                log(fmt::format("FPS: {}, latency: {} ms. \n",
-                    fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count));
-                fps_counter = {};
-            }
+        //app_project_c.instantiate_prefab<project_c::Solider>(project_c::PREFAB_TYPE_SOLIDER, scene);
+        //app_project_c.instantiate_prefab<project_c::Solider>(project_c::PREFAB_TYPE_SOLIDER, scene_city);
 
-            scene_manager.update(frame_begin.delta_time);
+        //struct fps_counter_t
+        //{
+        //    float frames_total_time = 0.0f;
+        //    std::uint32_t frames_count = 0;
+        //};
+        //fps_counter_t fps_counter{};
 
-            const auto frame_end = engineApplicationFrameEnd(app);
-            if (!frame_end.success)
-            {
-                log(fmt::format("Frame not finished sucesfully. Exiting.\n"));
-                break;
-            }
-        }
+        //while (true)
+        //{
+        //    const auto frame_begin = engineApplicationFrameBegine(app);
+
+        //    if (frame_begin.events & ENGINE_EVENT_QUIT)
+        //    {
+        //        log(fmt::format("Engine requested app quit. Exiting.\n"));
+        //        break;
+        //    }
+
+        //    if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_ESCAPE))
+        //    {
+        //        log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
+        //        break;
+        //    }
+
+        //    //static bool button_1_frames[2] = { false, false };
+        //    //button_1_frames[fps_counter.frames_count % 2] = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_5);
+        //    //if (button_1_frames[0] && !button_1_frames[1])
+        //    //{
+        //    //    if (scene->is_active())
+        //    //    {
+        //    //        scene->deactivate();
+        //    //        scene_city->activate();
+        //    //    }
+        //    //    else
+        //    //    {
+        //    //        scene->activate();
+        //    //        scene_city->deactivate();
+        //    //    };
+        //    //}
+
+        //    fps_counter.frames_count += 1;
+        //    fps_counter.frames_total_time += frame_begin.delta_time;
+        //    if (fps_counter.frames_total_time > 1000.0f)
+        //    {
+        //        log(fmt::format("FPS: {}, latency: {} ms. \n",
+        //            fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count));
+        //        fps_counter = {};
+        //    }
+
+        //    scene_manager.update(frame_begin.delta_time);
+
+        //    const auto frame_end = engineApplicationFrameEnd(app);
+        //    if (!frame_end.success)
+        //    {
+        //        log(fmt::format("Frame not finished sucesfully. Exiting.\n"));
+        //        break;
+        //    }
+        //}
 
         return 0;
     }

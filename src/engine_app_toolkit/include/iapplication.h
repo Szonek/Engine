@@ -2,6 +2,8 @@
 #include "utils.h"
 #include "engine.h"
 
+#include "scene_manager.h"
+
 #include <string>
 
 namespace engine
@@ -17,11 +19,26 @@ public:
     IApplication& operator=(IApplication&& rhs) noexcept = default;
     virtual ~IApplication();
 
+    template<typename T>
+    T* register_scene()
+    {
+        return scene_manager_.register_scene<T>();
+    }
+
+    template<typename T>
+    T* get_scene()
+    {
+        return scene_manager_.get_scene(T::get_name());
+    }
+
+    void update_scenes(float dt);
+
     const engine_application_t& get_handle() const { return app_handle_; }
     engine_application_t& get_handle() { return app_handle_; }
 
 private:
     engine_application_t app_handle_;
+    SceneManager scene_manager_;
 };
 
 
