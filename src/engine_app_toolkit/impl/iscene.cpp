@@ -144,6 +144,9 @@ engine::IScene::IScene(engine_application_t app_handle, engine::SceneManager* sc
 
 engine::IScene::~IScene()
 {
+    // delete all scripts immediately before deallocating scene
+    scripts_.clear();
+    // delete scene
     if (scene_)
     {
         engineApplicationSceneDestroy(app_, scene_);
