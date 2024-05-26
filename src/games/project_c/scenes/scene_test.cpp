@@ -9,9 +9,6 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     auto app_handle = app->get_handle();
     auto camera_script = register_script<CameraScript>();
 
-    auto typed_app = dynamic_cast<AppProjectC*>(app);
-    typed_app->instantiate_prefab<project_c::Solider>(project_c::PREFAB_TYPE_SOLIDER, this);
-
     if (engineApplicationAddFontFromFile(app_handle, "tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
     {
         log(fmt::format("Couldnt load font!\n"));
@@ -35,12 +32,14 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         engineUiDocumentShow(ui_data_.doc);
     }
 
+    auto typed_app = dynamic_cast<AppProjectC*>(app);
+    register_script<project_c::Solider>(typed_app->instantiate_prefab(project_c::PREFAB_TYPE_SOLIDER, this));
 
     for (std::int32_t i = -5; i < 5; i++)
     {
         for (std::int32_t j = -3; j < 3; j++)
         {
-            typed_app->instantiate_prefab<project_c::Floor>(project_c::PREFAB_TYPE_FLOOR, this, i, j);
+            register_script<project_c::Floor>(typed_app->instantiate_prefab(project_c::PREFAB_TYPE_FLOOR, this), i, j);
         }
     }
     register_script<MainLight>();

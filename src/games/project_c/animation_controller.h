@@ -210,13 +210,13 @@ public:
 
     void add_animation_clip(const std::string& name, const AnimationClip& clip)
     {
-        collection_.add_animation_clip(name, clip);
+        //collection_.add_animation_clip(name, clip);
     }
 
     void set_active_animation(const std::string& name)
     {
-        current_clip_ = &collection_.get_animation_clip(name);
-        current_clip_name_ = name;
+       // current_clip_ = &collection_.get_animation_clip(name);
+        //current_clip_name_ = name;
     }
 
     bool is_active_animation(const std::string& name) const
