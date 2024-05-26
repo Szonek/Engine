@@ -81,6 +81,7 @@ public:
         return dynamic_cast<const T*>(scripts_.at(go).get());
     }
 
+    IApplication* get_app() { return app_; }
     engine_scene_t& get_handle() { return scene_; }
     engine_application_t get_app_handle();
 

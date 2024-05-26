@@ -2,6 +2,7 @@
 #include "scripts_utils.h"
 #include "enemy_script.h"
 
+#include "../app.h"
 #include "iscene.h"
 
 #include <glm/glm.hpp>
@@ -138,6 +139,9 @@ project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
 
     // add attack trigger
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(my_scene->get_handle()));
+    auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
+    assert(my_app != nullptr);
+    my_scene_->register_script<project_c::Sword>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_SWORD, my_scene).go);
 }
 
 void project_c::Solider::update(float dt)
