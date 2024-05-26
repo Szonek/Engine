@@ -20,15 +20,14 @@ public:
     virtual ~IApplication();
 
     template<typename T>
-    T* register_scene()
+    IScene* register_scene()
     {
         return scene_manager_.register_scene<T>();
     }
 
-    template<typename T>
-    T* get_scene()
+    IScene* get_scene(std::string_view name)
     {
-        return scene_manager_.get_scene(T::get_name());
+        return scene_manager_.get_scene(name);
     }
 
     void update_scenes(float dt);

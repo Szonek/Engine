@@ -142,6 +142,18 @@ public:
                 fps_counter = {};
             }
 
+            auto scene = get_scene("TestScene");
+            auto scene_city = get_scene("CityScene");
+            if(engineApplicationIsKeyboardButtonDown(get_handle(), ENGINE_KEYBOARD_KEY_5))
+            {
+                scene->deactivate();
+                scene_city->activate();
+            }
+            else if (engineApplicationIsKeyboardButtonDown(get_handle(), ENGINE_KEYBOARD_KEY_6))
+            {
+                scene->activate();
+                scene_city->deactivate();
+            }
             update_scenes(frame_begin.delta_time);
 
             const auto frame_end = engineApplicationFrameEnd(get_handle());
@@ -449,15 +461,12 @@ int main(int argc, char** argv)
     {
         project_c::AppProjectC app_project_c;
 
-        auto scene_city = app_project_c.register_scene<project_c::CityScene>();
-        auto scene_test = app_project_c.register_scene<project_c::TestScene>();
+        app_project_c.register_scene<project_c::CityScene>();
+        app_project_c.register_scene<project_c::TestScene>();
 
         app_project_c.run();
 
-        auto app = app_project_c.get_handle();
-
-
-
+        //auto app = app_project_c.get_handle();
         //engine::SceneManager scene_manager(&app_project_c);
         //scene_manager.register_scene<project_c::TestScene>();
         //scene_manager.register_scene<project_c::CityScene>();
