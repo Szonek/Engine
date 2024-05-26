@@ -701,7 +701,7 @@ public:
         is_active_ = true;
     }
 
-    void on_collision_enter(const collision_t& info) override
+    void on_collision(const collision_t& info) override
     {
         if (is_active_)
         {

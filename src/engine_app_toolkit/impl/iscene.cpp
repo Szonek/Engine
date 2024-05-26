@@ -51,7 +51,7 @@ engine_result_code_t propagate_collisions_events(engine_application_t app, engin
         collision.other = col.object_b;
         if (scripts.find(col.object_a) != scripts.end())
         {
-           scripts[col.object_a]->on_collision_enter(collision);
+           scripts[col.object_a]->on_collision(collision);
         }
         else
         {
@@ -61,7 +61,7 @@ engine_result_code_t propagate_collisions_events(engine_application_t app, engin
         collision.other = col.object_a;
         if (scripts.find(col.object_b) != scripts.end())
         {
-            scripts[col.object_b]->on_collision_enter(collision);
+            scripts[col.object_b]->on_collision(collision);
         }
         else
         {
