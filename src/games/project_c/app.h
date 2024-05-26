@@ -26,6 +26,6 @@ public:
     void run();
 
 private:
-    std::array<ModelInfo, PREFAB_TYPE_COUNT> prefabs_;
+    std::array<Prefab, PREFAB_TYPE_COUNT> prefabs_;
 };
 } // namespace project_c

@@ -3,7 +3,37 @@
 #include <fmt/format.h>
 #include <iscene.h>
 
-project_c::ModelInfo::ModelInfo(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name, std::string_view base_dir)
+project_c::Prefab::Prefab(Prefab&& rhs) noexcept
+{
+    std::swap(app, rhs.app);
+    std::swap(model_info, rhs.model_info);
+    std::swap(geometries, rhs.geometries);
+    std::swap(textures, rhs.textures);
+    std::swap(materials, rhs.materials);
+}
+
+project_c::Prefab& project_c::Prefab::operator=(Prefab&& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        std::swap(app, rhs.app);
+        std::swap(model_info, rhs.model_info);
+        std::swap(geometries, rhs.geometries);
+        std::swap(textures, rhs.textures);
+        std::swap(materials, rhs.materials);
+    }
+    return *this;
+}
+
+project_c::Prefab::~Prefab()
+{
+    if (is_valid())
+    {
+        engineApplicationReleaseModelDesc(app, &model_info);
+    }
+}
+
+project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name, std::string_view base_dir)
     : app(app)
 {
 
@@ -59,7 +89,7 @@ project_c::ModelInfo::ModelInfo(engine_result_code_t& engine_error_code, engine_
     }
 }
 
-project_c::PrefabResult project_c::ModelInfo::instantiate(engine::IScene* scene_cpp) const
+project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp) const
 {
     auto scene = scene_cpp->get_handle();
     project_c::PrefabResult ret{};
@@ -226,4 +256,9 @@ project_c::PrefabResult project_c::ModelInfo::instantiate(engine::IScene* scene_
     }
 
     return ret;
+}
+
+bool project_c::Prefab::is_valid() const
+{
+    return model_info.nodes_count > 0;
 }

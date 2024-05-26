@@ -41,7 +41,7 @@ project_c::AppProjectC::AppProjectC()
     {
         const auto& [model_file_name, base_dir] = file_and_basedir;
         engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
-        prefabs_[type] = std::move(ModelInfo(engine_error_code, get_handle(), model_file_name, base_dir));
+        prefabs_[type] = std::move(Prefab(engine_error_code, get_handle(), model_file_name, base_dir));
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             log(fmt::format("Failed loading prefab: {}\n", type));

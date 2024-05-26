@@ -20,49 +20,19 @@ struct PrefabResult
     AnimationController anim_controller;
 };
 
-struct ModelInfo
+struct Prefab
 {
-    ModelInfo() = default;
+    Prefab(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name, std::string_view base_dir = "");
+    Prefab() = default;
     // delete copy constructor and default move constructor
-    ModelInfo(const ModelInfo&) = delete;
-    ModelInfo& operator=(const ModelInfo&) = delete;
-    ModelInfo(ModelInfo&& rhs) noexcept
-    {
-        std::swap(app, rhs.app);
-        std::swap(model_info, rhs.model_info);
-        std::swap(geometries, rhs.geometries);
-        std::swap(textures, rhs.textures);
-        std::swap(materials, rhs.materials);
-    }
-    ModelInfo& operator=(ModelInfo&& rhs) noexcept
-    {
-        if (this != &rhs)
-        {
-            std::swap(app, rhs.app);
-            std::swap(model_info, rhs.model_info);
-            std::swap(geometries, rhs.geometries);
-            std::swap(textures, rhs.textures);
-            std::swap(materials, rhs.materials);
-        }
-        return *this;
-    }
-
-    ~ModelInfo()
-    {
-        if (is_valid())
-        {
-            engineApplicationReleaseModelDesc(app, &model_info);
-        }
-    }
-
-    ModelInfo(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name, std::string_view base_dir = "");
+    Prefab(const Prefab&) = delete;
+    Prefab& operator=(const Prefab&) = delete;
+    Prefab(Prefab&& rhs) noexcept;
+    Prefab& operator=(Prefab&& rhs) noexcept;
+    ~Prefab();
 
     PrefabResult instantiate(engine::IScene* scene) const;
-
-    bool is_valid() const
-    {
-        return model_info.nodes_count > 0;
-    }
+    bool is_valid() const;
 
 private:
     engine_application_t app = nullptr;
