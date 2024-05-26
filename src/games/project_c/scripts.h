@@ -221,35 +221,8 @@ public:
     }
 };
 
-struct AnimationController // mock
-{
-    bool has_animations_clips() const
-    {
-        return false;
-    }
-    
-    
-    void set_active_animation(const std::string& name)
-    {
-        // current_clip_ = &collection_.get_animation_clip(name);
-        //current_clip_name_ = name;
-    }
-    
-    bool is_active_animation(const std::string& name) const
-    {
-        return false;
-    }
-    
-    void update(float dt)
-    {
-    }
-};
-
 class BaseNode : public engine::IScript
 {
-public:
-    AnimationController& get_animation_controller() { return anim_controller_; }
-
 protected:
     BaseNode(engine::IScene* my_scene, std::string_view name)
         : BaseNode(my_scene, engineSceneCreateGameObject(my_scene->get_handle()), name)
@@ -263,9 +236,6 @@ protected:
         const auto app = my_scene_->get_app_handle();
         set_name(scene, go_, name.data());
     }
-
-protected:
-    AnimationController anim_controller_;
 };
 
 class MainLight : public BaseNode
@@ -546,7 +516,7 @@ public:
 
     void update(float dt)
     {
-        anim_controller_.update(dt);
+        //anim_controller_.update(dt);
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
 
@@ -562,14 +532,14 @@ public:
             if (hp <= 0)
             {
                 state_ = States::DIE;
-                anim_controller_.set_active_animation("die");
+                //anim_controller_.set_active_animation("die");
             }
             else
             {
                 if (distance_to_player < 0.8f)
                 {
                     state_ = States::ATTACK;
-                    anim_controller_.set_active_animation(attack_data_.get_animation_name());
+                    //anim_controller_.set_active_animation(attack_data_.get_animation_name());
                 }
                 else if (distance_to_player < 3.0f)
                 {
@@ -584,12 +554,13 @@ public:
         }
         case States::IDLE:
         {
-            anim_controller_.set_active_animation("idle");
+            //anim_controller_.set_active_animation("idle");
             state_ = States::DECISION_MAKE;
         }
         case States::ATTACK:
         {
-            if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
+            //if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
+            if (true)
             {
                 state_ = States::DECISION_MAKE;
                 attack_data_.attack_with_right = !attack_data_.attack_with_right;
@@ -598,7 +569,8 @@ public:
         }
         case States::DIE:
         {
-            if (!anim_controller_.is_active_animation("die"))
+            //if (!anim_controller_.is_active_animation("die"))
+            if (true)
             {
                 my_scene_->unregister_script(this);
             }         
@@ -606,7 +578,7 @@ public:
         }
         case States::MOVE:
         {
-            anim_controller_.set_active_animation("walk");
+            //anim_controller_.set_active_animation("walk");
 
             auto quat = rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
             quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
@@ -856,7 +828,7 @@ public:
 
     void update(float dt)
     {
-        anim_controller_.update(dt);
+        //anim_controller_.update(dt);
         dodge_data_.update(dt);
         const auto scene = my_scene_->get_handle();
         const auto app = my_scene_->get_app_handle();
@@ -910,7 +882,7 @@ public:
         {
         case States::IDLE:
         {
-            anim_controller_.set_active_animation("idle");
+            //anim_controller_.set_active_animation("idle");
             break;
         }
         case States::DODGE:
@@ -921,7 +893,7 @@ public:
             }
             else
             {
-                anim_controller_.set_active_animation("crouch");
+                //anim_controller_.set_active_animation("crouch");
                 const float speed_cooef = 0.015f;
                 const float speed = speed_cooef * dt;
                 auto tc = engineSceneGetTransformComponent(scene, go_);
@@ -940,7 +912,8 @@ public:
         {
             if (attack_data_.animation_started)
             {
-                if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
+                //if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
+                if (true)
                 {
                     state_ = States::IDLE;
                     attack_data_ = {};
@@ -949,7 +922,7 @@ public:
             else
             {
                 rotate_towards_global_target();
-                anim_controller_.set_active_animation(attack_data_.get_animation_name());
+                //anim_controller_.set_active_animation(attack_data_.get_animation_name());
                 attack_data_.animation_started = true;
                 attack_trigger_->activate();
             }
@@ -969,7 +942,7 @@ public:
             }
             else
             {
-                anim_controller_.set_active_animation("walk");
+                //anim_controller_.set_active_animation("walk");
 
                 rotate_towards_global_target();
                 auto tc = engineSceneGetTransformComponent(scene, go_);
