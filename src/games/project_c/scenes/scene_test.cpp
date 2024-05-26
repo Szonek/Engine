@@ -27,6 +27,53 @@ inline void generate_floor(std::int32_t map_border_distance_x, std::int32_t map_
     }
 };
 
+struct EnemyPack
+{
+    std::vector<project_c::PrefabType> types;
+};
+class MobPackSpawner
+{
+public:
+    // delete copy ctor, default move ctor
+    MobPackSpawner()
+        : rng_(std::random_device()())
+    {
+    }
+    MobPackSpawner(const MobPackSpawner&) = delete;
+    MobPackSpawner(MobPackSpawner&&) = default;
+    MobPackSpawner& operator=(const MobPackSpawner&) = delete;
+    MobPackSpawner& operator=(MobPackSpawner&&) = default;
+    virtual ~MobPackSpawner() = default;
+
+    struct Point
+    {
+        float x;
+        float z;
+    };
+
+    struct SpawnAreaRect
+    {
+        float x_min;
+        float x_max;
+        float z_min;
+        float z_max;
+    };
+
+    void spawn(EnemyPack& pack, std::int32_t count, const Point& world_pos, const SpawnAreaRect& area, project_c::AppProjectC& app, engine::IScene& scene)
+    {
+        for (std::int32_t i = 0; i < count; i++)
+        {
+            const auto enemy_idx = 0;// dist_(rng_) % pack.infos.size();
+            const auto offset_x = std::uniform_real_distribution<float>(area.x_min, area.x_max)(rng_);
+            const auto offset_y = std::uniform_real_distribution<float>(area.x_min, area.x_max)(rng_);
+            scene.register_script<project_c::Enemy>(app.instantiate_prefab(pack.types[enemy_idx], &scene), world_pos.x + offset_x, world_pos.z + offset_y);
+        }
+    }
+
+private:
+    std::mt19937 rng_;
+    std::vector<project_c::Enemy*> mobs_;
+};
 }
 
 project_c::TestScene::TestScene(engine::IApplication* app)
@@ -63,4 +110,10 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     register_script<MainLight>();
     register_script<PointLight>();
     generate_floor(9, 3, *typed_app, *this);
+
+    EnemyPack pack{ {PrefabType::PREFAB_TYPE_ORC} };
+    MobPackSpawner spawner;
+    const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
+    const auto spawn_world_pos = MobPackSpawner::Point{ 2.0f, 0.0f };
+    spawner.spawn(pack, 6, spawn_world_pos, spawn_area, *typed_app, *this);
 }
