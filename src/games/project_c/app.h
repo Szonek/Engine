@@ -3,7 +3,6 @@
 #include "iapplication.h"
 #include "scene_manager.h"
 #include "iscene.h"
-#include "animation_controller.h"
 
 #include "model_info.h"
 

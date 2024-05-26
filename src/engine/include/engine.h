@@ -47,6 +47,7 @@ typedef struct _engine_ui_element_t* engine_ui_element_t;
 typedef uint32_t engine_material_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
+typedef uint32_t engine_animation_controller_t;
 
 typedef struct _engine_coords_2d_t
 {

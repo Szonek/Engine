@@ -1,4 +1,3 @@
-#include "animation_controller.h"
 #include <iscript.h>
 #include <iscene.h>
 #include <engine.h>
@@ -219,6 +218,30 @@ public:
             camera_comp.target[2] = character_tc.position[2];
             engineSceneUpdateCameraComponent(scene, go_, &camera_comp);
         }
+    }
+};
+
+struct AnimationController // mock
+{
+    bool has_animations_clips() const
+    {
+        return false;
+    }
+    
+    
+    void set_active_animation(const std::string& name)
+    {
+        // current_clip_ = &collection_.get_animation_clip(name);
+        //current_clip_name_ = name;
+    }
+    
+    bool is_active_animation(const std::string& name) const
+    {
+        return false;
+    }
+    
+    void update(float dt)
+    {
     }
 };
 
