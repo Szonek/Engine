@@ -3,6 +3,32 @@
 #include "../app.h"
 #include "../scripts.h"
 
+namespace
+{
+inline void generate_floor(std::int32_t map_border_distance_x, std::int32_t map_border_distance_z, project_c::AppProjectC& app, engine::IScene& scene)
+{
+    std::mt19937 rng(42);
+    std::uniform_int_distribution<std::mt19937::result_type> dist6(0, 1);
+    for (std::int32_t x = -map_border_distance_x; x <= map_border_distance_x; x++)
+    {
+        for (std::int32_t z = -map_border_distance_z; z <= map_border_distance_z; z++)
+        {
+            if (x == -map_border_distance_x || x == map_border_distance_x || z == -map_border_distance_z || z == map_border_distance_z)
+            {
+                scene.register_script<project_c::Wall>(app.instantiate_prefab(project_c::PREFAB_TYPE_WALL, &scene), x, z);
+            }
+            else
+            {
+                auto flor_moodel = dist6(rng) ? project_c::PREFAB_TYPE_FLOOR_DETAIL : project_c::PREFAB_TYPE_FLOOR;
+                scene.register_script<project_c::Floor>(app.instantiate_prefab(flor_moodel, &scene), x, z);
+            }
+
+        }
+    }
+};
+
+}
+
 project_c::TestScene::TestScene(engine::IApplication* app)
     : IScene(app)
 {
@@ -34,13 +60,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
 
     auto typed_app = dynamic_cast<AppProjectC*>(app);
     register_script<project_c::Solider>(typed_app->instantiate_prefab(project_c::PREFAB_TYPE_SOLIDER, this));
-
-    for (std::int32_t i = -5; i < 5; i++)
-    {
-        for (std::int32_t j = -3; j < 3; j++)
-        {
-            register_script<project_c::Floor>(typed_app->instantiate_prefab(project_c::PREFAB_TYPE_FLOOR, this), i, j);
-        }
-    }
     register_script<MainLight>();
+    register_script<PointLight>();
+    generate_floor(9, 3, *typed_app, *this);
 }

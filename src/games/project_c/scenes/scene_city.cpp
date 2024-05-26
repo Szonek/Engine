@@ -9,11 +9,9 @@ project_c::CityScene::CityScene(engine::IApplication* app)
     auto camera_script = register_script<CameraScript>();
 
     auto typed_app = dynamic_cast<AppProjectC*>(app);
-   // typed_app->instantiate_prefab<project_c::Solider>(project_c::PREFAB_TYPE_SOLIDER, this);
-
     register_script<project_c::Solider>(typed_app->instantiate_prefab(project_c::PREFAB_TYPE_SOLIDER, this));
 
-    for (std::int32_t i = -3; i < 3; i++)
+    for (std::int32_t i = -5; i < 5; i++)
     {
         for (std::int32_t j = -3; j < 3; j++)
         {
@@ -21,4 +19,5 @@ project_c::CityScene::CityScene(engine::IApplication* app)
         }
     }
     register_script<MainLight>();
+    register_script<SpotLight>();
 }
