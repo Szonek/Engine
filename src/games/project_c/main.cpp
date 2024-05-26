@@ -22,5 +22,10 @@ int main(int argc, char** argv)
         log(fmt::format("Exception: {}\n", e.what()));
         return -1;
     }
+    catch (...)
+    {
+        log("Unknown exception\n");
+        return -2;
+    }
 	return 0;
 }
