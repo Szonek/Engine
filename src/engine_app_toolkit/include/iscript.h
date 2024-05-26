@@ -6,7 +6,6 @@
 namespace engine
 {
 class IScene;
-class SceneManager;
 
 class ENGINE_APP_TOOLKIT_API IScript
 {

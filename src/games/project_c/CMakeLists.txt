@@ -5,6 +5,14 @@ set(APP_SOURCES
 	animation_controller.h
 	scripts.h
 	model_info.h
+	
+	app.h
+	app.cpp
+	
+	scenes/scene_city.h
+	scenes/scene_city.cpp	
+	scenes/scene_test.h
+	scenes/scene_test.cpp
 )
 
 
