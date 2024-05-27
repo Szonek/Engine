@@ -43,7 +43,7 @@ project_c::AppProjectC::AppProjectC()
         { PREFAB_TYPE_FLOOR,        { "floor.glb", "Textures_mini_dungeon" }},
         { PREFAB_TYPE_FLOOR_DETAIL, { "floor-detail.glb", "Textures_mini_dungeon" }},
         { PREFAB_TYPE_WALL,         { "wall.glb", "Textures_mini_dungeon" }},
-        { PREFAB_TYPE_CUBE,         { "cube.glb", ""}}
+        { PREFAB_TYPE_CUBE,         { "cube.glb", ""}},
     };
 
     for (const auto& [type, file_and_basedir] : prefabs_data)
@@ -63,8 +63,8 @@ project_c::AppProjectC::AppProjectC()
     log(fmt::format("Model loading took: {}\n", ms_load_time));
 
 
+    register_scene<project_c::TestScene>();
     register_scene<project_c::CityScene>();
-    //register_scene<project_c::TestScene>();
 }
 
 project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType type, engine::IScene* scene)

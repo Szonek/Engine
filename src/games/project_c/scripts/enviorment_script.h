@@ -3,6 +3,12 @@
 
 namespace project_c
 {
+class DebugPathNode : public BaseNode
+{
+public:
+    DebugPathNode(engine::IScene* my_scene, float offset_x, float offset_z);
+};
+
 class Floor : public BaseNode
 {
 public:

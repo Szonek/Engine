@@ -277,11 +277,15 @@ engine_result_code_t engineApplicationAddMaterialFromDesc(engine_application_t h
     }
     auto* app = reinterpret_cast<engine::Application*>(handle);
     const auto ret = app->add_material(*desc, name);
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    *out = ret;
+    // out handle is optional, user mayb not interested in it immeditly
+    if (out)
+    {
+        *out = ret;
+    }
     engineLog(fmt::format("Created material: {}, with id: {}\n", name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }

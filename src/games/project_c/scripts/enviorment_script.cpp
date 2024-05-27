@@ -32,10 +32,15 @@ project_c::Wall::Wall(engine::IScene* my_scene, engine_game_object_t go, float o
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // physcis
-    //auto cc = engineSceneAddColliderComponent(scene, go_);
-    //cc.type = ENGINE_COLLIDER_TYPE_BOX;
-    //set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.5f, 0.01f, 0.5f });
-    //engineSceneUpdateColliderComponent(scene, go_, &cc);
+    auto cc = engineSceneAddColliderComponent(scene, go_);
+    cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
+    cc.is_trigger = false;
+    auto& cc_child = cc.collider.compound.children[0];
+    cc_child.rotation_quaternion[3] = 1.0f;
+    cc_child.transform[1] = 0.5f;
+    cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
+    set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.5f, 0.5f, 0.5f});
+    engineSceneUpdateColliderComponent(scene, go_, &cc);
 }
 
 project_c::Barrel::Barrel(engine::IScene* my_scene, engine_game_object_t go)
@@ -181,4 +186,42 @@ project_c::SpotLight::SpotLight(engine::IScene* my_scene)
     lc.spot.linear = 0.09f;
     lc.spot.quadratic = 0.032f;
     engineSceneUpdateLightComponent(scene, go_, &lc);
+}
+
+project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x, float offset_z)
+    : BaseNode(my_scene, "debug-path-node")
+{
+    auto scene = my_scene_->get_handle();
+    auto app = my_scene_->get_app_handle();
+
+    if (ENGINE_INVALID_OBJECT_HANDLE == engineApplicationGetMaterialByName(app, "debug_path_node_mat"))
+    {
+        auto mat = engineApplicationInitMaterialDesc(app);
+        mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
+        mat.diffuse_color[0] = 1.0f;
+        mat.diffuse_color[1] = 0.0f;
+        mat.diffuse_color[2] = 0.0f;
+        engineApplicationAddMaterialFromDesc(app, &mat, "debug_path_node_mat", nullptr);
+    }
+
+    auto tc = engineSceneAddTransformComponent(scene, go_);
+    tc.position[0] = offset_x;
+    tc.position[1] = 0.0f;
+    tc.position[2] = offset_z;
+
+    tc.scale[0] = 0.45f;
+    tc.scale[1] = 0.1f;
+    tc.scale[2] = 0.45f;
+
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+    // for visulastuion add mesh component
+    auto mc = engineSceneAddMeshComponent(scene, go_);
+    mc.geometry = engineApplicationGetGeometryByName(app, "cube.glb");
+    engineSceneUpdateMeshComponent(scene, go_, &mc);
+
+    // and basic material
+    auto mat = engineSceneAddMaterialComponent(scene, go_);
+    mat.material = engineApplicationGetMaterialByName(app, "debug_path_node_mat");
+    engineSceneUpdateMaterialComponent(scene, go_, &mat);
 }

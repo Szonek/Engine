@@ -30,6 +30,8 @@ private:
 
 public:
     std::int32_t hp = 20;
+    class NavMesh* nav_mesh_ = nullptr;
+
     Enemy(engine::IScene* my_scene, const PrefabResult& pr, float offset_x, float offset_z);
     virtual ~Enemy();
 
@@ -40,6 +42,8 @@ private:
     bool attack_right_ = false;
     States state_;
     AttackStateData attack_data_;
+    std::vector<IScript*> debug_scripts_;
+
 
 };
 } //namespace project_c

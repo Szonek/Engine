@@ -6,32 +6,13 @@
 #include "../scripts/enemy_script.h"
 #include "../scripts/solider_script.h"
 
+#include "../nav_mesh.h"
+
 #include <random>
+#include <chrono>
 
 namespace
 {
-inline void generate_floor(std::int32_t map_border_distance_x, std::int32_t map_border_distance_z, project_c::AppProjectC& app, engine::IScene& scene)
-{
-    std::mt19937 rng(42);
-    std::uniform_int_distribution<std::mt19937::result_type> dist6(0, 1);
-    for (std::int32_t x = -map_border_distance_x; x <= map_border_distance_x; x++)
-    {
-        for (std::int32_t z = -map_border_distance_z; z <= map_border_distance_z; z++)
-        {
-            if (x == -map_border_distance_x || x == map_border_distance_x || z == -map_border_distance_z || z == map_border_distance_z)
-            {
-                scene.register_script<project_c::Wall>(app.instantiate_prefab(project_c::PREFAB_TYPE_WALL, &scene).go, x, z);
-            }
-            else
-            {
-                auto flor_moodel = dist6(rng) ? project_c::PREFAB_TYPE_FLOOR_DETAIL : project_c::PREFAB_TYPE_FLOOR;
-                scene.register_script<project_c::Floor>(app.instantiate_prefab(flor_moodel, &scene).go, x, z);
-            }
-
-        }
-    }
-};
-
 struct EnemyPack
 {
     std::vector<project_c::PrefabType> types;
@@ -79,6 +60,178 @@ private:
     std::mt19937 rng_;
     std::vector<project_c::Enemy*> mobs_;
 };
+
+
+inline project_c::NavMesh generate_scene(std::string_view scene_str, project_c::AppProjectC& app, engine::IScene& scene)
+{
+    std::mt19937 rng(42);
+    std::uniform_int_distribution<std::mt19937::result_type> dist6(0, 1);
+
+    struct SceneSpawnPoints
+    {
+        std::vector<engine_coords_2d_t> solider;
+        std::vector<engine_coords_2d_t> enemy_packs;
+        std::vector<engine_coords_2d_t> point_lights;
+    } scene_spawn_points;
+
+    project_c::NavMesh nav_mesh;
+
+    const auto scene_width = (std::int32_t)scene_str.find_first_of('\n');
+    const auto scene_height = std::count(scene_str.begin(), scene_str.end(), '\n');
+
+    std::vector<std::vector<project_c::NavMeshNodeIdx>> nodes_id;
+    nodes_id.resize(scene_width);
+    for (auto& row : nodes_id)
+    {
+        row.resize(scene_height, project_c::invalid_node_idx);
+    }
+    for (std::size_t x = 0; x < scene_width; x++)
+    {
+        for (std::size_t z = 0; z < scene_height; z++)
+        {
+            const auto c = scene_str[z * (scene_width + 1) + x];  // + 1 because of '\n' in every line
+            const auto x_offset = (float)std::int32_t(x - scene_width / 2);
+            const auto z_offset = (float)std::int32_t(z - scene_height / 2);
+            if (c == 'x')
+            {
+                scene.register_script<project_c::Wall>(app.instantiate_prefab(project_c::PREFAB_TYPE_WALL, &scene).go, x_offset, z_offset);
+            }
+            else
+            {
+                auto flor_moodel = dist6(rng) ? project_c::PREFAB_TYPE_FLOOR_DETAIL : project_c::PREFAB_TYPE_FLOOR;
+                scene.register_script<project_c::Floor>(app.instantiate_prefab(flor_moodel, &scene).go, x_offset, z_offset);
+                const auto id = nav_mesh.add_node({ x_offset, 0.0f, z_offset }, { 0.5f, 0.0f, 0.5f });
+                nodes_id[x][z] = id;
+            }
+
+            if(c =='s')
+            {
+                scene_spawn_points.solider.push_back({ x_offset, z_offset });
+            }
+            else if (c == 'e')
+            {
+                scene_spawn_points.enemy_packs.push_back({ x_offset, z_offset });
+            }
+            else if (c == 'p')
+            {
+                scene_spawn_points.point_lights.push_back({ x_offset, z_offset });
+            }
+        }
+    }
+
+    // construct edges based on vector if ids
+    for (auto x = 0; x < scene_width; x++)
+    {
+        for (auto z = 0; z < scene_height; z++)
+        {
+            const auto id = nodes_id[x][z];
+            if (id == project_c::invalid_node_idx)
+            {
+                continue;
+            }
+            // vertical and horizontal edges
+            if (x > 0)
+            {
+                const auto left_id = nodes_id[x - 1][z];
+                if (left_id != project_c::invalid_node_idx)
+                {
+                    nav_mesh.add_edge(id, left_id, 1.0f);
+                }
+            }
+
+            if (x < scene_width - 1)
+            {
+                const auto right_id = nodes_id[x + 1][z];
+                if (right_id != project_c::invalid_node_idx)
+                {
+                    nav_mesh.add_edge(id, right_id, 1.0f);
+                }
+            }
+
+            if (z > 0)
+            {
+                const auto up_id = nodes_id[x][z - 1];
+                if (up_id != project_c::invalid_node_idx)
+                {
+                    nav_mesh.add_edge(id, up_id, 1.0f);
+                }
+            }
+
+            if (z < scene_height - 1)
+            {
+                const auto down_id = nodes_id[x][z + 1];
+                if (down_id != project_c::invalid_node_idx)
+                {
+                    nav_mesh.add_edge(id, down_id, 1.0f);
+                }
+            }
+
+            // diagonal edges
+            if (x > 0 && z > 0)
+            {
+                const auto left_up_id = nodes_id[x - 1][z - 1];
+                if (left_up_id != project_c::invalid_node_idx)
+                {
+                    nav_mesh.add_edge(id, left_up_id, 1.414f);
+                }
+            }
+
+            if (x < scene_width - 1 && z > 0)
+            {
+                const auto right_up_id = nodes_id[x + 1][z - 1];
+                if (right_up_id != project_c::invalid_node_idx)
+                {
+                    nav_mesh.add_edge(id, right_up_id, 1.414f);
+                }
+            }
+
+            if (x > 0 && z < scene_height - 1)
+            {
+                const auto left_down_id = nodes_id[x - 1][z + 1];
+                if (left_down_id != project_c::invalid_node_idx)
+                {
+                    nav_mesh.add_edge(id, left_down_id, 1.414f);
+                }
+            }
+
+            if (x < scene_width - 1 && z < scene_height - 1)
+            {
+                const auto right_down_id = nodes_id[x + 1][z + 1];
+                if (right_down_id != project_c::invalid_node_idx)
+                {
+                    nav_mesh.add_edge(id, right_down_id, 1.414f);
+                }
+            }
+        }
+    }
+
+
+    for (const auto& point : scene_spawn_points.solider)
+    {
+        auto s = scene.register_script<project_c::Solider>(app.instantiate_prefab(project_c::PREFAB_TYPE_SOLIDER, &scene));
+        s->set_world_position(point.x, 0.0f, point.y);
+    }
+
+    for (const auto& point : scene_spawn_points.enemy_packs)
+    {
+        EnemyPack pack{ {project_c::PrefabType::PREFAB_TYPE_ORC} };
+        MobPackSpawner spawner;
+        const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
+        //const auto spawn_area = MobPackSpawner::SpawnAreaRect{ 0.0f, 0.0f, 0.0f, 0.0f };
+        const auto spawn_world_pos = MobPackSpawner::Point{ point.x, point.y };
+        spawner.spawn(pack, 1, spawn_world_pos, spawn_area, app, scene);
+    }
+
+    for (const auto& point : scene_spawn_points.point_lights)
+    {
+        auto l = scene.register_script<project_c::PointLight>();
+        l->set_world_position(point.x, 1.0f, point.y);
+    }
+
+    return nav_mesh;
+}
+
+
 }
 
 project_c::TestScene::TestScene(engine::IApplication* app)
@@ -105,15 +258,29 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         engineUiDocumentShow(ui_data_.doc);
     }
 
-    auto typed_app = dynamic_cast<AppProjectC*>(app);
-    register_script<project_c::Solider>(typed_app->instantiate_prefab(project_c::PREFAB_TYPE_SOLIDER, this));
-    register_script<MainLight>();
-    register_script<PointLight>();
-    generate_floor(9, 3, *typed_app, *this);
+    const std::string scene_str = 
+        "xxxxxxxxxxx\n"
+        "x         x\n"
+        "x         x\n"
+        "x         x\n"
+        "x         x\n"
+        "x     x   x\n"
+        "xxxxxxxx  x\n"
+        "xs   p    x\n"
+        "x         x\n"
+        "x    e    x\n"
+        "x         x\n"
+        "x         x\n"
+        "xxxxxxxxxxx\n";
 
-    EnemyPack pack{ {PrefabType::PREFAB_TYPE_ORC} };
-    MobPackSpawner spawner;
-    const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
-    const auto spawn_world_pos = MobPackSpawner::Point{ 2.0f, 0.0f };
-    spawner.spawn(pack, 6, spawn_world_pos, spawn_area, *typed_app, *this);
+    auto typed_app = static_cast<AppProjectC*>(app);
+    static auto nav_mesh = generate_scene(scene_str, *typed_app, *this);
+
+    for (auto& s : scripts_register_queue_)
+    {
+        if (auto* e = dynamic_cast<Enemy*>(s))
+        {
+            e->nav_mesh_ = &nav_mesh;
+        }
+    }
 }
