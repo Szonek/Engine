@@ -28,6 +28,12 @@ project_c::AppProjectC::AppProjectC()
 {
     const auto load_start = std::chrono::high_resolution_clock::now();
 
+    if (engineApplicationAddFontFromFile(get_handle(), "tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
+    {
+        log(fmt::format("Couldnt load font!\n"));
+        return;
+    }
+
     const std::unordered_map<PrefabType, std::pair<std::string, std::string>> prefabs_data =
     {
         { PREFAB_TYPE_SWORD,        { "weapon-sword.glb", "Textures_mini_arena" }},
@@ -58,7 +64,7 @@ project_c::AppProjectC::AppProjectC()
 
 
     register_scene<project_c::CityScene>();
-    register_scene<project_c::TestScene>();
+    //register_scene<project_c::TestScene>();
 }
 
 project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType type, engine::IScene* scene)
@@ -116,11 +122,19 @@ void project_c::AppProjectC::run()
         auto scene_city = get_scene(CityScene::get_name());
         if (engineApplicationIsKeyboardButtonDown(get_handle(), ENGINE_KEYBOARD_KEY_5))
         {
-            scene->deactivate();
+            if (scene)
+            {
+                unregister_scene(TestScene::get_name());
+            }
             scene_city->activate();
         }
         else if (engineApplicationIsKeyboardButtonDown(get_handle(), ENGINE_KEYBOARD_KEY_6))
         {
+            if (!scene)
+            {
+                register_scene<project_c::TestScene>();
+                scene = get_scene(TestScene::get_name());
+            }
             scene->activate();
             scene_city->deactivate();
         }

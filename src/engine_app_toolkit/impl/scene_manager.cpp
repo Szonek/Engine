@@ -22,3 +22,13 @@ engine::IScene* engine::SceneManager::get_scene(std::string_view name)
     }
     return scenes_[name.data()].get();
 }
+
+void engine::SceneManager::unregister_scene(std::string_view name)
+{
+    if (!scenes_.contains(name.data()))
+    {
+        assert(false && "Scene not found - cant unregister!");
+        return;
+    }
+    scenes_.erase(name.data());
+}

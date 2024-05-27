@@ -87,11 +87,6 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     auto app_handle = app->get_handle();
     auto camera_script = register_script<CameraScript>();
 
-    if (engineApplicationAddFontFromFile(app_handle, "tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
-    {
-        log(fmt::format("Couldnt load font!\n"));
-        return;
-    }
     std::array<engine_ui_document_data_binding_t, 2> bindings{};
     bindings[0].data_uint32_t = &ui_data_.character_health;
     bindings[0].name = "character_health";

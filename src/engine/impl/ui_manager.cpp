@@ -36,6 +36,7 @@ engine::UiManager& engine::UiManager::operator=(UiManager&& rhs)
 {
     if (this != &rhs)
     {
+        std::swap(rdx_, rhs.rdx_);
     }
     return *this;
 }
@@ -51,8 +52,7 @@ engine::UiManager::~UiManager()
 
 engine::UiDataHandle engine::UiManager::create_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
 {
-   auto constructor = ui_rml_context_->CreateDataModel(name.data());
-   return UiDataHandle(&constructor, bindings);
+   return UiDataHandle(ui_rml_context_, name, bindings);
 }
 
 engine::UiDocument engine::UiManager::load_document_from_file(std::string_view file_name)

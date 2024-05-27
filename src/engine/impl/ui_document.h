@@ -30,7 +30,7 @@ namespace engine
 class UiDataHandle
 {
 public:
-    UiDataHandle(Rml::DataModelConstructor* constructor, std::span<const engine_ui_document_data_binding_t> bindings);
+    UiDataHandle(Rml::Context* ctx, std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
     UiDataHandle(const UiDataHandle& rhs) = delete;
     UiDataHandle& operator=(const UiDataHandle& rhs) = delete;
     UiDataHandle(UiDataHandle&&);
@@ -41,7 +41,9 @@ public:
     void dirty_variable(std::string_view name);
 
 private:
+    Rml::Context* context_ = nullptr;
     Rml::DataModelHandle* handle_ = nullptr;
+    std::string name_{};
 };
 
 class UiElement

@@ -32,6 +32,7 @@ public:
     }
 
     IScene* get_scene(std::string_view name);
+    void unregister_scene(std::string_view name);
 
 private:
     IApplication* app_ = nullptr;

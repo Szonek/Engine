@@ -30,6 +30,11 @@ public:
         return scene_manager_.get_scene(name);
     }
 
+    void unregister_scene(std::string_view name)
+    {
+        scene_manager_.unregister_scene(name);
+    }
+
     void update_scenes(float dt);
 
     const engine_application_t& get_handle() const { return app_handle_; }
