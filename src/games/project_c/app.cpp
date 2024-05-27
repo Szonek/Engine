@@ -18,7 +18,7 @@ inline engine_application_create_desc_t app_cd()
     app_cd.width = K_IS_ANDROID ? 0 : 2280 / 2;
     app_cd.height = K_IS_ANDROID ? 0 : 1080 / 2;
     app_cd.fullscreen = K_IS_ANDROID;
-    app_cd.enable_editor = true;
+    app_cd.enable_editor = false;
     return app_cd;
 }
 }  // namespace anonymous
