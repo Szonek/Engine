@@ -1,6 +1,9 @@
 #include "app.h"
 #include "iscene.h"
 
+#include "scenes/scene_test.h"
+#include "scenes/scene_city.h"
+
 #include <chrono>
 #include <map>
 #include <fmt/format.h>
@@ -52,6 +55,10 @@ project_c::AppProjectC::AppProjectC()
     const auto load_end = std::chrono::high_resolution_clock::now();
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
     log(fmt::format("Model loading took: {}\n", ms_load_time));
+
+
+    register_scene<project_c::CityScene>();
+    register_scene<project_c::TestScene>();
 }
 
 project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType type, engine::IScene* scene)
@@ -105,8 +112,8 @@ void project_c::AppProjectC::run()
             fps_counter = {};
         }
 
-        auto scene = get_scene("TestScene");
-        auto scene_city = get_scene("CityScene");
+        auto scene = get_scene(TestScene::get_name());
+        auto scene_city = get_scene(CityScene::get_name());
         if (engineApplicationIsKeyboardButtonDown(get_handle(), ENGINE_KEYBOARD_KEY_5))
         {
             scene->deactivate();
