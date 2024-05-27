@@ -28,7 +28,7 @@ project_c::AppProjectC::AppProjectC()
 {
     const auto load_start = std::chrono::high_resolution_clock::now();
 
-    if (engineApplicationAddFontFromFile(get_handle(), "tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
+    if (engineApplicationCreateFontFromFile(get_handle(), "tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
     {
         log(fmt::format("Couldnt load font!\n"));
         return;
@@ -43,7 +43,7 @@ project_c::AppProjectC::AppProjectC()
         { PREFAB_TYPE_FLOOR,        { "floor.glb", "Textures_mini_dungeon" }},
         { PREFAB_TYPE_FLOOR_DETAIL, { "floor-detail.glb", "Textures_mini_dungeon" }},
         { PREFAB_TYPE_WALL,         { "wall.glb", "Textures_mini_dungeon" }},
-        { PREFAB_TYPE_CUBE,         { "cube.glb", ""}}
+        { PREFAB_TYPE_CUBE,         { "cube.glb", ""}},
     };
 
     for (const auto& [type, file_and_basedir] : prefabs_data)
@@ -57,14 +57,30 @@ project_c::AppProjectC::AppProjectC()
         }
     }
 
+    auto mat = engineApplicationInitMaterialDesc(get_handle());
+    mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
+    mat.diffuse_color[0] = 1.0f;
+    mat.diffuse_color[1] = 0.0f;
+    mat.diffuse_color[2] = 0.0f;
+    engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "debug_path_node_mat", nullptr);
 
     const auto load_end = std::chrono::high_resolution_clock::now();
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
     log(fmt::format("Model loading took: {}\n", ms_load_time));
 
 
-    register_scene<project_c::CityScene>();
-    //register_scene<project_c::TestScene>();
+    register_scene<project_c::TestScene>();
+    auto city_scene = register_scene<project_c::CityScene>();
+    city_scene->deactivate();
+}
+
+project_c::AppProjectC::~AppProjectC()
+{
+    auto mat = engineApplicationGetMaterialByName(get_handle(), "debug_path_node_mat");
+    if (mat)
+    {
+        engineApplicationDestroyMaterial(get_handle(), mat);
+    }
 }
 
 project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType type, engine::IScene* scene)

@@ -119,6 +119,11 @@ engine_result_code_t engineApplicationCreate(engine_application_t* handle, engin
 	return ret;
 }
 
+bool engineApplicationIsEditorEnabled(engine_application_t handle)
+{
+    return dynamic_cast<engine::ApplicationEditor*>(application_cast(handle)) != nullptr;
+}
+
 void engineApplicationDestroy(engine_application_t handle)
 {
 	auto* app = reinterpret_cast<engine::Application*>(handle);
@@ -205,14 +210,14 @@ engine_application_frame_end_info_t engineApplicationFrameEnd(engine_application
 	return app->end_frame();
 }
 
-engine_result_code_t engineApplicationAddFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name)
+engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name)
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
     const auto result = app->add_font_from_file(file_name, handle_name);
     return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
-engine_result_code_t engineApplicationAddGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out)
+engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out)
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);
     const auto ret = app->add_geometry(desc->verts_layout, desc->verts_count, { reinterpret_cast<const std::byte*>(desc->verts_data), desc->verts_data_size }, { desc->inds, desc->inds_count}, name);
@@ -251,6 +256,12 @@ engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(en
     return ret;
 }
 
+void engineApplicationDestroyGeometry(engine_application_t handle, engine_geometry_t geometry)
+{
+    assert(handle);
+    application_cast(handle)->destroy_geometry(geometry);
+}
+
 engine_material_create_desc_t engineApplicationInitMaterialDesc(engine_application_t handle)
 {
     if (!handle)
@@ -269,7 +280,7 @@ engine_material_create_desc_t engineApplicationInitMaterialDesc(engine_applicati
     return ret;
 }
 
-engine_result_code_t engineApplicationAddMaterialFromDesc(engine_application_t handle, const engine_material_create_desc_t* desc, const char* name, engine_material_t* out)
+engine_result_code_t engineApplicationCreateMaterialFromDesc(engine_application_t handle, const engine_material_create_desc_t* desc, const char* name, engine_material_t* out)
 {
     if (!handle || !desc || !name)
     {
@@ -277,11 +288,15 @@ engine_result_code_t engineApplicationAddMaterialFromDesc(engine_application_t h
     }
     auto* app = reinterpret_cast<engine::Application*>(handle);
     const auto ret = app->add_material(*desc, name);
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    *out = ret;
+    // out handle is optional, user mayb not interested in it immeditly
+    if (out)
+    {
+        *out = ret;
+    }
     engineLog(fmt::format("Created material: {}, with id: {}\n", name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
@@ -292,7 +307,13 @@ engine_material_t engineApplicationGetMaterialByName(engine_application_t handle
     return app->get_material(name);
 }
 
-engine_result_code_t engineApplicationAddTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out)
+void engineApplicationDestroyMaterial(engine_application_t handle, engine_material_t material)
+{
+    assert(handle);
+    application_cast(handle)->destroy_material(material);
+}
+
+engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out)
 {
     auto* app = application_cast(handle);
     const auto ret =  app->add_texture(*info, name);
@@ -306,7 +327,7 @@ engine_result_code_t engineApplicationAddTexture2DFromDesc(engine_application_t 
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_result_code_t engineApplicationAddTexture2DFromFile(engine_application_t handle, const char* file_name, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out)
+engine_result_code_t engineApplicationCreateTexture2DFromFile(engine_application_t handle, const char* file_name, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out)
 {
     auto* app = application_cast(handle);
     const auto ret = app->add_texture_from_file(file_name, name, color_space);
@@ -323,6 +344,12 @@ engine_texture2d_t engineApplicationGetTextured2DByName(engine_application_t han
 {
     const auto* app = application_cast(handle);
     return app->get_texture(name);
+}
+
+void engineApplicationDestroyTexture2D(engine_application_t handle, engine_texture2d_t tex2d)
+{
+    assert(handle);
+    application_cast(handle)->destroy_texture(tex2d);
 }
 
 engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, const char* base_dir, engine_model_desc_t* out)
@@ -353,7 +380,7 @@ engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, e
         return ENGINE_RESULT_CODE_FAIL;
     }
     auto* app = application_cast(handle);
-    *out = reinterpret_cast<engine_scene_t>(app->create_scene(desc));
+    *out = reinterpret_cast<engine_scene_t>(app->allocate_scene(desc));
     if (!out)
     {
         return ENGINE_RESULT_CODE_FAIL;

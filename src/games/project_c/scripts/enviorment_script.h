@@ -3,13 +3,26 @@
 
 namespace project_c
 {
-class Floor : public BaseNode
+
+class DebugPathNode : public BaseNode
+{
+public:
+    DebugPathNode(engine::IScene* my_scene, float offset_x, float offset_z);
+};
+
+class EnviormentBaseScript : public BaseNode
+{
+protected:
+    EnviormentBaseScript(engine::IScene* my_scene, engine_game_object_t go, std::string_view name);
+};
+
+class Floor : public EnviormentBaseScript
 {
 public:
     Floor(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z);
 };
 
-class Wall : public BaseNode
+class Wall : public EnviormentBaseScript
 {
 public:
     Wall(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z);
@@ -21,19 +34,25 @@ public:
     Barrel(engine::IScene* my_scene, engine_game_object_t go);
 };
 
-class MainLight : public BaseNode
+class LightBaseScript : public BaseNode
+{
+public:
+    LightBaseScript(engine::IScene* my_scene, std::string_view name);
+};
+
+class MainLight : public LightBaseScript
 {
 public:
     MainLight(engine::IScene* my_scene);
 };
 
-class PointLight : public BaseNode
+class PointLight : public LightBaseScript
 {
 public:
     PointLight(engine::IScene* my_scene);
 };
 
-class SpotLight : public BaseNode
+class SpotLight : public LightBaseScript
 {
 public:
     SpotLight(engine::IScene* my_scene);

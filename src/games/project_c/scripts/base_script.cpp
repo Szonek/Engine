@@ -40,3 +40,12 @@ project_c::BaseNode::BaseNode(engine::IScene* my_scene, const PrefabResult& pr, 
 {
 
 }
+
+void project_c::BaseNode::set_world_position(float x, float y, float z)
+{
+    auto tc = engineSceneGetTransformComponent(my_scene_->get_handle(), go_);
+    tc.position[0] = x;
+    tc.position[1] = y;
+    tc.position[2] = z;
+    engineSceneUpdateTransformComponent(my_scene_->get_handle(), go_, &tc);
+}

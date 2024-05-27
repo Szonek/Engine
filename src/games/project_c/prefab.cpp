@@ -29,6 +29,18 @@ project_c::Prefab::~Prefab()
 {
     if (is_valid())
     {
+        for (const auto& g : geometries_)
+        {
+            engineApplicationDestroyGeometry(app_, g);
+        }
+        for (const auto& t : textures_)
+        {
+            engineApplicationDestroyTexture2D(app_, t);
+        }
+        for (const auto& m : materials_)
+        {
+            engineApplicationDestroyMaterial(app_, m);
+        }
         engineApplicationReleaseModelDesc(app_, &model_info_);
     }
 }
@@ -48,7 +60,7 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
     for (std::uint32_t i = 0; i < model_info_.geometries_count; i++)
     {
         const auto& geo = model_info_.geometries_array[i];
-        engine_error_code = engineApplicationAddGeometryFromDesc(app, &geo, model_file_name.data(), &geometries_[i]);
+        engine_error_code = engineApplicationCreateGeometryFromDesc(app, &geo, model_file_name.data(), &geometries_[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating geometry for loaded model. Exiting!\n");
@@ -60,7 +72,7 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
     for (std::uint32_t i = 0; i < model_info_.textures_count; i++)
     {
         const auto name = "unnamed_texture_" + std::to_string(i);
-        engine_error_code = engineApplicationAddTexture2DFromDesc(app, &model_info_.textures_array[i], name.c_str(), &textures_[i]);
+        engine_error_code = engineApplicationCreateTexture2DFromDesc(app, &model_info_.textures_array[i], name.c_str(), &textures_[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating texture for loaded model. Exiting!\n");
@@ -79,7 +91,7 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         {
             mat_create_desc.diffuse_texture = textures_.at(mat.diffuse_texture_index);
         }
-        engine_error_code = engineApplicationAddMaterialFromDesc(app, &mat_create_desc, mat.name, &materials_[i]);
+        engine_error_code = engineApplicationCreateMaterialFromDesc(app, &mat_create_desc, mat.name, &materials_[i]);
 
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {

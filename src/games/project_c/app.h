@@ -21,6 +21,7 @@ class AppProjectC : public engine::IApplication
 {
 public:
     AppProjectC();
+    ~AppProjectC();
 
     PrefabResult instantiate_prefab(PrefabType type, engine::IScene* scene);
     void run();

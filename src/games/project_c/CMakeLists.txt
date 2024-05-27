@@ -10,6 +10,8 @@ set(APP_SOURCES
 	app.h
 	app.cpp
 	
+	nav_mesh.h
+	nav_mesh.cpp
 	
 	animation_controller.h
 	animation_controller.cpp

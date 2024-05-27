@@ -1,5 +1,6 @@
 ﻿#include "scene.h"
 #include "ui_manager.h"
+#include "nav_mesh.h"
 #include "logger.h"
 #include "math_helpers.h"
 #include "components_utils/components_initializers.h"
@@ -38,6 +39,21 @@ void update_parent_component(entt::registry& registry, entt::entity entity)
               
     }
     engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has no more space for children. Are you sure you are doing valid thing?\n"));
+}
+
+void destroy_parent_component(entt::registry& registry, entt::entity entity)
+{
+    const auto parent_entt = static_cast<entt::entity>(registry.get<engine_parent_component_t>(entity).parent);
+    auto& cc = registry.get<engine_children_component_t>(parent_entt);
+    for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
+    {
+        if (cc.child[i] == static_cast<std::uint32_t>(entity))
+        {
+            cc.child[i] = ENGINE_INVALID_GAME_OBJECT_ID;
+            return;
+        }
+    }
+    engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component was destroyed, but couldn't reset it's childer.\n"));
 }
 
 struct SceneGpuData
@@ -116,6 +132,8 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     entity_registry_.on_construct<engine_light_component_t>().connect<&initialize_light_component>();
     
     entity_registry_.on_update<engine_parent_component_t>().connect<&update_parent_component>();
+    entity_registry_.on_destroy<engine_parent_component_t>().connect<&destroy_parent_component>();
+
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
@@ -299,7 +317,8 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 }
 
 engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
-    std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials)
+    std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials,
+    std::span<const NavMesh> nav_meshes)
 {
     ENGINE_PROFILE_SECTION_N("scene_update");
     physics_update(dt);
@@ -381,20 +400,28 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 while (parent != ENGINE_INVALID_GAME_OBJECT_ID)
                 {
                     const auto parent_entt = static_cast<entt::entity>(parent);
-                    const auto parent_ltw_matrix = get_component<engine_tranform_component_t>(parent_entt);
-                    ltw_matrix = glm::make_mat4(parent_ltw_matrix->local_to_world) * ltw_matrix;
-                    if (has_component<engine_parent_component_t>(parent_entt))
+                    if (has_component<engine_tranform_component_t>(parent_entt))
                     {
-                        const auto pc = get_component<engine_parent_component_t>(parent_entt);
-                        parent = pc->parent;
+                        const auto parent_ltw_matrix = get_component<engine_tranform_component_t>(parent_entt);
+                        ltw_matrix = glm::make_mat4(parent_ltw_matrix->local_to_world) * ltw_matrix;
+                        if (has_component<engine_parent_component_t>(parent_entt))
+                        {
+                            const auto pc = get_component<engine_parent_component_t>(parent_entt);
+                            parent = pc->parent;
+                        }
+                        else
+                        {
+                            // break the recussion
+                            parent = ENGINE_INVALID_GAME_OBJECT_ID;
+                        }
                     }
                     else
                     {
                         // break the recussion
                         parent = ENGINE_INVALID_GAME_OBJECT_ID;
                     }
+                    ltw_map[entity] = ltw_matrix;
                 }
-                ltw_map[entity] = ltw_matrix;
             });
         {
             ENGINE_PROFILE_SECTION_N("update_ltws_with_parents");

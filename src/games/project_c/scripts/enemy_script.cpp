@@ -1,5 +1,8 @@
 #include "enemy_script.h"
+#include "enviorment_script.h"
 #include "scripts_utils.h"
+
+#include "../nav_mesh.h"
 
 #include "iscene.h"
 
@@ -8,19 +11,19 @@
 #include <glm/gtc/type_ptr.hpp>
 
 
-project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, float offset_x, float offset_z)
+project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const NavMesh* nav_mesh, float offset_x, float offset_z)
     : BaseNode(my_scene, pr, "enemy")
     , state_(States::DECISION_MAKE)
+    , nav_mesh_(nav_mesh)
 {
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
 
     auto tc = engineSceneGetTransformComponent(scene, go_);
 
-    tc.position[0] += 1.0f + offset_x;
+    tc.position[0] = offset_x;
     tc.position[1] -= 0.25f;
-    //tc.position[1] += 1.25f;
-    tc.position[2] += 0.0f + offset_z;
+    tc.position[2] = offset_z;
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // physcis
@@ -51,6 +54,11 @@ project_c::Enemy::~Enemy()
 
 void project_c::Enemy::update(float dt)
 {
+    for (auto& s : debug_scripts_)
+    {
+        my_scene_->unregister_script(s);
+    }
+    debug_scripts_.clear();
     anim_controller_.update(dt);
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
@@ -59,6 +67,17 @@ void project_c::Enemy::update(float dt)
     auto tc = engineSceneGetTransformComponent(scene, go_);
     auto ec = engineSceneGetTransformComponent(scene, player);
     const auto distance_to_player = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
+
+    const auto my_node_idx = nav_mesh_->get_node_idx({ tc.position[0], tc.position[1], tc.position[2] });
+    const auto player_node_idx = nav_mesh_->get_node_idx({ ec.position[0], ec.position[1], ec.position[2] });
+    auto path = [&]()
+        {
+            if (distance_to_player < 0.8f || my_node_idx == -1 || player_node_idx == -1)
+            {
+                return NavMeshPathFinder::PathFromStartToEnd{};
+            }
+            return NavMeshPathFinder::find_path(*nav_mesh_, my_node_idx, player_node_idx);
+        }();
 
     switch (state_)
     {
@@ -71,12 +90,12 @@ void project_c::Enemy::update(float dt)
         }
         else
         {
-            if (distance_to_player < 0.8f)
+            if (path.nodes.size() == 0 || distance_to_player < 0.8f)
             {
                 state_ = States::ATTACK;
                 anim_controller_.set_active_animation(attack_data_.get_animation_name());
             }
-            else if (distance_to_player < 3.0f)
+            else if (path.nodes.size() >= 1 && path.nodes.size() < 6)
             {
                 state_ = States::MOVE;
             }
@@ -91,6 +110,7 @@ void project_c::Enemy::update(float dt)
     {
         anim_controller_.set_active_animation("idle");
         state_ = States::DECISION_MAKE;
+        break;
     }
     case States::ATTACK:
     {
@@ -99,6 +119,11 @@ void project_c::Enemy::update(float dt)
             state_ = States::DECISION_MAKE;
             attack_data_.attack_with_right = !attack_data_.attack_with_right;
         }
+
+        auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
+        quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
+        std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
         break;
     }
     case States::DIE:
@@ -111,12 +136,25 @@ void project_c::Enemy::update(float dt)
     }
     case States::MOVE:
     {
+        // path is computed per_frame, but decision was made frame before
+        // so it can happen that target has moved and new position is not reachable or close to current position
+        if (path.nodes.empty())
+        {
+            state_ = States::DECISION_MAKE;
+            break;
+        }
         anim_controller_.set_active_animation("walk");
-
-        auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
+        for (auto& node : path.nodes)
+        {
+            const auto n_pos = nav_mesh_->get_node(node).get_center();
+            debug_scripts_.push_back(my_scene_->register_script<project_c::DebugPathNode>(n_pos.x, n_pos.z));
+        }
+        const auto target_node = nav_mesh_->get_node(path.nodes[0]);
+        auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), target_node.get_center());
+        //auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
         quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
         std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
-        const float speed_cooef = 0.001f;
+        const float speed_cooef = 0.002f;
         const float speed = speed_cooef * dt;
         const glm::vec3 forward = glm::normalize(quat * glm::vec3(0.0f, 0.0f, 1.0f));
         tc.position[0] += forward.x * speed;

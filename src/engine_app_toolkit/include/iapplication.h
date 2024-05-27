@@ -35,6 +35,8 @@ public:
         scene_manager_.unregister_scene(name);
     }
 
+    bool is_editor_enabled() const;
+
     void update_scenes(float dt);
 
     const engine_application_t& get_handle() const { return app_handle_; }
