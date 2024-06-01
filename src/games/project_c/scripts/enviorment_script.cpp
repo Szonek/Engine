@@ -1,9 +1,31 @@
 #include "enviorment_script.h"
-
+#include "scripts_utils.h"
 #include "iscene.h"
 
+namespace
+{
+void add_parent_component_for_editor(engine::IScene* my_scene, engine_game_object_t go , std::string_view parent_name)
+{
+    auto scene = my_scene->get_handle();
+    auto parent_go = project_c::utils::get_game_objects_with_name(scene, parent_name);
+    if (parent_go.empty())
+    {
+        const auto env_parent = engineSceneCreateGameObject(scene);
+        auto nc = engineSceneAddNameComponent(scene, env_parent);
+        std::strncpy(nc.name, parent_name.data(), ENGINE_ENTITY_NAME_MAX_LENGTH);
+        engineSceneUpdateNameComponent(scene, env_parent, &nc);
+        parent_go.push_back(env_parent);
+    }
+
+    auto p = engineSceneAddParentComponent(scene, go);
+    p.parent = parent_go.front();
+    engineSceneUpdateParentComponent(scene, go, &p);
+}
+} // namespace 
+
+
 project_c::Floor::Floor(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z)
-    : BaseNode(my_scene, go, "floor")
+    : EnviormentBaseScript(my_scene, go, "floor")
 {
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
@@ -21,7 +43,7 @@ project_c::Floor::Floor(engine::IScene* my_scene, engine_game_object_t go, float
 }
 
 project_c::Wall::Wall(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z)
-    : BaseNode(my_scene, go, "wall")
+    : EnviormentBaseScript(my_scene, go, "wall")
 {
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
@@ -194,6 +216,8 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
     auto scene = my_scene_->get_handle();
     auto app = my_scene_->get_app_handle();
 
+    add_parent_component_for_editor(my_scene, go_, "debug_path");
+
     if (ENGINE_INVALID_OBJECT_HANDLE == engineApplicationGetMaterialByName(app, "debug_path_node_mat"))
     {
         auto mat = engineApplicationInitMaterialDesc(app);
@@ -224,4 +248,16 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
     auto mat = engineSceneAddMaterialComponent(scene, go_);
     mat.material = engineApplicationGetMaterialByName(app, "debug_path_node_mat");
     engineSceneUpdateMaterialComponent(scene, go_, &mat);
+}
+
+project_c::EnviormentBaseScript::EnviormentBaseScript(engine::IScene* my_scene, engine_game_object_t go, std::string_view name)
+    : BaseNode(my_scene, go, name)
+{
+    add_parent_component_for_editor(my_scene, go, "enviorment");
+}
+
+project_c::LightBaseScript::LightBaseScript(engine::IScene* my_scene, engine_game_object_t go, std::string_view name)
+    : BaseNode(my_scene, go, name)
+{
+    add_parent_component_for_editor(my_scene, go, "lights");
 }

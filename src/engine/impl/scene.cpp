@@ -381,20 +381,28 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 while (parent != ENGINE_INVALID_GAME_OBJECT_ID)
                 {
                     const auto parent_entt = static_cast<entt::entity>(parent);
-                    const auto parent_ltw_matrix = get_component<engine_tranform_component_t>(parent_entt);
-                    ltw_matrix = glm::make_mat4(parent_ltw_matrix->local_to_world) * ltw_matrix;
-                    if (has_component<engine_parent_component_t>(parent_entt))
+                    if (has_component<engine_tranform_component_t>(parent_entt))
                     {
-                        const auto pc = get_component<engine_parent_component_t>(parent_entt);
-                        parent = pc->parent;
+                        const auto parent_ltw_matrix = get_component<engine_tranform_component_t>(parent_entt);
+                        ltw_matrix = glm::make_mat4(parent_ltw_matrix->local_to_world) * ltw_matrix;
+                        if (has_component<engine_parent_component_t>(parent_entt))
+                        {
+                            const auto pc = get_component<engine_parent_component_t>(parent_entt);
+                            parent = pc->parent;
+                        }
+                        else
+                        {
+                            // break the recussion
+                            parent = ENGINE_INVALID_GAME_OBJECT_ID;
+                        }
                     }
                     else
                     {
                         // break the recussion
                         parent = ENGINE_INVALID_GAME_OBJECT_ID;
                     }
+                    ltw_map[entity] = ltw_matrix;
                 }
-                ltw_map[entity] = ltw_matrix;
             });
         {
             ENGINE_PROFILE_SECTION_N("update_ltws_with_parents");
