@@ -112,7 +112,8 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_co
         dispaly_flags |= ImGuiTreeNodeFlags_OpenOnArrow;
     }
 
-    if (ImGui::TreeNodeEx(node->name.c_str(), dispaly_flags))
+    const auto entity_id = std::string(node->name) + "##" + std::to_string(static_cast<std::uint32_t>(node->entity));
+    if (ImGui::TreeNodeEx(entity_id.c_str(), dispaly_flags))
     {
         // tooltip the id
         ImGui::SetItemTooltip("ID: %d", node->entity);

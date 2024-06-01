@@ -64,7 +64,8 @@ project_c::AppProjectC::AppProjectC()
 
 
     register_scene<project_c::TestScene>();
-    register_scene<project_c::CityScene>();
+    auto city_scene = register_scene<project_c::CityScene>();
+    city_scene->deactivate();
 }
 
 project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType type, engine::IScene* scene)

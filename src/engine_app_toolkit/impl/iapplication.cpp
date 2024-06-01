@@ -20,6 +20,6 @@ engine::IApplication::~IApplication()
 
 void engine::IApplication::update_scenes(float dt)
 {
-        scene_manager_.update(dt);
+    scene_manager_.update(dt);
 }
 
