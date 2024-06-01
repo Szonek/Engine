@@ -1,12 +1,17 @@
 #include "enviorment_script.h"
 #include "scripts_utils.h"
 #include "iscene.h"
+#include "iapplication.h"
 
 namespace
 {
-void add_parent_component_for_editor(engine::IScene* my_scene, engine_game_object_t go , std::string_view parent_name)
+void add_parent_component_for_editor(engine::IScene& my_scene, engine_game_object_t go , std::string_view parent_name)
 {
-    auto scene = my_scene->get_handle();
+    if (!my_scene.get_app()->is_editor_enabled())
+    {
+        return;
+    }
+    auto scene = my_scene.get_handle();
     auto parent_go = project_c::utils::get_game_objects_with_name(scene, parent_name);
     if (parent_go.empty())
     {
@@ -216,7 +221,7 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
     auto scene = my_scene_->get_handle();
     auto app = my_scene_->get_app_handle();
 
-    add_parent_component_for_editor(my_scene, go_, "debug_path");
+    add_parent_component_for_editor(*my_scene, go_, "debug_path");
 
     if (ENGINE_INVALID_OBJECT_HANDLE == engineApplicationGetMaterialByName(app, "debug_path_node_mat"))
     {
@@ -253,11 +258,11 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
 project_c::EnviormentBaseScript::EnviormentBaseScript(engine::IScene* my_scene, engine_game_object_t go, std::string_view name)
     : BaseNode(my_scene, go, name)
 {
-    add_parent_component_for_editor(my_scene, go, "enviorment");
+    add_parent_component_for_editor(*my_scene, go, "enviorment");
 }
 
 project_c::LightBaseScript::LightBaseScript(engine::IScene* my_scene, engine_game_object_t go, std::string_view name)
     : BaseNode(my_scene, go, name)
 {
-    add_parent_component_for_editor(my_scene, go, "lights");
+    add_parent_component_for_editor(*my_scene, go, "lights");
 }

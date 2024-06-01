@@ -18,6 +18,11 @@ engine::IApplication::~IApplication()
     engineApplicationDestroy(app_handle_);
 }
 
+bool engine::IApplication::is_editor_enabled() const
+{
+    return engineApplicationIsEditorEnabled(app_handle_);
+}
+
 void engine::IApplication::update_scenes(float dt)
 {
     scene_manager_.update(dt);

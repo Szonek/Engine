@@ -119,6 +119,11 @@ engine_result_code_t engineApplicationCreate(engine_application_t* handle, engin
 	return ret;
 }
 
+bool engineApplicationIsEditorEnabled(engine_application_t handle)
+{
+    return dynamic_cast<engine::ApplicationEditor*>(application_cast(handle)) != nullptr;
+}
+
 void engineApplicationDestroy(engine_application_t handle)
 {
 	auto* app = reinterpret_cast<engine::Application*>(handle);

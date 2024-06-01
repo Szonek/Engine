@@ -475,6 +475,7 @@ ENGINE_API void engineLog(const char* str);
 
 // app
 ENGINE_API engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc);
+ENGINE_API bool engineApplicationIsEditorEnabled(engine_application_t handle);
 ENGINE_API void engineApplicationDestroy(engine_application_t handle);
 
 // scene
