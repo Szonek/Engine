@@ -37,22 +37,22 @@ public:
 class LightBaseScript : public BaseNode
 {
 public:
-    LightBaseScript(engine::IScene* my_scene, engine_game_object_t go, std::string_view name);
+    LightBaseScript(engine::IScene* my_scene, std::string_view name);
 };
 
-class MainLight : public BaseNode
+class MainLight : public LightBaseScript
 {
 public:
     MainLight(engine::IScene* my_scene);
 };
 
-class PointLight : public BaseNode
+class PointLight : public LightBaseScript
 {
 public:
     PointLight(engine::IScene* my_scene);
 };
 
-class SpotLight : public BaseNode
+class SpotLight : public LightBaseScript
 {
 public:
     SpotLight(engine::IScene* my_scene);

@@ -95,7 +95,7 @@ project_c::Barrel::Barrel(engine::IScene* my_scene, engine_game_object_t go)
 }
 
 project_c::MainLight::MainLight(engine::IScene* my_scene)
-    : BaseNode(my_scene, "main-light")
+    : LightBaseScript(my_scene, "main-light")
 {
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
@@ -133,7 +133,7 @@ project_c::MainLight::MainLight(engine::IScene* my_scene)
 }
 
 project_c::PointLight::PointLight(engine::IScene* my_scene)
-    : BaseNode(my_scene, "point-light")
+    : LightBaseScript(my_scene, "point-light")
 {
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
@@ -173,7 +173,7 @@ project_c::PointLight::PointLight(engine::IScene* my_scene)
 }
 
 project_c::SpotLight::SpotLight(engine::IScene* my_scene)
-    : BaseNode(my_scene, "spot-light")
+    : LightBaseScript(my_scene, "spot-light")
 {
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
@@ -258,11 +258,11 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
 project_c::EnviormentBaseScript::EnviormentBaseScript(engine::IScene* my_scene, engine_game_object_t go, std::string_view name)
     : BaseNode(my_scene, go, name)
 {
-    add_parent_component_for_editor(*my_scene, go, "enviorment");
+    add_parent_component_for_editor(*my_scene, go_, "enviorment");
 }
 
-project_c::LightBaseScript::LightBaseScript(engine::IScene* my_scene, engine_game_object_t go, std::string_view name)
-    : BaseNode(my_scene, go, name)
+project_c::LightBaseScript::LightBaseScript(engine::IScene* my_scene, std::string_view name)
+    : BaseNode(my_scene, name)
 {
-    add_parent_component_for_editor(*my_scene, go, "lights");
+    add_parent_component_for_editor(*my_scene, go_, "lights");
 }

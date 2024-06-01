@@ -40,6 +40,21 @@ void update_parent_component(entt::registry& registry, entt::entity entity)
     engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has no more space for children. Are you sure you are doing valid thing?\n"));
 }
 
+void destroy_parent_component(entt::registry& registry, entt::entity entity)
+{
+    const auto parent_entt = static_cast<entt::entity>(registry.get<engine_parent_component_t>(entity).parent);
+    auto& cc = registry.get<engine_children_component_t>(parent_entt);
+    for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
+    {
+        if (cc.child[i] == static_cast<std::uint32_t>(entity))
+        {
+            cc.child[i] = ENGINE_INVALID_GAME_OBJECT_ID;
+            return;
+        }
+    }
+    engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component was destroyed, but couldn't reset it's childer.\n"));
+}
+
 struct SceneGpuData
 {
     std::uint32_t direction_light_count = 0;
@@ -116,6 +131,8 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     entity_registry_.on_construct<engine_light_component_t>().connect<&initialize_light_component>();
     
     entity_registry_.on_update<engine_parent_component_t>().connect<&update_parent_component>();
+    entity_registry_.on_destroy<engine_parent_component_t>().connect<&destroy_parent_component>();
+
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<PhysicsWorld::physcic_internal_component_t>>();
     entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
