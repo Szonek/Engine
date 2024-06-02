@@ -230,7 +230,7 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
         mat.diffuse_color[0] = 1.0f;
         mat.diffuse_color[1] = 0.0f;
         mat.diffuse_color[2] = 0.0f;
-        engineApplicationAddMaterialFromDesc(app, &mat, "debug_path_node_mat", nullptr);
+        engineApplicationCreateMaterialFromDesc(app, &mat, "debug_path_node_mat", nullptr);
     }
 
     auto tc = engineSceneAddTransformComponent(scene, go_);

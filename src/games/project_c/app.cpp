@@ -28,7 +28,7 @@ project_c::AppProjectC::AppProjectC()
 {
     const auto load_start = std::chrono::high_resolution_clock::now();
 
-    if (engineApplicationAddFontFromFile(get_handle(), "tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
+    if (engineApplicationCreateFontFromFile(get_handle(), "tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
     {
         log(fmt::format("Couldnt load font!\n"));
         return;
