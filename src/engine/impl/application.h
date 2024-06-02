@@ -5,6 +5,9 @@
 #include "graphics.h"
 #include "ui_manager.h"
 #include "ui_document.h"
+#include "named_atlas.h"
+#include "nav_mesh.h"
+
 #include <array>
 #include <string>
 
@@ -30,6 +33,10 @@ public:
     virtual std::uint32_t add_texture(const engine_texture_2d_create_desc_t& desc, std::string_view texture_name);
     virtual std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
     virtual std::uint32_t get_texture(std::string_view name) const;
+
+    virtual std::uint32_t add_nav_mesh(std::string_view name);
+    virtual std::uint32_t get_nav_mesh(std::string_view name) const;
+    virtual const NavMesh* get_nav_mesh(std::uint32_t idx) const;
 
     virtual bool add_font_from_file(std::string_view file_name, std::string_view handle_name);
 
@@ -69,58 +76,10 @@ protected:
     RenderContext rdx_;
     GameTimer timer_;
 
-    template<typename T>
-    class Atlas
-    {
-        static constexpr const size_t SIZE = 1024;
-        using ArrayType = std::array<T, SIZE>;
-    public:
-        Atlas()
-            : current_idx_(0)
-        {
-        }
-        Atlas(const Atlas& rhs) = delete;
-        Atlas(Atlas&& rhs) = delete;
-        Atlas& operator=(const Atlas& rhs) = delete;
-        Atlas& operator=(Atlas&& rhs) = delete;
-        ~Atlas() = default;
-
-        std::uint32_t add_object(std::string_view name, T&& t)
-        {
-            objects_[current_idx_] = std::move(t);
-            names_[current_idx_] = name.data();
-            return current_idx_++;
-        }
-
-        const T* get_object(std::uint32_t idx) const
-        {
-            return &objects_[idx];
-        }
-
-
-        std::uint32_t get_object(std::string_view name) const
-        {
-            for (std::uint32_t i = 0; const auto & n : names_)
-            {
-                if (n.compare(name) == 0)
-                {
-                    return i;
-                }
-                i++;
-            }
-            return ENGINE_INVALID_OBJECT_HANDLE;
-        }
-
-        const ArrayType& get_objects_view() const { return objects_; }
-    private:
-        ArrayType objects_;
-        std::array<std::string, SIZE> names_;
-        std::uint32_t current_idx_;
-    };
-
-    Atlas<Texture2D> textures_atlas_;
     engine_texture2d_t default_texture_idx_;
-    Atlas<Geometry> geometries_atlas_;;
+    Atlas<Texture2D> textures_atlas_;
+    Atlas<Geometry> geometries_atlas_;
+    Atlas<NavMesh> nav_mesh_atlas_;
     Atlas<engine_material_create_desc_t> materials_atlas_;
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;

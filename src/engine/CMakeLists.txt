@@ -21,11 +21,17 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/ui_document.h
 	${ENGINE_SOURCES_DIR}/logger.cpp
 	${ENGINE_SOURCES_DIR}/logger.h
+	
 	${ENGINE_SOURCES_DIR}/profiler.h
+	${ENGINE_SOURCES_DIR}/named_atlas.h
+		
 	${ENGINE_SOURCES_DIR}/gltf_parser.h
 	${ENGINE_SOURCES_DIR}/gltf_parser.cpp
 	${ENGINE_SOURCES_DIR}/physics_world.h
 	${ENGINE_SOURCES_DIR}/physics_world.cpp
+
+	${ENGINE_SOURCES_DIR}/nav_mesh.h
+	${ENGINE_SOURCES_DIR}/nav_mesh.cpp
 	
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.h
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.cpp
@@ -68,6 +74,7 @@ set(ENGINE_API_SOURCES
 	${ENGINE_API_COMPONENTS}/rigid_body_component.h
 	${ENGINE_API_COMPONENTS}/collider_component.h
     ${ENGINE_API_COMPONENTS}/parent_component.h
+    ${ENGINE_API_COMPONENTS}/nav_component.h
 )
 
 set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})

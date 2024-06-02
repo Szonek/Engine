@@ -1,5 +1,6 @@
 ﻿#include "scene.h"
 #include "ui_manager.h"
+#include "nav_mesh.h"
 #include "logger.h"
 #include "math_helpers.h"
 #include "components_utils/components_initializers.h"
@@ -316,7 +317,8 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 }
 
 engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
-    std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials)
+    std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials,
+    std::span<const NavMesh> nav_meshes)
 {
     ENGINE_PROFILE_SECTION_N("scene_update");
     physics_update(dt);

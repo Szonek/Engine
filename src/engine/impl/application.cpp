@@ -195,7 +195,8 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 	const auto ret_code = scene->update(delta_time,
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
-        materials_atlas_.get_objects_view());
+        materials_atlas_.get_objects_view(),
+        nav_mesh_atlas_.get_objects_view());
     on_scene_update_post(scene, delta_time);
 
     return ret_code;
@@ -343,6 +344,21 @@ std::uint32_t engine::Application::get_texture(std::string_view name) const
 {
     const auto ret = textures_atlas_.get_object(name);
     return ret;
+}
+
+std::uint32_t engine::Application::add_nav_mesh(std::string_view name)
+{
+    return nav_mesh_atlas_.add_object(name, NavMesh());
+}
+
+std::uint32_t engine::Application::get_nav_mesh(std::string_view name) const
+{
+    return nav_mesh_atlas_.get_object(name);
+}
+
+const engine::NavMesh* engine::Application::get_nav_mesh(std::uint32_t idx) const
+{
+    return nav_mesh_atlas_.get_object(idx);
 }
 
 bool engine::Application::add_font_from_file(std::string_view file_name, std::string_view handle_name)
