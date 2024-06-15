@@ -223,16 +223,6 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
 
     add_parent_component_for_editor(*my_scene, go_, "debug_path");
 
-    if (ENGINE_INVALID_OBJECT_HANDLE == engineApplicationGetMaterialByName(app, "debug_path_node_mat"))
-    {
-        auto mat = engineApplicationInitMaterialDesc(app);
-        mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
-        mat.diffuse_color[0] = 1.0f;
-        mat.diffuse_color[1] = 0.0f;
-        mat.diffuse_color[2] = 0.0f;
-        engineApplicationCreateMaterialFromDesc(app, &mat, "debug_path_node_mat", nullptr);
-    }
-
     auto tc = engineSceneAddTransformComponent(scene, go_);
     tc.position[0] = offset_x;
     tc.position[1] = 0.0f;
@@ -252,17 +242,8 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
     // and basic material
     auto mat = engineSceneAddMaterialComponent(scene, go_);
     mat.material = engineApplicationGetMaterialByName(app, "debug_path_node_mat");
+    assert(ENGINE_INVALID_OBJECT_HANDLE != mat.material);
     engineSceneUpdateMaterialComponent(scene, go_, &mat);
-}
-
-project_c::DebugPathNode::~DebugPathNode()
-{
-    auto app = my_scene_->get_app_handle();
-    const auto mat_handle = engineApplicationGetMaterialByName(app, "debug_path_node_mat");
-    if (ENGINE_INVALID_OBJECT_HANDLE != mat_handle)
-    {
-        engineApplicationDestroyMaterial(app, mat_handle);
-    }
 }
 
 project_c::EnviormentBaseScript::EnviormentBaseScript(engine::IScene* my_scene, engine_game_object_t go, std::string_view name)
