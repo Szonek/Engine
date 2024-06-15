@@ -255,6 +255,16 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
     engineSceneUpdateMaterialComponent(scene, go_, &mat);
 }
 
+project_c::DebugPathNode::~DebugPathNode()
+{
+    auto app = my_scene_->get_app_handle();
+    const auto mat_handle = engineApplicationGetMaterialByName(app, "debug_path_node_mat");
+    if (ENGINE_INVALID_OBJECT_HANDLE != mat_handle)
+    {
+        engineApplicationDestroyMaterial(app, mat_handle);
+    }
+}
+
 project_c::EnviormentBaseScript::EnviormentBaseScript(engine::IScene* my_scene, engine_game_object_t go, std::string_view name)
     : BaseNode(my_scene, go, name)
 {

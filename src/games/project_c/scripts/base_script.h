@@ -14,7 +14,7 @@ protected:
     BaseNode(engine::IScene* my_scene, engine_game_object_t go, const AnimationController& anim_c, std::string_view name);
     BaseNode(engine::IScene* my_scene, engine_game_object_t go, std::string_view name);
     BaseNode(engine::IScene* my_scene, const PrefabResult& pr, std::string_view name);
-
+    virtual ~BaseNode() = default;
 
 protected:
     AnimationController anim_controller_;

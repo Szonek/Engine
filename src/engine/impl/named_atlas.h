@@ -1,10 +1,13 @@
 #pragma once
 #include "engine.h" 
+#include "logger.h"
 
 #include <array>
 #include <cstdint>
 #include <string>
 #include <deque>
+
+#include <fmt/format.h>
 
 namespace engine
 {
@@ -25,6 +28,14 @@ public:
     {
         if (free_indices_.size() != SIZE)
         {
+            // print not removed objects
+            for (std::size_t i = 0; i < SIZE; i++)
+            {
+                if (!names_[i].empty())
+                {
+                    log::log(log::LogLevel::eCritical, fmt::format("Not released object: {}\n", names_[i]));
+                }
+            }
             assert(false && "Not all objects were removed from atlas");
         }
     }
@@ -45,6 +56,8 @@ public:
 
     void remove_object(std::uint32_t idx)
     {
+        assert(names_[idx].empty() == false && "Object not found");
+        assert(idx < SIZE && "Index out of bounds");
         objects_[idx] = T{};
         names_[idx] = "";
         free_indices_.push_front(idx);

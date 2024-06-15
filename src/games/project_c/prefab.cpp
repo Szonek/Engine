@@ -29,6 +29,18 @@ project_c::Prefab::~Prefab()
 {
     if (is_valid())
     {
+        for (const auto& g : geometries_)
+        {
+            engineApplicationDestroyGeometry(app_, g);
+        }
+        for (const auto& t : textures_)
+        {
+            engineApplicationDestroyTexture2D(app_, t);
+        }
+        for (const auto& m : materials_)
+        {
+            engineApplicationDestroyMaterial(app_, m);
+        }
         engineApplicationReleaseModelDesc(app_, &model_info_);
     }
 }

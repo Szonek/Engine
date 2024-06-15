@@ -23,7 +23,7 @@ public:
     Application& operator=(Application&&) = delete;
     virtual ~Application();
 
-    virtual class Scene* create_scene(const engine_scene_create_desc_t& desc);
+    virtual class Scene* allocate_scene(const engine_scene_create_desc_t& desc);
     virtual void release_scene(class Scene* scene);
 
     virtual engine_result_code_t update_scene(class Scene* scene, float delta_time);
@@ -33,19 +33,23 @@ public:
     virtual std::uint32_t add_texture(const engine_texture_2d_create_desc_t& desc, std::string_view texture_name);
     virtual std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
     virtual std::uint32_t get_texture(std::string_view name) const;
+    virtual void destroy_texture(std::uint32_t idx);
 
     virtual std::uint32_t add_nav_mesh(std::string_view name);
     virtual std::uint32_t get_nav_mesh(std::string_view name) const;
     virtual const NavMesh* get_nav_mesh(std::uint32_t idx) const;
+    virtual void destroy_nav_mesh(std::uint32_t idx);
 
     virtual bool add_font_from_file(std::string_view file_name, std::string_view handle_name);
 
     virtual std::uint32_t add_geometry(const engine_vertex_attributes_layout_t& verts_layout, std::int32_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name);
     virtual std::uint32_t get_geometry(std::string_view name) const;
     virtual const Geometry* get_geometry(std::uint32_t idx) const;
+    virtual void destroy_geometry(std::uint32_t idx);
 
     virtual std::uint32_t add_material(const engine_material_create_desc_t& desc, std::string_view name);
     virtual std::uint32_t get_material(std::string_view name) const;
+    virtual void destroy_material(std::uint32_t idx);
 
     virtual engine_model_desc_t load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir);
     virtual void release_model_desc(engine_model_desc_t* info);
@@ -77,6 +81,7 @@ protected:
     GameTimer timer_;
 
     engine_texture2d_t default_texture_idx_;
+    engine_material_t default_material_;
     Atlas<Texture2D> textures_atlas_;
     Atlas<Geometry> geometries_atlas_;
     Atlas<NavMesh> nav_mesh_atlas_;

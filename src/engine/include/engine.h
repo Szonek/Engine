@@ -512,16 +512,19 @@ ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, e
 ENGINE_API engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 ENGINE_API engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_application_t handle, engine_geometry_t geometry, engine_vertex_attribute_type_t type);
+ENGINE_API void engineApplicationDestroyGeometry(engine_application_t handle, engine_geometry_t geometry);
 
 // material
 ENGINE_API engine_material_create_desc_t engineApplicationInitMaterialDesc(engine_application_t handle);
 ENGINE_API engine_result_code_t engineApplicationCreateMaterialFromDesc(engine_application_t handle, const engine_material_create_desc_t* desc, const char* name, engine_material_t* out);
 ENGINE_API engine_material_t    engineApplicationGetMaterialByName(engine_application_t handle, const char* name);
+ENGINE_API void engineApplicationDestroyMaterial(engine_application_t handle, engine_material_t material);
 
 // textures 
 ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
+ENGINE_API void engineApplicationDestroyTexture2D(engine_application_t handle, engine_texture2d_t tex2d);
 
 // physics 
 ENGINE_API void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3]);

@@ -256,6 +256,12 @@ engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(en
     return ret;
 }
 
+void engineApplicationDestroyGeometry(engine_application_t handle, engine_geometry_t geometry)
+{
+    assert(handle);
+    application_cast(handle)->destroy_geometry(geometry);
+}
+
 engine_material_create_desc_t engineApplicationInitMaterialDesc(engine_application_t handle)
 {
     if (!handle)
@@ -301,6 +307,12 @@ engine_material_t engineApplicationGetMaterialByName(engine_application_t handle
     return app->get_material(name);
 }
 
+void engineApplicationDestroyMaterial(engine_application_t handle, engine_material_t material)
+{
+    assert(handle);
+    application_cast(handle)->destroy_material(material);
+}
+
 engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out)
 {
     auto* app = application_cast(handle);
@@ -334,6 +346,12 @@ engine_texture2d_t engineApplicationGetTextured2DByName(engine_application_t han
     return app->get_texture(name);
 }
 
+void engineApplicationDestroyTexture2D(engine_application_t handle, engine_texture2d_t tex2d)
+{
+    assert(handle);
+    application_cast(handle)->destroy_texture(tex2d);
+}
+
 engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, const char* base_dir, engine_model_desc_t* out)
 {
     if (!out)
@@ -362,7 +380,7 @@ engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, e
         return ENGINE_RESULT_CODE_FAIL;
     }
     auto* app = application_cast(handle);
-    *out = reinterpret_cast<engine_scene_t>(app->create_scene(desc));
+    *out = reinterpret_cast<engine_scene_t>(app->allocate_scene(desc));
     if (!out)
     {
         return ENGINE_RESULT_CODE_FAIL;
