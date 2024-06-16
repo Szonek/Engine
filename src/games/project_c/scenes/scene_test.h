@@ -21,6 +21,7 @@ class TestScene : public engine::IScene
 {
 public:
     TestScene(engine::IApplication* app);
+    ~TestScene();
 
     void activate()
     {
@@ -44,12 +45,6 @@ public:
     {
         engineUiDataHandleDirtyVariable(ui_data_.handle, "character_health");
         engineUiDataHandleDirtyVariable(ui_data_.handle, "enemy_health");
-    }
-
-    ~TestScene()
-    {
-        engineUiDataHandleDestroy(ui_data_.handle);
-        engineApplicationUiDocumentDestroy(ui_data_.doc);
     }
     static constexpr const char* get_name() { return "TestScene"; }
 

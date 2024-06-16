@@ -45,6 +45,135 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
     }
 }
 
+
+project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go, const Config& config)
+    : BaseNode(my_scene, go, "dagger")
+    , config_(config)
+{
+    const auto scene = my_scene->get_handle();
+    const auto app = my_scene->get_app_handle();
+
+    auto tc = engineSceneGetTransformComponent(scene, go);
+    tc.position[0] = config.start_position[0];
+    tc.position[1] = config.start_position[1];
+    tc.position[2] = config.start_position[2];
+
+    tc.scale[0] = 1.5f;
+    tc.scale[1] = 1.5f;
+    tc.scale[2] = 1.5f;
+
+    auto rotation = glm::angleAxis(glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    rotation *= glm::angleAxis(glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    rotation *= config.direction;
+    std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
+    engineSceneUpdateTransformComponent(scene, go, &tc);
+
+    // collider
+    auto cc = engineSceneAddColliderComponent(scene, go);
+    cc.type = ENGINE_COLLIDER_TYPE_BOX;
+    cc.is_trigger = true;
+    cc.collider.box.size[0] = 0.05f;
+    cc.collider.box.size[1] = 0.05f;
+    cc.collider.box.size[2] = 0.05f;
+    engineSceneUpdateColliderComponent(scene, go, &cc);
+
+    // material
+    auto mc = engineSceneAddMaterialComponent(scene, go);
+    mc.material = engineApplicationGetMaterialByName(app, "dagger_01");
+    engineSceneUpdateMaterialComponent(scene, go, &mc);
+}
+
+
+void project_c::Dagger::update(float dt)
+{
+    if (config_.destroy_on_next_frame)
+    {
+        my_scene_->unregister_script(this);
+        return;
+    }
+    const auto scene = my_scene_->get_handle();
+    const auto app = my_scene_->get_app_handle();
+    auto tc = engineSceneGetTransformComponent(scene, go_);
+
+    const float speed_cooef = 0.008f;
+    const float speed = speed_cooef * dt;
+    const glm::vec3 forward = glm::normalize(config_.direction * glm::vec3(0.0f, 0.0f, 1.0f));
+    tc.position[0] += forward.x * speed;
+    tc.position[2] += forward.z * speed;
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+    const auto distance = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(config_.start_position[0], config_.start_position[2]));
+    if(distance > 3.5f)
+    {
+        config_.destroy_on_next_frame = true;
+    }
+}
+
+void project_c::Dagger::on_collision(const collision_t& info)
+{
+    if (info.other == config_.ignore_go)
+    {
+        return;
+    }
+    if (auto* enemy = my_scene_->get_script<Enemy>(info.other))
+    {
+        enemy->hp -= 10;
+        config_.destroy_on_next_frame = true;
+        // spawn next dagger
+        if (config_.ricochet_count > 1)
+        {
+            const auto enemies = utils::get_game_objects_with_name(my_scene_->get_handle(), "enemy");
+            if (enemies.size() > 1)
+            {
+                config_.ricochet_count--;
+                engine_game_object_t go_closest = ENGINE_INVALID_GAME_OBJECT_ID;
+                float distance = std::numeric_limits<float>::max();
+                for (const auto& go : enemies)
+                {
+                    if (go != info.other)
+                    {
+                        if (go_closest == ENGINE_INVALID_GAME_OBJECT_ID)
+                        {
+                            go_closest = go;
+                        }
+                        else
+                        {
+                            const auto tc = engineSceneGetTransformComponent(my_scene_->get_handle(), go);
+                            const auto tc_closest = engineSceneGetTransformComponent(my_scene_->get_handle(), go_closest);
+                            const auto distance_closest = glm::distance(glm::vec2(tc_closest.position[0], tc_closest.position[2]), glm::vec2(tc.position[0], tc.position[2]));
+                            if (distance_closest < distance)
+                            {
+                                distance = distance_closest;
+                                go_closest = go;
+                            }
+                        }
+                    }
+                }
+
+                if (go_closest != ENGINE_INVALID_GAME_OBJECT_ID)
+                {
+                    auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
+
+                    const auto etc = engineSceneGetTransformComponent(my_scene_->get_handle(), info.other);
+                    const auto gctc = engineSceneGetTransformComponent(my_scene_->get_handle(), go_closest);
+                    Config ricochet_config{};
+                    ricochet_config.ricochet_count = config_.ricochet_count;
+                    ricochet_config.start_position = { info.contact_points[0].point[0], info.contact_points[0].point[1], info.contact_points[0].point[2] };
+
+                    ricochet_config.direction = utils::rotate_toward(glm::vec3(etc.position[0], etc.position[1], etc.position[2]), glm::vec3(gctc.position[0], gctc.position[1], gctc.position[2]));
+                    ricochet_config.ignore_go = info.other;
+                    auto new_dagger = my_scene_->register_script<project_c::Dagger>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_DAGGER, my_scene_).go, ricochet_config);
+                }
+
+            }
+
+        }
+
+        return; // to not hit more enemies;
+    }
+}
+
+
 project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_object_t go)
     : BaseNode(my_scene, go, "attack-trigger")
 {
@@ -196,6 +325,10 @@ void project_c::Solider::update(float dt)
         cc.collider.compound.children->collider.box.size[2] = 0.3f;
         engineSceneUpdateColliderComponent(scene, attack_trigger_->get_game_object(), &cc);
     }
+    else if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_Q))
+    {
+        state_ = States::SKILL_1;
+    }
     switch (state_)
     {
     case States::IDLE:
@@ -223,6 +356,32 @@ void project_c::Solider::update(float dt)
             //tc.position[1] += forward.y * speed;  // dont go up!
             tc.position[2] += forward.z * speed;
             engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
+        break;
+    }
+    case States::SKILL_1:
+    {
+        if (skill_1_data_.animation_started)
+        {
+            if (!anim_controller_.is_active_animation(skill_1_data_.get_animation_name()))
+            {
+                state_ = States::IDLE;
+                skill_1_data_ = {};
+            }
+        }
+        else
+        {
+            rotate_towards_global_target();
+            anim_controller_.set_active_animation(skill_1_data_.get_animation_name());
+            skill_1_data_.animation_started = true;
+            auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
+
+            auto tc = engineSceneGetTransformComponent(scene, go_);
+            Dagger::Config config{};
+            config.start_position = { tc.position[0], 0.5f, tc.position[2] };
+            config.direction = glm::make_quat(tc.rotation);
+            config.ricochet_count = 4;
+            auto skill_1 = my_scene_->register_script<project_c::Dagger>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_DAGGER, my_scene_).go, config);
         }
         break;
     }

@@ -36,6 +36,7 @@ project_c::AppProjectC::AppProjectC()
 
     const std::unordered_map<PrefabType, std::pair<std::string, std::string>> prefabs_data =
     {
+        { PREFAB_TYPE_DAGGER,       { "dagger_01.glb", ""}},
         { PREFAB_TYPE_SWORD,        { "weapon-sword.glb", "Textures_mini_arena" }},
         { PREFAB_TYPE_SOLIDER,      { "character-soldier.glb", "Textures_mini_arena" }},
         { PREFAB_TYPE_ORC,          { "character-orc.glb", "Textures_mini_dungeon" }},
@@ -57,12 +58,22 @@ project_c::AppProjectC::AppProjectC()
         }
     }
 
-    auto mat = engineApplicationInitMaterialDesc(get_handle());
-    mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
-    mat.diffuse_color[0] = 1.0f;
-    mat.diffuse_color[1] = 0.0f;
-    mat.diffuse_color[2] = 0.0f;
-    engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "debug_path_node_mat", nullptr);
+    {
+        auto mat = engineApplicationInitMaterialDesc(get_handle());
+        mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
+        mat.diffuse_color[0] = 1.0f;
+        mat.diffuse_color[1] = 0.0f;
+        mat.diffuse_color[2] = 0.0f;
+        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "debug_path_node_mat", nullptr);
+    }
+
+    {
+        auto mat = engineApplicationInitMaterialDesc(get_handle());
+        mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
+        set_c_array(mat.diffuse_color, std::array<float, 3>{0.9f, 0.9f, 0.9f});
+        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "dagger_01", nullptr);
+    }
+
 
     const auto load_end = std::chrono::high_resolution_clock::now();
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
@@ -77,7 +88,12 @@ project_c::AppProjectC::AppProjectC()
 project_c::AppProjectC::~AppProjectC()
 {
     auto mat = engineApplicationGetMaterialByName(get_handle(), "debug_path_node_mat");
-    if (mat)
+    if (mat != ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        engineApplicationDestroyMaterial(get_handle(), mat);
+    }
+    mat = engineApplicationGetMaterialByName(get_handle(), "dagger_01");
+    if (mat != ENGINE_INVALID_OBJECT_HANDLE)
     {
         engineApplicationDestroyMaterial(get_handle(), mat);
     }

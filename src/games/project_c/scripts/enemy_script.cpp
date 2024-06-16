@@ -68,8 +68,8 @@ void project_c::Enemy::update(float dt)
     auto ec = engineSceneGetTransformComponent(scene, player);
     const auto distance_to_player = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
 
-    const auto my_node_idx = nav_mesh_->get_node_idx({ tc.position[0], tc.position[1], tc.position[2] });
-    const auto player_node_idx = nav_mesh_->get_node_idx({ ec.position[0], ec.position[1], ec.position[2] });
+    const auto my_node_idx = -1;// nav_mesh_->get_node_idx({ tc.position[0], tc.position[1], tc.position[2] });
+    const auto player_node_idx = -1;// nav_mesh_->get_node_idx({ ec.position[0], ec.position[1], ec.position[2] });
     auto path = [&]()
         {
             if (distance_to_player < 0.8f || my_node_idx == -1 || player_node_idx == -1)
@@ -87,10 +87,12 @@ void project_c::Enemy::update(float dt)
         {
             state_ = States::DIE;
             anim_controller_.set_active_animation("die");
+            // remove collider so enemy will not be hit by players attacks
+            engineSceneRemoveColliderComponent(scene, go_);
         }
         else
         {
-            if (path.nodes.size() == 0 || distance_to_player < 0.8f)
+            if (path.nodes.size() == 0 && distance_to_player < 0.8f)
             {
                 state_ = States::ATTACK;
                 anim_controller_.set_active_animation(attack_data_.get_animation_name());

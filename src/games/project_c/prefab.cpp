@@ -147,6 +147,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             log(fmt::format("\tAdded material component\n", go));
         }
 
+
         if (!node.parent)
         {
             ret.go = go;
