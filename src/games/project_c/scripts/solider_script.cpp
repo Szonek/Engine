@@ -48,6 +48,7 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
 
 project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go, const Config& config)
     : BaseNode(my_scene, go, "dagger")
+    , config_(config)
 {
     const auto scene = my_scene->get_handle();
     const auto app = my_scene->get_app_handle();
@@ -57,15 +58,26 @@ project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go, con
     tc.position[1] = config.start_position[1];
     tc.position[2] = config.start_position[2];
 
-    tc.scale[0] = 3.0f;
-    tc.scale[1] = 3.0f;
-    tc.scale[2] = 3.0f;
+    tc.scale[0] = 1.5f;
+    tc.scale[1] = 1.5f;
+    tc.scale[2] = 1.5f;
 
     auto rotation = glm::angleAxis(glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     rotation *= glm::angleAxis(glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    rotation *= config.direction;
     std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
     engineSceneUpdateTransformComponent(scene, go, &tc);
 
+    // collider
+    auto cc = engineSceneAddColliderComponent(scene, go);
+    cc.type = ENGINE_COLLIDER_TYPE_BOX;
+    cc.is_trigger = true;
+    cc.collider.box.size[0] = 0.05f;
+    cc.collider.box.size[1] = 0.05f;
+    cc.collider.box.size[2] = 0.05f;
+    engineSceneUpdateColliderComponent(scene, go, &cc);
+
+    // material
     auto mc = engineSceneAddMaterialComponent(scene, go);
     mc.material = engineApplicationGetMaterialByName(app, "dagger_01");
     engineSceneUpdateMaterialComponent(scene, go, &mc);
@@ -74,7 +86,16 @@ project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go, con
 
 void project_c::Dagger::update(float dt)
 {
+    const auto scene = my_scene_->get_handle();
+    const auto app = my_scene_->get_app_handle();
+    auto tc = engineSceneGetTransformComponent(scene, go_);
 
+    const float speed_cooef = 0.002f;
+    const float speed = speed_cooef * dt;
+    const glm::vec3 forward = glm::normalize(config_.direction * glm::vec3(0.0f, 0.0f, 1.0f));
+    tc.position[0] += forward.x * speed;
+    tc.position[2] += forward.z * speed;
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
 }
 
 
@@ -283,7 +304,7 @@ void project_c::Solider::update(float dt)
             auto tc = engineSceneGetTransformComponent(scene, go_);
             Dagger::Config config{};
             config.start_position = { tc.position[0], 0.5f, tc.position[2] };
-            config.end_position = { global_data_.last_mouse_hit.position[0], 0.5f, global_data_.last_mouse_hit.position[2] };
+            config.direction = glm::make_quat(tc.rotation);
             auto skill_1 = my_scene_->register_script<project_c::Dagger>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_DAGGER, my_scene_).go, config);
         }
         break;

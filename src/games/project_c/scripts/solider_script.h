@@ -19,7 +19,7 @@ public:
     struct Config
     {
         glm::vec3 start_position;
-        glm::vec3 end_position;
+        glm::quat direction;
     };
     Dagger(engine::IScene* my_scene, engine_game_object_t go, const Config& config);
 
