@@ -20,11 +20,12 @@ public:
     {
         glm::vec3 start_position;
         glm::quat direction;
+        bool destroy_on_next_frame = false;
     };
     Dagger(engine::IScene* my_scene, engine_game_object_t go, const Config& config);
 
     void update(float dt) override;
-
+    void on_collision(const collision_t& info) override;
 private:
     Config config_;
 };

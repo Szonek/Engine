@@ -86,6 +86,11 @@ project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go, con
 
 void project_c::Dagger::update(float dt)
 {
+    if (config_.destroy_on_next_frame)
+    {
+        my_scene_->unregister_script(this);
+        return;
+    }
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
     auto tc = engineSceneGetTransformComponent(scene, go_);
@@ -96,6 +101,16 @@ void project_c::Dagger::update(float dt)
     tc.position[0] += forward.x * speed;
     tc.position[2] += forward.z * speed;
     engineSceneUpdateTransformComponent(scene, go_, &tc);
+}
+
+void project_c::Dagger::on_collision(const collision_t& info)
+{
+    if (auto* enemy = my_scene_->get_script<Enemy>(info.other))
+    {
+        enemy->hp -= 10;
+        config_.destroy_on_next_frame = true;
+        return; // to not hit more enemies;
+    }
 }
 
 
