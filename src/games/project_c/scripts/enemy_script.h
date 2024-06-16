@@ -30,14 +30,14 @@ private:
 
 public:
     std::int32_t hp = 20;
-    class NavMesh* nav_mesh_ = nullptr;
 
-    Enemy(engine::IScene* my_scene, const PrefabResult& pr, float offset_x, float offset_z);
+    Enemy(engine::IScene* my_scene, const PrefabResult& pr, const class NavMesh* nav_mesh, float offset_x, float offset_z);
     virtual ~Enemy();
 
     void update(float dt);
 
 private:
+    const class NavMesh* nav_mesh_;
     bool triggered_ = false;
     bool attack_right_ = false;
     States state_;

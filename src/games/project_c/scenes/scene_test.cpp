@@ -45,14 +45,14 @@ public:
         float z_max;
     };
 
-    void spawn(EnemyPack& pack, std::int32_t count, const Point& world_pos, const SpawnAreaRect& area, project_c::AppProjectC& app, engine::IScene& scene)
+    void spawn(EnemyPack& pack, std::int32_t count, const Point& world_pos, const SpawnAreaRect& area, const project_c::NavMesh& nav_mesh, project_c::AppProjectC& app, engine::IScene& scene)
     {
         for (std::int32_t i = 0; i < count; i++)
         {
             const auto enemy_idx = 0;// dist_(rng_) % pack.infos.size();
             const auto offset_x = std::uniform_real_distribution<float>(area.x_min, area.x_max)(rng_);
             const auto offset_y = std::uniform_real_distribution<float>(area.x_min, area.x_max)(rng_);
-            scene.register_script<project_c::Enemy>(app.instantiate_prefab(pack.types[enemy_idx], &scene), world_pos.x + offset_x, world_pos.z + offset_y);
+            scene.register_script<project_c::Enemy>(app.instantiate_prefab(pack.types[enemy_idx], &scene), &nav_mesh, world_pos.x + offset_x, world_pos.z + offset_y);
         }
     }
 
@@ -62,7 +62,7 @@ private:
 };
 
 
-inline project_c::NavMesh generate_scene(std::string_view scene_str, project_c::AppProjectC& app, engine::IScene& scene)
+inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_mesh, project_c::AppProjectC& app, engine::IScene& scene)
 {
     std::mt19937 rng(42);
     std::uniform_int_distribution<std::mt19937::result_type> dist6(0, 1);
@@ -73,8 +73,6 @@ inline project_c::NavMesh generate_scene(std::string_view scene_str, project_c::
         std::vector<engine_coords_2d_t> enemy_packs;
         std::vector<engine_coords_2d_t> point_lights;
     } scene_spawn_points;
-
-    project_c::NavMesh nav_mesh;
 
     const auto scene_width = (std::int32_t)scene_str.find_first_of('\n');
     const auto scene_height = std::count(scene_str.begin(), scene_str.end(), '\n');
@@ -205,6 +203,7 @@ inline project_c::NavMesh generate_scene(std::string_view scene_str, project_c::
         }
     }
 
+    // at this point nav mesh has to be completed!
 
     for (const auto& point : scene_spawn_points.solider)
     {
@@ -219,7 +218,7 @@ inline project_c::NavMesh generate_scene(std::string_view scene_str, project_c::
         const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
         //const auto spawn_area = MobPackSpawner::SpawnAreaRect{ 0.0f, 0.0f, 0.0f, 0.0f };
         const auto spawn_world_pos = MobPackSpawner::Point{ point.x, point.y };
-        spawner.spawn(pack, 1, spawn_world_pos, spawn_area, app, scene);
+        spawner.spawn(pack, 1, spawn_world_pos, spawn_area, nav_mesh, app, scene);
     }
 
     for (const auto& point : scene_spawn_points.point_lights)
@@ -227,8 +226,6 @@ inline project_c::NavMesh generate_scene(std::string_view scene_str, project_c::
         auto l = scene.register_script<project_c::PointLight>();
         l->set_world_position(point.x, 1.0f, point.y);
     }
-
-    return nav_mesh;
 }
 
 
@@ -274,13 +271,5 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         "xxxxxxxxxxx\n";
 
     auto typed_app = static_cast<AppProjectC*>(app);
-    static auto nav_mesh = generate_scene(scene_str, *typed_app, *this);
-
-    for (auto& s : scripts_register_queue_)
-    {
-        if (auto* e = dynamic_cast<Enemy*>(s))
-        {
-            e->nav_mesh_ = &nav_mesh;
-        }
-    }
+    generate_scene(scene_str, nav_mesh_, *typed_app, *this);
 }

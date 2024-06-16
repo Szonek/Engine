@@ -11,9 +11,10 @@
 #include <glm/gtc/type_ptr.hpp>
 
 
-project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, float offset_x, float offset_z)
+project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const NavMesh* nav_mesh, float offset_x, float offset_z)
     : BaseNode(my_scene, pr, "enemy")
     , state_(States::DECISION_MAKE)
+    , nav_mesh_(nav_mesh)
 {
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
