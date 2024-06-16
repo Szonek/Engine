@@ -45,6 +45,34 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
     }
 }
 
+
+project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go)
+    : BaseNode(my_scene, go, "dagger")
+{
+    const auto scene = my_scene_->get_handle();
+    const auto app = my_scene_->get_app_handle();
+
+    auto tc = engineSceneGetTransformComponent(scene, go_);
+    tc.position[0] = 0.0f;
+    tc.position[1] = 0.4f;
+    tc.position[2] = 0.0f;
+
+    tc.scale[0] = 3.0f;
+    tc.scale[1] = 3.0f;
+    tc.scale[2] = 3.0f;
+
+    auto rotation = glm::angleAxis(glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    rotation *= glm::angleAxis(glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+    auto mc = engineSceneAddMaterialComponent(scene, go_);
+    mc.material = engineApplicationGetMaterialByName(app, "dagger_01");
+    engineSceneUpdateMaterialComponent(scene, go_, &mc);
+
+}
+
+
 project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_object_t go)
     : BaseNode(my_scene, go, "attack-trigger")
 {

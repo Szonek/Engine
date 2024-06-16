@@ -11,6 +11,13 @@ public:
     Sword(engine::IScene* my_scene, engine_game_object_t go);
 };
 
+class Dagger : public BaseNode
+{
+public:
+    Dagger(engine::IScene* my_scene, engine_game_object_t go);
+};
+
+
 class AttackTrigger : public BaseNode
 {
 public:

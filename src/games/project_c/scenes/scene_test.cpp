@@ -265,11 +265,19 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         //"xxxxxxxxxxx\n"
         //"x    p    x\n"
         //"x         x\n"
-        "x    eee  x\n"
-        "xs   eee  x\n"
-        "x    eee  x\n";
+        "x     ee  x\n"
+        "xs    ee  x\n"
+        "x     ee  x\n";
         //"xxxxxxxxxxx\n";
 
     auto typed_app = static_cast<AppProjectC*>(app);
     generate_scene(scene_str, nav_mesh_, *typed_app, *this);
+    register_script<project_c::Dagger>(typed_app->instantiate_prefab(project_c::PREFAB_TYPE_DAGGER, this).go);
+
+}
+
+project_c::TestScene::~TestScene()
+{
+    engineUiDataHandleDestroy(ui_data_.handle);
+    engineApplicationUiDocumentDestroy(ui_data_.doc);
 }
