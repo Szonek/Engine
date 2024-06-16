@@ -255,20 +255,20 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         engineUiDocumentShow(ui_data_.doc);
     }
 
-    const std::string scene_str = 
-        "xxxxxxxxxxx\n"
-        "x         x\n"
-        "x         x\n"
-        "x         x\n"
-        "x         x\n"
-        "x     x   x\n"
-        "xxxxxxxxxxx\n"
-        "x    p    x\n"
-        "x         x\n"
+    const std::string scene_str =
+        //"xxxxxxxxxxx\n"
+        //"x         x\n"
+        //"x         x\n"
+        //"x         x\n"
+        //"x         x\n"
+        //"x     x   x\n"
+        //"xxxxxxxxxxx\n"
+        //"x    p    x\n"
+        //"x         x\n"
         "x    eee  x\n"
         "xs   eee  x\n"
-        "x    eee  x\n"
-        "xxxxxxxxxxx\n";
+        "x    eee  x\n";
+        //"xxxxxxxxxxx\n";
 
     auto typed_app = static_cast<AppProjectC*>(app);
     generate_scene(scene_str, nav_mesh_, *typed_app, *this);
