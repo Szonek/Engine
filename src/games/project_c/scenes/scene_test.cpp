@@ -215,8 +215,8 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
     {
         EnemyPack pack{ {project_c::PrefabType::PREFAB_TYPE_ORC} };
         MobPackSpawner spawner;
-        const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
-        //const auto spawn_area = MobPackSpawner::SpawnAreaRect{ 0.0f, 0.0f, 0.0f, 0.0f };
+        //const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
+        const auto spawn_area = MobPackSpawner::SpawnAreaRect{ 0.0f, 0.0f, 0.0f, 0.0f };
         const auto spawn_world_pos = MobPackSpawner::Point{ point.x, point.y };
         spawner.spawn(pack, 1, spawn_world_pos, spawn_area, nav_mesh, app, scene);
     }
@@ -262,12 +262,12 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         "x         x\n"
         "x         x\n"
         "x     x   x\n"
-        "xxxxxxxx  x\n"
-        "xs   p    x\n"
+        "xxxxxxxxxxx\n"
+        "x    p    x\n"
         "x         x\n"
-        "x    e    x\n"
-        "x         x\n"
-        "x         x\n"
+        "x    eee  x\n"
+        "xs   eee  x\n"
+        "x    eee  x\n"
         "xxxxxxxxxxx\n";
 
     auto typed_app = static_cast<AppProjectC*>(app);
