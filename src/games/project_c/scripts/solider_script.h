@@ -3,6 +3,8 @@
 
 #include <chrono>
 
+#include <glm/glm.hpp>
+
 namespace project_c
 {
 class Sword : public BaseNode
@@ -14,7 +16,17 @@ public:
 class Dagger : public BaseNode
 {
 public:
-    Dagger(engine::IScene* my_scene, engine_game_object_t go);
+    struct Config
+    {
+        glm::vec3 start_position;
+        glm::vec3 end_position;
+    };
+    Dagger(engine::IScene* my_scene, engine_game_object_t go, const Config& config);
+
+    void update(float dt) override;
+
+private:
+    Config config_;
 };
 
 
@@ -40,6 +52,7 @@ private:
         ATTACK,
         MOVE,
         DODGE,
+        SKILL_1
     };
 
     struct GlobalStateData
@@ -104,6 +117,15 @@ private:
         }
     };
 
+    struct Skill_1_StateData
+    {
+        bool animation_started = false;
+        inline const char* get_animation_name() const
+        {
+            return "attack-melee-left";
+        }
+    };
+
 public:
     Solider(engine::IScene* my_scene, const PrefabResult& pr);
 
@@ -113,6 +135,7 @@ private:
     AttackTrigger* attack_trigger_;
     States state_;
     AttackStateData attack_data_;
+    Skill_1_StateData skill_1_data_;
     GlobalStateData global_data_;
     DodgeStateData dodge_data_;
 

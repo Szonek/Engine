@@ -46,16 +46,16 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
 }
 
 
-project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go)
+project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go, const Config& config)
     : BaseNode(my_scene, go, "dagger")
 {
-    const auto scene = my_scene_->get_handle();
-    const auto app = my_scene_->get_app_handle();
+    const auto scene = my_scene->get_handle();
+    const auto app = my_scene->get_app_handle();
 
-    auto tc = engineSceneGetTransformComponent(scene, go_);
-    tc.position[0] = 0.0f;
-    tc.position[1] = 0.4f;
-    tc.position[2] = 0.0f;
+    auto tc = engineSceneGetTransformComponent(scene, go);
+    tc.position[0] = config.start_position[0];
+    tc.position[1] = config.start_position[1];
+    tc.position[2] = config.start_position[2];
 
     tc.scale[0] = 3.0f;
     tc.scale[1] = 3.0f;
@@ -64,11 +64,16 @@ project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go)
     auto rotation = glm::angleAxis(glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     rotation *= glm::angleAxis(glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
-    engineSceneUpdateTransformComponent(scene, go_, &tc);
+    engineSceneUpdateTransformComponent(scene, go, &tc);
 
-    auto mc = engineSceneAddMaterialComponent(scene, go_);
+    auto mc = engineSceneAddMaterialComponent(scene, go);
     mc.material = engineApplicationGetMaterialByName(app, "dagger_01");
-    engineSceneUpdateMaterialComponent(scene, go_, &mc);
+    engineSceneUpdateMaterialComponent(scene, go, &mc);
+}
+
+
+void project_c::Dagger::update(float dt)
+{
 
 }
 
@@ -224,6 +229,10 @@ void project_c::Solider::update(float dt)
         cc.collider.compound.children->collider.box.size[2] = 0.3f;
         engineSceneUpdateColliderComponent(scene, attack_trigger_->get_game_object(), &cc);
     }
+    else if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_Q))
+    {
+        state_ = States::SKILL_1;
+    }
     switch (state_)
     {
     case States::IDLE:
@@ -251,6 +260,31 @@ void project_c::Solider::update(float dt)
             //tc.position[1] += forward.y * speed;  // dont go up!
             tc.position[2] += forward.z * speed;
             engineSceneUpdateTransformComponent(scene, go_, &tc);
+        }
+        break;
+    }
+    case States::SKILL_1:
+    {
+        if (skill_1_data_.animation_started)
+        {
+            if (!anim_controller_.is_active_animation(skill_1_data_.get_animation_name()))
+            {
+                state_ = States::IDLE;
+                skill_1_data_ = {};
+            }
+        }
+        else
+        {
+            rotate_towards_global_target();
+            anim_controller_.set_active_animation(skill_1_data_.get_animation_name());
+            skill_1_data_.animation_started = true;
+            auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
+
+            auto tc = engineSceneGetTransformComponent(scene, go_);
+            Dagger::Config config{};
+            config.start_position = { tc.position[0], 0.5f, tc.position[2] };
+            config.end_position = { global_data_.last_mouse_hit.position[0], 0.5f, global_data_.last_mouse_hit.position[2] };
+            auto skill_1 = my_scene_->register_script<project_c::Dagger>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_DAGGER, my_scene_).go, config);
         }
         break;
     }

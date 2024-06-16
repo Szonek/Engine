@@ -272,7 +272,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
 
     auto typed_app = static_cast<AppProjectC*>(app);
     generate_scene(scene_str, nav_mesh_, *typed_app, *this);
-    register_script<project_c::Dagger>(typed_app->instantiate_prefab(project_c::PREFAB_TYPE_DAGGER, this).go);
+    //register_script<project_c::Dagger>(typed_app->instantiate_prefab(project_c::PREFAB_TYPE_DAGGER, this).go);
 
 }
 
