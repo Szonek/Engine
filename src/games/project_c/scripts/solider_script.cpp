@@ -95,12 +95,18 @@ void project_c::Dagger::update(float dt)
     const auto app = my_scene_->get_app_handle();
     auto tc = engineSceneGetTransformComponent(scene, go_);
 
-    const float speed_cooef = 0.002f;
+    const float speed_cooef = 0.008f;
     const float speed = speed_cooef * dt;
     const glm::vec3 forward = glm::normalize(config_.direction * glm::vec3(0.0f, 0.0f, 1.0f));
     tc.position[0] += forward.x * speed;
     tc.position[2] += forward.z * speed;
     engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+    const auto distance = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(config_.start_position[0], config_.start_position[2]));
+    if(distance > 3.0f)
+    {
+        config_.destroy_on_next_frame = true;
+    }
 }
 
 void project_c::Dagger::on_collision(const collision_t& info)
