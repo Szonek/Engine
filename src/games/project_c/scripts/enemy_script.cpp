@@ -87,6 +87,8 @@ void project_c::Enemy::update(float dt)
         {
             state_ = States::DIE;
             anim_controller_.set_active_animation("die");
+            // remove collider so enemy will not be hit by players attacks
+            engineSceneRemoveColliderComponent(scene, go_);
         }
         else
         {
