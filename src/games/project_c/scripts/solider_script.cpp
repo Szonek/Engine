@@ -122,17 +122,51 @@ void project_c::Dagger::on_collision(const collision_t& info)
         // spawn next dagger
         if (config_.ricochet_count > 1)
         {
-            config_.ricochet_count--;
-            
-            auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
+            const auto enemies = utils::get_game_objects_with_name(my_scene_->get_handle(), "enemy");
+            if (enemies.size() > 1)
+            {
+                config_.ricochet_count--;
+                engine_game_object_t go_closest = ENGINE_INVALID_GAME_OBJECT_ID;
+                float distance = std::numeric_limits<float>::max();
+                for (const auto& go : enemies)
+                {
+                    if (go != info.other)
+                    {
+                        if (go_closest == ENGINE_INVALID_GAME_OBJECT_ID)
+                        {
+                            go_closest = go;
+                        }
+                        else
+                        {
+                            const auto tc = engineSceneGetTransformComponent(my_scene_->get_handle(), go);
+                            const auto tc_closest = engineSceneGetTransformComponent(my_scene_->get_handle(), go_closest);
+                            const auto distance_closest = glm::distance(glm::vec2(tc_closest.position[0], tc_closest.position[2]), glm::vec2(tc.position[0], tc.position[2]));
+                            if (distance_closest < distance)
+                            {
+                                distance = distance_closest;
+                                go_closest = go;
+                            }
+                        }
+                    }
+                }
 
-            const auto etc = engineSceneGetTransformComponent(my_scene_->get_handle(), info.other);
-            Config ricochet_config{};
-            ricochet_config.ricochet_count = config_.ricochet_count;
-            ricochet_config.start_position = { info.contact_points[0].point[0], info.contact_points[0].point[1], info.contact_points[0].point[2] };
-            ricochet_config.direction = glm::angleAxis(glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-            ricochet_config.ignore_go = info.other;
-            auto new_dagger = my_scene_->register_script<project_c::Dagger>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_DAGGER, my_scene_).go, ricochet_config);
+                if (go_closest != ENGINE_INVALID_GAME_OBJECT_ID)
+                {
+                    auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
+
+                    const auto etc = engineSceneGetTransformComponent(my_scene_->get_handle(), info.other);
+                    const auto gctc = engineSceneGetTransformComponent(my_scene_->get_handle(), go_closest);
+                    Config ricochet_config{};
+                    ricochet_config.ricochet_count = config_.ricochet_count;
+                    ricochet_config.start_position = { info.contact_points[0].point[0], info.contact_points[0].point[1], info.contact_points[0].point[2] };
+
+                    ricochet_config.direction = utils::rotate_toward(glm::vec3(etc.position[0], etc.position[1], etc.position[2]), glm::vec3(gctc.position[0], gctc.position[1], gctc.position[2]));
+                    ricochet_config.ignore_go = info.other;
+                    auto new_dagger = my_scene_->register_script<project_c::Dagger>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_DAGGER, my_scene_).go, ricochet_config);
+                }
+
+            }
+
         }
 
         return; // to not hit more enemies;
@@ -346,7 +380,7 @@ void project_c::Solider::update(float dt)
             Dagger::Config config{};
             config.start_position = { tc.position[0], 0.5f, tc.position[2] };
             config.direction = glm::make_quat(tc.rotation);
-            config.ricochet_count = 2;
+            config.ricochet_count = 4;
             auto skill_1 = my_scene_->register_script<project_c::Dagger>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_DAGGER, my_scene_).go, config);
         }
         break;
