@@ -103,7 +103,7 @@ void project_c::Dagger::update(float dt)
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     const auto distance = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(config_.start_position[0], config_.start_position[2]));
-    if(distance > 3.0f)
+    if(distance > 3.5f)
     {
         config_.destroy_on_next_frame = true;
     }
@@ -111,10 +111,30 @@ void project_c::Dagger::update(float dt)
 
 void project_c::Dagger::on_collision(const collision_t& info)
 {
+    if (info.other == config_.ignore_go)
+    {
+        return;
+    }
     if (auto* enemy = my_scene_->get_script<Enemy>(info.other))
     {
         enemy->hp -= 10;
         config_.destroy_on_next_frame = true;
+        // spawn next dagger
+        if (config_.ricochet_count > 1)
+        {
+            config_.ricochet_count--;
+            
+            auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
+
+            const auto etc = engineSceneGetTransformComponent(my_scene_->get_handle(), info.other);
+            Config ricochet_config{};
+            ricochet_config.ricochet_count = config_.ricochet_count;
+            ricochet_config.start_position = { info.contact_points[0].point[0], info.contact_points[0].point[1], info.contact_points[0].point[2] };
+            ricochet_config.direction = glm::angleAxis(glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+            ricochet_config.ignore_go = info.other;
+            auto new_dagger = my_scene_->register_script<project_c::Dagger>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_DAGGER, my_scene_).go, ricochet_config);
+        }
+
         return; // to not hit more enemies;
     }
 }
@@ -326,6 +346,7 @@ void project_c::Solider::update(float dt)
             Dagger::Config config{};
             config.start_position = { tc.position[0], 0.5f, tc.position[2] };
             config.direction = glm::make_quat(tc.rotation);
+            config.ricochet_count = 2;
             auto skill_1 = my_scene_->register_script<project_c::Dagger>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_DAGGER, my_scene_).go, config);
         }
         break;

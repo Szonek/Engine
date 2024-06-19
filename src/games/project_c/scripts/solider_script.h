@@ -20,6 +20,8 @@ public:
     {
         glm::vec3 start_position;
         glm::quat direction;
+        std::uint32_t ricochet_count = 1;
+        engine_game_object_t ignore_go = ENGINE_INVALID_GAME_OBJECT_ID;
         bool destroy_on_next_frame = false;
     };
     Dagger(engine::IScene* my_scene, engine_game_object_t go, const Config& config);
