@@ -599,7 +599,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                                 switch (shader_type)
                                 {
                                     case ENGINE_SHADER_TYPE_LIT:
-                                    //    return ShaderType::eLit;
+                                        return ShaderType::eLit;
                                     case ENGINE_SHADER_TYPE_UNLIT:
                                         return ShaderType::eUnlit;
                                     default:
@@ -656,7 +656,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                                 switch (shader_type)
                                 {
                                 case ENGINE_SHADER_TYPE_LIT:
-                                //    return ShaderType::eVertexSkinningLit;
+                                    return ShaderType::eVertexSkinningLit;
                                 case ENGINE_SHADER_TYPE_UNLIT:
                                     return ShaderType::eVertexSkinningUnlit;
                                 default:

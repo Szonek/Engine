@@ -125,7 +125,7 @@ project_c::MainLight::MainLight(engine::IScene* my_scene)
     // light component
     auto lc = engineSceneAddLightComponent(scene, go_);
     lc.type = ENGINE_LIGHT_TYPE_DIRECTIONAL;
-    set_c_array(lc.intensity.ambient, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
+    set_c_array(lc.intensity.ambient, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
     set_c_array(lc.intensity.diffuse, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
     set_c_array(lc.intensity.specular, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
     set_c_array(lc.directional.direction, std::array<float, 3>{ 0.0f, 1.0f, 0.0f });
