@@ -8,6 +8,9 @@
 #include <map>
 #include <fmt/format.h>
 
+//ToDo: find a way to remove this
+inline std::vector<engine_material_t> g_temp_materials;
+
 namespace
 {
 inline engine_application_create_desc_t app_cd()
@@ -64,14 +67,27 @@ project_c::AppProjectC::AppProjectC()
         mat.diffuse_color[0] = 1.0f;
         mat.diffuse_color[1] = 0.0f;
         mat.diffuse_color[2] = 0.0f;
-        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "debug_path_node_mat", nullptr);
+        engine_material_t mat_out = {};
+        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "debug_path_node_mat", &mat_out);
+        g_temp_materials.push_back(mat_out);
     }
 
     {
         auto mat = engineApplicationInitMaterialDesc(get_handle());
         mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
         set_c_array(mat.diffuse_color, std::array<float, 3>{0.9f, 0.9f, 0.9f});
-        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "dagger_01", nullptr);
+        engine_material_t mat_out = {};
+        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "dagger_01", &mat_out);
+        g_temp_materials.push_back(mat_out);
+    }
+
+    {
+        auto mat = engineApplicationInitMaterialDesc(get_handle());
+        mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
+        set_c_array(mat.diffuse_color, std::array<float, 3>{1.0f, 1.0f, 1.0f});
+        engine_material_t mat_out = {};
+        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "health_bar_mat", &mat_out);
+        g_temp_materials.push_back(mat_out);
     }
 
 
@@ -87,16 +103,11 @@ project_c::AppProjectC::AppProjectC()
 
 project_c::AppProjectC::~AppProjectC()
 {
-    auto mat = engineApplicationGetMaterialByName(get_handle(), "debug_path_node_mat");
-    if (mat != ENGINE_INVALID_OBJECT_HANDLE)
+    for(auto& m : g_temp_materials)
     {
-        engineApplicationDestroyMaterial(get_handle(), mat);
+        engineApplicationDestroyMaterial(get_handle(), m);
     }
-    mat = engineApplicationGetMaterialByName(get_handle(), "dagger_01");
-    if (mat != ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        engineApplicationDestroyMaterial(get_handle(), mat);
-    }
+    g_temp_materials.clear();
 }
 
 project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType type, engine::IScene* scene)

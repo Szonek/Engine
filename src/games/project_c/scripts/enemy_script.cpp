@@ -194,12 +194,17 @@ project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, engine_game_
     tc.scale[0] = 0.4f;
     tc.scale[1] = 0.05f;
     tc.scale[2] = 0.01f;
-
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     auto sc = engineSceneAddParentComponent(scene, go_);
     sc.parent = enemy->get_game_object();
     engineSceneUpdateParentComponent(scene, go_, &sc);
+
+    auto mc = engineSceneGetMaterialComponent(scene, go_);
+    mc.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "health_bar_mat");
+    assert(mc.material != ENGINE_INVALID_OBJECT_HANDLE);
+    engineSceneUpdateMaterialComponent(scene, go_, &mc);
+    
 }
 
 project_c::EnemyHealthBar::~EnemyHealthBar()
