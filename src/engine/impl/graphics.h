@@ -59,7 +59,7 @@ public:
 	};
 public:
     Shader() = default;
-	Shader(std::vector<std::string_view> vertex_shader_name, std::vector<std::string_view> fragment_shader_name);
+	Shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name);
 	Shader(const Shader& rhs) = delete;
     Shader(Shader&& rhs) noexcept;
 	Shader& operator=(const Shader& rhs) = delete;
@@ -76,7 +76,7 @@ public:
 	void set_uniform_f1(std::string_view name, const float host_data);
 	void set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data);
 	void set_uniform_mat_f4(std::string_view name, std::span<const float> host_data);
-	void set_uniform_block(std::string_view name, class UniformBuffer* buffer, std::uint32_t bind_index);
+	void set_uniform_block(std::string_view name, const class UniformBuffer* buffer, std::uint32_t bind_index);
 
     void set_texture(std::string_view name, const class Texture2D* textur);
 

@@ -144,16 +144,6 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
         default_texture_idx_ = add_texture(tex2d_desc, "default_1x1_texutre");
 	}
 
-    {
-        engine_material_create_desc_t default_material_create_desc{};
-        for (int i = 0; i < 3; i++)
-        {
-            default_material_create_desc.diffuse_color[i] = 1.0f;
-        }
-        default_material_create_desc.diffuse_texture = default_texture_idx_;
-        default_material_ = add_material(default_material_create_desc, "default_material");
-    }
-
     rdx_.set_clear_color(0.05f, 0.0f, 0.2f, 1.0f);
 
 	timer_.tick();
@@ -166,10 +156,6 @@ engine::Application::~Application()
     if (default_texture_idx_ != ENGINE_INVALID_OBJECT_HANDLE)
     {
         destroy_texture(default_texture_idx_);
-    }
-    if (default_material_ != ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        destroy_material(default_material_);
     }
 }
 
@@ -203,8 +189,7 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 	const auto ret_code = scene->update(delta_time,
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
-        materials_atlas_.get_objects_view(),
-        nav_mesh_atlas_.get_objects_view());
+        shader_atlas_.get_objects_view());
     on_scene_update_post(scene, delta_time);
 
     return ret_code;
@@ -406,19 +391,19 @@ void engine::Application::destroy_geometry(std::uint32_t idx)
     geometries_atlas_.remove_object(idx);
 }
 
-std::uint32_t engine::Application::add_material(const engine_material_create_desc_t& desc, std::string_view name)
+std::uint32_t engine::Application::add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name)
 {
-    return materials_atlas_.add_object(name, engine_material_create_desc_t(desc));
+    return shader_atlas_.add_object(name, Shader(vertex_shader_name, fragment_shader_name));
 }
 
-std::uint32_t engine::Application::get_material(std::string_view name) const
+std::uint32_t engine::Application::get_shader(std::string_view name) const
 {
-    return materials_atlas_.get_object(name);
+    return shader_atlas_.get_object(name);
 }
 
-void engine::Application::destroy_material(std::uint32_t idx)
+void engine::Application::destroy_shader(std::uint32_t idx)
 {
-    materials_atlas_.remove_object(idx);
+    shader_atlas_.remove_object(idx);
 }
 
 engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir)

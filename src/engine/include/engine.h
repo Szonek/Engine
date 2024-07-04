@@ -9,6 +9,7 @@
 #include "components/rigid_body_component.h"
 #include "components/collider_component.h"
 #include "components/parent_component.h"
+#include "components/sprite_component.h"
 
 
 #ifdef _WIN32
@@ -48,6 +49,10 @@ typedef uint32_t engine_material_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_animation_controller_t;
+typedef uint32_t engine_shader_t;
+
+
+
 
 typedef struct _engine_coords_2d_t
 {
@@ -339,6 +344,18 @@ typedef struct _engine_collision_info_t
 
 } engine_collision_info_t;
 
+typedef struct _engine_uniform_buffer_create_desc_t
+{
+    uint32_t size;
+} engine_uniform_buffer_create_desc_t;
+
+// can provide multiple files per shader to i.e.: support include files
+typedef struct _engine_shader_create_desc_t
+{
+    const char* const* vertex_shader_filenames;  // null terminated array of string
+    const char* const* fragment_shader_filenames; // null terminated array of string
+} engine_shader_create_desc_t;
+
 typedef enum _engine_model_specification_t
 {
     ENGINE_MODEL_SPECIFICATION_GLTF_2
@@ -378,22 +395,6 @@ typedef struct _engine_animation_clip_create_desc_t
     uint32_t channels_count;
 } engine_animation_clip_create_desc_t;
 
-typedef enum _engine_shader_type_t
-{
-    ENGINE_SHADER_TYPE_LIT = 0, // phong shading, directional, point, spot lights
-    ENGINE_SHADER_TYPE_UNLIT,   // no lights
-    ENGINE_SHADER_TYPE_COUNT
-} engine_shader_type_t;
-
-typedef struct _engine_material_create_desc_t
-{
-    engine_shader_type_t shader_type;
-    float diffuse_color[3];
-    engine_texture2d_t diffuse_texture;
-    uint32_t shininess;
-    engine_texture2d_t specular_texture;
-} engine_material_create_desc_t;
-
 typedef struct _engine_bones_create_desc_t
 {
     uint32_t model_node_index;
@@ -410,7 +411,7 @@ typedef struct _engine_skin_reate_desc_t
 typedef struct _engine_model_material_desc_t
 {
     const char* name;
-    float diffuse_color[3];
+    float diffuse_color[4];
     uint32_t diffuse_texture_index;  // -1 if not used
 } engine_model_material_desc_t;
 
@@ -501,6 +502,11 @@ ENGINE_API engine_application_frame_begine_info_t engineApplicationFrameBegine(e
 ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpdate(engine_application_t handle, engine_scene_t scene, float delta_time);
 ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engine_application_t handle);
 
+// pipeline state objects and GPU buffers
+ENGINE_API engine_result_code_t engineApplicationCreateShader(engine_application_t handle, const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out);
+ENGINE_API engine_shader_t engineApplicationGetShaderByName(engine_application_t handle, const char* name);
+ENGINE_API void engineApplicationDestroyShader(engine_application_t handle, engine_shader_t pso);
+
 // fonts
 ENGINE_API engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name);
 
@@ -513,12 +519,6 @@ ENGINE_API engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_a
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 ENGINE_API engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_application_t handle, engine_geometry_t geometry, engine_vertex_attribute_type_t type);
 ENGINE_API void engineApplicationDestroyGeometry(engine_application_t handle, engine_geometry_t geometry);
-
-// material
-ENGINE_API engine_material_create_desc_t engineApplicationInitMaterialDesc(engine_application_t handle);
-ENGINE_API engine_result_code_t engineApplicationCreateMaterialFromDesc(engine_application_t handle, const engine_material_create_desc_t* desc, const char* name, engine_material_t* out);
-ENGINE_API engine_material_t    engineApplicationGetMaterialByName(engine_application_t handle, const char* name);
-ENGINE_API void engineApplicationDestroyMaterial(engine_application_t handle, engine_material_t material);
 
 // textures 
 ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out);
@@ -617,6 +617,13 @@ ENGINE_API engine_light_component_t engineSceneGetLightComponent(engine_scene_t 
 ENGINE_API void engineSceneUpdateLightComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_light_component_t* comp);
 ENGINE_API void engineSceneRemoveLightComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasLightComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+// sprite component
+ENGINE_API engine_sprite_component_t engineSceneAddSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_sprite_component_t engineSceneGetSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateSpriteComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_sprite_component_t* comp);
+ENGINE_API void engineSceneRemoveSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
 
 // camera component
 ENGINE_API engine_camera_component_t engineSceneAddCameraComponent(engine_scene_t scene, engine_game_object_t game_object);

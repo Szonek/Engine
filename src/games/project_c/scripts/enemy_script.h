@@ -3,6 +3,25 @@
 
 namespace project_c
 {
+struct health_bar_gpu_data_t
+{
+    float fill_ratio = 1.0f;
+    float pad0_;
+    float pad1_;
+    float pad2_;
+};
+
+class EnemyHealthBar : public BaseNode
+{
+public:
+    EnemyHealthBar(engine::IScene* my_scene, const class Enemy* enemy);
+    virtual ~EnemyHealthBar();
+
+    void update(float dt);
+private:
+    const class Enemy* enemy_;
+    const std::int32_t max_hp_;
+};
 
 class Enemy : public BaseNode
 {
@@ -37,6 +56,7 @@ public:
     void update(float dt);
 
 private:
+    EnemyHealthBar* health_bar_script_;
     const class NavMesh* nav_mesh_;
     bool triggered_ = false;
     bool attack_right_ = false;

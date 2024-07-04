@@ -30,6 +30,9 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/physics_world.h
 	${ENGINE_SOURCES_DIR}/physics_world.cpp
 
+	${ENGINE_SOURCES_DIR}/material.h
+	${ENGINE_SOURCES_DIR}/material.cpp
+
 	${ENGINE_SOURCES_DIR}/nav_mesh.h
 	${ENGINE_SOURCES_DIR}/nav_mesh.cpp
 	
@@ -75,6 +78,7 @@ set(ENGINE_API_SOURCES
 	${ENGINE_API_COMPONENTS}/collider_component.h
     ${ENGINE_API_COMPONENTS}/parent_component.h
     ${ENGINE_API_COMPONENTS}/nav_component.h
+    ${ENGINE_API_COMPONENTS}/sprite_component.h
 )
 
 set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})

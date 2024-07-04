@@ -4,9 +4,14 @@
 #include "scenes/scene_test.h"
 #include "scenes/scene_city.h"
 
+#include "scripts/enemy_script.h"
+
 #include <chrono>
 #include <map>
 #include <fmt/format.h>
+
+//ToDo: find a way to remove this
+inline std::vector<engine_shader_t> g_temp_shaders;
 
 namespace
 {
@@ -59,21 +64,21 @@ project_c::AppProjectC::AppProjectC()
     }
 
     {
-        auto mat = engineApplicationInitMaterialDesc(get_handle());
-        mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
-        mat.diffuse_color[0] = 1.0f;
-        mat.diffuse_color[1] = 0.0f;
-        mat.diffuse_color[2] = 0.0f;
-        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "debug_path_node_mat", nullptr);
+        const std::array<const char*, 2> vertex_shader_file_names = { "healthbar.vs", nullptr };
+        const std::array<const char*, 2> fragment_shader_file_names = { "healthbar.fs", nullptr };
+        engine_shader_t shader = {};
+        engine_shader_create_desc_t shader_create_desc{};
+        shader_create_desc.vertex_shader_filenames = vertex_shader_file_names.data();
+        shader_create_desc.fragment_shader_filenames = fragment_shader_file_names.data();
+        if (ENGINE_RESULT_CODE_OK == engineApplicationCreateShader(get_handle(), &shader_create_desc, "healthbar_shader", &shader))
+        {
+            g_temp_shaders.push_back(shader);
+        }
+        else
+        {
+            log(fmt::format("Failed to create shader: healthbar_shader\n"));
+        }
     }
-
-    {
-        auto mat = engineApplicationInitMaterialDesc(get_handle());
-        mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
-        set_c_array(mat.diffuse_color, std::array<float, 3>{0.9f, 0.9f, 0.9f});
-        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "dagger_01", nullptr);
-    }
-
 
     const auto load_end = std::chrono::high_resolution_clock::now();
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
@@ -87,15 +92,9 @@ project_c::AppProjectC::AppProjectC()
 
 project_c::AppProjectC::~AppProjectC()
 {
-    auto mat = engineApplicationGetMaterialByName(get_handle(), "debug_path_node_mat");
-    if (mat != ENGINE_INVALID_OBJECT_HANDLE)
+    for (auto& s : g_temp_shaders)
     {
-        engineApplicationDestroyMaterial(get_handle(), mat);
-    }
-    mat = engineApplicationGetMaterialByName(get_handle(), "dagger_01");
-    if (mat != ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        engineApplicationDestroyMaterial(get_handle(), mat);
+        engineApplicationDestroyShader(get_handle(), s);
     }
 }
 

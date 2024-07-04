@@ -320,8 +320,38 @@ bool display_light_component(engine_light_component_t& c)
 
 bool display_material_component(engine_material_component_t& c)
 {
-    ImGui::InputInt("Material ID", reinterpret_cast<std::int32_t*>(&c.material));
-    return true;
+    bool requires_component_updated = false;
+    // list of types
+    const char* items[] = { "Pong", "User" };
+    std::int32_t selected_type = c.type;
+    if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
+    {
+        requires_component_updated = true;
+        c.type = static_cast<engine_material_type_t>(selected_type);
+        // set some valid values when changeed the type
+        std::memset(&c.data, 0, sizeof(c.data));
+        //ToDO: defaults
+    }
+
+
+    if (c.type == ENGINE_MATERIAL_TYPE_PONG)
+    {
+        requires_component_updated |= ImGui::ColorEdit4("Diffuse Color", c.data.pong.diffuse_color);
+        requires_component_updated |= ImGui::SliderFloat("Shininess", &c.data.pong.shininess, 0.0f, 128.0f);
+        requires_component_updated |= ImGui::InputInt("Texture Diffuse ID", reinterpret_cast<std::int32_t*>(&c.data.pong.diffuse_texture));
+        requires_component_updated |= ImGui::InputInt("Texture Specular ID", reinterpret_cast<std::int32_t*>(&c.data.pong.specular_texture));
+    }
+    else if (c.type == ENGINE_MATERIAL_TYPE_USER)
+    {
+        requires_component_updated |= ImGui::InputInt("Shader ID", reinterpret_cast<std::int32_t*>(&c.data.user.shader));
+        for (auto i = 0; i < ENGINE_MATERIAL_USER_MAX_UNIFORM_BUFFER_SIZE; i++)
+        {
+            const std::string tex_name = "Texture_" + std::to_string(i) + " ID";
+            requires_component_updated |= ImGui::InputInt(tex_name.c_str(), reinterpret_cast<std::int32_t*>(&c.data.user.texture_bindings[i]));
+        }
+    }
+
+    return requires_component_updated;
 }
 
 bool display_collider_component(engine_collider_component_t& c)

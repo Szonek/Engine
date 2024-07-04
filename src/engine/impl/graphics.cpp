@@ -117,22 +117,18 @@ inline std::uint32_t to_ogl_texture_border_clamp_mode(engine::TextureAddressClam
 }
 
 
-engine::Shader::Shader(std::vector<std::string_view> vertex_shader_name, std::vector<std::string_view> fragment_shader_name)
+engine::Shader::Shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name)
 : vertex_shader_(0)
 , fragment_shader_(0)
 , program_(glCreateProgram())
 {
     log::log(log::LogLevel::eTrace, fmt::format("[Trace][Program] Creating shaders: \t\n"));
-    for (const auto& s : vertex_shader_name)
-    {
-        log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Vertex shader: {}\n", s));
-    }
-    for (const auto& s : fragment_shader_name)
-    {
-        log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Fragment shader: {}\n", s));
-    }
 	// compile shaders and link to program
 	{
+        for (const auto& s : vertex_shader_name)
+        {
+            log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Vertex shader: {}\n", s));
+        }
         std::vector<std::string> sources;
         sources.reserve(vertex_shader_name.size());
         std::for_each(vertex_shader_name.begin(), vertex_shader_name.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });
@@ -140,6 +136,10 @@ engine::Shader::Shader(std::vector<std::string_view> vertex_shader_name, std::ve
         compile_and_attach_to_program(vertex_shader_, sources);
 	}
 	{
+        for (const auto& s : fragment_shader_name)
+        {
+            log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Fragment shader: {}\n", s));
+        }
         std::vector<std::string> sources;
         sources.reserve(fragment_shader_name.size());
         std::for_each(fragment_shader_name.begin(), fragment_shader_name.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });
@@ -155,6 +155,7 @@ engine::Shader::Shader(std::vector<std::string_view> vertex_shader_name, std::ve
 		std::array<char, 512> info_log;
 		glGetProgramInfoLog(program_, 512, nullptr, info_log.data());
 		log::log(log::LogLevel::eCritical, fmt::format("[Error][Program] Failed program linking: \n\t {}", info_log.data()));
+        assert(false && "Failed shader compilation!");
 	}
 }
 
@@ -238,12 +239,15 @@ void engine::Shader::set_uniform_ui2(std::string_view name, std::span<const std:
     glUniform2ui(loc, host_data[0], host_data[1]);
 }
 
-void engine::Shader::set_uniform_block(std::string_view name, UniformBuffer* buffer, std::uint32_t bind_index)
+void engine::Shader::set_uniform_block(std::string_view name, const UniformBuffer* buffer, std::uint32_t bind_index)
 {
     const auto block_index = glGetUniformBlockIndex(program_, name.data());
-    assert(block_index != -1 && "[ERROR] Cant find uniform block index in the shader.");
-    glUniformBlockBinding(program_, block_index, bind_index);
-    buffer->bind(bind_index);
+    if (block_index != -1)
+    {
+        //assert(block_index != -1 && "[ERROR] Cant find uniform block index in the shader.");
+        glUniformBlockBinding(program_, block_index, bind_index);
+        buffer->bind(bind_index);
+    }
 }
 
 void engine::Shader::set_uniform_mat_f4(std::string_view name, std::span<const float> host_data)

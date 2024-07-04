@@ -2,6 +2,8 @@
 #include "enviorment_script.h"
 #include "scripts_utils.h"
 
+#include "../app.h"
+
 #include "../nav_mesh.h"
 
 #include "iscene.h"
@@ -45,6 +47,9 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     rbc.mass = 1.0f;
     //rbc.mass = 0.0f;
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+
+    // add health bar
+    health_bar_script_ = my_scene_->register_script<project_c::EnemyHealthBar>(this);
 }
 
 project_c::Enemy::~Enemy()
@@ -89,6 +94,10 @@ void project_c::Enemy::update(float dt)
             anim_controller_.set_active_animation("die");
             // remove collider so enemy will not be hit by players attacks
             engineSceneRemoveColliderComponent(scene, go_);
+            // healthbar script will be removed in next frame
+            // it can't be currently called in d-tor, because d-tor destroy all game object hierarchy and healthbar is "child" of this script
+            // calling unregister script in d-tor can result in crash, because dtor will destroy healbars's game object and in the same frame healthabr script can have a chance to call update, which requires correct game object
+            my_scene_->unregister_script(health_bar_script_);
         }
         else
         {
@@ -172,4 +181,50 @@ void project_c::Enemy::update(float dt)
         break;
     }
     }
+}
+
+project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, const Enemy* enemy)
+    : BaseNode(my_scene, "enemy_health_bar")
+    , enemy_(enemy)
+    , max_hp_(enemy->hp)
+{
+    const auto scene = my_scene_->get_handle();
+
+    auto pc = engineSceneAddParentComponent(scene, go_);
+    pc.parent = enemy->get_game_object();
+    engineSceneUpdateParentComponent(scene, go_, &pc);
+
+    auto tc = engineSceneAddTransformComponent(scene, go_);
+    tc.position[1] += 1.0f;
+    tc.scale[0] = 0.2f;
+    tc.scale[1] = 0.025f;
+    tc.scale[2] = 0.02f;
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+    auto mc = engineSceneAddMaterialComponent(scene, go_);
+    mc.type = ENGINE_MATERIAL_TYPE_USER;
+    mc.data.user.shader = engineApplicationGetShaderByName(my_scene_->get_app_handle(), "healthbar_shader");
+    auto gpu_data = reinterpret_cast<health_bar_gpu_data_t*>(mc.data.user.uniform_data_buffer);
+    gpu_data->fill_ratio = 1.0f;
+    engineSceneUpdateMaterialComponent(scene, go_, &mc);
+
+    auto sc = engineSceneAddSpriteComponent(scene, go_);
+    //sc.width = 1.0f;
+    //sc.height = 1.0f;
+    engineSceneUpdateSpriteComponent(scene, go_, &sc);   
+}
+
+project_c::EnemyHealthBar::~EnemyHealthBar()
+{
+}
+
+void project_c::EnemyHealthBar::update(float dt)
+{
+    const auto scene = my_scene_->get_handle();
+    assert(enemy_);   
+
+    auto mc = engineSceneGetMaterialComponent(scene, go_);
+    auto gpu_data = reinterpret_cast<health_bar_gpu_data_t*>(mc.data.user.uniform_data_buffer);
+    gpu_data->fill_ratio = float(enemy_->hp) / float(max_hp_);
+    engineSceneUpdateMaterialComponent(scene, go_, &mc);
 }
