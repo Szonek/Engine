@@ -4,6 +4,18 @@
 namespace project_c
 {
 
+class EnemyHealthBar : public BaseNode
+{
+public:
+    EnemyHealthBar(engine::IScene* my_scene, engine_game_object_t go, const class Enemy* enemy);
+    virtual ~EnemyHealthBar();
+
+    void update(float dt);
+private:
+    const class Enemy* enemy_;
+    const std::int32_t max_hp_;
+};
+
 class Enemy : public BaseNode
 {
 private:
@@ -37,6 +49,7 @@ public:
     void update(float dt);
 
 private:
+    EnemyHealthBar* health_bar_script_;
     const class NavMesh* nav_mesh_;
     bool triggered_ = false;
     bool attack_right_ = false;

@@ -2,6 +2,8 @@
 #include "enviorment_script.h"
 #include "scripts_utils.h"
 
+#include "../app.h"
+
 #include "../nav_mesh.h"
 
 #include "iscene.h"
@@ -45,10 +47,16 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     rbc.mass = 1.0f;
     //rbc.mass = 0.0f;
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+
+    // add attack trigger
+    auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
+    assert(my_app != nullptr);
+    my_scene_->register_script<project_c::EnemyHealthBar>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_CUBE, my_scene).go, this);
 }
 
 project_c::Enemy::~Enemy()
 {
+    my_scene_->unregister_script(health_bar_script_);
     utils::delete_game_objects_hierarchy(my_scene_->get_handle(), go_);
 }
 
@@ -172,4 +180,36 @@ void project_c::Enemy::update(float dt)
         break;
     }
     }
+}
+
+project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, engine_game_object_t go, const Enemy* enemy)
+    : BaseNode(my_scene, go, "enemy_health_bar")
+    , enemy_(enemy)
+    , max_hp_(enemy->hp)
+{
+    const auto scene = my_scene_->get_handle();
+    auto tc = engineSceneGetTransformComponent(scene, go_);
+    tc.position[1] += 1.0f;
+
+    tc.scale[0] = 0.4f;
+    tc.scale[1] = 0.05f;
+    tc.scale[2] = 0.01f;
+
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+    auto sc = engineSceneAddParentComponent(scene, go_);
+    sc.parent = enemy->get_game_object();
+    engineSceneUpdateParentComponent(scene, go_, &sc);
+}
+
+project_c::EnemyHealthBar::~EnemyHealthBar()
+{
+}
+
+void project_c::EnemyHealthBar::update(float dt)
+{
+    //const auto scene = my_scene_->get_handle();
+    //assert(enemy_);
+    const auto enemy_pos = enemy_->hp;
+
 }
