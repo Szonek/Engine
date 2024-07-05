@@ -48,6 +48,13 @@ void engine::initialize_light_component(entt::registry& registry, entt::entity e
 
 }
 
+void engine::initialize_sprite_component(entt::registry& registry, entt::entity entity)
+{
+    auto& comp = get_zero_init_component<engine_sprite_component_t>(registry, entity);
+    comp.width = 1.0f;
+    comp.height = 1.0f;
+}
+
 
 void engine::initialize_material_component(entt::registry& registry, entt::entity entity)
 {

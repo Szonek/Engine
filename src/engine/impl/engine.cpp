@@ -837,6 +837,31 @@ bool engineSceneHasLightComponent(engine_scene_t scene, engine_game_object_t gam
     return has_component<engine_light_component_t>(scene, game_object);
 }
 
+engine_sprite_component_t engineSceneAddSpriteComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_sprite_component_t>(scene, game_object);
+}
+
+engine_sprite_component_t engineSceneGetSpriteComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_sprite_component_t>(scene, game_object);
+}
+
+void engineSceneUpdateSpriteComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_sprite_component_t* comp)
+{
+    update_component(scene, game_object, comp);
+}
+
+void engineSceneRemoveSpriteComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_sprite_component_t>(scene, game_object);
+}
+
+bool engineSceneHasSpriteComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_sprite_component_t>(scene, game_object);
+}
+
 engine_camera_component_t engineSceneAddCameraComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return add_component<engine_camera_component_t>(scene, game_object);

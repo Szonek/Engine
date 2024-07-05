@@ -9,6 +9,7 @@
 #include "components/rigid_body_component.h"
 #include "components/collider_component.h"
 #include "components/parent_component.h"
+#include "components/sprite_component.h"
 
 
 #ifdef _WIN32
@@ -617,6 +618,13 @@ ENGINE_API engine_light_component_t engineSceneGetLightComponent(engine_scene_t 
 ENGINE_API void engineSceneUpdateLightComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_light_component_t* comp);
 ENGINE_API void engineSceneRemoveLightComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasLightComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+// sprite component
+ENGINE_API engine_sprite_component_t engineSceneAddSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_sprite_component_t engineSceneGetSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateSpriteComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_sprite_component_t* comp);
+ENGINE_API void engineSceneRemoveSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
 
 // camera component
 ENGINE_API engine_camera_component_t engineSceneAddCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
