@@ -14,6 +14,7 @@ class Scene
     {
         eUnlit = 0,
         eLit,
+        eBillboard,
         eFullScreenQuad,
         eVertexSkinningUnlit,
         eVertexSkinningLit,

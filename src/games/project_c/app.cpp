@@ -81,16 +81,6 @@ project_c::AppProjectC::AppProjectC()
         g_temp_materials.push_back(mat_out);
     }
 
-    {
-        auto mat = engineApplicationInitMaterialDesc(get_handle());
-        mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
-        set_c_array(mat.diffuse_color, std::array<float, 3>{1.0f, 1.0f, 1.0f});
-        engine_material_t mat_out = {};
-        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "health_bar_mat", &mat_out);
-        g_temp_materials.push_back(mat_out);
-    }
-
-
     const auto load_end = std::chrono::high_resolution_clock::now();
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
     log(fmt::format("Model loading took: {}\n", ms_load_time));

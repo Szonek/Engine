@@ -7,7 +7,7 @@ namespace project_c
 class EnemyHealthBar : public BaseNode
 {
 public:
-    EnemyHealthBar(engine::IScene* my_scene, engine_game_object_t go, const class Enemy* enemy);
+    EnemyHealthBar(engine::IScene* my_scene, const class Enemy* enemy);
     virtual ~EnemyHealthBar();
 
     void update(float dt);

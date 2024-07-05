@@ -48,10 +48,8 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     //rbc.mass = 0.0f;
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 
-    // add attack trigger
-    auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
-    assert(my_app != nullptr);
-    my_scene_->register_script<project_c::EnemyHealthBar>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_CUBE, my_scene).go, this);
+    // add health bar
+    my_scene_->register_script<project_c::EnemyHealthBar>(this);
 }
 
 project_c::Enemy::~Enemy()
@@ -182,13 +180,19 @@ void project_c::Enemy::update(float dt)
     }
 }
 
-project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, engine_game_object_t go, const Enemy* enemy)
-    : BaseNode(my_scene, go, "enemy_health_bar")
+project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, const Enemy* enemy)
+    : BaseNode(my_scene, "enemy_health_bar")
     , enemy_(enemy)
     , max_hp_(enemy->hp)
 {
     const auto scene = my_scene_->get_handle();
-    auto tc = engineSceneGetTransformComponent(scene, go_);
+
+    auto sc = engineSceneAddParentComponent(scene, go_);
+    sc.parent = enemy->get_game_object();
+    engineSceneUpdateParentComponent(scene, go_, &sc);
+
+
+    auto tc = engineSceneAddTransformComponent(scene, go_);
     tc.position[1] += 1.0f;
 
     tc.scale[0] = 0.4f;
@@ -196,14 +200,12 @@ project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, engine_game_
     tc.scale[2] = 0.01f;
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
-    auto sc = engineSceneAddParentComponent(scene, go_);
-    sc.parent = enemy->get_game_object();
-    engineSceneUpdateParentComponent(scene, go_, &sc);
 
-    auto mc = engineSceneGetMaterialComponent(scene, go_);
-    mc.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "health_bar_mat");
-    assert(mc.material != ENGINE_INVALID_OBJECT_HANDLE);
-    engineSceneUpdateMaterialComponent(scene, go_, &mc);
+
+    //auto mc = engineSceneGetMaterialComponent(scene, go_);
+    //mc.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "health_bar_mat");
+    //assert(mc.material != ENGINE_INVALID_OBJECT_HANDLE);
+    //engineSceneUpdateMaterialComponent(scene, go_, &mc);
     
 }
 
@@ -213,7 +215,6 @@ project_c::EnemyHealthBar::~EnemyHealthBar()
 
 void project_c::EnemyHealthBar::update(float dt)
 {
-    //const auto scene = my_scene_->get_handle();
     //assert(enemy_);
     const auto enemy_pos = enemy_->hp;
 

@@ -155,6 +155,7 @@ engine::Shader::Shader(std::vector<std::string_view> vertex_shader_name, std::ve
 		std::array<char, 512> info_log;
 		glGetProgramInfoLog(program_, 512, nullptr, info_log.data());
 		log::log(log::LogLevel::eCritical, fmt::format("[Error][Program] Failed program linking: \n\t {}", info_log.data()));
+        assert(false && "Failed shader compilation!");
 	}
 }
 
