@@ -10,6 +10,7 @@
 #include <fmt/format.h>
 
 #include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 #include <SDL3/SDL.h>
 
 #include <RmlUi/Core.h>
@@ -725,8 +726,17 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         auto& shader = shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)];
                         shader.bind();
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
-                        shader.set_uniform_f3("world_position", transform_component.position);
-                        shader.set_uniform_f3("scale", transform_component.scale);
+
+                        auto model_mat = glm::make_mat4(transform_component.local_to_world);
+                        glm::vec3 scale;
+                        glm::quat rotation;
+                        glm::vec3 translation;
+                        glm::vec3 skew;
+                        glm::vec4 perspective;
+                        const auto res = glm::decompose(model_mat, scale, rotation, translation, skew, perspective);
+                        assert(res);
+                        shader.set_uniform_f3("world_position", { glm::value_ptr(translation), 3 });
+                        shader.set_uniform_f3("scale", { glm::value_ptr(scale), 3 });
                         empty_vao_for_full_screen_quad_draw_.bind();
                         empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
                     }
