@@ -114,10 +114,10 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     // shaders
     shaders_[static_cast<std::uint32_t>(ShaderType::eUnlit)] = Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "unlit.fs" });
     shaders_[static_cast<std::uint32_t>(ShaderType::eLit)] = Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "lit_helpers.h", "lit.fs" });
-    shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)] = Shader({ "simple_vertex_definitions.h", "sprite.vs" }, { "sprite.fs" });
     shaders_[static_cast<std::uint32_t>(ShaderType::eVertexSkinningUnlit)] = Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "unlit.fs" });
     shaders_[static_cast<std::uint32_t>(ShaderType::eVertexSkinningLit)] = Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "lit_helpers.h", "lit.fs" });
     shaders_[static_cast<std::uint32_t>(ShaderType::eFullScreenQuad)] = Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" });
+    shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)] = Shader({  "sprite.vs" }, { "sprite.fs" });
 
     // basic initalizers
     entity_registry_.on_construct<engine_tranform_component_t>().connect<&initialize_transform_component>();
@@ -531,6 +531,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
         auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
+        auto sprite_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_sprite_component_t>();
         auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, engine_camera_internal_component_t>();
 
         for (auto [entity, camera, camera_transform, camera_internal] : camera_view.each()) 
@@ -712,6 +713,22 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         geometries[mesh_component.geometry].bind();
                         geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
 
+                    }
+                );
+            }
+
+            {
+                ENGINE_PROFILE_SECTION_N("sprite_renderer");
+
+                sprite_renderer.each([this, &camera_internal](const engine_tranform_component_t& transform_component, const engine_sprite_component_t& sprite_component)
+                    {
+                        auto& shader = shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)];
+                        shader.bind();
+                        shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
+                        shader.set_uniform_mat_f4("model", transform_component.local_to_world);
+                        empty_vao_for_full_screen_quad_draw_.bind();
+                        empty_vao_for_full_screen_quad_draw_.bind();
+                        empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
                     }
                 );
             }

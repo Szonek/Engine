@@ -123,16 +123,12 @@ engine::Shader::Shader(std::vector<std::string_view> vertex_shader_name, std::ve
 , program_(glCreateProgram())
 {
     log::log(log::LogLevel::eTrace, fmt::format("[Trace][Program] Creating shaders: \t\n"));
-    for (const auto& s : vertex_shader_name)
-    {
-        log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Vertex shader: {}\n", s));
-    }
-    for (const auto& s : fragment_shader_name)
-    {
-        log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Fragment shader: {}\n", s));
-    }
 	// compile shaders and link to program
 	{
+        for (const auto& s : vertex_shader_name)
+        {
+            log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Vertex shader: {}\n", s));
+        }
         std::vector<std::string> sources;
         sources.reserve(vertex_shader_name.size());
         std::for_each(vertex_shader_name.begin(), vertex_shader_name.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });
@@ -140,6 +136,10 @@ engine::Shader::Shader(std::vector<std::string_view> vertex_shader_name, std::ve
         compile_and_attach_to_program(vertex_shader_, sources);
 	}
 	{
+        for (const auto& s : fragment_shader_name)
+        {
+            log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Fragment shader: {}\n", s));
+        }
         std::vector<std::string> sources;
         sources.reserve(fragment_shader_name.size());
         std::for_each(fragment_shader_name.begin(), fragment_shader_name.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });

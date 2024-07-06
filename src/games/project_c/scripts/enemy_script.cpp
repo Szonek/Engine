@@ -187,26 +187,21 @@ project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, const Enemy*
 {
     const auto scene = my_scene_->get_handle();
 
-    auto sc = engineSceneAddParentComponent(scene, go_);
-    sc.parent = enemy->get_game_object();
-    engineSceneUpdateParentComponent(scene, go_, &sc);
-
+    auto pc = engineSceneAddParentComponent(scene, go_);
+    pc.parent = enemy->get_game_object();
+    engineSceneUpdateParentComponent(scene, go_, &pc);
 
     auto tc = engineSceneAddTransformComponent(scene, go_);
     tc.position[1] += 1.0f;
-
-    tc.scale[0] = 0.4f;
-    tc.scale[1] = 0.05f;
-    tc.scale[2] = 0.01f;
+    tc.scale[0] = 1.0f;
+    tc.scale[1] = 0.1f;
+    tc.scale[2] = 0.02f;
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
-
-
-    //auto mc = engineSceneGetMaterialComponent(scene, go_);
-    //mc.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "health_bar_mat");
-    //assert(mc.material != ENGINE_INVALID_OBJECT_HANDLE);
-    //engineSceneUpdateMaterialComponent(scene, go_, &mc);
-    
+    auto sc = engineSceneAddSpriteComponent(scene, go_);
+    //sc.width = 1.0f;
+    //sc.height = 1.0f;
+    engineSceneUpdateSpriteComponent(scene, go_, &sc);   
 }
 
 project_c::EnemyHealthBar::~EnemyHealthBar()

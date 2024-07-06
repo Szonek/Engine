@@ -7,8 +7,7 @@ extern "C"
 
 typedef struct _engine_sprite_component_t
 {
-    float width;
-    float height;
+    uint32_t placeholder;
 } engine_sprite_component_t;
 
 #ifdef __cplusplus
