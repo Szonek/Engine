@@ -725,8 +725,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         auto& shader = shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)];
                         shader.bind();
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
-                        shader.set_uniform_mat_f4("model", transform_component.local_to_world);
-                        empty_vao_for_full_screen_quad_draw_.bind();
+                        shader.set_uniform_f3("world_position", transform_component.position);
+                        shader.set_uniform_f3("scale", transform_component.scale);
                         empty_vao_for_full_screen_quad_draw_.bind();
                         empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
                     }

@@ -8,7 +8,8 @@ layout (binding = 0, std140) uniform CameraData
     mat4 projection;
 	vec4 view_pos;
 };
-uniform mat4 model;
+uniform vec3 world_position;
+uniform vec3 scale;
 
 out vec2 texture_uv;
 
@@ -36,6 +37,13 @@ void main()
 		vec2(1.0f, 1.0f)	
 	);
 	
-    gl_Position = projection * view * model * vec4(positions[gl_VertexID], 0.0, 1.0); 
+	vec3 CameraRight_worldspace = vec3(view[0][0], view[1][0], view[2][0]);
+	vec3 CameraUp_worldspace = vec3(view[0][1], view[1][1], view[2][1]);
+	
+    vec3 world_pos_adjusted_to_camera = world_position
+		+ CameraRight_worldspace * positions[gl_VertexID].x * scale.x	
+		+ CameraUp_worldspace * positions[gl_VertexID].y * scale.y;	
+	
+	gl_Position = projection * view * vec4(world_pos_adjusted_to_camera, 1.0f);
     texture_uv = coords[gl_VertexID];
 }  
