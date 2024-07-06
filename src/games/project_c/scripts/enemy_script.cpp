@@ -49,12 +49,11 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 
     // add health bar
-    my_scene_->register_script<project_c::EnemyHealthBar>(this);
+    health_bar_script_ = my_scene_->register_script<project_c::EnemyHealthBar>(this);
 }
 
 project_c::Enemy::~Enemy()
 {
-    my_scene_->unregister_script(health_bar_script_);
     utils::delete_game_objects_hierarchy(my_scene_->get_handle(), go_);
 }
 
@@ -95,6 +94,10 @@ void project_c::Enemy::update(float dt)
             anim_controller_.set_active_animation("die");
             // remove collider so enemy will not be hit by players attacks
             engineSceneRemoveColliderComponent(scene, go_);
+            // healthbar script will be removed in next frame
+            // it can't be currently called in d-tor, because d-tor destroy all game object hierarchy and healthbar is "child" of this script
+            // calling unregister script in d-tor can result in crash, because dtor will destroy healbars's game object and in the same frame healthabr script can have a chance to call update, which requires correct game object
+            my_scene_->unregister_script(health_bar_script_);
         }
         else
         {
@@ -206,11 +209,13 @@ project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, const Enemy*
 
 project_c::EnemyHealthBar::~EnemyHealthBar()
 {
+    printf("EnemyHealthBar::~EnemyHealthBar() %d\n", go_);
 }
 
 void project_c::EnemyHealthBar::update(float dt)
 {
-    //assert(enemy_);
-    const auto enemy_pos = enemy_->hp;
-
+    assert(enemy_);   
+    auto sc = engineSceneGetSpriteComponent(my_scene_->get_handle(), go_);
+    sc.placheholder = float(enemy_->hp) / float(max_hp_);
+    engineSceneUpdateSpriteComponent(my_scene_->get_handle(), go_, &sc);
 }

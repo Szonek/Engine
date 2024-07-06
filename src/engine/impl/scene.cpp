@@ -737,6 +737,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         assert(res);
                         shader.set_uniform_f3("world_position", { glm::value_ptr(translation), 3 });
                         shader.set_uniform_f3("scale", { glm::value_ptr(scale), 3 });
+                        shader.set_uniform_f1("placeholder", sprite_component.placheholder);
                         empty_vao_for_full_screen_quad_draw_.bind();
                         empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
                     }

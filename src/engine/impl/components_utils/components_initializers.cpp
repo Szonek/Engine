@@ -51,6 +51,7 @@ void engine::initialize_light_component(entt::registry& registry, entt::entity e
 void engine::initialize_sprite_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_sprite_component_t>(registry, entity);
+    comp.placheholder = 1.0f;
     //comp.width = 1.0f;
     //comp.height = 1.0f;
 }
