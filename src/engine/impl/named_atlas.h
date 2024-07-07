@@ -107,6 +107,7 @@ public:
     }
 
     const std::array<T, SIZE>& get_objects_view() const { return objects_; }
+    std::array<T, SIZE>& get_objects_view() { return objects_; }
 private:
     std::array<T, SIZE> objects_;
     std::array<std::string, SIZE> names_;

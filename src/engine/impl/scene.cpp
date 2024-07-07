@@ -321,7 +321,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 
 engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
     std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials,
-    std::span<const NavMesh> nav_meshes)
+    std::span<const NavMesh> nav_meshes, std::span<class Shader> shaders)
 {
     ENGINE_PROFILE_SECTION_N("scene_update");
     physics_update(dt);
@@ -721,12 +721,12 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 ENGINE_PROFILE_SECTION_N("sprite_renderer");
 
-                sprite_renderer.each([this, &camera_internal, &materials](const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, const engine_sprite_component_t& sprite_component)
+                sprite_renderer.each([this, &camera_internal, &materials, &shaders](const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, const engine_sprite_component_t& sprite_component)
                     {
                         const auto& material = materials[material_component.material];
                         const auto is_user_shader = material.shader_type == ENGINE_SHADER_TYPE_CUSTOM;
 
-                        auto& shader = is_user_shader ? shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)]
+                        auto& shader = is_user_shader ? shaders[material.material.custom.shader]
                             :  shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)];
                         shader.bind();
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
@@ -743,6 +743,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         shader.set_uniform_f3("scale", { glm::value_ptr(scale), 3 });
                         if(is_user_shader)
                         {
+                            // uniform block should be used here
                             shader.set_uniform_f4("color", std::array<float, 4>{ 1.0f, 0.0f, 0.0f, 0.0f });
                         }
                         else

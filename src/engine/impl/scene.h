@@ -35,7 +35,7 @@ public:
     void enable_physics_debug_draw(bool enable);
     engine_result_code_t update(float dt, std::span<const class Texture2D> textures, 
         std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials,
-        std::span<const class NavMesh> nav_meshes);
+        std::span<const class NavMesh> nav_meshes, std::span<class Shader> shaders);
 
     entt::entity create_new_entity();
     void destroy_entity(entt::entity entity);
