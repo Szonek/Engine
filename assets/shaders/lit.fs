@@ -28,7 +28,7 @@ layout (binding = 2, std430) readonly buffer LightPacketSSBO
 out mediump vec4 out_fragment_color;
 
 
-uniform mediump vec3 diffuse_color;
+uniform mediump vec4 diffuse_color;
 uniform mediump float shininess;
 layout(binding=5) uniform sampler2D texture_diffuse;
 layout(binding=6) uniform sampler2D texture_specular;
@@ -38,7 +38,7 @@ void main()
 	// fragment specific
 	vec3 normal = normalize(fs_in.normals);
 	vec3 view_dir = normalize(view_pos.xyz - fs_in.world_pos);
-	vec3 frag_color = texture(texture_diffuse, fs_in.uv).xyz * diffuse_color;
+	vec3 frag_color = texture(texture_diffuse, fs_in.uv).xyz * diffuse_color.xyz;
 	vec3 specular_color = texture(texture_specular, fs_in.uv).xyz;
 	
 	vec3 out_color = vec3(0.0f);

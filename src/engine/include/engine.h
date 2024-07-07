@@ -389,7 +389,7 @@ typedef enum _engine_shader_type_t
 typedef struct _engine_material_create_desc_t
 {
     engine_shader_type_t shader_type;
-    float diffuse_color[3];
+    float diffuse_color[4];
     engine_texture2d_t diffuse_texture;
     uint32_t shininess;
     engine_texture2d_t specular_texture;
@@ -411,7 +411,7 @@ typedef struct _engine_skin_reate_desc_t
 typedef struct _engine_model_material_desc_t
 {
     const char* name;
-    float diffuse_color[3];
+    float diffuse_color[4];
     uint32_t diffuse_texture_index;  // -1 if not used
 } engine_model_material_desc_t;
 

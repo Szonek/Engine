@@ -201,6 +201,10 @@ project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, const Enemy*
     tc.scale[2] = 0.02f;
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
+    auto mc = engineSceneAddMaterialComponent(scene, go_);
+    mc.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "healthbar");
+    engineSceneUpdateMaterialComponent(scene, go_, &mc);
+
     auto sc = engineSceneAddSpriteComponent(scene, go_);
     //sc.width = 1.0f;
     //sc.height = 1.0f;
@@ -209,7 +213,6 @@ project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, const Enemy*
 
 project_c::EnemyHealthBar::~EnemyHealthBar()
 {
-    printf("EnemyHealthBar::~EnemyHealthBar() %d\n", go_);
 }
 
 void project_c::EnemyHealthBar::update(float dt)

@@ -532,7 +532,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
         auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
-        auto sprite_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_sprite_component_t>();
+        auto sprite_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_material_component_t, const engine_sprite_component_t>();
         auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, engine_camera_internal_component_t>();
 
         for (auto [entity, camera, camera_transform, camera_internal] : camera_view.each()) 
@@ -625,7 +625,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             assert(false);
                             texture_diffuse_idx = 0;
                         }
-                        shader.set_uniform_f3("diffuse_color", material.diffuse_color);
+                        shader.set_uniform_f4("diffuse_color", material.diffuse_color);
                         shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
 
                         if (shader_type == ShaderType::eLit)
@@ -676,7 +676,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
                         const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
                         shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
-                        shader.set_uniform_f3("diffuse_color", material.diffuse_color);
+                        shader.set_uniform_f4("diffuse_color", material.diffuse_color);
 
                         if (shader_type == ShaderType::eVertexSkinningLit)
                         {
@@ -721,7 +721,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 ENGINE_PROFILE_SECTION_N("sprite_renderer");
 
-                sprite_renderer.each([this, &camera_internal](const engine_tranform_component_t& transform_component, const engine_sprite_component_t& sprite_component)
+                sprite_renderer.each([this, &camera_internal, &materials](const engine_tranform_component_t& transform_component, const engine_material_component_t& material, const engine_sprite_component_t& sprite_component)
                     {
                         auto& shader = shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)];
                         shader.bind();
@@ -737,7 +737,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         assert(res);
                         shader.set_uniform_f3("world_position", { glm::value_ptr(translation), 3 });
                         shader.set_uniform_f3("scale", { glm::value_ptr(scale), 3 });
-                        shader.set_uniform_f1("placeholder", sprite_component.placheholder);
+                        shader.set_uniform_f4("color", materials[material.material].diffuse_color);
                         empty_vao_for_full_screen_quad_draw_.bind();
                         empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
                     }

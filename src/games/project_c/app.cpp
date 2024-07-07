@@ -64,9 +64,7 @@ project_c::AppProjectC::AppProjectC()
     {
         auto mat = engineApplicationInitMaterialDesc(get_handle());
         mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
-        mat.diffuse_color[0] = 1.0f;
-        mat.diffuse_color[1] = 0.0f;
-        mat.diffuse_color[2] = 0.0f;
+        set_c_array(mat.diffuse_color, std::array<float, 4>{1.0f, 0.0f, 0.0f, 1.0f});
         engine_material_t mat_out = {};
         engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "debug_path_node_mat", &mat_out);
         g_temp_materials.push_back(mat_out);
@@ -75,9 +73,18 @@ project_c::AppProjectC::AppProjectC()
     {
         auto mat = engineApplicationInitMaterialDesc(get_handle());
         mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
-        set_c_array(mat.diffuse_color, std::array<float, 3>{0.9f, 0.9f, 0.9f});
+        set_c_array(mat.diffuse_color, std::array<float, 4>{0.9f, 0.9f, 0.9f, 1.0f});
         engine_material_t mat_out = {};
         engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "dagger_01", &mat_out);
+        g_temp_materials.push_back(mat_out);
+    }
+
+    {
+        auto mat = engineApplicationInitMaterialDesc(get_handle());
+        mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
+        set_c_array(mat.diffuse_color, std::array<float, 4>{0.0f, 1.0f, 0.0f, 1.0f});
+        engine_material_t mat_out = {};
+        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "healthbar", &mat_out);
         g_temp_materials.push_back(mat_out);
     }
 
