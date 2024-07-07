@@ -196,8 +196,8 @@ project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, const Enemy*
 
     auto tc = engineSceneAddTransformComponent(scene, go_);
     tc.position[1] += 1.0f;
-    tc.scale[0] = 1.0f;
-    tc.scale[1] = 0.1f;
+    tc.scale[0] = 0.2f;
+    tc.scale[1] = 0.025f;
     tc.scale[2] = 0.02f;
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
