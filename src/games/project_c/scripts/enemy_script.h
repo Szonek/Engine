@@ -5,10 +5,10 @@ namespace project_c
 {
 struct health_bar_gpu_data_t
 {
-    float max_hp = 0.0f;
-    float current_hp = 0.0f;
+    float fill_ratio = 1.0f;
     float pad0_;
     float pad1_;
+    float pad2_;
 };
 
 class EnemyHealthBar : public BaseNode

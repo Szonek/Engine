@@ -721,9 +721,13 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 ENGINE_PROFILE_SECTION_N("sprite_renderer");
 
-                sprite_renderer.each([this, &camera_internal, &materials](const engine_tranform_component_t& transform_component, const engine_material_component_t& material, const engine_sprite_component_t& sprite_component)
+                sprite_renderer.each([this, &camera_internal, &materials](const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, const engine_sprite_component_t& sprite_component)
                     {
-                        auto& shader = shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)];
+                        const auto& material = materials[material_component.material];
+                        const auto is_user_shader = material.shader_type == ENGINE_SHADER_TYPE_CUSTOM;
+
+                        auto& shader = is_user_shader ? shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)]
+                            :  shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)];
                         shader.bind();
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
 
@@ -737,7 +741,15 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         assert(res);
                         shader.set_uniform_f3("world_position", { glm::value_ptr(translation), 3 });
                         shader.set_uniform_f3("scale", { glm::value_ptr(scale), 3 });
-                        shader.set_uniform_f4("color", materials[material.material].material.standard.diffuse_color);
+                        if(is_user_shader)
+                        {
+                            shader.set_uniform_f4("color", std::array<float, 4>{ 1.0f, 0.0f, 0.0f, 0.0f });
+                        }
+                        else
+                        {
+                            shader.set_uniform_f4("color", material.material.standard.diffuse_color);
+                        }
+
                         empty_vao_for_full_screen_quad_draw_.bind();
                         empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
                     }
