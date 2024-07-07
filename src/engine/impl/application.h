@@ -7,6 +7,7 @@
 #include "ui_document.h"
 #include "named_atlas.h"
 #include "nav_mesh.h"
+#include "pso_3d.h"
 
 #include <array>
 #include <string>
@@ -51,6 +52,9 @@ public:
     virtual std::uint32_t get_material(std::string_view name) const;
     virtual void destroy_material(std::uint32_t idx);
 
+    virtual std::uint32_t add_pso_3d(const engine_pso_3d_create_desc_t& desc, std::string_view name);
+    virtual void destroy_pso_3d(std::uint32_t idx);
+
     virtual engine_model_desc_t load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir);
     virtual void release_model_desc(engine_model_desc_t* info);
 
@@ -85,6 +89,7 @@ protected:
     Atlas<Texture2D> textures_atlas_;
     Atlas<Geometry> geometries_atlas_;
     Atlas<NavMesh> nav_mesh_atlas_;
+    Atlas<Pso3D> pso3d_atlas_;
     Atlas<engine_material_create_desc_t> materials_atlas_;
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;

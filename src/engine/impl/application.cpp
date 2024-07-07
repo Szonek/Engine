@@ -421,6 +421,16 @@ void engine::Application::destroy_material(std::uint32_t idx)
     materials_atlas_.remove_object(idx);
 }
 
+std::uint32_t engine::Application::add_pso_3d(const engine_pso_3d_create_desc_t& desc, std::string_view name)
+{
+    return pso3d_atlas_.add_object(name, Pso3D({ desc.fragment_shader_filename }, { desc.vertex_shader_filename }));
+}
+
+void engine::Application::destroy_pso_3d(std::uint32_t idx)
+{
+    pso3d_atlas_.remove_object(idx);
+}
+
 engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir)
 {
     assert(spec == ENGINE_MODEL_SPECIFICATION_GLTF_2);

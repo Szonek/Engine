@@ -49,6 +49,8 @@ typedef uint32_t engine_material_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_animation_controller_t;
+typedef uint32_t engine_pso_3d_t;
+typedef uint32_t engine_uniform_buffer_t;
 
 typedef struct _engine_coords_2d_t
 {
@@ -340,6 +342,17 @@ typedef struct _engine_collision_info_t
 
 } engine_collision_info_t;
 
+typedef struct _engine_uniform_buffer_create_desc_t
+{
+    uint32_t size;
+} engine_uniform_buffer_create_desc_t;
+
+typedef struct _engine_pso_3d_create_desc_t
+{
+    const char* vertex_shader_filename;
+    const char* fragment_shader_filename;
+} engine_pso_3d_create_desc_t;
+
 typedef enum _engine_model_specification_t
 {
     ENGINE_MODEL_SPECIFICATION_GLTF_2
@@ -501,6 +514,15 @@ ENGINE_API bool engineApplicationGetFingerInfo(engine_application_t handle, engi
 ENGINE_API engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_application_t handle);
 ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpdate(engine_application_t handle, engine_scene_t scene, float delta_time);
 ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engine_application_t handle);
+
+// pipeline state objects and GPU buffers
+ENGINE_API engine_result_code_t engineApplicationCreatePso3D(engine_application_t handle, const engine_pso_3d_create_desc_t* desc, const char* name, engine_pso_3d_t* out);
+ENGINE_API void engineApplicationDestroyPso3D(engine_application_t handle, engine_pso_3d_t pso);
+ENGINE_API bool engineApplicationPso3DBindUniformBuffer(engine_application_t handle, engine_pso_3d_t pso, engine_uniform_buffer_t buffer, const char* name, uint32_t binding_slot);
+ENGINE_API bool engineApplicationPso3DBindTexture2D(engine_application_t handle, engine_pso_3d_t pso, engine_texture2d_t texture, const char* name);
+
+ENGINE_API engine_result_code_t engineApplicationCreateUniformBuffer(engine_application_t handle, const engine_uniform_buffer_create_desc_t* desc, const char* name, engine_uniform_buffer_t* out);
+ENGINE_API void engineApplicationDestroyUniformBuffer(engine_application_t handle, engine_uniform_buffer_t buffer);
 
 // fonts
 ENGINE_API engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name);

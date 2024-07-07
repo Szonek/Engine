@@ -210,6 +210,33 @@ engine_application_frame_end_info_t engineApplicationFrameEnd(engine_application
 	return app->end_frame();
 }
 
+engine_result_code_t engineApplicationCreatePso3D(engine_application_t handle, const engine_pso_3d_create_desc_t* desc, const char* name, engine_pso_3d_t* out)
+{
+    if (!handle || !desc || !name || !out)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    auto* app = reinterpret_cast<engine::Application*>(handle);
+    const auto result = app->add_pso_3d(*desc, name);
+    return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+void engineApplicationDestroyPso3D(engine_application_t handle, engine_pso_3d_t pso)
+{
+}
+
+engine_result_code_t engineApplicationCreateUniformBuffer(engine_application_t handle, const engine_uniform_buffer_create_desc_t* desc, const char* name, engine_uniform_buffer_t* out)
+{
+    //auto* app = reinterpret_cast<engine::Application*>(handle);
+    //const auto result = app->add_font_from_file(file_name, handle_name);
+    //return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+    return ENGINE_RESULT_CODE_FAIL;
+}
+
+void engineApplicationDestroyUniformBuffer(engine_application_t handle, engine_uniform_buffer_t buffer)
+{
+}
+
 engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name)
 {
     auto* app = reinterpret_cast<engine::Application*>(handle);

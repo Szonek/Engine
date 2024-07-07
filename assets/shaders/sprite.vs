@@ -36,15 +36,15 @@ void main()
 		vec2(1.0f, 0.0f),
 		vec2(1.0f, 1.0f)	
 	);
-	
-	vec3 CameraRight_worldspace = vec3(view[0][0], view[1][0], view[2][0]);
-	vec3 CameraUp_worldspace = vec3(view[0][1], view[1][1], view[2][1]);
 
 #if FIXED_SIZE
 	gl_Position = projection * view * vec4(world_position, 1.0f);
 	gl_Position /= gl_Position.w;
 	gl_Position.xy += positions[gl_VertexID].xy * scale.xy;
 #else
+	vec3 CameraRight_worldspace = vec3(view[0][0], view[1][0], view[2][0]);
+	vec3 CameraUp_worldspace = vec3(view[0][1], view[1][1], view[2][1]);
+	
     vec3 world_pos_adjusted_to_camera = world_position
 		+ CameraRight_worldspace * positions[gl_VertexID].x * scale.x	
 		+ CameraUp_worldspace * positions[gl_VertexID].y * scale.y;	
