@@ -51,7 +51,7 @@ public:
     virtual std::uint32_t get_material(std::string_view name) const;
     virtual void destroy_material(std::uint32_t idx);
 
-    virtual std::uint32_t add_shader(std::vector<std::string_view> vertex_shader_name, std::vector<std::string_view> fragment_shader_name, std::string_view name);
+    virtual std::uint32_t add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name);
     virtual void destroy_shader(std::uint32_t idx);
 
     virtual engine_model_desc_t load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir);

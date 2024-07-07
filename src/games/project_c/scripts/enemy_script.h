@@ -3,6 +3,13 @@
 
 namespace project_c
 {
+struct health_bar_gpu_data_t
+{
+    float max_hp = 0.0f;
+    float current_hp = 0.0f;
+    float pad0_;
+    float pad1_;
+};
 
 class EnemyHealthBar : public BaseNode
 {

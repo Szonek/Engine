@@ -117,7 +117,7 @@ inline std::uint32_t to_ogl_texture_border_clamp_mode(engine::TextureAddressClam
 }
 
 
-engine::Shader::Shader(std::vector<std::string_view> vertex_shader_name, std::vector<std::string_view> fragment_shader_name)
+engine::Shader::Shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name)
 : vertex_shader_(0)
 , fragment_shader_(0)
 , program_(glCreateProgram())

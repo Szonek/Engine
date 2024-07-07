@@ -421,7 +421,7 @@ void engine::Application::destroy_material(std::uint32_t idx)
     materials_atlas_.remove_object(idx);
 }
 
-std::uint32_t engine::Application::add_shader(std::vector<std::string_view> vertex_shader_name, std::vector<std::string_view> fragment_shader_name, std::string_view name)
+std::uint32_t engine::Application::add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name)
 {
     return shader_atlas_.add_object(name, Shader(vertex_shader_name, fragment_shader_name));
 }

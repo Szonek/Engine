@@ -59,7 +59,7 @@ public:
 	};
 public:
     Shader() = default;
-	Shader(std::vector<std::string_view> vertex_shader_name, std::vector<std::string_view> fragment_shader_name);
+	Shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name);
 	Shader(const Shader& rhs) = delete;
     Shader(Shader&& rhs) noexcept;
 	Shader& operator=(const Shader& rhs) = delete;

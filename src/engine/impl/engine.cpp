@@ -126,13 +126,13 @@ bool engineApplicationIsEditorEnabled(engine_application_t handle)
 
 void engineApplicationDestroy(engine_application_t handle)
 {
-	auto* app = reinterpret_cast<engine::Application*>(handle);
+	auto* app = application_cast(handle);
 	delete app;
 }
 
 bool engineApplicationIsKeyboardButtonDown(engine_application_t handle, engine_keyboard_keys_t key)
 {
-	auto* app = reinterpret_cast<engine::Application*>(handle);
+	auto* app = application_cast(handle);
     if (!app->is_keyboard_enabled())
     {
         return false;
@@ -147,7 +147,7 @@ bool engineApplicationIsKeyboardButtonUp(engine_application_t handle, engine_key
 
 engine_coords_2d_t engineApplicationGetMouseCoords(engine_application_t handle)
 {
-	auto* app = reinterpret_cast<engine::Application*>(handle);
+	auto* app = application_cast(handle);
     if (!app->is_mouse_enabled())
     {
         return {};
@@ -157,7 +157,7 @@ engine_coords_2d_t engineApplicationGetMouseCoords(engine_application_t handle)
 
 bool engineApplicationIsMouseButtonDown(engine_application_t handle, engine_mouse_button_t button)
 {
-	auto* app = reinterpret_cast<engine::Application*>(handle);
+	auto* app = application_cast(handle);
     if (!app->is_mouse_enabled())
     {
         return false;
@@ -176,7 +176,7 @@ bool engineApplicationGetFingerInfo(engine_application_t handle, engine_fingers_
     {
         return false;
     }
-    auto* app = reinterpret_cast<engine::Application*>(handle);
+    auto* app = application_cast(handle);
     const auto finger_list = app->get_finger_info_events();
     if(finger_list.empty())
     {
@@ -189,7 +189,7 @@ bool engineApplicationGetFingerInfo(engine_application_t handle, engine_fingers_
 
 engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_application_t handle)
 {
-	auto* app = reinterpret_cast<engine::Application*>(handle);
+	auto* app = application_cast(handle);
 	return app->begine_frame();
 }
 
@@ -199,14 +199,14 @@ engine_result_code_t engineApplicationFrameSceneUpdate(engine_application_t hand
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-	auto* app = reinterpret_cast<engine::Application*>(handle);
-	auto* scene_typed = reinterpret_cast<engine::Scene*>(scene);
+	auto* app = application_cast(handle);
+	auto* scene_typed = scene_cast(scene);
 	return app->update_scene(scene_typed, delta_time);
 }
 
 engine_application_frame_end_info_t engineApplicationFrameEnd(engine_application_t handle)
 {
-	auto* app = reinterpret_cast<engine::Application*>(handle);
+	auto* app = application_cast(handle);
 	return app->end_frame();
 }
 
@@ -216,45 +216,48 @@ engine_result_code_t engineApplicationCreateShader(engine_application_t handle, 
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    auto* app = reinterpret_cast<engine::Application*>(handle);
+    auto* app = application_cast(handle);
 
-    /*
-    
-        std::vector<const char*> vertex_shaders;
-    const char* ptr = desc.vertex_shader_filenames[0];
-    while (ptr != nullptr)
+    std::vector<std::string> vertex_shaders;
+    auto ptr = desc->vertex_shader_filenames;
+    while (*ptr != nullptr)
     {
-        vertex_shaders.push_back(ptr);
+        vertex_shaders.push_back(*ptr);
         ptr++;
     }
 
-    std::vector<const char*> fragment_shaders;
-    ptr = desc.fragment_shader_filenames[0];
-    while (ptr != nullptr)
+    std::vector<std::string> fragment_shaders;
+    ptr = desc->fragment_shader_filenames;
+    while (*ptr != nullptr)
     {
-        fragment_shaders.push_back(ptr);
+        fragment_shaders.push_back(*ptr);
         ptr++;
     }
-    //const auto result = app->add_shader(*desc, name);
-    */
-    const auto result = true;
-    return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+    const auto ret = app->add_shader(vertex_shaders, fragment_shaders, name);
+    *out = ret;
+    engineLog(fmt::format("Created shader: {}, with id: {}\n", name, ret).c_str());
+    return ENGINE_RESULT_CODE_OK;
 }
 
 void engineApplicationDestroyShader(engine_application_t handle, engine_shader_t shader)
 {
+    if (handle)
+    {       
+        auto* app = application_cast(handle);
+        app->destroy_shader(shader);  
+    }
 }
 
 engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name)
 {
-    auto* app = reinterpret_cast<engine::Application*>(handle);
+    auto* app = application_cast(handle);
     const auto result = app->add_font_from_file(file_name, handle_name);
     return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
 engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out)
 {
-    auto* app = reinterpret_cast<engine::Application*>(handle);
+    auto* app = application_cast(handle);
     const auto ret = app->add_geometry(desc->verts_layout, desc->verts_count, { reinterpret_cast<const std::byte*>(desc->verts_data), desc->verts_data_size }, { desc->inds, desc->inds_count}, name);
     if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
     {

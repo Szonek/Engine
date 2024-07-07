@@ -349,8 +349,8 @@ typedef struct _engine_uniform_buffer_create_desc_t
 // can provide multiple files per shader to i.e.: support include files
 typedef struct _engine_shader_create_desc_t
 {
-    const char** vertex_shader_filenames;
-    const char** fragment_shader_filenames;
+    const char* const* vertex_shader_filenames;  // null terminated array of string
+    const char* const* fragment_shader_filenames; // null terminated array of string
 } engine_shader_create_desc_t;
 
 typedef enum _engine_model_specification_t

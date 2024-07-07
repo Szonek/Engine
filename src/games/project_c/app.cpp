@@ -4,11 +4,14 @@
 #include "scenes/scene_test.h"
 #include "scenes/scene_city.h"
 
+#include "scripts/enemy_script.h"
+
 #include <chrono>
 #include <map>
 #include <fmt/format.h>
 
 //ToDo: find a way to remove this
+inline std::vector<engine_shader_t> g_temp_shaders;
 inline std::vector<engine_material_t> g_temp_materials;
 
 namespace
@@ -80,12 +83,28 @@ project_c::AppProjectC::AppProjectC()
     }
 
     {
-        auto mat = engineApplicationInitMaterialDesc(get_handle());
-        mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
-        set_c_array(mat.material.standard.diffuse_color, std::array<float, 4>{0.0f, 1.0f, 0.0f, 1.0f});
-        engine_material_t mat_out = {};
-        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "healthbar", &mat_out);
-        g_temp_materials.push_back(mat_out);
+        const std::array<const char*, 2> vertex_shader_file_names = { "healthbar.vs", nullptr };
+        const std::array<const char*, 2> fragment_shader_file_names = { "healthbar.fs", nullptr };
+        engine_shader_t shader = {};
+        engine_shader_create_desc_t shader_create_desc{};
+        shader_create_desc.vertex_shader_filenames = vertex_shader_file_names.data();
+        shader_create_desc.fragment_shader_filenames = fragment_shader_file_names.data();
+        if (ENGINE_RESULT_CODE_OK == engineApplicationCreateShader(get_handle(), &shader_create_desc, "healthbar_shader", &shader))
+        {
+            g_temp_shaders.push_back(shader);
+            auto mat = engineApplicationInitMaterialDesc(get_handle());
+            mat.shader_type = ENGINE_SHADER_TYPE_CUSTOM;
+            mat.material.custom.shader = shader;
+            mat.material.custom.uniform_buffer_size = sizeof(health_bar_gpu_data_t);
+            mat.material.custom.texture_bindings[0] = ENGINE_INVALID_OBJECT_HANDLE;
+            engine_material_t mat_out = {};
+            engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "healthbar", &mat_out);
+            g_temp_materials.push_back(mat_out);
+        }
+        else
+        {
+            log(fmt::format("Failed to create shader: healthbar_shader\n"));
+        }
     }
 
     const auto load_end = std::chrono::high_resolution_clock::now();
@@ -100,6 +119,10 @@ project_c::AppProjectC::AppProjectC()
 
 project_c::AppProjectC::~AppProjectC()
 {
+    for (auto& s : g_temp_shaders)
+    {
+        engineApplicationDestroyShader(get_handle(), s);
+    }
     for(auto& m : g_temp_materials)
     {
         engineApplicationDestroyMaterial(get_handle(), m);
