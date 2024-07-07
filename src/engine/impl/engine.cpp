@@ -210,30 +210,38 @@ engine_application_frame_end_info_t engineApplicationFrameEnd(engine_application
 	return app->end_frame();
 }
 
-engine_result_code_t engineApplicationCreatePso3D(engine_application_t handle, const engine_pso_3d_create_desc_t* desc, const char* name, engine_pso_3d_t* out)
+engine_result_code_t engineApplicationCreateShader(engine_application_t handle, const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out)
 {
     if (!handle || !desc || !name || !out)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
     auto* app = reinterpret_cast<engine::Application*>(handle);
-    const auto result = app->add_pso_3d(*desc, name);
+
+    /*
+    
+        std::vector<const char*> vertex_shaders;
+    const char* ptr = desc.vertex_shader_filenames[0];
+    while (ptr != nullptr)
+    {
+        vertex_shaders.push_back(ptr);
+        ptr++;
+    }
+
+    std::vector<const char*> fragment_shaders;
+    ptr = desc.fragment_shader_filenames[0];
+    while (ptr != nullptr)
+    {
+        fragment_shaders.push_back(ptr);
+        ptr++;
+    }
+    //const auto result = app->add_shader(*desc, name);
+    */
+    const auto result = true;
     return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
-void engineApplicationDestroyPso3D(engine_application_t handle, engine_pso_3d_t pso)
-{
-}
-
-engine_result_code_t engineApplicationCreateUniformBuffer(engine_application_t handle, const engine_uniform_buffer_create_desc_t* desc, const char* name, engine_uniform_buffer_t* out)
-{
-    //auto* app = reinterpret_cast<engine::Application*>(handle);
-    //const auto result = app->add_font_from_file(file_name, handle_name);
-    //return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
-    return ENGINE_RESULT_CODE_FAIL;
-}
-
-void engineApplicationDestroyUniformBuffer(engine_application_t handle, engine_uniform_buffer_t buffer)
+void engineApplicationDestroyShader(engine_application_t handle, engine_shader_t shader)
 {
 }
 
@@ -296,14 +304,14 @@ engine_material_create_desc_t engineApplicationInitMaterialDesc(engine_applicati
         return {};
     }
     engine_material_create_desc_t ret{};
+    ret.shader_type = ENGINE_SHADER_TYPE_LIT;
+    ret.material.standard.shininess = 32;
+    ret.material.standard.diffuse_texture = ENGINE_INVALID_OBJECT_HANDLE;
+    ret.material.standard.specular_texture = ENGINE_INVALID_OBJECT_HANDLE;
     for (auto i = 0; i < 3; i++)
     {
-        ret.diffuse_color[i] = 1.0f;
+        ret.material.standard.diffuse_color[i] = 1.0f;
     }
-    ret.shader_type = ENGINE_SHADER_TYPE_LIT;
-    ret.shininess = 32;
-    ret.diffuse_texture = ENGINE_INVALID_OBJECT_HANDLE;
-    ret.specular_texture = ENGINE_INVALID_OBJECT_HANDLE;
     return ret;
 }
 

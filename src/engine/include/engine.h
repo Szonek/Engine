@@ -49,8 +49,7 @@ typedef uint32_t engine_material_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_animation_controller_t;
-typedef uint32_t engine_pso_3d_t;
-typedef uint32_t engine_uniform_buffer_t;
+typedef uint32_t engine_shader_t;
 
 typedef struct _engine_coords_2d_t
 {
@@ -347,11 +346,12 @@ typedef struct _engine_uniform_buffer_create_desc_t
     uint32_t size;
 } engine_uniform_buffer_create_desc_t;
 
-typedef struct _engine_pso_3d_create_desc_t
+// can provide multiple files per shader to i.e.: support include files
+typedef struct _engine_shader_create_desc_t
 {
-    const char* vertex_shader_filename;
-    const char* fragment_shader_filename;
-} engine_pso_3d_create_desc_t;
+    const char** vertex_shader_filenames;
+    const char** fragment_shader_filenames;
+} engine_shader_create_desc_t;
 
 typedef enum _engine_model_specification_t
 {
@@ -396,16 +396,34 @@ typedef enum _engine_shader_type_t
 {
     ENGINE_SHADER_TYPE_LIT = 0, // phong shading, directional, point, spot lights
     ENGINE_SHADER_TYPE_UNLIT,   // no lights
+    ENGINE_SHADER_TYPE_CUSTOM,
     ENGINE_SHADER_TYPE_COUNT
 } engine_shader_type_t;
 
-typedef struct _engine_material_create_desc_t
+typedef struct _engine_material_default_info_t
 {
-    engine_shader_type_t shader_type;
     float diffuse_color[4];
     engine_texture2d_t diffuse_texture;
     uint32_t shininess;
     engine_texture2d_t specular_texture;
+} engine_material_default_info_t;
+
+typedef struct _engine_material_custom_info_t
+{
+    engine_shader_t shader;
+    char uniform_buffer[512];
+    uint32_t uniform_buffer_size;
+    engine_texture2d_t texture_bindings[1];
+} engine_material_custom_info_t;
+
+typedef struct _engine_material_create_desc_t
+{
+    engine_shader_type_t shader_type;
+    union
+    {
+        engine_material_default_info_t standard;
+        engine_material_custom_info_t custom;
+    } material;
 } engine_material_create_desc_t;
 
 typedef struct _engine_bones_create_desc_t
@@ -516,13 +534,8 @@ ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpd
 ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engine_application_t handle);
 
 // pipeline state objects and GPU buffers
-ENGINE_API engine_result_code_t engineApplicationCreatePso3D(engine_application_t handle, const engine_pso_3d_create_desc_t* desc, const char* name, engine_pso_3d_t* out);
-ENGINE_API void engineApplicationDestroyPso3D(engine_application_t handle, engine_pso_3d_t pso);
-ENGINE_API bool engineApplicationPso3DBindUniformBuffer(engine_application_t handle, engine_pso_3d_t pso, engine_uniform_buffer_t buffer, const char* name, uint32_t binding_slot);
-ENGINE_API bool engineApplicationPso3DBindTexture2D(engine_application_t handle, engine_pso_3d_t pso, engine_texture2d_t texture, const char* name);
-
-ENGINE_API engine_result_code_t engineApplicationCreateUniformBuffer(engine_application_t handle, const engine_uniform_buffer_create_desc_t* desc, const char* name, engine_uniform_buffer_t* out);
-ENGINE_API void engineApplicationDestroyUniformBuffer(engine_application_t handle, engine_uniform_buffer_t buffer);
+ENGINE_API engine_result_code_t engineApplicationCreateShader(engine_application_t handle, const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out);
+ENGINE_API void engineApplicationDestroyShader(engine_application_t handle, engine_shader_t pso);
 
 // fonts
 ENGINE_API engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name);

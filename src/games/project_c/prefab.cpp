@@ -86,10 +86,10 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         const auto& mat = model_info_.materials_array[i];
         engine_material_create_desc_t mat_create_desc = engineApplicationInitMaterialDesc(app);
         mat_create_desc.shader_type = ENGINE_SHADER_TYPE_LIT;
-        set_c_array(mat_create_desc.diffuse_color, mat.diffuse_color);
+        set_c_array(mat_create_desc.material.standard.diffuse_color, mat.diffuse_color);
         if (mat.diffuse_texture_index != -1)
         {
-            mat_create_desc.diffuse_texture = textures_.at(mat.diffuse_texture_index);
+            mat_create_desc.material.standard.diffuse_texture = textures_.at(mat.diffuse_texture_index);
         }
         engine_error_code = engineApplicationCreateMaterialFromDesc(app, &mat_create_desc, mat.name, &materials_[i]);
 

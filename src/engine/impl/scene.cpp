@@ -618,21 +618,21 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);    
                         shader.set_uniform_mat_f4("model", transform_component.local_to_world);                       
 
-                        auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
+                        auto texture_diffuse_idx = material.material.standard.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.diffuse_texture;
                         if (texture_diffuse_idx > textures.size())
                         {
                             log::log(log::LogLevel::eError, fmt::format("Texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
                             assert(false);
                             texture_diffuse_idx = 0;
                         }
-                        shader.set_uniform_f4("diffuse_color", material.diffuse_color);
+                        shader.set_uniform_f4("diffuse_color", material.material.standard.diffuse_color);
                         shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
 
                         if (shader_type == ShaderType::eLit)
                         {
                             shader.set_uniform_block("SceneData", &scene_ubo_, 1);
-                            shader.set_uniform_f1("shininess", static_cast<float>(material.shininess));
-                            const auto texture_specular_idx = material.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.specular_texture;
+                            shader.set_uniform_f1("shininess", static_cast<float>(material.material.standard.shininess));
+                            const auto texture_specular_idx = material.material.standard.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.specular_texture;
                             shader.set_texture("texture_specular", &textures[texture_specular_idx]);
                         }
 
@@ -674,15 +674,15 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
                         shader.set_uniform_mat_f4("model", transform_component.local_to_world);
 
-                        const auto texture_diffuse_idx = material.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.diffuse_texture;
+                        const auto texture_diffuse_idx = material.material.standard.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.diffuse_texture;
                         shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
-                        shader.set_uniform_f4("diffuse_color", material.diffuse_color);
+                        shader.set_uniform_f4("diffuse_color", material.material.standard.diffuse_color);
 
                         if (shader_type == ShaderType::eVertexSkinningLit)
                         {
                             shader.set_uniform_block("SceneData", &scene_ubo_, 1);
-                            shader.set_uniform_f1("shininess", static_cast<float>(material.shininess));
-                            const auto texture_specular_idx = material.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.specular_texture;
+                            shader.set_uniform_f1("shininess", static_cast<float>(material.material.standard.shininess));
+                            const auto texture_specular_idx = material.material.standard.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.specular_texture;
                             shader.set_texture("texture_specular", &textures[texture_specular_idx]);
                         }
 
@@ -737,7 +737,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         assert(res);
                         shader.set_uniform_f3("world_position", { glm::value_ptr(translation), 3 });
                         shader.set_uniform_f3("scale", { glm::value_ptr(scale), 3 });
-                        shader.set_uniform_f4("color", materials[material.material].diffuse_color);
+                        shader.set_uniform_f4("color", materials[material.material].material.standard.diffuse_color);
                         empty_vao_for_full_screen_quad_draw_.bind();
                         empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
                     }

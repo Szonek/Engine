@@ -33,9 +33,6 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/nav_mesh.h
 	${ENGINE_SOURCES_DIR}/nav_mesh.cpp
 	
-	${ENGINE_SOURCES_DIR}/pso_3d.h
-	${ENGINE_SOURCES_DIR}/pso_3d.cpp
-	
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.h
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.cpp
 	
