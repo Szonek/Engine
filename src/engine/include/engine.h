@@ -411,7 +411,6 @@ typedef struct _engine_material_default_info_t
 typedef struct _engine_material_custom_info_t
 {
     engine_shader_t shader;
-    char uniform_buffer[512];
     uint32_t uniform_buffer_size;
     engine_texture2d_t texture_bindings[1];
 } engine_material_custom_info_t;
