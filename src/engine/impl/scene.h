@@ -4,6 +4,8 @@
 
 #include "physics_world.h"
 
+#include "material.h"
+
 #include <entt/entt.hpp>
 
 namespace engine
@@ -121,5 +123,8 @@ private:
 
     Framebuffer fbo_;
     Geometry empty_vao_for_full_screen_quad_draw_;
+
+    MaterialStaticGeometryLit material_static_geometry_lit_;
+    MaterialSkinnedGeometryLit material_skinned_geometry_lit_;
 };
 }  // namespace engine

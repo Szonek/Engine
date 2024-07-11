@@ -239,7 +239,7 @@ void engine::Shader::set_uniform_ui2(std::string_view name, std::span<const std:
     glUniform2ui(loc, host_data[0], host_data[1]);
 }
 
-void engine::Shader::set_uniform_block(std::string_view name, UniformBuffer* buffer, std::uint32_t bind_index)
+void engine::Shader::set_uniform_block(std::string_view name, const UniformBuffer* buffer, std::uint32_t bind_index)
 {
     const auto block_index = glGetUniformBlockIndex(program_, name.data());
     assert(block_index != -1 && "[ERROR] Cant find uniform block index in the shader.");

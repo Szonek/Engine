@@ -596,7 +596,33 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             return;
                         }
                         const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
-                        
+
+#if 1                       
+                        auto texture_diffuse_idx = material.material.standard.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.diffuse_texture;
+                        if (texture_diffuse_idx > textures.size())
+                        {
+                            log::log(log::LogLevel::eError, fmt::format("Diffuse texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
+                            //assert(false);
+                        }
+
+                        auto texture_specular_idx = material.material.standard.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.specular_texture;
+                        if (texture_specular_idx > textures.size())
+                        {
+                            log::log(log::LogLevel::eError, fmt::format("Specular exture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_specular_idx));
+                            //assert(false);
+                        }
+
+                        const auto ctx = MaterialStaticGeometryLit::DrawContext{
+                            .camera = camera_internal.camera_ubo,
+                            .scene = scene_ubo_,
+                            .model_matrix = transform_component.local_to_world,
+                            .color_diffuse = material.material.standard.diffuse_color,
+                            .shininess = static_cast<float>(material.material.standard.shininess),
+                            .texture_diffuse = textures[texture_diffuse_idx],
+                            .texture_specular = textures[texture_specular_idx]};
+                        material_static_geometry_lit_.draw(geometries[mesh_component.geometry], ctx);
+#else
+              
                         const auto shader_type = [](engine_shader_type_t shader_type)
                             {
                                 switch (shader_type)
@@ -637,7 +663,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
                         geometries[mesh_component.geometry].bind();
                         geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
-
+#endif
                     }
                 );
             }
@@ -722,36 +748,36 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
                 sprite_renderer.each([this, &camera_internal, &materials, &shaders](const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, const engine_sprite_component_t& sprite_component)
                     {
-                        const auto& material = materials[material_component.material];
-                        const auto is_user_shader = material.shader_type == ENGINE_SHADER_TYPE_CUSTOM;
+                        //const auto& material = materials[material_component.material];
+                        //const auto is_user_shader = material.shader_type == ENGINE_SHADER_TYPE_CUSTOM;
 
-                        auto& shader = is_user_shader ? shaders[material.material.custom.shader]
-                            :  shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)];
-                        shader.bind();
-                        shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
+                        //auto& shader = is_user_shader ? shaders[material.material.custom.shader]
+                        //    :  shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)];
+                        //shader.bind();
+                        //shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
 
-                        auto model_mat = glm::make_mat4(transform_component.local_to_world);
-                        glm::vec3 scale;
-                        glm::quat rotation;
-                        glm::vec3 translation;
-                        glm::vec3 skew;
-                        glm::vec4 perspective;
-                        const auto res = glm::decompose(model_mat, scale, rotation, translation, skew, perspective);
-                        assert(res);
-                        shader.set_uniform_f3("world_position", { glm::value_ptr(translation), 3 });
-                        shader.set_uniform_f3("scale", { glm::value_ptr(scale), 3 });
-                        if(is_user_shader)
-                        {
-                            // uniform block should be used here
-                            shader.set_uniform_f4("color", std::array<float, 4>{ 1.0f, 0.0f, 0.0f, 0.0f });
-                        }
-                        else
-                        {
-                            shader.set_uniform_f4("color", material.material.standard.diffuse_color);
-                        }
+                        //auto model_mat = glm::make_mat4(transform_component.local_to_world);
+                        //glm::vec3 scale;
+                        //glm::quat rotation;
+                        //glm::vec3 translation;
+                        //glm::vec3 skew;
+                        //glm::vec4 perspective;
+                        //const auto res = glm::decompose(model_mat, scale, rotation, translation, skew, perspective);
+                        //assert(res);
+                        //shader.set_uniform_f3("world_position", { glm::value_ptr(translation), 3 });
+                        //shader.set_uniform_f3("scale", { glm::value_ptr(scale), 3 });
+                        //if(is_user_shader)
+                        //{
+                        //    // uniform block should be used here
+                        //    shader.set_uniform_f4("color", std::array<float, 4>{ 1.0f, 0.0f, 0.0f, 0.0f });
+                        //}
+                        //else
+                        //{
+                        //    shader.set_uniform_f4("color", material.material.standard.diffuse_color);
+                        //}
 
-                        empty_vao_for_full_screen_quad_draw_.bind();
-                        empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
+                        //empty_vao_for_full_screen_quad_draw_.bind();
+                        //empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
                     }
                 );
             }

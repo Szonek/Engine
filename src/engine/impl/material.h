@@ -28,8 +28,8 @@ class MaterialStaticGeometryLit
 public:
     struct DrawContext
     {
-        const CameraGpuData& camera;
-        const SceneGpuData& scene;
+        const UniformBuffer& camera;
+        const UniformBuffer& scene;
         const float* model_matrix;
         
         const float* color_diffuse;
@@ -38,14 +38,12 @@ public:
         const Texture2D& texture_specular;
     };
 public:
-    MaterialStaticGeometryLit(Shader& shader);
+    MaterialStaticGeometryLit();
 
     void draw(const Geometry& geometry, const DrawContext& ctx);
 
 private:
-    Shader& shader_;
-    UniformBuffer ubo_camera_;
-    UniformBuffer ubo_scene_;
+    Shader shader_;
 };
 
 class MaterialSkinnedGeometryLit
@@ -53,8 +51,8 @@ class MaterialSkinnedGeometryLit
 public:
     struct DrawContext
     {
-        const CameraGpuData& camera;
-        const SceneGpuData& scene;
+        const UniformBuffer& camera;
+        const UniformBuffer& scene;
         const float* model_matrix;
         std::vector<glm::mat4> bone_transforms;
 
@@ -64,14 +62,12 @@ public:
         const Texture2D& texture_specular;
     };
 public:
-    MaterialSkinnedGeometryLit(Shader& shader);
+    MaterialSkinnedGeometryLit();
 
     void draw(const Geometry& geometry, const DrawContext& ctx);
 
 private:
-    Shader& shader_;
-    UniformBuffer ubo_camera_;
-    UniformBuffer ubo_scene_;
+    Shader shader_;
 };
 
 }  // namespace engine

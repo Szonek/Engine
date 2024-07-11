@@ -1,28 +1,17 @@
 #include "material.h"
 #include "math_helpers.h"
 
-engine::MaterialStaticGeometryLit::MaterialStaticGeometryLit(Shader& shader)
-    : shader_(shader)
-    , ubo_camera_(UniformBuffer(sizeof(CameraGpuData)))
-    , ubo_scene_(UniformBuffer(sizeof(SceneGpuData)))
+engine::MaterialStaticGeometryLit::MaterialStaticGeometryLit()
+    : shader_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "lit_helpers.h", "lit.fs" }))
 {
 }
 
 void engine::MaterialStaticGeometryLit::draw(const Geometry& geometry, const DrawContext& ctx)
 {
-    // ToDo: this buffer uploads can be optimized by doing it once per frame
-    {
-        BufferMapContext<CameraGpuData, UniformBuffer> camera_ubo(ubo_camera_, false, true);
-        *camera_ubo.data = ctx.camera;
-    }
-    {
-        BufferMapContext<SceneGpuData, UniformBuffer> scene_ubo(ubo_scene_, false, true);
-        *scene_ubo.data = ctx.scene;
-    }
     shader_.bind();
 
-    shader_.set_uniform_block("CameraData", &ubo_camera_, 0);
-    shader_.set_uniform_block("SceneData", &ubo_scene_, 1);
+    shader_.set_uniform_block("CameraData", &ctx.camera, 0);
+    shader_.set_uniform_block("SceneData", &ctx.scene, 1);
 
     shader_.set_uniform_mat_f4("model", { ctx.model_matrix, 16 });
 
@@ -36,29 +25,18 @@ void engine::MaterialStaticGeometryLit::draw(const Geometry& geometry, const Dra
     geometry.draw(Geometry::Mode::eTriangles);
 }
 
-engine::MaterialSkinnedGeometryLit::MaterialSkinnedGeometryLit(Shader& shader)
-    : shader_(shader)
-    , ubo_camera_(UniformBuffer(sizeof(CameraGpuData)))
-    , ubo_scene_(UniformBuffer(sizeof(SceneGpuData)))
+engine::MaterialSkinnedGeometryLit::MaterialSkinnedGeometryLit()
+    : shader_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "lit_helpers.h", "lit.fs" }))
 {
 
 }
 
 void engine::MaterialSkinnedGeometryLit::draw(const Geometry& geometry, const DrawContext& ctx)
 {
-    // ToDo: this buffer uploads can be optimized by doing it once per frame
-    {
-        BufferMapContext<CameraGpuData, UniformBuffer> camera_ubo(ubo_camera_, false, true);
-        *camera_ubo.data = ctx.camera;
-    }
-    {
-        BufferMapContext<SceneGpuData, UniformBuffer> scene_ubo(ubo_scene_, false, true);
-        *scene_ubo.data = ctx.scene;
-    }
     shader_.bind();
 
-    shader_.set_uniform_block("CameraData", &ubo_camera_, 0);
-    shader_.set_uniform_block("SceneData", &ubo_scene_, 1);
+    shader_.set_uniform_block("CameraData", &ctx.camera, 0);
+    shader_.set_uniform_block("SceneData",  &ctx.scene, 1);
 
     shader_.set_uniform_mat_f4("model", { ctx.model_matrix, 16 });
 
