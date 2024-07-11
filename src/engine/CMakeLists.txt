@@ -30,6 +30,9 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/physics_world.h
 	${ENGINE_SOURCES_DIR}/physics_world.cpp
 
+	${ENGINE_SOURCES_DIR}/material.h
+	${ENGINE_SOURCES_DIR}/material.cpp
+
 	${ENGINE_SOURCES_DIR}/nav_mesh.h
 	${ENGINE_SOURCES_DIR}/nav_mesh.cpp
 	

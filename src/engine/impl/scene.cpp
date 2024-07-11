@@ -10,7 +10,6 @@
 #include <fmt/format.h>
 
 #include <glm/gtx/matrix_decompose.hpp>
-#include <glm/gtx/matrix_decompose.hpp>
 #include <SDL3/SDL.h>
 
 #include <RmlUi/Core.h>
