@@ -812,6 +812,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 #if 1
                         const auto ctx = MaterialSprite::DrawContext{
                             .camera = camera_internal.camera_ubo,
+                            .scene = scene_ubo_,
                             .world_position = translation,
                             .scale = scale };
                         material_sprite_.draw(ctx);

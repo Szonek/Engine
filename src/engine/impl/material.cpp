@@ -75,3 +75,66 @@ void engine::MaterialSprite::draw(const DrawContext& ctx)
     empty_vao_plane_.bind();
     empty_vao_plane_.draw(Geometry::Mode::eTriangles);
 }
+
+engine::MaterialStaticGeometryUser::MaterialStaticGeometryUser(Shader& shader, std::span<const std::byte> uniform_data, const std::array<const Texture2D*, ENGINE_MATERIAL_CUSTOM_MAX_TEXTURE_BINDING_COUNT>& textures)
+    : shader_(shader)
+    , ubo_user_(UniformBuffer(uniform_data.size_bytes()))
+    , textures_(textures)
+{
+    BufferMapContext<std::byte, UniformBuffer> ubo_uploader(ubo_user_, false, true);
+    std::memcpy(ubo_uploader.data, uniform_data.data(), uniform_data.size_bytes());
+}
+
+void engine::MaterialStaticGeometryUser::draw(const Geometry& geometry, const DrawContext& ctx)
+{
+    shader_.bind();
+
+    shader_.set_uniform_block("CameraData", &ctx.camera, 0);
+    shader_.set_uniform_block("SceneData", &ctx.scene, 1);
+    shader_.set_uniform_block("UserData", &ubo_user_, 2);
+
+    shader_.set_uniform_mat_f4("model", { ctx.model_matrix, 16 });
+
+    shader_.set_uniform_f4("diffuse_color", { ctx.color_diffuse, 4 });
+    shader_.set_uniform_f1("shininess", ctx.shininess);
+
+    shader_.set_texture("texture_diffuse", &ctx.texture_diffuse);
+    shader_.set_texture("texture_specular", &ctx.texture_specular);
+
+    for (auto i = 0; i < textures_.size(); i++)
+    {
+        shader_.set_texture("test_X", textures_.at(i));
+    }
+
+    geometry.bind();
+    geometry.draw(Geometry::Mode::eTriangles);
+}
+
+engine::MaterialSpriteUser::MaterialSpriteUser(Shader& shader, std::span<const std::byte> uniform_data, const std::array<const Texture2D*, ENGINE_MATERIAL_CUSTOM_MAX_TEXTURE_BINDING_COUNT>& textures)
+    : shader_(shader)
+    , ubo_user_(UniformBuffer(uniform_data.size_bytes()))
+    , textures_(textures)
+{
+    BufferMapContext<std::byte, UniformBuffer> ubo_uploader(ubo_user_, false, true);
+    std::memcpy(ubo_uploader.data, uniform_data.data(), uniform_data.size_bytes());
+}
+
+void engine::MaterialSpriteUser::draw(const Geometry& geometry, const DrawContext& ctx)
+{
+    shader_.bind();
+
+    shader_.set_uniform_block("CameraData", &ctx.camera, 0);
+    shader_.set_uniform_block("SceneData", &ctx.scene, 1);
+    shader_.set_uniform_block("UserData", &ubo_user_, 2);
+
+    shader_.set_uniform_f3("world_position", { glm::value_ptr(ctx.world_position), 3 });
+    shader_.set_uniform_f3("scale", { glm::value_ptr(ctx.scale), 3 });
+
+    for (auto i = 0; i < textures_.size(); i++)
+    {
+        shader_.set_texture("test_X", textures_.at(i));
+    }
+
+    empty_vao_plane_.bind();
+    empty_vao_plane_.draw(Geometry::Mode::eTriangles);
+}

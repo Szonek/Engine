@@ -51,6 +51,9 @@ typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_animation_controller_t;
 typedef uint32_t engine_shader_t;
 
+
+#define ENGINE_MATERIAL_CUSTOM_MAX_TEXTURE_BINDING_COUNT 8
+
 typedef struct _engine_coords_2d_t
 {
     float x;
@@ -411,8 +414,9 @@ typedef struct _engine_material_default_info_t
 typedef struct _engine_material_custom_info_t
 {
     engine_shader_t shader;
+    const void* uniform_buffer_data;
     uint32_t uniform_buffer_size;
-    engine_texture2d_t texture_bindings[1];
+    engine_texture2d_t texture_bindings[ENGINE_MATERIAL_CUSTOM_MAX_TEXTURE_BINDING_COUNT];
 } engine_material_custom_info_t;
 
 typedef struct _engine_material_create_desc_t
