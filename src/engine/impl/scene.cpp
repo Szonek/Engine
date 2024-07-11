@@ -680,6 +680,56 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         }
                         const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
                         
+#if 1
+                        auto texture_diffuse_idx = material.material.standard.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.diffuse_texture;
+                        if (texture_diffuse_idx > textures.size())
+                        {
+                            log::log(log::LogLevel::eError, fmt::format("Diffuse texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
+                            //assert(false);
+                        }
+
+                        auto texture_specular_idx = material.material.standard.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.specular_texture;
+                        if (texture_specular_idx > textures.size())
+                        {
+                            log::log(log::LogLevel::eError, fmt::format("Specular exture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_specular_idx));
+                            //assert(false);
+                        }
+
+                        auto ctx = MaterialSkinnedGeometryLit::DrawContext{
+                            .camera = camera_internal.camera_ubo,
+                            .scene = scene_ubo_,
+                            .model_matrix = transform_component.local_to_world,
+                            .color_diffuse = material.material.standard.diffuse_color,
+                            .shininess = static_cast<float>(material.material.standard.shininess),
+                            .texture_diffuse = textures[texture_diffuse_idx],
+                            .texture_specular = textures[texture_specular_idx] };
+                        ctx.bone_transforms.reserve(ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES); // reallocation this for each geometry each frame. ToDo: optimize it
+
+                        const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
+                        for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
+                        {
+                            const auto& bone_entity = static_cast<entt::entity>(skin_component.bones[i]);
+                            if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
+                            {
+                                continue;
+                            }
+
+                            if (has_component<engine_bone_component_t>(bone_entity) == false)
+                            {
+                                log::log(log::LogLevel::eError, fmt::format("Bone entity does not have bone component. Are you sure you are doing valid thing?\n"));
+                                skin_component.bones[i] = ENGINE_INVALID_GAME_OBJECT_ID;
+                                continue;
+                            }
+                            const auto& bone_component = get_component<engine_bone_component_t>(bone_entity);
+                            const auto& bone_transform = get_component<engine_tranform_component_t>(bone_entity);
+                            const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
+                            const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
+                            const auto per_bone_final_transform = inverse_transform * bone_matrix;
+                            ctx.bone_transforms.push_back(per_bone_final_transform);
+                        }
+
+                        material_skinned_geometry_lit_.draw(geometries[mesh_component.geometry], ctx);
+#else
                         const auto shader_type = [](engine_shader_type_t shader_type)
                             {
                                 switch (shader_type)
@@ -738,7 +788,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
                         geometries[mesh_component.geometry].bind();
                         geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
-
+#endif
                     }
                 );
             }
