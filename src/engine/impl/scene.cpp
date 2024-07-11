@@ -798,7 +798,25 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
                 sprite_renderer.each([this, &camera_internal, &materials, &shaders](const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, const engine_sprite_component_t& sprite_component)
                     {
-                        //const auto& material = materials[material_component.material];
+
+                        auto model_mat = glm::make_mat4(transform_component.local_to_world);
+                        glm::vec3 scale;
+                        glm::quat rotation;
+                        glm::vec3 translation;
+                        glm::vec3 skew;
+                        glm::vec4 perspective;
+                        const auto res = glm::decompose(model_mat, scale, rotation, translation, skew, perspective);
+                        assert(res);
+
+                        const auto& material = materials[material_component.material];
+#if 1
+                        const auto ctx = MaterialSprite::DrawContext{
+                            .camera = camera_internal.camera_ubo,
+                            .world_position = translation,
+                            .scale = scale };
+                        material_sprite_.draw(ctx);
+#else
+
                         //const auto is_user_shader = material.shader_type == ENGINE_SHADER_TYPE_CUSTOM;
 
                         //auto& shader = is_user_shader ? shaders[material.material.custom.shader]
@@ -806,14 +824,6 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         //shader.bind();
                         //shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
 
-                        //auto model_mat = glm::make_mat4(transform_component.local_to_world);
-                        //glm::vec3 scale;
-                        //glm::quat rotation;
-                        //glm::vec3 translation;
-                        //glm::vec3 skew;
-                        //glm::vec4 perspective;
-                        //const auto res = glm::decompose(model_mat, scale, rotation, translation, skew, perspective);
-                        //assert(res);
                         //shader.set_uniform_f3("world_position", { glm::value_ptr(translation), 3 });
                         //shader.set_uniform_f3("scale", { glm::value_ptr(scale), 3 });
                         //if(is_user_shader)
@@ -828,6 +838,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
                         //empty_vao_for_full_screen_quad_draw_.bind();
                         //empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
+#endif
                     }
                 );
             }

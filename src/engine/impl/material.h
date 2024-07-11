@@ -70,4 +70,22 @@ private:
     Shader shader_;
 };
 
+class MaterialSprite
+{
+public:
+    struct DrawContext
+    {
+        const UniformBuffer& camera;
+        glm::vec3 world_position;
+        glm::vec3 scale;
+    };
+public:
+    MaterialSprite();
+    void draw(const DrawContext& ctx);
+
+private:
+    Shader shader_;
+    Geometry empty_vao_plane_;
+};
+
 }  // namespace engine

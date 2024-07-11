@@ -56,3 +56,22 @@ void engine::MaterialSkinnedGeometryLit::draw(const Geometry& geometry, const Dr
     geometry.bind();
     geometry.draw(Geometry::Mode::eTriangles);
 }
+
+engine::MaterialSprite::MaterialSprite()
+    : shader_(Shader({ "sprite.vs" }, { "sprite.fs" }))
+    , empty_vao_plane_(6)
+{
+}
+
+void engine::MaterialSprite::draw(const DrawContext& ctx)
+{
+    shader_.bind();
+
+    shader_.set_uniform_block("CameraData", &ctx.camera, 0);
+
+    shader_.set_uniform_f3("world_position", { glm::value_ptr(ctx.world_position), 3 });
+    shader_.set_uniform_f3("scale", { glm::value_ptr(ctx.scale), 3 });
+
+    empty_vao_plane_.bind();
+    empty_vao_plane_.draw(Geometry::Mode::eTriangles);
+}
