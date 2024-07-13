@@ -744,6 +744,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
                         const auto ctx = MaterialTextRendering::DrawContext
                         {
+                            .rdx = rdx_,
                             .camera = camera_internal.camera_ubo,
                             .world_position = glm::make_vec4(translation),
                             .scale = glm::make_vec2(text_component.scale),

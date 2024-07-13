@@ -9,6 +9,15 @@ namespace engine
 class Font
 {
 public:
+    struct character_t
+    {
+        std::array<std::uint32_t, 2> size;
+        std::array<std::int32_t, 2> bearing;
+        std::array<float, 2> offset_in_atlas_normalized;
+        std::uint32_t advance;
+    };
+
+public:
     Font();
     Font(std::string_view file_name);
     Font(const Font&) = delete;
@@ -17,6 +26,8 @@ public:
     Font& operator=(Font&&) noexcept;
     ~Font();
 
+    Texture2D& get_texture() { return atlas_.texture; }
+    const character_t& get_character_info(char c) const { return glyph_map_[static_cast<std::size_t>(c)]; }
 private:
     struct atlas_t
     {
@@ -26,13 +37,6 @@ private:
         Texture2D texture;
     };
 
-    struct character_t
-    {
-        std::array<std::uint32_t, 2> size;
-        std::array<std::int32_t, 2> bearing;
-        std::array<float, 2> offset_in_atlas_normalized;
-        std::uint32_t advance;
-    };
     static constexpr inline std::size_t max_chars_count_ = 128;
     using characters_map = std::array<character_t, max_chars_count_>;
 

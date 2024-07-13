@@ -123,6 +123,7 @@ class MaterialTextRendering
 public:
     struct DrawContext
     {
+        RenderContext& rdx;
         const UniformBuffer& camera;
         glm::vec3 world_position;
         glm::vec2 scale;

@@ -115,4 +115,14 @@ engine::MaterialTextRendering::MaterialTextRendering()
 
 void engine::MaterialTextRendering::draw(const DrawContext& ctx)
 {
+    ctx.rdx.set_depth_test(false);
+    ctx.rdx.set_blend_mode(true, RenderContext::BlendFactor::eSrcAlpha, RenderContext::BlendFactor::eOneMinusSrcAlpha, RenderContext::BlendFactor::eOne, RenderContext::BlendFactor::eZero);
+    
+    //main logic goes here
+    {
+        shader_.bind();
+    }
+
+    ctx.rdx.set_depth_test(true);
+    ctx.rdx.set_blend_mode(false);
 }
