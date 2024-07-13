@@ -51,9 +51,6 @@ void engine::initialize_light_component(entt::registry& registry, entt::entity e
 void engine::initialize_sprite_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_sprite_component_t>(registry, entity);
-    comp.placheholder = 1.0f;
-    //comp.width = 1.0f;
-    //comp.height = 1.0f;
 }
 
 
@@ -61,6 +58,13 @@ void engine::initialize_material_component(entt::registry& registry, entt::entit
 {
     auto& comp = get_zero_init_component<engine_material_component_t>(registry, entity);
     comp.material = ENGINE_INVALID_OBJECT_HANDLE;
+    comp.type = ENGINE_MATERIAL_TYPE_PONG;
+    for (auto i = 0; i < std::size(comp.data.pong.diffuse_color); i++)
+    {
+        comp.data.pong.diffuse_color[i] = 0.0f;
+    }
+    comp.data.pong.diffuse_texture = ENGINE_INVALID_OBJECT_HANDLE;
+    comp.data.pong.specular_texture = ENGINE_INVALID_OBJECT_HANDLE;
 }
 
 void engine::initialize_parent_component(entt::registry& registry, entt::entity entity)

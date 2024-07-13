@@ -52,7 +52,7 @@ typedef uint32_t engine_animation_controller_t;
 typedef uint32_t engine_shader_t;
 
 
-#define ENGINE_MATERIAL_CUSTOM_MAX_TEXTURE_BINDING_COUNT 8
+
 
 typedef struct _engine_coords_2d_t
 {

@@ -37,10 +37,7 @@ project_c::Prefab::~Prefab()
         {
             engineApplicationDestroyTexture2D(app_, t);
         }
-        for (const auto& m : materials_)
-        {
-            engineApplicationDestroyMaterial(app_, m);
-        }
+        materials_.clear();
         engineApplicationReleaseModelDesc(app_, &model_info_);
     }
 }
@@ -80,24 +77,26 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         }
     }
 
-    materials_ = std::vector<engine_material_t>(model_info_.materials_count, ENGINE_INVALID_OBJECT_HANDLE);
+    materials_ = std::vector<engine_material_component_t>(model_info_.materials_count);
     for (std::uint32_t i = 0; i < model_info_.materials_count; i++)
     {
-        const auto& mat = model_info_.materials_array[i];
-        engine_material_create_desc_t mat_create_desc = engineApplicationInitMaterialDesc(app);
-        mat_create_desc.shader_type = ENGINE_SHADER_TYPE_LIT;
-        set_c_array(mat_create_desc.material.standard.diffuse_color, mat.diffuse_color);
-        if (mat.diffuse_texture_index != -1)
+        const auto& mat_info = model_info_.materials_array[i];
+        auto& mat_comp = materials_.at(i);
+        mat_comp.type = ENGINE_MATERIAL_TYPE_PONG;
+        set_c_array(mat_comp.data.pong.diffuse_color, mat_info.diffuse_color);
+        if (mat_info.diffuse_texture_index != -1)
         {
-            mat_create_desc.material.standard.diffuse_texture = textures_.at(mat.diffuse_texture_index);
+            mat_comp.data.pong.diffuse_texture = textures_.at(mat_info.diffuse_texture_index);
         }
-        engine_error_code = engineApplicationCreateMaterialFromDesc(app, &mat_create_desc, mat.name, &materials_[i]);
-
-        if (engine_error_code != ENGINE_RESULT_CODE_OK)
-        {
-            engineLog("Failed creating textured for loaded model. Exiting!\n");
-            return;
-        }
+        mat_comp.data.pong.shininess = 32;
+        //engine_material_create_desc_t mat_create_desc = engineApplicationInitMaterialDesc(app);
+        //mat_create_desc.shader_type = ENGINE_SHADER_TYPE_LIT;
+        //set_c_array(mat_create_desc.material.standard.diffuse_color, mat.diffuse_color);
+        //if (mat.diffuse_texture_index != -1)
+        //{
+        //    mat_create_desc.material.standard.diffuse_texture = textures_.at(mat.diffuse_texture_index);
+        //}
+        //engine_error_code = engineApplicationCreateMaterialFromDesc(app, &mat_create_desc, mat.name, &materials_[i]);
     }
 }
 
@@ -141,9 +140,9 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
 
         if (node.material_index != -1)
         {
-            auto material_comp = engineSceneAddMaterialComponent(scene, go);
-            material_comp.material = materials_.at(node.material_index);
-            engineSceneUpdateMaterialComponent(scene, go, &material_comp);
+            auto material = engineSceneAddMaterialComponent(scene, go);
+            material = materials_.at(node.material_index);
+            engineSceneUpdateMaterialComponent(scene, go, &material);
             log(fmt::format("\tAdded material component\n", go));
         }
 

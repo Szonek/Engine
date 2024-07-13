@@ -595,17 +595,19 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             log::log(log::LogLevel::eError, fmt::format("Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n"));
                             return;
                         }
-                        const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
+                        //const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
 
 #if 1                       
-                        auto texture_diffuse_idx = material.material.standard.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.diffuse_texture;
+                        //auto texture_diffuse_idx = material.material.standard.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.diffuse_texture;
+                        auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
                         if (texture_diffuse_idx > textures.size())
                         {
                             log::log(log::LogLevel::eError, fmt::format("Diffuse texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
                             //assert(false);
                         }
 
-                        auto texture_specular_idx = material.material.standard.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.specular_texture;
+                        //auto texture_specular_idx = material.material.standard.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.specular_texture;
+                        auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
                         if (texture_specular_idx > textures.size())
                         {
                             log::log(log::LogLevel::eError, fmt::format("Specular exture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_specular_idx));
@@ -616,8 +618,10 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             .camera = camera_internal.camera_ubo,
                             .scene = scene_ubo_,
                             .model_matrix = transform_component.local_to_world,
-                            .color_diffuse = material.material.standard.diffuse_color,
-                            .shininess = static_cast<float>(material.material.standard.shininess),
+                            .color_diffuse = material_component.data.pong.diffuse_color,
+                            .shininess = static_cast<float>(material_component.data.pong.shininess),     
+                            //.color_diffuse = material.material.standard.diffuse_color,
+                            //.shininess = static_cast<float>(material.material.standard.shininess),
                             .texture_diffuse = textures[texture_diffuse_idx],
                             .texture_specular = textures[texture_specular_idx]};
                         material_static_geometry_lit_.draw(geometries[mesh_component.geometry], ctx);
@@ -678,17 +682,19 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         {
                             return;
                         }
-                        const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
+                        //const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
                         
 #if 1
-                        auto texture_diffuse_idx = material.material.standard.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.diffuse_texture;
+                        //auto texture_diffuse_idx = material.material.standard.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.diffuse_texture;
+                        auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
                         if (texture_diffuse_idx > textures.size())
                         {
                             log::log(log::LogLevel::eError, fmt::format("Diffuse texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
                             //assert(false);
                         }
 
-                        auto texture_specular_idx = material.material.standard.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.specular_texture;
+                       // auto texture_specular_idx = material.material.standard.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.specular_texture;
+                        auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
                         if (texture_specular_idx > textures.size())
                         {
                             log::log(log::LogLevel::eError, fmt::format("Specular exture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_specular_idx));
@@ -699,8 +705,10 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             .camera = camera_internal.camera_ubo,
                             .scene = scene_ubo_,
                             .model_matrix = transform_component.local_to_world,
-                            .color_diffuse = material.material.standard.diffuse_color,
-                            .shininess = static_cast<float>(material.material.standard.shininess),
+                            .color_diffuse = material_component.data.pong.diffuse_color,
+                            .shininess = static_cast<float>(material_component.data.pong.shininess),
+                            //.color_diffuse = material.material.standard.diffuse_color,
+                            //.shininess = static_cast<float>(material.material.standard.shininess),
                             .texture_diffuse = textures[texture_diffuse_idx],
                             .texture_specular = textures[texture_specular_idx] };
                         ctx.bone_transforms.reserve(ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES); // reallocation this for each geometry each frame. ToDo: optimize it
