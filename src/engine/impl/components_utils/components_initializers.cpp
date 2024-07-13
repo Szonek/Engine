@@ -53,6 +53,12 @@ void engine::initialize_sprite_component(entt::registry& registry, entt::entity 
     auto& comp = get_zero_init_component<engine_sprite_component_t>(registry, entity);
 }
 
+void engine::initialize_text_component(entt::registry& registry, entt::entity entity)
+{
+    auto& comp = get_zero_init_component<engine_text_component_t>(registry, entity);
+    comp.font_handle = ENGINE_INVALID_OBJECT_HANDLE;
+}
+
 
 void engine::initialize_material_component(entt::registry& registry, entt::entity entity)
 {

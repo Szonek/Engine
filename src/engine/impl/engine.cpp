@@ -955,6 +955,31 @@ bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t 
     return has_component<engine_collider_component_t>(scene, game_object);
 }
 
+engine_text_component_t engineSceneAddTextComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_text_component_t>(scene, game_object);
+}
+
+engine_text_component_t engineSceneGetTextComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_text_component_t>(scene, game_object);
+}
+
+void engineSceneUpdateTextComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_text_component_t* comp)
+{
+    update_component(scene, game_object, comp);
+}
+
+void engineSceneRemoveTextComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_text_component_t>(scene, game_object);
+}
+
+bool engineSceneHasTextComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_text_component_t>(scene, game_object);
+}
+
 engine_parent_component_t engineSceneAddParentComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return add_component<engine_parent_component_t>(scene, game_object);

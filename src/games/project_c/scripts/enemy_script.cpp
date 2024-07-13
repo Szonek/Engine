@@ -209,8 +209,8 @@ project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, const Enemy*
     engineSceneUpdateMaterialComponent(scene, go_, &mc);
 
     auto sc = engineSceneAddSpriteComponent(scene, go_);
-    //sc.width = 1.0f;
-    //sc.height = 1.0f;
+    sc.width = 1;
+    sc.height = 1;
     engineSceneUpdateSpriteComponent(scene, go_, &sc);   
 }
 

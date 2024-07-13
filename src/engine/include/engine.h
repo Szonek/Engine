@@ -10,6 +10,7 @@
 #include "components/collider_component.h"
 #include "components/parent_component.h"
 #include "components/sprite_component.h"
+#include "components/text_component.h"
 
 
 #ifdef _WIN32
@@ -649,6 +650,14 @@ ENGINE_API engine_collider_component_t engineSceneGetColliderComponent(engine_sc
 ENGINE_API void engineSceneUpdateColliderComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_collider_component_t* comp);
 ENGINE_API void engineSceneRemoveColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+// text rendering
+ENGINE_API engine_text_component_t engineSceneAddTextComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_text_component_t engineSceneGetTextComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateTextComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_text_component_t* comp);
+ENGINE_API void engineSceneRemoveTextComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasTextComponent(engine_scene_t scene, engine_game_object_t game_object);
+
 
 // parent component
 ENGINE_API engine_parent_component_t engineSceneAddParentComponent(engine_scene_t scene, engine_game_object_t game_object);

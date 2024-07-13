@@ -132,6 +132,7 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
     entity_registry_.on_construct<engine_light_component_t>().connect<&initialize_light_component>();
     entity_registry_.on_construct<engine_sprite_component_t>().connect<&initialize_sprite_component>();
+    entity_registry_.on_construct<engine_text_component_t>().connect<&initialize_text_component>();
     
     entity_registry_.on_update<engine_parent_component_t>().connect<&update_parent_component>();
     entity_registry_.on_destroy<engine_parent_component_t>().connect<&destroy_parent_component>();
@@ -700,7 +701,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         glm::vec4 perspective;
                         const auto res = glm::decompose(model_mat, scale, rotation, translation, skew, perspective);
                         assert(res);
-#if 1
+
                         if (material_component.type == ENGINE_MATERIAL_TYPE_PONG)
                         {
                             const auto ctx = MaterialSprite::DrawContext{
@@ -720,38 +721,12 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                                 .scale = scale,
                                 .uniform_data = material_component.data.user.uniform_data_buffer
                             };
-                            //std::memcpy(ctx.uniform_data.data(), material_component.data.user.uniform_data_buffer, ENGINE_MATERIAL_USER_MAX_UNIFORM_BUFFER_SIZE);
                             material_sprite_user_.draw(ctx);
                         }
                         else
                         {
                             assert(false);
                         }
-
-#else
-
-                        //const auto is_user_shader = material.shader_type == ENGINE_SHADER_TYPE_CUSTOM;
-
-                        //auto& shader = is_user_shader ? shaders[material.material.custom.shader]
-                        //    :  shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)];
-                        //shader.bind();
-                        //shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
-
-                        //shader.set_uniform_f3("world_position", { glm::value_ptr(translation), 3 });
-                        //shader.set_uniform_f3("scale", { glm::value_ptr(scale), 3 });
-                        //if(is_user_shader)
-                        //{
-                        //    // uniform block should be used here
-                        //    shader.set_uniform_f4("color", std::array<float, 4>{ 1.0f, 0.0f, 0.0f, 0.0f });
-                        //}
-                        //else
-                        //{
-                        //    shader.set_uniform_f4("color", material.material.standard.diffuse_color);
-                        //}
-
-                        //empty_vao_for_full_screen_quad_draw_.bind();
-                        //empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
-#endif
                     }
                 );
             }

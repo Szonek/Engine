@@ -15,4 +15,5 @@ void initialize_collider_component(entt::registry& registry, entt::entity entity
 void initialize_skin_component(entt::registry& registry, entt::entity entity);
 void initialize_light_component(entt::registry& registry, entt::entity entity);
 void initialize_sprite_component(entt::registry& registry, entt::entity entity);
+void initialize_text_component(entt::registry& registry, entt::entity entity);
 } // namespace engine
