@@ -57,6 +57,8 @@ void engine::initialize_text_component(entt::registry& registry, entt::entity en
 {
     auto& comp = get_zero_init_component<engine_text_component_t>(registry, entity);
     comp.font_handle = ENGINE_INVALID_OBJECT_HANDLE;
+    comp.scale[0] = 1.0f;
+    comp.scale[1] = 1.0f;
 }
 
 

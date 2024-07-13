@@ -212,6 +212,12 @@ project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, const Enemy*
     sc.width = 1;
     sc.height = 1;
     engineSceneUpdateSpriteComponent(scene, go_, &sc);   
+
+    // testing!
+    auto textc = engineSceneAddTextComponent(scene, go_);
+    std::strcpy(textc.text, "TestStr_Copy-123avb");
+    engineSceneUpdateTextComponent(scene, go_, &textc);
+
 }
 
 project_c::EnemyHealthBar::~EnemyHealthBar()

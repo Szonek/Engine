@@ -14,15 +14,7 @@ class Scene
 {
     enum class ShaderType
     {
-        eUnlit = 0,
-        eLit,
-        eVertexSkinningUnlit,
-        eVertexSkinningLit,
-
-        eSprite,
-
         eFullScreenQuad,
-
         eCount
     };
 
