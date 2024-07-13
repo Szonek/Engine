@@ -254,11 +254,29 @@ void engineApplicationDestroyShader(engine_application_t handle, engine_shader_t
     }
 }
 
-engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name)
+engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name, engine_font_t* out)
 {
     auto* app = application_cast(handle);
-    const auto result = app->add_font_from_file(file_name, handle_name);
-    return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+    const auto ret = app->add_font_from_file(file_name, handle_name);
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    *out = ret;
+    engineLog(fmt::format("Created font from file: {}, with id: {}\n", handle_name, ret).c_str());
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_font_t engineApplicationGetFontByName(engine_application_t handle, const char* name)
+{
+    const auto* app = application_cast(handle);
+    return app->get_font(name);
+}
+
+void engineApplicationDestroyFont(engine_application_t handle, engine_font_t font)
+{
+    assert(handle);
+    application_cast(handle)->destroy_font(font);
 }
 
 engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out)

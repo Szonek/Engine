@@ -50,6 +50,7 @@ typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_animation_controller_t;
 typedef uint32_t engine_shader_t;
+typedef uint32_t engine_font_t;
 
 
 
@@ -507,8 +508,10 @@ ENGINE_API engine_result_code_t engineApplicationCreateShader(engine_application
 ENGINE_API engine_shader_t engineApplicationGetShaderByName(engine_application_t handle, const char* name);
 ENGINE_API void engineApplicationDestroyShader(engine_application_t handle, engine_shader_t pso);
 
-// fonts
-ENGINE_API engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name);
+// fontsfg
+ENGINE_API engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name, engine_font_t* out);
+ENGINE_API engine_font_t engineApplicationGetFontByName(engine_application_t handle, const char* name);
+ENGINE_API void engineApplicationDestroyFont(engine_application_t handle, engine_font_t font);
 
 // model loading
 ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t* out);

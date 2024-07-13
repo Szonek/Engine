@@ -364,10 +364,31 @@ void engine::Application::destroy_nav_mesh(std::uint32_t idx)
     nav_mesh_atlas_.remove_object(idx);
 }
 
-bool engine::Application::add_font_from_file(std::string_view file_name, std::string_view handle_name)
+std::uint32_t engine::Application::add_font_from_file(std::string_view file_name, std::string_view handle_name)
 {
     const auto res = ui_manager_.load_font_from_file(file_name, handle_name);
-    return res;
+    if (res)
+    {
+        try
+        {
+            return font_atlas_.add_object(handle_name, Font(file_name));
+        }
+        catch (...)
+        {
+            return ENGINE_INVALID_OBJECT_HANDLE;
+        }
+    }
+    return ENGINE_INVALID_OBJECT_HANDLE;
+}
+
+std::uint32_t engine::Application::get_font(std::string_view name) const
+{
+    return font_atlas_.get_object(name);
+}
+
+void engine::Application::destroy_font(std::uint32_t idx)
+{
+    font_atlas_.remove_object(idx);
 }
 
 std::uint32_t engine::Application::add_geometry(const engine_vertex_attributes_layout_t& api_verts_layout, std::int32_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name)

@@ -12,6 +12,7 @@
 
 //ToDo: find a way to remove this
 inline std::vector<engine_shader_t> g_temp_shaders;
+inline std::vector<engine_font_t> g_temp_fonts;
 
 namespace
 {
@@ -33,11 +34,13 @@ project_c::AppProjectC::AppProjectC()
 {
     const auto load_start = std::chrono::high_resolution_clock::now();
 
-    if (engineApplicationCreateFontFromFile(get_handle(), "tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
+    engine_font_t font_tahoma{};
+    if (engineApplicationCreateFontFromFile(get_handle(), "tahoma.ttf", "tahoma_font", &font_tahoma) != ENGINE_RESULT_CODE_OK)
     {
         log(fmt::format("Couldnt load font!\n"));
-        return;
+        throw std::runtime_error("Failed to load font");
     }
+    g_temp_fonts.push_back(font_tahoma);
 
     const std::unordered_map<PrefabType, std::pair<std::string, std::string>> prefabs_data =
     {
@@ -60,6 +63,7 @@ project_c::AppProjectC::AppProjectC()
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             log(fmt::format("Failed loading prefab: {}\n", type));
+            throw std::runtime_error("Failed to load prefab");
         }
     }
 
@@ -95,6 +99,10 @@ project_c::AppProjectC::~AppProjectC()
     for (auto& s : g_temp_shaders)
     {
         engineApplicationDestroyShader(get_handle(), s);
+    }
+    for (auto& f : g_temp_fonts)
+    {
+        engineApplicationDestroyFont(get_handle(), f);
     }
 }
 

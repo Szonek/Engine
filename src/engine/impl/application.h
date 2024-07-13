@@ -7,6 +7,7 @@
 #include "ui_document.h"
 #include "named_atlas.h"
 #include "nav_mesh.h"
+#include "text_renderer.h"
 
 #include <array>
 #include <string>
@@ -40,7 +41,9 @@ public:
     virtual const NavMesh* get_nav_mesh(std::uint32_t idx) const;
     virtual void destroy_nav_mesh(std::uint32_t idx);
 
-    virtual bool add_font_from_file(std::string_view file_name, std::string_view handle_name);
+    virtual std::uint32_t add_font_from_file(std::string_view file_name, std::string_view handle_name);
+    virtual std::uint32_t get_font(std::string_view name) const;
+    virtual void destroy_font(std::uint32_t idx);
 
     virtual std::uint32_t add_geometry(const engine_vertex_attributes_layout_t& verts_layout, std::int32_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name);
     virtual std::uint32_t get_geometry(std::string_view name) const;
@@ -86,6 +89,7 @@ protected:
     Atlas<Geometry> geometries_atlas_;
     Atlas<NavMesh> nav_mesh_atlas_;
     Atlas<Shader> shader_atlas_;
+    Atlas<Font> font_atlas_;
 
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;
