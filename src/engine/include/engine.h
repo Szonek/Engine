@@ -504,6 +504,7 @@ ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engi
 
 // pipeline state objects and GPU buffers
 ENGINE_API engine_result_code_t engineApplicationCreateShader(engine_application_t handle, const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out);
+ENGINE_API engine_shader_t engineApplicationGetShaderByName(engine_application_t handle, const char* name);
 ENGINE_API void engineApplicationDestroyShader(engine_application_t handle, engine_shader_t pso);
 
 // fonts

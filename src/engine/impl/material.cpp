@@ -96,7 +96,7 @@ void engine::MaterialSpriteUser::draw(const DrawContext& ctx)
 
     for (auto i = 0; i < ctx.textures.size(); i++)
     {
-        ctx.shader.set_texture("test_X", ctx.textures.at(i));
+        //ctx.shader.set_texture("test_X", ctx.textures.at(i));
     }
 
     empty_vao_plane_.bind();

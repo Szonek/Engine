@@ -396,6 +396,11 @@ std::uint32_t engine::Application::add_shader(const std::vector<std::string>& ve
     return shader_atlas_.add_object(name, Shader(vertex_shader_name, fragment_shader_name));
 }
 
+std::uint32_t engine::Application::get_shader(std::string_view name) const
+{
+    return shader_atlas_.get_object(name);
+}
+
 void engine::Application::destroy_shader(std::uint32_t idx)
 {
     shader_atlas_.remove_object(idx);

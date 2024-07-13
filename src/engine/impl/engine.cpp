@@ -239,6 +239,12 @@ engine_result_code_t engineApplicationCreateShader(engine_application_t handle, 
     return ENGINE_RESULT_CODE_OK;
 }
 
+engine_shader_t engineApplicationGetShaderByName(engine_application_t handle, const char* name)
+{
+    const auto* app = application_cast(handle);
+    return app->get_shader(name);
+}
+
 void engineApplicationDestroyShader(engine_application_t handle, engine_shader_t shader)
 {
     if (handle)

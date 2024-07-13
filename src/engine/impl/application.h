@@ -48,6 +48,7 @@ public:
     virtual void destroy_geometry(std::uint32_t idx);
 
     virtual std::uint32_t add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name);
+    virtual std::uint32_t get_shader(std::string_view name) const;
     virtual void destroy_shader(std::uint32_t idx);
 
     virtual engine_model_desc_t load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir);
