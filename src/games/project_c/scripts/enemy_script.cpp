@@ -204,9 +204,8 @@ project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, const Enemy*
     auto mc = engineSceneAddMaterialComponent(scene, go_);
     mc.type = ENGINE_MATERIAL_TYPE_USER;
     mc.data.user.shader = engineApplicationGetShaderByName(my_scene_->get_app_handle(), "healthbar_shader");
-    auto f = reinterpret_cast<float*>(mc.data.user.uniform_data_buffer);
-    *f = 0.75f;
-    //mc.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "healthbar");
+    auto gpu_data = reinterpret_cast<health_bar_gpu_data_t*>(mc.data.user.uniform_data_buffer);
+    gpu_data->fill_ratio = 1.0f;
     engineSceneUpdateMaterialComponent(scene, go_, &mc);
 
     auto sc = engineSceneAddSpriteComponent(scene, go_);
@@ -221,8 +220,11 @@ project_c::EnemyHealthBar::~EnemyHealthBar()
 
 void project_c::EnemyHealthBar::update(float dt)
 {
+    const auto scene = my_scene_->get_handle();
     assert(enemy_);   
-    auto sc = engineSceneGetSpriteComponent(my_scene_->get_handle(), go_);
-    sc.placheholder = float(enemy_->hp) / float(max_hp_);
-    engineSceneUpdateSpriteComponent(my_scene_->get_handle(), go_, &sc);
+
+    auto mc = engineSceneGetMaterialComponent(scene, go_);
+    auto gpu_data = reinterpret_cast<health_bar_gpu_data_t*>(mc.data.user.uniform_data_buffer);
+    gpu_data->fill_ratio = float(enemy_->hp) / float(max_hp_);
+    engineSceneUpdateMaterialComponent(scene, go_, &mc);
 }
