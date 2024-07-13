@@ -216,6 +216,7 @@ project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, const Enemy*
     // testing!
     auto textc = engineSceneAddTextComponent(scene, go_);
     std::strcpy(textc.text, "TestStr_Copy-123avb");
+    textc.font_handle = engineApplicationGetFontByName(my_scene_->get_app_handle(), "tahoma_font");
     engineSceneUpdateTextComponent(scene, go_, &textc);
 
 }

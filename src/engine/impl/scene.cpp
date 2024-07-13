@@ -688,7 +688,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
                 sprite_renderer.each([this, &camera_internal, &shaders](const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, const engine_sprite_component_t& sprite_component)
                     {
-
+                        // ToDo: we have to do decomposition because entity can have parent and currently engine do decompose it during local-to-parent transform computations
                         auto model_mat = glm::make_mat4(transform_component.local_to_world);
                         glm::vec3 scale;
                         glm::quat rotation;
@@ -730,8 +730,28 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 ENGINE_PROFILE_SECTION_N("text_renderer");
 
-                text_renderer.each([this](const engine_tranform_component_t& transform_component, const engine_text_component_t& sprite_component)
+                text_renderer.each([this, &camera_internal, &fonts](const engine_tranform_component_t& transform_component, const engine_text_component_t& text_component)
                     {
+                        // ToDo: we have to do decomposition because entity can have parent and currently engine do decompose it during local-to-parent transform computations
+                        auto model_mat = glm::make_mat4(transform_component.local_to_world);
+                        glm::vec3 scale;
+                        glm::quat rotation;
+                        glm::vec3 translation;
+                        glm::vec3 skew;
+                        glm::vec4 perspective;
+                        const auto res = glm::decompose(model_mat, scale, rotation, translation, skew, perspective);
+                        assert(res);
+
+                        const auto ctx = MaterialTextRendering::DrawContext
+                        {
+                            .camera = camera_internal.camera_ubo,
+                            .world_position = glm::make_vec4(translation),
+                            .scale = glm::make_vec2(text_component.scale),
+                            .color = glm::make_vec4(text_component.color),
+                            .font = fonts[text_component.font_handle],
+                            .text = std::string(text_component.text)
+                        };
+                        material_text_.draw(ctx);
                     }
                 );
             }

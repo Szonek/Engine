@@ -2,6 +2,7 @@
 
 #include "engine.h"
 #include "graphics.h"
+#include "text_renderer.h"
 
 #include "glm/glm.hpp"
 
@@ -115,6 +116,28 @@ public:
 private:
     Geometry empty_vao_plane_;
     UniformBuffer ubo_user_;
+};
+
+class MaterialTextRendering
+{
+public:
+    struct DrawContext
+    {
+        const UniformBuffer& camera;
+        glm::vec3 world_position;
+        glm::vec2 scale;
+        glm::vec4 color;
+        const Font& font;
+        std::string text;
+    };
+public:
+    MaterialTextRendering();
+
+    void draw(const DrawContext& ctx);
+
+private:
+    Geometry empty_vao_plane_;
+    Shader shader_;
 };
 
 }  // namespace engine

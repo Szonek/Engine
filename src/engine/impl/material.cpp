@@ -106,3 +106,13 @@ void engine::MaterialSpriteUser::draw(const DrawContext& ctx)
     empty_vao_plane_.bind();
     empty_vao_plane_.draw(Geometry::Mode::eTriangles);
 }
+
+engine::MaterialTextRendering::MaterialTextRendering()
+    : shader_(Shader({ "font.vs" }, { "font.fs" }))
+    , empty_vao_plane_(6)
+{
+}
+
+void engine::MaterialTextRendering::draw(const DrawContext& ctx)
+{
+}
