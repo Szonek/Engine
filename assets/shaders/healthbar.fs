@@ -4,7 +4,7 @@ out vec4 out_fragment_color;
   
 in vec2 texture_uv;
 
-layout (binding = 1, std140) uniform UserData
+layout (binding = 2, std140) uniform UserData
 {
 	float fill_ratio;
 	float pad0_;

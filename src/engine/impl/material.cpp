@@ -77,7 +77,8 @@ void engine::MaterialSprite::draw(const DrawContext& ctx)
 }
 
 engine::MaterialSpriteUser::MaterialSpriteUser()
-    : ubo_user_(UniformBuffer(ENGINE_MATERIAL_USER_MAX_UNIFORM_BUFFER_SIZE))
+    : ubo_user_(UniformBuffer(16))
+    , empty_vao_plane_(6)
 {
     BufferMapContext<std::byte, UniformBuffer> ubo_uploader(ubo_user_, false, true);
     std::memset(ubo_uploader.data, 0, ENGINE_MATERIAL_USER_MAX_UNIFORM_BUFFER_SIZE);
@@ -85,6 +86,9 @@ engine::MaterialSpriteUser::MaterialSpriteUser()
 
 void engine::MaterialSpriteUser::draw(const DrawContext& ctx)
 {
+    BufferMapContext<std::byte, UniformBuffer> ubo_uploader(ubo_user_, false, true);
+    std::memcpy(ubo_uploader.data, ctx.uniform_data, ENGINE_MATERIAL_USER_MAX_UNIFORM_BUFFER_SIZE);
+
     ctx.shader.bind();
 
     ctx.shader.set_uniform_block("CameraData", &ctx.camera, 0);

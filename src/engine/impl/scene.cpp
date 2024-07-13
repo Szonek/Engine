@@ -717,9 +717,10 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                                 .scene = scene_ubo_,
                                 .shader = shaders[material_component.data.user.shader],
                                 .world_position = translation,
-                                .scale = scale                          
+                                .scale = scale,
+                                .uniform_data = material_component.data.user.uniform_data_buffer
                             };
-                            std::memcpy(ctx.uniform_data.data(), material_component.data.user.uniform_data_buffer, ENGINE_MATERIAL_USER_MAX_UNIFORM_BUFFER_SIZE);
+                            //std::memcpy(ctx.uniform_data.data(), material_component.data.user.uniform_data_buffer, ENGINE_MATERIAL_USER_MAX_UNIFORM_BUFFER_SIZE);
                             material_sprite_user_.draw(ctx);
                         }
                         else

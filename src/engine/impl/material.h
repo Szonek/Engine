@@ -104,7 +104,7 @@ public:
         Shader& shader;
         glm::vec3 world_position;
         glm::vec3 scale;
-        std::array<std::byte, ENGINE_MATERIAL_USER_MAX_UNIFORM_BUFFER_SIZE> uniform_data;
+        const std::uint8_t* uniform_data;
         std::array<Texture2D*, ENGINE_MATERIAL_USER_MAX_TEXTURE_BINDING_COUNT> textures;
     };
 public:

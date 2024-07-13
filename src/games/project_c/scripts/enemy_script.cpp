@@ -204,6 +204,8 @@ project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, const Enemy*
     auto mc = engineSceneAddMaterialComponent(scene, go_);
     mc.type = ENGINE_MATERIAL_TYPE_USER;
     mc.data.user.shader = engineApplicationGetShaderByName(my_scene_->get_app_handle(), "healthbar_shader");
+    auto f = reinterpret_cast<float*>(mc.data.user.uniform_data_buffer);
+    *f = 0.75f;
     //mc.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "healthbar");
     engineSceneUpdateMaterialComponent(scene, go_, &mc);
 
