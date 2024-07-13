@@ -90,6 +90,12 @@ protected:
     Atlas<NavMesh> nav_mesh_atlas_;
     Atlas<Shader> shader_atlas_;
     Atlas<engine_material_create_desc_t> materials_atlas_;
+
+    //Atlas<Mater
+    //MaterialStaticGeometryLit material_static_geometry_lit_;
+    //MaterialSkinnedGeometryLit material_skinned_geometry_lit_;
+    //MaterialSprite material_sprite_;
+
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;
 };
