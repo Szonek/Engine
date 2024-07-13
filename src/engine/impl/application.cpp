@@ -189,7 +189,8 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 	const auto ret_code = scene->update(delta_time,
 		textures_atlas_.get_objects_view(),
 		geometries_atlas_.get_objects_view(),
-        shader_atlas_.get_objects_view());
+        shader_atlas_.get_objects_view(),
+        font_atlas_.get_objects_view());
     on_scene_update_post(scene, delta_time);
 
     return ret_code;

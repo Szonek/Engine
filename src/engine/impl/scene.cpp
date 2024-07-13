@@ -5,7 +5,7 @@
 #include "math_helpers.h"
 #include "components_utils/components_initializers.h"
 #include "profiler.h"
-
+#include "text_renderer.h"
 
 #include <fmt/format.h>
 
@@ -320,7 +320,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 }
 
 engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
-    std::span<const Geometry> geometries, std::span<class Shader> shaders)
+    std::span<const Geometry> geometries, std::span<class Shader> shaders, std::span<const Font> fonts)
 {
     ENGINE_PROFILE_SECTION_N("scene_update");
     physics_update(dt);
@@ -532,6 +532,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
         auto sprite_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_material_component_t, const engine_sprite_component_t>();
+        auto text_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_text_component_t>();
         auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, engine_camera_internal_component_t>();
 
         for (auto [entity, camera, camera_transform, camera_internal] : camera_view.each()) 
@@ -727,6 +728,15 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         {
                             assert(false);
                         }
+                    }
+                );
+            }
+
+            {
+                ENGINE_PROFILE_SECTION_N("text_renderer");
+
+                text_renderer.each([this](const engine_tranform_component_t& transform_component, const engine_text_component_t& sprite_component)
+                    {
                     }
                 );
             }
