@@ -48,20 +48,6 @@ private:
     Shader shader_;
 };
 
-class MaterialStaticGeometryUser
-{
-public: 
-    using DrawContext = MaterialStaticGeometryLit::DrawContext;
-public:
-    MaterialStaticGeometryUser(Shader& shader, std::span<const std::byte> uniform_data, const std::array<const Texture2D*, ENGINE_MATERIAL_CUSTOM_MAX_TEXTURE_BINDING_COUNT>& textures);
-
-    void draw(const Geometry& geometry, const DrawContext& ctx);
-
-private:
-    Shader& shader_;
-    UniformBuffer ubo_user_;
-    std::array<const Texture2D*, ENGINE_MATERIAL_CUSTOM_MAX_TEXTURE_BINDING_COUNT> textures_;
-};
 
 class MaterialSkinnedGeometryLit
 {
@@ -111,17 +97,24 @@ private:
 class MaterialSpriteUser
 {
 public:
-    using DrawContext = MaterialSprite::DrawContext;
+    struct DrawContext
+    {
+        const UniformBuffer& camera;
+        const UniformBuffer& scene;
+        Shader& shader;
+        glm::vec3 world_position;
+        glm::vec3 scale;
+        std::array<std::byte, ENGINE_MATERIAL_USER_MAX_UNIFORM_BUFFER_SIZE> uniform_data;
+        std::array<Texture2D*, ENGINE_MATERIAL_USER_MAX_TEXTURE_BINDING_COUNT> textures;
+    };
 public:
-    MaterialSpriteUser(Shader& shader, std::span<const std::byte> uniform_data, const std::array<const Texture2D*, ENGINE_MATERIAL_CUSTOM_MAX_TEXTURE_BINDING_COUNT>& textures);
+    MaterialSpriteUser();
 
-    void draw(const Geometry& geometry, const DrawContext& ctx);
+    void draw(const DrawContext& ctx);
 
 private:
     Geometry empty_vao_plane_;
-    Shader& shader_;
     UniformBuffer ubo_user_;
-    std::array<const Texture2D*, ENGINE_MATERIAL_CUSTOM_MAX_TEXTURE_BINDING_COUNT> textures_;
 };
 
 }  // namespace engine

@@ -395,40 +395,6 @@ typedef struct _engine_animation_clip_create_desc_t
     uint32_t channels_count;
 } engine_animation_clip_create_desc_t;
 
-typedef enum _engine_shader_type_t
-{
-    ENGINE_SHADER_TYPE_LIT = 0, // phong shading, directional, point, spot lights
-    ENGINE_SHADER_TYPE_UNLIT,   // no lights
-    ENGINE_SHADER_TYPE_CUSTOM,
-    ENGINE_SHADER_TYPE_COUNT
-} engine_shader_type_t;
-
-typedef struct _engine_material_default_info_t
-{
-    float diffuse_color[4];
-    engine_texture2d_t diffuse_texture;
-    uint32_t shininess;
-    engine_texture2d_t specular_texture;
-} engine_material_default_info_t;
-
-typedef struct _engine_material_custom_info_t
-{
-    engine_shader_t shader;
-    const void* uniform_buffer_data;
-    uint32_t uniform_buffer_size;
-    engine_texture2d_t texture_bindings[ENGINE_MATERIAL_CUSTOM_MAX_TEXTURE_BINDING_COUNT];
-} engine_material_custom_info_t;
-
-typedef struct _engine_material_create_desc_t
-{
-    engine_shader_type_t shader_type;
-    union
-    {
-        engine_material_default_info_t standard;
-        engine_material_custom_info_t custom;
-    } material;
-} engine_material_create_desc_t;
-
 typedef struct _engine_bones_create_desc_t
 {
     uint32_t model_node_index;
@@ -552,12 +518,6 @@ ENGINE_API engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_a
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 ENGINE_API engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_application_t handle, engine_geometry_t geometry, engine_vertex_attribute_type_t type);
 ENGINE_API void engineApplicationDestroyGeometry(engine_application_t handle, engine_geometry_t geometry);
-
-// material
-ENGINE_API engine_material_create_desc_t engineApplicationInitMaterialDesc(engine_application_t handle);
-ENGINE_API engine_result_code_t engineApplicationCreateMaterialFromDesc(engine_application_t handle, const engine_material_create_desc_t* desc, const char* name, engine_material_t* out);
-ENGINE_API engine_material_t    engineApplicationGetMaterialByName(engine_application_t handle, const char* name);
-ENGINE_API void engineApplicationDestroyMaterial(engine_application_t handle, engine_material_t material);
 
 // textures 
 ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out);

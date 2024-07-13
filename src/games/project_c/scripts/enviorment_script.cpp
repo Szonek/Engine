@@ -119,7 +119,6 @@ project_c::MainLight::MainLight(engine::IScene* my_scene)
 
     // and basic material
     auto mat = engineSceneAddMaterialComponent(scene, go_);
-    mat.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "light_material");
     engineSceneUpdateMaterialComponent(scene, go_, &mat);
 
     // light component
@@ -157,7 +156,6 @@ project_c::PointLight::PointLight(engine::IScene* my_scene)
 
     // and basic material
     auto mat = engineSceneAddMaterialComponent(scene, go_);
-    mat.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "light_material");
     engineSceneUpdateMaterialComponent(scene, go_, &mat);
 
     // light component
@@ -197,7 +195,6 @@ project_c::SpotLight::SpotLight(engine::IScene* my_scene)
 
     // and basic material
     auto mat = engineSceneAddMaterialComponent(scene, go_);
-    mat.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "light_material");
     engineSceneUpdateMaterialComponent(scene, go_, &mat);
 
     // light component
@@ -241,8 +238,7 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
 
     // and basic material
     auto mat = engineSceneAddMaterialComponent(scene, go_);
-    mat.material = engineApplicationGetMaterialByName(app, "debug_path_node_mat");
-    assert(ENGINE_INVALID_OBJECT_HANDLE != mat.material);
+    set_c_array(mat.data.pong.diffuse_color, std::array<float, 4>{1.0f, 0.0f, 0.0f, 0.0f});
     engineSceneUpdateMaterialComponent(scene, go_, &mat);
 }
 

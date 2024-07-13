@@ -319,8 +319,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 }
 
 engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
-    std::span<const Geometry> geometries, std::span<const engine_material_create_desc_t> materials,
-    std::span<const NavMesh> nav_meshes, std::span<class Shader> shaders)
+    std::span<const Geometry> geometries, std::span<class Shader> shaders)
 {
     ENGINE_PROFILE_SECTION_N("scene_update");
     physics_update(dt);
@@ -584,7 +583,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 ENGINE_PROFILE_SECTION_N("geometry_renderer");
 
-                geometry_renderer.each([this, &camera_internal, &textures, &geometries, &materials](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
+                geometry_renderer.each([this, &camera_internal, &textures, &geometries](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
                     {
                         if (mesh_component.disable)
                         {
@@ -595,10 +594,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             log::log(log::LogLevel::eError, fmt::format("Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n"));
                             return;
                         }
-                        //const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
 
-#if 1                       
-                        //auto texture_diffuse_idx = material.material.standard.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.diffuse_texture;
                         auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
                         if (texture_diffuse_idx > textures.size())
                         {
@@ -606,7 +602,6 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             //assert(false);
                         }
 
-                        //auto texture_specular_idx = material.material.standard.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.specular_texture;
                         auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
                         if (texture_specular_idx > textures.size())
                         {
@@ -620,54 +615,9 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             .model_matrix = transform_component.local_to_world,
                             .color_diffuse = material_component.data.pong.diffuse_color,
                             .shininess = static_cast<float>(material_component.data.pong.shininess),     
-                            //.color_diffuse = material.material.standard.diffuse_color,
-                            //.shininess = static_cast<float>(material.material.standard.shininess),
                             .texture_diffuse = textures[texture_diffuse_idx],
                             .texture_specular = textures[texture_specular_idx]};
                         material_static_geometry_lit_.draw(geometries[mesh_component.geometry], ctx);
-#else
-              
-                        const auto shader_type = [](engine_shader_type_t shader_type)
-                            {
-                                switch (shader_type)
-                                {
-                                    case ENGINE_SHADER_TYPE_LIT:
-                                        return ShaderType::eLit;
-                                    case ENGINE_SHADER_TYPE_UNLIT:
-                                        return ShaderType::eUnlit;
-                                    default:
-                                        log::log(log::LogLevel::eError, fmt::format("Unknown shader type: {}. Are you sure you are doing valid thing?\n", shader_type));
-                                        assert(false);
-                                }
-                                return ShaderType::eUnlit;
-                            }(material.shader_type);
-                        auto& shader = shaders_[static_cast<std::uint32_t>(shader_type)];
-                        shader.bind();
-
-                        shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);    
-                        shader.set_uniform_mat_f4("model", transform_component.local_to_world);                       
-
-                        auto texture_diffuse_idx = material.material.standard.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.diffuse_texture;
-                        if (texture_diffuse_idx > textures.size())
-                        {
-                            log::log(log::LogLevel::eError, fmt::format("Texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
-                            assert(false);
-                            texture_diffuse_idx = 0;
-                        }
-                        shader.set_uniform_f4("diffuse_color", material.material.standard.diffuse_color);
-                        shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
-
-                        if (shader_type == ShaderType::eLit)
-                        {
-                            shader.set_uniform_block("SceneData", &scene_ubo_, 1);
-                            shader.set_uniform_f1("shininess", static_cast<float>(material.material.standard.shininess));
-                            const auto texture_specular_idx = material.material.standard.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.specular_texture;
-                            shader.set_texture("texture_specular", &textures[texture_specular_idx]);
-                        }
-
-                        geometries[mesh_component.geometry].bind();
-                        geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
-#endif
                     }
                 );
             }
@@ -675,17 +625,14 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 ENGINE_PROFILE_SECTION_N("skinned_geometry_renderer");
 
-                skinned_geometry_renderer.each([this, &camera_internal, &textures, &geometries, &materials](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
+                skinned_geometry_renderer.each([this, &camera_internal, &textures, &geometries](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
                     engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
                     {
                         if (mesh_component.disable)
                         {
                             return;
                         }
-                        //const auto& material = materials[material_component.material == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.material];
-                        
-#if 1
-                        //auto texture_diffuse_idx = material.material.standard.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.diffuse_texture;
+
                         auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
                         if (texture_diffuse_idx > textures.size())
                         {
@@ -693,7 +640,6 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             //assert(false);
                         }
 
-                       // auto texture_specular_idx = material.material.standard.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.specular_texture;
                         auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
                         if (texture_specular_idx > textures.size())
                         {
@@ -706,9 +652,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             .scene = scene_ubo_,
                             .model_matrix = transform_component.local_to_world,
                             .color_diffuse = material_component.data.pong.diffuse_color,
-                            .shininess = static_cast<float>(material_component.data.pong.shininess),
-                            //.color_diffuse = material.material.standard.diffuse_color,
-                            //.shininess = static_cast<float>(material.material.standard.shininess),
+                            .shininess = material_component.data.pong.shininess,
                             .texture_diffuse = textures[texture_diffuse_idx],
                             .texture_specular = textures[texture_specular_idx] };
                         ctx.bone_transforms.reserve(ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES); // reallocation this for each geometry each frame. ToDo: optimize it
@@ -737,66 +681,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         }
 
                         material_skinned_geometry_lit_.draw(geometries[mesh_component.geometry], ctx);
-#else
-                        const auto shader_type = [](engine_shader_type_t shader_type)
-                            {
-                                switch (shader_type)
-                                {
-                                case ENGINE_SHADER_TYPE_LIT:
-                                    return ShaderType::eVertexSkinningLit;
-                                case ENGINE_SHADER_TYPE_UNLIT:
-                                    return ShaderType::eVertexSkinningUnlit;
-                                default:
-                                    log::log(log::LogLevel::eError, fmt::format("Unknown shader type: {}. Are you sure you are doing valid thing?\n", shader_type));
-                                    assert(false);
-                                }
-                                return ShaderType::eUnlit;
-                            }(material.shader_type);
-                        auto& shader = shaders_[static_cast<std::uint32_t>(shader_type)];
-                        shader.bind();
-                        shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
-                        shader.set_uniform_mat_f4("model", transform_component.local_to_world);
 
-                        const auto texture_diffuse_idx = material.material.standard.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.diffuse_texture;
-                        shader.set_texture("texture_diffuse", &textures[texture_diffuse_idx]);
-                        shader.set_uniform_f4("diffuse_color", material.material.standard.diffuse_color);
-
-                        if (shader_type == ShaderType::eVertexSkinningLit)
-                        {
-                            shader.set_uniform_block("SceneData", &scene_ubo_, 1);
-                            shader.set_uniform_f1("shininess", static_cast<float>(material.material.standard.shininess));
-                            const auto texture_specular_idx = material.material.standard.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material.material.standard.specular_texture;
-                            shader.set_texture("texture_specular", &textures[texture_specular_idx]);
-                        }
-
-
-                        const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
-                        for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
-                        {
-                            const auto& bone_entity = static_cast<entt::entity>(skin_component.bones[i]);
-                            if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
-                            {
-                                continue;
-                            }
-
-                            if (has_component<engine_bone_component_t>(bone_entity) == false)
-                            {
-                                log::log(log::LogLevel::eError, fmt::format("Bone entity does not have bone component. Are you sure you are doing valid thing?\n"));
-                                skin_component.bones[i] = ENGINE_INVALID_GAME_OBJECT_ID;
-                                continue;
-                            }
-                            const auto& bone_component = get_component<engine_bone_component_t>(bone_entity);
-                            const auto& bone_transform = get_component<engine_tranform_component_t>(bone_entity);
-                            const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
-                            const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
-                            const auto per_bone_final_transform = inverse_transform * bone_matrix;
-                            const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
-                            shader.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
-                        }
-
-                        geometries[mesh_component.geometry].bind();
-                        geometries[mesh_component.geometry].draw(Geometry::Mode::eTriangles);
-#endif
                     }
                 );
             }
@@ -804,7 +689,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 ENGINE_PROFILE_SECTION_N("sprite_renderer");
 
-                sprite_renderer.each([this, &camera_internal, &materials, &shaders](const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, const engine_sprite_component_t& sprite_component)
+                sprite_renderer.each([this, &camera_internal, &shaders](const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, const engine_sprite_component_t& sprite_component)
                     {
 
                         auto model_mat = glm::make_mat4(transform_component.local_to_world);
@@ -815,15 +700,33 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         glm::vec4 perspective;
                         const auto res = glm::decompose(model_mat, scale, rotation, translation, skew, perspective);
                         assert(res);
-
-                        const auto& material = materials[material_component.material];
 #if 1
-                        const auto ctx = MaterialSprite::DrawContext{
-                            .camera = camera_internal.camera_ubo,
-                            .scene = scene_ubo_,
-                            .world_position = translation,
-                            .scale = scale };
-                        material_sprite_.draw(ctx);
+                        if (material_component.type == ENGINE_MATERIAL_TYPE_PONG)
+                        {
+                            const auto ctx = MaterialSprite::DrawContext{
+                                .camera = camera_internal.camera_ubo,
+                                .scene = scene_ubo_,
+                                .world_position = translation,
+                                .scale = scale };
+                            material_sprite_.draw(ctx);
+                        }
+                        else if (material_component.type == ENGINE_MATERIAL_TYPE_USER)
+                        {
+                            auto ctx = MaterialSpriteUser::DrawContext{
+                                .camera = camera_internal.camera_ubo,
+                                .scene = scene_ubo_,
+                                .shader = shaders[material_component.data.user.shader],
+                                .world_position = translation,
+                                .scale = scale                          
+                            };
+                            std::memcpy(ctx.uniform_data.data(), material_component.data.user.uniform_data_buffer, ENGINE_MATERIAL_USER_MAX_UNIFORM_BUFFER_SIZE);
+                            material_sprite_user_.draw(ctx);
+                        }
+                        else
+                        {
+                            assert(false);
+                        }
+
 #else
 
                         //const auto is_user_shader = material.shader_type == ENGINE_SHADER_TYPE_CUSTOM;

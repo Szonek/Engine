@@ -300,57 +300,6 @@ void engineApplicationDestroyGeometry(engine_application_t handle, engine_geomet
     application_cast(handle)->destroy_geometry(geometry);
 }
 
-engine_material_create_desc_t engineApplicationInitMaterialDesc(engine_application_t handle)
-{
-    if (!handle)
-    {
-        return {};
-    }
-    engine_material_create_desc_t ret{};
-    ret.shader_type = ENGINE_SHADER_TYPE_LIT;
-    ret.material.standard.shininess = 32;
-    ret.material.standard.diffuse_texture = ENGINE_INVALID_OBJECT_HANDLE;
-    ret.material.standard.specular_texture = ENGINE_INVALID_OBJECT_HANDLE;
-    for (auto i = 0; i < 3; i++)
-    {
-        ret.material.standard.diffuse_color[i] = 1.0f;
-    }
-    return ret;
-}
-
-engine_result_code_t engineApplicationCreateMaterialFromDesc(engine_application_t handle, const engine_material_create_desc_t* desc, const char* name, engine_material_t* out)
-{
-    if (!handle || !desc || !name)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    auto* app = reinterpret_cast<engine::Application*>(handle);
-    const auto ret = app->add_material(*desc, name);
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    // out handle is optional, user mayb not interested in it immeditly
-    if (out)
-    {
-        *out = ret;
-    }
-    engineLog(fmt::format("Created material: {}, with id: {}\n", name, ret).c_str());
-    return ENGINE_RESULT_CODE_OK;
-}
-
-engine_material_t engineApplicationGetMaterialByName(engine_application_t handle, const char* name)
-{
-    const auto* app = application_cast(handle);
-    return app->get_material(name);
-}
-
-void engineApplicationDestroyMaterial(engine_application_t handle, engine_material_t material)
-{
-    assert(handle);
-    application_cast(handle)->destroy_material(material);
-}
-
 engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out)
 {
     auto* app = application_cast(handle);

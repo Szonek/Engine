@@ -202,7 +202,7 @@ project_c::EnemyHealthBar::EnemyHealthBar(engine::IScene* my_scene, const Enemy*
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     auto mc = engineSceneAddMaterialComponent(scene, go_);
-    mc.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "healthbar");
+    //mc.material = engineApplicationGetMaterialByName(my_scene_->get_app_handle(), "healthbar");
     engineSceneUpdateMaterialComponent(scene, go_, &mc);
 
     auto sc = engineSceneAddSpriteComponent(scene, go_);

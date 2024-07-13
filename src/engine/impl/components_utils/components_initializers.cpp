@@ -57,7 +57,6 @@ void engine::initialize_sprite_component(entt::registry& registry, entt::entity 
 void engine::initialize_material_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_material_component_t>(registry, entity);
-    comp.material = ENGINE_INVALID_OBJECT_HANDLE;
     comp.type = ENGINE_MATERIAL_TYPE_PONG;
     for (auto i = 0; i < std::size(comp.data.pong.diffuse_color); i++)
     {

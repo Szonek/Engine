@@ -79,7 +79,7 @@ project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go, con
 
     // material
     auto mc = engineSceneAddMaterialComponent(scene, go);
-    mc.material = engineApplicationGetMaterialByName(app, "dagger_01");
+    set_c_array(mc.data.pong.diffuse_color, std::array<float, 4>{0.9f, 0.9f, 0.9f, 1.0f});
     engineSceneUpdateMaterialComponent(scene, go, &mc);
 }
 

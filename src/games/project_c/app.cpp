@@ -12,7 +12,6 @@
 
 //ToDo: find a way to remove this
 inline std::vector<engine_shader_t> g_temp_shaders;
-inline std::vector<engine_material_t> g_temp_materials;
 
 namespace
 {
@@ -65,24 +64,6 @@ project_c::AppProjectC::AppProjectC()
     }
 
     {
-        auto mat = engineApplicationInitMaterialDesc(get_handle());
-        mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
-        set_c_array(mat.material.standard.diffuse_color, std::array<float, 4>{1.0f, 0.0f, 0.0f, 1.0f});
-        engine_material_t mat_out = {};
-        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "debug_path_node_mat", &mat_out);
-        g_temp_materials.push_back(mat_out);
-    }
-
-    {
-        auto mat = engineApplicationInitMaterialDesc(get_handle());
-        mat.shader_type = ENGINE_SHADER_TYPE_UNLIT;
-        set_c_array(mat.material.standard.diffuse_color, std::array<float, 4>{0.9f, 0.9f, 0.9f, 1.0f});
-        engine_material_t mat_out = {};
-        engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "dagger_01", &mat_out);
-        g_temp_materials.push_back(mat_out);
-    }
-
-    {
         const std::array<const char*, 2> vertex_shader_file_names = { "healthbar.vs", nullptr };
         const std::array<const char*, 2> fragment_shader_file_names = { "healthbar.fs", nullptr };
         engine_shader_t shader = {};
@@ -92,14 +73,6 @@ project_c::AppProjectC::AppProjectC()
         if (ENGINE_RESULT_CODE_OK == engineApplicationCreateShader(get_handle(), &shader_create_desc, "healthbar_shader", &shader))
         {
             g_temp_shaders.push_back(shader);
-            auto mat = engineApplicationInitMaterialDesc(get_handle());
-            mat.shader_type = ENGINE_SHADER_TYPE_CUSTOM;
-            mat.material.custom.shader = shader;
-            mat.material.custom.uniform_buffer_size = sizeof(health_bar_gpu_data_t);
-            mat.material.custom.texture_bindings[0] = ENGINE_INVALID_OBJECT_HANDLE;
-            engine_material_t mat_out = {};
-            engineApplicationCreateMaterialFromDesc(get_handle(), &mat, "healthbar", &mat_out);
-            g_temp_materials.push_back(mat_out);
         }
         else
         {
@@ -123,11 +96,6 @@ project_c::AppProjectC::~AppProjectC()
     {
         engineApplicationDestroyShader(get_handle(), s);
     }
-    for(auto& m : g_temp_materials)
-    {
-        engineApplicationDestroyMaterial(get_handle(), m);
-    }
-    g_temp_materials.clear();
 }
 
 project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType type, engine::IScene* scene)

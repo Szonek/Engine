@@ -47,10 +47,6 @@ public:
     virtual const Geometry* get_geometry(std::uint32_t idx) const;
     virtual void destroy_geometry(std::uint32_t idx);
 
-    virtual std::uint32_t add_material(const engine_material_create_desc_t& desc, std::string_view name);
-    virtual std::uint32_t get_material(std::string_view name) const;
-    virtual void destroy_material(std::uint32_t idx);
-
     virtual std::uint32_t add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name);
     virtual void destroy_shader(std::uint32_t idx);
 
@@ -89,12 +85,6 @@ protected:
     Atlas<Geometry> geometries_atlas_;
     Atlas<NavMesh> nav_mesh_atlas_;
     Atlas<Shader> shader_atlas_;
-    Atlas<engine_material_create_desc_t> materials_atlas_;
-
-    //Atlas<Mater
-    //MaterialStaticGeometryLit material_static_geometry_lit_;
-    //MaterialSkinnedGeometryLit material_skinned_geometry_lit_;
-    //MaterialSprite material_sprite_;
 
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;
