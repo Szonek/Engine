@@ -49,13 +49,14 @@ private:
 class Solider : public BaseNode
 {
 private:
-    enum class States
+    enum States : std::uint32_t
     {
-        IDLE = 0,
-        ATTACK,
-        MOVE,
-        DODGE,
-        SKILL_1
+        IDLE    = 0x0000,
+        ATTACK  = 0x0001,
+        MOVE    = 0x0002,
+        ROTATE  = 0x0004,
+        DODGE   = 0x0008,
+        SKILL_1 = 0x0010,
     };
 
     struct GlobalStateData
@@ -111,6 +112,15 @@ private:
         bool cooldown_playing_ = false;
     };
 
+    struct MoveStateData
+    {
+        bool animation_started = false;
+        inline const char* get_animation_name() const
+        {
+            return "walk";
+        }
+    };
+
     struct AttackStateData
     {
         bool animation_started = false;
@@ -136,7 +146,8 @@ public:
 
 private:
     AttackTrigger* attack_trigger_;
-    States state_;
+    std::uint32_t state_;
+    MoveStateData move_data_;
     AttackStateData attack_data_;
     Skill_1_StateData skill_1_data_;
     GlobalStateData global_data_;

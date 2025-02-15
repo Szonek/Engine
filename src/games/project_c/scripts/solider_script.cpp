@@ -275,39 +275,58 @@ project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
 
 void project_c::Solider::update(float dt)
 {
+    auto check_state_bit = [&](States state)
+        {
+            return (state_ & state) != 0;
+        };
+    auto clear_state_bit = [&](States state)
+        {
+            state_ &= ~state;
+        };
+    auto enable_state_bit = [&](States state)
+        {
+            state_ |= state;
+        };
+
     anim_controller_.update(dt);
     dodge_data_.update(dt);
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
 
+    const std::array<engine_game_object_t, 1> raycast_ignore_list = { attack_trigger_->get_game_object() };
+    const auto ray = utils::get_ray_from_mouse_position(app, scene, utils::get_active_camera_game_objects(scene)[0]);
+    const auto hit_info = engineScenePhysicsRayCast(scene, raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000.0f);
 
     auto rotate_towards_global_target = [&]()
         {
             auto tc = engineSceneGetTransformComponent(scene, go_);
-            auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(global_data_.last_mouse_hit.position[0], global_data_.last_mouse_hit.position[1], global_data_.last_mouse_hit.position[2]));
+            //auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(global_data_.last_mouse_hit.position[0], global_data_.last_mouse_hit.position[1], global_data_.last_mouse_hit.position[2]));
+            auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(hit_info.position[0], hit_info.position[1], hit_info.position[2]));
             std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         };
+    enable_state_bit(States::ROTATE);
 
     const auto lmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT);
     const auto rmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT);
-    if ((lmb || rmb) && state_ != States::DODGE)
+    if (rmb)
     {
-        const auto ray = utils::get_ray_from_mouse_position(app, scene, utils::get_active_camera_game_objects(scene)[0]);
-        const std::array<engine_game_object_t, 1> raycast_ignore_list = { attack_trigger_->get_game_object() };
-        const auto hit_info = engineScenePhysicsRayCast(scene, raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000.0f);
-        if (hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID)
-        {
-            global_data_.last_mouse_hit = hit_info;
-            state_ = lmb ? States::MOVE : States::ATTACK;
-        }
+        enable_state_bit(States::ATTACK);
+    }
+
+    const auto button_A = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A);
+    const auto button_W = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W);
+    const auto button_D = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D);
+    const auto button_S = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S);
+    if (button_A || button_W || button_D || button_S)
+    {
+        enable_state_bit(States::MOVE);
     }
 
     if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_SPACE) && dodge_data_.can_dodge())
     {
-        state_ = States::DODGE;
+        enable_state_bit(States::DODGE);
         dodge_data_.activate();
-        const auto ray = utils::get_ray_from_mouse_position(app, scene, utils::get_active_camera_game_objects(scene)[0]);
     }
 
     if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_1))
@@ -327,20 +346,23 @@ void project_c::Solider::update(float dt)
     }
     else if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_Q))
     {
-        state_ = States::SKILL_1;
+        enable_state_bit(States::SKILL_1);
     }
-    switch (state_)
-    {
-    case States::IDLE:
+
+    if (state_ == States::IDLE)
     {
         anim_controller_.set_active_animation("idle");
-        break;
     }
-    case States::DODGE:
+    if (check_state_bit(States::ROTATE))
+    {
+        rotate_towards_global_target();     
+        clear_state_bit(States::ROTATE);
+    }
+    if (check_state_bit(States::DODGE))
     {
         if (!dodge_data_.animation_is_playing())
         {
-            state_ = States::IDLE;
+            clear_state_bit(States::DODGE);
         }
         else
         {
@@ -357,21 +379,90 @@ void project_c::Solider::update(float dt)
             tc.position[2] += forward.z * speed;
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         }
-        break;
     }
-    case States::SKILL_1:
+    if (check_state_bit(States::MOVE))
     {
+        if (move_data_.animation_started)
+        {
+            if (!anim_controller_.is_active_animation(move_data_.get_animation_name()))
+            {
+                
+                move_data_ = {};
+            }
+        }
+        {
+            anim_controller_.set_active_animation(move_data_.get_animation_name());
+            move_data_.animation_started = true;
+
+            auto tc = engineSceneGetTransformComponent(scene, go_);
+            const float speed_cooef = 0.0025f;
+            const float speed = [&]()
+                {
+                    auto ret = speed_cooef * dt;
+                    //const auto move_buttons_pressed_count = static_cast<float>(button_W + button_S + button_A + button_D);
+                    //if (move_buttons_pressed_count)
+                    //{
+                    //    ret /= move_buttons_pressed_count;
+                    //}
+                    return ret;
+                }();
+            if (button_W)  // up
+            {
+                tc.position[2] -= speed;
+            }
+            if (button_S) // down
+            {
+                tc.position[2] += speed;
+            }
+            if (button_A) // left
+            {
+                tc.position[0] -= speed;
+            }
+            if (button_D) // right
+            {
+                tc.position[0] += speed;
+            }
+
+            engineSceneUpdateTransformComponent(scene, go_, &tc);
+            clear_state_bit(States::MOVE);
+        }
+    }
+    if (check_state_bit(States::ATTACK))
+    {
+        /*
+        ToDo: attack is bugged due to lack of possiblity to play multiple animations
+        // i.e. attack -> (hit enemy), press move button (it will remove attack animation) -> we can attack instantly again (beacuse attack animation was removed due to move animation)
+        */
+        if (attack_data_.animation_started)
+        {
+            if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
+            {
+                clear_state_bit(States::ATTACK);
+                attack_data_ = {};
+            }
+        }
+        else if (hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            anim_controller_.set_active_animation(attack_data_.get_animation_name());
+            attack_data_.animation_started = true;
+            attack_trigger_->activate();
+        }
+    }
+    if (check_state_bit(States::SKILL_1))
+    {
+        /*
+        ToDo: the same bug as with attack animation
+        */
         if (skill_1_data_.animation_started)
         {
             if (!anim_controller_.is_active_animation(skill_1_data_.get_animation_name()))
             {
-                state_ = States::IDLE;
                 skill_1_data_ = {};
             }
         }
         else
         {
-            rotate_towards_global_target();
+            //rotate_towards_global_target();
             anim_controller_.set_active_animation(skill_1_data_.get_animation_name());
             skill_1_data_.animation_started = true;
             auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
@@ -383,63 +474,6 @@ void project_c::Solider::update(float dt)
             config.ricochet_count = 4;
             auto skill_1 = my_scene_->register_script<project_c::Dagger>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_DAGGER, my_scene_).go, config);
         }
-        break;
-    }
-    case States::ATTACK:
-    {
-        if (attack_data_.animation_started)
-        {
-            if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
-            {
-                state_ = States::IDLE;
-                attack_data_ = {};
-            }
-        }
-        else
-        {
-            rotate_towards_global_target();
-            anim_controller_.set_active_animation(attack_data_.get_animation_name());
-            attack_data_.animation_started = true;
-            attack_trigger_->activate();
-        }
-
-        break;
-    }
-    case States::MOVE:
-    {
-        const float speed_cooef = 0.0025f;
-        const float speed = speed_cooef * dt;
-
-        auto tc = engineSceneGetTransformComponent(scene, go_);
-        const auto distance = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(global_data_.last_mouse_hit.position[0], global_data_.last_mouse_hit.position[2]));
-        if (distance < 0.05f)
-        {
-            state_ = States::IDLE;
-        }
-        else
-        {
-            anim_controller_.set_active_animation("walk");
-
-            rotate_towards_global_target();
-            auto tc = engineSceneGetTransformComponent(scene, go_);
-            const float speed_cooef = 0.0025f;
-            const float speed = speed_cooef * dt;
-            // move
-            const glm::quat rotation = glm::make_quat(tc.rotation); // Convert the rotation to a glm::quat
-            const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f); // Get the forward direction vector
-            const glm::vec3 right = glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)); // Calculate the right direction vector
-            tc.position[0] += forward.x * speed;
-            //tc.position[1] += forward.y * speed;  // dont go up!
-            tc.position[2] += forward.z * speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
-        }
-
-        break;
-    }
-    default:
-    {
-        engineLog("Unknown solider state\n");
-        break;
-    }
+        clear_state_bit(States::SKILL_1);
     }
 }

@@ -22,7 +22,7 @@ project_c::CameraScript::CameraScript(engine::IScene* my_scene)
     engineSceneUpdateCameraComponent(scene, go_, &camera_comp);
 
     auto camera_transform_comp = engineSceneAddTransformComponent(scene, go_);
-    camera_transform_comp.position[0] = -2.0f;
+    camera_transform_comp.position[0] = 0.0f;
     camera_transform_comp.position[1] = 4.0f;
     camera_transform_comp.position[2] = 1.0f;
     engineSceneUpdateTransformComponent(scene, go_, &camera_transform_comp);
@@ -43,9 +43,9 @@ void project_c::CameraScript::update(float dt)
         //first update position
         const auto character_tc = engineSceneGetTransformComponent(scene, character_go);
         auto tc = engineSceneGetTransformComponent(scene, go_);
-        tc.position[0] = character_tc.position[0] - 2.0f;
+        tc.position[0] = character_tc.position[0];
         tc.position[1] = character_tc.position[1] + 7.0f;
-        tc.position[2] = character_tc.position[2] + 2.5f;
+        tc.position[2] = character_tc.position[2] + 3.5f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
         // update targer to point to character go position
         auto camera_comp = engineSceneGetCameraComponent(scene, go_);
