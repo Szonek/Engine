@@ -255,8 +255,8 @@ project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
     cc.is_trigger = false;
     auto& cc_child = cc.collider.compound.children[0];
+    cc_child.transform[1] = 0.35f;
     cc_child.rotation_quaternion[3] = 1.0f;
-    cc_child.transform[1] = 0.45f;
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
     set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.3f, 0.35f, 0.2f});
     engineSceneUpdateColliderComponent(scene, go_, &cc);
@@ -305,7 +305,7 @@ void project_c::Solider::update(float dt)
             std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         };
-    enable_state_bit(States::ROTATE);
+    rotate_towards_global_target();// rotate towards target
 
     const auto lmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT);
     const auto rmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT);
@@ -353,11 +353,6 @@ void project_c::Solider::update(float dt)
     {
         anim_controller_.set_active_animation("idle");
     }
-    if (check_state_bit(States::ROTATE))
-    {
-        rotate_towards_global_target();     
-        clear_state_bit(States::ROTATE);
-    }
     if (check_state_bit(States::DODGE))
     {
         if (!dodge_data_.animation_is_playing())
@@ -382,50 +377,40 @@ void project_c::Solider::update(float dt)
     }
     if (check_state_bit(States::MOVE))
     {
-        if (move_data_.animation_started)
-        {
-            if (!anim_controller_.is_active_animation(move_data_.get_animation_name()))
-            {
-                
-                move_data_ = {};
-            }
-        }
-        {
-            anim_controller_.set_active_animation(move_data_.get_animation_name());
-            move_data_.animation_started = true;
+        anim_controller_.set_active_animation(move_data_.get_animation_name());
+        move_data_.animation_started = true;
 
-            auto tc = engineSceneGetTransformComponent(scene, go_);
-            const float speed_cooef = 0.0025f;
-            const float speed = [&]()
-                {
-                    auto ret = speed_cooef * dt;
-                    //const auto move_buttons_pressed_count = static_cast<float>(button_W + button_S + button_A + button_D);
-                    //if (move_buttons_pressed_count)
-                    //{
-                    //    ret /= move_buttons_pressed_count;
-                    //}
-                    return ret;
-                }();
-            if (button_W)  // up
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        const float speed_cooef = 0.0025f;
+        const float speed = [&]()
             {
-                tc.position[2] -= speed;
-            }
-            if (button_S) // down
-            {
-                tc.position[2] += speed;
-            }
-            if (button_A) // left
-            {
-                tc.position[0] -= speed;
-            }
-            if (button_D) // right
-            {
-                tc.position[0] += speed;
-            }
-
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
-            clear_state_bit(States::MOVE);
+                auto ret = speed_cooef * dt;
+                //const auto move_buttons_pressed_count = static_cast<float>(button_W + button_S + button_A + button_D);
+                //if (move_buttons_pressed_count)
+                //{
+                //    ret /= move_buttons_pressed_count;
+                //}
+                return ret;
+            }();
+        if (button_W)  // up
+        {
+            tc.position[2] -= speed;
         }
+        if (button_S) // down
+        {
+            tc.position[2] += speed;
+        }
+        if (button_A) // left
+        {
+            tc.position[0] -= speed;
+        }
+        if (button_D) // right
+        {
+            tc.position[0] += speed;
+        }
+
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+        clear_state_bit(States::MOVE);
     }
     if (check_state_bit(States::ATTACK))
     {

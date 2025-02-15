@@ -241,6 +241,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             std::memcpy(out_channel.data.data(), in_channel.data, in_channel.data_count * sizeof(in_channel.data[0]));
         };
 
+    ret.anim_controller.set_scene(scene);
     for (auto anim_idx = 0; anim_idx < model_info_.animations_counts; anim_idx++)
     {
         const auto& anim_in = model_info_.animations_array[anim_idx];
@@ -256,7 +257,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             copy_anim_channel_data_vec3(out_channel.scale, in_channel.channel_scale);
             copy_anim_channel_data_quat(out_channel.rotation, in_channel.channel_rotation);
         }
-        ret.anim_controller.add_animation_clip(anim_in.name, project_c::AnimationClip(scene, std::move(anim_clip_data)));
+        ret.anim_controller.add_animation_clip(anim_in.name, project_c::AnimationClip(std::move(anim_clip_data)));
     }
 
     return ret;

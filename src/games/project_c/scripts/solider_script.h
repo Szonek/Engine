@@ -54,9 +54,9 @@ private:
         IDLE    = 0x0000,
         ATTACK  = 0x0001,
         MOVE    = 0x0002,
-        ROTATE  = 0x0004,
-        DODGE   = 0x0008,
-        SKILL_1 = 0x0010,
+        DODGE   = 0x0004,
+        SKILL_1 = 0x0008,
+
     };
 
     struct GlobalStateData
