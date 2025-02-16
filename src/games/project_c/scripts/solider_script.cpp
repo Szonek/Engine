@@ -317,7 +317,7 @@ void project_c::Solider::update(float dt)
 
     const auto lmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT);
     const auto rmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT);
-    if (rmb)
+    if (weapon_ && rmb)
     {
         enable_state_bit(States::ATTACK);
     }
@@ -331,11 +331,12 @@ void project_c::Solider::update(float dt)
         enable_state_bit(States::MOVE);
     }
 
-    if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F))
+    if (weapon_ && engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F))
     {
         // drop weapnon
         auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
-        //my_scene_->unregister_script(attack_trigger_);
+        my_scene_->unregister_script(weapon_);
+        weapon_ = nullptr;
     }
 
     if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_SPACE) && dodge_data_.can_dodge())
