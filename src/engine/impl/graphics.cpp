@@ -773,7 +773,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     }
     SDL_GL_MakeCurrent(window_, context_);
     const auto set_swap_result = SDL_GL_SetSwapInterval(1);
-    if (set_swap_result < 0)
+    if (!set_swap_result)
     {
         log::log(log::LogLevel::eCritical, "Failed to set swap interval\n");
         return;
@@ -874,7 +874,7 @@ engine::RenderContext::~RenderContext()
 
     if (context_)
     {
-        SDL_GL_DeleteContext(context_);
+        SDL_GL_DestroyContext(context_);
     }
     if (window_)
     {

@@ -69,7 +69,7 @@ bool engine::UiManager::load_font_from_file(std::string_view file_name, std::str
 
 void engine::UiManager::parse_sdl_event(SDL_Event ev)
 {
-    RmlSDL::InputEventHandler(ui_rml_context_, ev);
+    RmlSDL::InputEventHandler(ui_rml_context_, rdx_.get_sdl_window(), ev);
 }
 
 void engine::UiManager::update_state_and_render()

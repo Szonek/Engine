@@ -632,7 +632,7 @@ void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_b
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
-    ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+    ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::Begin("Editor Controllers");
     if (ImGui::Button("Enable/Disable Editor Controller"))
     {

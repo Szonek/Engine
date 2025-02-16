@@ -53,7 +53,8 @@
 	#include RMLUI_GL3_CUSTOM_LOADER
 #else
 	#define RMLUI_SHADER_HEADER_VERSION "#version 330\n"
-	#define GLAD_GL_IMPLEMENTATION
+	//#define GLAD_GL_IMPLEMENTATION
+    #include <glad/gl.h>
 	#include "RmlUi_Include_GL3.h"
 #endif
 
@@ -2157,21 +2158,21 @@ void RenderInterface_GL3::ResetProgram()
 
 bool RmlGL3::Initialize(Rml::String* out_message)
 {
-#if defined RMLUI_PLATFORM_EMSCRIPTEN
-	if (out_message)
-		*out_message = "Started Emscripten WebGL renderer.";
-#elif !defined RMLUI_GL3_CUSTOM_LOADER
-	const int gl_version = gladLoaderLoadGL();
-	if (gl_version == 0)
-	{
-		if (out_message)
-			*out_message = "Failed to initialize OpenGL context.";
-		return false;
-	}
-
-	if (out_message)
-		*out_message = Rml::CreateString("Loaded OpenGL %d.%d.", GLAD_VERSION_MAJOR(gl_version), GLAD_VERSION_MINOR(gl_version));
-#endif
+//#if defined RMLUI_PLATFORM_EMSCRIPTEN
+//	if (out_message)
+//		*out_message = "Started Emscripten WebGL renderer.";
+//#elif !defined RMLUI_GL3_CUSTOM_LOADER
+//	const int gl_version = gladLoaderLoadGL();
+//	if (gl_version == 0)
+//	{
+//		if (out_message)
+//			*out_message = "Failed to initialize OpenGL context.";
+//		return false;
+//	}
+//
+//	if (out_message)
+//		*out_message = Rml::CreateString("Loaded OpenGL %d.%d.", GLAD_VERSION_MAJOR(gl_version), GLAD_VERSION_MINOR(gl_version));
+//#endif
 
 	return true;
 }
@@ -2179,6 +2180,6 @@ bool RmlGL3::Initialize(Rml::String* out_message)
 void RmlGL3::Shutdown()
 {
 #if !defined RMLUI_PLATFORM_EMSCRIPTEN && !defined RMLUI_GL3_CUSTOM_LOADER
-	gladLoaderUnloadGL();
+	//gladLoaderUnloadGL();
 #endif
 }

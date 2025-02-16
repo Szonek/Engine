@@ -676,7 +676,7 @@ engine_coords_2d_t engine::Application::mouse_get_coords()
 bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
 {
     const auto state = SDL_GetMouseState(nullptr, nullptr);
-    return state & SDL_BUTTON(button);
+    return state & SDL_BUTTON_MASK(button);
 }
 
 std::array<engine_finger_info_t, 10> engine::Application::get_finger_info_events() const
