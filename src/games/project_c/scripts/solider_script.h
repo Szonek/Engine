@@ -7,10 +7,28 @@
 
 namespace project_c
 {
+
+class AttackTrigger : public BaseNode
+{
+public:
+    AttackTrigger(engine::IScene* my_scene, engine_game_object_t go);
+
+    void activate();
+    void on_collision(const collision_t& info) override;
+    void update(float dt) override;
+
+private:
+    bool is_active_ = false;
+};
+
 class Sword : public BaseNode
 {
 public:
     Sword(engine::IScene* my_scene, engine_game_object_t go);
+
+    void activate();
+private:
+    AttackTrigger* attack_trigger_;
 };
 
 class Dagger : public BaseNode
@@ -30,20 +48,6 @@ public:
     void on_collision(const collision_t& info) override;
 private:
     Config config_;
-};
-
-
-class AttackTrigger : public BaseNode
-{
-public:
-    AttackTrigger(engine::IScene* my_scene, engine_game_object_t go);
-
-    void activate();
-    void on_collision(const collision_t& info) override;
-    void update(float dt) override;
-
-private:
-    bool is_active_ = false;
 };
 
 class Solider : public BaseNode
@@ -145,7 +149,6 @@ public:
     void update(float dt);
 
 private:
-    AttackTrigger* attack_trigger_;
     std::uint32_t state_;
     MoveStateData move_data_;
     AttackStateData attack_data_;
@@ -153,5 +156,7 @@ private:
     GlobalStateData global_data_;
     DodgeStateData dodge_data_;
 
+    // inventory
+    Sword* weapon_;
 };
 } //namespace project_c
