@@ -1,4 +1,5 @@
 #sdl
+set(SDL_STATIC ON CACH BOOL "")
 add_subdirectory(SDL)
 
 #fmt
@@ -46,7 +47,7 @@ set(BULLET_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/bullet3/src  CACHE STRING "I
 set(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath CACHE STRING "Include libraries of bullet dependency")
 
 # UI library
-set(BUILD_SAMPLES OFF CACHE BOOL "Build samples of RmlUI thirdparty")
+set(BUILD_SAMPLES ON CACHE BOOL "Build samples of RmlUI thirdparty")
 set(NO_FONT_INTERFACE_DEFAULT OFF CACHE BOOL "Do not include default font interface for RmUI thirdparty.")
 add_subdirectory(RmlUi)
 
