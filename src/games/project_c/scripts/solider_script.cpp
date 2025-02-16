@@ -36,17 +36,20 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
     set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.05f, 0.20f, 0.005f});
     engineSceneUpdateColliderComponent(scene, go_, &cc);
 
+    // triger
+    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(my_scene->get_handle()));
+}
+
+void project_c::Sword::attach_to_game_object(engine_game_object_t parent)
+{
+    const auto scene = my_scene_->get_handle();
     // parent to hand
-    const auto parent = utils::get_game_objects_with_name(scene, "arm-right")[0];
     if (parent != ENGINE_INVALID_GAME_OBJECT_ID)
     {
         auto pc = engineSceneAddParentComponent(scene, go_);
         pc.parent = parent;
         engineSceneUpdateParentComponent(scene, go_, &pc);
     }
-
-    // triger
-    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(my_scene->get_handle()));
 }
 
 void project_c::Sword::activate()
@@ -279,6 +282,7 @@ project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
     auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
     assert(my_app != nullptr);
     weapon_ =  my_scene_->register_script<project_c::Sword>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_SWORD, my_scene).go);
+    weapon_->attach_to_game_object(utils::get_game_objects_with_name(scene, "arm-right")[0]);
 }
 
 void project_c::Solider::update(float dt)

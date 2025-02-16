@@ -72,6 +72,7 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         std::vector<engine_coords_2d_t> solider;
         std::vector<engine_coords_2d_t> enemy_packs;
         std::vector<engine_coords_2d_t> point_lights;
+        std::vector<engine_coords_2d_t> weapons;
     } scene_spawn_points;
 
     const auto scene_width = (std::int32_t)scene_str.find_first_of('\n');
@@ -113,6 +114,10 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             else if (c == 'p')
             {
                 scene_spawn_points.point_lights.push_back({ x_offset, z_offset });
+            }
+            else if (c == 'w')
+            {
+                scene_spawn_points.weapons.push_back({ x_offset, z_offset });
             }
         }
     }
@@ -226,6 +231,12 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         auto l = scene.register_script<project_c::PointLight>();
         l->set_world_position(point.x, 1.0f, point.y);
     }
+
+    for (const auto& point : scene_spawn_points.weapons)
+    {
+        auto l = scene.register_script<project_c::Sword>(app.instantiate_prefab(project_c::PREFAB_TYPE_SWORD, &scene).go);
+        l->set_world_position(point.x, 0.25f, point.y);
+    }
 }
 
 
@@ -264,7 +275,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         //"x     x   x\n"
         //"xxxxxxxxxxx\n"
         //"x    p    x\n"
-        "x         x\n"
+        "x  w      x\n"
         "x     ee  x\n"
         "xs    ee  x\n"
         "x     ee  x\n"
