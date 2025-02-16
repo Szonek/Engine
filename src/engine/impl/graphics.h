@@ -11,7 +11,6 @@
 #include "RmlUI_backend/RmlUi_Renderer_GL3.h"
 
 struct SDL_Window;
-typedef void* SDL_GLContext;
 
 namespace engine
 {

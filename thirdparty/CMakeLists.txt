@@ -48,6 +48,7 @@ set(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath CACHE STRING "Inc
 
 # UI library
 set(BUILD_SAMPLES ON CACHE BOOL "Build samples of RmlUI thirdparty")
+set(BUILD_TESTING OFF CACHE BOOL "Build tests of RmlUI thirdparty")
 set(NO_FONT_INTERFACE_DEFAULT OFF CACHE BOOL "Do not include default font interface for RmUI thirdparty.")
 add_subdirectory(RmlUi)
 
