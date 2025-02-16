@@ -27,7 +27,10 @@ public:
     Sword(engine::IScene* my_scene, engine_game_object_t go);
 
     void attach_to_game_object(engine_game_object_t parent);
+    void deattach_from_parent(glm::vec3 position);
     void activate();
+
+    void on_collision(const collision_t& info) override;
 private:
     AttackTrigger* attack_trigger_;
 };

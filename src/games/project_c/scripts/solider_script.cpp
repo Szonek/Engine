@@ -1,6 +1,7 @@
 #include "solider_script.h"
 #include "scripts_utils.h"
 #include "enemy_script.h"
+#include "enviorment_script.h"
 
 #include "../app.h"
 #include "iscene.h"
@@ -24,13 +25,16 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
 
     // physcis
     auto cc = engineSceneAddColliderComponent(scene, go_);
+    cc.bounciness = 0.35f;
+    cc.friction_static = 0.9f;
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
     cc.is_trigger = true;
     auto& cc_child = cc.collider.compound.children[0];
     cc_child.rotation_quaternion[3] = 1.0f;
     cc_child.transform[1] -= 0.2f;
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
-    set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.05f, 0.20f, 0.005f});
+    // increase box size when item dropped on the ground, so it do not fly trhoguh ground
+    set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.05f, 0.20f, 0.04f});
     engineSceneUpdateColliderComponent(scene, go_, &cc);
 
     // triger
@@ -49,11 +53,51 @@ void project_c::Sword::attach_to_game_object(engine_game_object_t parent)
     }
 }
 
+void project_c::Sword::deattach_from_parent(glm::vec3 position)
+{
+    const auto scene = my_scene_->get_handle();
+    if (engineSceneHasParentComponent(scene, go_))
+    {
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+        tc.position[0] = position.x;
+        tc.position[1] = position.y + 2.0f;
+        tc.position[2] = position.z;
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
+        // finally remove parent
+        engineSceneRemoveParentComponent(scene, go_);
+
+        // add rigid body component
+        auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+        rbc.mass = 1.0f;
+        engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+
+        // update collider to not be trigger, so it will stop on collision
+        auto cc = engineSceneGetColliderComponent(scene, go_);
+        cc.is_trigger = false;
+        engineSceneUpdateColliderComponent(scene, go_, &cc);
+    }
+}
+
 void project_c::Sword::activate()
 {
     attack_trigger_->activate();
 }
 
+void project_c::Sword::on_collision(const collision_t& info)
+{
+    if (auto* floor = my_scene_->get_script<Floor>(info.other))
+    {
+        // remove rigid body and enalbe is trigger
+        // check if has rigidbody (remove once), beacuse there can be multiple collision calls in single frame
+        if (engineSceneHasRigidBodyComponent(my_scene_->get_handle(), go_))
+        {
+            engineSceneRemoveRigidBodyComponent(my_scene_->get_handle(), go_);
+            auto cc = engineSceneGetColliderComponent(my_scene_->get_handle(), go_);
+            cc.is_trigger = true;
+            engineSceneUpdateColliderComponent(my_scene_->get_handle(), go_, &cc);
+        }
+    }
+}
 
 project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go, const Config& config)
     : BaseNode(my_scene, go, "dagger")
@@ -336,8 +380,8 @@ void project_c::Solider::update(float dt)
     if (weapon_ && engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F))
     {
         // drop weapnon
-        auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
-        my_scene_->unregister_script(weapon_);
+        const auto tc = engineSceneGetTransformComponent(scene, go_);
+        weapon_->deattach_from_parent({ tc.position[0], tc.position[1], tc.position[2] });
         weapon_ = nullptr;
     }
 

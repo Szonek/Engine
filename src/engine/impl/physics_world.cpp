@@ -136,6 +136,7 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
         ret.collision_shape->calculateLocalInertia(rigid_body.mass, local_inertia);
     }
 
+
     btTransform transform_init;
     transform_init.setIdentity();
     transform_init.setOrigin(btVector3(transform.position[0], transform.position[1], transform.position[2]));
@@ -146,6 +147,8 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
     btDefaultMotionState* my_motion_state = nullptr;// new btDefaultMotionState(transform_init);
     btRigidBody::btRigidBodyConstructionInfo rbInfo(rigid_body.mass, my_motion_state, ret.collision_shape, local_inertia);
     ret.rigid_body = new btRigidBody(rbInfo);
+    ret.rigid_body->setFriction(collider.friction_static);
+    ret.rigid_body->setRestitution(collider.bounciness);
     ret.rigid_body->setWorldTransform(transform_init);
     if (collider.is_trigger)
     {
@@ -159,6 +162,7 @@ engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_
     //}
 
     ret.rigid_body->setUserIndex(body_index);
+
     dynamics_world_->addRigidBody(ret.rigid_body);
 
     return ret;

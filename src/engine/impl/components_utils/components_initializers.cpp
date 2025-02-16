@@ -107,6 +107,8 @@ void engine::initialize_rigidbody_component(entt::registry& registry, entt::enti
 void engine::initialize_collider_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_collider_component_t>(registry, entity);
+    comp.bounciness = 0.5f;
+    comp.friction_static = 1.0f;
 }
 
 void engine::initialize_skin_component(entt::registry& registry, entt::entity entity)
