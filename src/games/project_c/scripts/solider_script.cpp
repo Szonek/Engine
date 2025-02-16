@@ -16,9 +16,6 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
     auto tc = engineSceneGetTransformComponent(scene, go_);
-    tc.position[0] = -0.2f;
-    tc.position[1] = 0.0f;
-    tc.position[2] = 0.1f;
 
     auto rotation = glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
@@ -283,6 +280,7 @@ project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
     assert(my_app != nullptr);
     weapon_ =  my_scene_->register_script<project_c::Sword>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_SWORD, my_scene).go);
     weapon_->attach_to_game_object(utils::get_game_objects_with_name(scene, "arm-right")[0]);
+    weapon_->set_world_position(-0.2f, 0.0f, 0.1f);
 }
 
 void project_c::Solider::update(float dt)
