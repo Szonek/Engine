@@ -28,11 +28,8 @@ public:
 
     void attach_to_game_object(engine_game_object_t parent);
     void deattach_from_parent(glm::vec3 position);
-    void activate();
 
     void on_collision(const collision_t& info) override;
-private:
-    AttackTrigger* attack_trigger_;
 };
 
 class Dagger : public BaseNode
@@ -159,6 +156,11 @@ private:
     Skill_1_StateData skill_1_data_;
     GlobalStateData global_data_;
     DodgeStateData dodge_data_;
+
+    AttackTrigger* attack_trigger_;
+
+    // child objects
+    engine_game_object_t right_arm_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
 
     // inventory
     Sword* weapon_;

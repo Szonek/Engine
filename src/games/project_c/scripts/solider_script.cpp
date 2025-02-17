@@ -12,7 +12,7 @@
 
 project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
     : BaseNode(my_scene, go, "weapon-sword")
-    , attack_trigger_(nullptr)
+
 {
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
@@ -21,7 +21,6 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
     auto rotation = glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
     engineSceneUpdateTransformComponent(scene, go_, &tc);
-
 
     // physcis
     auto cc = engineSceneAddColliderComponent(scene, go_);
@@ -36,9 +35,6 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
     // ToDo: box sie could be smaller and only increase box size when item dropped on the ground, so it do not fly trhoguh ground
     set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.05f, 0.20f, 0.04f});
     engineSceneUpdateColliderComponent(scene, go_, &cc);
-
-    // triger
-    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(my_scene->get_handle()));
 }
 
 void project_c::Sword::attach_to_game_object(engine_game_object_t parent)
@@ -58,6 +54,7 @@ void project_c::Sword::deattach_from_parent(glm::vec3 position)
     const auto scene = my_scene_->get_handle();
     if (engineSceneHasParentComponent(scene, go_))
     {
+        // set posion
         auto tc = engineSceneGetTransformComponent(scene, go_);
         tc.position[0] = position.x;
         tc.position[1] = position.y + 2.0f;
@@ -76,11 +73,6 @@ void project_c::Sword::deattach_from_parent(glm::vec3 position)
         cc.is_trigger = false;
         engineSceneUpdateColliderComponent(scene, go_, &cc);
     }
-}
-
-void project_c::Sword::activate()
-{
-    attack_trigger_->activate();
 }
 
 void project_c::Sword::on_collision(const collision_t& info)
@@ -295,6 +287,7 @@ project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
     : BaseNode(my_scene, pr, "solider")
     , weapon_(nullptr)
     , state_(States::IDLE)
+    , attack_trigger_(nullptr)
 {
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
@@ -319,11 +312,16 @@ project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
     rbc.mass = 100000.0f;
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 
+    // add handle to right arm
+    right_arm_go_ = utils::get_game_objects_with_name(scene, "arm-right")[0];
+    assert(right_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
     // add attack trigger
+    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(scene));
     auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
     assert(my_app != nullptr);
+    // add sword
     weapon_ =  my_scene_->register_script<project_c::Sword>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_SWORD, my_scene).go);
-    weapon_->attach_to_game_object(utils::get_game_objects_with_name(scene, "arm-right")[0]);
+    weapon_->attach_to_game_object(right_arm_go_);
     weapon_->set_world_position(-0.2f, 0.0f, 0.1f);
 }
 
@@ -347,7 +345,7 @@ void project_c::Solider::update(float dt)
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
 
-    const std::array<engine_game_object_t, 1> raycast_ignore_list = {};// { attack_trigger_->get_game_object() };
+    const std::array<engine_game_object_t, 1> raycast_ignore_list = { attack_trigger_->get_game_object() };
     const auto ray = utils::get_ray_from_mouse_position(app, scene, utils::get_active_camera_game_objects(scene)[0]);
     const auto hit_info = engineScenePhysicsRayCast(scene, raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000.0f);
 
@@ -366,6 +364,16 @@ void project_c::Solider::update(float dt)
     if (weapon_ && rmb)
     {
         enable_state_bit(States::ATTACK);
+    }
+
+    if (!weapon_ && lmb)
+    {
+        if (auto* sword = my_scene_->get_script<Sword>(hit_info.go))
+        {
+            weapon_ = sword;
+            weapon_->attach_to_game_object(right_arm_go_);
+            weapon_->set_world_position(-0.2f, 0.0f, 0.1f);
+        }
     }
 
     const auto button_A = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A);
@@ -469,7 +477,7 @@ void project_c::Solider::update(float dt)
         {
             anim_controller_.set_active_animation(attack_data_.get_animation_name());
             attack_data_.animation_started = true;
-            weapon_->activate();
+            attack_trigger_->activate();
         }
     }
     if (check_state_bit(States::SKILL_1))
