@@ -33,7 +33,7 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
     cc_child.rotation_quaternion[3] = 1.0f;
     cc_child.transform[1] -= 0.2f;
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
-    // increase box size when item dropped on the ground, so it do not fly trhoguh ground
+    // ToDo: box sie could be smaller and only increase box size when item dropped on the ground, so it do not fly trhoguh ground
     set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.05f, 0.20f, 0.04f});
     engineSceneUpdateColliderComponent(scene, go_, &cc);
 
