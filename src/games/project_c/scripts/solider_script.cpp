@@ -16,11 +16,6 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
 {
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
-    auto tc = engineSceneGetTransformComponent(scene, go_);
-
-    auto rotation = glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
-    engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // physcis
     auto cc = engineSceneAddColliderComponent(scene, go_);
@@ -37,7 +32,7 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
     engineSceneUpdateColliderComponent(scene, go_, &cc);
 }
 
-void project_c::Sword::attach_to_game_object(engine_game_object_t parent)
+void project_c::Sword::attach_to_game_object(engine_game_object_t parent, std::optional<glm::vec3> position = std::nullopt, std::optional<glm::quat> rotation = std::nullopt)
 {
     const auto scene = my_scene_->get_handle();
     // parent to hand
@@ -46,6 +41,21 @@ void project_c::Sword::attach_to_game_object(engine_game_object_t parent)
         auto pc = engineSceneAddParentComponent(scene, go_);
         pc.parent = parent;
         engineSceneUpdateParentComponent(scene, go_, &pc);
+    }
+
+    if (position.has_value() || rotation.has_value())
+    {
+        auto tc = engineSceneGetTransformComponent(scene, go_);
+
+        if (position.has_value())
+        {
+            std::memcpy(tc.position, glm::value_ptr(position.value()), sizeof(tc.position));
+        }
+        if (rotation.has_value())
+        {
+            std::memcpy(tc.rotation, glm::value_ptr(rotation.value()), sizeof(tc.rotation));
+        }     
+        engineSceneUpdateTransformComponent(scene, go_, &tc);
     }
 }
 
@@ -321,8 +331,7 @@ project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
     assert(my_app != nullptr);
     // add sword
     weapon_ =  my_scene_->register_script<project_c::Sword>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_SWORD, my_scene).go);
-    weapon_->attach_to_game_object(right_arm_go_);
-    weapon_->set_world_position(-0.2f, 0.0f, 0.1f);
+    weapon_->attach_to_game_object(right_arm_go_, glm::vec3(-0.2f, 0.0f, 0.1f), glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
 }
 
 void project_c::Solider::update(float dt)
@@ -368,11 +377,11 @@ void project_c::Solider::update(float dt)
 
     if (!weapon_ && lmb)
     {
+        const auto hit_info2 = engineScenePhysicsRayCast(scene, raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000.0f);
         if (auto* sword = my_scene_->get_script<Sword>(hit_info.go))
         {
             weapon_ = sword;
-            weapon_->attach_to_game_object(right_arm_go_);
-            weapon_->set_world_position(-0.2f, 0.0f, 0.1f);
+            weapon_->attach_to_game_object(right_arm_go_, glm::vec3(-0.2f, 0.0f, 0.1f), glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
         }
     }
 
