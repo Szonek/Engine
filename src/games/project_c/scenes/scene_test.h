@@ -16,6 +16,9 @@ struct UI_data
     engine_ui_data_handle_t handle_items_on_ground;
     std::uint32_t character_health = 100;
     std::uint32_t enemy_health = 100;
+
+    std::string item_name = "sword";
+    std::uint32_t item_pos_x = 50;
 };
 
 class TestScene : public engine::IScene

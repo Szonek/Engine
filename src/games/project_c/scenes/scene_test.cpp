@@ -249,11 +249,14 @@ project_c::TestScene::TestScene(engine::IApplication* app)
 
     engineApplicationCreateUiDocumentDataHandle(app_handle, "test", bindings.data(), bindings.size(), &ui_data_.handle_test);
 
-    std::array<engine_ui_document_data_binding_t, 1> bindings_items_on_ground{};
-    bindings[0].data_uint32_t = &ui_data_.character_health;
-    bindings[0].name = "item_name";
-    bindings[0].type = ENGINE_DATA_TYPE_UINT32;
-    engineApplicationCreateUiDocumentDataHandle(app_handle, "DMitemname", bindings.data(), bindings.size(), &ui_data_.handle_items_on_ground);
+    std::array<engine_ui_document_data_binding_t, 2> bindings_items_on_ground{};
+    bindings_items_on_ground[0].data_c_str = ui_data_.item_name.data();
+    bindings_items_on_ground[0].name = "item_name";
+    bindings_items_on_ground[0].type = ENGINE_DATA_TYPE_C_STR;
+    bindings_items_on_ground[1].data_uint32_t = &ui_data_.item_pos_x;
+    bindings_items_on_ground[1].name = "item_pos_x";
+    bindings_items_on_ground[1].type = ENGINE_DATA_TYPE_UINT32;
+    engineApplicationCreateUiDocumentDataHandle(app_handle, "DMitemname", bindings_items_on_ground.data(), bindings_items_on_ground.size(), &ui_data_.handle_items_on_ground);
 
     // load ui doc
     engineApplicationCreateUiDocumentFromFile(app_handle, "project_c_gameplay_ui.rml", &ui_data_.doc);
@@ -295,4 +298,5 @@ void project_c::TestScene::update_hook_begin()
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "character_health");
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "enemy_health");
     engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_name");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_pos_x");
 }

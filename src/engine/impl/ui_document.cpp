@@ -83,6 +83,11 @@ engine::UiDataHandle::UiDataHandle(Rml::Context* ctx, std::string_view name, std
             constructor.Bind(bind.name, bind.data_uint32_t);
             break;
         }
+        case ENGINE_DATA_TYPE_C_STR:
+        {
+            constructor.Bind(bind.name, bind.data_c_str);
+            break;
+        }
         default:
             log::log(log::LogLevel::eError, "Unknown engine data type. Cant create data binding for UI.");
         }

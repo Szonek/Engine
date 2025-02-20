@@ -18,7 +18,8 @@ div.container
 	
 div.container2 
 {
-	left:50%;
+	left:90%;
+	bottom: 10%;
 	position: absolute;
 	background-color: yellow;
 	color: black;	

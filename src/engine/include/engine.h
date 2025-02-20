@@ -77,7 +77,8 @@ typedef enum _engine_ui_document_data_binding_data_type_t
 {
     ENGINE_DATA_TYPE_UNKNOWN = 0,
     ENGINE_DATA_TYPE_BOOL = 1,
-    ENGINE_DATA_TYPE_UINT32
+    ENGINE_DATA_TYPE_UINT32,
+    ENGINE_DATA_TYPE_C_STR,
 } engine_ui_document_data_binding_data_type_t;
 
 typedef struct _engine_ui_document_data_binding_t
@@ -88,6 +89,7 @@ typedef struct _engine_ui_document_data_binding_t
     {
         bool* data_bool;
         uint32_t* data_uint32_t;
+        char* data_c_str;
     };
 } engine_ui_document_data_binding_t;
 

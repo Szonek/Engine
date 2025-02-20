@@ -9,7 +9,7 @@
 		{{character_health}} <br/>
 		{{enemy_health}}
 	</div>
-	<div class="container2" data-model="DMitemname">
+	<div class="container2" data-model="DMitemname" data-style-left="item_pos_x">
 		{{item_name}}
 	</div>
 </body>
