@@ -2,7 +2,6 @@
 #include "iscene.h"
 
 #include "scenes/scene_test.h"
-#include "scenes/scene_city.h"
 
 #include "scripts/enemy_script.h"
 
@@ -86,8 +85,6 @@ project_c::AppProjectC::AppProjectC()
 
 
     register_scene<project_c::TestScene>();
-    auto city_scene = register_scene<project_c::CityScene>();
-    city_scene->deactivate();
 }
 
 project_c::AppProjectC::~AppProjectC()
@@ -150,25 +147,6 @@ void project_c::AppProjectC::run()
         }
 
         auto scene = get_scene(TestScene::get_name());
-        auto scene_city = get_scene(CityScene::get_name());
-        if (engineApplicationIsKeyboardButtonDown(get_handle(), ENGINE_KEYBOARD_KEY_5))
-        {
-            if (scene)
-            {
-                unregister_scene(TestScene::get_name());
-            }
-            scene_city->activate();
-        }
-        else if (engineApplicationIsKeyboardButtonDown(get_handle(), ENGINE_KEYBOARD_KEY_6))
-        {
-            if (!scene)
-            {
-                register_scene<project_c::TestScene>();
-                scene = get_scene(TestScene::get_name());
-            }
-            scene->activate();
-            scene_city->deactivate();
-        }
         update_scenes(frame_begin.delta_time);
 
         const auto frame_end = engineApplicationFrameEnd(get_handle());

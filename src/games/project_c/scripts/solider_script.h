@@ -25,11 +25,21 @@ class Sword : public BaseNode
 {
 public:
     Sword(engine::IScene* my_scene, engine_game_object_t go);
+    ~Sword();
 
     void attach_to_game_object(engine_game_object_t parent, std::optional<glm::vec3> position, std::optional<glm::quat> rotation);
     void deattach_from_parent(glm::vec3 position);
 
     void on_collision(const collision_t& info) override;
+
+private:
+    engine_ui_document_t ui_document_ = nullptr;
+    engine_ui_data_handle_t ui_data_handle_ = nullptr;
+    struct ui_data
+    {
+        std::uint32_t name = 0;
+    };
+    ui_data ui_data_;
 };
 
 class Dagger : public BaseNode

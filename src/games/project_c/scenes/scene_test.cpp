@@ -247,10 +247,16 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     bindings[1].name = "enemy_health";
     bindings[1].type = ENGINE_DATA_TYPE_UINT32;
 
-    engineApplicationCreateUiDocumentDataHandle(app_handle, "health", bindings.data(), bindings.size(), &ui_data_.handle);
+    engineApplicationCreateUiDocumentDataHandle(app_handle, "test", bindings.data(), bindings.size(), &ui_data_.handle_test);
+
+    std::array<engine_ui_document_data_binding_t, 1> bindings_items_on_ground{};
+    bindings[0].data_uint32_t = &ui_data_.character_health;
+    bindings[0].name = "item_name";
+    bindings[0].type = ENGINE_DATA_TYPE_UINT32;
+    engineApplicationCreateUiDocumentDataHandle(app_handle, "DMitemname", bindings.data(), bindings.size(), &ui_data_.handle_items_on_ground);
 
     // load ui doc
-    engineApplicationCreateUiDocumentFromFile(app_handle, "project_c_health_bar.rml", &ui_data_.doc);
+    engineApplicationCreateUiDocumentFromFile(app_handle, "project_c_gameplay_ui.rml", &ui_data_.doc);
     if (ui_data_.doc)
     {
         engineUiDocumentShow(ui_data_.doc);
@@ -279,6 +285,14 @@ project_c::TestScene::TestScene(engine::IApplication* app)
 
 project_c::TestScene::~TestScene()
 {
-    engineUiDataHandleDestroy(ui_data_.handle);
+    engineUiDataHandleDestroy(ui_data_.handle_test);
+    engineUiDataHandleDestroy(ui_data_.handle_items_on_ground);
     engineApplicationUiDocumentDestroy(ui_data_.doc);
+}
+
+void project_c::TestScene::update_hook_begin()
+{
+    engineUiDataHandleDirtyVariable(ui_data_.handle_test, "character_health");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_test, "enemy_health");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_name");
 }

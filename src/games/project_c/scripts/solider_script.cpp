@@ -12,6 +12,7 @@
 
 project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
     : BaseNode(my_scene, go, "weapon-sword")
+    , ui_document_(nullptr)
 
 {
     const auto scene = my_scene_->get_handle();
@@ -30,6 +31,31 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
     // ToDo: box sie could be smaller and only increase box size when item dropped on the ground, so it do not fly trhoguh ground
     set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.05f, 0.20f, 0.04f});
     engineSceneUpdateColliderComponent(scene, go_, &cc);
+
+    // ui handle
+    //engineApplicationCreateUiDocumentFromFile(app, "project_c_item_name_ground.rml", &ui_document_);
+
+    std::array<engine_ui_document_data_binding_t, 1> bindings{};
+    bindings[0].data_uint32_t = &ui_data_.name;
+    bindings[0].name = "item_name";
+    bindings[0].type = ENGINE_DATA_TYPE_UINT32;
+
+    //engineApplicationCreateUiDocumentDataHandle(app, "DMitemname", bindings.data(), bindings.size(), &ui_data_handle_);
+
+    if (ui_document_)
+    {
+        //engineUiDocumentShow(ui_document_);
+    }
+    //engineUiDataHandleDirtyVariable(ui_data_handle_, "item_name");
+}
+
+project_c::Sword::~Sword()
+{
+    if (ui_document_)
+    {
+        //engineUiDocumentHide(ui_document_);
+        //engineApplicationUiDocumentDestroy(ui_document_);
+    }
 }
 
 void project_c::Sword::attach_to_game_object(engine_game_object_t parent, std::optional<glm::vec3> position = std::nullopt, std::optional<glm::quat> rotation = std::nullopt)

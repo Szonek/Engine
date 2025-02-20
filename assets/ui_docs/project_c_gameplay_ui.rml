@@ -1,0 +1,16 @@
+<rml>
+<head>
+	<title>Hello world</title>
+	<link type="text/rcss" href="rml.rcss"/>
+	<link type="text/rcss" href="project_c_gameplay_ui.rcss"/>
+</head>
+<body>
+	<div class="container" data-model="test">
+		{{character_health}} <br/>
+		{{enemy_health}}
+	</div>
+	<div class="container2" data-model="DMitemname">
+		{{item_name}}
+	</div>
+</body>
+</rml>

@@ -12,7 +12,8 @@ namespace project_c
 struct UI_data
 {
     engine_ui_document_t doc;
-    engine_ui_data_handle_t handle;
+    engine_ui_data_handle_t handle_test;
+    engine_ui_data_handle_t handle_items_on_ground;
     std::uint32_t character_health = 100;
     std::uint32_t enemy_health = 100;
 };
@@ -41,11 +42,7 @@ public:
         }
     }
 
-    void update_hook_begin() override
-    {
-        engineUiDataHandleDirtyVariable(ui_data_.handle, "character_health");
-        engineUiDataHandleDirtyVariable(ui_data_.handle, "enemy_health");
-    }
+    void update_hook_begin() override;
     static constexpr const char* get_name() { return "TestScene"; }
 
     UI_data& get_ui_data() { return ui_data_; }

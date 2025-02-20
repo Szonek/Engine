@@ -16,8 +16,6 @@ set(APP_SOURCES
 	animation_controller.h
 	animation_controller.cpp
 	
-	scenes/scene_city.h
-	scenes/scene_city.cpp	
 	scenes/scene_test.h
 	scenes/scene_test.cpp
 	
