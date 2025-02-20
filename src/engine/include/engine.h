@@ -1,4 +1,5 @@
 #pragma once
+#include "engine_defs.h"
 
 #include "components/camera_component.h"
 #include "components/light_component.h"
@@ -11,21 +12,9 @@
 #include "components/parent_component.h"
 #include "components/sprite_component.h"
 
+#include "engine_string.h"
 
-#ifdef _WIN32
-#ifdef engine_EXPORTS
-#define ENGINE_API __declspec(dllexport)
-#else
-#define ENGINE_API __declspec(dllimport)
-#endif
-#else
-#define ENGINE_API
-#endif
 
-#define ENGINE_BIT_MASK(id) 1 << id
-#define ENGINE_BIT_MASK_MAX 0x7FFFFFFF
-
-#define ENGINE_APPLICATION_NAME_MAX_LENGTH 256
 
 #ifdef __cplusplus
 extern "C"
@@ -78,7 +67,7 @@ typedef enum _engine_ui_document_data_binding_data_type_t
     ENGINE_DATA_TYPE_UNKNOWN = 0,
     ENGINE_DATA_TYPE_BOOL = 1,
     ENGINE_DATA_TYPE_UINT32,
-    ENGINE_DATA_TYPE_C_STR,
+    ENGINE_DATA_TYPE_STRING,
 } engine_ui_document_data_binding_data_type_t;
 
 typedef struct _engine_ui_document_data_binding_t
@@ -89,7 +78,7 @@ typedef struct _engine_ui_document_data_binding_t
     {
         bool* data_bool;
         uint32_t* data_uint32_t;
-        char* data_c_str;
+        engine_string_t data_string;
     };
 } engine_ui_document_data_binding_t;
 

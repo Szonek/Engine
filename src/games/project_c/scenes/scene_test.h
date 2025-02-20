@@ -17,8 +17,9 @@ struct UI_data
     std::uint32_t character_health = 100;
     std::uint32_t enemy_health = 100;
 
-    std::string item_name = "sword";
-    std::uint32_t item_pos_x = 50;
+    engine_string_t item_name = engineStringCreate("sword");
+    engine_string_t item_pos_x = engineStringCreate("50%");
+    engine_string_t item_pos_y = engineStringCreate("75%");
 };
 
 class TestScene : public engine::IScene

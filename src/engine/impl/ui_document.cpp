@@ -4,6 +4,7 @@
 #include "engine.h"
 #include "logger.h"
 #include "math_helpers.h"
+#include "engine_string_impl_def.h"
 
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/ID.h>
@@ -83,9 +84,9 @@ engine::UiDataHandle::UiDataHandle(Rml::Context* ctx, std::string_view name, std
             constructor.Bind(bind.name, bind.data_uint32_t);
             break;
         }
-        case ENGINE_DATA_TYPE_C_STR:
+        case ENGINE_DATA_TYPE_STRING:
         {
-            constructor.Bind(bind.name, bind.data_c_str);
+            constructor.Bind(bind.name, &bind.data_string->str);
             break;
         }
         default:
