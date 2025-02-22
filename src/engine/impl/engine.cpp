@@ -515,6 +515,15 @@ void engineUiDocumentHide(engine_ui_document_t ui_doc)
     }
 }
 
+void engineUiDocumentReload(engine_ui_document_t ui_doc)
+{
+    if (ui_doc)
+    {
+        auto* doc = ui_document_cast(ui_doc);
+        doc->reload();
+    }
+}
+
 engine_result_code_t engineUiDocumentGetElementById(engine_ui_document_t document, const char* id, engine_ui_element_t* out)
 {
     static std::map<std::string, engine::UiElement> ui_elements_cache;

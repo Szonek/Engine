@@ -302,21 +302,12 @@ project_c::TestScene::~TestScene()
 void project_c::TestScene::update_hook_begin()
 {
 
-    if (ui_data_.doc && engineApplicationIsKeyboardButtonDown(get_app_handle(), ENGINE_KEYBOARD_KEY_N))
+    if (engineApplicationIsKeyboardButtonDown(get_app_handle(), ENGINE_KEYBOARD_KEY_M))
     {
-        engineUiDocumentHide(ui_data_.doc);
-        engineApplicationUiDocumentDestroy(ui_data_.doc);
-        ui_data_.doc = nullptr;
+        engineUiDocumentReload(ui_data_.doc);
+        engineUiDocumentShow(ui_data_.doc);
+    }
 
-    }
-    if (!ui_data_.doc && engineApplicationIsKeyboardButtonDown(get_app_handle(), ENGINE_KEYBOARD_KEY_M))
-    {
-        engineApplicationCreateUiDocumentFromFile(get_app_handle(), "project_c_gameplay_ui.rml", &ui_data_.doc);
-        if (ui_data_.doc)
-        {
-            engineUiDocumentShow(ui_data_.doc);
-        }
-    }
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "character_health");
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "enemy_health");
     engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_name");

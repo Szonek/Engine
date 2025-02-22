@@ -1,10 +1,11 @@
 #pragma once
+#include "engine.h"
+
 #include <string>
 #include <span>
 #include <map>
 #include <functional>
-
-#include "engine.h"
+#include <filesystem>
 
 #include <RmlUi/Core.h>
 
@@ -98,16 +99,20 @@ public:
     UiDocument(Rml::Context* ctx, std::string_view file_name);
     UiDocument(const UiDocument& rhs) = delete;
     UiDocument& operator=(const UiDocument& rhs) = delete;
-    UiDocument(UiDocument&&);
-    UiDocument& operator=(UiDocument&& rhs);
+    UiDocument(UiDocument&&) noexcept;
+    UiDocument& operator=(UiDocument&& rhs) noexcept;
     ~UiDocument();
 
     void show();
     void hide();
 
+    // full reload including style sheets, useful for hot reloading
+    void reload();
+
     UiElement* get_element_by_id(std::string_view id, engine_result_code_t& err_out);
 
 private:
+    std::filesystem::path doc_file_path_;
     Rml::ElementDocument* doc_ = nullptr;
     Rml::Context* context_;
     std::map<std::string, UiElement> cached_ui_elements_;

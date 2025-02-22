@@ -11,17 +11,18 @@
 #include <RmlUi/Core/DataModelHandle.h>
 
 engine::UiDocument::UiDocument(Rml::Context* ctx, std::string_view file_name)
-    : doc_(ctx->LoadDocument((AssetStore::get_instance().get_ui_docs_base_path() / file_name).string()))
+    : doc_file_path_(AssetStore::get_instance().get_ui_docs_base_path() / file_name)
+    , doc_(ctx->LoadDocument(doc_file_path_.string()))
     , context_(ctx)
 {   
 }
 
-engine::UiDocument::UiDocument(UiDocument&& rhs)
+engine::UiDocument::UiDocument(UiDocument&& rhs) noexcept
 {
     std::swap(doc_, rhs.doc_);
 }
 
-engine::UiDocument& engine::UiDocument::operator=(UiDocument&& rhs)
+engine::UiDocument& engine::UiDocument::operator=(UiDocument&& rhs) noexcept
 {
     if (this != &rhs)
     {
@@ -32,7 +33,7 @@ engine::UiDocument& engine::UiDocument::operator=(UiDocument&& rhs)
 
 engine::UiDocument::~UiDocument()
 {
-    context_->UnloadDocument(doc_);
+    doc_->Close();
 }
 
 void engine::UiDocument::show()
@@ -43,6 +44,13 @@ void engine::UiDocument::show()
 void engine::UiDocument::hide()
 {
     doc_->Hide();
+}
+
+void engine::UiDocument::reload()
+{
+    doc_->Close();
+    doc_ = context_->LoadDocument(doc_file_path_.string());
+    doc_->ReloadStyleSheet();
 }
 
 engine::UiElement* engine::UiDocument::get_element_by_id(std::string_view id, engine_result_code_t& err_out)
@@ -118,6 +126,7 @@ engine::UiDataHandle::~UiDataHandle()
     {
         context_->RemoveDataModel(name_);
         delete handle_;
+        handle_ = nullptr;
     }
 }
 

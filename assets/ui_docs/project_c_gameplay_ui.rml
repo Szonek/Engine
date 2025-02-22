@@ -6,11 +6,11 @@
 </head>
 <body>
 	<div class="container" data-model="test">
-		{{character_health}} <br/>
-		{{enemy_health}}
+		<p>{{character_health}}</p>
+		<p>{{enemy_health}}</p>
 	</div>
 	<div class="container2" data-model="DMitemname" data-if="show_item == true" data-style-left="item_pos_x" data-style-bottom="item_pos_y">
-		{{item_name}}
+		<p>{{item_name}}</p>
 	</div>
 </body>
 </rml>
