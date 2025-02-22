@@ -396,7 +396,6 @@ void project_c::Solider::update(float dt)
     auto rotate_towards_global_target = [&]()
         {
             auto tc = engineSceneGetTransformComponent(scene, go_);
-            //auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(global_data_.last_mouse_hit.position[0], global_data_.last_mouse_hit.position[1], global_data_.last_mouse_hit.position[2]));
             auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(hit_info.position[0], hit_info.position[1], hit_info.position[2]));
             std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
             engineSceneUpdateTransformComponent(scene, go_, &tc);
