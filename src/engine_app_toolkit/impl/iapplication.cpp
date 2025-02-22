@@ -15,6 +15,7 @@ engine::IApplication::IApplication(engine_application_create_desc_t create_desc)
 
 engine::IApplication::~IApplication()
 {
+    scene_manager_.unregister_all_scenes();
     engineApplicationDestroy(app_handle_);
 }
 

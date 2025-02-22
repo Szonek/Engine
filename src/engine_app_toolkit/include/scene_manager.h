@@ -34,6 +34,8 @@ public:
     IScene* get_scene(std::string_view name);
     void unregister_scene(std::string_view name);
 
+    void unregister_all_scenes();
+
 private:
     IApplication* app_ = nullptr;
     std::unordered_map<std::string,std::shared_ptr<IScene>> scenes_;  //ToDo: should use unique_ptr

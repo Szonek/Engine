@@ -32,3 +32,8 @@ void engine::SceneManager::unregister_scene(std::string_view name)
     }
     scenes_.erase(name.data());
 }
+
+void engine::SceneManager::unregister_all_scenes()
+{
+    scenes_ = {};
+}
