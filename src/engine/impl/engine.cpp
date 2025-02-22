@@ -898,9 +898,22 @@ void engineSceneComponentViewAttachCameraComponent(engine_scene_t scene, engine_
 
 engine_coords_3d_t engineSceneCameraComponentConvertWorldPositionToScreenPosition(engine_scene_t scene, engine_game_object_t game_object, const float world_pos[3])
 {
+    assert(has_component<engine_camera_component_t>(scene, game_object));
     auto sc = scene_cast(scene);
     const auto coords = sc->convert_world_point_to_screen_point({ world_pos[0], world_pos[1], world_pos[2] }, game_object);
     engine_coords_3d_t ret{};
+    ret.x = coords.x;
+    ret.y = coords.y;
+    ret.z = coords.z;
+    return ret;
+}
+
+engine_coords_3d_t engineSceneCameraComponentConvertSpacePositionToWorldPosition(engine_scene_t scene, engine_game_object_t game_object, const engine_coords_3d_t screen_position)
+{
+    assert(has_component<engine_camera_component_t>(scene, game_object));
+    auto sc = scene_cast(scene);
+    engine_coords_3d_t ret{};
+    const auto coords = sc->convert_screen_point_to_world_point({ screen_position.x, screen_position.y, screen_position.z }, game_object);
     ret.x = coords.x;
     ret.y = coords.y;
     ret.z = coords.z;

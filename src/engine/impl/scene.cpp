@@ -6,7 +6,7 @@
 #include "components_utils/components_initializers.h"
 #include "profiler.h"
 
-
+#include <cmath>
 #include <fmt/format.h>
 
 #include <glm/gtx/matrix_decompose.hpp>
@@ -821,11 +821,30 @@ glm::vec3 engine::Scene::convert_world_point_to_screen_point(const glm::vec3& wo
     {
         const auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(entt::entity(camera_go));
         const auto window_size = rdx_.get_window_size_in_pixels();
-
         ret = glm::project(world_point, camera_internal_component.data.view, camera_internal_component.data.projection, glm::vec4(0, 0, window_size.width, window_size.height));
         ret.x /= window_size.width;
         ret.y /= window_size.height;
     }
     return ret;
+}
+
+glm::vec3 engine::Scene::convert_screen_point_to_world_point(glm::vec3 screen_point, engine_game_object_t camera_go) const
+{
+    const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(entt::entity(camera_go));
+    if (camera_component)
+    {
+        const auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(entt::entity(camera_go));
+        const auto window_size = rdx_.get_window_size_in_pixels();
+        const float aspect = window_size.width / window_size.height;
+        screen_point.x *= window_size.width;
+        screen_point.y *= window_size.height;
+        auto ret = glm::unProject(screen_point, camera_internal_component.data.view, camera_internal_component.data.projection, glm::vec4(0, 0, window_size.width, window_size.height));
+        // ret will have nan(ids) if was called in 1st frame, before scene update. Guard it with this hacky condition:
+        if (!std::isnan(ret.x))
+        {
+            return ret;
+        }
+    }
+    return glm::vec3(0.0f, 0.0f, 0.0f);
 }
 

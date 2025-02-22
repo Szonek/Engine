@@ -83,7 +83,6 @@ project_c::AppProjectC::AppProjectC()
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
     log(fmt::format("Model loading took: {}\n", ms_load_time));
 
-
     register_scene<project_c::TestScene>();
 }
 
