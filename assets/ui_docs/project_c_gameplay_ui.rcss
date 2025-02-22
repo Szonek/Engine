@@ -21,7 +21,8 @@ div.container2
 	position: absolute;
 	left:90%;
 	bottom: 10%;
-	background-color: yellow;
-	color: black;	
 	text-align: center;
+
+	background-color: #33290c;
+	color: white;	
 }
