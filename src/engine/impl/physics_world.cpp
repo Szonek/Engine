@@ -234,9 +234,9 @@ void engine::PhysicsWorld::set_gravity(std::span<const float> g)
 
 engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance)
 {
-    struct RayWithIgnoreResultCallback : public btCollisionWorld::ClosestRayResultCallback
+    struct RayWithIgnoreResultCallbackClosestHit : public btCollisionWorld::ClosestRayResultCallback
     {
-        RayWithIgnoreResultCallback(const btVector3& rayFromWorld, const btVector3& rayToWorld, std::span<const engine_game_object_t>& ignore_list)
+        RayWithIgnoreResultCallbackClosestHit(const btVector3& rayFromWorld, const btVector3& rayToWorld, std::span<const engine_game_object_t>& ignore_list)
             : btCollisionWorld::ClosestRayResultCallback(rayFromWorld, rayToWorld)
             , ignore_list_(ignore_list)
         {
@@ -258,7 +258,41 @@ engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, std
         std::span<const engine_game_object_t>& ignore_list_;
     };
 
-    RayWithIgnoreResultCallback closest_result(
+    struct RayWithIgnoreResultCallbackAllHits : public btCollisionWorld::AllHitsRayResultCallback
+    {
+        RayWithIgnoreResultCallbackAllHits(const btVector3& rayFromWorld, const btVector3& rayToWorld, std::span<const engine_game_object_t>& ignore_list)
+            : btCollisionWorld::AllHitsRayResultCallback(rayFromWorld, rayToWorld)
+            , ignore_list_(ignore_list)
+        {
+        }
+
+
+        virtual btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace)
+        {
+            for (const auto& go : ignore_list_)
+            {
+                if (rayResult.m_collisionObject->getUserIndex() == go)
+                    return 1.0;
+            }
+
+            return AllHitsRayResultCallback::addSingleResult(rayResult, normalInWorldSpace);
+        }
+
+    protected:
+        std::span<const engine_game_object_t>& ignore_list_;
+    };
+
+    //RayWithIgnoreResultCallbackAllHits all_hits_result(
+    //    btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
+    //    btVector3(ray.direction[0], ray.direction[1], ray.direction[2]),
+    //    ignore_list);
+    //dynamics_world_->rayTest(
+    //    btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
+    //    btVector3(ray.direction[0], ray.direction[1], ray.direction[2]),
+    //    all_hits_result
+    //);
+
+    RayWithIgnoreResultCallbackClosestHit closest_result(
         btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
         btVector3(ray.direction[0], ray.direction[1], ray.direction[2]),
         ignore_list);

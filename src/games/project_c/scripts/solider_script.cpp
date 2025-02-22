@@ -391,7 +391,7 @@ void project_c::Solider::update(float dt)
     const std::array<engine_game_object_t, 1> raycast_ignore_list = { attack_trigger_->get_game_object() };
     const auto active_camera_go = utils::get_active_camera_game_objects(scene)[0];
     const auto ray = utils::get_ray_from_mouse_position(app, scene, active_camera_go);
-    const auto hit_info = engineScenePhysicsRayCast(scene, raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000.0f);
+    const auto hit_info = engineScenePhysicsRayCast(scene, raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000000.0f);
 
     auto rotate_towards_global_target = [&]()
         {
@@ -412,7 +412,7 @@ void project_c::Solider::update(float dt)
 
     if (!weapon_ && lmb)
     {
-        const auto hit_info2 = engineScenePhysicsRayCast(scene, raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000.0f);
+        const auto hit_info_debug = engineScenePhysicsRayCast(scene, raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000000.0f);
         if (auto* sword = my_scene_->get_script<Sword>(hit_info.go))
         {
             weapon_ = sword;
