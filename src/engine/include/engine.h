@@ -40,14 +40,18 @@ typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_animation_controller_t;
 typedef uint32_t engine_shader_t;
 
-
-
-
 typedef struct _engine_coords_2d_t
 {
     float x;
     float y;
 } engine_coords_2d_t;
+
+typedef struct _engine_coords_3d_t
+{
+    float x;
+    float y;
+    float z;
+} engine_coords_3d_t;
 
 typedef struct _engine_ray_t
 {
@@ -623,6 +627,7 @@ ENGINE_API void engineSceneUpdateCameraComponent(engine_scene_t scene, engine_ga
 ENGINE_API void engineSceneRemoveCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void engineSceneComponentViewAttachCameraComponent(engine_scene_t scene, engine_component_view_t view);
+ENGINE_API engine_coords_3d_t engineSceneCameraComponentConvertWorldPositionToScreenPosition(engine_scene_t scene, engine_game_object_t game_object, const float world_pos[3]);
 
 // rigid body component
 ENGINE_API engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);

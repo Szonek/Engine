@@ -91,6 +91,7 @@ struct CameraGpuData
 
 struct engine_camera_internal_component_t
 {
+    CameraGpuData data; // kepe data here, so we can read it (i.e. in world-to-screen converter function)
     engine::UniformBuffer camera_ubo = engine::UniformBuffer(sizeof(CameraGpuData));
 };
 
@@ -573,10 +574,11 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             // copy camera view and projection to the GPU
             {
                 ENGINE_PROFILE_SECTION_N("camera_ubo_update");
+                camera_internal.data.view = view;
+                camera_internal.data.projection = projection;
+                camera_internal.data.position = glm::make_vec3(camera_transform.position);
                 BufferMapContext<CameraGpuData, UniformBuffer> camera_ubo(camera_internal.camera_ubo, false, true);
-                camera_ubo.data->view = view;
-                camera_ubo.data->projection = projection;
-                camera_ubo.data->position = glm::make_vec3(camera_transform.position);
+                std::memcpy(camera_ubo.data, &camera_internal.data, sizeof(CameraGpuData));
             }
 
 
@@ -809,5 +811,21 @@ void engine::Scene::get_physcis_collisions_list(const engine_collision_info_t*& 
 engine_ray_hit_info_t engine::Scene::raycast_into_physics_world(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance)
 {
     return physics_world_.raycast(ray, ignore_list, max_distance);
+}
+
+glm::vec3 engine::Scene::convert_world_point_to_screen_point(const glm::vec3& world_point, engine_game_object_t camera_go) const
+{
+    auto ret = glm::vec3(0.5f, 0.5f, 0.0f);
+    const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(entt::entity(camera_go));
+    if (camera_component)
+    {
+        const auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(entt::entity(camera_go));
+        const auto window_size = rdx_.get_window_size_in_pixels();
+
+        ret = glm::project(world_point, camera_internal_component.data.view, camera_internal_component.data.projection, glm::vec4(0, 0, window_size.width, window_size.height));
+        ret.x /= window_size.width;
+        ret.y /= window_size.height;
+    }
+    return ret;
 }
 

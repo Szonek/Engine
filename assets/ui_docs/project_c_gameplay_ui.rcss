@@ -18,9 +18,9 @@ div.container
 	
 div.container2 
 {
+	position: absolute;
 	left:90%;
 	bottom: 10%;
-	position: absolute;
 	background-color: yellow;
 	color: black;	
 	text-align: center;

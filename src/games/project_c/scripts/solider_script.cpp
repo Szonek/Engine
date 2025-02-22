@@ -2,6 +2,7 @@
 #include "scripts_utils.h"
 #include "enemy_script.h"
 #include "enviorment_script.h"
+#include "../scenes/scene_test.h"
 
 #include "../app.h"
 #include "iscene.h"
@@ -85,6 +86,13 @@ void project_c::Sword::deattach_from_parent(glm::vec3 position)
         auto cc = engineSceneGetColliderComponent(scene, go_);
         cc.is_trigger = false;
         engineSceneUpdateColliderComponent(scene, go_, &cc);
+
+
+        //if (engineApplicationIsMouseButtonDown(my_scene_->get_app_handle(), ENGINE_MOUSE_BUTTON_LEFT))
+        {
+
+            //engineLog(std::format("[TEST] scenn point: [{}, {}, {}]\n", coords.x, coords.y, coords.z).c_str());
+        }
     }
 }
 
@@ -102,6 +110,29 @@ void project_c::Sword::on_collision(const collision_t& info)
             engineSceneUpdateColliderComponent(my_scene_->get_handle(), go_, &cc);
         }
     }
+}
+
+void project_c::Sword::update(float dt)
+{
+    auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
+    const auto scene = typed_scene->get_handle();
+
+    if (!engineSceneHasParentComponent(scene, go_))
+    {
+        const auto weapon_tc = engineSceneGetTransformComponent(scene, go_);
+        const auto active_camera_go = utils::get_active_camera_game_objects(scene)[0];
+        const auto coords = engineSceneCameraComponentConvertWorldPositionToScreenPosition(scene, active_camera_go, weapon_tc.position);
+        const auto x_str = std::to_string(coords.x* 100) + "%";
+        const auto y_str = std::to_string(coords.y* 100) + "%";
+        engineStringSet(typed_scene->get_ui_data().item_pos_x, x_str.c_str());
+        engineStringSet(typed_scene->get_ui_data().item_pos_y, y_str.c_str());
+        typed_scene->get_ui_data().show_item = true;
+    }
+    else
+    {
+        typed_scene->get_ui_data().show_item = false;
+    }
+
 }
 
 project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go, const Config& config)
@@ -358,7 +389,8 @@ void project_c::Solider::update(float dt)
     const auto app = my_scene_->get_app_handle();
 
     const std::array<engine_game_object_t, 1> raycast_ignore_list = { attack_trigger_->get_game_object() };
-    const auto ray = utils::get_ray_from_mouse_position(app, scene, utils::get_active_camera_game_objects(scene)[0]);
+    const auto active_camera_go = utils::get_active_camera_game_objects(scene)[0];
+    const auto ray = utils::get_ray_from_mouse_position(app, scene, active_camera_go);
     const auto hit_info = engineScenePhysicsRayCast(scene, raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000.0f);
 
     auto rotate_towards_global_target = [&]()

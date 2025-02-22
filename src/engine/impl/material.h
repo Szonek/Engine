@@ -9,13 +9,6 @@
 
 namespace engine
 {
-struct CameraGpuData
-{
-    glm::mat4 view;
-    glm::mat4 projection;
-    glm::vec3 position;
-};
-
 struct SceneGpuData
 {
     std::uint32_t direction_light_count = 0;

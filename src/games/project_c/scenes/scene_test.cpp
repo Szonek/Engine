@@ -249,7 +249,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
 
     engineApplicationCreateUiDocumentDataHandle(app_handle, "test", bindings.data(), bindings.size(), &ui_data_.handle_test);
 
-    std::array<engine_ui_document_data_binding_t, 3> bindings_items_on_ground{};
+    std::array<engine_ui_document_data_binding_t, 4> bindings_items_on_ground{};
     bindings_items_on_ground[0].data_string = ui_data_.item_name;
     bindings_items_on_ground[0].name = "item_name";
     bindings_items_on_ground[0].type = ENGINE_DATA_TYPE_STRING;
@@ -259,6 +259,9 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     bindings_items_on_ground[2].data_string = ui_data_.item_pos_y;
     bindings_items_on_ground[2].name = "item_pos_y";
     bindings_items_on_ground[2].type = ENGINE_DATA_TYPE_STRING;
+    bindings_items_on_ground[3].data_bool = &ui_data_.show_item;
+    bindings_items_on_ground[3].name = "show_item";
+    bindings_items_on_ground[3].type = ENGINE_DATA_TYPE_BOOL;
     engineApplicationCreateUiDocumentDataHandle(app_handle, "DMitemname", bindings_items_on_ground.data(), bindings_items_on_ground.size(), &ui_data_.handle_items_on_ground);
 
     // load ui doc
@@ -298,8 +301,10 @@ project_c::TestScene::~TestScene()
 
 void project_c::TestScene::update_hook_begin()
 {
-    //engineUiDataHandleDirtyVariable(ui_data_.handle_test, "character_health");
-    //engineUiDataHandleDirtyVariable(ui_data_.handle_test, "enemy_health");
-    //engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_name");
-    //engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_pos_x");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_test, "character_health");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_test, "enemy_health");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_name");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_pos_x");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_pos_y");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "show_item");
 }

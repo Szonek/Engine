@@ -20,6 +20,7 @@ struct UI_data
     engine_string_t item_name = engineStringCreate("sword");
     engine_string_t item_pos_x = engineStringCreate("50%");
     engine_string_t item_pos_y = engineStringCreate("75%");
+    bool show_item = false;
 };
 
 class TestScene : public engine::IScene

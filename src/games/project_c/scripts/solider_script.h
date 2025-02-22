@@ -31,6 +31,8 @@ public:
     void deattach_from_parent(glm::vec3 position);
 
     void on_collision(const collision_t& info) override;
+
+    void update(float dt) override;
 };
 
 class Dagger : public BaseNode
