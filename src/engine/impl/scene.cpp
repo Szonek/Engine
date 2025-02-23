@@ -833,12 +833,46 @@ glm::vec3 engine::Scene::convert_screen_point_to_world_point(glm::vec3 screen_po
     const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(entt::entity(camera_go));
     if (camera_component)
     {
+        const auto camera_transform = entity_registry_.get<engine_tranform_component_t>(entt::entity(camera_go));
+        const auto& camera = *camera_component;
         const auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(entt::entity(camera_go));
-        const auto window_size = rdx_.get_window_size_in_pixels();
-        const float aspect = window_size.width / window_size.height;
-        screen_point.x *= window_size.width;
-        screen_point.y *= window_size.height;
-        auto ret = glm::unProject(screen_point, camera_internal_component.data.view, camera_internal_component.data.projection, glm::vec4(0, 0, window_size.width, window_size.height));
+        const auto window_size_pixels = rdx_.get_window_size_in_pixels();
+
+        screen_point.x *= window_size_pixels.width;
+        screen_point.y *= window_size_pixels.height;
+
+
+
+        glm::mat4 view = glm::mat4(0.0);
+        glm::mat4 projection = glm::mat4(0.0);
+        // update camera: view and projection
+        //{
+            const auto z_near = camera.clip_plane_near;
+            const auto z_far = camera.clip_plane_far;
+            // ToD: multi camera - this should use resolution of camera!!!
+
+            const auto adjusted_width = window_size_pixels.width * (camera.viewport_rect.width - camera.viewport_rect.x);
+            const auto adjusted_height = window_size_pixels.height * (camera.viewport_rect.height - camera.viewport_rect.y);
+            const float aspect = adjusted_width / adjusted_height;
+
+            if (camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC)
+            {
+                const float scale = camera.type_union.orthographics_scale;
+                projection = glm::ortho(-aspect * scale, aspect * scale, -scale, scale, z_near, z_far);
+            }
+            else
+            {
+                projection = glm::perspective(glm::radians(camera.type_union.perspective_fov), aspect, z_near, z_far);
+            }
+            const auto eye_position = glm::make_vec3(camera_transform.position);
+            const auto up = glm::make_vec3(camera.direction.up);
+            const auto target = glm::make_vec3(camera.target);
+            view = glm::lookAt(eye_position, target, up);
+        //}
+
+        glm::mat4 model(1.0f);
+        //model = glm::translate(model, screen_point);
+        auto ret = glm::unProject(screen_point, view * model, projection, glm::vec4(0, 0, adjusted_width, adjusted_height));
         // ret will have nan(ids) if was called in 1st frame, before scene update. Guard it with this hacky condition:
         if (!std::isnan(ret.x))
         {
