@@ -6,7 +6,8 @@ extern "C"
 #endif // cpp
 #include <stdint.h>
 
-#define ENGINE_MAX_CHILDREN 8
+//ToDo: consider lowering ENGINE_MAX_CHILDREN to smaller value
+#define ENGINE_MAX_CHILDREN 128
 typedef uint32_t engine_game_object_t;
 typedef struct _engine_parent_component_t
 {
