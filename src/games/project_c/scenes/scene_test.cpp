@@ -234,7 +234,6 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
 
 void test_callback(engine_ui_data_handle_t data_handle, const engine_ui_event_t* ev, void* user_data)
 {
-    printf("tstaatat\n");
     auto scene = reinterpret_cast<project_c::TestScene*>(user_data);
     auto solider_go = project_c::utils::get_game_objects_with_name(scene->get_handle(), "solider");
     assert(solider_go.size() == 1);

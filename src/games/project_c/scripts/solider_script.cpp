@@ -119,15 +119,22 @@ void project_c::Sword::update(float dt)
 
     if (!engineSceneHasParentComponent(scene, go_))
     {
+        static std::uint32_t counter = 0;
         const auto weapon_tc = engineSceneGetTransformComponent(scene, go_);
         const auto active_camera_go = utils::get_active_camera_game_objects(scene)[0];
         const auto coords = engineSceneCameraComponentConvertWorldPositionToScreenPosition(scene, active_camera_go, weapon_tc.position);
-        const auto x_str = std::to_string(coords.x* 100) + "%";
-        const auto y_str = std::to_string(coords.y* 100) + "%";
+        //const auto x_str = std::string("35%");
+        //const auto y_str = std::string("35%");
+        const auto x_str = std::to_string(coords.x * 100) + "%";
+        const auto y_str = std::to_string(coords.y * 100) + "%";
         engineStringSet(typed_scene->get_ui_data().item_pos_x, x_str.c_str());
         engineStringSet(typed_scene->get_ui_data().item_pos_y, y_str.c_str());
+        engineLog(std::format("TEST: {}, {} \n", x_str, y_str).c_str());
         typed_scene->get_ui_data().show_item = true;
         typed_scene->get_ui_data().item_go = go_;
+
+        engineUiDataHandleDirtyVariable(typed_scene->get_ui_data().handle_items_on_ground, "item_pos_x");
+        engineUiDataHandleDirtyVariable(typed_scene->get_ui_data().handle_items_on_ground, "item_pos_y");
     }
     else
     {
