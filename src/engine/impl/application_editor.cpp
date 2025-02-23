@@ -638,6 +638,10 @@ void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_b
     {
         editor_controlling_scene_ = !editor_controlling_scene_;
     }
+    if (auto flag = ImGui::Button("Enable/Disable Rml UI Debugger (if enabled)"))
+    {
+        ui_manager_.enable_ui_document_debugger(!ui_manager_.is_ui_document_debugger_enabled());
+    }
     assert(frame_begin_info.delta_time > 0.0f);
     static float avg_fps = 0; 
     static std::vector<float> fps_values(60);

@@ -25,6 +25,9 @@ public:
     UiManager& operator=(UiManager&& rhs);
     ~UiManager();
 
+    bool is_ui_document_debugger_enabled() const;
+    void enable_ui_document_debugger(bool v);
+
     engine::UiDataHandle create_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
     UiDocument load_document_from_file(std::string_view file_name);
 
@@ -37,6 +40,7 @@ public:
 private:
     RenderContext& rdx_;
     Rml::Context* ui_rml_context_;
+    bool ui_rml_debugger_available = false;
 };
 
 

@@ -25,6 +25,7 @@ engine::UiManager::UiManager(RenderContext& rdx)
     const auto window_size_pixels = rdx_.get_window_size_in_pixels();
     ui_rml_context_ = Rml::CreateContext("app", Rml::Vector2i(window_size_pixels.width, window_size_pixels.height));
     assert(ui_rml_context_);
+    ui_rml_debugger_available = Rml::Debugger::Initialise(ui_rml_context_);
 }
 
 engine::UiManager::UiManager(UiManager&& rhs)
@@ -48,6 +49,19 @@ engine::UiManager::~UiManager()
         Rml::RemoveContext(ui_rml_context_->GetName());
         Rml::Shutdown();
     }
+}
+
+bool engine::UiManager::is_ui_document_debugger_enabled() const
+{
+    return Rml::Debugger::IsVisible();
+}
+
+void engine::UiManager::enable_ui_document_debugger(bool v)
+{
+    if (ui_rml_debugger_available)
+    {
+        Rml::Debugger::SetVisible(v);
+    }  
 }
 
 engine::UiDataHandle engine::UiManager::create_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
