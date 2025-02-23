@@ -93,8 +93,9 @@ typedef enum _engine_ui_event_type_t
     ENGINE_UI_EVENT_TYPE_POINTER_CLICK = 1,      // single click (pressed and released on the same component)
     ENGINE_UI_EVENT_TYPE_POINTER_DOWN,           // single click  (moment, when pointer is pressed on the compontnet)
     ENGINE_UI_EVENT_TYPE_POINTER_UP,             // single click  (moment, when pointer is released on the compontnet)
-    ENGINE_UI_EVENT_TYPE_POINTER_MOVE,           // pointer move over the component
-    ENGINE_UI_EVENT_TYPE_POINTER_OVER,           // pointer over the component
+    ENGINE_UI_EVENT_TYPE_POINTER_MOVE,           // pointer moves over the component
+    ENGINE_UI_EVENT_TYPE_POINTER_OVER,           // pointer moves into the component
+    ENGINE_UI_EVENT_TYPE_POINTER_OUT,            // pointer moves out from the component
 } engine_ui_event_type_t;
 
 

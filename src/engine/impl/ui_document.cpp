@@ -195,6 +195,11 @@ bool engine::UiElement::register_callback(engine_ui_event_type_t type, void* use
         rml_ev_id = Rml::EventId::Mouseover;
         break;
     }
+    case ENGINE_UI_EVENT_TYPE_POINTER_OUT:
+    {
+        rml_ev_id = Rml::EventId::Mouseout;
+        break;
+    }
     default:
         engine::log::log(log::LogLevel::eCritical, "Unknown engine_ui_event_type_t. Cant creatre UI callback!");
     }
@@ -259,6 +264,11 @@ engine_ui_event_t engine::UiElement::BasicEventListener::parse_rml_event_to_engi
     case Rml::EventId::Mouseover:
     {
         ev.type = ENGINE_UI_EVENT_TYPE_POINTER_MOVE;
+        break;
+    }
+    case Rml::EventId::Mouseout:
+    {
+        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_OUT;
         break;
     }
     default:
