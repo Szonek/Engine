@@ -94,6 +94,7 @@ typedef enum _engine_ui_event_type_t
     ENGINE_UI_EVENT_TYPE_POINTER_DOWN,           // single click  (moment, when pointer is pressed on the compontnet)
     ENGINE_UI_EVENT_TYPE_POINTER_UP,             // single click  (moment, when pointer is released on the compontnet)
     ENGINE_UI_EVENT_TYPE_POINTER_MOVE,           // pointer move over the component
+    ENGINE_UI_EVENT_TYPE_POINTER_OVER,           // pointer over the component
 } engine_ui_event_type_t;
 
 
@@ -546,7 +547,6 @@ ENGINE_API engine_result_code_t engineUiDocumentGetElementById(engine_ui_documen
 ENGINE_API engine_result_code_t engineUiElementAddEventCallback(engine_ui_element_t element, engine_ui_event_type_t event_type, void* user_data, void (*callback)(const engine_ui_event_t*, void*));
 ENGINE_API engine_result_code_t engineUiElementSetProperty(engine_ui_element_t element, const char* property, const char* value);
 ENGINE_API void engineUiElementRemoveProperty(engine_ui_element_t element, const char* property);
-
 
 // ECS 
 ENGINE_API engine_result_code_t engineCreateComponentView(engine_component_view_t* out);

@@ -9,8 +9,10 @@
 		<p>{{character_health}}</p>
 		<p>{{enemy_health}}</p>
 	</div>
-	<div class="container2" data-model="DMitemname" data-if="show_item == true" data-style-left="item_pos_x" data-style-bottom="item_pos_y">
-		<p>{{item_name}}</p>
+	<div class="container2" 
+		data-model="DMitemname" data-if="show_item == true"
+		data-style-left="item_pos_x" data-style-bottom="item_pos_y">
+		<p id="id_item">{{item_name}}</p>
 	</div>
 </body>
 </rml>
