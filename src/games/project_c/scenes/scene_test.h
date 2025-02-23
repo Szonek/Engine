@@ -17,6 +17,7 @@ struct UI_data
     std::uint32_t character_health = 100;
     std::uint32_t enemy_health = 100;
 
+    engine_game_object_t item_go = ENGINE_INVALID_GAME_OBJECT_ID;
     engine_string_t item_name = engineStringCreate("sword");
     engine_string_t item_pos_x = engineStringCreate("50%");
     engine_string_t item_pos_y = engineStringCreate("75%");

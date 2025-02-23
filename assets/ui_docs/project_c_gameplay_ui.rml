@@ -11,6 +11,7 @@
 	</div>
 	<div class="item_on_ground" 
 		data-model="DMitemname" data-if="show_item == true"
+		data-event-click="equip";
 		data-style-left="item_pos_x" data-style-bottom="item_pos_y">
 			<p>{{item_name}}</p>
 	</div>

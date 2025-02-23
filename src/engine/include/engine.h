@@ -66,27 +66,6 @@ typedef struct _engine_ray_hit_info_t
     float normal[3];
 } engine_ray_hit_info_t;
 
-typedef enum _engine_ui_document_data_binding_data_type_t
-{
-    ENGINE_DATA_TYPE_UNKNOWN = 0,
-    ENGINE_DATA_TYPE_BOOL = 1,
-    ENGINE_DATA_TYPE_UINT32,
-    ENGINE_DATA_TYPE_STRING,
-} engine_ui_document_data_binding_data_type_t;
-
-typedef struct _engine_ui_document_data_binding_t
-{
-    const char* name;
-    engine_ui_document_data_binding_data_type_t type;
-    union
-    {
-        bool* data_bool;
-        uint32_t* data_uint32_t;
-        engine_string_t data_string;
-    };
-} engine_ui_document_data_binding_t;
-
-
 typedef enum _engine_ui_event_type_t
 {
     ENGINE_UI_EVENT_TYPE_UNKNOWN = 0,            // unknown/invalid/error
@@ -98,17 +77,40 @@ typedef enum _engine_ui_event_type_t
     ENGINE_UI_EVENT_TYPE_POINTER_OUT,            // pointer moves out from the component
 } engine_ui_event_type_t;
 
-
-
-
 typedef struct _engine_ui_event_t
 {
     engine_ui_event_type_t type;
     engine_coords_2d_t normalized_screen_position;
-    engine_ui_element_t* element_current;
-    engine_ui_element_t* element_target;
 } engine_ui_event_t;
 
+typedef enum _engine_ui_document_data_binding_data_type_t
+{
+    ENGINE_UI_DOCUMENT_DATA_TYPE_UNKNOWN = 0,
+    ENGINE_UI_DOCUMENT_DATA_TYPE_BOOL = 1,
+    ENGINE_UI_DOCUMENT_DATA_TYPE_UINT32,
+    ENGINE_UI_DOCUMENT_DATA_TYPE_STRING,
+
+    ENGINE_UI_DOCUMENT_DATA_TYPE_EVENT_CALLBACK,
+} engine_ui_document_data_binding_data_type_t;
+
+typedef struct _engine_ui_document_data_binding_event_callback_t
+{
+    void (*fn_ptr)(engine_ui_data_handle_t data_handle, const engine_ui_event_t* event, void* user_data);
+    void* user_data;
+} engine_ui_document_data_binding_event_callback_t;
+
+typedef struct _engine_ui_document_data_binding_t
+{
+    const char* name;
+    engine_ui_document_data_binding_data_type_t type;
+    union
+    {
+        bool* data_bool;
+        uint32_t* data_uint32_t;
+        engine_string_t data_string;
+        engine_ui_document_data_binding_event_callback_t data_callback;
+    };
+} engine_ui_document_data_binding_t;
 
 typedef struct _engine_application_create_desc_t
 {

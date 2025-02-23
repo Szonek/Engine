@@ -152,6 +152,8 @@ public:
 
     void update(float dt);
 
+    bool equip_sword(Sword* sword);
+
 private:
     std::uint32_t state_;
     MoveStateData move_data_;

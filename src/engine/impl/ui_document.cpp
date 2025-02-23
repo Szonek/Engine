@@ -10,6 +10,57 @@
 #include <RmlUi/Core/ID.h>
 #include <RmlUi/Core/DataModelHandle.h>
 
+
+namespace
+{
+inline engine_ui_event_t convet_rml_event_to_engine_event(const Rml::Event& event)
+{
+    engine_ui_event_t ev{};
+
+    switch (event.GetId())
+    {
+    case Rml::EventId::Click:
+    {
+        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_CLICK;
+        break;
+    }
+    case Rml::EventId::Mousedown:
+    {
+        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_DOWN;
+        break;
+    }
+    case Rml::EventId::Mouseup:
+    {
+        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_UP;
+        break;
+    }
+    case Rml::EventId::Mousemove:
+    {
+        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_MOVE;
+        break;
+    }
+    case Rml::EventId::Mouseover:
+    {
+        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_MOVE;
+        break;
+    }
+    case Rml::EventId::Mouseout:
+    {
+        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_OUT;
+        break;
+    }
+    default:
+        ev.type = ENGINE_UI_EVENT_TYPE_UNKNOWN;
+        engine::log::log(engine::log::LogLevel::eCritical, "Unknown engine_ui_event_type_t. Cant process event correctly.");
+    }
+
+    ev.normalized_screen_position.x = event.GetParameter("mouse_x", 0.0f);
+    ev.normalized_screen_position.y = event.GetParameter("mouse_y", 0.0f);
+
+    return ev;
+}
+}
+
 engine::UiDocument::UiDocument(Rml::Context* ctx, std::string_view file_name)
     : doc_file_path_(AssetStore::get_instance().get_ui_docs_base_path() / file_name)
     , doc_(ctx->LoadDocument(doc_file_path_.string()))
@@ -82,28 +133,36 @@ engine::UiDataHandle::UiDataHandle(Rml::Context* ctx, std::string_view name, std
     {
         switch (bind.type)
         {
-        case ENGINE_DATA_TYPE_BOOL:
+        case ENGINE_UI_DOCUMENT_DATA_TYPE_BOOL:
         {
             constructor.Bind(bind.name, bind.data_bool);
             break;
         }
-        case ENGINE_DATA_TYPE_UINT32:
+        case ENGINE_UI_DOCUMENT_DATA_TYPE_UINT32:
         {
             constructor.Bind(bind.name, bind.data_uint32_t);
             break;
         }
-        case ENGINE_DATA_TYPE_STRING:
+        case ENGINE_UI_DOCUMENT_DATA_TYPE_STRING:
         {
             constructor.Bind(bind.name, &bind.data_string->str);
+            break;
+        }
+        case ENGINE_UI_DOCUMENT_DATA_TYPE_EVENT_CALLBACK:
+        {
+            constructor.BindEventCallback(bind.name, [this, bind](Rml::DataModelHandle data_model, Rml::Event& ev, const Rml::VariantList& args)
+                {
+                    assert(args.empty());
+                    auto handle = reinterpret_cast<engine_ui_data_handle_t>(this);
+                    auto event = convet_rml_event_to_engine_event(ev);
+                    bind.data_callback.fn_ptr(handle, &event, bind.data_callback.user_data);
+                });
             break;
         }
         default:
             log::log(log::LogLevel::eError, "Unknown engine data type. Cant create data binding for UI.");
         }
     }
-
-    //constructor.BindEventCallback("", Rml::DataEventFunc)
-
     handle_ = new Rml::DataModelHandle(constructor.GetModelHandle());
 }
 
@@ -238,53 +297,6 @@ void engine::UiElement::remove_property(std::string_view name)
 
 void engine::UiElement::BasicEventListener::ProcessEvent(Rml::Event& event)
 {
-    const auto ev = parse_rml_event_to_engine_event(event);
+    const auto ev = convet_rml_event_to_engine_event(event);
     callback_(&ev, user_data_);
-}
-
-engine_ui_event_t engine::UiElement::BasicEventListener::parse_rml_event_to_engine_event(const Rml::Event& event)
-{
-    engine_ui_event_t ev{};
-    //ev.element_source = reinterpret_cast<engine_ui_element_t*>(this);
-    
-    switch (event.GetId())
-    {
-    case Rml::EventId::Click:
-    {
-        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_CLICK;
-        break;
-    }
-    case Rml::EventId::Mousedown:
-    {
-        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_DOWN;
-        break;
-    }
-    case Rml::EventId::Mouseup:
-    {
-        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_UP;
-        break;
-    }
-    case Rml::EventId::Mousemove:
-    {
-        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_MOVE;
-        break;
-    }
-    case Rml::EventId::Mouseover:
-    {
-        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_MOVE;
-        break;
-    }
-    case Rml::EventId::Mouseout:
-    {
-        ev.type = ENGINE_UI_EVENT_TYPE_POINTER_OUT;
-        break;
-    }
-    default:
-        ev.type = ENGINE_UI_EVENT_TYPE_UNKNOWN;
-        engine::log::log(log::LogLevel::eCritical, "Unknown engine_ui_event_type_t. Cant process event correctly.");
-    }
- 
-    const auto context_dims = event.GetCurrentElement()->GetContext()->GetDimensions();
-    ev.normalized_screen_position = { event.GetUnprojectedMouseScreenPos().x / context_dims.x, (context_dims.y - event.GetUnprojectedMouseScreenPos().y) / context_dims.y };
-    return ev;
 }

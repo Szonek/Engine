@@ -65,9 +65,6 @@ private:
         void ProcessEvent(Rml::Event& event) override;
 
     private:
-        engine_ui_event_t parse_rml_event_to_engine_event(const Rml::Event& event);
-
-    private:
         fnCallbackT callback_;
         void* user_data_;
     };

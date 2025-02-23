@@ -127,6 +127,7 @@ void project_c::Sword::update(float dt)
         engineStringSet(typed_scene->get_ui_data().item_pos_x, x_str.c_str());
         engineStringSet(typed_scene->get_ui_data().item_pos_y, y_str.c_str());
         typed_scene->get_ui_data().show_item = true;
+        typed_scene->get_ui_data().item_go = go_;
     }
     else
     {
@@ -409,14 +410,14 @@ void project_c::Solider::update(float dt)
         enable_state_bit(States::ATTACK);
     }
 
-    if (!weapon_ && hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID && lmb)
-    {
-        if (auto* sword = my_scene_->get_script<Sword>(hit_info.go))
-        {
-            weapon_ = sword;
-            weapon_->attach_to_game_object(right_arm_go_, glm::vec3(-0.2f, 0.0f, 0.1f), glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
-        }
-    }
+    //if (!weapon_ && hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID && lmb)
+    //{
+    //    if (auto* sword = my_scene_->get_script<Sword>(hit_info.go))
+    //    {
+    //        weapon_ = sword;
+    //        weapon_->attach_to_game_object(right_arm_go_, glm::vec3(-0.2f, 0.0f, 0.1f), glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
+    //    }
+    //}
 
     const auto button_A = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A);
     const auto button_W = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W);
@@ -550,4 +551,15 @@ void project_c::Solider::update(float dt)
         }
         clear_state_bit(States::SKILL_1);
     }
+}
+
+bool project_c::Solider::equip_sword(Sword* sword)
+{
+    if (!weapon_ && sword)
+    {
+        weapon_ = sword;
+        weapon_->attach_to_game_object(right_arm_go_, glm::vec3(-0.2f, 0.0f, 0.1f), glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
+        return true;
+    }
+    return false;
 }
