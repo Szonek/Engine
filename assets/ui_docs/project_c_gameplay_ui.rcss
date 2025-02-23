@@ -7,7 +7,7 @@ body {
 	text-align: center;
 }
 
-div.container 
+div.test_container 
 {
 	position: absolute;
 	width: 10%;
@@ -17,14 +17,20 @@ div.container
 	text-align: center;
 }
 	
-div.container2 
+div.item_on_ground 
 {  
 	position: absolute;
 	text-align: center;
-	padding: 0px 10px 0px 10px;
+	padding: 0px 10px 2px 10px;
 
-	opacity: 0.6;	
+	opacity: 1.0;	
 	font-effect: outline(2px black);
 	background-color: #33290c;
 	color: white;	
+}
+
+div.item_on_ground:hover
+{
+	 border: 2px #ffffff;
+	 margin: -2px;
 }

@@ -232,22 +232,6 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
 
 }
 
-void test_callback_mousover(const engine_ui_event_t* event, void* user_data)
-{
-    engineLog(std::format("test_callback_mousover: {}, {} \n", event->normalized_screen_position.x, event->normalized_screen_position.y).c_str());
-}
-void test_callback_mouseout(const engine_ui_event_t* event, void* user_data)
-{
-    engineLog(std::format("test_callback_mouseout: {}, {} \n", event->normalized_screen_position.x, event->normalized_screen_position.y).c_str());
-}
-
-void test_callback_mouseclick(const engine_ui_event_t* event, void* user_data)
-{
-    engineLog(std::format("test_callback_mouseclick: {}, {} \n", event->normalized_screen_position.x, event->normalized_screen_position.y).c_str());
-}
-
-
-
 project_c::TestScene::TestScene(engine::IApplication* app)
     : IScene(app)
 {
@@ -265,7 +249,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
 
     engineApplicationCreateUiDocumentDataHandle(app_handle, "test", bindings.data(), bindings.size(), &ui_data_.handle_test);
 
-    std::array<engine_ui_document_data_binding_t, 4> bindings_items_on_ground{};
+    std::array<engine_ui_document_data_binding_t, 5> bindings_items_on_ground{};
     bindings_items_on_ground[0].data_string = ui_data_.item_name;
     bindings_items_on_ground[0].name = "item_name";
     bindings_items_on_ground[0].type = ENGINE_DATA_TYPE_STRING;
@@ -286,12 +270,6 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     {
         engineUiDocumentShow(ui_data_.doc);
     }
-
-    engine_ui_element_t sword_element_id;
-    engineUiDocumentGetElementById(ui_data_.doc, "id_item", &sword_element_id);
-    engineUiElementAddEventCallback(sword_element_id, ENGINE_UI_EVENT_TYPE_POINTER_OVER, nullptr, &test_callback_mousover);
-    engineUiElementAddEventCallback(sword_element_id, ENGINE_UI_EVENT_TYPE_POINTER_OUT, nullptr, &test_callback_mouseout);
-    engineUiElementAddEventCallback(sword_element_id, ENGINE_UI_EVENT_TYPE_POINTER_CLICK, nullptr, &test_callback_mouseclick);
 
     const std::string scene_str =
         //"xxxxxxxxxxx\n"

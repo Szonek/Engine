@@ -105,6 +105,8 @@ typedef struct _engine_ui_event_t
 {
     engine_ui_event_type_t type;
     engine_coords_2d_t normalized_screen_position;
+    engine_ui_element_t* element_current;
+    engine_ui_element_t* element_target;
 } engine_ui_event_t;
 
 

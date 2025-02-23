@@ -101,6 +101,9 @@ engine::UiDataHandle::UiDataHandle(Rml::Context* ctx, std::string_view name, std
             log::log(log::LogLevel::eError, "Unknown engine data type. Cant create data binding for UI.");
         }
     }
+
+    //constructor.BindEventCallback("", Rml::DataEventFunc)
+
     handle_ = new Rml::DataModelHandle(constructor.GetModelHandle());
 }
 
@@ -144,6 +147,9 @@ engine::UiElement::UiElement(Rml::Element* element, engine_result_code_t& err_ou
     : element_(element)
 {
     err_out = element_ ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+
+    Rml::ObserverPtr<Rml::Element> t;
+    t.get();
 }
 
 engine::UiElement::UiElement(UiElement&& rhs)
@@ -239,6 +245,8 @@ void engine::UiElement::BasicEventListener::ProcessEvent(Rml::Event& event)
 engine_ui_event_t engine::UiElement::BasicEventListener::parse_rml_event_to_engine_event(const Rml::Event& event)
 {
     engine_ui_event_t ev{};
+    //ev.element_source = reinterpret_cast<engine_ui_element_t*>(this);
+    
     switch (event.GetId())
     {
     case Rml::EventId::Click:
@@ -275,7 +283,7 @@ engine_ui_event_t engine::UiElement::BasicEventListener::parse_rml_event_to_engi
         ev.type = ENGINE_UI_EVENT_TYPE_UNKNOWN;
         engine::log::log(log::LogLevel::eCritical, "Unknown engine_ui_event_type_t. Cant process event correctly.");
     }
-
+ 
     const auto context_dims = event.GetCurrentElement()->GetContext()->GetDimensions();
     ev.normalized_screen_position = { event.GetUnprojectedMouseScreenPos().x / context_dims.x, (context_dims.y - event.GetUnprojectedMouseScreenPos().y) / context_dims.y };
     return ev;

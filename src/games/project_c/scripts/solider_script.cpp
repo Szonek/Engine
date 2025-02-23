@@ -409,9 +409,8 @@ void project_c::Solider::update(float dt)
         enable_state_bit(States::ATTACK);
     }
 
-    if (!weapon_ && lmb)
+    if (!weapon_ && hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID && lmb)
     {
-        const auto hit_info_debug = engineScenePhysicsRayCast(scene, raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000000.0f);
         if (auto* sword = my_scene_->get_script<Sword>(hit_info.go))
         {
             weapon_ = sword;
