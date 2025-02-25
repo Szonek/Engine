@@ -28,7 +28,7 @@ public:
     ~Sword();
 
     void attach_to_game_object(engine_game_object_t parent, std::optional<glm::vec3> position, std::optional<glm::quat> rotation);
-    void deattach_from_parent(glm::vec3 position);
+    void drop_on_ground(glm::vec3 position);
 
     void on_collision(const collision_t& info) override;
 

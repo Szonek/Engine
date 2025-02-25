@@ -1,4 +1,5 @@
 #include "enemy_script.h"
+#include "solider_script.h"
 #include "enviorment_script.h"
 #include "scripts_utils.h"
 
@@ -54,7 +55,8 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
 
 project_c::Enemy::~Enemy()
 {
-    utils::delete_game_objects_hierarchy(my_scene_->get_handle(), go_);
+    auto scene = my_scene_->get_handle();
+    utils::delete_game_objects_hierarchy(scene, go_);
 }
 
 void project_c::Enemy::update(float dt)

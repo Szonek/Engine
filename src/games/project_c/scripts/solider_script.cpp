@@ -63,29 +63,32 @@ void project_c::Sword::attach_to_game_object(engine_game_object_t parent, std::o
     }
 }
 
-void project_c::Sword::deattach_from_parent(glm::vec3 position)
+void project_c::Sword::drop_on_ground(glm::vec3 position)
 {
     const auto scene = my_scene_->get_handle();
+
+    // set posion
+    auto tc = engineSceneGetTransformComponent(scene, go_);
+    tc.position[0] = position.x;
+    tc.position[1] = position.y + 2.0f;
+    tc.position[2] = position.z;
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+    // remove parent
     if (engineSceneHasParentComponent(scene, go_))
     {
-        // set posion
-        auto tc = engineSceneGetTransformComponent(scene, go_);
-        tc.position[0] = position.x;
-        tc.position[1] = position.y + 2.0f;
-        tc.position[2] = position.z;
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
-        // finally remove parent
         engineSceneRemoveParentComponent(scene, go_);
+    }
 
-        // add rigid body component
-        auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
-        rbc.mass = 1.0f;
-        engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+    // add rigid body component
+    auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+    rbc.mass = 1.0f;
+    engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 
-        // update collider to not be trigger, so it will stop on collision
-        auto cc = engineSceneGetColliderComponent(scene, go_);
-        cc.is_trigger = false;
-        engineSceneUpdateColliderComponent(scene, go_, &cc);
+    // update collider to not be trigger, so it will stop on collision
+    auto cc = engineSceneGetColliderComponent(scene, go_);
+    cc.is_trigger = false;
+    engineSceneUpdateColliderComponent(scene, go_, &cc);
 
 
         //if (engineApplicationIsMouseButtonDown(my_scene_->get_app_handle(), ENGINE_MOUSE_BUTTON_LEFT))
@@ -93,7 +96,7 @@ void project_c::Sword::deattach_from_parent(glm::vec3 position)
 
             //engineLog(std::format("[TEST] scenn point: [{}, {}, {}]\n", coords.x, coords.y, coords.z).c_str());
         }
-    }
+    //}
 }
 
 void project_c::Sword::on_collision(const collision_t& info)
@@ -129,7 +132,7 @@ void project_c::Sword::update(float dt)
         const auto y_str = std::to_string(coords.y * 100) + "%";
         engineStringSet(typed_scene->get_ui_data().item_pos_x, x_str.c_str());
         engineStringSet(typed_scene->get_ui_data().item_pos_y, y_str.c_str());
-        engineLog(std::format("TEST: {}, {} \n", x_str, y_str).c_str());
+        //engineLog(std::format("TEST: {}, {} \n", x_str, y_str).c_str());
         typed_scene->get_ui_data().show_item = true;
         typed_scene->get_ui_data().item_go = go_;
 
@@ -439,7 +442,7 @@ void project_c::Solider::update(float dt)
     {
         // drop weapnon
         const auto tc = engineSceneGetTransformComponent(scene, go_);
-        weapon_->deattach_from_parent({ tc.position[0], tc.position[1], tc.position[2] });
+        weapon_->drop_on_ground({ tc.position[0], tc.position[1], tc.position[2] });
         weapon_ = nullptr;
     }
 

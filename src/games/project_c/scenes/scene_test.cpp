@@ -116,6 +116,10 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             {
                 scene_spawn_points.point_lights.push_back({ x_offset, z_offset });
             }
+            else if (c == 'w')
+            {
+                scene_spawn_points.weapons.push_back({ x_offset, z_offset });
+            }
         }
     }
 
@@ -228,6 +232,12 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         auto l = scene.register_script<project_c::PointLight>();
         l->set_world_position(point.x, 1.0f, point.y);
     }
+
+    for (const auto& wpn : scene_spawn_points.weapons)
+    {
+        auto w = scene.register_script<project_c::Sword>(app.instantiate_prefab(project_c::PREFAB_TYPE_SWORD, &scene).go);
+        w->drop_on_ground(glm::vec3(wpn.x, 0.5f, wpn.y));
+    }
 }
 }
 
@@ -295,7 +305,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         //"xxxxxxxxxxx\n"
         //"x    p    x\n"
         "x         x\n"
-        "x     ee  x\n"
+        "x  w  ee  x\n"
         "xs    ee  x\n"
         "x     ee  x\n"
         "x         x\n";
