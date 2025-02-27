@@ -248,7 +248,7 @@ void test_callback(engine_ui_data_handle_t data_handle, const engine_ui_event_t*
     auto solider_go = project_c::utils::get_game_objects_with_name(scene->get_handle(), "solider");
     assert(solider_go.size() == 1);
     auto solider_script = scene->get_script<project_c::Solider>(solider_go[0]);
-    solider_script->equip_sword(scene->get_script<project_c::Sword>(scene->get_ui_data().item_go));
+    //solider_script->equip_sword(scene->get_script<project_c::Sword>(scene->get_ui_data().item_go));
 }
 
 project_c::TestScene::TestScene(engine::IApplication* app)

@@ -51,8 +51,6 @@ public:
     void update_hook_begin() override;
     static constexpr const char* get_name() { return "TestScene"; }
 
-    UI_data& get_ui_data() { return ui_data_; }
-    const UI_data& get_ui_data() const { return ui_data_; }
 private:
     UI_data ui_data_;
     NavMesh nav_mesh_;
