@@ -334,8 +334,31 @@ void project_c::TestScene::update_hook_begin()
 
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "character_health");
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "enemy_health");
+
+}
+
+void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
+{
+    const auto active_camera_go = utils::get_active_camera_game_objects(scene_)[0];
+    const auto item_go = sw->get_game_object();
+    const auto item_tc = engineSceneGetTransformComponent(scene_, item_go);
+    const auto item_screen_coords = engineSceneCameraComponentConvertWorldPositionToScreenPosition(scene_, active_camera_go, item_tc.position);
+    ui_data_.item_go = item_go;
+    ui_data_.show_item = true;
+
+    engineStringSet(ui_data_.item_name, "sword");
+    const auto x_str = std::to_string(item_screen_coords.x * 100) + "%";
+    const auto y_str = std::to_string(item_screen_coords.y * 100) + "%";
+    engineStringSet(ui_data_.item_pos_x, x_str.c_str());
+    engineStringSet(ui_data_.item_pos_y, y_str.c_str());
     engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_name");
     engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_pos_x");
     engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_pos_y");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "show_item");
+}
+
+void project_c::TestScene::ui_remove_item_from_ground(const project_c::Sword* sw)
+{
+    ui_data_.show_item = false;
     engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "show_item");
 }
