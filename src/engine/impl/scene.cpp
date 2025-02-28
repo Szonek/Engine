@@ -14,48 +14,6 @@
 
 #include <RmlUi/Core.h>
 
-
-void update_parent_component(entt::registry& registry, entt::entity entity)
-{
-    auto& parent = registry.get<engine_parent_component_t>(entity);
-    if (parent.parent == ENGINE_INVALID_GAME_OBJECT_ID)
-    {
-        engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has invalid parent id. If entity doesnt have parent than just delete it. Are you sure you are doing valid thing?\n"));
-        return;
-    }
-    const auto parent_entt = static_cast<entt::entity>(parent.parent);
-    engine_children_component_t* cc = registry.try_get<engine_children_component_t>(parent_entt);
-    if (!cc)
-    {
-        cc = &registry.emplace<engine_children_component_t>(parent_entt);
-    }
-    for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
-    {
-        if (cc->child[i] == ENGINE_INVALID_GAME_OBJECT_ID)
-        {
-            cc->child[i] = static_cast<std::uint32_t>(entity);
-            return;
-        }
-              
-    }
-    engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has no more space for children. Are you sure you are doing valid thing?\n"));
-}
-
-void destroy_parent_component(entt::registry& registry, entt::entity entity)
-{
-    const auto parent_entt = static_cast<entt::entity>(registry.get<engine_parent_component_t>(entity).parent);
-    auto& cc = registry.get<engine_children_component_t>(parent_entt);
-    for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
-    {
-        if (cc.child[i] == static_cast<std::uint32_t>(entity))
-        {
-            cc.child[i] = ENGINE_INVALID_GAME_OBJECT_ID;
-            return;
-        }
-    }
-    engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component was destroyed, but couldn't reset it's childer.\n"));
-}
-
 struct SceneGpuData
 {
     std::uint32_t direction_light_count = 0;
@@ -89,13 +47,85 @@ struct CameraGpuData
     glm::vec3 position;
 };
 
+
 struct engine_camera_internal_component_t
 {
     CameraGpuData data; // kepe data here, so we can read it (i.e. in world-to-screen converter function)
+    bool computed_this_frame = false;  // cace results to not recompute the same data each frame
     engine::UniformBuffer camera_ubo = engine::UniformBuffer(sizeof(CameraGpuData));
 };
 
 
+void update_parent_component(entt::registry& registry, entt::entity entity)
+{
+    auto& parent = registry.get<engine_parent_component_t>(entity);
+    if (parent.parent == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has invalid parent id. If entity doesnt have parent than just delete it. Are you sure you are doing valid thing?\n"));
+        return;
+    }
+    const auto parent_entt = static_cast<entt::entity>(parent.parent);
+    engine_children_component_t* cc = registry.try_get<engine_children_component_t>(parent_entt);
+    if (!cc)
+    {
+        cc = &registry.emplace<engine_children_component_t>(parent_entt);
+    }
+    for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
+    {
+        if (cc->child[i] == ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            cc->child[i] = static_cast<std::uint32_t>(entity);
+            return;
+        }
+              
+    }
+    engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has no more space for children. Are you sure you are doing valid thing?\n"));
+}
+
+inline void destroy_parent_component(entt::registry& registry, entt::entity entity)
+{
+    const auto parent_entt = static_cast<entt::entity>(registry.get<engine_parent_component_t>(entity).parent);
+    auto& cc = registry.get<engine_children_component_t>(parent_entt);
+    for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
+    {
+        if (cc.child[i] == static_cast<std::uint32_t>(entity))
+        {
+            cc.child[i] = ENGINE_INVALID_GAME_OBJECT_ID;
+            return;
+        }
+    }
+    engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component was destroyed, but couldn't reset it's childer.\n"));
+}
+
+inline void calculate_camera_view_and_projection(std::size_t window_width, std::size_t window_height, const glm::vec3& eye_position, const engine_camera_component_t& camera, engine_camera_internal_component_t& camera_internal)
+{
+    // update camera: view and projection
+    ENGINE_PROFILE_SECTION_N("camera_update");
+    if(!camera_internal.computed_this_frame)
+    {
+        camera_internal.computed_this_frame = true;
+        const auto z_near = camera.clip_plane_near;
+        const auto z_far = camera.clip_plane_far;
+        // ToD: multi camera - this should use resolution of camera!!!
+
+        const auto adjusted_width = window_width * (camera.viewport_rect.width - camera.viewport_rect.x);
+        const auto adjusted_height = window_height * (camera.viewport_rect.height - camera.viewport_rect.y);
+        const float aspect = adjusted_width / adjusted_height;
+
+        if (camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC)
+        {
+            const float scale = camera.type_union.orthographics_scale;
+            camera_internal.data.projection = glm::ortho(-aspect * scale, aspect * scale, -scale, scale, z_near, z_far);
+        }
+        else
+        {
+            camera_internal.data.projection = glm::perspective(glm::radians(camera.type_union.perspective_fov), aspect, z_near, z_far);
+        }
+        const auto up = glm::make_vec3(camera.direction.up);
+        const auto target = glm::make_vec3(camera.target);
+        camera_internal.data.view = glm::lookAt(eye_position, target, up);
+    }
+}
 
 engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : rdx_(rdx)
@@ -542,45 +572,16 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             }
 
             const auto window_size_pixels = rdx_.get_window_size_in_pixels();
-
-            glm::mat4 view = glm::mat4(0.0);
-            glm::mat4 projection = glm::mat4(0.0);
-            // update camera: view and projection
-            {
-                ENGINE_PROFILE_SECTION_N("camera_update");
-                const auto z_near = camera.clip_plane_near;
-                const auto z_far = camera.clip_plane_far;
-                // ToD: multi camera - this should use resolution of camera!!!
-
-                const auto adjusted_width = window_size_pixels.width * (camera.viewport_rect.width - camera.viewport_rect.x);
-                const auto adjusted_height = window_size_pixels.height * (camera.viewport_rect.height - camera.viewport_rect.y);
-                const float aspect = adjusted_width / adjusted_height;
-
-                if (camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC)
-                {
-                    const float scale = camera.type_union.orthographics_scale;
-                    projection = glm::ortho(-aspect * scale, aspect * scale, -scale, scale, z_near, z_far);
-                }
-                else
-                {
-                    projection = glm::perspective(glm::radians(camera.type_union.perspective_fov), aspect, z_near, z_far);
-                }
-                const auto eye_position = glm::make_vec3(camera_transform.position);
-                const auto up = glm::make_vec3(camera.direction.up);
-                const auto target = glm::make_vec3(camera.target);
-                view = glm::lookAt(eye_position, target, up);
-            }
-
+            calculate_camera_view_and_projection(window_size_pixels.width, window_size_pixels.height,
+                glm::make_vec3(camera_transform.position), camera, camera_internal);
             // copy camera view and projection to the GPU
             {
                 ENGINE_PROFILE_SECTION_N("camera_ubo_update");
-                camera_internal.data.view = view;
-                camera_internal.data.projection = projection;
-                camera_internal.data.position = glm::make_vec3(camera_transform.position);
                 BufferMapContext<CameraGpuData, UniformBuffer> camera_ubo(camera_internal.camera_ubo, false, true);
                 std::memcpy(camera_ubo.data, &camera_internal.data, sizeof(CameraGpuData));
+                // already updated GPU buffer to mark this camera as not computed
+                camera_internal.computed_this_frame = false; 
             }
-
 
             {
                 ENGINE_PROFILE_SECTION_N("geometry_renderer");
@@ -760,7 +761,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
             if (physics_world_.is_debug_drawer_enabled())
             {
-                physics_world_.debug_draw(view, projection);
+                physics_world_.debug_draw(camera_internal.data.view, camera_internal.data.projection);
             }
         }
         }
@@ -813,14 +814,17 @@ engine_ray_hit_info_t engine::Scene::raycast_into_physics_world(const engine_ray
     return physics_world_.raycast(ray, ignore_list, max_distance);
 }
 
-glm::vec3 engine::Scene::convert_world_point_to_screen_point(const glm::vec3& world_point, engine_game_object_t camera_go) const
+glm::vec3 engine::Scene::convert_world_point_to_screen_point(const glm::vec3& world_point, engine_game_object_t camera_go)
 {
     auto ret = glm::vec3(0.5f, 0.5f, 0.0f);
     const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(entt::entity(camera_go));
-    if (camera_component)
+    const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(entt::entity(camera_go));
+    if (camera_component && camera_transform)
     {
-        const auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(entt::entity(camera_go));
+        auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(entt::entity(camera_go));
         const auto window_size = rdx_.get_window_size_in_pixels();
+        calculate_camera_view_and_projection(window_size.width, window_size.height,
+            glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
         ret = glm::project(world_point, camera_internal_component.data.view, camera_internal_component.data.projection, glm::vec4(0, 0, window_size.width, window_size.height));
         ret.x /= window_size.width;
         ret.y /= window_size.height;
@@ -828,22 +832,21 @@ glm::vec3 engine::Scene::convert_world_point_to_screen_point(const glm::vec3& wo
     return ret;
 }
 
-glm::vec3 engine::Scene::convert_screen_point_to_world_point(glm::vec3 screen_point, engine_game_object_t camera_go) const
+glm::vec3 engine::Scene::convert_screen_point_to_world_point(glm::vec3 screen_point, engine_game_object_t camera_go)
 {
     const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(entt::entity(camera_go));
-    if (camera_component)
+    const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(entt::entity(camera_go));
+    if (camera_component && camera_transform)
     {
-        const auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(entt::entity(camera_go));
+        auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(entt::entity(camera_go));    
         const auto window_size = rdx_.get_window_size_in_pixels();
+        calculate_camera_view_and_projection(window_size.width, window_size.height,
+            glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
+
         const float aspect = window_size.width / window_size.height;
         screen_point.x *= window_size.width;
         screen_point.y *= window_size.height;
         auto ret = glm::unProject(screen_point, camera_internal_component.data.view, camera_internal_component.data.projection, glm::vec4(0, 0, window_size.width, window_size.height));
-        // ret will have nan(ids) if was called in 1st frame, before scene update. Guard it with this hacky condition:
-        if (!std::isnan(ret.x))
-        {
-            return ret;
-        }
     }
     return glm::vec3(0.0f, 0.0f, 0.0f);
 }
