@@ -834,6 +834,7 @@ glm::vec3 engine::Scene::convert_world_point_to_screen_point(const glm::vec3& wo
 
 glm::vec3 engine::Scene::convert_screen_point_to_world_point(glm::vec3 screen_point, engine_game_object_t camera_go)
 {
+    auto ret = glm::vec3(0.0f, 0.0f, 0.0f);
     const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(entt::entity(camera_go));
     const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(entt::entity(camera_go));
     if (camera_component && camera_transform)
@@ -846,8 +847,8 @@ glm::vec3 engine::Scene::convert_screen_point_to_world_point(glm::vec3 screen_po
         const float aspect = window_size.width / window_size.height;
         screen_point.x *= window_size.width;
         screen_point.y *= window_size.height;
-        auto ret = glm::unProject(screen_point, camera_internal_component.data.view, camera_internal_component.data.projection, glm::vec4(0, 0, window_size.width, window_size.height));
+        ret = glm::unProject(screen_point, camera_internal_component.data.view, camera_internal_component.data.projection, glm::vec4(0, 0, window_size.width, window_size.height));
     }
-    return glm::vec3(0.0f, 0.0f, 0.0f);
+    return ret;
 }
 
