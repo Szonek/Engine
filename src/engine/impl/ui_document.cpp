@@ -128,7 +128,14 @@ engine::UiDataHandle::UiDataHandle(Rml::Context* ctx, std::string_view name, std
     {
         return;
     }
-
+    struct abc
+    {
+        std::int32_t get() { return 0; }
+    
+    };
+    auto struct_handle = constructor.RegisterStruct<abc>();
+    struct_handle.RegisterMember("", &abc::get);
+    
     for (const auto& bind : bindings)
     {
         switch (bind.type)

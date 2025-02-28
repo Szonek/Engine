@@ -9,6 +9,12 @@
 		<p>{{character_health}}</p>
 		<p>{{enemy_health}}</p>
 	</div>
+	
+	<div data-for="item : items_on_ground">
+		<h1>{{item.name}}</h1>
+		<p>Item {{it_index + 1}} of {{ item.size }}.</p>
+	</div>
+	
 	<div class="item_on_ground" 
 		data-model="DMitemname" data-if="show_item == true"
 		data-event-click="equip";

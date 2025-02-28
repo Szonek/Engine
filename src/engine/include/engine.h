@@ -99,6 +99,19 @@ typedef struct _engine_ui_document_data_binding_event_callback_t
     void* user_data;
 } engine_ui_document_data_binding_event_callback_t;
 
+typedef struct _engine_ui_document_data_binding_struct_member_t
+{
+    const char* name;
+    void* ptr;
+    engine_ui_document_data_binding_data_type_t type;
+} engine_ui_document_data_binding_struct_member_t;
+
+typedef struct _engine_ui_document_data_binding_struct_t
+{
+    const char* struct_name;
+    engine_ui_document_data_binding_struct_member_t members;
+} engine_ui_document_data_binding_struct_t;
+
 typedef struct _engine_ui_document_data_binding_t
 {
     const char* name;
