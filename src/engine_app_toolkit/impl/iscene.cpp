@@ -80,6 +80,15 @@ engine_result_code_t update_scripts(std::unordered_map<engine_game_object_t, std
     return ENGINE_RESULT_CODE_OK;
 }
 
+engine_result_code_t late_update_scripts(std::unordered_map<engine_game_object_t, std::unique_ptr<engine::IScript>>& scripts, float dt)
+{
+    for (auto& [go, script] : scripts)
+    {
+        script->late_update(dt);
+    }
+    return ENGINE_RESULT_CODE_OK;
+}
+
 inline engine_scene_t create_scene(engine_application_t app_handle)
 {
     engine_scene_t scene = nullptr;
@@ -158,6 +167,7 @@ engine_result_code_t engine::IScene::update(float dt)
     propagate_collisions_events(get_app_handle(), scene_, scripts_);
 
     update_scripts(scripts_, dt);
+    late_update_scripts(scripts_, dt);
     update_scene(get_app_handle(), scene_, dt);
 
     update_hook_end();

@@ -28,7 +28,8 @@ public:
     IScript(IScene* my_scene);
     virtual ~IScript();
 
-    virtual void update(float dt) {}
+    virtual void update(float dt) {} // use it for main game logic
+    virtual void late_update(float dt) {} // use it for game logic which depends on main logic (i.e. transforms, camera followign a character etc.)
     //ToDo: this should be moved to seperate class like  ICollidableScript
     virtual void on_collision(const collision_t& info) {}
     

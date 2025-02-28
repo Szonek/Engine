@@ -28,7 +28,7 @@ project_c::CameraScript::CameraScript(engine::IScene* my_scene)
     engineSceneUpdateTransformComponent(scene, go_, &camera_transform_comp);
 }
 
-void project_c::CameraScript::update(float dt)
+void project_c::CameraScript::late_update(float dt)
 {
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();

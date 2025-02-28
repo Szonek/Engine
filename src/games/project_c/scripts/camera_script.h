@@ -7,7 +7,7 @@ class CameraScript : public BaseNode
 {
 public:
     CameraScript(engine::IScene* my_scene);
-    void update(float dt) override;
+    void late_update(float dt) override;
 };
 
 }
