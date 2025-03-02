@@ -5,11 +5,10 @@
 
 
 
-#define ENGINE_DEFINE_VECTOR_IMPL_TYPE(NAME, ELEMENT_TYPE) \
-    struct _engine_vector_##NAME##_t { \
+#define ENGINE_DEFINE_VECTOR_IMPL_TYPE(STRUCT_AFFIX, ELEMENT_TYPE) \
+    struct _engine_vector_##STRUCT_AFFIX##_t { \
         std::vector<ELEMENT_TYPE> data; \
     }; \
 
 
-ENGINE_DEFINE_VECTOR_IMPL_TYPE(int, int)
-ENGINE_DEFINE_VECTOR_IMPL_TYPE(ui_document_data_binding_struct_member, engine_ui_document_data_binding_struct_member_t)
+ENGINE_DEFINE_VECTOR_IMPL_TYPE(uint32, uint32_t)

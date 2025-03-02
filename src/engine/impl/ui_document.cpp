@@ -5,6 +5,7 @@
 #include "logger.h"
 #include "math_helpers.h"
 #include "engine_string_impl_def.h"
+#include "engine_vector_impl_def.h"
 
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/ID.h>
@@ -128,13 +129,13 @@ engine::UiDataHandle::UiDataHandle(Rml::Context* ctx, std::string_view name, std
     {
         return;
     }
-    struct abc
-    {
-        std::int32_t get() { return 0; }
-    
-    };
-    auto struct_handle = constructor.RegisterStruct<abc>();
-    struct_handle.RegisterMember("", &abc::get);
+    //struct abc
+    //{
+    //    std::int32_t get() { return 0; }
+    //
+    //};
+    //auto struct_handle = constructor.RegisterStruct<abc>();
+    //struct_handle.RegisterMember("", &abc::get);
     
     for (const auto& bind : bindings)
     {
@@ -148,6 +149,16 @@ engine::UiDataHandle::UiDataHandle(Rml::Context* ctx, std::string_view name, std
         case ENGINE_UI_DOCUMENT_DATA_TYPE_UINT32:
         {
             constructor.Bind(bind.name, bind.data_uint32_t);
+            break;
+        }
+        case ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_UINT32:
+        {
+            static bool inserted = false;
+            if (!inserted) 
+            {
+                inserted = constructor.RegisterArray<std::vector<std::uint32_t>>();
+            }       
+            constructor.Bind(bind.name, &bind.data_vector_uint32_t->data);
             break;
         }
         case ENGINE_UI_DOCUMENT_DATA_TYPE_STRING:

@@ -10,16 +10,17 @@
 		<p>{{enemy_health}}</p>
 	</div>
 	
-	<div data-for="item : items_on_ground">
-		<h1>{{item.name}}</h1>
-		<p>Item {{it_index + 1}} of {{ item.size }}.</p>
-	</div>
+	<div data-model="DMitemname">
+		<div style="position: absolute; left: 50%; bottom: 80%; color: red;">
+			<h1 data-for="item, idx : items_on_ground">{{idx}}: {{item}}</h1>
+		</div>
 	
-	<div class="item_on_ground" 
-		data-model="DMitemname" data-if="show_item == true"
-		data-event-click="equip";
-		data-style-left="item_pos_x" data-style-bottom="item_pos_y">
-			<p>{{item_name}}</p>
+		<div class="item_on_ground" 
+			data-model="DMitemname" data-if="show_item == true"
+			data-event-click="equip";
+			data-style-left="item_pos_x" data-style-bottom="item_pos_y">
+				<p>{{item_name}}</p>
+		</div>
 	</div>
 </body>
 </rml>

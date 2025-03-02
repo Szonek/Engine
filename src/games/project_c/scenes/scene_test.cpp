@@ -270,13 +270,8 @@ project_c::TestScene::TestScene(engine::IApplication* app)
 
     engineApplicationCreateUiDocumentDataHandle(app_handle, "test", bindings.data(), bindings.size(), &ui_data_.handle_test);
 
-    auto int_vec = engineVectorCreate_int();
-    engineVectorResize_int(int_vec, 16);
-    engineVectorSet_int(int_vec, 4, 1337);
-    auto val = engineVectorGet_int(int_vec, 4);
-    engineVectorDestroy_int(int_vec);
 
-    std::array<engine_ui_document_data_binding_t, 5> bindings_items_on_ground{};
+    std::array<engine_ui_document_data_binding_t, 6> bindings_items_on_ground{};
     bindings_items_on_ground[0].data_string = ui_data_.item_name;
     bindings_items_on_ground[0].name = "item_name";
     bindings_items_on_ground[0].type = ENGINE_UI_DOCUMENT_DATA_TYPE_STRING;
@@ -294,6 +289,16 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     bindings_items_on_ground[4].type = ENGINE_UI_DOCUMENT_DATA_TYPE_EVENT_CALLBACK;
     bindings_items_on_ground[4].data_callback.fn_ptr = &test_callback;
     bindings_items_on_ground[4].data_callback.user_data = this;
+
+    engineVectorResizeUint32(ui_data_.items_on_ground, 4);
+    engineVectorSetUint32(ui_data_.items_on_ground, 0, 2137);
+    engineVectorSetUint32(ui_data_.items_on_ground, 1, 13);
+    engineVectorSetUint32(ui_data_.items_on_ground, 2, 47);
+    engineVectorSetUint32(ui_data_.items_on_ground, 3, 997);
+    bindings_items_on_ground[5].type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_UINT32;
+    bindings_items_on_ground[5].data_vector_uint32_t = ui_data_.items_on_ground;
+    bindings_items_on_ground[5].name = "items_on_ground";
+
     engineApplicationCreateUiDocumentDataHandle(app_handle, "DMitemname", bindings_items_on_ground.data(), bindings_items_on_ground.size(), &ui_data_.handle_items_on_ground);
 
     // load ui doc
@@ -342,6 +347,7 @@ void project_c::TestScene::update_hook_begin()
 
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "character_health");
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "enemy_health");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_on_ground");
 
 }
 

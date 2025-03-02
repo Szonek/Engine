@@ -2,6 +2,7 @@
 
 
 #include "engine.h"
+#include "engine_vector.h"
 #include "iscene.h"
 #include "../nav_mesh.h"
 
@@ -17,6 +18,8 @@ struct UI_data
     std::uint32_t character_health = 100;
     std::uint32_t enemy_health = 100;
 
+    engine_vector_uint32_t items_on_ground = engineVectorCreateUint32();
+    
     engine_game_object_t item_go = ENGINE_INVALID_GAME_OBJECT_ID;
     engine_string_t item_name = engineStringCreate("sword");
     engine_string_t item_pos_x = engineStringCreate("50%");

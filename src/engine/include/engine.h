@@ -88,6 +88,7 @@ typedef enum _engine_ui_document_data_binding_data_type_t
     ENGINE_UI_DOCUMENT_DATA_TYPE_UNKNOWN = 0,
     ENGINE_UI_DOCUMENT_DATA_TYPE_BOOL = 1,
     ENGINE_UI_DOCUMENT_DATA_TYPE_UINT32,
+    ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_UINT32,
     ENGINE_UI_DOCUMENT_DATA_TYPE_STRING,
 
     ENGINE_UI_DOCUMENT_DATA_TYPE_EVENT_CALLBACK,
@@ -99,19 +100,6 @@ typedef struct _engine_ui_document_data_binding_event_callback_t
     void* user_data;
 } engine_ui_document_data_binding_event_callback_t;
 
-typedef struct _engine_ui_document_data_binding_struct_member_t
-{
-    const char* name;
-    void* ptr;
-    engine_ui_document_data_binding_data_type_t type;
-} engine_ui_document_data_binding_struct_member_t;
-
-typedef struct _engine_ui_document_data_binding_struct_t
-{
-    const char* struct_name;
-    engine_vector_ui_document_data_binding_struct_member_t members;
-} engine_ui_document_data_binding_struct_t;
-
 typedef struct _engine_ui_document_data_binding_t
 {
     const char* name;
@@ -119,7 +107,10 @@ typedef struct _engine_ui_document_data_binding_t
     union
     {
         bool* data_bool;
+
         uint32_t* data_uint32_t;
+        engine_vector_uint32_t data_vector_uint32_t;
+
         engine_string_t data_string;
         engine_ui_document_data_binding_event_callback_t data_callback;
     };
