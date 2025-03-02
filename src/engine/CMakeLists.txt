@@ -17,6 +17,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/engine.cpp
 	${ENGINE_SOURCES_DIR}/engine_string_impl_def.h
 	${ENGINE_SOURCES_DIR}/engine_string.cpp
+	${ENGINE_SOURCES_DIR}/engine_vector_impl_def.h
+	${ENGINE_SOURCES_DIR}/engine_vector.cpp
 	${ENGINE_SOURCES_DIR}/ui_manager.cpp
 	${ENGINE_SOURCES_DIR}/ui_manager.h
 	${ENGINE_SOURCES_DIR}/ui_document.cpp
@@ -72,6 +74,7 @@ set(ENGINE_API_SOURCES
 	${ENGINE_API}/engine.h
 	${ENGINE_API}/engine_defs.h
 	${ENGINE_API}/engine_string.h
+	${ENGINE_API}/engine_vector.h
 	${ENGINE_API_COMPONENTS}/camera_component.h
 	${ENGINE_API_COMPONENTS}/light_component.h
 	${ENGINE_API_COMPONENTS}/material_component.h
