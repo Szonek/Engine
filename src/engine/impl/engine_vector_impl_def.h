@@ -3,15 +3,13 @@
 
 #include <vector>
 
-#define ENGINE_DEFINE_VECTOR_IMPL_TYPE(VECTOR_TYPE, ELEMENT_TYPE) \
-    struct _##VECTOR_TYPE { \
+
+
+#define ENGINE_DEFINE_VECTOR_IMPL_TYPE(NAME, ELEMENT_TYPE) \
+    struct _engine_vector_##NAME##_t { \
         std::vector<ELEMENT_TYPE> data; \
     }; \
 
 
-
-// Example of defining a vector for int
-ENGINE_DEFINE_VECTOR_IMPL_TYPE(engine_vector_int_t, int)
-// You can define more vector types here, e.g.:
-// ENGINE_DEFINE_VECTOR_IMPL_TYPE(engine_vector_float_t, float)
-// ENGINE_DEFINE_VECTOR_IMPL_TYPE(engine_vector_double_t, double)
+ENGINE_DEFINE_VECTOR_IMPL_TYPE(int, int)
+ENGINE_DEFINE_VECTOR_IMPL_TYPE(ui_document_data_binding_struct_member, engine_ui_document_data_binding_struct_member_t)

@@ -13,7 +13,7 @@
 #include "components/sprite_component.h"
 
 #include "engine_string.h"
-
+#include "engine_vector.h"
 
 
 #ifdef __cplusplus
@@ -109,7 +109,7 @@ typedef struct _engine_ui_document_data_binding_struct_member_t
 typedef struct _engine_ui_document_data_binding_struct_t
 {
     const char* struct_name;
-    engine_ui_document_data_binding_struct_member_t members;
+    engine_vector_ui_document_data_binding_struct_member_t members;
 } engine_ui_document_data_binding_struct_t;
 
 typedef struct _engine_ui_document_data_binding_t

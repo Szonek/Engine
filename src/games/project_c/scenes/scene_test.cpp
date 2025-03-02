@@ -9,6 +9,8 @@
 
 #include "../nav_mesh.h"
 
+#include <engine_vector.h>
+
 #include <random>
 #include <chrono>
 
@@ -267,6 +269,12 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     bindings[1].type = ENGINE_UI_DOCUMENT_DATA_TYPE_UINT32;
 
     engineApplicationCreateUiDocumentDataHandle(app_handle, "test", bindings.data(), bindings.size(), &ui_data_.handle_test);
+
+    auto int_vec = engineVectorCreate_int();
+    engineVectorResize_int(int_vec, 16);
+    engineVectorSet_int(int_vec, 4, 1337);
+    auto val = engineVectorGet_int(int_vec, 4);
+    engineVectorDestroy_int(int_vec);
 
     std::array<engine_ui_document_data_binding_t, 5> bindings_items_on_ground{};
     bindings_items_on_ground[0].data_string = ui_data_.item_name;

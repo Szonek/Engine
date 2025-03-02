@@ -9,21 +9,21 @@ extern "C" {
 #include <stddef.h>
 
     // Macro to define a vector for a specific type
-#define DECLARE_VECTOR_TYPE(VECTOR_TYPE, ELEMENT_TYPE) \
-    typedef struct _##VECTOR_TYPE##* VECTOR_TYPE; \
-    ENGINE_API VECTOR_TYPE VECTOR_TYPE##_create(); \
-    ENGINE_API void VECTOR_TYPE##_destroy(VECTOR_TYPE vec); \
-    ENGINE_API void VECTOR_TYPE##_push_back(VECTOR_TYPE vec, ELEMENT_TYPE value); \
-    ENGINE_API void VECTOR_TYPE##_pop_back(VECTOR_TYPE vec); \
-    ENGINE_API ELEMENT_TYPE VECTOR_TYPE##_get(const VECTOR_TYPE vec, size_t index); \
-    ENGINE_API void VECTOR_TYPE##_set(VECTOR_TYPE vec, size_t index, ELEMENT_TYPE value); \
-    ENGINE_API size_t VECTOR_TYPE##_size(const VECTOR_TYPE* vec);
+#define ENGINE_DECLARE_VECTOR_TYPE(NAME, ELEMENT_TYPE) \
+    typedef struct _engine_vector_##NAME##_t* engine_vector_##NAME##_t; \
+    ENGINE_API engine_vector_##NAME##_t engineVectorCreate_##NAME(); \
+    ENGINE_API void engineVectorDestroy_##NAME(engine_vector_##NAME##_t vec); \
+    ENGINE_API void engineVectorPushBack_##NAME(engine_vector_##NAME##_t vec, ELEMENT_TYPE value); \
+    ENGINE_API void engineVectorPopBack_##NAME(engine_vector_##NAME##_t vec); \
+    ENGINE_API ELEMENT_TYPE engineVectorGet_##NAME(const engine_vector_##NAME##_t vec, size_t index); \
+    ENGINE_API void engineVectorSet_##NAME(engine_vector_##NAME##_t vec, size_t index, ELEMENT_TYPE value); \
+    ENGINE_API void engineVectorResize_##NAME(const engine_vector_##NAME##_t vec, size_t new_size); \
+    ENGINE_API size_t engineVectorSize_##NAME(const engine_vector_##NAME##_t vec);
 
 // Example of declaring a vector for int
-DECLARE_VECTOR_TYPE(engine_vector_int_t, int)
-// You can declare more vector types here, e.g.:
-// DECLARE_VECTOR_TYPE(engine_vector_float_t, float)
-// DECLARE_VECTOR_TYPE(engine_vector_double_t, double)
+ENGINE_DECLARE_VECTOR_TYPE(int, int)
+typedef struct _engine_ui_document_data_binding_struct_member_t engine_ui_document_data_binding_struct_member_t;
+ENGINE_DECLARE_VECTOR_TYPE(ui_document_data_binding_struct_member, engine_ui_document_data_binding_struct_member_t)
 
 #ifdef __cplusplus
 }
