@@ -42,3 +42,5 @@
 
 // Example of defining a vector for int
 ENGINE_DEFINE_VECTOR_FUNCTIONS(Uint32, uint32, uint32_t)
+ENGINE_DEFINE_VECTOR_FUNCTIONS(Bool, bool, bool)
+ENGINE_DEFINE_VECTOR_FUNCTIONS(EngineString, engine_string, engine_string_t*)

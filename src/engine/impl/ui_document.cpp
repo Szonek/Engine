@@ -166,6 +166,24 @@ engine::UiDataHandle::UiDataHandle(Rml::Context* ctx, std::string_view name, std
             constructor.Bind(bind.name, &bind.data_string->str);
             break;
         }
+        case ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_STRING:
+        {
+            static bool inserted = false;
+            if (!inserted)
+            {
+                constructor.RegisterScalar<engine_string_t>([](engine_string_t const& eng_str, Rml::Variant& variant) {
+                    variant = eng_str.str;
+                    },
+                    [](engine_string_t& eng_str, const Rml::Variant& variant) {
+                        std::string str = variant.Get<std::string>();
+                        eng_str.str = str;
+                    });
+                inserted = constructor.RegisterArray<std::vector<engine_string_t*>>();
+            }
+
+            constructor.Bind(bind.name, &bind.data_vector_string->data);
+            break;
+        }
         case ENGINE_UI_DOCUMENT_DATA_TYPE_EVENT_CALLBACK:
         {
             constructor.BindEventCallback(bind.name, [this, bind](Rml::DataModelHandle data_model, Rml::Event& ev, const Rml::VariantList& args)

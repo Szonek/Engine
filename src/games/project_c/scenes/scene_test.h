@@ -10,6 +10,14 @@
 
 namespace project_c
 {
+    struct UI_data_items_on_ground
+    {
+        engine_vector_uint32_t go = engineVectorCreateUint32();
+        engine_vector_engine_string_t name = engineVectorCreateEngineString();
+        engine_vector_engine_string_t pos_x = engineVectorCreateEngineString();
+        engine_vector_engine_string_t pos_y = engineVectorCreateEngineString();
+        engine_vector_uint32_t show = engineVectorCreateUint32();
+    };
 struct UI_data
 {
     engine_ui_document_t doc;
@@ -18,13 +26,15 @@ struct UI_data
     std::uint32_t character_health = 100;
     std::uint32_t enemy_health = 100;
 
-    engine_vector_uint32_t items_on_ground = engineVectorCreateUint32();
-    
-    engine_game_object_t item_go = ENGINE_INVALID_GAME_OBJECT_ID;
-    engine_string_t item_name = engineStringCreate("sword");
-    engine_string_t item_pos_x = engineStringCreate("50%");
-    engine_string_t item_pos_y = engineStringCreate("75%");
-    bool show_item = false;
+    //engine_vector_uint32_t items_on_ground = engineVectorCreateUint32(); 
+    //engine_game_object_t item_go = ENGINE_INVALID_GAME_OBJECT_ID;
+    //engine_string_t item_name = engineStringCreate("sword");
+    //engine_string_t item_pos_x = engineStringCreate("50%");
+    //engine_string_t item_pos_y = engineStringCreate("75%");
+    //bool show_item = false;
+
+
+    UI_data_items_on_ground items;
 };
 
 class TestScene : public engine::IScene

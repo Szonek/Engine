@@ -3,7 +3,7 @@
 
 #include <string>
 
-struct _engine_string_t
+struct engine_string_t
 {
     std::string str;
 };

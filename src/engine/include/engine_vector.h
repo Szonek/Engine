@@ -21,8 +21,9 @@ extern "C" {
 
 // Example of declaring a vector for int
 ENGINE_DECLARE_VECTOR_TYPE(Uint32, uint32, uint32_t)
-//typedef struct _engine_ui_document_data_binding_struct_member_t engine_ui_document_data_binding_struct_member_t;
-//ENGINE_DECLARE_VECTOR_TYPE(UiDocumentDataBindingStructMember, ui_document_data_binding_struct_member, engine_ui_document_data_binding_struct_member_t)
+ENGINE_DECLARE_VECTOR_TYPE(Bool, bool, bool)
+typedef struct engine_string_t engine_string_t;
+ENGINE_DECLARE_VECTOR_TYPE(EngineString, engine_string, engine_string_t*)
 
 #ifdef __cplusplus
 }

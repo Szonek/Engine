@@ -86,10 +86,14 @@ typedef struct _engine_ui_event_t
 typedef enum _engine_ui_document_data_binding_data_type_t
 {
     ENGINE_UI_DOCUMENT_DATA_TYPE_UNKNOWN = 0,
+    
     ENGINE_UI_DOCUMENT_DATA_TYPE_BOOL = 1,
+
     ENGINE_UI_DOCUMENT_DATA_TYPE_UINT32,
     ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_UINT32,
+
     ENGINE_UI_DOCUMENT_DATA_TYPE_STRING,
+    ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_STRING,
 
     ENGINE_UI_DOCUMENT_DATA_TYPE_EVENT_CALLBACK,
 } engine_ui_document_data_binding_data_type_t;
@@ -111,7 +115,9 @@ typedef struct _engine_ui_document_data_binding_t
         uint32_t* data_uint32_t;
         engine_vector_uint32_t data_vector_uint32_t;
 
-        engine_string_t data_string;
+        engine_string_t* data_string;
+        engine_vector_engine_string_t data_vector_string;
+
         engine_ui_document_data_binding_event_callback_t data_callback;
     };
 } engine_ui_document_data_binding_t;

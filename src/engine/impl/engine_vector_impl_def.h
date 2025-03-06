@@ -1,5 +1,6 @@
 #pragma once
 #include <engine_vector.h>
+#include "engine_string_impl_def.h"
 
 #include <vector>
 
@@ -12,3 +13,5 @@
 
 
 ENGINE_DEFINE_VECTOR_IMPL_TYPE(uint32, uint32_t)
+ENGINE_DEFINE_VECTOR_IMPL_TYPE(bool, bool)
+ENGINE_DEFINE_VECTOR_IMPL_TYPE(engine_string, engine_string_t*)

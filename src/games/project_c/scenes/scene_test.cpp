@@ -271,33 +271,70 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     engineApplicationCreateUiDocumentDataHandle(app_handle, "test", bindings.data(), bindings.size(), &ui_data_.handle_test);
 
 
-    std::array<engine_ui_document_data_binding_t, 6> bindings_items_on_ground{};
-    bindings_items_on_ground[0].data_string = ui_data_.item_name;
-    bindings_items_on_ground[0].name = "item_name";
-    bindings_items_on_ground[0].type = ENGINE_UI_DOCUMENT_DATA_TYPE_STRING;
-    bindings_items_on_ground[1].data_string = ui_data_.item_pos_x;
-    bindings_items_on_ground[1].name = "item_pos_x";
-    bindings_items_on_ground[1].type = ENGINE_UI_DOCUMENT_DATA_TYPE_STRING;
-    bindings_items_on_ground[2].data_string = ui_data_.item_pos_y;
-    bindings_items_on_ground[2].name = "item_pos_y";
-    bindings_items_on_ground[2].type = ENGINE_UI_DOCUMENT_DATA_TYPE_STRING;
-    bindings_items_on_ground[3].data_bool = &ui_data_.show_item;
-    bindings_items_on_ground[3].name = "show_item";
-    bindings_items_on_ground[3].type = ENGINE_UI_DOCUMENT_DATA_TYPE_BOOL;
-    bindings_items_on_ground[3].data_bool = &ui_data_.show_item;
-    bindings_items_on_ground[4].name = "equip";
-    bindings_items_on_ground[4].type = ENGINE_UI_DOCUMENT_DATA_TYPE_EVENT_CALLBACK;
-    bindings_items_on_ground[4].data_callback.fn_ptr = &test_callback;
-    bindings_items_on_ground[4].data_callback.user_data = this;
+    std::vector<engine_ui_document_data_binding_t> bindings_items_on_ground = {};
+    {
+        engine_ui_document_data_binding_t binding = {};
+        binding.name = "items_go";
+        binding.data_vector_uint32_t = ui_data_.items.go;
+        binding.type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_UINT32;
+        bindings_items_on_ground.push_back(binding);
+    }
+    {
+        engine_ui_document_data_binding_t binding = {};
+        binding.name = "items_name";
+        binding.data_vector_string = ui_data_.items.name;
+        binding.type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_STRING;
+        bindings_items_on_ground.push_back(binding);
+    }
+    {
+        engine_ui_document_data_binding_t binding = {};
+        binding.name = "items_pos_x";
+        binding.data_vector_string = ui_data_.items.pos_x;
+        binding.type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_STRING;
+        bindings_items_on_ground.push_back(binding);
+    }
+    {
+        engine_ui_document_data_binding_t binding = {};
+        binding.name = "items_pos_y";
+        binding.data_vector_string = ui_data_.items.pos_y;
+        binding.type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_STRING;
+        bindings_items_on_ground.push_back(binding);
+    }
+    {
+        engine_ui_document_data_binding_t binding = {};
+        binding.name = "items_show";
+        binding.data_vector_uint32_t = ui_data_.items.show;
+        binding.type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_UINT32;
+        bindings_items_on_ground.push_back(binding);
+    }
 
-    engineVectorResizeUint32(ui_data_.items_on_ground, 4);
-    engineVectorSetUint32(ui_data_.items_on_ground, 0, 2137);
-    engineVectorSetUint32(ui_data_.items_on_ground, 1, 13);
-    engineVectorSetUint32(ui_data_.items_on_ground, 2, 47);
-    engineVectorSetUint32(ui_data_.items_on_ground, 3, 997);
-    bindings_items_on_ground[5].type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_UINT32;
-    bindings_items_on_ground[5].data_vector_uint32_t = ui_data_.items_on_ground;
-    bindings_items_on_ground[5].name = "items_on_ground";
+    //bindings_items_on_ground[0].data_string = ui_data_.item_name;
+    //bindings_items_on_ground[0].name = "item_name";
+    //bindings_items_on_ground[0].type = ENGINE_UI_DOCUMENT_DATA_TYPE_STRING;
+    //bindings_items_on_ground[1].data_string = ui_data_.item_pos_x;
+    //bindings_items_on_ground[1].name = "item_pos_x";
+    //bindings_items_on_ground[1].type = ENGINE_UI_DOCUMENT_DATA_TYPE_STRING;
+    //bindings_items_on_ground[2].data_string = ui_data_.item_pos_y;
+    //bindings_items_on_ground[2].name = "item_pos_y";
+    //bindings_items_on_ground[2].type = ENGINE_UI_DOCUMENT_DATA_TYPE_STRING;
+    //bindings_items_on_ground[3].data_bool = &ui_data_.show_item;
+    //bindings_items_on_ground[3].name = "show_item";
+    //bindings_items_on_ground[3].type = ENGINE_UI_DOCUMENT_DATA_TYPE_BOOL;
+    //bindings_items_on_ground[3].data_bool = &ui_data_.show_item;
+    //bindings_items_on_ground[4].name = "equip";
+    //bindings_items_on_ground[4].type = ENGINE_UI_DOCUMENT_DATA_TYPE_EVENT_CALLBACK;
+    //bindings_items_on_ground[4].data_callback.fn_ptr = &test_callback;
+    //bindings_items_on_ground[4].data_callback.user_data = this;
+
+
+    //engineVectorResizeUint32(ui_data_.items_on_ground, 4);
+    //engineVectorSetUint32(ui_data_.items_on_ground, 0, 2137);
+    //engineVectorSetUint32(ui_data_.items_on_ground, 1, 13);
+    //engineVectorSetUint32(ui_data_.items_on_ground, 2, 47);
+    //engineVectorSetUint32(ui_data_.items_on_ground, 3, 997);
+    //bindings_items_on_ground[5].type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_UINT32;
+    //bindings_items_on_ground[5].data_vector_uint32_t = ui_data_.items_on_ground;
+    //bindings_items_on_ground[5].name = "items_on_ground";
 
     engineApplicationCreateUiDocumentDataHandle(app_handle, "DMitemname", bindings_items_on_ground.data(), bindings_items_on_ground.size(), &ui_data_.handle_items_on_ground);
 
@@ -347,7 +384,7 @@ void project_c::TestScene::update_hook_begin()
 
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "character_health");
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "enemy_health");
-    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_on_ground");
+    //engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_on_ground");
 
 }
 
@@ -357,22 +394,56 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
     const auto item_go = sw->get_game_object();
     const auto item_tc = engineSceneGetTransformComponent(scene_, item_go);
     const auto item_screen_coords = engineSceneCameraComponentConvertWorldPositionToScreenPosition(scene_, active_camera_go, item_tc.position);
-    ui_data_.item_go = item_go;
-    ui_data_.show_item = true;
-
-    engineStringSet(ui_data_.item_name, "sword");
+    
     const auto x_str = std::to_string(item_screen_coords.x * 100) + "%";
     const auto y_str = std::to_string(item_screen_coords.y * 100) + "%";
-    engineStringSet(ui_data_.item_pos_x, x_str.c_str());
-    engineStringSet(ui_data_.item_pos_y, y_str.c_str());
-    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_name");
-    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_pos_x");
-    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "item_pos_y");
-    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "show_item");
+
+    bool found = false;
+    for (auto i = 0; i < engineVectorSizeUint32(ui_data_.items.go); i++)
+    {
+        const auto go = engineVectorGetUint32(ui_data_.items.go, i);
+        if (go == item_go)
+        {
+            found = true;
+        }
+    }
+    if (!found)
+    {
+        engineVectorPushBackUint32(ui_data_.items.go, item_go);
+        engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_go");
+        engineVectorPushBackEngineString(ui_data_.items.name, engineStringCreate("sword"));
+        engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_name");
+
+        engineVectorPushBackUint32(ui_data_.items.show, 1);
+        engineVectorPushBackEngineString(ui_data_.items.pos_x, engineStringCreate(x_str.c_str()));
+        engineVectorPushBackEngineString(ui_data_.items.pos_y, engineStringCreate(y_str.c_str()));
+    }
+
+    for (auto i = 0; i < engineVectorSizeUint32(ui_data_.items.go); i++)
+    {
+        const auto go = engineVectorGetUint32(ui_data_.items.go, i);
+        if (go == item_go)
+        {
+            engineVectorSetUint32(ui_data_.items.show, i, 1);
+
+
+            auto pos_x_str = engineVectorGetEngineString(ui_data_.items.pos_x, i);
+            engineStringSet(pos_x_str, x_str.c_str());
+            
+
+            auto pos_y_str = engineVectorGetEngineString(ui_data_.items.pos_y, i);
+            engineStringSet(pos_y_str, y_str.c_str());
+            
+        }
+    }
+
+    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_show");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_pos_x");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_pos_y");
 }
 
 void project_c::TestScene::ui_remove_item_from_ground(const project_c::Sword* sw)
 {
-    ui_data_.show_item = false;
-    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "show_item");
+    //ui_data_.show_item = false;
+    //engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "show_item");
 }
