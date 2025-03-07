@@ -129,29 +129,22 @@ engine::UiDataHandle::UiDataHandle(Rml::Context* ctx, std::string_view name, std
     {
         return;
     }
-    //struct abc
-    //{
-    //    std::int32_t get() { return 0; }
-    //
-    //};
-    //auto struct_handle = constructor.RegisterStruct<abc>();
-    //struct_handle.RegisterMember("", &abc::get);
     
     for (const auto& bind : bindings)
     {
         switch (bind.type)
         {
-        case ENGINE_UI_DOCUMENT_DATA_TYPE_BOOL:
+        case ENGINE_UI_DATA_TYPE_BOOL:
         {
             constructor.Bind(bind.name, bind.data_bool);
             break;
         }
-        case ENGINE_UI_DOCUMENT_DATA_TYPE_UINT32:
+        case ENGINE_UI_DATA_TYPE_UINT32:
         {
             constructor.Bind(bind.name, bind.data_uint32_t);
             break;
         }
-        case ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_UINT32:
+        case ENGINE_UI_DATA_TYPE_VECTOR_UINT32:
         {
             static bool inserted = false;
             if (!inserted) 
@@ -161,12 +154,12 @@ engine::UiDataHandle::UiDataHandle(Rml::Context* ctx, std::string_view name, std
             constructor.Bind(bind.name, &bind.data_vector_uint32_t->data);
             break;
         }
-        case ENGINE_UI_DOCUMENT_DATA_TYPE_STRING:
+        case ENGINE_UI_DATA_TYPE_STRING:
         {
             constructor.Bind(bind.name, &bind.data_string->str);
             break;
         }
-        case ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_STRING:
+        case ENGINE_UI_DATA_TYPE_VECTOR_STRING:
         {
             static bool inserted = false;
             if (!inserted)
@@ -184,14 +177,45 @@ engine::UiDataHandle::UiDataHandle(Rml::Context* ctx, std::string_view name, std
             constructor.Bind(bind.name, &bind.data_vector_string->data);
             break;
         }
-        case ENGINE_UI_DOCUMENT_DATA_TYPE_EVENT_CALLBACK:
+        case ENGINE_UI_DATA_TYPE_EVENT_CALLBACK:
         {
             constructor.BindEventCallback(bind.name, [this, bind](Rml::DataModelHandle data_model, Rml::Event& ev, const Rml::VariantList& args)
                 {
-                    assert(args.empty());
+                    engine_vector_engine_ui_data_variant_t var_list = nullptr;
+                    if (!args.empty())
+                    {
+                        var_list = engineVectorCreateEngineUiDataVariant();
+                    }
+                        
+                    for(const auto& arg : args)
+                    {
+                        engine_ui_data_variant_t variant{};
+                        variant.type = ENGINE_UI_DATA_TYPE_UNKNOWN;
+                        if (arg.GetType() == Rml::Variant::Type::BOOL)
+                        {
+                            variant.type = ENGINE_UI_DATA_TYPE_BOOL;
+                            variant.arg.b = arg.Get<bool>();
+                        }
+                        else if (arg.GetType() == Rml::Variant::Type::UINT)
+                        {
+                            variant.type = ENGINE_UI_DATA_TYPE_UINT32;
+                            variant.arg.u32 = arg.Get<std::uint32_t>();
+                        }
+                        else
+                        {
+                            assert(!"Unsupported variant type");
+                        }
+                        assert(var_list != nullptr);
+                        var_list->data.push_back(variant);
+                    }
+                    
                     auto handle = reinterpret_cast<engine_ui_data_handle_t>(this);
                     auto event = convet_rml_event_to_engine_event(ev);
-                    bind.data_callback.fn_ptr(handle, &event, bind.data_callback.user_data);
+                    bind.data_callback.fn_ptr(handle, &event, var_list, bind.data_callback.user_data);
+                    if (var_list)
+                    {
+                        engineVectorDestroyEngineUiDataVariant(var_list);
+                    }             
                 });
             break;
         }

@@ -38,9 +38,13 @@
     } \
     size_t engineVectorSize##FUNC_AFFIX(const engine_vector_##STRUCT_AFFIX##_t vec) { \
         return vec->data.size(); \
+    } \
+    void engineVectorErase##FUNC_AFFIX(const engine_vector_##STRUCT_AFFIX##_t vec, size_t idx) {\
+        vec->data.erase(vec->data.begin() + idx); \
     }
 
 // Example of defining a vector for int
 ENGINE_DEFINE_VECTOR_FUNCTIONS(Uint32, uint32, uint32_t)
 ENGINE_DEFINE_VECTOR_FUNCTIONS(Bool, bool, bool)
 ENGINE_DEFINE_VECTOR_FUNCTIONS(EngineString, engine_string, engine_string_t*)
+ENGINE_DEFINE_VECTOR_FUNCTIONS(EngineUiDataVariant, engine_ui_data_variant, engine_ui_data_variant_t)

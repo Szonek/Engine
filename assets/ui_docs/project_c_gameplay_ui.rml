@@ -14,7 +14,11 @@
 
 		
 		<div data-for="itm_go, idx : items_go">
-			<p>{{items_pos_x[idx]}}</p>
+			<div class="item_on_ground" 
+				data-event-click="equip(itm_go)"
+				data-style-left="items_pos_x[idx]" data-style-bottom="items_pos_y[idx]">
+				<p>{{items_name[idx]}}_{{itm_go}}</p>
+			</div>
 		</div>
 	
 

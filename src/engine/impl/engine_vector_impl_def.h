@@ -15,3 +15,4 @@
 ENGINE_DEFINE_VECTOR_IMPL_TYPE(uint32, uint32_t)
 ENGINE_DEFINE_VECTOR_IMPL_TYPE(bool, bool)
 ENGINE_DEFINE_VECTOR_IMPL_TYPE(engine_string, engine_string_t*)
+ENGINE_DEFINE_VECTOR_IMPL_TYPE(engine_ui_data_variant, engine_ui_data_variant_t)

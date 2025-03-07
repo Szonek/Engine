@@ -83,31 +83,41 @@ typedef struct _engine_ui_event_t
     engine_coords_2d_t normalized_screen_position;
 } engine_ui_event_t;
 
-typedef enum _engine_ui_document_data_binding_data_type_t
+typedef enum _engine_ui_data_type_t
 {
-    ENGINE_UI_DOCUMENT_DATA_TYPE_UNKNOWN = 0,
+    ENGINE_UI_DATA_TYPE_UNKNOWN = 0,
     
-    ENGINE_UI_DOCUMENT_DATA_TYPE_BOOL = 1,
+    ENGINE_UI_DATA_TYPE_BOOL = 1,
 
-    ENGINE_UI_DOCUMENT_DATA_TYPE_UINT32,
-    ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_UINT32,
+    ENGINE_UI_DATA_TYPE_UINT32,
+    ENGINE_UI_DATA_TYPE_VECTOR_UINT32,
 
-    ENGINE_UI_DOCUMENT_DATA_TYPE_STRING,
-    ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_STRING,
+    ENGINE_UI_DATA_TYPE_STRING,
+    ENGINE_UI_DATA_TYPE_VECTOR_STRING,
 
-    ENGINE_UI_DOCUMENT_DATA_TYPE_EVENT_CALLBACK,
-} engine_ui_document_data_binding_data_type_t;
+    ENGINE_UI_DATA_TYPE_EVENT_CALLBACK,
+} engine_ui_data_type_t;
+
+typedef struct _engine_ui_data_variant_t
+{
+    engine_ui_data_type_t type;
+    union
+    {
+        bool b;
+        uint32_t u32;
+    } arg;
+} engine_ui_data_variant_t;
 
 typedef struct _engine_ui_document_data_binding_event_callback_t
 {
-    void (*fn_ptr)(engine_ui_data_handle_t data_handle, const engine_ui_event_t* event, void* user_data);
+    void (*fn_ptr)(engine_ui_data_handle_t data_handle, const engine_ui_event_t* event, const engine_vector_engine_ui_data_variant_t args, void* user_data);
     void* user_data;
 } engine_ui_document_data_binding_event_callback_t;
 
 typedef struct _engine_ui_document_data_binding_t
 {
     const char* name;
-    engine_ui_document_data_binding_data_type_t type;
+    engine_ui_data_type_t type;
     union
     {
         bool* data_bool;

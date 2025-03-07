@@ -244,13 +244,23 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
 }
 
 
-void test_callback(engine_ui_data_handle_t data_handle, const engine_ui_event_t* ev, void* user_data)
+void test_callback(engine_ui_data_handle_t data_handle, const engine_ui_event_t* ev, const engine_vector_engine_ui_data_variant_t args, void* user_data)
 {
+    assert(args != nullptr);
+    assert(engineVectorSizeEngineUiDataVariant(args) == 1);
+    const auto arg_0 = engineVectorGetEngineUiDataVariant(args, 0);
+    assert(arg_0.type == ENGINE_UI_DATA_TYPE_UINT32);
+    const auto item_go = arg_0.arg.u32;
+
     auto scene = reinterpret_cast<project_c::TestScene*>(user_data);
     auto solider_go = project_c::utils::get_game_objects_with_name(scene->get_handle(), "solider");
     assert(solider_go.size() == 1);
     auto solider_script = scene->get_script<project_c::Solider>(solider_go[0]);
-    //solider_script->equip_sword(scene->get_script<project_c::Sword>(scene->get_ui_data().item_go));
+    const auto item_equipped = solider_script->equip_sword(scene->get_script<project_c::Sword>(item_go));
+    if (!item_equipped)
+    {
+        engineLog(std::format("Tried to equip item, but couldnt do so!\n").c_str());
+    }
 }
 
 project_c::TestScene::TestScene(engine::IApplication* app)
@@ -262,11 +272,11 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     std::array<engine_ui_document_data_binding_t, 2> bindings{};
     bindings[0].data_uint32_t = &ui_data_.character_health;
     bindings[0].name = "character_health";
-    bindings[0].type = ENGINE_UI_DOCUMENT_DATA_TYPE_UINT32;
+    bindings[0].type = ENGINE_UI_DATA_TYPE_UINT32;
 
     bindings[1].data_uint32_t = &ui_data_.enemy_health;
     bindings[1].name = "enemy_health";
-    bindings[1].type = ENGINE_UI_DOCUMENT_DATA_TYPE_UINT32;
+    bindings[1].type = ENGINE_UI_DATA_TYPE_UINT32;
 
     engineApplicationCreateUiDocumentDataHandle(app_handle, "test", bindings.data(), bindings.size(), &ui_data_.handle_test);
 
@@ -276,65 +286,45 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         engine_ui_document_data_binding_t binding = {};
         binding.name = "items_go";
         binding.data_vector_uint32_t = ui_data_.items.go;
-        binding.type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_UINT32;
+        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_UINT32;
         bindings_items_on_ground.push_back(binding);
     }
     {
         engine_ui_document_data_binding_t binding = {};
         binding.name = "items_name";
         binding.data_vector_string = ui_data_.items.name;
-        binding.type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_STRING;
+        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_STRING;
         bindings_items_on_ground.push_back(binding);
     }
     {
         engine_ui_document_data_binding_t binding = {};
         binding.name = "items_pos_x";
         binding.data_vector_string = ui_data_.items.pos_x;
-        binding.type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_STRING;
+        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_STRING;
         bindings_items_on_ground.push_back(binding);
     }
     {
         engine_ui_document_data_binding_t binding = {};
         binding.name = "items_pos_y";
         binding.data_vector_string = ui_data_.items.pos_y;
-        binding.type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_STRING;
+        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_STRING;
         bindings_items_on_ground.push_back(binding);
     }
     {
         engine_ui_document_data_binding_t binding = {};
         binding.name = "items_show";
         binding.data_vector_uint32_t = ui_data_.items.show;
-        binding.type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_UINT32;
+        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_UINT32;
         bindings_items_on_ground.push_back(binding);
     }
-
-    //bindings_items_on_ground[0].data_string = ui_data_.item_name;
-    //bindings_items_on_ground[0].name = "item_name";
-    //bindings_items_on_ground[0].type = ENGINE_UI_DOCUMENT_DATA_TYPE_STRING;
-    //bindings_items_on_ground[1].data_string = ui_data_.item_pos_x;
-    //bindings_items_on_ground[1].name = "item_pos_x";
-    //bindings_items_on_ground[1].type = ENGINE_UI_DOCUMENT_DATA_TYPE_STRING;
-    //bindings_items_on_ground[2].data_string = ui_data_.item_pos_y;
-    //bindings_items_on_ground[2].name = "item_pos_y";
-    //bindings_items_on_ground[2].type = ENGINE_UI_DOCUMENT_DATA_TYPE_STRING;
-    //bindings_items_on_ground[3].data_bool = &ui_data_.show_item;
-    //bindings_items_on_ground[3].name = "show_item";
-    //bindings_items_on_ground[3].type = ENGINE_UI_DOCUMENT_DATA_TYPE_BOOL;
-    //bindings_items_on_ground[3].data_bool = &ui_data_.show_item;
-    //bindings_items_on_ground[4].name = "equip";
-    //bindings_items_on_ground[4].type = ENGINE_UI_DOCUMENT_DATA_TYPE_EVENT_CALLBACK;
-    //bindings_items_on_ground[4].data_callback.fn_ptr = &test_callback;
-    //bindings_items_on_ground[4].data_callback.user_data = this;
-
-
-    //engineVectorResizeUint32(ui_data_.items_on_ground, 4);
-    //engineVectorSetUint32(ui_data_.items_on_ground, 0, 2137);
-    //engineVectorSetUint32(ui_data_.items_on_ground, 1, 13);
-    //engineVectorSetUint32(ui_data_.items_on_ground, 2, 47);
-    //engineVectorSetUint32(ui_data_.items_on_ground, 3, 997);
-    //bindings_items_on_ground[5].type = ENGINE_UI_DOCUMENT_DATA_TYPE_VECTOR_UINT32;
-    //bindings_items_on_ground[5].data_vector_uint32_t = ui_data_.items_on_ground;
-    //bindings_items_on_ground[5].name = "items_on_ground";
+    {
+        engine_ui_document_data_binding_t binding = {};
+        binding.name = "equip";
+        binding.data_callback.fn_ptr = &test_callback;
+        binding.data_callback.user_data = this;
+        binding.type = ENGINE_UI_DATA_TYPE_EVENT_CALLBACK;
+        bindings_items_on_ground.push_back(binding);
+    }
 
     engineApplicationCreateUiDocumentDataHandle(app_handle, "DMitemname", bindings_items_on_ground.data(), bindings_items_on_ground.size(), &ui_data_.handle_items_on_ground);
 
@@ -384,8 +374,6 @@ void project_c::TestScene::update_hook_begin()
 
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "character_health");
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "enemy_health");
-    //engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_on_ground");
-
 }
 
 void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
@@ -426,14 +414,11 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
         {
             engineVectorSetUint32(ui_data_.items.show, i, 1);
 
-
             auto pos_x_str = engineVectorGetEngineString(ui_data_.items.pos_x, i);
             engineStringSet(pos_x_str, x_str.c_str());
             
-
             auto pos_y_str = engineVectorGetEngineString(ui_data_.items.pos_y, i);
-            engineStringSet(pos_y_str, y_str.c_str());
-            
+            engineStringSet(pos_y_str, y_str.c_str());           
         }
     }
 
@@ -444,6 +429,24 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
 
 void project_c::TestScene::ui_remove_item_from_ground(const project_c::Sword* sw)
 {
-    //ui_data_.show_item = false;
-    //engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "show_item");
+    for (auto i = 0; i < engineVectorSizeUint32(ui_data_.items.go); i++)
+    {
+        const auto go = engineVectorGetUint32(ui_data_.items.go, i);
+        if (go == sw->get_game_object())
+        {
+            engineVectorEraseUint32(ui_data_.items.go, i);
+            engineVectorEraseUint32(ui_data_.items.show, i);
+            engineVectorEraseEngineString(ui_data_.items.name, i);
+            engineVectorEraseEngineString(ui_data_.items.pos_x, i);
+            engineVectorEraseEngineString(ui_data_.items.pos_y, i);
+
+            engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_go");
+            engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_show");
+            engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_name");
+            engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_pos_x");
+            engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_pos_y");
+
+            return;
+        }
+    }
 }

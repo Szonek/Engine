@@ -17,14 +17,16 @@ extern "C" {
     ENGINE_API ELEMENT_TYPE engineVectorGet##FUNC_AFFIX(const engine_vector_##STRUCT_AFFIX##_t vec, size_t index); \
     ENGINE_API void engineVectorSet##FUNC_AFFIX(engine_vector_##STRUCT_AFFIX##_t vec, size_t index, ELEMENT_TYPE value); \
     ENGINE_API void engineVectorResize##FUNC_AFFIX(const engine_vector_##STRUCT_AFFIX##_t vec, size_t new_size); \
-    ENGINE_API size_t engineVectorSize##FUNC_AFFIX(const engine_vector_##STRUCT_AFFIX##_t vec);
+    ENGINE_API size_t engineVectorSize##FUNC_AFFIX(const engine_vector_##STRUCT_AFFIX##_t vec); \
+    ENGINE_API void engineVectorErase##FUNC_AFFIX(const engine_vector_##STRUCT_AFFIX##_t vec, size_t idx);
 
 // Example of declaring a vector for int
 ENGINE_DECLARE_VECTOR_TYPE(Uint32, uint32, uint32_t)
 ENGINE_DECLARE_VECTOR_TYPE(Bool, bool, bool)
 typedef struct engine_string_t engine_string_t;
 ENGINE_DECLARE_VECTOR_TYPE(EngineString, engine_string, engine_string_t*)
-
+typedef struct _engine_ui_data_variant_t engine_ui_data_variant_t;
+ENGINE_DECLARE_VECTOR_TYPE(EngineUiDataVariant, engine_ui_data_variant, engine_ui_data_variant_t)
 #ifdef __cplusplus
 }
 #endif
