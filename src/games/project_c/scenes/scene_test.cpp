@@ -365,13 +365,6 @@ project_c::TestScene::~TestScene()
 
 void project_c::TestScene::update_hook_begin()
 {
-
-    if (engineApplicationIsKeyboardButtonDown(get_app_handle(), ENGINE_KEYBOARD_KEY_M))
-    {
-        engineUiDocumentReload(ui_data_.doc);
-        engineUiDocumentShow(ui_data_.doc);
-    }
-
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "character_health");
     engineUiDataHandleDirtyVariable(ui_data_.handle_test, "enemy_health");
 }
