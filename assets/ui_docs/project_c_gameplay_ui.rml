@@ -1,11 +1,11 @@
 <rml>
 <head>
-	<title>Hello world</title>
+	<title>Main-UI</title>
 	<link type="text/rcss" href="rml.rcss"/>
 	<link type="text/rcss" href="project_c_gameplay_ui.rcss"/>
 </head>
 <body>
-	<div data-model="DMitemname">	
+	<div data-model="DataModel_Main_UI">	
 		<div data-for="itm_go, idx : items_go">
 			<div class="item_on_ground" 
 				data-event-click="equip(itm_go)"

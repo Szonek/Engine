@@ -319,7 +319,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     std::vector<engine_ui_document_data_binding_t> bindings {};
     register_ui_item_bindings(bindings, ui_data_, this);
 
-    engineApplicationCreateUiDocumentDataHandle(app_handle, "DMitemname", bindings.data(), bindings.size(), &ui_data_.handle_items_on_ground);
+    engineApplicationCreateUiDocumentDataHandle(app_handle, "DataModel_Main_UI", bindings.data(), bindings.size(), &ui_data_.handle_main_ui);
 
     // load ui doc
     engineApplicationCreateUiDocumentFromFile(app_handle, "project_c_gameplay_ui.rml", &ui_data_.doc);
@@ -351,7 +351,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
 
 project_c::TestScene::~TestScene()
 {
-    engineUiDataHandleDestroy(ui_data_.handle_items_on_ground);
+    engineUiDataHandleDestroy(ui_data_.handle_main_ui);
     engineApplicationUiDocumentDestroy(ui_data_.doc);
 }
 
@@ -383,9 +383,9 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
     if (!found)
     {
         engineVectorPushBackUint32(ui_data_.items.go, item_go);
-        engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_go");
+        engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_go");
         engineVectorPushBackEngineString(ui_data_.items.name, engineStringCreate("sword"));
-        engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_name");
+        engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_name");
 
         engineVectorPushBackUint32(ui_data_.items.show, 1);
         engineVectorPushBackEngineString(ui_data_.items.pos_x, engineStringCreate(x_str.c_str()));
@@ -407,9 +407,9 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
         }
     }
 
-    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_show");
-    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_pos_x");
-    engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_pos_y");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_show");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_pos_x");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_pos_y");
 }
 
 void project_c::TestScene::ui_remove_item_from_ground(const project_c::Sword* sw)
@@ -425,11 +425,11 @@ void project_c::TestScene::ui_remove_item_from_ground(const project_c::Sword* sw
             engineVectorEraseEngineString(ui_data_.items.pos_x, i);
             engineVectorEraseEngineString(ui_data_.items.pos_y, i);
 
-            engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_go");
-            engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_show");
-            engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_name");
-            engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_pos_x");
-            engineUiDataHandleDirtyVariable(ui_data_.handle_items_on_ground, "items_pos_y");
+            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_go");
+            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_show");
+            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_name");
+            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_pos_x");
+            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_pos_y");
 
             return;
         }

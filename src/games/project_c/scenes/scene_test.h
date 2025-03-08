@@ -34,7 +34,7 @@ struct UI_data_enemy
 struct UI_data
 {
     engine_ui_document_t doc;
-    engine_ui_data_handle_t handle_items_on_ground;
+    engine_ui_data_handle_t handle_main_ui;
 
     UI_data_enemy healthbars;
     UI_data_items_on_ground items;
