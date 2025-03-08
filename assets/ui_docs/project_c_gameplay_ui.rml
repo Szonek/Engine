@@ -5,11 +5,6 @@
 	<link type="text/rcss" href="project_c_gameplay_ui.rcss"/>
 </head>
 <body>
-	<div class="test_container" data-model="test">
-		<p>{{character_health}}</p>
-		<p>{{enemy_health}}</p>
-	</div>
-	
 	<div data-model="DMitemname">	
 		<div data-for="itm_go, idx : items_go">
 			<div class="item_on_ground" 
@@ -19,7 +14,9 @@
 			</div>
 		</div>
 		
-		<div class="healthbar"></div> 
+		<div data-for="enemy_go, idx : enemies_go">
+			<div class="healthbar" data-style-left="enemies_pos_x[idx]" data-style-bottom="enemies_pos_y[idx]"></div> 
+		</div>
 	</div>
 </body>
 </rml>

@@ -19,23 +19,24 @@ struct UI_data_items_on_ground
     engine_vector_uint32_t show = engineVectorCreateUint32();
 };
 
-struct UI_enemy_healthbars
+struct UI_data_enemy
 {
+    struct healthbar
+    {
+        engine_vector_engine_string_t pos_x = engineVectorCreateEngineString();
+        engine_vector_engine_string_t pos_y = engineVectorCreateEngineString();
+        engine_vector_uint32_t show = engineVectorCreateUint32();
+    };
     engine_vector_uint32_t go = engineVectorCreateUint32();
-    engine_vector_engine_string_t pos_x = engineVectorCreateEngineString();
-    engine_vector_engine_string_t pos_y = engineVectorCreateEngineString();
-    engine_vector_uint32_t show = engineVectorCreateUint32();
+    healthbar healhbars_info;
 };
 
 struct UI_data
 {
     engine_ui_document_t doc;
-    engine_ui_data_handle_t handle_test;
     engine_ui_data_handle_t handle_items_on_ground;
-    std::uint32_t character_health = 100;
-    std::uint32_t enemy_health = 100;
 
-    UI_enemy_healthbars healthbars;
+    UI_data_enemy healthbars;
     UI_data_items_on_ground items;
 };
 
@@ -68,6 +69,9 @@ public:
 
     void ui_update_item_on_ground(const class Sword* sw);
     void ui_remove_item_from_ground(const class Sword* sw);
+
+    void ui_update_enemy(const class Enemy* en);
+    void ui_remove_enemy(const class Enemy* en);
 private:
     UI_data ui_data_;
     NavMesh nav_mesh_;
