@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <unordered_map>
+#include <regex>
 
 #ifdef _MSC_VER
 #pragma warning(disable: 4127) // disable warning
@@ -44,11 +45,20 @@ inline Stream& streamin_with_braces(Stream& s, const T& t)
     return s;
 }
 
+inline std::string escape_curly_braces(std::string result)
+{
+    result = std::regex_replace(result, std::regex("\\{"), "{{");
+    result = std::regex_replace(result, std::regex("\\}"), "}}");
+    return result;
+}
+
+
 void engine::log::log(LogLevel level, std::string_view msg)
 {
     const auto log_level_trait = LOG_LEVEL_LUT[level];
-    const auto printable_str = fmt::format("[{}][{}]: {}", std::chrono::system_clock::now(), log_level_trait.name, msg);
+    const auto escaped_msg = escape_curly_braces(std::string(msg));  // std::format do not like {} in msg, it has to be doubled
 
+    const auto printable_str = fmt::format("[{}][{}]: {}", std::chrono::system_clock::now(), log_level_trait.name, escaped_msg);
 #if __ANDROID__
     __android_log_print(ANDROID_LOG_ERROR, "", "%s", printable_str.data());
 #else

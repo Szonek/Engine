@@ -118,45 +118,28 @@ inline std::uint32_t to_ogl_texture_border_clamp_mode(engine::TextureAddressClam
 
 
 engine::Shader::Shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name)
-: vertex_shader_(0)
-, fragment_shader_(0)
-, program_(glCreateProgram())
+    : vertex_shader_(0)
+    , fragment_shader_(0)
+    , program_(0)
 {
-    log::log(log::LogLevel::eTrace, fmt::format("[Trace][Program] Creating shaders: \t\n"));
-	// compile shaders and link to program
-	{
-        for (const auto& s : vertex_shader_name)
-        {
-            log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Vertex shader: {}\n", s));
-        }
-        std::vector<std::string> sources;
-        sources.reserve(vertex_shader_name.size());
-        std::for_each(vertex_shader_name.begin(), vertex_shader_name.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });
-		vertex_shader_ = glCreateShader(GL_VERTEX_SHADER);
-        compile_and_attach_to_program(vertex_shader_, sources);
-	}
-	{
-        for (const auto& s : fragment_shader_name)
-        {
-            log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Fragment shader: {}\n", s));
-        }
-        std::vector<std::string> sources;
-        sources.reserve(fragment_shader_name.size());
-        std::for_each(fragment_shader_name.begin(), fragment_shader_name.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });
-		fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
-        compile_and_attach_to_program(fragment_shader_, sources);
-	}
-	// link attached shaders
-	glLinkProgram(program_);
-	int32_t success = 0;
-	glGetProgramiv(program_, GL_LINK_STATUS, &success);
-	if (!success)
-	{
-		std::array<char, 512> info_log;
-		glGetProgramInfoLog(program_, 512, nullptr, info_log.data());
-		log::log(log::LogLevel::eCritical, fmt::format("[Error][Program] Failed program linking: \n\t {}", info_log.data()));
-        assert(false && "Failed shader compilation!");
-	}
+    log::log(log::LogLevel::eTrace, fmt::format("[Trace][Program] Creating shader with sources: \t\n"));
+    for (const auto& vsn : vertex_shader_name)
+    {
+        log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Vertex shader: {}\n", vsn));
+        vertex_sources_.push_back(AssetStore::get_instance().get_shaders_base_path() / vsn);
+        // OpenGL compilation has to happen in the same thread as context, so file watcher just reset state and compilation is deffered until bind happens
+        FileWatcher::get_instance().register_callback(vertex_sources_.back(), [this]() { mark_for_recompilation(); });
+    }
+
+    for (const auto& fsn : fragment_shader_name)
+    {
+        log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Fragment shader: {}\n", fsn));
+        fragment_sources_.push_back(AssetStore::get_instance().get_shaders_base_path() / fsn);
+        // OpenGL compilation has to happen in the same thread as context, so file watcher just reset state and compilation is deffered until bind happens
+        FileWatcher::get_instance().register_callback(fragment_sources_.back(), [this]() { mark_for_recompilation(); });
+    }
+
+    compile();
 }
 
 engine::Shader::Shader(Shader&& rhs) noexcept
@@ -164,6 +147,8 @@ engine::Shader::Shader(Shader&& rhs) noexcept
     std::swap(vertex_shader_, rhs.vertex_shader_);
     std::swap(fragment_shader_, rhs.fragment_shader_);
     std::swap(program_, rhs.program_);
+    std::swap(vertex_sources_, rhs.vertex_sources_);
+    std::swap(fragment_sources_, rhs.fragment_sources_);
 }
 
 engine::Shader& engine::Shader::operator=(Shader&& rhs) noexcept
@@ -173,24 +158,105 @@ engine::Shader& engine::Shader::operator=(Shader&& rhs) noexcept
         std::swap(vertex_shader_, rhs.vertex_shader_);
         std::swap(fragment_shader_, rhs.fragment_shader_);
         std::swap(program_, rhs.program_);
+        std::swap(vertex_sources_, rhs.vertex_sources_);
+        std::swap(fragment_sources_, rhs.fragment_sources_);
     }
     return *this;
 }
 
 engine::Shader::~Shader()
 {
-	if (vertex_shader_)
-	{
-		glDeleteShader(vertex_shader_);
-	}
-	if (fragment_shader_)
-	{
-		glDeleteShader(fragment_shader_);
-	}
-	if (program_)
-	{
-		glDeleteProgram(program_);
-	}
+    reset();
+}
+
+void engine::Shader::compile()
+{
+    try_recompile_ = false;
+    auto program = glCreateProgram();
+    auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    auto fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+
+    // compile shaders and link to program
+    bool shader_compiled_succesffuly = true;
+    {
+        std::vector<std::string> sources;
+        sources.reserve(vertex_sources_.size());
+        std::for_each(vertex_sources_.begin(), vertex_sources_.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });
+        shader_compiled_succesffuly &= compile_and_attach_to_program(program, vertex_shader, sources);
+    }
+    {
+        std::vector<std::string> sources;
+        sources.reserve(fragment_sources_.size());
+        std::for_each(fragment_sources_.begin(), fragment_sources_.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });
+        shader_compiled_succesffuly &= compile_and_attach_to_program(program, fragment_shader, sources);
+    }
+
+    // first compilation
+    if (program_ == 0 && !shader_compiled_succesffuly)
+    {
+        assert(!"Failed compilation!");
+    }
+
+    int32_t success = 0;
+    if (shader_compiled_succesffuly)
+    {
+        // link attached shaders
+        glLinkProgram(program);
+        glGetProgramiv(program, GL_LINK_STATUS, &success);
+    }
+    if (!success)
+    {
+        std::array<char, 512> info_log;
+        glGetProgramInfoLog(program, 512, nullptr, info_log.data());
+        log::log(log::LogLevel::eCritical, fmt::format("[Error][Program] Failed program linking: \n\t {}", info_log.data()));
+
+        if (vertex_shader)
+        {
+            glDeleteShader(vertex_shader);
+        }
+        if (fragment_shader)
+        {
+            glDeleteShader(fragment_shader);
+        }
+        if (program)
+        {
+            glDeleteProgram(program);
+        }
+
+        return;
+    }
+
+    if (is_valid())
+    {
+        reset();
+    }
+    program_ = program;
+    vertex_shader_ = vertex_shader;
+    fragment_shader_ = fragment_shader;
+}
+
+void engine::Shader::mark_for_recompilation()
+{
+    try_recompile_ = true;
+}
+
+void engine::Shader::reset()
+{
+    if (vertex_shader_)
+    {
+        glDeleteShader(vertex_shader_);
+        vertex_shader_ = 0;
+    }
+    if (fragment_shader_)
+    {
+        glDeleteShader(fragment_shader_);
+        fragment_shader_ = 0;
+    }
+    if (program_)
+    {
+        glDeleteProgram(program_);
+        program_ = 0;
+    }    
 }
 
 bool engine::Shader::is_valid() const
@@ -198,8 +264,12 @@ bool engine::Shader::is_valid() const
     return program_ != 0;
 }
 
-void engine::Shader::bind() const
+void engine::Shader::bind()
 {
+    if (try_recompile_)
+    {
+        compile();
+    }
     assert(is_valid() && "[ERROR] Invalid shader program.");
 	glUseProgram(program_);
 }
@@ -282,7 +352,7 @@ std::int32_t engine::Shader::get_uniform_location(std::string_view name)
     return location;
 }
 
-void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::span<const std::string> sources)
+bool engine::Shader::compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::string> sources)
 {
 	// set source
     std::vector<const char*> sources_ptrs;
@@ -299,12 +369,16 @@ void engine::Shader::compile_and_attach_to_program(std::uint32_t shader, std::sp
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
 	if (!success)
 	{
-		std::array<char, 512> info_log;
+        std::string info_log(2048, ' ');
 		glGetShaderInfoLog(shader, static_cast<std::int32_t>(info_log.size()), nullptr, info_log.data());
-        log::log(log::LogLevel::eError, fmt::format("[Error][Shader] Failed compilation: \n\t {}", info_log.data()));
+        std::string err_msg = "Failed compilation:";
+        err_msg += " \n\t" + info_log;
+        log::log(log::LogLevel::eError, err_msg);
+        return false;
 	}
 	// attach to program
-	glAttachShader(program_, shader);
+	glAttachShader(program, shader);
+    return true;
 }
 
 

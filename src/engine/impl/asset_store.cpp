@@ -148,12 +148,16 @@ void engine::AssetStore::save_texture(std::string_view name, const void* data, s
     stbi_write_png(full_path.string().data(), width, height, channels, data, 0);
 }
 
-std::string engine::AssetStore::get_shader_source(std::string_view name)
+std::filesystem::path engine::AssetStore::get_shaders_base_path() const
 {
-	const std::filesystem::path shaders_folder = "shaders";
-	const auto shaders_assets_path = base_path_ / shaders_folder;
-    const auto file_path = shaders_assets_path / name.data();
-    std::string ret = load_data_from_file<std::string>(file_path.string().c_str());
+    const std::filesystem::path shaders_folder = "shaders";
+    const auto shaders_assets_path = base_path_ / shaders_folder;
+    return shaders_assets_path;
+}
+
+std::string engine::AssetStore::get_shader_source(const std::filesystem::path& file_name)
+{
+    std::string ret = load_data_from_file<std::string>(file_name.string().c_str());
     return ret;
 }
 

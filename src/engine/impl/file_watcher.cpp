@@ -28,6 +28,7 @@ void engine::FileWatcher::unregister_callback(const std::filesystem::path& path)
     }
 }
 
+
 void engine::FileWatcher::start()
 {
     while (running_)
