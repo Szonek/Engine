@@ -28,7 +28,7 @@ struct UI_data_enemy
         engine_vector_uint32_t show = engineVectorCreateUint32();
     };
     engine_vector_uint32_t go = engineVectorCreateUint32();
-    healthbar healhbars_info;
+    healthbar healhbars;
 };
 
 struct UI_data
@@ -36,7 +36,7 @@ struct UI_data
     engine_ui_document_t doc;
     engine_ui_data_handle_t handle_main_ui;
 
-    UI_data_enemy healthbars;
+    UI_data_enemy enemies;
     UI_data_items_on_ground items;
 };
 

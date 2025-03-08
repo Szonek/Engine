@@ -310,6 +310,31 @@ inline void register_ui_item_bindings(std::vector<engine_ui_document_data_bindin
     }
 }
 
+inline void register_ui_enemy_bindings(std::vector<engine_ui_document_data_binding_t>& registry, project_c::UI_data& ui_data)
+{
+    {
+        engine_ui_document_data_binding_t binding = {};
+        binding.name = "enemies_go";
+        binding.data_vector_uint32_t = ui_data.enemies.go;
+        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_UINT32;
+        registry.push_back(binding);
+    }
+    {
+        engine_ui_document_data_binding_t binding = {};
+        binding.name = "enemies_pos_x";
+        binding.data_vector_string = ui_data.enemies.healhbars.pos_y;
+        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_STRING;
+        registry.push_back(binding);
+    }
+    {
+        engine_ui_document_data_binding_t binding = {};
+        binding.name = "enemies_pos_y";
+        binding.data_vector_string = ui_data.enemies.healhbars.pos_x;
+        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_STRING;
+        registry.push_back(binding);
+    }
+}
+
 project_c::TestScene::TestScene(engine::IApplication* app)
     : IScene(app)
 {
@@ -318,6 +343,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
 
     std::vector<engine_ui_document_data_binding_t> bindings {};
     register_ui_item_bindings(bindings, ui_data_, this);
+    register_ui_enemy_bindings(bindings, ui_data_);
 
     engineApplicationCreateUiDocumentDataHandle(app_handle, "DataModel_Main_UI", bindings.data(), bindings.size(), &ui_data_.handle_main_ui);
 
