@@ -114,4 +114,5 @@ private:
     Rml::Context* context_;
     std::map<std::string, UiElement> cached_ui_elements_;
 };
+
 }

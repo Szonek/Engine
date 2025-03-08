@@ -2,53 +2,53 @@
 #include <chrono>
 #include <thread>
 
-engine::FileWatcher::FileWatcher(const std::filesystem::path& path_to_watch)
-    : path_to_watch_(path_to_watch)
+void engine::FileWatcher::register_callback(const std::filesystem::path& path, const std::function<void()>& callback)
 {
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (files_.contains(path))
+    {
+        log::log(log::LogLevel::eError, std::format("Path: {} already exists in watcher!\n", path.string()));
+        return;
+    }
+    files_[path] = FileInfo{ callback, std::filesystem::last_write_time(path) };
 }
 
-void engine::FileWatcher::start(const std::function<void(std::string, FileStatus)>& action)
+
+void engine::FileWatcher::unregister_callback(const std::filesystem::path& path)
+{
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (files_.contains(path))
+    {
+        files_.erase(path);
+        return;
+    }
+    else
+    {
+        log::log(log::LogLevel::eError, std::format("Path: {} did not exists in watcher. Cant unregister it!\n", path.string()));
+    }
+}
+
+void engine::FileWatcher::start()
 {
     while (running_)
     {
-        constexpr const auto delay = std::chrono::milliseconds{ 100 };
+        constexpr const auto delay = std::chrono::milliseconds{ 150 };
         std::this_thread::sleep_for(delay);
-        
-        // file deletion
-        auto it = paths_.begin();
-        while (it != paths_.end())
-        {
-            if (!std::filesystem::exists(it->first))
-            {
-                action(it->first, FileStatus::eDeleted);
-                it = paths_.erase(it);
-            }
-            else
-            {
-                it++;
-            }
-        }
 
-        // file creation or modification
-        for (const auto& file : std::filesystem::directory_iterator(path_to_watch_))
+        std::unique_lock<std::mutex> lock(mutex_);
+        for (auto& [path, file_info] : files_)
         {
-            const auto file_last_write_time = std::filesystem::last_write_time(file);
-
-            // creation
-            const auto file_path = file.path().string();
-            if (!paths_.contains(file_path))
+            const auto file_last_write_time = std::filesystem::last_write_time(path);
+            if (file_info.last_write_time != file_last_write_time)
             {
-                paths_[file_path] = file_last_write_time;
-                action(file_path, FileStatus::eCreated);
-            }
-            else // modified
-            {
-                if (paths_.at(file_path) != file_last_write_time)
-                {
-                    paths_[file_path] = file_last_write_time;
-                    action(file_path, FileStatus::eModified);
-                }
+                file_info.last_write_time = file_last_write_time;
+                file_info.callback();
             }
         }
     }
+}
+
+void engine::FileWatcher::stop()
+{
+    running_ = false;
 }

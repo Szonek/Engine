@@ -6,6 +6,7 @@
 #include "math_helpers.h"
 #include "engine_string_impl_def.h"
 #include "engine_vector_impl_def.h"
+#include "file_watcher.h"
 
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/ID.h>
@@ -67,6 +68,11 @@ engine::UiDocument::UiDocument(Rml::Context* ctx, std::string_view file_name)
     , doc_(ctx->LoadDocument(doc_file_path_.string()))
     , context_(ctx)
 {   
+    FileWatcher::get_instance().register_callback(doc_file_path_, [this]()
+        {
+            this->reload();
+            this->show();
+        });
 }
 
 engine::UiDocument::UiDocument(UiDocument&& rhs) noexcept
@@ -85,6 +91,7 @@ engine::UiDocument& engine::UiDocument::operator=(UiDocument&& rhs) noexcept
 
 engine::UiDocument::~UiDocument()
 {
+    FileWatcher::get_instance().unregister_callback(doc_file_path_);
     doc_->Close();
 }
 

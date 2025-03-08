@@ -1,5 +1,7 @@
 #pragma once
 
+#include "file_watcher.h"
+
 #include <string>
 #include <filesystem>
 #include <vector>
