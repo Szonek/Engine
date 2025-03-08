@@ -181,13 +181,13 @@ void engine::Shader::compile()
     {
         std::vector<std::string> sources;
         sources.reserve(vertex_sources_.size());
-        std::for_each(vertex_sources_.begin(), vertex_sources_.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });
+        std::for_each(vertex_sources_.begin(), vertex_sources_.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_text_file_content(s)); });
         shader_compiled_succesffuly &= compile_and_attach_to_program(program, vertex_shader, sources);
     }
     {
         std::vector<std::string> sources;
         sources.reserve(fragment_sources_.size());
-        std::for_each(fragment_sources_.begin(), fragment_sources_.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_shader_source(s)); });
+        std::for_each(fragment_sources_.begin(), fragment_sources_.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_text_file_content(s)); });
         shader_compiled_succesffuly &= compile_and_attach_to_program(program, fragment_shader, sources);
     }
 

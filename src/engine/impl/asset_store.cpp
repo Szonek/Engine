@@ -155,7 +155,7 @@ std::filesystem::path engine::AssetStore::get_shaders_base_path() const
     return shaders_assets_path;
 }
 
-std::string engine::AssetStore::get_shader_source(const std::filesystem::path& file_name)
+std::string engine::AssetStore::get_text_file_content(const std::filesystem::path& file_name)
 {
     std::string ret = load_data_from_file<std::string>(file_name.string().c_str());
     return ret;

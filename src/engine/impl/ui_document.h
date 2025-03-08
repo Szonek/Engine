@@ -102,14 +102,16 @@ public:
 
     void show();
     void hide();
-
-    // full reload including style sheets, useful for hot reloading
-    void reload();
-
     UiElement* get_element_by_id(std::string_view id, engine_result_code_t& err_out);
 
 private:
+    void load();
+    void close();
+    void reload_style_sheets();
+
+private:
     std::filesystem::path doc_file_path_;
+    std::vector<std::filesystem::path> dependantd_rcss_files_paths_;
     Rml::ElementDocument* doc_ = nullptr;
     Rml::Context* context_;
     std::map<std::string, UiElement> cached_ui_elements_;

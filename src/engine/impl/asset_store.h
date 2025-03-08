@@ -84,7 +84,8 @@ public:
 	TextureAssetContext get_texture_data(std::string_view name) const;
 	RawDataFileContext get_model_data(std::string_view name) const;
     void save_texture(std::string_view name, const void* data, std::uint32_t width, std::uint32_t height, std::uint32_t channels);
-	std::string get_shader_source(const std::filesystem::path& file_name);
+
+	std::string get_text_file_content(const std::filesystem::path& file_name);
 
 protected:
 	AssetStore() = default;

@@ -564,7 +564,6 @@ ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine
 ENGINE_API void engineApplicationUiDocumentDestroy(engine_ui_document_t doc);
 ENGINE_API void engineUiDocumentShow(engine_ui_document_t ui_doc);
 ENGINE_API void engineUiDocumentHide(engine_ui_document_t ui_doc);
-ENGINE_API void engineUiDocumentReload(engine_ui_document_t ui_doc);  // reload RML and style sheets
 
 // interanlly it caches elements, so it's safe to call it multiple times to get the same object
 // however for best performance it's recommeneded to reuse elements and minimize usage of this function
