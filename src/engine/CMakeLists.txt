@@ -26,6 +26,9 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/logger.cpp
 	${ENGINE_SOURCES_DIR}/logger.h
 	
+	${ENGINE_SOURCES_DIR}/file_watcher.cpp
+	${ENGINE_SOURCES_DIR}/file_watcher.h	
+	
 	${ENGINE_SOURCES_DIR}/profiler.h
 	${ENGINE_SOURCES_DIR}/named_atlas.h
 		
