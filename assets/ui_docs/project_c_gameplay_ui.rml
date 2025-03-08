@@ -10,9 +10,7 @@
 		<p>{{enemy_health}}</p>
 	</div>
 	
-	<div data-model="DMitemname">
-
-		
+	<div data-model="DMitemname">	
 		<div data-for="itm_go, idx : items_go">
 			<div class="item_on_ground" 
 				data-event-click="equip(itm_go)"
@@ -20,8 +18,8 @@
 				<p>{{items_name[idx]}}_{{itm_go}}</p>
 			</div>
 		</div>
-	
-
+		
+		<div class="healthbar"></div>
 	</div>
 </body>
 </rml>

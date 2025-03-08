@@ -35,3 +35,16 @@ div.item_on_ground:hover
 	 border: 2px #ffffff;
 	 margin: -2px;
 }
+
+div.healthbar
+{
+	position: absolute;
+	background-color: #33ff57;
+	
+	left: 50%;
+	bottom: 50%;
+	
+	width: 200px;
+	height: 100px;
+	background-color: white;
+}

@@ -10,14 +10,23 @@
 
 namespace project_c
 {
-    struct UI_data_items_on_ground
-    {
-        engine_vector_uint32_t go = engineVectorCreateUint32();
-        engine_vector_engine_string_t name = engineVectorCreateEngineString();
-        engine_vector_engine_string_t pos_x = engineVectorCreateEngineString();
-        engine_vector_engine_string_t pos_y = engineVectorCreateEngineString();
-        engine_vector_uint32_t show = engineVectorCreateUint32();
-    };
+struct UI_data_items_on_ground
+{
+    engine_vector_uint32_t go = engineVectorCreateUint32();
+    engine_vector_engine_string_t name = engineVectorCreateEngineString();
+    engine_vector_engine_string_t pos_x = engineVectorCreateEngineString();
+    engine_vector_engine_string_t pos_y = engineVectorCreateEngineString();
+    engine_vector_uint32_t show = engineVectorCreateUint32();
+};
+
+struct UI_enemy_healthbars
+{
+    engine_vector_uint32_t go = engineVectorCreateUint32();
+    engine_vector_engine_string_t pos_x = engineVectorCreateEngineString();
+    engine_vector_engine_string_t pos_y = engineVectorCreateEngineString();
+    engine_vector_uint32_t show = engineVectorCreateUint32();
+};
+
 struct UI_data
 {
     engine_ui_document_t doc;
@@ -26,6 +35,7 @@ struct UI_data
     std::uint32_t character_health = 100;
     std::uint32_t enemy_health = 100;
 
+    UI_enemy_healthbars healthbars;
     UI_data_items_on_ground items;
 };
 
