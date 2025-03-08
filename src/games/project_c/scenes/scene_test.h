@@ -28,7 +28,7 @@ struct UI_data_enemy
         engine_vector_uint32_t show = engineVectorCreateUint32();
     };
     engine_vector_uint32_t go = engineVectorCreateUint32();
-    healthbar healhbars;
+    healthbar healhbars{};
 };
 
 struct UI_data
@@ -36,8 +36,8 @@ struct UI_data
     engine_ui_document_t doc;
     engine_ui_data_handle_t handle_main_ui;
 
-    UI_data_enemy enemies;
-    UI_data_items_on_ground items;
+    UI_data_enemy enemies{};
+    UI_data_items_on_ground items{};
 };
 
 class TestScene : public engine::IScene
@@ -73,8 +73,8 @@ public:
     void ui_update_enemy(const class Enemy* en);
     void ui_remove_enemy(const class Enemy* en);
 private:
-    UI_data ui_data_;
-    NavMesh nav_mesh_;
+    UI_data ui_data_{};
+    NavMesh nav_mesh_{};
 };
 
 }// namespace project_c

@@ -4,6 +4,7 @@
 #include "scripts_utils.h"
 
 #include "../app.h"
+#include "../scenes/scene_test.h"
 
 #include "../nav_mesh.h"
 
@@ -176,4 +177,8 @@ void project_c::Enemy::update(float dt)
         break;
     }
     }
+
+    auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
+    typed_scene->ui_update_enemy(this);
+
 }

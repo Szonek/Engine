@@ -41,8 +41,6 @@ div.healthbar
 	position: absolute;
 	background-color: #33ff57;
 	
-	left: 50%;
-	bottom: 50%;
 	
 	width: 10%;
 	height: 1%;

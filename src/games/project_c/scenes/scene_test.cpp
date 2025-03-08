@@ -322,14 +322,14 @@ inline void register_ui_enemy_bindings(std::vector<engine_ui_document_data_bindi
     {
         engine_ui_document_data_binding_t binding = {};
         binding.name = "enemies_pos_x";
-        binding.data_vector_string = ui_data.enemies.healhbars.pos_y;
+        binding.data_vector_string = ui_data.enemies.healhbars.pos_x;
         binding.type = ENGINE_UI_DATA_TYPE_VECTOR_STRING;
         registry.push_back(binding);
     }
     {
         engine_ui_document_data_binding_t binding = {};
         binding.name = "enemies_pos_y";
-        binding.data_vector_string = ui_data.enemies.healhbars.pos_x;
+        binding.data_vector_string = ui_data.enemies.healhbars.pos_y;
         binding.type = ENGINE_UI_DATA_TYPE_VECTOR_STRING;
         registry.push_back(binding);
     }
@@ -404,6 +404,14 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
         if (go == item_go)
         {
             found = true;
+            engineVectorSetUint32(ui_data_.items.show, i, 1);
+
+            auto pos_x_str = engineVectorGetEngineString(ui_data_.items.pos_x, i);
+            engineStringSet(pos_x_str, x_str.c_str());
+
+            auto pos_y_str = engineVectorGetEngineString(ui_data_.items.pos_y, i);
+            engineStringSet(pos_y_str, y_str.c_str());
+            break;
         }
     }
     if (!found)
@@ -416,21 +424,6 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
         engineVectorPushBackUint32(ui_data_.items.show, 1);
         engineVectorPushBackEngineString(ui_data_.items.pos_x, engineStringCreate(x_str.c_str()));
         engineVectorPushBackEngineString(ui_data_.items.pos_y, engineStringCreate(y_str.c_str()));
-    }
-
-    for (auto i = 0; i < engineVectorSizeUint32(ui_data_.items.go); i++)
-    {
-        const auto go = engineVectorGetUint32(ui_data_.items.go, i);
-        if (go == item_go)
-        {
-            engineVectorSetUint32(ui_data_.items.show, i, 1);
-
-            auto pos_x_str = engineVectorGetEngineString(ui_data_.items.pos_x, i);
-            engineStringSet(pos_x_str, x_str.c_str());
-            
-            auto pos_y_str = engineVectorGetEngineString(ui_data_.items.pos_y, i);
-            engineStringSet(pos_y_str, y_str.c_str());           
-        }
     }
 
     engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_show");
@@ -464,6 +457,47 @@ void project_c::TestScene::ui_remove_item_from_ground(const project_c::Sword* sw
 
 void project_c::TestScene::ui_update_enemy(const Enemy* en)
 {
+    const auto active_camera_go = utils::get_active_camera_game_objects(scene_)[0];
+    const auto enemy_go = en->get_game_object();
+    const auto enemy_tc = engineSceneGetTransformComponent(scene_, enemy_go);
+    const auto enemy_screen_coords = engineSceneCameraComponentConvertWorldPositionToScreenPosition(scene_, active_camera_go, enemy_tc.position);
+
+    const auto box_width = 10; // percent, ToDo: get propery from UiElement
+    const auto box_height = 1; // percent, ToDo: get propery from UiElement
+
+    const auto height_offset = 10; // healthbar need to be on top of the enemy
+
+    // calculate x and y and we need to center the box, so subtract half of the size of the box
+    const auto x_str = std::to_string(enemy_screen_coords.x * 100 - (box_width /2)) + "%";
+    const auto y_str = std::to_string(enemy_screen_coords.y * 100 - (box_height /2) + height_offset) + "%";
+
+    bool found = false;
+    for (auto i = 0; i < engineVectorSizeUint32(ui_data_.enemies.go); i++)
+    {
+        const auto go = engineVectorGetUint32(ui_data_.enemies.go, i);
+        if (go == enemy_go)
+        {
+            found = true;
+
+            auto pos_x_str = engineVectorGetEngineString(ui_data_.enemies.healhbars.pos_x, i);
+            engineStringSet(pos_x_str, x_str.c_str());
+
+            auto pos_y_str = engineVectorGetEngineString(ui_data_.enemies.healhbars.pos_y, i);
+            engineStringSet(pos_y_str, y_str.c_str());
+            break;
+        }
+    }
+    if (!found)
+    {
+        engineVectorPushBackUint32(ui_data_.enemies.go, enemy_go);
+        engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_go");
+
+        engineVectorPushBackEngineString(ui_data_.enemies.healhbars.pos_x, engineStringCreate(x_str.c_str()));
+        engineVectorPushBackEngineString(ui_data_.enemies.healhbars.pos_y, engineStringCreate(y_str.c_str()));
+    }
+
+    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_pos_x");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_pos_y");
 }
 
 void project_c::TestScene::ui_remove_enemy(const Enemy* en)
