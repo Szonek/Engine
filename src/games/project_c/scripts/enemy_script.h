@@ -3,26 +3,6 @@
 
 namespace project_c
 {
-struct health_bar_gpu_data_t
-{
-    float fill_ratio = 1.0f;
-    float pad0_;
-    float pad1_;
-    float pad2_;
-};
-
-class EnemyHealthBar : public BaseNode
-{
-public:
-    EnemyHealthBar(engine::IScene* my_scene, const class Enemy* enemy);
-    virtual ~EnemyHealthBar();
-
-    void update(float dt);
-private:
-    const class Enemy* enemy_;
-    const std::int32_t max_hp_;
-};
-
 class Enemy : public BaseNode
 {
 private:
@@ -48,7 +28,8 @@ private:
     struct MoveStateData {};
 
 public:
-    std::int32_t hp = 20;
+    std::uint32_t hp = 20;
+    std::uint32_t max_hp = 20;
 
     Enemy(engine::IScene* my_scene, const PrefabResult& pr, const class NavMesh* nav_mesh, float offset_x, float offset_z);
     virtual ~Enemy();
@@ -56,14 +37,11 @@ public:
     void update(float dt);
 
 private:
-    EnemyHealthBar* health_bar_script_;
     const class NavMesh* nav_mesh_;
     bool triggered_ = false;
     bool attack_right_ = false;
     States state_;
     AttackStateData attack_data_;
     std::vector<IScript*> debug_scripts_;
-
-
 };
 } //namespace project_c

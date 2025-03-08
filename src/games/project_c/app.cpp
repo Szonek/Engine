@@ -9,9 +9,6 @@
 #include <map>
 #include <fmt/format.h>
 
-//ToDo: find a way to remove this
-inline std::vector<engine_shader_t> g_temp_shaders;
-
 namespace
 {
 inline engine_application_create_desc_t app_cd()
@@ -62,23 +59,6 @@ project_c::AppProjectC::AppProjectC()
         }
     }
 
-    {
-        const std::array<const char*, 2> vertex_shader_file_names = { "healthbar.vs", nullptr };
-        const std::array<const char*, 2> fragment_shader_file_names = { "healthbar.fs", nullptr };
-        engine_shader_t shader = {};
-        engine_shader_create_desc_t shader_create_desc{};
-        shader_create_desc.vertex_shader_filenames = vertex_shader_file_names.data();
-        shader_create_desc.fragment_shader_filenames = fragment_shader_file_names.data();
-        if (ENGINE_RESULT_CODE_OK == engineApplicationCreateShader(get_handle(), &shader_create_desc, "healthbar_shader", &shader))
-        {
-            g_temp_shaders.push_back(shader);
-        }
-        else
-        {
-            log(fmt::format("Failed to create shader: healthbar_shader\n"));
-        }
-    }
-
     const auto load_end = std::chrono::high_resolution_clock::now();
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
     log(fmt::format("Model loading took: {}\n", ms_load_time));
@@ -88,10 +68,6 @@ project_c::AppProjectC::AppProjectC()
 
 project_c::AppProjectC::~AppProjectC()
 {
-    for (auto& s : g_temp_shaders)
-    {
-        engineApplicationDestroyShader(get_handle(), s);
-    }
 }
 
 project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType type, engine::IScene* scene)

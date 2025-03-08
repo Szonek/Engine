@@ -1,18 +1,11 @@
 <rml>
 <head>
-	<title>Hello world</title>
+	<title>Main-UI</title>
 	<link type="text/rcss" href="rml.rcss"/>
 	<link type="text/rcss" href="project_c_gameplay_ui.rcss"/>
 </head>
 <body>
-	<div class="test_container" data-model="test">
-		<p>{{character_health}}</p>
-		<p>{{enemy_health}}</p>
-	</div>
-	
-	<div data-model="DMitemname">
-
-		
+	<div data-model="DataModel_Main_UI">	
 		<div data-for="itm_go, idx : items_go">
 			<div class="item_on_ground" 
 				data-event-click="equip(itm_go)"
@@ -20,8 +13,11 @@
 				<p>{{items_name[idx]}}_{{itm_go}}</p>
 			</div>
 		</div>
-	
-
+		
+		<div data-for="enemy_go, idx : enemies_go">
+			<progress class="healthbar"  max="100" data-attr-value="enemies_health[idx]"
+				data-style-left="enemies_pos_x[idx]" data-style-bottom="enemies_pos_y[idx]"></progress>
+		</div>
 	</div>
 </body>
 </rml>

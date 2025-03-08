@@ -10,23 +10,34 @@
 
 namespace project_c
 {
-    struct UI_data_items_on_ground
+struct UI_data_items_on_ground
+{
+    engine_vector_uint32_t go = engineVectorCreateUint32();
+    engine_vector_engine_string_t name = engineVectorCreateEngineString();
+    engine_vector_engine_string_t pos_x = engineVectorCreateEngineString();
+    engine_vector_engine_string_t pos_y = engineVectorCreateEngineString();
+    engine_vector_uint32_t show = engineVectorCreateUint32();
+};
+
+struct UI_data_enemy
+{
+    struct healthbar
     {
-        engine_vector_uint32_t go = engineVectorCreateUint32();
-        engine_vector_engine_string_t name = engineVectorCreateEngineString();
         engine_vector_engine_string_t pos_x = engineVectorCreateEngineString();
         engine_vector_engine_string_t pos_y = engineVectorCreateEngineString();
-        engine_vector_uint32_t show = engineVectorCreateUint32();
+        engine_vector_uint32_t progressbar_value = engineVectorCreateUint32();  // in range: <0; 100>
     };
+    engine_vector_uint32_t go = engineVectorCreateUint32();
+    healthbar healhbars{};
+};
+
 struct UI_data
 {
     engine_ui_document_t doc;
-    engine_ui_data_handle_t handle_test;
-    engine_ui_data_handle_t handle_items_on_ground;
-    std::uint32_t character_health = 100;
-    std::uint32_t enemy_health = 100;
+    engine_ui_data_handle_t handle_main_ui;
 
-    UI_data_items_on_ground items;
+    UI_data_enemy enemies{};
+    UI_data_items_on_ground items{};
 };
 
 class TestScene : public engine::IScene
@@ -58,9 +69,12 @@ public:
 
     void ui_update_item_on_ground(const class Sword* sw);
     void ui_remove_item_from_ground(const class Sword* sw);
+
+    void ui_update_enemy(const class Enemy* en);
+    void ui_remove_enemy(const class Enemy* en);
 private:
-    UI_data ui_data_;
-    NavMesh nav_mesh_;
+    UI_data ui_data_{};
+    NavMesh nav_mesh_{};
 };
 
 }// namespace project_c

@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <span>
 #include <vector>
-
+#include <filesystem>
 
 #include <RmlUi/Core.h>
 #include "RmlUI_backend/RmlUi_Platform_SDL.h"
@@ -68,7 +68,7 @@ public:
 
     bool is_valid() const;
 
-	void bind() const;
+	void bind();
 	void set_uniform_f4(std::string_view name, std::span<const float> host_data);
 	void set_uniform_f3(std::string_view name, std::span<const float> host_data);
 	void set_uniform_f2(std::string_view name, std::span<const float> host_data);
@@ -82,12 +82,18 @@ public:
 private:
     std::int32_t get_resource_location(std::string_view name, std::int32_t resource_interface);
     std::int32_t get_uniform_location(std::string_view name);
-	void compile_and_attach_to_program(std::uint32_t shader, std::span<const std::string> sources);
-
+	bool compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::string> sources);
+    void compile();
+    void mark_for_recompilation();
+    void reset();
 private:
     std::uint32_t vertex_shader_{ 0 };
     std::uint32_t fragment_shader_{ 0 };
     std::uint32_t program_{ 0 };
+    bool try_recompile_ = false;
+
+    std::vector<std::filesystem::path> vertex_sources_;
+    std::vector<std::filesystem::path> fragment_sources_;
 };
 
 

@@ -6,19 +6,8 @@ body {
     width: 100%;
 	text-align: center;
 }
-
-div.test_container 
-{
-	position: absolute;
-	width: 10%;
-	left: 90%;
-	top: 0%;
-	background-color: yellow;
-	color: black;
-	text-align: center;
-}
 	
-div.item_on_ground 
+.item_on_ground 
 {  
 	position: absolute;
 	text-align: center;
@@ -30,8 +19,23 @@ div.item_on_ground
 	color: white;	
 }
 
-div.item_on_ground:hover
+.item_on_ground:hover
 {
 	 border: 2px #ffffff;
 	 margin: -2px;
+}
+
+.healthbar
+{
+	position: absolute;
+	width: 10%;
+	height: 1%;
+	
+	border: 1px rgb(50%, 50%, 50%);
+	background-color: #a18c8a;
+}
+
+.healthbar fill
+{
+	background-color: #00FF00;
 }

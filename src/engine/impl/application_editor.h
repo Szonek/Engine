@@ -1,4 +1,6 @@
 #include "application.h"
+#include "asset_store.h"
+#include "file_watcher.h"
 #include <entt/entt.hpp>
 
 #include <map>

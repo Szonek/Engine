@@ -6,11 +6,13 @@
 #include "math_helpers.h"
 #include "engine_string_impl_def.h"
 #include "engine_vector_impl_def.h"
+#include "file_watcher.h"
 
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/ID.h>
 #include <RmlUi/Core/DataModelHandle.h>
 
+#include <regex>
 
 namespace
 {
@@ -60,13 +62,49 @@ inline engine_ui_event_t convet_rml_event_to_engine_event(const Rml::Event& even
 
     return ev;
 }
+
+inline std::vector<std::string> extract_rcss_file_names_from_rml_file_content(const std::filesystem::path& rml_file_path)
+{
+    const auto content = engine::AssetStore::get_instance().get_text_file_content(rml_file_path);
+    std::vector<std::string> file_names;
+    std::regex href_regex("href=\"([^ \"]+)\"");
+    std::smatch match;
+
+    std::string::const_iterator search_start(content.cbegin());
+    while (std::regex_search(search_start, content.cend(), match, href_regex))
+    {
+        file_names.push_back(match[1].str());
+        search_start = match.suffix().first;
+    }
+    return file_names;
+}
 }
 
 engine::UiDocument::UiDocument(Rml::Context* ctx, std::string_view file_name)
     : doc_file_path_(AssetStore::get_instance().get_ui_docs_base_path() / file_name)
-    , doc_(ctx->LoadDocument(doc_file_path_.string()))
     , context_(ctx)
 {   
+    // start by loading document
+    load();
+
+    // deefine sequence of operations file watch for RML file
+    FileWatcher::get_instance().register_callback(doc_file_path_, [this]()
+        {
+            close();
+            load();
+            show(); // bug? What if document was not visible before? ToDo: investigate and fix
+        });
+    // file watch for dependent RCSS files
+    const auto rcss_file_names = extract_rcss_file_names_from_rml_file_content(doc_file_path_);
+    for (const auto& rcss : rcss_file_names)
+    {
+        dependantd_rcss_files_paths_.push_back(AssetStore::get_instance().get_ui_docs_base_path() / rcss);
+        reload_style_sheets();
+        FileWatcher::get_instance().register_callback(dependantd_rcss_files_paths_.back(), [this]()
+            {
+                reload_style_sheets();
+            });
+    }
 }
 
 engine::UiDocument::UiDocument(UiDocument&& rhs) noexcept
@@ -85,7 +123,8 @@ engine::UiDocument& engine::UiDocument::operator=(UiDocument&& rhs) noexcept
 
 engine::UiDocument::~UiDocument()
 {
-    doc_->Close();
+    FileWatcher::get_instance().unregister_callback(doc_file_path_);
+    close();
 }
 
 void engine::UiDocument::show()
@@ -98,11 +137,19 @@ void engine::UiDocument::hide()
     doc_->Hide();
 }
 
-void engine::UiDocument::reload()
+void engine::UiDocument::close()
 {
     doc_->Close();
-    doc_ = context_->LoadDocument(doc_file_path_.string());
+}
+
+void engine::UiDocument::reload_style_sheets()
+{
     doc_->ReloadStyleSheet();
+}
+
+void engine::UiDocument::load()
+{
+    doc_ = context_->LoadDocument(doc_file_path_.string());
 }
 
 engine::UiElement* engine::UiDocument::get_element_by_id(std::string_view id, engine_result_code_t& err_out)
