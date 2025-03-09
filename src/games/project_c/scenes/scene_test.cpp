@@ -321,6 +321,13 @@ inline void register_ui_enemy_bindings(std::vector<engine_ui_document_data_bindi
     }
     {
         engine_ui_document_data_binding_t binding = {};
+        binding.name = "enemies_health";
+        binding.data_vector_uint32_t = ui_data.enemies.healhbars.progressbar_value;
+        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_UINT32;
+        registry.push_back(binding);
+    }
+    {
+        engine_ui_document_data_binding_t binding = {};
         binding.name = "enemies_pos_x";
         binding.data_vector_string = ui_data.enemies.healhbars.pos_x;
         binding.type = ENGINE_UI_DATA_TYPE_VECTOR_STRING;
@@ -472,6 +479,9 @@ void project_c::TestScene::ui_update_enemy(const Enemy* en)
     const auto x_str = std::to_string(enemy_screen_coords.x * 100 - (box_width /2)) + "%";
     const auto y_str = std::to_string(enemy_screen_coords.y * 100 - (box_height /2)) + "%";
 
+    // calculate health progress bar
+    const auto health_progress_value = static_cast<std::uint32_t>(((float)en->hp / (float)en->max_hp) * 100);
+
     bool found = false;
     for (auto i = 0; i < engineVectorSizeUint32(ui_data_.enemies.go); i++)
     {
@@ -479,6 +489,8 @@ void project_c::TestScene::ui_update_enemy(const Enemy* en)
         if (go == enemy_go)
         {
             found = true;
+
+            engineVectorSetUint32(ui_data_.enemies.healhbars.progressbar_value, i, health_progress_value);
 
             auto pos_x_str = engineVectorGetEngineString(ui_data_.enemies.healhbars.pos_x, i);
             engineStringSet(pos_x_str, x_str.c_str());
@@ -491,12 +503,14 @@ void project_c::TestScene::ui_update_enemy(const Enemy* en)
     if (!found)
     {
         engineVectorPushBackUint32(ui_data_.enemies.go, enemy_go);
+        engineVectorPushBackUint32(ui_data_.enemies.healhbars.progressbar_value, health_progress_value);
         engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_go");
 
         engineVectorPushBackEngineString(ui_data_.enemies.healhbars.pos_x, engineStringCreate(x_str.c_str()));
         engineVectorPushBackEngineString(ui_data_.enemies.healhbars.pos_y, engineStringCreate(y_str.c_str()));
     }
 
+    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_health");
     engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_pos_x");
     engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_pos_y");
 }

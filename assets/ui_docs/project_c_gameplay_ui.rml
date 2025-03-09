@@ -15,7 +15,7 @@
 		</div>
 		
 		<div data-for="enemy_go, idx : enemies_go">
-			<progress class="healthbar"  value="10" max="100" 
+			<progress class="healthbar"  max="100" data-attr-value="enemies_health[idx]"
 				data-style-left="enemies_pos_x[idx]" data-style-bottom="enemies_pos_y[idx]"></progress>
 		</div>
 	</div>

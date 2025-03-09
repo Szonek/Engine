@@ -28,7 +28,8 @@ private:
     struct MoveStateData {};
 
 public:
-    std::int32_t hp = 20;
+    std::uint32_t hp = 20;
+    std::uint32_t max_hp = 20;
 
     Enemy(engine::IScene* my_scene, const PrefabResult& pr, const class NavMesh* nav_mesh, float offset_x, float offset_z);
     virtual ~Enemy();
