@@ -459,17 +459,18 @@ void project_c::TestScene::ui_update_enemy(const Enemy* en)
 {
     const auto active_camera_go = utils::get_active_camera_game_objects(scene_)[0];
     const auto enemy_go = en->get_game_object();
-    const auto enemy_tc = engineSceneGetTransformComponent(scene_, enemy_go);
-    const auto enemy_screen_coords = engineSceneCameraComponentConvertWorldPositionToScreenPosition(scene_, active_camera_go, enemy_tc.position);
+    auto enemy_tc = engineSceneGetTransformComponent(scene_, enemy_go);
+    auto healthbar_position = enemy_tc.position;
+    const auto height_offset = 1.0f; // healthbar need to be on top of the enemy
+    healthbar_position[1] += height_offset;
+    const auto enemy_screen_coords = engineSceneCameraComponentConvertWorldPositionToScreenPosition(scene_, active_camera_go, healthbar_position);
 
     const auto box_width = 10; // percent, ToDo: get propery from UiElement
     const auto box_height = 1; // percent, ToDo: get propery from UiElement
 
-    const auto height_offset = 10; // healthbar need to be on top of the enemy
-
     // calculate x and y and we need to center the box, so subtract half of the size of the box
     const auto x_str = std::to_string(enemy_screen_coords.x * 100 - (box_width /2)) + "%";
-    const auto y_str = std::to_string(enemy_screen_coords.y * 100 - (box_height /2) + height_offset) + "%";
+    const auto y_str = std::to_string(enemy_screen_coords.y * 100 - (box_height /2)) + "%";
 
     bool found = false;
     for (auto i = 0; i < engineVectorSizeUint32(ui_data_.enemies.go); i++)
