@@ -26,7 +26,6 @@ struct UI_data_enemy
         engine_vector_engine_string_t pos_x = engineVectorCreateEngineString();
         engine_vector_engine_string_t pos_y = engineVectorCreateEngineString();
         engine_vector_uint32_t progressbar_value = engineVectorCreateUint32();  // in range: <0; 100>
-        engine_vector_uint32_t show = engineVectorCreateUint32();
     };
     engine_vector_uint32_t go = engineVectorCreateUint32();
     healthbar healhbars{};

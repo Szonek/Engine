@@ -179,6 +179,12 @@ void project_c::Enemy::update(float dt)
     }
 
     auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
-    typed_scene->ui_update_enemy(this);
-
+    if (hp == 0)
+    {
+        typed_scene->ui_remove_enemy(this);
+    }
+    else
+    {
+        typed_scene->ui_update_enemy(this);
+    }
 }

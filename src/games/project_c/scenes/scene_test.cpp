@@ -517,4 +517,22 @@ void project_c::TestScene::ui_update_enemy(const Enemy* en)
 
 void project_c::TestScene::ui_remove_enemy(const Enemy* en)
 {
+    for (auto i = 0; i < engineVectorSizeUint32(ui_data_.enemies.go); i++)
+    {
+        const auto go = engineVectorGetUint32(ui_data_.enemies.go, i);
+        if (go == en->get_game_object())
+        {
+            engineVectorEraseUint32(ui_data_.enemies.go, i);
+            engineVectorEraseUint32(ui_data_.enemies.healhbars.progressbar_value, i);
+            engineVectorEraseEngineString(ui_data_.enemies.healhbars.pos_x, i);
+            engineVectorEraseEngineString(ui_data_.enemies.healhbars.pos_y, i);
+
+            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_go");
+            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_health");
+            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_pos_x");
+            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_pos_y");
+
+            return;
+        }
+    }
 }
