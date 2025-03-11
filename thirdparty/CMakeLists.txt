@@ -46,11 +46,14 @@ add_subdirectory(bullet3)
 set(BULLET_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/bullet3/src  CACHE STRING "Include headers of bullet dependency")
 set(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath CACHE STRING "Include libraries of bullet dependency")
 
+# freetype for RmlUI
+add_subdirectory(freetype)
+
 # UI library
 set(RMLUI_SAMPLES ON CACHE BOOL "Build samples of RmlUI thirdparty")
 set(RMLUI_BACKEND Win32_GL2 CACHE STRING "")
 set(BUILD_TESTING OFF CACHE BOOL "Build tests of RmlUI thirdparty")
-#set(NO_FONT_INTERFACE_DEFAULT OFF CACHE BOOL "Do not include default font interface for RmUI thirdparty.")
+set(NO_FONT_INTERFACE_DEFAULT OFF CACHE BOOL "Do not include default font interface for RmUI thirdparty.")
 add_subdirectory(RmlUi)
 
 
