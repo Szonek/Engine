@@ -15,6 +15,13 @@ jobs:
     runs-on: windows-latest
 
     steps:
+    - name: Setup cmake
+      uses: jwlawson/actions-setup-cmake@v2
+      with:
+        cmake-version: '3.25.2'
+    - name: Cmake version
+      run: cmake --version
+        
     - uses: actions/checkout@v4
       with:
         submodules: "recursive"
