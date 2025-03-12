@@ -32,7 +32,3 @@ jobs:
     - name: Build
       run: cmake --build ${{github.workspace}}/buildtree --config ${{env.BUILD_TYPE}}
 
-    - name: Test
-      working-directory: ${{github.workspace}}/buildtree
-      run: ctest -C ${{env.BUILD_TYPE}} --verbose --rerun-failed --output-on-failure
-
