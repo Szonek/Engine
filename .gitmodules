@@ -7,24 +7,6 @@
 [submodule "thirdparty/entt"]
 	path = thirdparty/entt
 	url = https://github.com/skypjack/entt.git
-[submodule "thirdparty/msdf-atlas-gen"]
-	path = thirdparty/msdf-atlas-gen
-	url = https://github.com/Chlumsky/msdf-atlas-gen.git
-[submodule "thirdparty/tinyxml2"]
-	path = thirdparty/tinyxml2
-	url = https://github.com/leethomason/tinyxml2.git
-[submodule "thirdparty/libpng"]
-	path = thirdparty/libpng
-	url = https://github.com/glennrp/libpng.git
-[submodule "thirdparty/zlib"]
-	path = thirdparty/zlib
-	url = https://github.com/madler/zlib.git
-[submodule "thirdparty/vcpkg"]
-	path = thirdparty/vcpkg
-	url = https://github.com/microsoft/vcpkg.git
-[submodule "thirdparty/freetype"]
-	path = thirdparty/freetype
-	url = https://github.com/freetype/freetype.git
 [submodule "thirdparty/bullet3"]
 	path = thirdparty/bullet3
 	url = https://github.com/bulletphysics/bullet3.git
@@ -37,12 +19,15 @@
 [submodule "thirdparty/tinygltf"]
 	path = thirdparty/tinygltf
 	url = https://github.com/syoyo/tinygltf.git
-[submodule "thirdparty/RmlUi"]
-	path = thirdparty/RmlUi
-	url = https://github.com/mikke89/RmlUi.git
-[submodule "thirdparty/asio"]
-	path = thirdparty/asio
-	url = https://github.com/chriskohlhoff/asio.git
 [submodule "thirdparty/rapidjson"]
 	path = thirdparty/rapidjson
 	url = https://github.com/Tencent/rapidjson.git
+[submodule "thirdparty/imgui"]
+	path = thirdparty/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "thirdparty/RmlUi"]
+	path = thirdparty/RmlUi
+	url = https://github.com/mikke89/RmlUi.git
+[submodule "thirdparty/googletest"]
+	path = thirdparty/googletest
+	url = https://github.com/google/googletest.git

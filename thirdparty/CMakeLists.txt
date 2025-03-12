@@ -21,12 +21,13 @@ add_subdirectory(entt)
 # profiler
 add_subdirectory(tracy-0.10)
 
-# rapidJson
-add_subdirectory(rapidjson)
+# gtests
+add_subdirectory(googletest)
 
-# asio
-add_library(asio INTERFACE)
-target_include_directories(asio INTERFACE "asio/asio/include")
+# rapidJson
+set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "")
+set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "")
+add_subdirectory(rapidjson)
 
 # gltf 2.0
 set(TINYGLTF_BUILD_LOADER_EXAMPLE OFF CACHE BOOL "")
@@ -46,14 +47,18 @@ add_subdirectory(bullet3)
 set(BULLET_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/bullet3/src  CACHE STRING "Include headers of bullet dependency")
 set(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath CACHE STRING "Include libraries of bullet dependency")
 
-# UI library
+#freetype prebuilt
+add_library(Freetype::Freetype STATIC IMPORTED GLOBAL)
+set_property(TARGET Freetype::Freetype PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/freetype/include)
+set_property(TARGET Freetype::Freetype PROPERTY IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_SOURCE_DIR}/freetype/DebugStatic/freetype.lib)
+set_property(TARGET Freetype::Freetype PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/freetype/ReleaseStatic/freetype.lib)
+
+#RML UI 
 set(RMLUI_SAMPLES ON CACHE BOOL "Build samples of RmlUI thirdparty")
 set(RMLUI_BACKEND Win32_GL2 CACHE STRING "")
 set(BUILD_TESTING OFF CACHE BOOL "Build tests of RmlUI thirdparty")
 set(NO_FONT_INTERFACE_DEFAULT OFF CACHE BOOL "Do not include default font interface for RmUI thirdparty.")
 add_subdirectory(RmlUi)
-
-
 
 # set some of the deps as SYSTEM to not report warnings while compiling them
 set_target_properties(tinygltf PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:tinygltf,INTERFACE_INCLUDE_DIRECTORIES>)
