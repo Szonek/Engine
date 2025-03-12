@@ -16,4 +16,5 @@ set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/install)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
 
 add_subdirectory(thirdparty)
+enable_testing()
 add_subdirectory(src)

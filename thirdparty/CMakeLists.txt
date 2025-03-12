@@ -59,6 +59,9 @@ set(BUILD_TESTING OFF CACHE BOOL "Build tests of RmlUI thirdparty")
 set(NO_FONT_INTERFACE_DEFAULT OFF CACHE BOOL "Do not include default font interface for RmUI thirdparty.")
 add_subdirectory(RmlUi)
 
+# gtests
+add_subdirectory(googletest)
+
 # set some of the deps as SYSTEM to not report warnings while compiling them
 set_target_properties(tinygltf PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:tinygltf,INTERFACE_INCLUDE_DIRECTORIES>)
 set_target_properties(glad PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:glad,INTERFACE_INCLUDE_DIRECTORIES>)
