@@ -21,12 +21,13 @@ add_subdirectory(entt)
 # profiler
 add_subdirectory(tracy-0.10)
 
-# rapidJson
-add_subdirectory(rapidjson)
+# gtests
+add_subdirectory(googletest)
 
-# asio
-add_library(asio INTERFACE)
-target_include_directories(asio INTERFACE "asio/asio/include")
+# rapidJson
+set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "")
+set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "")
+add_subdirectory(rapidjson)
 
 # gltf 2.0
 set(TINYGLTF_BUILD_LOADER_EXAMPLE OFF CACHE BOOL "")
@@ -58,9 +59,6 @@ set(RMLUI_BACKEND Win32_GL2 CACHE STRING "")
 set(BUILD_TESTING OFF CACHE BOOL "Build tests of RmlUI thirdparty")
 set(NO_FONT_INTERFACE_DEFAULT OFF CACHE BOOL "Do not include default font interface for RmUI thirdparty.")
 add_subdirectory(RmlUi)
-
-# gtests
-add_subdirectory(googletest)
 
 # set some of the deps as SYSTEM to not report warnings while compiling them
 set_target_properties(tinygltf PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:tinygltf,INTERFACE_INCLUDE_DIRECTORIES>)
