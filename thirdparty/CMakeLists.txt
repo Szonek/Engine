@@ -47,20 +47,17 @@ set(BULLET_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/bullet3/src  CACHE STRING "I
 set(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath CACHE STRING "Include libraries of bullet dependency")
 
 #freetype prebuilt
-add_library(freetype STATIC IMPORTED GLOBAL)
-set_property(TARGET freetype PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/freetype/include)
-set_property(TARGET freetype PROPERTY IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_SOURCE_DIR}/freetype/DebugStatic/freetype.lib)
-set_property(TARGET freetype PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/freetype/ReleaseStatic/freetype.lib)
+add_library(Freetype::Freetype STATIC IMPORTED GLOBAL)
+set_property(TARGET Freetype::Freetype PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/freetype/include)
+set_property(TARGET Freetype::Freetype PROPERTY IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_SOURCE_DIR}/freetype/DebugStatic/freetype.lib)
+set_property(TARGET Freetype::Freetype PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/freetype/ReleaseStatic/freetype.lib)
 
-#RML UI prebuilt
-add_library(RmlUi STATIC IMPORTED GLOBAL)
-set_property(TARGET RmlUi PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/RmlUI/Include)
-set_property(TARGET RmlUi PROPERTY IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_SOURCE_DIR}/RmlUI/Bin-Static/Debug/rmlui.lib)
-set_property(TARGET RmlUi PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/RmlUI/Bin-Static/Release/rmlui.lib)
-
-add_library(RmlUi_Debugger STATIC IMPORTED GLOBAL)
-set_property(TARGET RmlUi_Debugger PROPERTY IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_SOURCE_DIR}/RmlUI/Bin-Static/Debug/rmlui_debugger.lib)
-set_property(TARGET RmlUi_Debugger PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/RmlUI/Bin-Static/Release/rmlui_debugger.lib)
+#RML UI 
+set(RMLUI_SAMPLES ON CACHE BOOL "Build samples of RmlUI thirdparty")
+set(RMLUI_BACKEND Win32_GL2 CACHE STRING "")
+set(BUILD_TESTING OFF CACHE BOOL "Build tests of RmlUI thirdparty")
+set(NO_FONT_INTERFACE_DEFAULT OFF CACHE BOOL "Do not include default font interface for RmUI thirdparty.")
+add_subdirectory(RmlUi)
 
 # set some of the deps as SYSTEM to not report warnings while compiling them
 set_target_properties(tinygltf PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:tinygltf,INTERFACE_INCLUDE_DIRECTORIES>)
