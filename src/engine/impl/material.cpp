@@ -75,34 +75,3 @@ void engine::MaterialSprite::draw(const DrawContext& ctx)
     empty_vao_plane_.bind();
     empty_vao_plane_.draw(Geometry::Mode::eTriangles);
 }
-
-engine::MaterialSpriteUser::MaterialSpriteUser()
-    : ubo_user_(UniformBuffer(16))
-    , empty_vao_plane_(6)
-{
-    BufferMapContext<std::byte, UniformBuffer> ubo_uploader(ubo_user_, false, true);
-    std::memset(ubo_uploader.data, 0, ENGINE_MATERIAL_USER_MAX_UNIFORM_BUFFER_SIZE);
-}
-
-void engine::MaterialSpriteUser::draw(const DrawContext& ctx)
-{
-    BufferMapContext<std::byte, UniformBuffer> ubo_uploader(ubo_user_, false, true);
-    std::memcpy(ubo_uploader.data, ctx.uniform_data, ENGINE_MATERIAL_USER_MAX_UNIFORM_BUFFER_SIZE);
-
-    ctx.shader.bind();
-
-    ctx.shader.set_uniform_block("CameraData", &ctx.camera, 0);
-    ctx.shader.set_uniform_block("SceneData", &ctx.scene, 1);
-    ctx.shader.set_uniform_block("UserData", &ubo_user_, 2);
-
-    ctx.shader.set_uniform_f3("world_position", { glm::value_ptr(ctx.world_position), 3 });
-    ctx.shader.set_uniform_f3("scale", { glm::value_ptr(ctx.scale), 3 });
-
-    for (auto i = 0; i < ctx.textures.size(); i++)
-    {
-        //ctx.shader.set_texture("test_X", ctx.textures.at(i));
-    }
-
-    empty_vao_plane_.bind();
-    empty_vao_plane_.draw(Geometry::Mode::eTriangles);
-}

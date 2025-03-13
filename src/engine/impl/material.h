@@ -66,7 +66,6 @@ private:
     Shader shader_;
 };
 
-
 class MaterialSprite
 {
 public:
@@ -85,29 +84,6 @@ public:
 private:
     Shader shader_;
     Geometry empty_vao_plane_;
-};
-
-class MaterialSpriteUser
-{
-public:
-    struct DrawContext
-    {
-        const UniformBuffer& camera;
-        const UniformBuffer& scene;
-        Shader& shader;
-        glm::vec3 world_position;
-        glm::vec3 scale;
-        const std::uint8_t* uniform_data;
-        std::array<Texture2D*, ENGINE_MATERIAL_USER_MAX_TEXTURE_BINDING_COUNT> textures;
-    };
-public:
-    MaterialSpriteUser();
-
-    void draw(const DrawContext& ctx);
-
-private:
-    Geometry empty_vao_plane_;
-    UniformBuffer ubo_user_;
 };
 
 }  // namespace engine
