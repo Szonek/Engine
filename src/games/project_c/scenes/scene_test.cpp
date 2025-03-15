@@ -232,11 +232,11 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         }
     }
 
-    if (app.is_prefab_available(project_c::PREFAB_TYPE_SOLIDER2))
+    if (app.is_prefab_available(project_c::PREFAB_TYPE_BARBARIAN))
     {
         for (const auto& point : scene_spawn_points.solider2)
         {
-            auto s = scene.register_script<project_c::Solider2>(app.instantiate_prefab(project_c::PREFAB_TYPE_SOLIDER2, &scene));
+            auto s = scene.register_script<project_c::Solider2>(app.instantiate_prefab(project_c::PREFAB_TYPE_BARBARIAN, &scene));
             //s->set_world_position(point.x, 0.0f, point.y);
         }
     }

@@ -177,13 +177,6 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         }
     }
 
-    //if (std::strcmp(model_info_.nodes_array[0].name, "Sketchfab_model") == 0)
-    //{
-    //    return ret;
-    //}
-
-    //return ret;
-
     // bones
     std::map<uint32_t, std::vector<engine_game_object_t>> skin_to_game_object;
     for (auto skin_idx = 0; skin_idx < model_info_.skins_counts; skin_idx++)

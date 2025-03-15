@@ -8,7 +8,7 @@ int main(int argc, char** argv)
     {
         const std::unordered_map<project_c::PrefabType, std::pair<std::string, std::string>> prefabs_data =
         {
-            { project_c::PREFAB_TYPE_SOLIDER2,     { "ninja_number_5_animated.glb", "" }},
+            { project_c::PREFAB_TYPE_BARBARIAN,     { "KayKit_Adventurers_1.0_FREE/Characters/gltf/Barbarian.glb", "KayKit_Adventurers_1.0_FREE/Characters/gltf" }},
             //{ project_c::PREFAB_TYPE_DAGGER,       { "dagger_01.glb", ""}},
             //{ project_c::PREFAB_TYPE_SWORD,        { "weapon-sword.glb", "Textures_mini_arena" }},
             //{ project_c::PREFAB_TYPE_SOLIDER,      { "character-soldier.glb", "Textures_mini_arena" }},
