@@ -33,6 +33,7 @@ public:
     virtual std::uint32_t add_texture(const engine_texture_2d_create_desc_t& desc, std::string_view texture_name);
     virtual std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
     virtual std::uint32_t get_texture(std::string_view name) const;
+    virtual const Texture2D* get_texture(std::uint32_t idx) const;
     virtual void destroy_texture(std::uint32_t idx);
 
     virtual std::uint32_t add_nav_mesh(std::string_view name);
@@ -44,6 +45,7 @@ public:
 
     virtual std::uint32_t add_geometry(const engine_vertex_attributes_layout_t& verts_layout, std::int32_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name);
     virtual std::uint32_t get_geometry(std::string_view name) const;
+    virtual std::string get_geometry_name(std::uint32_t idx) const;
     virtual const Geometry* get_geometry(std::uint32_t idx) const;
     virtual void destroy_geometry(std::uint32_t idx);
 
@@ -89,6 +91,10 @@ protected:
 
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;
+
+    Framebuffer fbo_scene_;
+    Shader shader_full_screen_quad_;
+    Geometry empty_vao_for_full_screen_quad_draw_;
 };
 
 }  // namespace engine

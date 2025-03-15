@@ -10,33 +10,21 @@
 
 namespace engine
 {
+class Application;
 class Scene
 {
-    enum class ShaderType
-    {
-        eUnlit = 0,
-        eLit,
-        eVertexSkinningUnlit,
-        eVertexSkinningLit,
-
-        eSprite,
-
-        eFullScreenQuad,
-
-        eCount
-    };
-
 public:
-    Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code);
+    Scene(Application* app, RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code);
     Scene(const Scene&) = delete;
     Scene(Scene&& rhs) = delete;
     Scene& operator=(const Scene&) = delete;
     Scene& operator=(Scene&& rhs) = delete;
     ~Scene();
 
+    Application* get_application() const;
+
     void enable_physics_debug_draw(bool enable);
-    engine_result_code_t update(float dt, std::span<const class Texture2D> textures, 
-        std::span<const Geometry> geometries, std::span<class Shader> shaders);
+    engine_result_code_t update(float dt);
 
     entt::entity create_new_entity();
     void destroy_entity(entt::entity entity);
@@ -65,6 +53,12 @@ public:
 
     template<typename T>
     const T* get_component(entt::entity entity) const
+    {
+        return &entity_registry_.get<T>(entity);
+    }
+
+    template<typename T>
+    T* get_component(entt::entity entity)
     {
         return &entity_registry_.get<T>(entity);
     }
@@ -101,11 +95,14 @@ public:
 
     glm::vec3 convert_world_point_to_screen_point(const glm::vec3& world_point, engine_game_object_t camera_go);
     glm::vec3 convert_screen_point_to_world_point(glm::vec3 screen_point, engine_game_object_t camera_go);
+    glm::mat4 get_camera_view(entt::entity camera_go);
+    glm::mat4 get_camera_projection(entt::entity camera_go);
 
 private:
     engine_result_code_t physics_update(float dt);
 
 private:
+    Application* app_;
     RenderContext& rdx_;
     entt::registry entity_registry_;
     entt::observer transform_model_matrix_update_observer;
@@ -118,16 +115,12 @@ private:
 
     PhysicsWorld physics_world_;
 
-    std::array<Shader, static_cast<std::size_t>(ShaderType::eCount)> shaders_;
-
     UniformBuffer scene_ubo_;
     ShaderStorageBuffer light_data_ssbo_;
 
-    Framebuffer fbo_;
-    Geometry empty_vao_for_full_screen_quad_draw_;
-
     MaterialStaticGeometryLit material_static_geometry_lit_;
     MaterialSkinnedGeometryLit material_skinned_geometry_lit_;
+
     MaterialSprite material_sprite_;
 };
 }  // namespace engine

@@ -456,18 +456,22 @@ typedef struct _engine_model_desc_t
     uint32_t nodes_count;
 
     engine_geometry_create_desc_t* geometries_array;
+    const char** geometires_name_array;
     uint32_t geometries_count;
 
     engine_model_material_desc_t* materials_array;
+    const char** materials_name_array;
     uint32_t materials_count;
 
     engine_texture_2d_create_desc_t* textures_array;
+    const char** textures_name_array;
     uint32_t textures_count;
 
     engine_animation_clip_create_desc_t* animations_array;
     uint32_t animations_counts;
 
     engine_skin_create_desc_t* skins_array;
+    const char** skins_name_array;
     uint32_t skins_counts;
 } engine_model_desc_t;
 
@@ -546,6 +550,7 @@ ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_
 ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
 ENGINE_API void engineApplicationDestroyTexture2D(engine_application_t handle, engine_texture2d_t tex2d);
+ENGINE_API bool engineApplicationDoTexture2DNameExists(engine_application_t handle, const char* name);
 
 // physics 
 ENGINE_API void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3]);

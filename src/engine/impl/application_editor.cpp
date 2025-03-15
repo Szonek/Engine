@@ -5,9 +5,15 @@
 #include "logger.h"
 #include "profiler.h"
 
+#include "components_internals/guizmo_component.h"
+#include "components_internals/outline_component.h"
+#include "components_internals/camera_internal_component.h"
+
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_sdl3.h"
 #include "imgui/imgui_impl_opengl3.h"
+
+#include "imguizmo/ImGuizmo.h"
 
 #include <string>
 #include <map>
@@ -15,7 +21,8 @@
 
 namespace
 {
-constexpr const char* g_editor_camera_name = "__engine__camera-editor__";
+constexpr const engine_keyboard_keys_t G_MOUSE_SELECT_KEYBOARD_KEY = engine_keyboard_keys_t::ENGINE_KEYBOARD_KEY_LCTRL;
+
 inline auto get_spherical_coordinates(const auto& cartesian)
 {
     const float r = std::sqrt(
@@ -49,32 +56,6 @@ inline auto get_cartesian_coordinates(const auto& spherical)
     return ret;
 }
 
-class hierarchy_context_t
-{
-public:
-    void set_selected_entity(entt::entity e)
-    {
-        selected_ = e;
-    }
-    entt::entity get_selected_entity() const
-    {
-        return selected_;
-    }
-
-    bool has_selected_entity() const
-    {
-        return selected_ != entt::null;
-    }
-
-    void unselect_entity()
-    {
-        selected_ = entt::null;
-    }
-
-private:
-    entt::entity selected_ = entt::null;
-};
-
 struct entity_node_t
 {
     entt::entity entity = entt::null;
@@ -95,7 +76,21 @@ inline void traverse_hierarchy(entity_node_t* node, std::function<void(entity_no
     }
 }
 
-inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_context_t& ctx)
+inline bool is_entity_parent_of(entt::entity parent, entt::entity child, engine::Scene* scene)
+{
+    if (parent == child)
+    {
+        return true;
+    }
+    if (scene->has_component<engine_parent_component_t>(child))
+    {
+        const auto pc = *scene->get_component<engine_parent_component_t>(child);
+        return is_entity_parent_of(parent, static_cast<entt::entity>(pc.parent), scene);
+    }
+    return false;
+}
+
+inline void display_node(entity_node_t* node, engine::Scene* scene, engine::SceneHierarchyContext& ctx)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_node");
     node->displayed = true;
@@ -112,6 +107,15 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_co
         dispaly_flags |= ImGuiTreeNodeFlags_OpenOnArrow;
     }
 
+    // if we have selected entity by mouse then open all parents of selected entity for easier naviation in the scene panel
+    if (ctx.has_selected_entity())
+    {
+        if (ctx.is_forced_open_selected_parents())
+        {
+            ImGui::SetNextItemOpen(is_entity_parent_of(node->entity, ctx.get_selected_entity(), scene));
+        }
+    }
+
     const auto entity_id = std::string(node->name) + "##" + std::to_string(static_cast<std::uint32_t>(node->entity));
     if (ImGui::TreeNodeEx(entity_id.c_str(), dispaly_flags))
     {
@@ -121,9 +125,13 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_co
         // select entity with LMB
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         {
-            ctx.set_selected_entity(node->entity);
+            // but if tree was expanded (i.e. by pressing arrow) it does not count as selection of entity
+            if (!ImGui::IsItemToggledOpen())
+            {
+                ctx.set_selected_entity(scene, node->entity);
+            }
         }
-
+        
         // context menu with RMB
         if (ImGui::BeginPopupContextItem())
         {
@@ -195,7 +203,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_co
 }
 
 template<typename T>
-inline void display_component(std::string_view name, engine::Scene* scene, entt::entity entity, std::function<bool(T& comp)> fn)
+inline void display_component(std::string_view name, engine::Scene* scene, entt::entity entity, std::function<bool(const engine::Scene* scene, T& comp)> fn)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_component");
     const bool has_component = scene->has_component<T>(entity);
@@ -208,7 +216,7 @@ inline void display_component(std::string_view name, engine::Scene* scene, entt:
         if (has_component)
         {
             auto comp = *scene->get_component<T>(entity);
-            if (fn(comp))
+            if (fn(scene, comp))
             {
                 scene->update_component<T>(entity, comp);
             }
@@ -241,7 +249,7 @@ inline void display_component(std::string_view name, engine::Scene* scene, entt:
     }
 }
 
-bool display_transform_component(engine_tranform_component_t& c)
+bool display_transform_component(const engine::Scene* scene, engine_tranform_component_t& c)
 {
     const float v_speed = 0.1f;
     bool requires_update = ImGui::DragFloat3("Position##transform", c.position, v_speed);
@@ -257,18 +265,46 @@ bool display_transform_component(engine_tranform_component_t& c)
     return requires_update;
 }
 
-bool display_mesh_component(engine_mesh_component_t& c)
+bool display_mesh_component(const engine::Scene* scene, engine_mesh_component_t& c)
 {
     bool enabled = !c.disable;
     if (ImGui::Checkbox("Enabled", &enabled))
     {
         c.disable = !c.disable;
     }
+    const auto geo_name = scene->get_application()->get_geometry_name(c.geometry);
+    ImGui::Text("Geometry: %s", geo_name.c_str());
     ImGui::InputInt("Geometry ID", reinterpret_cast<std::int32_t*>(&c.geometry));
     return true;
 }
 
-bool display_light_component(engine_light_component_t& c)
+bool display_skin_component(const engine::Scene* scene, engine_skin_component_t& c)
+{
+    for (auto i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
+    {
+        // display list of bones if bone at index "i" is valid
+        if (c.bones[i] != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            ImGui::Text("[%d] ID: %d", i, c.bones[i]);
+        }
+    }
+    return false;
+}
+
+bool display_bone_component(const engine::Scene* scene, engine_bone_component_t& c)
+{
+    // display 4x4 matrix
+    for (auto i = 0; i < 4; i++)
+    {
+        for (auto j = 0; j < 4; j++)
+        {
+            ImGui::Text("[%d][%d]: %f", i, j, c.inverse_bind_matrix[i * 4 + j]);
+        }
+    }
+    return false;
+}
+
+bool display_light_component(const engine::Scene* scene, engine_light_component_t& c)
 {
     bool requires_update = false;
     // intensity
@@ -318,7 +354,7 @@ bool display_light_component(engine_light_component_t& c)
 }
 
 
-bool display_material_component(engine_material_component_t& c)
+bool display_material_component(const engine::Scene* scene, engine_material_component_t& c)
 {
     bool requires_component_updated = false;
     // list of types
@@ -354,7 +390,7 @@ bool display_material_component(engine_material_component_t& c)
     return requires_component_updated;
 }
 
-bool display_collider_component(engine_collider_component_t& c)
+bool display_collider_component(const engine::Scene* scene, engine_collider_component_t& c)
 {
     auto print_collider_type = [](engine_collider_type_t type)
      {
@@ -450,14 +486,14 @@ bool display_collider_component(engine_collider_component_t& c)
     return requires_component_updated;
 }
 
-bool display_rigidbody_component(engine_rigid_body_component_t& c)
+bool display_rigidbody_component(const engine::Scene* scene, engine_rigid_body_component_t& c)
 {
     bool requires_update = ImGui::SliderFloat("Mass", &c.mass, 0.0f, 100.0f);
 
     return requires_update;
 }
 
-bool display_camera_component(engine_camera_component_t& c)
+bool display_camera_component(const engine::Scene* scene, engine_camera_component_t& c)
 {
     // is it enabled?
     ImGui::Checkbox("Enabled", &c.enabled);
@@ -497,114 +533,12 @@ bool display_camera_component(engine_camera_component_t& c)
     return true;
 }
 
-void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
-{
-    ENGINE_PROFILE_SECTION_N("editor-render_scene_hierarchy_panel");
-    // build memory with all the entites
-    std::map<entt::entity, entity_node_t> entity_map;
-    for (auto e : scene->get_all_entities())
-    {
-        std::string name = "Unnamed";
-        if (scene->has_component<engine_name_component_t>(e))
-        {
-            const auto nc = scene->get_component<engine_name_component_t>(e);
-            name = nc->name;
-        }
-        if (name.compare(g_editor_camera_name) == 0)
-        {
-            // dont' add camera editor to hierarchy, so user can't manipulate it
-            continue;
-        }
-        entity_map.insert({ e, entity_node_t{ e, name } });
-    }
-
-    for (auto& [e, node] : entity_map)
-    {
-        if (scene->has_component<engine_parent_component_t>(e))
-        {
-            const auto& pc = scene->get_component<engine_parent_component_t>(e);
-            const auto& e_parent = static_cast<entt::entity>(pc->parent);
-            auto& parent_node = entity_map[e_parent];
-            assert(node.parent == nullptr);
-            node.parent = &parent_node;
-            parent_node.children.push_back(&node);
-        }
-    }
-
-    static hierarchy_context_t ctx;
-    
-    ImGui::Begin("Scene Panel");
-
-    if (ImGui::Button("Add entity"))
-    {
-        auto e = scene->create_new_entity();
-        auto nc = scene->add_component<engine_name_component_t>(e);
-        const auto new_name = "Entity " + std::to_string(static_cast<std::uint32_t>(e));
-        std::memcpy(nc->name, new_name.c_str(), new_name.size());
-    }
-
-    static bool phys_debug_draw_check = true;
-    ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check);
-    scene->enable_physics_debug_draw(phys_debug_draw_check);
-
-    ImGui::SeparatorText("Scene hierarchy");
-    if (ImGui::TreeNodeEx("Scene Collection", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth))
-    {
-        if (ImGui::BeginDragDropTarget())
-        {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ENTITY"))
-            {
-                IM_ASSERT(payload->DataSize == sizeof(entt::entity));
-                entt::entity payload_n = *static_cast<entt::entity*>(payload->Data);
-                //engine::log::log(engine::log::LogLevel::eInfo, "Dropped entity %d to %d\n", payload_n, node->entity);
-                if (scene->has_component<engine_parent_component_t>(payload_n))
-                {
-                    scene->remove_component<engine_parent_component_t>(payload_n);
-                }
-            }
-            ImGui::EndDragDropTarget();
-        }
-
-        for (auto& [e, f] : entity_map)
-        {
-            if (!f.displayed && !f.parent)
-            {
-                display_node(&f, scene, ctx);
-            }
-        }
-
-        ImGui::TreePop();
-    }
-    /*
-    here all components should be visible
-        - the one which are not avaialbe in the entitiy (Grayd out) and a "+" button to add them
-        - the one which are available in the entity (whatever color) and a "-" button to remove them
-    */
-    ImGui::SeparatorText("Entity properties.");
-    if (ctx.has_selected_entity())
-    {
-        const auto selected = ctx.get_selected_entity();
-        display_component<engine_tranform_component_t>("Transform", scene, selected, display_transform_component);
-        display_component<engine_light_component_t>("Light", scene, selected, display_light_component);
-        display_component<engine_camera_component_t>("Camera", scene, selected, display_camera_component);
-        display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
-        display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
-        display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);
-        display_component<engine_rigid_body_component_t>("Rigid Body", scene, selected, display_rigidbody_component);
-    }
-    else
-    {
-        ImGui::Text("Select entity to display its components.");
-    }
-
-    ImGui::End(); // scene panel
-}
-
 } // namespace anonymous
 
 
 engine::ApplicationEditor::ApplicationEditor(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
     : Application(desc, out_code)
+    , outline_effect_(desc.width, desc.height)
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -632,11 +566,18 @@ void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_b
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
+    ImGuizmo::BeginFrame();
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::Begin("Editor Controllers");
-    if (ImGui::Button("Enable/Disable Editor Controller"))
+    const std::string editor_camera_switch_title = editor_controlling_scene_ ? "Disable editor camera" : "Enable editor camera";
+    if (ImGui::Button(editor_camera_switch_title.c_str()))
     {
         editor_controlling_scene_ = !editor_controlling_scene_;
+    }
+    const std::string guizmo_switch_title = draw_guizmo_ ? "Disable guizmo" : "Enable guizmo";
+    if (ImGui::Button(guizmo_switch_title.c_str()))
+    {
+        draw_guizmo_ = !draw_guizmo_;
     }
     if (auto flag = ImGui::Button("Enable/Disable Rml UI Debugger (if enabled)"))
     {
@@ -676,8 +617,291 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
 void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
-    camera_context_.on_scene_update_post(scene, delta_time);
     render_scene_hierarchy_panel(scene, delta_time);
+    render_guizmo(scene);
+    render_outline(scene);
+    handle_mouse_picking(scene);
+    camera_context_.on_scene_update_post(scene, delta_time);
+}
+
+void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float dt)
+{
+    ENGINE_PROFILE_SECTION_N("editor-render_scene_hierarchy_panel");
+    // build memory with all the entites
+    std::map<entt::entity, entity_node_t> entity_map;
+    for (auto e : scene->get_all_entities())
+    {
+        std::string name = "Unnamed";
+        if (scene->has_component<engine_name_component_t>(e))
+        {
+            const auto nc = scene->get_component<engine_name_component_t>(e);
+            name = nc->name;
+        }
+        entity_map.insert({ e, entity_node_t{ e, name } });
+    }
+
+    for (auto& [e, node] : entity_map)
+    {
+        if (scene->has_component<engine_parent_component_t>(e))
+        {
+            const auto& pc = scene->get_component<engine_parent_component_t>(e);
+            const auto& e_parent = static_cast<entt::entity>(pc->parent);
+            auto& parent_node = entity_map[e_parent];
+            assert(node.parent == nullptr);
+            node.parent = &parent_node;
+            parent_node.children.push_back(&node);
+        }
+    }
+    ImGui::Begin("Scene Panel");
+
+    if (ImGui::Button("Add entity"))
+    {
+        auto e = scene->create_new_entity();
+        auto nc = scene->add_component<engine_name_component_t>(e);
+        const auto new_name = "Entity " + std::to_string(static_cast<std::uint32_t>(e));
+        std::memcpy(nc->name, new_name.c_str(), new_name.size());
+    }
+
+    static bool phys_debug_draw_check = false;
+    ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check);
+    scene->enable_physics_debug_draw(phys_debug_draw_check);
+
+    ImGui::SeparatorText("Scene hierarchy");
+    if (ImGui::TreeNodeEx("Scene Collection", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth))
+    {
+        if (ImGui::BeginDragDropTarget())
+        {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ENTITY"))
+            {
+                IM_ASSERT(payload->DataSize == sizeof(entt::entity));
+                entt::entity payload_n = *static_cast<entt::entity*>(payload->Data);
+                //engine::log::log(engine::log::LogLevel::eInfo, "Dropped entity %d to %d\n", payload_n, node->entity);
+                if (scene->has_component<engine_parent_component_t>(payload_n))
+                {
+                    scene->remove_component<engine_parent_component_t>(payload_n);
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+        for (auto& [e, f] : entity_map)
+        {
+            if (!f.displayed && !f.parent)
+            {
+                display_node(&f, scene, scene_hierarchy_context_);
+            }
+        }
+        ImGui::TreePop();
+    }
+    /*
+    here all components should be visible
+        - the one which are not avaialbe in the entitiy (Grayd out) and a "+" button to add them
+        - the one which are available in the entity (whatever color) and a "-" button to remove them
+    */
+    ImGui::SeparatorText("Entity properties.");
+    if (scene_hierarchy_context_.has_selected_entity())
+    {
+        const auto selected = scene_hierarchy_context_.get_selected_entity();
+        display_component<engine_tranform_component_t>("Transform", scene, selected, display_transform_component);
+        display_component<engine_light_component_t>("Light", scene, selected, display_light_component);
+        display_component<engine_camera_component_t>("Camera", scene, selected, display_camera_component);
+        display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
+        display_component<engine_skin_component_t>("Skin", scene, selected, display_skin_component);
+        display_component<engine_bone_component_t>("Bone", scene, selected, display_bone_component);
+        display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
+        display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);
+        display_component<engine_rigid_body_component_t>("Rigid Body", scene, selected, display_rigidbody_component);
+    }
+    else
+    {
+        ImGui::Text("Select entity to display its components.");
+    }
+
+    ImGui::End(); // scene panel
+}
+
+void engine::ApplicationEditor::render_guizmo(Scene* scene)
+{
+    if (!draw_guizmo_)
+    {
+        return;
+    }
+    auto camera_view = scene->create_runtime_view();
+    scene->attach_component_to_runtime_view<engine_camera_component_t>(camera_view);
+    for (const auto& camera_entity : camera_view)
+    {
+        const auto camera = *scene->get_component<engine_camera_component_t>(camera_entity);
+        if (!camera.enabled)
+        {
+            continue;
+        }
+        const auto camera_view = scene->get_camera_view(camera_entity);
+        const auto camera_projection = scene->get_camera_projection(camera_entity);
+
+        auto gizmo_view = scene->create_runtime_view();
+        scene->attach_component_to_runtime_view<engine_tranform_component_t>(gizmo_view);
+        scene->attach_component_to_runtime_view<engine::guizmo_component_t>(gizmo_view);
+        for (const auto& entity : gizmo_view)
+        {
+            const auto transform_component = *scene->get_component<engine_tranform_component_t>(entity);
+            // ImGuizmo manipulation
+            auto model_matrix = glm::make_mat4x4(transform_component.local_to_world);
+
+            ImGuizmo::SetOrthographic(camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC); // Set the projection mode to perspective
+            //ImGuizmo::SetDrawlist(); // Set the draw list to the current ImGui window's draw list
+            ImGuizmo::SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);  // Set the rectangle area for the gizmo to cover the entire display area
+
+            ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection),
+                ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::SCALE | ImGuizmo::OPERATION::ROTATE,
+                ImGuizmo::MODE::LOCAL,
+                glm::value_ptr(model_matrix));
+
+            if (ImGuizmo::IsUsing())
+            {
+                glm::vec3 translation{};
+                glm::vec3 scale{};
+                glm::vec3 rotation{};
+                ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
+
+                scene->patch_component<engine_tranform_component_t>(entity, [&](engine_tranform_component_t& c)
+                    {
+                        std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
+                        const glm::quat rot = glm::quat(glm::radians(rotation));
+                        std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
+                        std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
+                    });
+            }
+        }
+    }
+}
+
+void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
+{
+    if (ImGui::GetIO().WantCaptureMouse || !editor_controlling_scene_)
+    {
+        return;
+    }
+    if (mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT) && !keyboard_is_key_down(G_MOUSE_SELECT_KEYBOARD_KEY))
+    {
+        const auto window_size = rdx_.get_window_size_in_pixels();
+        const auto mouse_coords = mouse_get_coords();
+        viewport_t vp{};
+        vp.x = mouse_coords.x * window_size.width;
+        vp.y = mouse_coords.y * window_size.height;
+        vp.width = 1;
+        vp.height = 1;
+        const auto pixels = fbo_scene_.download_pixels(1, vp, DataLayout::eR_U32);
+        assert(pixels.size() == 4);
+        const auto pixels_u32 = reinterpret_cast<const std::uint32_t*>(pixels.data());
+        entt::entity entity_id = entt::null;
+        if (pixels_u32[0] != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            entity_id = static_cast<entt::entity>(pixels_u32[0]);
+        }
+        scene_hierarchy_context_.set_selected_entity(scene, entity_id);
+        scene_hierarchy_context_.set_forced_open_selected_parents(true);
+    }
+}
+
+void engine::ApplicationEditor::render_outline(Scene* scene)
+{
+    const auto window_size = rdx_.get_window_size_in_pixels();
+    outline_effect_.fbo_outline.bind(AccessType::eWriteOnly);
+
+    const auto& [fbo_w, fbo_h] = outline_effect_.fbo_outline.get_size();
+    if (fbo_w != window_size.width || fbo_h != window_size.height)
+    {
+        outline_effect_.fbo_outline.resize(window_size.width, window_size.height);
+    }
+    rdx_.set_clear_color(0.0f, 0.0f, 0.0, 1.0f);
+    outline_effect_.fbo_outline.clear();
+
+    auto camera_view = scene->create_runtime_view();
+    scene->attach_component_to_runtime_view<engine_camera_component_t>(camera_view);
+    for (const auto& camera_entity : camera_view)
+    {
+        const auto camera = *scene->get_component<engine_camera_component_t>(camera_entity);
+        if (!camera.enabled)
+        {
+            continue;
+        }
+        const auto camera_internal = scene->get_component<engine::camera_internal_component_t>(camera_entity);
+        const auto camera_view = scene->get_camera_view(camera_entity);
+        const auto camera_projection = scene->get_camera_projection(camera_entity);
+
+        auto outline_view = scene->create_runtime_view();
+        scene->attach_component_to_runtime_view<engine::outline_component_t>(outline_view);
+        scene->attach_component_to_runtime_view<engine_tranform_component_t>(outline_view);
+        scene->attach_component_to_runtime_view<engine_mesh_component_t>(outline_view);
+        scene->attach_component_to_runtime_view<engine_material_component_t>(outline_view);
+
+        for (const auto& entity : outline_view)
+        {
+            const auto transform_component = scene->get_component<engine_tranform_component_t>(entity);
+            const auto mesh_component = scene->get_component<engine_mesh_component_t>(entity);
+            float color_white[3] = { 1.0f, 1.0f, 1.0f };
+
+            const auto& white_texture = *textures_atlas_.get_object(0);
+            const auto& geometry = *geometries_atlas_.get_object(mesh_component->geometry);
+
+            if (scene->has_component<engine_skin_component_t>(entity))
+            {
+                engine::MaterialSkinnedGeometryUnlit::DrawContext ctx
+                {
+                    .camera = camera_internal->camera_ubo,
+                    .model_matrix = transform_component->local_to_world,
+                    .color_diffuse = color_white,
+                    .texture_diffuse = white_texture
+                };
+
+                auto skin_component = scene->get_component<engine_skin_component_t>(entity);
+                const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component->local_to_world));
+                for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
+                {
+                    const auto& bone_entity = static_cast<entt::entity>(skin_component->bones[i]);
+                    if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
+                    {
+                        continue;
+                    }
+
+                    if (scene->has_component<engine_bone_component_t>(bone_entity) == false)
+                    {
+                        engine::log::log(engine::log::LogLevel::eError, fmt::format("Bone entity does not have bone component. Are you sure you are doing valid thing?\n"));
+                        skin_component->bones[i] = ENGINE_INVALID_GAME_OBJECT_ID;
+                        continue;
+                    }
+                    const auto& bone_component = scene->get_component<engine_bone_component_t>(bone_entity);
+                    const auto& bone_transform = scene->get_component<engine_tranform_component_t>(bone_entity);
+                    const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
+                    const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
+                    const auto per_bone_final_transform = inverse_transform * bone_matrix;
+                    ctx.bone_transforms.push_back(per_bone_final_transform);
+                }
+                outline_effect_.material_skinned_geometry_unlit.draw(geometry, ctx);
+            }
+            else
+            {
+                engine::MaterialStaticGeometryUnlit::DrawContext ctx
+                {
+                    .camera = camera_internal->camera_ubo,
+                    .model_matrix = transform_component->local_to_world,
+                    .color_diffuse = color_white,
+                    .texture_diffuse = white_texture
+                };
+                outline_effect_.material_static_geometry_unlit.draw(geometry, ctx);
+            }
+        }
+    }
+
+    outline_effect_.fbo_outline.unbind();
+    //ToDO: optimize memory barriers here, no need to wait for all the stages
+    rdx_.dispatch_barrier(engine::RenderContext::MemoryBarrierBitMask::MEMORY_BARRIER_ALL_BIT);
+    outline_effect_.compute_shader_edge_detection.bind();
+    outline_effect_.compute_shader_edge_detection.set_texture("img_in", outline_effect_.fbo_outline.get_color_attachment(0), engine::AccessType::eReadOnly, engine::DataLayout::eRGBA_U8);
+    outline_effect_.compute_shader_edge_detection.set_texture("img_out", fbo_scene_.get_color_attachment(0), engine::AccessType::eReadWrite, engine::DataLayout::eRGBA_U8);
+    outline_effect_.compute_shader_edge_detection.dispatch(window_size.width / 32, window_size.height / 4, 1);
+    rdx_.dispatch_barrier(engine::RenderContext::MemoryBarrierBitMask::MEMORY_BARRIER_ALL_BIT);
+    fbo_scene_.bind();
 }
 
 bool engine::ApplicationEditor::is_mouse_enabled()
@@ -709,8 +933,9 @@ engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
 {
     auto nc = scene->add_component<engine_name_component_t>(go_);
     scene->patch_component<engine_name_component_t>(go_, [nc](engine_name_component_t& c)
-        {
-            std::memcpy(c.name, g_editor_camera_name, std::strlen(g_editor_camera_name));
+        {   
+            constexpr const char* editor_camera_name = "__engine_editor_camera__";
+            std::memcpy(c.name, editor_camera_name, std::strlen(editor_camera_name));
         });
 
     auto camera_comp = scene->add_component<engine_camera_component_t>(go_);
@@ -729,8 +954,8 @@ engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
     auto camera_transform_comp = scene->add_component<engine_tranform_component_t>(go_);
     scene->patch_component<engine_tranform_component_t>(go_, [](engine_tranform_component_t& c)
         {
-            c.position[0] = 1.0f;
-            c.position[1] = 1.0f;
+            c.position[0] = 0.0f;
+            c.position[1] = 4.0f;
             c.position[2] = 1.0f;
         });
 
@@ -755,13 +980,7 @@ void engine::CameraScript::disable()
 
 void engine::CameraScript::update(float dt)
 {
-    auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
-    if (!cc->enabled)
-    {
-        return;
-    }
     const auto mouse_coords = app_->mouse_get_coords();
-
     const auto dx = mouse_coords.x - mouse_coords_prev_.x;
     const auto dy = mouse_coords.y - mouse_coords_prev_.y;
 
@@ -770,15 +989,29 @@ void engine::CameraScript::update(float dt)
         mouse_coords_prev_ = mouse_coords;
     }
 
-    const float move_speed = 1.0f * dt;
+    //if not enabled - do nothing
+    auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
+    if (!cc->enabled)
+    {
+        return;
+    }
+
+    // dont allow to move camera if mouse is down
+    if (ImGui::GetIO().WantCaptureMouse || ImGuizmo::IsUsingAny())
+    {
+        return;
+    }
+
+    const float move_speed = 0.1f * dt;
 
     const bool lmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT);
     const bool rmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_RIGHT);
     const bool mmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_MIDDLE);
 
+
     //if (app_->keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LSHIFT))
     {
-        if (lmb)
+        if (lmb && app_->keyboard_is_key_down(G_MOUSE_SELECT_KEYBOARD_KEY))
         {
             rotate({ dx * move_speed, dy * move_speed });            
         }
@@ -926,4 +1159,45 @@ void engine::ApplicationEditor::CameraContext::on_scene_update_post(Scene* scene
 bool engine::ApplicationEditor::CameraContext::is_enabled(engine::Scene* scene) const
 {
     return cameras_.at(scene).is_enabled;
+}
+
+void engine::SceneHierarchyContext::set_selected_entity(engine::Scene* scene, entt::entity e)
+{
+    if (selected_ == e)
+    {
+        return;
+    }
+    if (selected_ != entt::null)
+    {
+        scene->remove_component<engine::guizmo_component_t>(selected_);
+        scene->remove_component<engine::outline_component_t>(selected_);
+    }
+
+    selected_ = e;
+    if (selected_ != entt::null)
+    {
+        scene->add_component<engine::guizmo_component_t>(selected_);
+        scene->add_component<engine::outline_component_t>(selected_);
+    }
+
+}
+
+entt::entity engine::SceneHierarchyContext::get_selected_entity() const
+{
+    return selected_;
+}
+
+bool engine::SceneHierarchyContext::has_selected_entity() const
+{
+    return selected_ != entt::null;
+}
+
+void engine::SceneHierarchyContext::set_forced_open_selected_parents(bool value)
+{
+    force_open_selected_parents_ = value;
+}
+
+bool engine::SceneHierarchyContext::is_forced_open_selected_parents() const
+{
+    return force_open_selected_parents_;
 }

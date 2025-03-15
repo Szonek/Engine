@@ -5,7 +5,6 @@
 #include "logger.h"
 #include "gltf_parser.h"
 #include "ui_document.h"
-#include "scene.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -132,9 +131,11 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     : rdx_(std::move(RenderContext(desc.name, { 0, 0, desc.width, desc.height }, desc.fullscreen)))
     , ui_manager_(rdx_)
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
+    , fbo_scene_(rdx_.get_window_size_in_pixels().width, rdx_.get_window_size_in_pixels().height, { DataLayout::eRGBA_U8, DataLayout::eR_U32 }, true)
+    , empty_vao_for_full_screen_quad_draw_(6)
+    , shader_full_screen_quad_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
 {
 	{
-		//constexpr const std::array<std::uint8_t, 3> default_texture_color = { 160, 50, 168 };
 		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 255, 255, 255 };
 		engine_texture_2d_create_desc_t tex2d_desc{};
 		tex2d_desc.width = 1;
@@ -143,8 +144,6 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
 		tex2d_desc.data = default_texture_color.data();
         default_texture_idx_ = add_texture(tex2d_desc, "default_1x1_texutre");
 	}
-
-    rdx_.set_clear_color(0.05f, 0.0f, 0.2f, 1.0f);
 
 	timer_.tick();
 
@@ -162,7 +161,7 @@ engine::Application::~Application()
 engine::Scene* engine::Application::allocate_scene(const engine_scene_create_desc_t& desc)
 {
     engine_result_code_t ret_code = ENGINE_RESULT_CODE_FAIL;
-    auto ret = new Scene(rdx_, desc, ret_code);
+    auto ret = new Scene(this, rdx_, desc, ret_code);
     if (ret_code == ENGINE_RESULT_CODE_FAIL)
     {
         delete ret;
@@ -186,10 +185,7 @@ void engine::Application::release_scene(Scene* scene)
 engine_result_code_t engine::Application::update_scene(Scene* scene, float delta_time)
 {
     on_scene_update_pre(scene, delta_time);
-	const auto ret_code = scene->update(delta_time,
-		textures_atlas_.get_objects_view(),
-		geometries_atlas_.get_objects_view(),
-        shader_atlas_.get_objects_view());
+	const auto ret_code = scene->update(delta_time);
     on_scene_update_post(scene, delta_time);
 
     return ret_code;
@@ -293,6 +289,20 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     }
 
 	rdx_.begin_frame();
+    
+    // clear framebuffer at beginning of the frame, scene (camera) will have to call set_viewport(..)!
+    const auto& [win_w, win_h] = rdx_.get_window_size_in_pixels();
+    {
+        fbo_scene_.bind();
+        const auto& [fbo_w, fbo_h] = fbo_scene_.get_size();
+        if (fbo_w != win_w || fbo_h != win_h)
+        {
+            fbo_scene_.resize(win_w, win_h);
+        }
+        rdx_.set_clear_color(0.00f, 0.0f, 0.0f, 1.0f);
+        fbo_scene_.clear();
+    }
+    
     on_frame_begine(ret);
 	return ret;
 }
@@ -300,6 +310,13 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
     on_frame_end();
+    // copy fbo_scene color attachment to the default framebuffer
+    fbo_scene_.unbind();
+    shader_full_screen_quad_.bind();
+    shader_full_screen_quad_.set_texture_with_sampler("screen_texture", fbo_scene_.get_color_attachment(0));
+    empty_vao_for_full_screen_quad_draw_.bind();
+    empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
+
     ui_manager_.update_state_and_render();
     rdx_.end_frame();
     ENGINE_PROFILE_FRAME;
@@ -337,6 +354,11 @@ std::uint32_t engine::Application::get_texture(std::string_view name) const
 {
     const auto ret = textures_atlas_.get_object(name);
     return ret;
+}
+
+const engine::Texture2D* engine::Application::get_texture(std::uint32_t idx) const
+{
+    return textures_atlas_.get_object(idx);
 }
 
 void engine::Application::destroy_texture(std::uint32_t idx)
@@ -381,6 +403,11 @@ std::uint32_t engine::Application::get_geometry(std::string_view name) const
     return geometries_atlas_.get_object(name);
 }
 
+std::string engine::Application::get_geometry_name(std::uint32_t idx) const
+{
+    return geometries_atlas_.get_object_name(idx);
+}
+
 const engine::Geometry* engine::Application::get_geometry(std::uint32_t idx) const
 {
     return geometries_atlas_.get_object(idx);
@@ -409,14 +436,13 @@ void engine::Application::destroy_shader(std::uint32_t idx)
 engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir)
 {
     assert(spec == ENGINE_MODEL_SPECIFICATION_GLTF_2);
-
-    const auto file_data = engine::AssetStore::get_instance().get_model_data(name);
+    const auto assets_dir = engine::AssetStore::get_instance().get_models_base_path() / base_dir;
+    const auto file_data = engine::AssetStore::get_instance().get_raw_data_content(assets_dir / name);
     if(file_data.get_size() == 0)
     {
         return {};
     }
 
-    const auto assets_dir = engine::AssetStore::get_instance().get_textures_base_path()/base_dir;
     const auto model_info = new engine::ModelInfo(parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string()));
 
     engine_model_desc_t ret{};
@@ -469,7 +495,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     if (ret.geometries_count > 0)
     {
         ret.geometries_array = new engine_geometry_create_desc_t[ret.geometries_count];
-
+        ret.geometires_name_array = new const char* [ret.geometries_count];
         for (std::size_t i = 0; i < ret.geometries_count; i++)
         {
             const auto& int_g = model_info->geometries[i];
@@ -482,6 +508,8 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
             ret_g.verts_data = int_g.vertex_data.data();
             ret_g.verts_layout = int_g.vertex_laytout;
             ret_g.verts_count = int_g.vertex_count;
+
+            ret.geometires_name_array[i] = int_g.name.c_str();
         }
 
     }
@@ -490,6 +518,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     if (ret.textures_count > 0)
     {
         ret.textures_array = new engine_texture_2d_create_desc_t[ret.textures_count];
+        ret.textures_name_array = new const char* [ret.textures_count];
         for (std::size_t i = 0; i < ret.textures_count; i++)
         {
             const auto& int_m = model_info->textures[i];
@@ -499,6 +528,8 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
             ret_m.height = int_m.height;
             ret_m.data_layout = int_m.layout;
             ret_m.data = int_m.data.data();
+
+            ret.textures_name_array[i] = int_m.name.c_str();
         }
     }
 
@@ -506,6 +537,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     if (ret.materials_count > 0)
     {
         ret.materials_array = new engine_model_material_desc_t[ret.materials_count];
+        ret.materials_name_array = new const char* [ret.materials_count];
 
         for (std::size_t i = 0; i < ret.materials_count; i++)
         {
@@ -515,6 +547,8 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
             ret_m.name = int_m.name.c_str();
             std::memcpy(ret_m.diffuse_color, int_m.diffuse_factor.data(), int_m.diffuse_factor.size() * sizeof(int_m.diffuse_factor[0]));
             ret_m.diffuse_texture_index = int_m.diffuse_texture;
+
+            ret.materials_name_array[i] = int_m.name.c_str();
         }
     }
 
@@ -575,6 +609,8 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     if (ret.skins_counts > 0)
     {
         ret.skins_array = new engine_skin_create_desc_t[ret.skins_counts];
+        ret.skins_name_array = new const char* [ret.skins_counts];
+
         for (std::uint32_t i = 0; i < ret.skins_counts; i++)
         {
             const auto& skin = model_info->skins[i];
@@ -594,6 +630,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
                     std::memcpy(out_bone.inverse_bind_mat, glm::value_ptr(in_bone.inverse_bind_matrix), sizeof(in_bone.inverse_bind_matrix));
                 }
             }
+            ret.skins_name_array[i] = skin.name.c_str();
         }
     }
 
@@ -609,6 +646,7 @@ void engine::Application::release_model_desc(engine_model_desc_t* info)
         if (info->geometries_array)
         {
             delete[] info->geometries_array;
+            delete[] info->geometires_name_array;
         }
         if (info->textures_array)
         {

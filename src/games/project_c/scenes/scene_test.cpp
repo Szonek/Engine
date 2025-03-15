@@ -4,7 +4,7 @@
 #include "../scripts/camera_script.h"
 #include "../scripts/enviorment_script.h"
 #include "../scripts/enemy_script.h"
-#include "../scripts/solider_script.h"
+#include "../scripts/player_script.h"
 #include "../scripts/scripts_utils.h"
 
 #include "../nav_mesh.h"
@@ -72,7 +72,7 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
 
     struct SceneSpawnPoints
     {
-        std::vector<engine_coords_2d_t> solider;
+        std::vector<engine_coords_2d_t> player;
         std::vector<engine_coords_2d_t> enemy_packs;
         std::vector<engine_coords_2d_t> point_lights;
         std::vector<engine_coords_2d_t> weapons;
@@ -92,23 +92,38 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         for (std::size_t z = 0; z < scene_height; z++)
         {
             const auto c = scene_str[z * (scene_width + 1) + x];  // + 1 because of '\n' in every line
-            const auto x_offset = (float)std::int32_t(x - scene_width / 2);
+            auto x_offset = (float)std::int32_t(x - scene_width / 2);
             const auto z_offset = (float)std::int32_t(z - scene_height / 2);
             if (c == 'x')
             {
-                scene.register_script<project_c::Wall>(app.instantiate_prefab(project_c::PREFAB_TYPE_WALL, &scene).go, x_offset, z_offset);
+                if (app.is_prefab_available(project_c::PREFAB_TYPE_WALL))
+                {
+                    // add offset to snap to the grid
+                    if (x_offset > 0)
+                    {
+                        x_offset -= 0.5f;
+                    }
+                    else if (x_offset < 0)
+                    {
+                        x_offset += 0.5f;
+                    }
+                    scene.register_script<project_c::Wall>(app.instantiate_prefab(project_c::PREFAB_TYPE_WALL, &scene).go, x_offset, z_offset);
+                }
             }
             else
             {
-                auto flor_moodel = dist6(rng) ? project_c::PREFAB_TYPE_FLOOR_DETAIL : project_c::PREFAB_TYPE_FLOOR;
-                scene.register_script<project_c::Floor>(app.instantiate_prefab(flor_moodel, &scene).go, x_offset, z_offset);
-                const auto id = nav_mesh.add_node({ x_offset, 0.0f, z_offset }, { 0.5f, 0.0f, 0.5f });
-                nodes_id[x][z] = id;
+                if (app.is_prefab_available(project_c::PREFAB_TYPE_FLOOR) || app.is_prefab_available(project_c::PREFAB_TYPE_FLOOR_DETAIL))
+                {
+                    auto flor_moodel = dist6(rng) ? project_c::PREFAB_TYPE_FLOOR_DETAIL : project_c::PREFAB_TYPE_FLOOR;
+                    scene.register_script<project_c::Floor>(app.instantiate_prefab(flor_moodel, &scene).go, x_offset, z_offset);
+                    const auto id = nav_mesh.add_node({ x_offset, 0.0f, z_offset }, { 0.5f, 0.0f, 0.5f });
+                    nodes_id[x][z] = id;
+                }
             }
 
-            if(c =='s')
+            if(c =='p')
             {
-                scene_spawn_points.solider.push_back({ x_offset, z_offset });
+                scene_spawn_points.player.push_back({ x_offset, z_offset });
             }
             else if (c == 'e')
             {
@@ -212,21 +227,26 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
     }
 
     // at this point nav mesh has to be completed!
-
-    for (const auto& point : scene_spawn_points.solider)
+    if (app.is_prefab_available(project_c::PREFAB_TYPE_BARBARIAN))
     {
-        auto s = scene.register_script<project_c::Solider>(app.instantiate_prefab(project_c::PREFAB_TYPE_SOLIDER, &scene));
-        s->set_world_position(point.x, 0.0f, point.y);
+        for (const auto& point : scene_spawn_points.player)
+        {
+            auto s = scene.register_script<project_c::Player>(app.instantiate_prefab(project_c::PREFAB_TYPE_BARBARIAN, &scene));
+            s->set_world_position(point.x, 0.0f, point.y);
+        }
     }
 
-    for (const auto& point : scene_spawn_points.enemy_packs)
+    if (app.is_prefab_available(project_c::PREFAB_TYPE_SKELETON_WARRIOR))
     {
-        EnemyPack pack{ {project_c::PrefabType::PREFAB_TYPE_ORC} };
-        MobPackSpawner spawner;
-        const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
-        //const auto spawn_area = MobPackSpawner::SpawnAreaRect{ 0.0f, 0.0f, 0.0f, 0.0f };
-        const auto spawn_world_pos = MobPackSpawner::Point{ point.x, point.y };
-        spawner.spawn(pack, 1, spawn_world_pos, spawn_area, nav_mesh, app, scene);
+        for (const auto& point : scene_spawn_points.enemy_packs)
+        {
+            EnemyPack pack{ {project_c::PrefabType::PREFAB_TYPE_SKELETON_WARRIOR} };
+            MobPackSpawner spawner;
+            const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
+            //const auto spawn_area = MobPackSpawner::SpawnAreaRect{ 0.0f, 0.0f, 0.0f, 0.0f };
+            const auto spawn_world_pos = MobPackSpawner::Point{ point.x, point.y };
+            spawner.spawn(pack, 6, spawn_world_pos, spawn_area, nav_mesh, app, scene);
+        }
     }
 
     for (const auto& point : scene_spawn_points.point_lights)
@@ -235,16 +255,20 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         l->set_world_position(point.x, 1.0f, point.y);
     }
 
-    for (const auto& wpn : scene_spawn_points.weapons)
+    // barb asset comes with some predefined weapnons, so check it here
+    if (app.is_prefab_available(project_c::PREFAB_TYPE_BARBARIAN))
     {
-        auto w = scene.register_script<project_c::Sword>(app.instantiate_prefab(project_c::PREFAB_TYPE_SWORD, &scene).go);
-        w->drop_on_ground(glm::vec3(wpn.x, 0.5f, wpn.y));
+        for (const auto& wpn : scene_spawn_points.weapons)
+        {
+            auto w = scene.register_script<project_c::Weapon>();
+            w->drop_on_ground(glm::vec3(wpn.x, 0.5f, wpn.y));
+        }
     }
 }
 }
 
 
-void equip_sword_callback(engine_ui_data_handle_t data_handle, const engine_ui_event_t* ev, const engine_vector_engine_ui_data_variant_t args, void* user_data)
+void equip_weapon_callback(engine_ui_data_handle_t data_handle, const engine_ui_event_t* ev, const engine_vector_engine_ui_data_variant_t args, void* user_data)
 {
     assert(args != nullptr);
     assert(engineVectorSizeEngineUiDataVariant(args) == 1);
@@ -253,10 +277,10 @@ void equip_sword_callback(engine_ui_data_handle_t data_handle, const engine_ui_e
     const auto item_go = arg_0.arg.u32;
 
     auto scene = reinterpret_cast<project_c::TestScene*>(user_data);
-    auto solider_go = project_c::utils::get_game_objects_with_name(scene->get_handle(), "solider");
-    assert(solider_go.size() == 1);
-    auto solider_script = scene->get_script<project_c::Solider>(solider_go[0]);
-    const auto item_equipped = solider_script->equip_sword(scene->get_script<project_c::Sword>(item_go));
+    auto player_go = project_c::utils::get_game_objects_with_name(scene->get_handle(), "player");
+    assert(player_go.size() == 1);
+    auto player_script = scene->get_script<project_c::Player>(player_go[0]);
+    const auto item_equipped = player_script->equip_waepon(scene->get_script<project_c::Weapon>(item_go));
     if (!item_equipped)
     {
         engineLog(std::format("Tried to equip item, but couldnt do so!\n").c_str());
@@ -303,7 +327,7 @@ inline void register_ui_item_bindings(std::vector<engine_ui_document_data_bindin
     {
         engine_ui_document_data_binding_t binding = {};
         binding.name = "equip";
-        binding.data_callback.fn_ptr = &equip_sword_callback;
+        binding.data_callback.fn_ptr = &equip_weapon_callback;
         binding.data_callback.user_data = scene;
         binding.type = ENGINE_UI_DATA_TYPE_EVENT_CALLBACK;
         registry.push_back(binding);
@@ -371,9 +395,9 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         //"xxxxxxxxxxx\n"
         //"x    p    x\n"
         "x         x\n"
-        "x  w  ee  x\n"
-        "xs    ee  x\n"
-        "x     ee  x\n"
+        "x  w      x\n"
+        "xp   e    x\n"
+        "x         x\n"
         "x         x\n";
         //"xxxxxxxxxxx\n";
     register_script<MainLight>();
@@ -394,7 +418,7 @@ void project_c::TestScene::update_hook_begin()
     //engineUiDataHandleDirtyVariable(ui_data_.handle_test, "enemy_health");
 }
 
-void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
+void project_c::TestScene::ui_update_item_on_ground(const project_c::Weapon* sw)
 {
     const auto active_camera_go = utils::get_active_camera_game_objects(scene_)[0];
     const auto item_go = sw->get_game_object();
@@ -425,7 +449,7 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
     {
         engineVectorPushBackUint32(ui_data_.items.go, item_go);
         engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_go");
-        engineVectorPushBackEngineString(ui_data_.items.name, engineStringCreate("sword"));
+        engineVectorPushBackEngineString(ui_data_.items.name, engineStringCreate("item"));
         engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_name");
 
         engineVectorPushBackUint32(ui_data_.items.show, 1);
@@ -438,7 +462,7 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
     engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_pos_y");
 }
 
-void project_c::TestScene::ui_remove_item_from_ground(const project_c::Sword* sw)
+void project_c::TestScene::ui_remove_item_from_ground(const project_c::Weapon* sw)
 {
     for (auto i = 0; i < engineVectorSizeUint32(ui_data_.items.go); i++)
     {

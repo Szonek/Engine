@@ -7,6 +7,8 @@
 
 #include <span>
 
+#include <cstdint>
+
 namespace engine
 {
 struct SceneGpuData
@@ -17,12 +19,12 @@ struct SceneGpuData
     float pad3_;
 };
 
-
 class MaterialStaticGeometryLit
 {
 public:
     struct DrawContext
     {
+        std::uint32_t entity_id;
         const UniformBuffer& camera;
         const UniformBuffer& scene;
         const float* model_matrix;
@@ -42,11 +44,32 @@ private:
 };
 
 
+class MaterialStaticGeometryUnlit
+{
+public:
+    struct DrawContext
+    {
+        const UniformBuffer& camera;
+        const float* model_matrix;
+
+        const float* color_diffuse;
+        const Texture2D& texture_diffuse;
+    };
+public:
+    MaterialStaticGeometryUnlit();
+
+    void draw(const Geometry& geometry, const DrawContext& ctx);
+
+private:
+    Shader shader_;
+};
+
 class MaterialSkinnedGeometryLit
 {
 public:
     struct DrawContext
     {
+        std::uint32_t entity_id;
         const UniformBuffer& camera;
         const UniformBuffer& scene;
         const float* model_matrix;
@@ -59,6 +82,27 @@ public:
     };
 public:
     MaterialSkinnedGeometryLit();
+
+    void draw(const Geometry& geometry, const DrawContext& ctx);
+
+private:
+    Shader shader_;
+};
+
+class MaterialSkinnedGeometryUnlit
+{
+public:
+    struct DrawContext
+    {
+        const UniformBuffer& camera;
+        const float* model_matrix;
+        std::vector<glm::mat4> bone_transforms;
+
+        const float* color_diffuse;
+        const Texture2D& texture_diffuse;
+    };
+public:
+    MaterialSkinnedGeometryUnlit();
 
     void draw(const Geometry& geometry, const DrawContext& ctx);
 
