@@ -69,6 +69,9 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/imgui/imgui_draw.cpp
 	${ENGINE_SOURCES_DIR}/imgui/imgui_tables.cpp
 	${ENGINE_SOURCES_DIR}/imgui/imgui_demo.cpp
+	
+	${ENGINE_SOURCES_DIR}/imguizmo/ImGuizmo.h
+	${ENGINE_SOURCES_DIR}/imguizmo/ImGuizmo.cpp
 )
 
 set(ENGINE_API "include")
@@ -95,7 +98,7 @@ set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})
 
 add_library(${ENGINE} SHARED ${ENGINE_ALL_SOURCES})
 
-target_include_directories(${ENGINE} PUBLIC ${ENGINE_API} PRIVATE ${BULLET_INCLUDE_DIRS})
+target_include_directories(${ENGINE} PUBLIC ${ENGINE_API} PRIVATE ${BULLET_INCLUDE_DIRS} ${ENGINE_SOURCES_DIR}/imgui)
 target_link_libraries(${ENGINE} PRIVATE stb tinygltf glad glm EnTT::EnTT SDL3::SDL3-static fmt::fmt-header-only Freetype::Freetype RmlUi::RmlUi RmlUi::Debugger TracyClient ${BULLET_LIBRARIES})
 target_compile_definitions(${ENGINE} PUBLIC GLM_FORCE_QUAT_DATA_XYZW GLM_ENABLE_EXPERIMENTAL RMLUI_SDL_VERSION_MAJOR=3)
 
