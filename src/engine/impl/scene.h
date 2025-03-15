@@ -70,6 +70,12 @@ public:
     }
 
     template<typename T>
+    T* get_component(entt::entity entity)
+    {
+        return &entity_registry_.get<T>(entity);
+    }
+
+    template<typename T>
     void patch_component(entt::entity entity, std::function<void(T&)>&& func)
     {
         entity_registry_.patch<T>(entity, std::move(func));
@@ -101,6 +107,8 @@ public:
 
     glm::vec3 convert_world_point_to_screen_point(const glm::vec3& world_point, engine_game_object_t camera_go);
     glm::vec3 convert_screen_point_to_world_point(glm::vec3 screen_point, engine_game_object_t camera_go);
+    glm::mat4 get_camera_view(entt::entity camera_go);
+    glm::mat4 get_camera_projection(entt::entity camera_go);
 
 private:
     engine_result_code_t physics_update(float dt);

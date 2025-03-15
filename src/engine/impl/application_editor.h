@@ -19,6 +19,8 @@ public:
     void disable();
     void update(float dt);
 
+    entt::entity get_entity() const { return go_; }
+
 private:
     void translate(const glm::vec3& delta);
     void rotate(const glm::vec2 delta);
@@ -61,6 +63,7 @@ private:
         void on_scene_update_pre(Scene* scene, float dt);
         void on_scene_update_post(Scene* scene, float dt);
         bool is_enabled(engine::Scene* scene) const;
+
     private:
         struct camera_data_t
         {

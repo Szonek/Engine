@@ -9,13 +9,14 @@
 #include "imgui/imgui_impl_sdl3.h"
 #include "imgui/imgui_impl_opengl3.h"
 
+#include "imguizmo/ImGuizmo.h"
+
 #include <string>
 #include <map>
 #include <numeric>
 
 namespace
 {
-constexpr const char* g_editor_camera_name = "__engine__camera-editor__";
 inline auto get_spherical_coordinates(const auto& cartesian)
 {
     const float r = std::sqrt(
@@ -501,21 +502,28 @@ void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-render_scene_hierarchy_panel");
     // build memory with all the entites
+    entt::entity active_camera_entity = entt::null;
     std::map<entt::entity, entity_node_t> entity_map;
     for (auto e : scene->get_all_entities())
     {
+        // find active camera component, will be needed for gizmo
+        if (scene->has_component<engine_camera_component_t>(e))
+        {
+            const auto scene_component = scene->get_component<engine_camera_component_t>(e);
+            if (scene_component->enabled)
+            {
+                active_camera_entity = e;
+            }
+        }
         std::string name = "Unnamed";
         if (scene->has_component<engine_name_component_t>(e))
         {
             const auto nc = scene->get_component<engine_name_component_t>(e);
             name = nc->name;
         }
-        if (name.compare(g_editor_camera_name) == 0)
-        {
-            // dont' add camera editor to hierarchy, so user can't manipulate it
-            continue;
-        }
         entity_map.insert({ e, entity_node_t{ e, name } });
+
+
     }
 
     for (auto& [e, node] : entity_map)
@@ -591,6 +599,43 @@ void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
         display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
         display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);
         display_component<engine_rigid_body_component_t>("Rigid Body", scene, selected, display_rigidbody_component);
+
+
+        // ImGuizmo manipulation
+        const auto transform = scene->get_component<engine_tranform_component_t>(selected);
+        auto model_matrix = glm::make_mat4x4(transform->local_to_world);
+
+        const auto camera_component = scene->get_component<engine_camera_component_t>(active_camera_entity);
+        ImGuizmo::SetOrthographic(camera_component->type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC); // Set the projection mode to perspective
+        //ImGuizmo::SetDrawlist(); // Set the draw list to the current ImGui window's draw list
+        ImGuizmo::SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);  // Set the rectangle area for the gizmo to cover the entire display area
+
+        const auto camera_view = scene->get_camera_view(active_camera_entity);
+        const auto camera_projection = scene->get_camera_projection(active_camera_entity);
+
+        ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection),
+            ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::SCALE | ImGuizmo::OPERATION::ROTATE,
+            ImGuizmo::MODE::LOCAL,
+            glm::value_ptr(model_matrix));
+
+        if (ImGuizmo::IsUsing())
+        {
+            glm::vec3 translation;
+            glm::vec3 scale;
+            glm::vec3 rotation;
+            ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
+
+            scene->patch_component<engine_tranform_component_t>(selected, [&](engine_tranform_component_t& c)
+                {
+                    std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
+                    const glm::quat rot = glm::quat(glm::radians(rotation));
+                    std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
+
+
+                });
+
+
+        }
     }
     else
     {
@@ -632,6 +677,7 @@ void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_b
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
+    ImGuizmo::BeginFrame();
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::Begin("Editor Controllers");
     if (ImGui::Button("Enable/Disable Editor Controller"))
@@ -676,8 +722,8 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
 void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
-    camera_context_.on_scene_update_post(scene, delta_time);
     render_scene_hierarchy_panel(scene, delta_time);
+    camera_context_.on_scene_update_post(scene, delta_time);
 }
 
 bool engine::ApplicationEditor::is_mouse_enabled()
@@ -709,8 +755,9 @@ engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
 {
     auto nc = scene->add_component<engine_name_component_t>(go_);
     scene->patch_component<engine_name_component_t>(go_, [nc](engine_name_component_t& c)
-        {
-            std::memcpy(c.name, g_editor_camera_name, std::strlen(g_editor_camera_name));
+        {   
+            constexpr const char* editor_camera_name = "__engine_editor_camera__";
+            std::memcpy(c.name, editor_camera_name, std::strlen(editor_camera_name));
         });
 
     auto camera_comp = scene->add_component<engine_camera_component_t>(go_);
@@ -729,8 +776,8 @@ engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
     auto camera_transform_comp = scene->add_component<engine_tranform_component_t>(go_);
     scene->patch_component<engine_tranform_component_t>(go_, [](engine_tranform_component_t& c)
         {
-            c.position[0] = 1.0f;
-            c.position[1] = 1.0f;
+            c.position[0] = 0.0f;
+            c.position[1] = 4.0f;
             c.position[2] = 1.0f;
         });
 

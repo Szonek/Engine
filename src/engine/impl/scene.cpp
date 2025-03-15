@@ -839,3 +839,33 @@ glm::vec3 engine::Scene::convert_screen_point_to_world_point(glm::vec3 screen_po
     return ret;
 }
 
+glm::mat4 engine::Scene::get_camera_view(entt::entity camera_go)
+{
+    const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(camera_go);
+    const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(camera_go);
+    const auto window_size = rdx_.get_window_size_in_pixels();
+    if (camera_component && camera_transform)
+    {
+        auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(camera_go);
+        calculate_camera_view_and_projection(window_size.width, window_size.height,
+            glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
+        return camera_internal_component.data.view;
+    }
+    return glm::mat4();
+}
+
+glm::mat4 engine::Scene::get_camera_projection(entt::entity camera_go)
+{
+    const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(camera_go);
+    const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(camera_go);
+    const auto window_size = rdx_.get_window_size_in_pixels();
+    if (camera_component && camera_transform)
+    {
+        auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(camera_go);
+        calculate_camera_view_and_projection(window_size.width, window_size.height,
+            glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
+        return camera_internal_component.data.projection;
+    }
+    return glm::mat4();
+}
+
