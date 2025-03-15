@@ -630,11 +630,8 @@ void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
                     std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
                     const glm::quat rot = glm::quat(glm::radians(rotation));
                     std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
-
-
+                    std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
                 });
-
-
         }
     }
     else
@@ -802,13 +799,7 @@ void engine::CameraScript::disable()
 
 void engine::CameraScript::update(float dt)
 {
-    auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
-    if (!cc->enabled)
-    {
-        return;
-    }
     const auto mouse_coords = app_->mouse_get_coords();
-
     const auto dx = mouse_coords.x - mouse_coords_prev_.x;
     const auto dy = mouse_coords.y - mouse_coords_prev_.y;
 
@@ -817,11 +808,25 @@ void engine::CameraScript::update(float dt)
         mouse_coords_prev_ = mouse_coords;
     }
 
-    const float move_speed = 1.0f * dt;
+    //if not enabled - do nothing
+    auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
+    if (!cc->enabled)
+    {
+        return;
+    }
+
+    // dont allow to move camera if mouse is down
+    if (ImGui::GetIO().WantCaptureMouse || ImGuizmo::IsUsingAny())
+    {
+        return;
+    }
+
+    const float move_speed = 0.1f * dt;
 
     const bool lmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT);
     const bool rmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_RIGHT);
     const bool mmb = app_->mouse_is_button_down(ENGINE_MOUSE_BUTTON_MIDDLE);
+
 
     //if (app_->keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LSHIFT))
     {
