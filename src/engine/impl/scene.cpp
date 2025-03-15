@@ -4,7 +4,13 @@
 #include "logger.h"
 #include "math_helpers.h"
 #include "components_utils/components_initializers.h"
+#include "components_internals/camera_internal_component.h"
+#include "components_internals/guizmo_component.h"
+#include "components_internals/outline_component.h"
 #include "profiler.h"
+
+#include "imgui/imgui.h"
+#include "imguizmo/ImGuizmo.h"
 
 #include <cmath>
 #include <fmt/format.h>
@@ -40,23 +46,7 @@ struct LightGpuData
     float pad3_;
 };
 
-struct CameraGpuData
-{
-    glm::mat4 view;
-    glm::mat4 projection;
-    glm::vec3 position;
-};
-
-
-struct engine_camera_internal_component_t
-{
-    CameraGpuData data; // kepe data here, so we can read it (i.e. in world-to-screen converter function)
-    bool computed_this_frame = false;  // cace results to not recompute the same data each frame
-    engine::UniformBuffer camera_ubo = engine::UniformBuffer(sizeof(CameraGpuData));
-};
-
-
-void update_parent_component(entt::registry& registry, entt::entity entity)
+static inline void update_parent_component(entt::registry& registry, entt::entity entity)
 {
     auto& parent = registry.get<engine_parent_component_t>(entity);
     if (parent.parent == ENGINE_INVALID_GAME_OBJECT_ID)
@@ -82,7 +72,7 @@ void update_parent_component(entt::registry& registry, entt::entity entity)
     engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has no more space for children. Are you sure you are doing valid thing?\n"));
 }
 
-inline void destroy_parent_component(entt::registry& registry, entt::entity entity)
+static inline void destroy_parent_component(entt::registry& registry, entt::entity entity)
 {
     const auto parent_entt = static_cast<entt::entity>(registry.get<engine_parent_component_t>(entity).parent);
     auto& cc = registry.get<engine_children_component_t>(parent_entt);
@@ -97,7 +87,7 @@ inline void destroy_parent_component(entt::registry& registry, entt::entity enti
     engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component was destroyed, but couldn't reset it's childer.\n"));
 }
 
-inline void calculate_camera_view_and_projection(std::size_t window_width, std::size_t window_height, const glm::vec3& eye_position, const engine_camera_component_t& camera, engine_camera_internal_component_t& camera_internal)
+static inline void calculate_camera_view_and_projection(std::size_t window_width, std::size_t window_height, const glm::vec3& eye_position, const engine_camera_component_t& camera, engine::camera_internal_component_t& camera_internal)
 {
     // update camera: view and projection
     ENGINE_PROFILE_SECTION_N("camera_update");
@@ -130,26 +120,20 @@ inline void calculate_camera_view_and_projection(std::size_t window_width, std::
 engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : rdx_(rdx)
     , physics_world_(&rdx_)
-    , fbo_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, true)
-    , empty_vao_for_full_screen_quad_draw_(6)
+    //, fbo_draw_scene_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, true)
+    //, fbo_draw_outline_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, false)
+    //, empty_vao_for_full_screen_quad_draw_(6)
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
     , collider_update_observer(entity_registry_, entt::collector.update<engine_collider_component_t>().where<engine_tranform_component_t>())
-    , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<PhysicsWorld::physcic_internal_component_t>())
+    , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<physcic_internal_component_t>())
     , transform_model_matrix_update_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>())
     , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
     , rigid_body_create_observer(entity_registry_, entt::collector.group<engine_rigid_body_component_t, engine_tranform_component_t, engine_collider_component_t>())
     , rigid_body_update_observer(entity_registry_, entt::collector.update<engine_rigid_body_component_t>().where<engine_tranform_component_t, engine_collider_component_t>())
     , scene_ubo_(sizeof(SceneGpuData))
     , light_data_ssbo_(1'000 * sizeof(LightGpuData))
+    //, full_screen_shader_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
 {
-    // shaders
-    shaders_[static_cast<std::uint32_t>(ShaderType::eUnlit)] = Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "unlit.fs" });
-    shaders_[static_cast<std::uint32_t>(ShaderType::eLit)] = Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "lit_helpers.h", "lit.fs" });
-    shaders_[static_cast<std::uint32_t>(ShaderType::eVertexSkinningUnlit)] = Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "unlit.fs" });
-    shaders_[static_cast<std::uint32_t>(ShaderType::eVertexSkinningLit)] = Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "lit_helpers.h", "lit.fs" });
-    shaders_[static_cast<std::uint32_t>(ShaderType::eFullScreenQuad)] = Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" });
-    shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)] = Shader({  "sprite.vs" }, { "sprite.fs" });
-
     // basic initalizers
     entity_registry_.on_construct<engine_tranform_component_t>().connect<&initialize_transform_component>();
     entity_registry_.on_construct<engine_mesh_component_t>().connect<&initialize_mesh_component>();
@@ -157,7 +141,7 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     entity_registry_.on_construct<engine_parent_component_t>().connect<&initialize_parent_component>();
     entity_registry_.on_construct<engine_name_component_t>().connect<&initialize_name_component>();
     entity_registry_.on_construct<engine_camera_component_t>().connect<&initialize_camera_component>();
-    entity_registry_.on_construct<engine_camera_component_t>().connect<&entt::registry::emplace<engine_camera_internal_component_t>>();
+    entity_registry_.on_construct<engine_camera_component_t>().connect<&entt::registry::emplace<camera_internal_component_t>>();
     entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
     entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
@@ -167,9 +151,9 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     entity_registry_.on_update<engine_parent_component_t>().connect<&update_parent_component>();
     entity_registry_.on_destroy<engine_parent_component_t>().connect<&destroy_parent_component>();
 
-    entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
-    entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<PhysicsWorld::physcic_internal_component_t>>();
-    entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
+    entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<physcic_internal_component_t>>();
+    entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<physcic_internal_component_t>>();
+    entity_registry_.on_destroy<physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
     out_code = ENGINE_RESULT_CODE_OK;
 
     
@@ -192,7 +176,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     {
         const auto collider_component = get_component<engine_collider_component_t>(entt);
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        auto physcics_component = *get_component<PhysicsWorld::physcic_internal_component_t>(entt);
+        auto physcics_component = *get_component<physcic_internal_component_t>(entt);
         if (physcics_component.rigid_body)
         {
             physics_world_.remove_rigid_body(entity_registry_, entt);
@@ -215,7 +199,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         const auto collider_component = get_component<engine_collider_component_t>(entt);
         const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        auto physcics_component = *get_component< PhysicsWorld::physcic_internal_component_t>(entt);
+        auto physcics_component = *get_component<physcic_internal_component_t>(entt);
         if (physcics_component.rigid_body)
         {
             physics_world_.remove_rigid_body(entity_registry_, entt);
@@ -233,7 +217,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 
         const auto collider_component = get_component<engine_collider_component_t>(entt);
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        auto physcics_component = *get_component< PhysicsWorld::physcic_internal_component_t>(entt);
+        auto physcics_component = *get_component<physcic_internal_component_t>(entt);
 
         engine_rigid_body_component_t rigidbody_component{};
         if (has_component<engine_rigid_body_component_t>(entt))
@@ -256,7 +240,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     //transform_physcis_preupdate.each([this](auto entity, const engine_tranform_component_t& transform_component, PhysicsWorld::physcic_internal_component_t& physcics_component)
         {
             const auto transform_component = *get_component<engine_tranform_component_t>(entity);
-            auto& physcics_component = *get_component<PhysicsWorld::physcic_internal_component_t>(entity);
+            auto& physcics_component = *get_component<physcic_internal_component_t>(entity);
             btTransform world_transform;
             //physcics_component->rigid_body->getMotionState()->getWorldTransform(world_transform);
             world_transform = physcics_component.rigid_body->getWorldTransform();
@@ -304,8 +288,8 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 
     // sync physcis to graphics world
     // ToDo: this could be seperate function or called at the beggning of the graphics update function?
-    auto transform_physcis_view_post_update = entity_registry_.view<engine_tranform_component_t, const PhysicsWorld::physcic_internal_component_t, engine_rigid_body_component_t>();
-    transform_physcis_view_post_update.each([this](auto entity, engine_tranform_component_t& transform, const PhysicsWorld::physcic_internal_component_t& physcics, engine_rigid_body_component_t& rigidbody)
+    auto transform_physcis_view_post_update = entity_registry_.view<engine_tranform_component_t, const physcic_internal_component_t, engine_rigid_body_component_t>();
+    transform_physcis_view_post_update.each([this](auto entity, engine_tranform_component_t& transform, const physcic_internal_component_t& physcics, engine_rigid_body_component_t& rigidbody)
         {
             //assert(physcics.rigid_body);
             if (!physcics.rigid_body)
@@ -316,12 +300,12 @@ engine_result_code_t engine::Scene::physics_update(float dt)
             transform_phsycics = physcics.rigid_body->getWorldTransform();
             //physcics.rigid_body->getMotionState()->getWorldTransform(transform_phsycics);   
 
-            const auto origin = transform_phsycics.getOrigin();
+            const auto& origin = transform_phsycics.getOrigin();
             transform.position[0] = origin.getX();
             transform.position[1] = origin.getY();
             transform.position[2] = origin.getZ();
 
-            const auto euler_rotation = transform_phsycics.getRotation();
+            const auto& euler_rotation = transform_phsycics.getRotation();
             transform.rotation[0] = euler_rotation.getX();
             transform.rotation[1] = euler_rotation.getY();
             transform.rotation[2] = euler_rotation.getZ();
@@ -354,39 +338,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 {
     ENGINE_PROFILE_SECTION_N("scene_update");
     physics_update(dt);
-    class FBOFrameContext
-    {
-    public:
-        FBOFrameContext(Framebuffer& fbo, const RenderContext& rdx, Shader& full_screen_quad, Geometry& empty_vao)
-            : fbo_(fbo)
-            , full_screen_quad_shader_(full_screen_quad)
-            , empty_vao(empty_vao)
-        {
-            fbo_.bind();
-            const auto& [fbo_w, fbo_h] = fbo_.get_size();
-            const auto& [win_w, win_h] = rdx.get_window_size_in_pixels();
-            if (fbo_w != win_w || fbo_h != win_h)
-            {
-                fbo_.resize(win_w, win_h);
-            }
-            fbo_.clear();
-        }
 
-        ~FBOFrameContext()
-        {
-            fbo_.unbind();
-            full_screen_quad_shader_.bind();
-            full_screen_quad_shader_.set_texture("screen_texture", fbo_.get_color_attachment(0));
-            empty_vao.bind();
-            empty_vao.draw(Geometry::Mode::eTriangles);
-        }
-
-    private:
-        Framebuffer& fbo_;
-        Shader& full_screen_quad_shader_;
-        Geometry& empty_vao;
-    };
-    FBOFrameContext fbo_frame(fbo_, rdx_, shaders_[static_cast<std::uint32_t>(ShaderType::eFullScreenQuad)], empty_vao_for_full_screen_quad_draw_);
     {
         ENGINE_PROFILE_SECTION_N("transform_view");
 #if 1
@@ -562,7 +514,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
         auto sprite_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_material_component_t, const engine_sprite_component_t>();
-        auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, engine_camera_internal_component_t>();
+        auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, camera_internal_component_t>();
 
         for (auto [entity, camera, camera_transform, camera_internal] : camera_view.each()) 
         {
@@ -571,7 +523,15 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 continue;
             }
 
+            // bind default framebuffer
             const auto window_size_pixels = rdx_.get_window_size_in_pixels();
+            viewport_t vp{};
+            vp.x = 0;
+            vp.y = 0;
+            vp.width = window_size_pixels.width;
+            vp.height = window_size_pixels.height;
+            rdx_.set_viewport(vp);
+
             calculate_camera_view_and_projection(window_size_pixels.width, window_size_pixels.height,
                 glm::make_vec3(camera_transform.position), camera, camera_internal);
             // copy camera view and projection to the GPU
@@ -586,7 +546,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 ENGINE_PROFILE_SECTION_N("geometry_renderer");
 
-                geometry_renderer.each([this, &camera_internal, &textures, &geometries](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
+                geometry_renderer.each([this, &camera_internal, &textures, &geometries](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
                     {
                         if (mesh_component.disable)
                         {
@@ -594,21 +554,21 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         }
                         if (mesh_component.geometry == ENGINE_INVALID_OBJECT_HANDLE)
                         {
-                            log::log(log::LogLevel::eError, fmt::format("Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n"));
+                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n", (std::uint32_t)entity));
                             return;
                         }
 
                         auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
                         if (texture_diffuse_idx > textures.size())
                         {
-                            log::log(log::LogLevel::eError, fmt::format("Diffuse texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
+                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Diffuse texture index out of bounds: {}. Are you sure you are doing valid thing?\n", (std::uint32_t)entity, texture_diffuse_idx));
                             //assert(false);
                         }
 
                         auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
                         if (texture_specular_idx > textures.size())
                         {
-                            log::log(log::LogLevel::eError, fmt::format("Specular exture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_specular_idx));
+                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Specular exture index out of bounds: {}. Are you sure you are doing valid thing?\n", (std::uint32_t)entity, texture_specular_idx));
                             //assert(false);
                         }
 
@@ -703,7 +663,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         glm::vec4 perspective;
                         const auto res = glm::decompose(model_mat, scale, rotation, translation, skew, perspective);
                         assert(res);
-#if 1
+
                         if (material_component.type == ENGINE_MATERIAL_TYPE_PONG)
                         {
                             const auto ctx = MaterialSprite::DrawContext{
@@ -717,31 +677,6 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         {
                             assert(false);
                         }
-
-#else
-
-                        //const auto is_user_shader = material.shader_type == ENGINE_SHADER_TYPE_CUSTOM;
-
-                        //auto& shader = is_user_shader ? shaders[material.material.custom.shader]
-                        //    :  shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)];
-                        //shader.bind();
-                        //shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
-
-                        //shader.set_uniform_f3("world_position", { glm::value_ptr(translation), 3 });
-                        //shader.set_uniform_f3("scale", { glm::value_ptr(scale), 3 });
-                        //if(is_user_shader)
-                        //{
-                        //    // uniform block should be used here
-                        //    shader.set_uniform_f4("color", std::array<float, 4>{ 1.0f, 0.0f, 0.0f, 0.0f });
-                        //}
-                        //else
-                        //{
-                        //    shader.set_uniform_f4("color", material.material.standard.diffuse_color);
-                        //}
-
-                        //empty_vao_for_full_screen_quad_draw_.bind();
-                        //empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
-#endif
                     }
                 );
             }
@@ -751,7 +686,11 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 physics_world_.debug_draw(camera_internal.data.view, camera_internal.data.projection);
             }
         }
-        }
+
+    }
+
+
+
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -808,7 +747,7 @@ glm::vec3 engine::Scene::convert_world_point_to_screen_point(const glm::vec3& wo
     const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(entt::entity(camera_go));
     if (camera_component && camera_transform)
     {
-        auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(entt::entity(camera_go));
+        auto& camera_internal_component = entity_registry_.get<camera_internal_component_t>(entt::entity(camera_go));
         const auto window_size = rdx_.get_window_size_in_pixels();
         calculate_camera_view_and_projection(window_size.width, window_size.height,
             glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
@@ -826,7 +765,7 @@ glm::vec3 engine::Scene::convert_screen_point_to_world_point(glm::vec3 screen_po
     const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(entt::entity(camera_go));
     if (camera_component && camera_transform)
     {
-        auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(entt::entity(camera_go));    
+        auto& camera_internal_component = entity_registry_.get<camera_internal_component_t>(entt::entity(camera_go));    
         const auto window_size = rdx_.get_window_size_in_pixels();
         calculate_camera_view_and_projection(window_size.width, window_size.height,
             glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
@@ -837,5 +776,35 @@ glm::vec3 engine::Scene::convert_screen_point_to_world_point(glm::vec3 screen_po
         ret = glm::unProject(screen_point, camera_internal_component.data.view, camera_internal_component.data.projection, glm::vec4(0, 0, window_size.width, window_size.height));
     }
     return ret;
+}
+
+glm::mat4 engine::Scene::get_camera_view(entt::entity camera_go)
+{
+    const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(camera_go);
+    const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(camera_go);
+    const auto window_size = rdx_.get_window_size_in_pixels();
+    if (camera_component && camera_transform)
+    {
+        auto& camera_internal_component = entity_registry_.get<camera_internal_component_t>(camera_go);
+        calculate_camera_view_and_projection(window_size.width, window_size.height,
+            glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
+        return camera_internal_component.data.view;
+    }
+    return glm::mat4();
+}
+
+glm::mat4 engine::Scene::get_camera_projection(entt::entity camera_go)
+{
+    const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(camera_go);
+    const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(camera_go);
+    const auto window_size = rdx_.get_window_size_in_pixels();
+    if (camera_component && camera_transform)
+    {
+        auto& camera_internal_component = entity_registry_.get<camera_internal_component_t>(camera_go);
+        calculate_camera_view_and_projection(window_size.width, window_size.height,
+            glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
+        return camera_internal_component.data.projection;
+    }
+    return glm::mat4();
 }
 

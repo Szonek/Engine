@@ -558,3 +558,32 @@ bool project_c::Solider::equip_sword(Sword* sword)
     }
     return false;
 }
+
+project_c::Solider2::Solider2(engine::IScene* my_scene, const PrefabResult& pr)
+    : BaseNode(my_scene, pr, "solider2")
+{
+    const auto scene = my_scene_->get_handle();
+
+    const auto app = my_scene_->get_app_handle();
+    auto tc = engineSceneGetTransformComponent(scene, go_);
+
+    tc.position[0] = 0.0f;
+    tc.position[1] = 3.3f;
+    tc.position[2] = 0.9f;
+
+    // rotate character along x BY -66 degrees
+    const auto rotation = glm::angleAxis(glm::radians(-66.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
+
+    tc.scale[0] = 0.1f;
+    tc.scale[1] = 0.1f;
+    tc.scale[2] = 0.1f;
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+}
+
+void project_c::Solider2::update(float dt)
+{
+    anim_controller_.set_active_animation("Idle");
+    anim_controller_.update(dt);
+}

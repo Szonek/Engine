@@ -1,6 +1,7 @@
 #include "application.h"
 #include "asset_store.h"
 #include "file_watcher.h"
+#include "material.h"
 #include <entt/entt.hpp>
 
 #include <map>
@@ -19,6 +20,8 @@ public:
     void disable();
     void update(float dt);
 
+    entt::entity get_entity() const { return go_; }
+
 private:
     void translate(const glm::vec3& delta);
     void rotate(const glm::vec2 delta);
@@ -30,6 +33,21 @@ private:
     entt::entity go_ = entt::null;
     std::array<float, 3> sc_;  // {radius, phi, theta}
     engine_coords_2d_t mouse_coords_prev_{};
+};
+
+struct OutlinePostProccessEffect
+{
+    MaterialStaticGeometryUnlit material_static_geometry_unlit;
+    MaterialSkinnedGeometryUnlit material_skinned_geometry_unlit;
+    ComputeShader compute_shader_edge_detection;
+    Framebuffer fbo_outline;
+
+    OutlinePostProccessEffect(std::size_t init_width, std::uint32_t init_height)
+        : compute_shader_edge_detection({ "sobel_edge_detection.cs" })
+        , fbo_outline(init_width, init_height, 1, false)
+    {
+    }
+
 };
 
 class ApplicationEditor : public Application
@@ -52,6 +70,11 @@ protected:
     bool is_keyboard_enabled() override;
     void on_scene_create(class Scene* scene) override;
     void on_scene_release(class Scene* scene) override;
+
+private:
+    void render_outline(class Scene* scene);
+    void render_guizmo(class Scene* scene);
+
 private:
     class CameraContext
     {
@@ -61,6 +84,7 @@ private:
         void on_scene_update_pre(Scene* scene, float dt);
         void on_scene_update_post(Scene* scene, float dt);
         bool is_enabled(engine::Scene* scene) const;
+
     private:
         struct camera_data_t
         {
@@ -72,6 +96,8 @@ private:
     };
     CameraContext camera_context_;
     bool editor_controlling_scene_ = false;
+    bool draw_guizmo_ = true;
+    OutlinePostProccessEffect outline_effect_;
 };
 
 } // namespace engine

@@ -39,6 +39,13 @@ enum class DataLayout
     eCount
 };
 
+enum class AccessType
+{
+    eReadOnly,
+    eWriteOnly,
+    eReadWrite
+};
+
 enum class TextureAddressClampMode
 {
     eClampToEdge = 0,
@@ -47,55 +54,89 @@ enum class TextureAddressClampMode
     eCount
 };
 
-class Shader
+class ShaderBase
 {
 public:
-	enum class Type
-	{
-		eVertex = 0,
-		eFragment = 1,
-		eCount
-	};
+    ShaderBase() = default;
+    virtual ~ShaderBase();
+
+    bool is_valid() const;
+
+    void bind();
+    void set_uniform_f4(std::string_view name, std::span<const float> host_data) const;
+    void set_uniform_f3(std::string_view name, std::span<const float> host_data) const;
+    void set_uniform_f2(std::string_view name, std::span<const float> host_data) const;
+    void set_uniform_f1(std::string_view name, const float host_data) const;
+    void set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data) const;
+    void set_uniform_mat_f4(std::string_view name, std::span<const float> host_data) const;
+    void set_uniform_block(std::string_view name, const class UniformBuffer* buffer, std::uint32_t bind_index) const;
+
+    void set_texture_with_sampler(std::string_view name, const class Texture2D* textur) const;
+    void set_texture(std::string_view name, const class Texture2D* textur, AccessType access, DataLayout view_layout);
+
+protected:
+    virtual bool compile_shaders(std::uint32_t program) = 0;
+    virtual void reset_shaders() = 0;
+
+    std::int32_t get_resource_location(std::string_view name, std::int32_t resource_interface) const;
+    std::int32_t get_uniform_location(std::string_view name) const;
+    void mark_for_recompilation();
+    bool compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::string> sources);
+
+private:
+    void compile();
+    void reset_shaders_and_program();
+    void reset_program();
+private:
+    std::uint32_t program_{ 0 };
+    bool try_recompile_ = true;
+};
+
+class Shader : public ShaderBase
+{
 public:
     Shader() = default;
 	Shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name);
 	Shader(const Shader& rhs) = delete;
-    Shader(Shader&& rhs) noexcept;
+    Shader(Shader&& rhs) noexcept = default;
 	Shader& operator=(const Shader& rhs) = delete;
-    Shader& operator=(Shader&& rhs)  noexcept;
+    Shader& operator=(Shader&& rhs) noexcept = default;
 
-	~Shader();
+    ~Shader();
 
-    bool is_valid() const;
+protected:
+    bool compile_shaders(std::uint32_t program);
+    void reset_shaders();
 
-	void bind();
-	void set_uniform_f4(std::string_view name, std::span<const float> host_data);
-	void set_uniform_f3(std::string_view name, std::span<const float> host_data);
-	void set_uniform_f2(std::string_view name, std::span<const float> host_data);
-	void set_uniform_f1(std::string_view name, const float host_data);
-	void set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data);
-	void set_uniform_mat_f4(std::string_view name, std::span<const float> host_data);
-	void set_uniform_block(std::string_view name, const class UniformBuffer* buffer, std::uint32_t bind_index);
-
-    void set_texture(std::string_view name, const class Texture2D* textur);
-
-private:
-    std::int32_t get_resource_location(std::string_view name, std::int32_t resource_interface);
-    std::int32_t get_uniform_location(std::string_view name);
-	bool compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::string> sources);
-    void compile();
-    void mark_for_recompilation();
-    void reset();
 private:
     std::uint32_t vertex_shader_{ 0 };
     std::uint32_t fragment_shader_{ 0 };
-    std::uint32_t program_{ 0 };
-    bool try_recompile_ = false;
 
     std::vector<std::filesystem::path> vertex_sources_;
     std::vector<std::filesystem::path> fragment_sources_;
 };
 
+class ComputeShader : public ShaderBase
+{
+public:
+    ComputeShader() = default;
+    ComputeShader(const std::vector<std::string>& vertex_shader_name);
+    ComputeShader(const ComputeShader& rhs) = delete;
+    ComputeShader(ComputeShader&& rhs) noexcept = default;
+    ComputeShader& operator=(const ComputeShader& rhs) = delete;
+    ComputeShader& operator=(ComputeShader&& rhs) noexcept = default;
+
+    ~ComputeShader();
+
+    void dispatch(std::uint32_t num_work_groups_x, std::uint32_t num_work_groups_y, std::uint32_t num_work_groups_z);
+
+protected:
+    bool compile_shaders(std::uint32_t program);
+    void reset_shaders();
+private:
+    std::uint32_t compute_shader_{ 0 };
+    std::vector<std::filesystem::path> compute_sources_;
+};
 
 
 class Texture2D
@@ -116,7 +157,11 @@ public:
 
     bool upload_region(std::uint32_t x_pos, std::uint32_t y_pos, std::uint32_t width, std::uint32_t height, const void* data, DataLayout layout);
     bool is_valid() const;
-	void bind(std::uint32_t slot) const;
+	void bind_with_sampler(std::uint32_t slot) const;
+	void bind(std::uint32_t slot, AccessType access, DataLayout view_layout) const;
+
+    std::uint32_t get_width() const;
+    std::uint32_t get_height() const;
 
 private:
 	std::uint32_t texture_ = 0;
@@ -334,6 +379,16 @@ public:
         eCount
     };
 
+    enum MemoryBarrierBitMask
+    {
+        MEMORY_BARRIER_IMAGE_ACCESS_BIT = 0x0001,
+        MEMORY_BARRIER_STORAGE_BIT = 0x0002,
+        MEMORY_BARRIER_UNIFORM_BIT = 0x0004,
+        MEMORY_BARRIER_ALL_BIT     = 0xFFFF,
+
+        // ToDo: add more
+    };
+
     struct window_size_t
     {
         std::int32_t width;
@@ -364,6 +419,8 @@ public:
     void set_depth_test(bool flag);
 
     void set_blend_mode(bool enable, BlendFactor src_rgb = BlendFactor::eOne, BlendFactor dst_rgb = BlendFactor::eZero, BlendFactor src_a = BlendFactor::eOne, BlendFactor dst_a = BlendFactor::eZero);
+
+    void dispatch_barrier(MemoryBarrierBitMask bitmask);
 
 	void begin_frame();
 	void end_frame();

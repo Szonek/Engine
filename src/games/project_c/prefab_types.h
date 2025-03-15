@@ -5,6 +5,7 @@ namespace project_c
 enum PrefabType
 {
     PREFAB_TYPE_SOLIDER,
+    PREFAB_TYPE_BARBARIAN,
     PREFAB_TYPE_SWORD,
     PREFAB_TYPE_DAGGER,
     PREFAB_TYPE_ORC,

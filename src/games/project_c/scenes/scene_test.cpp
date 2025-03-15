@@ -73,6 +73,7 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
     struct SceneSpawnPoints
     {
         std::vector<engine_coords_2d_t> solider;
+        std::vector<engine_coords_2d_t> solider2;
         std::vector<engine_coords_2d_t> enemy_packs;
         std::vector<engine_coords_2d_t> point_lights;
         std::vector<engine_coords_2d_t> weapons;
@@ -96,14 +97,20 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             const auto z_offset = (float)std::int32_t(z - scene_height / 2);
             if (c == 'x')
             {
-                scene.register_script<project_c::Wall>(app.instantiate_prefab(project_c::PREFAB_TYPE_WALL, &scene).go, x_offset, z_offset);
+                if (app.is_prefab_available(project_c::PREFAB_TYPE_WALL))
+                {
+                    scene.register_script<project_c::Wall>(app.instantiate_prefab(project_c::PREFAB_TYPE_WALL, &scene).go, x_offset, z_offset);
+                }
             }
             else
             {
-                auto flor_moodel = dist6(rng) ? project_c::PREFAB_TYPE_FLOOR_DETAIL : project_c::PREFAB_TYPE_FLOOR;
-                scene.register_script<project_c::Floor>(app.instantiate_prefab(flor_moodel, &scene).go, x_offset, z_offset);
-                const auto id = nav_mesh.add_node({ x_offset, 0.0f, z_offset }, { 0.5f, 0.0f, 0.5f });
-                nodes_id[x][z] = id;
+                if (app.is_prefab_available(project_c::PREFAB_TYPE_FLOOR) || app.is_prefab_available(project_c::PREFAB_TYPE_FLOOR_DETAIL))
+                {
+                    auto flor_moodel = dist6(rng) ? project_c::PREFAB_TYPE_FLOOR_DETAIL : project_c::PREFAB_TYPE_FLOOR;
+                    scene.register_script<project_c::Floor>(app.instantiate_prefab(flor_moodel, &scene).go, x_offset, z_offset);
+                    const auto id = nav_mesh.add_node({ x_offset, 0.0f, z_offset }, { 0.5f, 0.0f, 0.5f });
+                    nodes_id[x][z] = id;
+                }
             }
 
             if(c =='s')
@@ -121,6 +128,10 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             else if (c == 'w')
             {
                 scene_spawn_points.weapons.push_back({ x_offset, z_offset });
+            }
+            else if (c == 'l')
+            {
+                scene_spawn_points.solider2.push_back({ x_offset, z_offset });
             }
         }
     }
@@ -212,21 +223,35 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
     }
 
     // at this point nav mesh has to be completed!
-
-    for (const auto& point : scene_spawn_points.solider)
+    if (app.is_prefab_available(project_c::PREFAB_TYPE_SOLIDER))
     {
-        auto s = scene.register_script<project_c::Solider>(app.instantiate_prefab(project_c::PREFAB_TYPE_SOLIDER, &scene));
-        s->set_world_position(point.x, 0.0f, point.y);
+        for (const auto& point : scene_spawn_points.solider)
+        {
+             auto s = scene.register_script<project_c::Solider>(app.instantiate_prefab(project_c::PREFAB_TYPE_SOLIDER, &scene));
+            s->set_world_position(point.x, 0.0f, point.y);
+        }
     }
 
-    for (const auto& point : scene_spawn_points.enemy_packs)
+    if (app.is_prefab_available(project_c::PREFAB_TYPE_BARBARIAN))
     {
-        EnemyPack pack{ {project_c::PrefabType::PREFAB_TYPE_ORC} };
-        MobPackSpawner spawner;
-        const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
-        //const auto spawn_area = MobPackSpawner::SpawnAreaRect{ 0.0f, 0.0f, 0.0f, 0.0f };
-        const auto spawn_world_pos = MobPackSpawner::Point{ point.x, point.y };
-        spawner.spawn(pack, 1, spawn_world_pos, spawn_area, nav_mesh, app, scene);
+        for (const auto& point : scene_spawn_points.solider2)
+        {
+            auto s = scene.register_script<project_c::Solider2>(app.instantiate_prefab(project_c::PREFAB_TYPE_BARBARIAN, &scene));
+            //s->set_world_position(point.x, 0.0f, point.y);
+        }
+    }
+
+    if (app.is_prefab_available(project_c::PREFAB_TYPE_ORC))
+    {
+        for (const auto& point : scene_spawn_points.enemy_packs)
+        {
+            EnemyPack pack{ {project_c::PrefabType::PREFAB_TYPE_ORC} };
+            MobPackSpawner spawner;
+            const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
+            //const auto spawn_area = MobPackSpawner::SpawnAreaRect{ 0.0f, 0.0f, 0.0f, 0.0f };
+            const auto spawn_world_pos = MobPackSpawner::Point{ point.x, point.y };
+            spawner.spawn(pack, 1, spawn_world_pos, spawn_area, nav_mesh, app, scene);
+        }
     }
 
     for (const auto& point : scene_spawn_points.point_lights)
@@ -235,10 +260,13 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         l->set_world_position(point.x, 1.0f, point.y);
     }
 
-    for (const auto& wpn : scene_spawn_points.weapons)
+    if (app.is_prefab_available(project_c::PREFAB_TYPE_SWORD))
     {
-        auto w = scene.register_script<project_c::Sword>(app.instantiate_prefab(project_c::PREFAB_TYPE_SWORD, &scene).go);
-        w->drop_on_ground(glm::vec3(wpn.x, 0.5f, wpn.y));
+        for (const auto& wpn : scene_spawn_points.weapons)
+        {
+            auto w = scene.register_script<project_c::Sword>(app.instantiate_prefab(project_c::PREFAB_TYPE_SWORD, &scene).go);
+            w->drop_on_ground(glm::vec3(wpn.x, 0.5f, wpn.y));
+        }
     }
 }
 }
@@ -372,7 +400,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         //"x    p    x\n"
         "x         x\n"
         "x  w  ee  x\n"
-        "xs    ee  x\n"
+        "xsl   ee  x\n"
         "x     ee  x\n"
         "x         x\n";
         //"xxxxxxxxxxx\n";

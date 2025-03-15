@@ -82,7 +82,7 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
 
             const auto attrib_num_components = tinygltf::GetNumComponentsInType(attrib_accesor.type);
             const auto attrib_stride = attrib_accesor.ByteStride(model.bufferViews[attrib_accesor.bufferView]);
-
+            assert(attrib_stride > 0 && "Stride should be greater than 0");
             //ToDo: this is not correct, bone indcies are 2 bytes (unsigned shorts)
 
             if (expected_attrib_names.find(attrib.first) != expected_attrib_names.end())
@@ -235,7 +235,7 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
 
         const auto& index_buffer_view = model.bufferViews[index_accessor.bufferView];
         const auto& index_buffer = model.buffers[index_buffer_view.buffer];
-        const auto index_buffer_data = index_buffer.data.data() + index_buffer_view.byteOffset;
+        const auto index_buffer_data = index_buffer.data.data() + index_buffer_view.byteOffset + index_accessor.byteOffset;
         //ToDo: Indicies are always typed casted to uint32_t, this is not optimal
         // we can support u16 and u8 as well
         if (index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
@@ -524,7 +524,6 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         });
 
     // 
-    assert(model.materials.size() <= 1 && "ToDo: Add support for multi material gltf parsing!");
     out.materials.reserve(model.materials.size());
     std::for_each(model.materials.begin(), model.materials.end(), [&out](const auto& material)
         {

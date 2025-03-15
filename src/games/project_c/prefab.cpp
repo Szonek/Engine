@@ -56,8 +56,10 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
     geometries_ = std::vector(model_info_.geometries_count, ENGINE_INVALID_OBJECT_HANDLE);
     for (std::uint32_t i = 0; i < model_info_.geometries_count; i++)
     {
+
         const auto& geo = model_info_.geometries_array[i];
-        engine_error_code = engineApplicationCreateGeometryFromDesc(app, &geo, model_file_name.data(), &geometries_[i]);
+        const auto name = std::string(model_file_name) + "_geometry_" + std::to_string(i);
+        engine_error_code = engineApplicationCreateGeometryFromDesc(app, &geo, name.c_str(), &geometries_[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating geometry for loaded model. Exiting!\n");
@@ -68,7 +70,7 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
     textures_ = std::vector<engine_texture2d_t>(model_info_.textures_count, ENGINE_INVALID_OBJECT_HANDLE);
     for (std::uint32_t i = 0; i < model_info_.textures_count; i++)
     {
-        const auto name = "unnamed_texture_" + std::to_string(i);
+        const auto name = std::string(model_file_name) + "_texture_" + std::to_string(i);
         engine_error_code = engineApplicationCreateTexture2DFromDesc(app, &model_info_.textures_array[i], name.c_str(), &textures_[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
@@ -119,7 +121,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             std::memcpy(&tc.rotation, node.rotation_quaternion, sizeof(tc.rotation));
             std::memcpy(&tc.scale, node.scale, sizeof(tc.scale));
             engineSceneUpdateTransformComponent(scene, go, &tc);
-            log(fmt::format("\tAdded transform component\n", go));
+            log(fmt::format("\t[{}] has added transform component\n", go));
         }
 
         if (node.geometry_index != -1)
@@ -127,7 +129,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             auto mc = engineSceneAddMeshComponent(scene, go);
             mc.geometry = geometries_.at(node.geometry_index);
             engineSceneUpdateMeshComponent(scene, go, &mc);
-            log(fmt::format("\tAdded mesh component\n", go));
+            log(fmt::format("\t[{}] has added mesh component with geometry index: \n", go, node.geometry_index));
         }
 
         if (node.material_index != -1)
@@ -135,7 +137,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             auto material = engineSceneAddMaterialComponent(scene, go);
             material = materials_.at(node.material_index);
             engineSceneUpdateMaterialComponent(scene, go, &material);
-            log(fmt::format("\tAdded material component\n", go));
+            log(fmt::format("\t[{}] added material component with material idx: \n", go, node.material_index));
         }
 
 

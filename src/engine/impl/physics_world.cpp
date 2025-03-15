@@ -79,7 +79,7 @@ void engine::PhysicsWorld::debug_draw(const glm::mat4& view, const glm::mat4& pr
     }
 }
 
-engine::PhysicsWorld::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform, std::int32_t body_index)
+engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform, std::int32_t body_index)
 {
     physcic_internal_component_t ret{};
     if (collider.type == ENGINE_COLLIDER_TYPE_BOX)
@@ -203,8 +203,8 @@ const std::vector<engine_collision_info_t>& engine::PhysicsWorld::get_collisions
         {
             const auto pt = manifold->getContactPoint(j);
 
-            const auto position_a = pt.getPositionWorldOnA();
-            const auto position_b = pt.getPositionWorldOnB();
+            const auto& position_a = pt.getPositionWorldOnA();
+            const auto& position_b = pt.getPositionWorldOnB();
 
             engine_collision_contact_point_t new_contact_point{};
             new_contact_point.lifetime = pt.getLifeTime();

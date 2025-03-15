@@ -118,6 +118,7 @@ Here is a list of the main dependencies used in Engine and their purposes:
 - **glm**: A header-only C++ mathematics library for graphics software.
 - **googletest**: A testing framework for writing C++ tests.
 - **imgui**: A bloat-free graphical user interface library for C++.
+- **imguizmo**: A small library that allow you to manipulate 4x4 float matrices.
 - **rapidjson**: A fast JSON parser and generator for C++.
 - **stb**: A set of single-file public domain (or MIT licensed) libraries for C/C++.
 - **tinygltf**: A header-only C++ library for parsing glTF files.

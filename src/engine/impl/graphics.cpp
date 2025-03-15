@@ -71,6 +71,27 @@ inline std::uint32_t to_ogl_format(engine::DataLayout layout)
     return GL_FALSE;
 }
 
+inline std::uint32_t to_image_unit_format(engine::DataLayout layout)
+{
+    switch (layout)
+    {
+    case engine::DataLayout::eRGBA_U8:
+        return GL_RGBA8UI;
+    case engine::DataLayout::eRGBA_FP32:
+        return GL_RGBA32F;
+    case engine::DataLayout::eRGB_U8:
+        return GL_RGB8UI;
+    case engine::DataLayout::eR_U8:
+        return GL_R8UI;
+    case engine::DataLayout::eR_FP32:
+        return GL_R32F;
+    default:
+        assert(false && "Unknown OGL data type for image unit!");
+        break;
+    }
+    return GL_FALSE;
+}
+
 inline std::uint32_t to_ogl_host_format(engine::DataLayout layout)
 {
     if (layout == engine::DataLayout::eDEPTH24_STENCIL8_U32)
@@ -118,9 +139,9 @@ inline std::uint32_t to_ogl_texture_border_clamp_mode(engine::TextureAddressClam
 
 
 engine::Shader::Shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name)
-    : vertex_shader_(0)
+    : ShaderBase()
+    , vertex_shader_(0)
     , fragment_shader_(0)
-    , program_(0)
 {
     log::log(log::LogLevel::eTrace, fmt::format("[Trace][Program] Creating shader with sources: \t\n"));
     for (const auto& vsn : vertex_shader_name)
@@ -139,40 +160,16 @@ engine::Shader::Shader(const std::vector<std::string>& vertex_shader_name, const
         FileWatcher::get_instance().register_callback(fragment_sources_.back(), [this]() { mark_for_recompilation(); });
     }
 
-    compile();
-}
-
-engine::Shader::Shader(Shader&& rhs) noexcept
-{
-    std::swap(vertex_shader_, rhs.vertex_shader_);
-    std::swap(fragment_shader_, rhs.fragment_shader_);
-    std::swap(program_, rhs.program_);
-    std::swap(vertex_sources_, rhs.vertex_sources_);
-    std::swap(fragment_sources_, rhs.fragment_sources_);
-}
-
-engine::Shader& engine::Shader::operator=(Shader&& rhs) noexcept
-{
-    if (this != &rhs)
-    {
-        std::swap(vertex_shader_, rhs.vertex_shader_);
-        std::swap(fragment_shader_, rhs.fragment_shader_);
-        std::swap(program_, rhs.program_);
-        std::swap(vertex_sources_, rhs.vertex_sources_);
-        std::swap(fragment_sources_, rhs.fragment_sources_);
-    }
-    return *this;
+    //compile();
 }
 
 engine::Shader::~Shader()
 {
-    reset();
+    reset_shaders();
 }
 
-void engine::Shader::compile()
+bool engine::Shader::compile_shaders(std::uint32_t program)
 {
-    try_recompile_ = false;
-    auto program = glCreateProgram();
     auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     auto fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
 
@@ -192,7 +189,7 @@ void engine::Shader::compile()
     }
 
     // first compilation
-    if (program_ == 0 && !shader_compiled_succesffuly)
+    if (program == 0 && !shader_compiled_succesffuly)
     {
         assert(!"Failed compilation!");
     }
@@ -223,24 +220,16 @@ void engine::Shader::compile()
             glDeleteProgram(program);
         }
 
-        return;
+        return false;
     }
 
-    if (is_valid())
-    {
-        reset();
-    }
-    program_ = program;
+    reset_shaders();
     vertex_shader_ = vertex_shader;
     fragment_shader_ = fragment_shader;
+    return true;
 }
 
-void engine::Shader::mark_for_recompilation()
-{
-    try_recompile_ = true;
-}
-
-void engine::Shader::reset()
+void engine::Shader::reset_shaders()
 {
     if (vertex_shader_)
     {
@@ -252,19 +241,49 @@ void engine::Shader::reset()
         glDeleteShader(fragment_shader_);
         fragment_shader_ = 0;
     }
+}
+
+engine::ShaderBase::~ShaderBase()
+{
+    reset_shaders_and_program();
+}
+
+void engine::ShaderBase::compile()
+{
+    try_recompile_ = false;
+    auto program = glCreateProgram();
+    if (compile_shaders(program))
+    {
+        reset_program();
+        program_ = program;
+    }
+}
+
+void engine::ShaderBase::mark_for_recompilation()
+{
+    try_recompile_ = true;
+}
+
+void engine::ShaderBase::reset_shaders_and_program()
+{
+    reset_program();
+}
+
+void engine::ShaderBase::reset_program()
+{
     if (program_)
     {
         glDeleteProgram(program_);
         program_ = 0;
-    }    
+    }
 }
 
-bool engine::Shader::is_valid() const
+bool engine::ShaderBase::is_valid() const
 {
     return program_ != 0;
 }
 
-void engine::Shader::bind()
+void engine::ShaderBase::bind()
 {
     if (try_recompile_)
     {
@@ -274,14 +293,14 @@ void engine::Shader::bind()
 	glUseProgram(program_);
 }
 
-void engine::Shader::set_uniform_f4(std::string_view name, std::span<const float> host_data)
+void engine::ShaderBase::set_uniform_f4(std::string_view name, std::span<const float> host_data) const
 {
 	assert(host_data.size() == 4 && "[ERROR] Wrong size of data");
     const auto loc = get_uniform_location(name);
 	glUniform4f(loc, host_data[0], host_data[1], host_data[2], host_data[3]);
 }
 
-void engine::Shader::set_uniform_f3(std::string_view name, std::span<const float> host_data)
+void engine::ShaderBase::set_uniform_f3(std::string_view name, std::span<const float> host_data) const
 {
     assert(host_data.size() == 3 && "[ERROR] Wrong size of data");
     const auto loc = get_uniform_location(name);
@@ -289,27 +308,27 @@ void engine::Shader::set_uniform_f3(std::string_view name, std::span<const float
 }
 
 
-void engine::Shader::set_uniform_f2(std::string_view name, std::span<const float> host_data)
+void engine::ShaderBase::set_uniform_f2(std::string_view name, std::span<const float> host_data) const
 {
     assert(host_data.size() == 2 && "[ERROR] Wrong size of data.");
     const auto loc = get_uniform_location(name);
     glUniform2f(loc, host_data[0], host_data[1]);
 }
 
-void engine::Shader::set_uniform_f1(std::string_view name, const float host_data)
+void engine::ShaderBase::set_uniform_f1(std::string_view name, const float host_data) const
 {
     const auto loc = get_uniform_location(name);
     glUniform1f(loc, host_data);
 }
 
-void engine::Shader::set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data)
+void engine::ShaderBase::set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data) const
 {
     assert(host_data.size() == 2 && "[ERROR] Wrong size of data.");
     const auto loc = get_uniform_location(name);
     glUniform2ui(loc, host_data[0], host_data[1]);
 }
 
-void engine::Shader::set_uniform_block(std::string_view name, const UniformBuffer* buffer, std::uint32_t bind_index)
+void engine::ShaderBase::set_uniform_block(std::string_view name, const UniformBuffer* buffer, std::uint32_t bind_index) const
 {
     const auto block_index = glGetUniformBlockIndex(program_, name.data());
     if (block_index != -1)
@@ -320,24 +339,33 @@ void engine::Shader::set_uniform_block(std::string_view name, const UniformBuffe
     }
 }
 
-void engine::Shader::set_uniform_mat_f4(std::string_view name, std::span<const float> host_data)
+void engine::ShaderBase::set_uniform_mat_f4(std::string_view name, std::span<const float> host_data) const
 {
 	assert(host_data.size() == 16 && "[ERROR] Wrong size of data");
     const auto loc = get_uniform_location(name);
 	glUniformMatrix4fv(loc, 1, GL_FALSE, host_data.data());
 }
 
-void engine::Shader::set_texture(std::string_view name, const Texture2D* texture)
+void engine::ShaderBase::set_texture_with_sampler(std::string_view name, const Texture2D* texture) const
 {
     assert(texture &&  "[ERROR] Nullptr texture ptr");
     const auto loc = get_uniform_location(name);
     std::int32_t bind_slot = 0;
     glGetUniformiv(program_, loc, &bind_slot);;
-    texture->bind(static_cast<std::uint32_t>(bind_slot));
+    texture->bind_with_sampler(static_cast<std::uint32_t>(bind_slot));
+}
+
+void engine::ShaderBase::set_texture(std::string_view name, const Texture2D* texture, AccessType access, DataLayout view_layout)
+{
+    assert(texture && "[ERROR] Nullptr texture ptr");
+    const auto loc = get_uniform_location(name);
+    std::int32_t bind_slot = 0;
+    glGetUniformiv(program_, loc, &bind_slot);;
+    texture->bind(static_cast<std::uint32_t>(bind_slot), access, view_layout);
 }
 
 
-std::int32_t engine::Shader::get_resource_location(std::string_view name, std::int32_t resource_interface)
+std::int32_t engine::ShaderBase::get_resource_location(std::string_view name, std::int32_t resource_interface) const
 {
     // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glGetProgramResourceIndex.xhtml
     const auto location = glGetProgramResourceIndex(program_, resource_interface, name.data());
@@ -345,14 +373,14 @@ std::int32_t engine::Shader::get_resource_location(std::string_view name, std::i
 	return location;
 }
 
-std::int32_t engine::Shader::get_uniform_location(std::string_view name)
+std::int32_t engine::ShaderBase::get_uniform_location(std::string_view name) const
 {
     const auto location = glGetUniformLocation(program_, name.data());
     assert(location != -1 && "[ERROR] Cant find uniform location in the shader.");
     return location;
 }
 
-bool engine::Shader::compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::string> sources)
+bool engine::ShaderBase::compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::string> sources)
 {
 	// set source
     std::vector<const char*> sources_ptrs;
@@ -510,11 +538,46 @@ bool engine::Texture2D::is_valid() const
     return texture_ != 0;
 }
 
-void engine::Texture2D::bind(std::uint32_t slot) const
+void engine::Texture2D::bind_with_sampler(std::uint32_t slot) const
 {
 	assert(texture_ != 0);
 	glActiveTexture(GL_TEXTURE0 + slot);
 	glBindTexture(GL_TEXTURE_2D, texture_);
+}
+
+void engine::Texture2D::bind(std::uint32_t slot, AccessType access, DataLayout view_layout) const
+{
+    assert(texture_ != 0);
+    GLenum gl_access = 0;
+    switch (access)
+    {
+    case AccessType::eReadOnly:
+        gl_access = GL_READ_ONLY;
+        break;
+    case AccessType::eWriteOnly:
+        gl_access = GL_WRITE_ONLY;
+        break;
+    case AccessType::eReadWrite:
+        gl_access = GL_READ_WRITE;
+        break;
+    default:
+        assert(false && "Unknown access type!");
+    }
+    glBindImageTexture(slot, texture_, 0, false, 0, gl_access, to_image_unit_format(view_layout));
+}
+
+std::uint32_t engine::Texture2D::get_width() const
+{
+    std::int32_t ret = 0;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &ret);
+    return std::uint32_t(ret);
+}
+
+std::uint32_t engine::Texture2D::get_height() const
+{
+    std::int32_t ret = 0;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &ret);
+    return std::uint32_t(ret);
 }
 
 engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const std::byte> vertex_data, std::int32_t vertex_count, std::span<const std::uint32_t> index_data)
@@ -769,8 +832,10 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
         return;
     }
 
+    // we need 4.3 for compute shaders
+    // we need 4.4 for glClearTexImage
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 4);
 #if __ANDROID__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, 0);
@@ -1050,6 +1115,32 @@ void engine::RenderContext::set_blend_mode(bool enable, BlendFactor src_rgb, Ble
 
     glEnable(GL_BLEND);
     glBlendFuncSeparate(to_gl_blend(src_rgb), to_gl_blend(dst_rgb), to_gl_blend(src_a), to_gl_blend(dst_a));
+}
+
+void engine::RenderContext::dispatch_barrier(MemoryBarrierBitMask bit_mask)
+{
+    std::uint32_t gl_mask = 0;
+    if (bit_mask & MemoryBarrierBitMask::MEMORY_BARRIER_ALL_BIT)
+    {
+        gl_mask = GL_ALL_BARRIER_BITS;
+    }
+    else
+    {
+        if (bit_mask & MEMORY_BARRIER_IMAGE_ACCESS_BIT)
+        {
+            gl_mask |= GL_SHADER_IMAGE_ACCESS_BARRIER_BIT;
+        }
+        if (bit_mask & MEMORY_BARRIER_STORAGE_BIT)
+        {
+            gl_mask |= GL_SHADER_STORAGE_BARRIER_BIT;
+        }
+        if (bit_mask & MEMORY_BARRIER_UNIFORM_BIT)
+        {
+            gl_mask |= GL_UNIFORM_BARRIER_BIT;
+        }
+    }
+
+    glMemoryBarrier(gl_mask);
 }
 
 void engine::RenderContext::begin_frame()
@@ -1388,3 +1479,84 @@ void engine::ShaderStorageBuffer::unbind() const
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
+engine::ComputeShader::ComputeShader(const std::vector<std::string>& compute_shader_name)
+    : ShaderBase()
+    , compute_shader_(0)
+{
+    log::log(log::LogLevel::eTrace, fmt::format("[Trace][Program] Creating shader with sources: \t\n"));
+    for (const auto& csn : compute_shader_name)
+    {
+        log::log(log::LogLevel::eTrace, fmt::format("\t[Trace][Program] Compute shader: {}\n", csn));
+        compute_sources_.push_back(AssetStore::get_instance().get_shaders_base_path() / csn);
+        // OpenGL compilation has to happen in the same thread as context, so file watcher just reset state and compilation is deffered until bind happens
+        FileWatcher::get_instance().register_callback(compute_sources_.back(), [this]() { mark_for_recompilation(); });
+    }
+}
+
+engine::ComputeShader::~ComputeShader()
+{
+    reset_shaders();
+}
+
+void engine::ComputeShader::dispatch(std::uint32_t num_work_groups_x, std::uint32_t num_work_groups_y, std::uint32_t num_work_groups_z)
+{
+    glDispatchCompute(num_work_groups_x, num_work_groups_y, num_work_groups_z);
+}
+
+bool engine::ComputeShader::compile_shaders(std::uint32_t program)
+{
+    auto compute_shader = glCreateShader(GL_COMPUTE_SHADER);
+
+    // compile shaders and link to program
+    bool shader_compiled_succesffuly = true;
+    {
+        std::vector<std::string> sources;
+        sources.reserve(compute_sources_.size());
+        std::for_each(compute_sources_.begin(), compute_sources_.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_text_file_content(s)); });
+        shader_compiled_succesffuly &= compile_and_attach_to_program(program, compute_shader, sources);
+    }
+
+    // first compilation
+    if (program == 0 && !shader_compiled_succesffuly)
+    {
+        assert(!"Failed compilation!");
+    }
+
+    int32_t success = 0;
+    if (shader_compiled_succesffuly)
+    {
+        // link attached shaders
+        glLinkProgram(program);
+        glGetProgramiv(program, GL_LINK_STATUS, &success);
+    }
+    if (!success)
+    {
+        std::array<char, 512> info_log;
+        glGetProgramInfoLog(program, 512, nullptr, info_log.data());
+        log::log(log::LogLevel::eCritical, fmt::format("[Error][Program] Failed program linking: \n\t {}", info_log.data()));
+
+        if (compute_shader)
+        {
+            glDeleteShader(compute_shader);
+        }
+        if (program)
+        {
+            glDeleteProgram(program);
+        }
+
+        return false;
+    }
+
+    reset_shaders();
+    compute_shader_ = compute_shader;
+    return true;
+}
+
+void engine::ComputeShader::reset_shaders()
+{
+    if (compute_shader_)
+    {
+        glDeleteShader(compute_shader_);
+        compute_shader_ = 0;
+    }
+}
