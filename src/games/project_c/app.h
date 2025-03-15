@@ -12,7 +12,7 @@
 #include <fmt/chrono.h>
 
 #include <array>
-
+#include <unordered_map>
 
 namespace project_c
 {
@@ -20,10 +20,11 @@ namespace project_c
 class AppProjectC : public engine::IApplication
 {
 public:
-    AppProjectC();
+    AppProjectC(const std::unordered_map<PrefabType, std::pair<std::string, std::string>>& prefabs_data);
     ~AppProjectC();
 
     PrefabResult instantiate_prefab(PrefabType type, engine::IScene* scene);
+    bool is_prefab_available(PrefabType type) const;
     void run();
 
 private:

@@ -24,7 +24,7 @@ inline engine_application_create_desc_t app_cd()
 }
 }  // namespace anonymous
 
-project_c::AppProjectC::AppProjectC()
+project_c::AppProjectC::AppProjectC(const std::unordered_map<PrefabType, std::pair<std::string, std::string>>& prefabs_data)
     : engine::IApplication(app_cd())
 {
     const auto load_start = std::chrono::high_resolution_clock::now();
@@ -34,19 +34,6 @@ project_c::AppProjectC::AppProjectC()
         log(fmt::format("Couldnt load font!\n"));
         return;
     }
-
-    const std::unordered_map<PrefabType, std::pair<std::string, std::string>> prefabs_data =
-    {
-        { PREFAB_TYPE_DAGGER,       { "dagger_01.glb", ""}},
-        { PREFAB_TYPE_SWORD,        { "weapon-sword.glb", "Textures_mini_arena" }},
-        { PREFAB_TYPE_SOLIDER,      { "character-soldier.glb", "Textures_mini_arena" }},
-        { PREFAB_TYPE_ORC,          { "character-orc.glb", "Textures_mini_dungeon" }},
-        { PREFAB_TYPE_BARREL,       { "barrel.glb", "Textures_mini_dungeon" }},
-        { PREFAB_TYPE_FLOOR,        { "floor.glb", "Textures_mini_dungeon" }},
-        { PREFAB_TYPE_FLOOR_DETAIL, { "floor-detail.glb", "Textures_mini_dungeon" }},
-        { PREFAB_TYPE_WALL,         { "wall.glb", "Textures_mini_dungeon" }},
-        { PREFAB_TYPE_CUBE,         { "cube.glb", ""}},
-    };
 
     for (const auto& [type, file_and_basedir] : prefabs_data)
     {
@@ -85,6 +72,11 @@ project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType ty
         return { ENGINE_INVALID_GAME_OBJECT_ID };
     }
     return prefab.instantiate(scene);
+}
+
+bool project_c::AppProjectC::is_prefab_available(PrefabType type) const
+{
+    return prefabs_[type].is_valid();
 }
 
 void project_c::AppProjectC::run()

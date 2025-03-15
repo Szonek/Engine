@@ -586,7 +586,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 ENGINE_PROFILE_SECTION_N("geometry_renderer");
 
-                geometry_renderer.each([this, &camera_internal, &textures, &geometries](const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
+                geometry_renderer.each([this, &camera_internal, &textures, &geometries](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
                     {
                         if (mesh_component.disable)
                         {
@@ -594,21 +594,21 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         }
                         if (mesh_component.geometry == ENGINE_INVALID_OBJECT_HANDLE)
                         {
-                            log::log(log::LogLevel::eError, fmt::format("Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n"));
+                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n", (std::uint32_t)entity));
                             return;
                         }
 
                         auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
                         if (texture_diffuse_idx > textures.size())
                         {
-                            log::log(log::LogLevel::eError, fmt::format("Diffuse texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
+                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Diffuse texture index out of bounds: {}. Are you sure you are doing valid thing?\n", (std::uint32_t)entity, texture_diffuse_idx));
                             //assert(false);
                         }
 
                         auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
                         if (texture_specular_idx > textures.size())
                         {
-                            log::log(log::LogLevel::eError, fmt::format("Specular exture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_specular_idx));
+                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Specular exture index out of bounds: {}. Are you sure you are doing valid thing?\n", (std::uint32_t)entity, texture_specular_idx));
                             //assert(false);
                         }
 

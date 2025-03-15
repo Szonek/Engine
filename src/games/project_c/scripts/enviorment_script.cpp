@@ -113,9 +113,13 @@ project_c::MainLight::MainLight(engine::IScene* my_scene)
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // for visulastuion add mesh component
-    auto mc = engineSceneAddMeshComponent(scene, go_);
-    mc.geometry = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
-    engineSceneUpdateMeshComponent(scene, go_, &mc);
+    const auto cube_geo = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
+    if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
+    {
+        auto mc = engineSceneAddMeshComponent(scene, go_);
+        mc.geometry = cube_geo;
+        engineSceneUpdateMeshComponent(scene, go_, &mc);
+    }
 
     // and basic material
     auto mat = engineSceneAddMaterialComponent(scene, go_);
@@ -150,9 +154,13 @@ project_c::PointLight::PointLight(engine::IScene* my_scene)
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // for visulastuion add mesh component
-    auto mc = engineSceneAddMeshComponent(scene, go_);
-    mc.geometry = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
-    engineSceneUpdateMeshComponent(scene, go_, &mc);
+    const auto cube_geo = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
+    if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
+    {
+        auto mc = engineSceneAddMeshComponent(scene, go_);
+        mc.geometry = cube_geo;
+        engineSceneUpdateMeshComponent(scene, go_, &mc);
+    }
 
     // and basic material
     auto mat = engineSceneAddMaterialComponent(scene, go_);
@@ -189,9 +197,13 @@ project_c::SpotLight::SpotLight(engine::IScene* my_scene)
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // for visulastuion add mesh component
-    auto mc = engineSceneAddMeshComponent(scene, go_);
-    mc.geometry = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
-    engineSceneUpdateMeshComponent(scene, go_, &mc);
+    const auto cube_geo = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
+    if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
+    {
+        auto mc = engineSceneAddMeshComponent(scene, go_);
+        mc.geometry = cube_geo;
+        engineSceneUpdateMeshComponent(scene, go_, &mc);
+    }
 
     // and basic material
     auto mat = engineSceneAddMaterialComponent(scene, go_);
@@ -232,9 +244,13 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // for visulastuion add mesh component
-    auto mc = engineSceneAddMeshComponent(scene, go_);
-    mc.geometry = engineApplicationGetGeometryByName(app, "cube.glb");
-    engineSceneUpdateMeshComponent(scene, go_, &mc);
+    const auto cube_geo = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
+    if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
+    {
+        auto mc = engineSceneAddMeshComponent(scene, go_);
+        mc.geometry = cube_geo;
+        engineSceneUpdateMeshComponent(scene, go_, &mc);
+    }
 
     // and basic material
     auto mat = engineSceneAddMaterialComponent(scene, go_);

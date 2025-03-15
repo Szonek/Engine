@@ -558,3 +558,26 @@ bool project_c::Solider::equip_sword(Sword* sword)
     }
     return false;
 }
+
+project_c::Solider2::Solider2(engine::IScene* my_scene, const PrefabResult& pr)
+    : BaseNode(my_scene, pr, "solider2")
+{
+    const auto scene = my_scene_->get_handle();
+
+    const auto app = my_scene_->get_app_handle();
+    auto tc = engineSceneGetTransformComponent(scene, go_);
+
+    tc.position[0] = 0.2f;
+    tc.position[1] = 2.5f;
+    tc.position[2] = 0.9f;
+
+    tc.scale[0] = 0.1f;
+    tc.scale[1] = 0.1f;
+    tc.scale[2] = 0.1f;
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+}
+
+void project_c::Solider2::update(float dt)
+{
+}

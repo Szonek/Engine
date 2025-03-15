@@ -8,6 +8,14 @@
 namespace project_c
 {
 
+class Solider2 : public BaseNode
+{
+public:
+    Solider2(engine::IScene* my_scene, const PrefabResult& pr);
+    void update(float dt) override;
+
+};
+
 class AttackTrigger : public BaseNode
 {
 public:
