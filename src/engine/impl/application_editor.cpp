@@ -602,36 +602,39 @@ void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
 
 
         // ImGuizmo manipulation
-        const auto transform = scene->get_component<engine_tranform_component_t>(selected);
-        auto model_matrix = glm::make_mat4x4(transform->local_to_world);
-
-        const auto camera_component = scene->get_component<engine_camera_component_t>(active_camera_entity);
-        ImGuizmo::SetOrthographic(camera_component->type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC); // Set the projection mode to perspective
-        //ImGuizmo::SetDrawlist(); // Set the draw list to the current ImGui window's draw list
-        ImGuizmo::SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);  // Set the rectangle area for the gizmo to cover the entire display area
-
-        const auto camera_view = scene->get_camera_view(active_camera_entity);
-        const auto camera_projection = scene->get_camera_projection(active_camera_entity);
-
-        ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection),
-            ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::SCALE | ImGuizmo::OPERATION::ROTATE,
-            ImGuizmo::MODE::LOCAL,
-            glm::value_ptr(model_matrix));
-
-        if (ImGuizmo::IsUsing())
+        if (ctx.has_selected_entity() && scene->has_component<engine_tranform_component_t>(selected))
         {
-            glm::vec3 translation;
-            glm::vec3 scale;
-            glm::vec3 rotation;
-            ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
+            const auto transform = scene->get_component<engine_tranform_component_t>(selected);
+            auto model_matrix = glm::make_mat4x4(transform->local_to_world);
 
-            scene->patch_component<engine_tranform_component_t>(selected, [&](engine_tranform_component_t& c)
-                {
-                    std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
-                    const glm::quat rot = glm::quat(glm::radians(rotation));
-                    std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
-                    std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
-                });
+            const auto camera_component = scene->get_component<engine_camera_component_t>(active_camera_entity);
+            ImGuizmo::SetOrthographic(camera_component->type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC); // Set the projection mode to perspective
+            //ImGuizmo::SetDrawlist(); // Set the draw list to the current ImGui window's draw list
+            ImGuizmo::SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);  // Set the rectangle area for the gizmo to cover the entire display area
+
+            const auto camera_view = scene->get_camera_view(active_camera_entity);
+            const auto camera_projection = scene->get_camera_projection(active_camera_entity);
+
+            ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection),
+                ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::SCALE | ImGuizmo::OPERATION::ROTATE,
+                ImGuizmo::MODE::LOCAL,
+                glm::value_ptr(model_matrix));
+
+            if (ImGuizmo::IsUsing())
+            {
+                glm::vec3 translation;
+                glm::vec3 scale;
+                glm::vec3 rotation;
+                ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
+
+                scene->patch_component<engine_tranform_component_t>(selected, [&](engine_tranform_component_t& c)
+                    {
+                        std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
+                        const glm::quat rot = glm::quat(glm::radians(rotation));
+                        std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
+                        std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
+                    });
+            }
         }
     }
     else
