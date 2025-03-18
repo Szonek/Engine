@@ -294,6 +294,19 @@ bool display_skin_component(engine_skin_component_t& c)
     return false;
 }
 
+bool display_bone_component(engine_bone_component_t& c)
+{
+    // display 4x4 matrix
+    for (auto i = 0; i < 4; i++)
+    {
+        for (auto j = 0; j < 4; j++)
+        {
+            ImGui::Text("[%d][%d]: %f", i, j, c.inverse_bind_matrix[i * 4 + j]);
+        }
+    }
+    return false;
+}
+
 bool display_light_component(engine_light_component_t& c)
 {
     bool requires_update = false;
@@ -610,6 +623,7 @@ void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
         display_component<engine_camera_component_t>("Camera", scene, selected, display_camera_component);
         display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
         display_component<engine_skin_component_t>("Skin", scene, selected, display_skin_component);
+        display_component<engine_bone_component_t>("Bone", scene, selected, display_bone_component);
         display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
         display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);
         display_component<engine_rigid_body_component_t>("Rigid Body", scene, selected, display_rigidbody_component);
