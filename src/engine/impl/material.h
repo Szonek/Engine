@@ -66,6 +66,27 @@ private:
     Shader shader_;
 };
 
+class MaterialSkinnedGeometryUnlit
+{
+public:
+    struct DrawContext
+    {
+        const UniformBuffer& camera;
+        const float* model_matrix;
+        std::vector<glm::mat4> bone_transforms;
+
+        const float* color_diffuse;
+        const Texture2D& texture_diffuse;
+    };
+public:
+    MaterialSkinnedGeometryUnlit();
+
+    void draw(const Geometry& geometry, const DrawContext& ctx);
+
+private:
+    Shader shader_;
+};
+
 class MaterialSprite
 {
 public:

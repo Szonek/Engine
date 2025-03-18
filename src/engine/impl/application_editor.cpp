@@ -281,6 +281,19 @@ bool display_mesh_component(engine_mesh_component_t& c)
     return true;
 }
 
+bool display_skin_component(engine_skin_component_t& c)
+{
+    for (auto i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
+    {
+        // display list of bones if bone at index "i" is valid
+        if (c.bones[i] != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            ImGui::Text("[%d] ID: %d", i, c.bones[i]);
+        }
+    }
+    return false;
+}
+
 bool display_light_component(engine_light_component_t& c)
 {
     bool requires_update = false;
@@ -596,6 +609,7 @@ void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
         display_component<engine_light_component_t>("Light", scene, selected, display_light_component);
         display_component<engine_camera_component_t>("Camera", scene, selected, display_camera_component);
         display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
+        display_component<engine_skin_component_t>("Skin", scene, selected, display_skin_component);
         display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
         display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);
         display_component<engine_rigid_body_component_t>("Rigid Body", scene, selected, display_rigidbody_component);

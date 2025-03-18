@@ -120,7 +120,8 @@ static inline void calculate_camera_view_and_projection(std::size_t window_width
 engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : rdx_(rdx)
     , physics_world_(&rdx_)
-    , fbo_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, true)
+    , fbo_draw_scene_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, true)
+    , fbo_draw_outline_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, false)
     , empty_vao_for_full_screen_quad_draw_(6)
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
     , collider_update_observer(entity_registry_, entt::collector.update<engine_collider_component_t>().where<engine_tranform_component_t>())
@@ -299,12 +300,12 @@ engine_result_code_t engine::Scene::physics_update(float dt)
             transform_phsycics = physcics.rigid_body->getWorldTransform();
             //physcics.rigid_body->getMotionState()->getWorldTransform(transform_phsycics);   
 
-            const auto origin = transform_phsycics.getOrigin();
+            const auto& origin = transform_phsycics.getOrigin();
             transform.position[0] = origin.getX();
             transform.position[1] = origin.getY();
             transform.position[2] = origin.getZ();
 
-            const auto euler_rotation = transform_phsycics.getRotation();
+            const auto& euler_rotation = transform_phsycics.getRotation();
             transform.rotation[0] = euler_rotation.getX();
             transform.rotation[1] = euler_rotation.getY();
             transform.rotation[2] = euler_rotation.getZ();
@@ -338,15 +339,19 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
     ENGINE_PROFILE_SECTION_N("scene_update");
     physics_update(dt);
 
-    // bind and clear framebuffer at beginning of the frame
-    fbo_.bind();
-    const auto& [fbo_w, fbo_h] = fbo_.get_size();
-    const auto& [win_w, win_h] = rdx_.get_window_size_in_pixels();
-    if (fbo_w != win_w || fbo_h != win_h)
+    // clear framebuffer at beginning of the frame
+    const auto& [win_w, win_h] = rdx_.get_window_size_in_pixels();    
+    const std::vector<Framebuffer*> fbos = { &fbo_draw_scene_, &fbo_draw_outline_ };
+    for (auto& fbo : fbos)
     {
-        fbo_.resize(win_w, win_h);
+        fbo->bind();
+        const auto& [fbo_w, fbo_h] = fbo->get_size();
+        if (fbo_w != win_w || fbo_h != win_h)
+        {
+            fbo->resize(win_w, win_h);
+        }
+        fbo->clear();
     }
-    fbo_.clear();
 
     {
         ENGINE_PROFILE_SECTION_N("transform_view");
@@ -524,6 +529,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
         auto sprite_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_material_component_t, const engine_sprite_component_t>();
         auto guizmo_renderer = entity_registry_.view<engine_tranform_component_t, const engine::guizmo_component_t>();
+        auto outline_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine::outline_component_t>();
         auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, camera_internal_component_t>();
 
         for (auto [entity, camera, camera_transform, camera_internal] : camera_view.each()) 
@@ -532,6 +538,9 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 continue;
             }
+
+            // bind default framebuffer
+            fbo_draw_scene_.bind();
 
             const auto window_size_pixels = rdx_.get_window_size_in_pixels();
             calculate_camera_view_and_projection(window_size_pixels.width, window_size_pixels.height,
@@ -726,9 +735,9 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 
                         if (ImGuizmo::IsUsing())
                         {
-                            glm::vec3 translation;
-                            glm::vec3 scale;
-                            glm::vec3 rotation;
+                            glm::vec3 translation{};
+                            glm::vec3 scale{};
+                            glm::vec3 rotation{};
                             ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
 
                             this->patch_component<engine_tranform_component_t>(entity, [&](engine_tranform_component_t& c)
@@ -746,15 +755,29 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 physics_world_.debug_draw(camera_internal.data.view, camera_internal.data.projection);
             }
-        }
+
+            // post process - disable default framebuffer
+            fbo_draw_scene_.unbind();
+            // enable post process framebuffer
+            fbo_draw_outline_.bind();
+            {
+                ENGINE_PROFILE_SECTION_N("outline_renderer");
+                outline_renderer.each([this, &camera, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine::outline_component_t& outline_component)
+                    {
+                    });
+            }
+            fbo_draw_outline_.unbind();
+
+            full_screen_shader_.bind();
+            full_screen_shader_.set_texture("screen_texture", fbo_draw_scene_.get_color_attachment(0));
+            empty_vao_for_full_screen_quad_draw_.bind();
+            empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
+
         }
 
-    // post process
-    fbo_.unbind();
-    full_screen_shader_.bind();
-    full_screen_shader_.set_texture("screen_texture", fbo_.get_color_attachment(0));
-    empty_vao_for_full_screen_quad_draw_.bind();
-    empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
+    }
+
+
 
     return ENGINE_RESULT_CODE_OK;
 }

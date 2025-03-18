@@ -117,7 +117,9 @@ private:
     UniformBuffer scene_ubo_;
     ShaderStorageBuffer light_data_ssbo_;
 
-    Framebuffer fbo_;
+    Framebuffer fbo_draw_scene_;
+    Framebuffer fbo_draw_outline_;
+
     Geometry empty_vao_for_full_screen_quad_draw_;
 
     MaterialStaticGeometryLit material_static_geometry_lit_;
