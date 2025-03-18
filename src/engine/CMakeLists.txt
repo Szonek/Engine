@@ -46,6 +46,11 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.h
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.cpp
 	
+	${ENGINE_SOURCES_DIR}/components_internals/camera_internal_component.h
+	${ENGINE_SOURCES_DIR}/components_internals/guizmo_component.h
+	${ENGINE_SOURCES_DIR}/components_internals/outline_component.h
+	${ENGINE_SOURCES_DIR}/components_internals/physics_component.h
+	
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.h
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.cpp
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Backend.h

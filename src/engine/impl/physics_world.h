@@ -8,7 +8,8 @@
 #ifdef _MSC_VER
 #pragma warning(default: 4127) // enable warning back
 #endif
-
+#include "graphics.h"
+#include "components_internals/physics_component.h"
 
 #include <vector>
 #include <memory>
@@ -18,19 +19,12 @@
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 
-#include "graphics.h"
+
 
 namespace engine
 {
 class PhysicsWorld
 {
-public:
-    struct physcic_internal_component_t
-    {
-        btCollisionShape* collision_shape = nullptr;
-        btRigidBody* rigid_body = nullptr;
-
-    };
 public:
     PhysicsWorld(class RenderContext* renderer);
 

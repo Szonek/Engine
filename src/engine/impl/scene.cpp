@@ -4,7 +4,13 @@
 #include "logger.h"
 #include "math_helpers.h"
 #include "components_utils/components_initializers.h"
+#include "components_internals/camera_internal_component.h"
+#include "components_internals/guizmo_component.h"
+#include "components_internals/outline_component.h"
 #include "profiler.h"
+
+#include "imgui/imgui.h"
+#include "imguizmo/ImGuizmo.h"
 
 #include <cmath>
 #include <fmt/format.h>
@@ -40,23 +46,7 @@ struct LightGpuData
     float pad3_;
 };
 
-struct CameraGpuData
-{
-    glm::mat4 view;
-    glm::mat4 projection;
-    glm::vec3 position;
-};
-
-
-struct engine_camera_internal_component_t
-{
-    CameraGpuData data; // kepe data here, so we can read it (i.e. in world-to-screen converter function)
-    bool computed_this_frame = false;  // cace results to not recompute the same data each frame
-    engine::UniformBuffer camera_ubo = engine::UniformBuffer(sizeof(CameraGpuData));
-};
-
-
-void update_parent_component(entt::registry& registry, entt::entity entity)
+static inline void update_parent_component(entt::registry& registry, entt::entity entity)
 {
     auto& parent = registry.get<engine_parent_component_t>(entity);
     if (parent.parent == ENGINE_INVALID_GAME_OBJECT_ID)
@@ -82,7 +72,7 @@ void update_parent_component(entt::registry& registry, entt::entity entity)
     engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has no more space for children. Are you sure you are doing valid thing?\n"));
 }
 
-inline void destroy_parent_component(entt::registry& registry, entt::entity entity)
+static inline void destroy_parent_component(entt::registry& registry, entt::entity entity)
 {
     const auto parent_entt = static_cast<entt::entity>(registry.get<engine_parent_component_t>(entity).parent);
     auto& cc = registry.get<engine_children_component_t>(parent_entt);
@@ -97,7 +87,7 @@ inline void destroy_parent_component(entt::registry& registry, entt::entity enti
     engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component was destroyed, but couldn't reset it's childer.\n"));
 }
 
-inline void calculate_camera_view_and_projection(std::size_t window_width, std::size_t window_height, const glm::vec3& eye_position, const engine_camera_component_t& camera, engine_camera_internal_component_t& camera_internal)
+static inline void calculate_camera_view_and_projection(std::size_t window_width, std::size_t window_height, const glm::vec3& eye_position, const engine_camera_component_t& camera, engine::camera_internal_component_t& camera_internal)
 {
     // update camera: view and projection
     ENGINE_PROFILE_SECTION_N("camera_update");
@@ -134,7 +124,7 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     , empty_vao_for_full_screen_quad_draw_(6)
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
     , collider_update_observer(entity_registry_, entt::collector.update<engine_collider_component_t>().where<engine_tranform_component_t>())
-    , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<PhysicsWorld::physcic_internal_component_t>())
+    , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<physcic_internal_component_t>())
     , transform_model_matrix_update_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>())
     , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
     , rigid_body_create_observer(entity_registry_, entt::collector.group<engine_rigid_body_component_t, engine_tranform_component_t, engine_collider_component_t>())
@@ -157,7 +147,7 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     entity_registry_.on_construct<engine_parent_component_t>().connect<&initialize_parent_component>();
     entity_registry_.on_construct<engine_name_component_t>().connect<&initialize_name_component>();
     entity_registry_.on_construct<engine_camera_component_t>().connect<&initialize_camera_component>();
-    entity_registry_.on_construct<engine_camera_component_t>().connect<&entt::registry::emplace<engine_camera_internal_component_t>>();
+    entity_registry_.on_construct<engine_camera_component_t>().connect<&entt::registry::emplace<camera_internal_component_t>>();
     entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
     entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
@@ -167,9 +157,9 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     entity_registry_.on_update<engine_parent_component_t>().connect<&update_parent_component>();
     entity_registry_.on_destroy<engine_parent_component_t>().connect<&destroy_parent_component>();
 
-    entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<PhysicsWorld::physcic_internal_component_t>>();
-    entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<PhysicsWorld::physcic_internal_component_t>>();
-    entity_registry_.on_destroy<PhysicsWorld::physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
+    entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<physcic_internal_component_t>>();
+    entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<physcic_internal_component_t>>();
+    entity_registry_.on_destroy<physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
     out_code = ENGINE_RESULT_CODE_OK;
 
     
@@ -192,7 +182,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     {
         const auto collider_component = get_component<engine_collider_component_t>(entt);
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        auto physcics_component = *get_component<PhysicsWorld::physcic_internal_component_t>(entt);
+        auto physcics_component = *get_component<physcic_internal_component_t>(entt);
         if (physcics_component.rigid_body)
         {
             physics_world_.remove_rigid_body(entity_registry_, entt);
@@ -215,7 +205,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         const auto collider_component = get_component<engine_collider_component_t>(entt);
         const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        auto physcics_component = *get_component< PhysicsWorld::physcic_internal_component_t>(entt);
+        auto physcics_component = *get_component<physcic_internal_component_t>(entt);
         if (physcics_component.rigid_body)
         {
             physics_world_.remove_rigid_body(entity_registry_, entt);
@@ -233,7 +223,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 
         const auto collider_component = get_component<engine_collider_component_t>(entt);
         const auto transform_component = get_component<engine_tranform_component_t>(entt);
-        auto physcics_component = *get_component< PhysicsWorld::physcic_internal_component_t>(entt);
+        auto physcics_component = *get_component<physcic_internal_component_t>(entt);
 
         engine_rigid_body_component_t rigidbody_component{};
         if (has_component<engine_rigid_body_component_t>(entt))
@@ -256,7 +246,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     //transform_physcis_preupdate.each([this](auto entity, const engine_tranform_component_t& transform_component, PhysicsWorld::physcic_internal_component_t& physcics_component)
         {
             const auto transform_component = *get_component<engine_tranform_component_t>(entity);
-            auto& physcics_component = *get_component<PhysicsWorld::physcic_internal_component_t>(entity);
+            auto& physcics_component = *get_component<physcic_internal_component_t>(entity);
             btTransform world_transform;
             //physcics_component->rigid_body->getMotionState()->getWorldTransform(world_transform);
             world_transform = physcics_component.rigid_body->getWorldTransform();
@@ -304,8 +294,8 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 
     // sync physcis to graphics world
     // ToDo: this could be seperate function or called at the beggning of the graphics update function?
-    auto transform_physcis_view_post_update = entity_registry_.view<engine_tranform_component_t, const PhysicsWorld::physcic_internal_component_t, engine_rigid_body_component_t>();
-    transform_physcis_view_post_update.each([this](auto entity, engine_tranform_component_t& transform, const PhysicsWorld::physcic_internal_component_t& physcics, engine_rigid_body_component_t& rigidbody)
+    auto transform_physcis_view_post_update = entity_registry_.view<engine_tranform_component_t, const physcic_internal_component_t, engine_rigid_body_component_t>();
+    transform_physcis_view_post_update.each([this](auto entity, engine_tranform_component_t& transform, const physcic_internal_component_t& physcics, engine_rigid_body_component_t& rigidbody)
         {
             //assert(physcics.rigid_body);
             if (!physcics.rigid_body)
@@ -562,7 +552,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
         auto sprite_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_material_component_t, const engine_sprite_component_t>();
-        auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, engine_camera_internal_component_t>();
+        auto guizmo_renderer = entity_registry_.view<engine_tranform_component_t, const engine::guizmo_component_t>();
+        auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, camera_internal_component_t>();
 
         for (auto [entity, camera, camera_transform, camera_internal] : camera_view.each()) 
         {
@@ -746,6 +737,40 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 );
             }
 
+            {
+                ENGINE_PROFILE_SECTION_N("guizmo_renderer");
+                guizmo_renderer.each([this, &camera, &camera_internal](auto entity, engine_tranform_component_t& transform_component, const engine::guizmo_component_t& guizmo_component)
+                    {
+                        // ImGuizmo manipulation
+                        auto model_matrix = glm::make_mat4x4(transform_component.local_to_world);
+
+                        ImGuizmo::SetOrthographic(camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC); // Set the projection mode to perspective
+                        //ImGuizmo::SetDrawlist(); // Set the draw list to the current ImGui window's draw list
+                        ImGuizmo::SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);  // Set the rectangle area for the gizmo to cover the entire display area
+
+                        ImGuizmo::Manipulate(glm::value_ptr(camera_internal.data.view), glm::value_ptr(camera_internal.data.projection),
+                            ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::SCALE | ImGuizmo::OPERATION::ROTATE,
+                            ImGuizmo::MODE::LOCAL,
+                            glm::value_ptr(model_matrix));
+
+                        if (ImGuizmo::IsUsing())
+                        {
+                            glm::vec3 translation;
+                            glm::vec3 scale;
+                            glm::vec3 rotation;
+                            ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
+
+                            this->patch_component<engine_tranform_component_t>(entity, [&](engine_tranform_component_t& c)
+                                {
+                                    std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
+                                    const glm::quat rot = glm::quat(glm::radians(rotation));
+                                    std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
+                                    std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
+                                });
+                        }
+                    });
+            }
+
             if (physics_world_.is_debug_drawer_enabled())
             {
                 physics_world_.debug_draw(camera_internal.data.view, camera_internal.data.projection);
@@ -808,7 +833,7 @@ glm::vec3 engine::Scene::convert_world_point_to_screen_point(const glm::vec3& wo
     const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(entt::entity(camera_go));
     if (camera_component && camera_transform)
     {
-        auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(entt::entity(camera_go));
+        auto& camera_internal_component = entity_registry_.get<camera_internal_component_t>(entt::entity(camera_go));
         const auto window_size = rdx_.get_window_size_in_pixels();
         calculate_camera_view_and_projection(window_size.width, window_size.height,
             glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
@@ -826,7 +851,7 @@ glm::vec3 engine::Scene::convert_screen_point_to_world_point(glm::vec3 screen_po
     const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(entt::entity(camera_go));
     if (camera_component && camera_transform)
     {
-        auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(entt::entity(camera_go));    
+        auto& camera_internal_component = entity_registry_.get<camera_internal_component_t>(entt::entity(camera_go));    
         const auto window_size = rdx_.get_window_size_in_pixels();
         calculate_camera_view_and_projection(window_size.width, window_size.height,
             glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
@@ -846,7 +871,7 @@ glm::mat4 engine::Scene::get_camera_view(entt::entity camera_go)
     const auto window_size = rdx_.get_window_size_in_pixels();
     if (camera_component && camera_transform)
     {
-        auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(camera_go);
+        auto& camera_internal_component = entity_registry_.get<camera_internal_component_t>(camera_go);
         calculate_camera_view_and_projection(window_size.width, window_size.height,
             glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
         return camera_internal_component.data.view;
@@ -861,7 +886,7 @@ glm::mat4 engine::Scene::get_camera_projection(entt::entity camera_go)
     const auto window_size = rdx_.get_window_size_in_pixels();
     if (camera_component && camera_transform)
     {
-        auto& camera_internal_component = entity_registry_.get<engine_camera_internal_component_t>(camera_go);
+        auto& camera_internal_component = entity_registry_.get<camera_internal_component_t>(camera_go);
         calculate_camera_view_and_projection(window_size.width, window_size.height,
             glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
         return camera_internal_component.data.projection;
