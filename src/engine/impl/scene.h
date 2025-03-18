@@ -12,20 +12,6 @@ namespace engine
 {
 class Scene
 {
-    enum class ShaderType
-    {
-        eUnlit = 0,
-        eLit,
-        eVertexSkinningUnlit,
-        eVertexSkinningLit,
-
-        eSprite,
-
-        eFullScreenQuad,
-
-        eCount
-    };
-
 public:
     Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code);
     Scene(const Scene&) = delete;
@@ -126,7 +112,7 @@ private:
 
     PhysicsWorld physics_world_;
 
-    std::array<Shader, static_cast<std::size_t>(ShaderType::eCount)> shaders_;
+    Shader full_screen_shader_;
 
     UniformBuffer scene_ubo_;
     ShaderStorageBuffer light_data_ssbo_;

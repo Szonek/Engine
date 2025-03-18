@@ -131,15 +131,8 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     , rigid_body_update_observer(entity_registry_, entt::collector.update<engine_rigid_body_component_t>().where<engine_tranform_component_t, engine_collider_component_t>())
     , scene_ubo_(sizeof(SceneGpuData))
     , light_data_ssbo_(1'000 * sizeof(LightGpuData))
+    , full_screen_shader_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
 {
-    // shaders
-    shaders_[static_cast<std::uint32_t>(ShaderType::eUnlit)] = Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "unlit.fs" });
-    shaders_[static_cast<std::uint32_t>(ShaderType::eLit)] = Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "lit_helpers.h", "lit.fs" });
-    shaders_[static_cast<std::uint32_t>(ShaderType::eVertexSkinningUnlit)] = Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "unlit.fs" });
-    shaders_[static_cast<std::uint32_t>(ShaderType::eVertexSkinningLit)] = Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "lit_helpers.h", "lit.fs" });
-    shaders_[static_cast<std::uint32_t>(ShaderType::eFullScreenQuad)] = Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" });
-    shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)] = Shader({  "sprite.vs" }, { "sprite.fs" });
-
     // basic initalizers
     entity_registry_.on_construct<engine_tranform_component_t>().connect<&initialize_transform_component>();
     entity_registry_.on_construct<engine_mesh_component_t>().connect<&initialize_mesh_component>();
@@ -344,39 +337,17 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
 {
     ENGINE_PROFILE_SECTION_N("scene_update");
     physics_update(dt);
-    class FBOFrameContext
+
+    // bind and clear framebuffer at beginning of the frame
+    fbo_.bind();
+    const auto& [fbo_w, fbo_h] = fbo_.get_size();
+    const auto& [win_w, win_h] = rdx_.get_window_size_in_pixels();
+    if (fbo_w != win_w || fbo_h != win_h)
     {
-    public:
-        FBOFrameContext(Framebuffer& fbo, const RenderContext& rdx, Shader& full_screen_quad, Geometry& empty_vao)
-            : fbo_(fbo)
-            , full_screen_quad_shader_(full_screen_quad)
-            , empty_vao(empty_vao)
-        {
-            fbo_.bind();
-            const auto& [fbo_w, fbo_h] = fbo_.get_size();
-            const auto& [win_w, win_h] = rdx.get_window_size_in_pixels();
-            if (fbo_w != win_w || fbo_h != win_h)
-            {
-                fbo_.resize(win_w, win_h);
-            }
-            fbo_.clear();
-        }
+        fbo_.resize(win_w, win_h);
+    }
+    fbo_.clear();
 
-        ~FBOFrameContext()
-        {
-            fbo_.unbind();
-            full_screen_quad_shader_.bind();
-            full_screen_quad_shader_.set_texture("screen_texture", fbo_.get_color_attachment(0));
-            empty_vao.bind();
-            empty_vao.draw(Geometry::Mode::eTriangles);
-        }
-
-    private:
-        Framebuffer& fbo_;
-        Shader& full_screen_quad_shader_;
-        Geometry& empty_vao;
-    };
-    FBOFrameContext fbo_frame(fbo_, rdx_, shaders_[static_cast<std::uint32_t>(ShaderType::eFullScreenQuad)], empty_vao_for_full_screen_quad_draw_);
     {
         ENGINE_PROFILE_SECTION_N("transform_view");
 #if 1
@@ -777,6 +748,14 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             }
         }
         }
+
+    // post process
+    fbo_.unbind();
+    full_screen_shader_.bind();
+    full_screen_shader_.set_texture("screen_texture", fbo_.get_color_attachment(0));
+    empty_vao_for_full_screen_quad_draw_.bind();
+    empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
+
     return ENGINE_RESULT_CODE_OK;
 }
 
