@@ -112,15 +112,8 @@ private:
 
     PhysicsWorld physics_world_;
 
-    Shader full_screen_shader_;
-
     UniformBuffer scene_ubo_;
     ShaderStorageBuffer light_data_ssbo_;
-
-    Framebuffer fbo_draw_scene_;
-    Framebuffer fbo_draw_outline_;
-
-    Geometry empty_vao_for_full_screen_quad_draw_;
 
     MaterialStaticGeometryLit material_static_geometry_lit_;
     MaterialSkinnedGeometryLit material_skinned_geometry_lit_;

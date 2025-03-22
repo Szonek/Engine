@@ -120,9 +120,9 @@ static inline void calculate_camera_view_and_projection(std::size_t window_width
 engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : rdx_(rdx)
     , physics_world_(&rdx_)
-    , fbo_draw_scene_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, true)
-    , fbo_draw_outline_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, false)
-    , empty_vao_for_full_screen_quad_draw_(6)
+    //, fbo_draw_scene_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, true)
+    //, fbo_draw_outline_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, false)
+    //, empty_vao_for_full_screen_quad_draw_(6)
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
     , collider_update_observer(entity_registry_, entt::collector.update<engine_collider_component_t>().where<engine_tranform_component_t>())
     , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<physcic_internal_component_t>())
@@ -132,7 +132,7 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
     , rigid_body_update_observer(entity_registry_, entt::collector.update<engine_rigid_body_component_t>().where<engine_tranform_component_t, engine_collider_component_t>())
     , scene_ubo_(sizeof(SceneGpuData))
     , light_data_ssbo_(1'000 * sizeof(LightGpuData))
-    , full_screen_shader_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
+    //, full_screen_shader_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
 {
     // basic initalizers
     entity_registry_.on_construct<engine_tranform_component_t>().connect<&initialize_transform_component>();
@@ -339,20 +339,6 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
     ENGINE_PROFILE_SECTION_N("scene_update");
     physics_update(dt);
 
-    // clear framebuffer at beginning of the frame
-    const auto& [win_w, win_h] = rdx_.get_window_size_in_pixels();    
-    const std::vector<Framebuffer*> fbos = { &fbo_draw_scene_, &fbo_draw_outline_ };
-    for (auto& fbo : fbos)
-    {
-        fbo->bind();
-        const auto& [fbo_w, fbo_h] = fbo->get_size();
-        if (fbo_w != win_w || fbo_h != win_h)
-        {
-            fbo->resize(win_w, win_h);
-        }
-        fbo->clear();
-    }
-
     {
         ENGINE_PROFILE_SECTION_N("transform_view");
 #if 1
@@ -528,8 +514,6 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
         auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
         auto sprite_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_material_component_t, const engine_sprite_component_t>();
-        auto guizmo_renderer = entity_registry_.view<engine_tranform_component_t, const engine::guizmo_component_t>();
-        auto outline_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine::outline_component_t>();
         auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, camera_internal_component_t>();
 
         for (auto [entity, camera, camera_transform, camera_internal] : camera_view.each()) 
@@ -540,9 +524,14 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             }
 
             // bind default framebuffer
-            fbo_draw_scene_.bind();
-
             const auto window_size_pixels = rdx_.get_window_size_in_pixels();
+            viewport_t vp{};
+            vp.x = 0;
+            vp.y = 0;
+            vp.width = window_size_pixels.width;
+            vp.height = window_size_pixels.height;
+            rdx_.set_viewport(vp);
+
             calculate_camera_view_and_projection(window_size_pixels.width, window_size_pixels.height,
                 glm::make_vec3(camera_transform.position), camera, camera_internal);
             // copy camera view and projection to the GPU
@@ -674,7 +663,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         glm::vec4 perspective;
                         const auto res = glm::decompose(model_mat, scale, rotation, translation, skew, perspective);
                         assert(res);
-#if 1
+
                         if (material_component.type == ENGINE_MATERIAL_TYPE_PONG)
                         {
                             const auto ctx = MaterialSprite::DrawContext{
@@ -688,127 +677,14 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         {
                             assert(false);
                         }
-
-#else
-
-                        //const auto is_user_shader = material.shader_type == ENGINE_SHADER_TYPE_CUSTOM;
-
-                        //auto& shader = is_user_shader ? shaders[material.material.custom.shader]
-                        //    :  shaders_[static_cast<std::uint32_t>(ShaderType::eSprite)];
-                        //shader.bind();
-                        //shader.set_uniform_block("CameraData", &camera_internal.camera_ubo, 0);
-
-                        //shader.set_uniform_f3("world_position", { glm::value_ptr(translation), 3 });
-                        //shader.set_uniform_f3("scale", { glm::value_ptr(scale), 3 });
-                        //if(is_user_shader)
-                        //{
-                        //    // uniform block should be used here
-                        //    shader.set_uniform_f4("color", std::array<float, 4>{ 1.0f, 0.0f, 0.0f, 0.0f });
-                        //}
-                        //else
-                        //{
-                        //    shader.set_uniform_f4("color", material.material.standard.diffuse_color);
-                        //}
-
-                        //empty_vao_for_full_screen_quad_draw_.bind();
-                        //empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
-#endif
                     }
                 );
-            }
-
-            {
-                ENGINE_PROFILE_SECTION_N("guizmo_renderer");
-                guizmo_renderer.each([this, &camera, &camera_internal](auto entity, engine_tranform_component_t& transform_component, const engine::guizmo_component_t& guizmo_component)
-                    {
-                        // ImGuizmo manipulation
-                        auto model_matrix = glm::make_mat4x4(transform_component.local_to_world);
-
-                        ImGuizmo::SetOrthographic(camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC); // Set the projection mode to perspective
-                        //ImGuizmo::SetDrawlist(); // Set the draw list to the current ImGui window's draw list
-                        ImGuizmo::SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);  // Set the rectangle area for the gizmo to cover the entire display area
-
-                        ImGuizmo::Manipulate(glm::value_ptr(camera_internal.data.view), glm::value_ptr(camera_internal.data.projection),
-                            ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::SCALE | ImGuizmo::OPERATION::ROTATE,
-                            ImGuizmo::MODE::LOCAL,
-                            glm::value_ptr(model_matrix));
-
-                        if (ImGuizmo::IsUsing())
-                        {
-                            glm::vec3 translation{};
-                            glm::vec3 scale{};
-                            glm::vec3 rotation{};
-                            ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
-
-                            this->patch_component<engine_tranform_component_t>(entity, [&](engine_tranform_component_t& c)
-                                {
-                                    std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
-                                    const glm::quat rot = glm::quat(glm::radians(rotation));
-                                    std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
-                                    std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
-                                });
-                        }
-                    });
             }
 
             if (physics_world_.is_debug_drawer_enabled())
             {
                 physics_world_.debug_draw(camera_internal.data.view, camera_internal.data.projection);
             }
-
-            // post process - disable default framebuffer
-            fbo_draw_scene_.unbind();
-            // enable post process framebuffer
-            fbo_draw_outline_.bind();
-            {
-                ENGINE_PROFILE_SECTION_N("outline_renderer");
-                outline_renderer.each([this, &camera, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine::outline_component_t& outline_component)
-                    {
-                        //if (mesh_component.disable)
-                        //{
-                        //    return;
-                        //}
-                        //const float white_rgb[] = { 1.0f, 1.0f, 1.0f };
-                        //auto ctx = MaterialSkinnedGeometryUnlit::DrawContext{
-                        //    .camera = camera_internal.camera_ubo,
-                        //    .model_matrix = transform_component.local_to_world,
-                        //    .color_diffuse = white_rgb,
-                        //    .texture_diffuse = textures[0] };
-                        //ctx.bone_transforms.reserve(ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES); // reallocation this for each geometry each frame. ToDo: optimize it
-
-                        //const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
-                        //for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
-                        //{
-                        //    const auto& bone_entity = static_cast<entt::entity>(skin_component.bones[i]);
-                        //    if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
-                        //    {
-                        //        continue;
-                        //    }
-
-                        //    if (has_component<engine_bone_component_t>(bone_entity) == false)
-                        //    {
-                        //        log::log(log::LogLevel::eError, fmt::format("Bone entity does not have bone component. Are you sure you are doing valid thing?\n"));
-                        //        skin_component.bones[i] = ENGINE_INVALID_GAME_OBJECT_ID;
-                        //        continue;
-                        //    }
-                        //    const auto& bone_component = get_component<engine_bone_component_t>(bone_entity);
-                        //    const auto& bone_transform = get_component<engine_tranform_component_t>(bone_entity);
-                        //    const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
-                        //    const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
-                        //    const auto per_bone_final_transform = inverse_transform * bone_matrix;
-                        //    ctx.bone_transforms.push_back(per_bone_final_transform);
-                        //}
-
-                        //material_skinned_geometry_unlit_.draw(geometries[mesh_component.geometry], ctx);
-                    });
-            }
-            fbo_draw_outline_.unbind();
-
-            full_screen_shader_.bind();
-            full_screen_shader_.set_texture("screen_texture", fbo_draw_scene_.get_color_attachment(0));
-            empty_vao_for_full_screen_quad_draw_.bind();
-            empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
-
         }
 
     }

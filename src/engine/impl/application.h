@@ -89,6 +89,10 @@ protected:
 
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;
+
+    Framebuffer fbo_scene_;
+    Shader shader_full_screen_quad_;
+    Geometry empty_vao_for_full_screen_quad_draw_;
 };
 
 }  // namespace engine

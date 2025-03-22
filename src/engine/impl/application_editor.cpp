@@ -536,7 +536,58 @@ bool display_camera_component(engine_camera_component_t& c)
     return true;
 }
 
-void render_scene_hierarchy_panel(hierarchy_context_t& ctx, engine::Scene* scene, float delta_time)
+inline void render_guizmo(engine::Scene* scene, float delta_time)
+{
+    auto camera_view = scene->create_runtime_view();
+    scene->attach_component_to_runtime_view<engine_camera_component_t>(camera_view);
+    for (const auto& camera_entity : camera_view)
+    {
+        const auto camera = *scene->get_component<engine_camera_component_t>(camera_entity);
+        if (!camera.enabled)
+        {
+            continue;
+        }
+        const auto camera_view = scene->get_camera_view(camera_entity);
+        const auto camera_projection = scene->get_camera_projection(camera_entity);
+
+        auto gizmo_view = scene->create_runtime_view();
+        scene->attach_component_to_runtime_view<engine_tranform_component_t>(gizmo_view);
+        scene->attach_component_to_runtime_view<engine::guizmo_component_t>(gizmo_view);
+        for (auto& entity : gizmo_view)
+        {
+            const auto transform_component = *scene->get_component<engine_tranform_component_t>(entity);
+            // ImGuizmo manipulation
+            auto model_matrix = glm::make_mat4x4(transform_component.local_to_world);
+
+            ImGuizmo::SetOrthographic(camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC); // Set the projection mode to perspective
+            //ImGuizmo::SetDrawlist(); // Set the draw list to the current ImGui window's draw list
+            ImGuizmo::SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);  // Set the rectangle area for the gizmo to cover the entire display area
+
+            ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection),
+                ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::SCALE | ImGuizmo::OPERATION::ROTATE,
+                ImGuizmo::MODE::LOCAL,
+                glm::value_ptr(model_matrix));
+
+            if (ImGuizmo::IsUsing())
+            {
+                glm::vec3 translation{};
+                glm::vec3 scale{};
+                glm::vec3 rotation{};
+                ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
+
+                scene->patch_component<engine_tranform_component_t>(entity, [&](engine_tranform_component_t& c)
+                    {
+                        std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
+                        const glm::quat rot = glm::quat(glm::radians(rotation));
+                        std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
+                        std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
+                    });
+            }
+        }
+    }
+}
+
+inline void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-render_scene_hierarchy_panel");
     // build memory with all the entites
@@ -564,7 +615,7 @@ void render_scene_hierarchy_panel(hierarchy_context_t& ctx, engine::Scene* scene
             parent_node.children.push_back(&node);
         }
     }
-    
+    static hierarchy_context_t ctx;
     ImGui::Begin("Scene Panel");
 
     if (ImGui::Button("Add entity"))
@@ -711,61 +762,8 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
 void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
-    static hierarchy_context_t ctx;
-    render_scene_hierarchy_panel(ctx, scene, delta_time);
-
-    if (ctx.has_selected_entity())
-    {
-        auto gizmo_view = scene->create_runtime_view();
-        scene->attach_component_to_runtime_view<engine_tranform_component_t>(gizmo_view);
-        scene->attach_component_to_runtime_view<engine::guizmo_component_t>(gizmo_view);
-
-        auto camera_view = scene->create_runtime_view();
-        scene->attach_component_to_runtime_view<engine_camera_component_t>(camera_view);
-        for (const auto& camera_entity : camera_view)
-        {
-            const auto camera = *scene->get_component<engine_camera_component_t>(camera_entity);
-            if (!camera.enabled)
-            {
-                continue;
-            }
-            const auto camera_view = scene->get_camera_view(camera_entity);
-            const auto camera_projection = scene->get_camera_projection(camera_entity);
-
-            for (auto& entity : gizmo_view)
-            {
-                const auto transform_component = *scene->get_component<engine_tranform_component_t>(entity);
-                // ImGuizmo manipulation
-                auto model_matrix = glm::make_mat4x4(transform_component.local_to_world);
-
-                ImGuizmo::SetOrthographic(camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC); // Set the projection mode to perspective
-                //ImGuizmo::SetDrawlist(); // Set the draw list to the current ImGui window's draw list
-                ImGuizmo::SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);  // Set the rectangle area for the gizmo to cover the entire display area
-
-                ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection),
-                    ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::SCALE | ImGuizmo::OPERATION::ROTATE,
-                    ImGuizmo::MODE::LOCAL,
-                    glm::value_ptr(model_matrix));
-
-                if (ImGuizmo::IsUsing())
-                {
-                    glm::vec3 translation{};
-                    glm::vec3 scale{};
-                    glm::vec3 rotation{};
-                    ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
-
-                    scene->patch_component<engine_tranform_component_t>(entity, [&](engine_tranform_component_t& c)
-                        {
-                            std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
-                            const glm::quat rot = glm::quat(glm::radians(rotation));
-                            std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
-                            std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
-                        });
-                }
-            }
-        }
-    }
-
+    render_scene_hierarchy_panel(scene, delta_time);
+    render_guizmo(scene, delta_time);
     camera_context_.on_scene_update_post(scene, delta_time);
 }
 

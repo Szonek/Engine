@@ -132,6 +132,9 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     : rdx_(std::move(RenderContext(desc.name, { 0, 0, desc.width, desc.height }, desc.fullscreen)))
     , ui_manager_(rdx_)
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
+    , fbo_scene_(rdx_.get_window_size_in_pixels().width, rdx_.get_window_size_in_pixels().height, 1, true)
+    , empty_vao_for_full_screen_quad_draw_(6)
+    , shader_full_screen_quad_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
 {
 	{
 		//constexpr const std::array<std::uint8_t, 3> default_texture_color = { 160, 50, 168 };
@@ -293,12 +296,33 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     }
 
 	rdx_.begin_frame();
+    
+    // clear framebuffer at beginning of the frame, scene (camera) will have to call set_viewport(..)!
+    const auto& [win_w, win_h] = rdx_.get_window_size_in_pixels();
+    {
+        fbo_scene_.bind();
+        const auto& [fbo_w, fbo_h] = fbo_scene_.get_size();
+        if (fbo_w != win_w || fbo_h != win_h)
+        {
+            fbo_scene_.resize(win_w, win_h);
+        }
+        fbo_scene_.clear();
+        fbo_scene_.bind();
+    }
+    
     on_frame_begine(ret);
 	return ret;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
+    // scenes rendered to offscreen texture, copy it to the default render target
+    fbo_scene_.unbind();
+    shader_full_screen_quad_.bind();
+    shader_full_screen_quad_.set_texture("screen_texture", fbo_scene_.get_color_attachment(0));
+    empty_vao_for_full_screen_quad_draw_.bind();
+    empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
+
     on_frame_end();
     ui_manager_.update_state_and_render();
     rdx_.end_frame();
