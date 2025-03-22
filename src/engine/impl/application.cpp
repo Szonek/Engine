@@ -316,14 +316,14 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
 
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
-    // scenes rendered to offscreen texture, copy it to the default render target
+    on_frame_end();
+    // copy fbo_scene color attachment to the default framebuffer
     fbo_scene_.unbind();
     shader_full_screen_quad_.bind();
     shader_full_screen_quad_.set_texture("screen_texture", fbo_scene_.get_color_attachment(0));
     empty_vao_for_full_screen_quad_draw_.bind();
     empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
 
-    on_frame_end();
     ui_manager_.update_state_and_render();
     rdx_.end_frame();
     ENGINE_PROFILE_FRAME;
