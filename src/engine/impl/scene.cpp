@@ -764,6 +764,42 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                 ENGINE_PROFILE_SECTION_N("outline_renderer");
                 outline_renderer.each([this, &camera, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine::outline_component_t& outline_component)
                     {
+                        //if (mesh_component.disable)
+                        //{
+                        //    return;
+                        //}
+                        //const float white_rgb[] = { 1.0f, 1.0f, 1.0f };
+                        //auto ctx = MaterialSkinnedGeometryUnlit::DrawContext{
+                        //    .camera = camera_internal.camera_ubo,
+                        //    .model_matrix = transform_component.local_to_world,
+                        //    .color_diffuse = white_rgb,
+                        //    .texture_diffuse = textures[0] };
+                        //ctx.bone_transforms.reserve(ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES); // reallocation this for each geometry each frame. ToDo: optimize it
+
+                        //const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
+                        //for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
+                        //{
+                        //    const auto& bone_entity = static_cast<entt::entity>(skin_component.bones[i]);
+                        //    if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
+                        //    {
+                        //        continue;
+                        //    }
+
+                        //    if (has_component<engine_bone_component_t>(bone_entity) == false)
+                        //    {
+                        //        log::log(log::LogLevel::eError, fmt::format("Bone entity does not have bone component. Are you sure you are doing valid thing?\n"));
+                        //        skin_component.bones[i] = ENGINE_INVALID_GAME_OBJECT_ID;
+                        //        continue;
+                        //    }
+                        //    const auto& bone_component = get_component<engine_bone_component_t>(bone_entity);
+                        //    const auto& bone_transform = get_component<engine_tranform_component_t>(bone_entity);
+                        //    const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
+                        //    const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
+                        //    const auto per_bone_final_transform = inverse_transform * bone_matrix;
+                        //    ctx.bone_transforms.push_back(per_bone_final_transform);
+                        //}
+
+                        //material_skinned_geometry_unlit_.draw(geometries[mesh_component.geometry], ctx);
                     });
             }
             fbo_draw_outline_.unbind();
