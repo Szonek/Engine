@@ -117,7 +117,7 @@ private:
 
     MaterialStaticGeometryLit material_static_geometry_lit_;
     MaterialSkinnedGeometryLit material_skinned_geometry_lit_;
-    MaterialSkinnedGeometryUnlit material_skinned_geometry_unlit_;
+
     MaterialSprite material_sprite_;
 };
 }  // namespace engine

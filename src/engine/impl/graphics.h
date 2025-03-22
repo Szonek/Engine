@@ -47,15 +47,45 @@ enum class TextureAddressClampMode
     eCount
 };
 
-class Shader
+class ShaderBase
 {
 public:
-	enum class Type
-	{
-		eVertex = 0,
-		eFragment = 1,
-		eCount
-	};
+    ShaderBase() = default;
+    virtual ~ShaderBase();
+
+    bool is_valid() const;
+
+    void bind();
+    void set_uniform_f4(std::string_view name, std::span<const float> host_data) const;
+    void set_uniform_f3(std::string_view name, std::span<const float> host_data) const;
+    void set_uniform_f2(std::string_view name, std::span<const float> host_data) const;
+    void set_uniform_f1(std::string_view name, const float host_data) const;
+    void set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data) const;
+    void set_uniform_mat_f4(std::string_view name, std::span<const float> host_data) const;
+    void set_uniform_block(std::string_view name, const class UniformBuffer* buffer, std::uint32_t bind_index) const;
+
+    void set_texture(std::string_view name, const class Texture2D* textur) const;
+
+protected:
+    virtual bool compile_shaders(std::uint32_t program) = 0;
+    virtual void reset_shaders() = 0;
+
+    std::int32_t get_resource_location(std::string_view name, std::int32_t resource_interface) const;
+    std::int32_t get_uniform_location(std::string_view name) const;
+    void mark_for_recompilation();
+    bool compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::string> sources);
+
+private:
+    void compile();
+    void reset_shaders_and_program();
+    void reset_program();
+private:
+    std::uint32_t program_{ 0 };
+    bool try_recompile_ = true;
+};
+
+class Shader : public ShaderBase
+{
 public:
     Shader() = default;
 	Shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name);
@@ -64,33 +94,15 @@ public:
 	Shader& operator=(const Shader& rhs) = delete;
     Shader& operator=(Shader&& rhs)  noexcept;
 
-	~Shader();
+    ~Shader();
 
-    bool is_valid() const;
+protected:
+    bool compile_shaders(std::uint32_t program);
+    void reset_shaders();
 
-	void bind();
-	void set_uniform_f4(std::string_view name, std::span<const float> host_data);
-	void set_uniform_f3(std::string_view name, std::span<const float> host_data);
-	void set_uniform_f2(std::string_view name, std::span<const float> host_data);
-	void set_uniform_f1(std::string_view name, const float host_data);
-	void set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data);
-	void set_uniform_mat_f4(std::string_view name, std::span<const float> host_data);
-	void set_uniform_block(std::string_view name, const class UniformBuffer* buffer, std::uint32_t bind_index);
-
-    void set_texture(std::string_view name, const class Texture2D* textur);
-
-private:
-    std::int32_t get_resource_location(std::string_view name, std::int32_t resource_interface);
-    std::int32_t get_uniform_location(std::string_view name);
-	bool compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::string> sources);
-    void compile();
-    void mark_for_recompilation();
-    void reset();
 private:
     std::uint32_t vertex_shader_{ 0 };
     std::uint32_t fragment_shader_{ 0 };
-    std::uint32_t program_{ 0 };
-    bool try_recompile_ = false;
 
     std::vector<std::filesystem::path> vertex_sources_;
     std::vector<std::filesystem::path> fragment_sources_;

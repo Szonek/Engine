@@ -7,6 +7,7 @@
 
 #include "components_internals/guizmo_component.h"
 #include "components_internals/outline_component.h"
+#include "components_internals/camera_internal_component.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_sdl3.h"
@@ -587,8 +588,9 @@ inline void render_guizmo(engine::Scene* scene, float delta_time)
     }
 }
 
-inline void render_outline(engine::RenderContext& rdx, engine::Framebuffer& main_fbo, engine::Scene* scene, float delta_time)
+inline void render_outline(engine::RenderContext& rdx, engine::Framebuffer& main_fbo, const std::span<const engine::Geometry> geometries, const engine::Texture2D& white_texture, engine::Scene* scene, float delta_time)
 {
+    static engine::MaterialSkinnedGeometryUnlit material_skinned_geometry_unlit;
     const auto window_size = rdx.get_window_size_in_pixels();
     static engine::Framebuffer fbo_outline(window_size.width, window_size.height, 1, false);
     fbo_outline.bind();
@@ -597,8 +599,8 @@ inline void render_outline(engine::RenderContext& rdx, engine::Framebuffer& main
     {
         fbo_outline.resize(window_size.width, window_size.height);
     }
+    rdx.set_clear_color(1.0f, 1.0f, 1.0, 1.0f);
     fbo_outline.clear();
-    fbo_outline.bind();
     auto camera_view = scene->create_runtime_view();
     scene->attach_component_to_runtime_view<engine_camera_component_t>(camera_view);
     for (const auto& camera_entity : camera_view)
@@ -608,6 +610,7 @@ inline void render_outline(engine::RenderContext& rdx, engine::Framebuffer& main
         {
             continue;
         }
+        const auto camera_internal = scene->get_component<engine::camera_internal_component_t>(camera_entity);
         const auto camera_view = scene->get_camera_view(camera_entity);
         const auto camera_projection = scene->get_camera_projection(camera_entity);
 
@@ -618,6 +621,48 @@ inline void render_outline(engine::RenderContext& rdx, engine::Framebuffer& main
         scene->attach_component_to_runtime_view<engine_material_component_t>(outline_view);
         for (const auto& entity : outline_view)
         {
+            if (!scene->has_component<engine_skin_component_t>(entity))
+            {
+                engine::log::log(engine::log::LogLevel::eCritical, "Add support for static (non-skiined) geometry!");
+                continue;
+            }
+
+            const auto transform_component = scene->get_component<engine_tranform_component_t>(entity);
+            float color_white[3] = { 1.0f, 1.0f, 1.0f };
+            engine::MaterialSkinnedGeometryUnlit::DrawContext ctx
+            {
+                .camera = camera_internal->camera_ubo,
+                .model_matrix = transform_component->local_to_world,
+                .color_diffuse = color_white,
+                .texture_diffuse = white_texture
+            };
+
+            auto skin_component = scene->get_component<engine_skin_component_t>(entity);
+            const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component->local_to_world));
+            for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
+            {
+                const auto& bone_entity = static_cast<entt::entity>(skin_component->bones[i]);
+                if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
+                {
+                    continue;
+                }
+
+                if (scene->has_component<engine_bone_component_t>(bone_entity) == false)
+                {
+                    engine::log::log(engine::log::LogLevel::eError, fmt::format("Bone entity does not have bone component. Are you sure you are doing valid thing?\n"));
+                    skin_component->bones[i] = ENGINE_INVALID_GAME_OBJECT_ID;
+                    continue;
+                }
+                const auto& bone_component = scene->get_component<engine_bone_component_t>(bone_entity);
+                const auto& bone_transform = scene->get_component<engine_tranform_component_t>(bone_entity);
+                const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
+                const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
+                const auto per_bone_final_transform = inverse_transform * bone_matrix;
+                ctx.bone_transforms.push_back(per_bone_final_transform);
+            }
+
+            const auto mesh_component = scene->get_component<engine_mesh_component_t>(entity);
+            material_skinned_geometry_unlit.draw(geometries[mesh_component->geometry], ctx);
 
         }
     }
@@ -802,7 +847,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_t
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
     render_scene_hierarchy_panel(scene, delta_time);
     render_guizmo(scene, delta_time);
-    render_outline(rdx_, fbo_scene_, scene, delta_time);
+    render_outline(rdx_, fbo_scene_, geometries_atlas_.get_objects_view(), textures_atlas_.get_objects_view()[0], scene, delta_time);
     camera_context_.on_scene_update_post(scene, delta_time);
 }
 

@@ -118,9 +118,9 @@ inline std::uint32_t to_ogl_texture_border_clamp_mode(engine::TextureAddressClam
 
 
 engine::Shader::Shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name)
-    : vertex_shader_(0)
+    : ShaderBase()
+    , vertex_shader_(0)
     , fragment_shader_(0)
-    , program_(0)
 {
     log::log(log::LogLevel::eTrace, fmt::format("[Trace][Program] Creating shader with sources: \t\n"));
     for (const auto& vsn : vertex_shader_name)
@@ -139,14 +139,14 @@ engine::Shader::Shader(const std::vector<std::string>& vertex_shader_name, const
         FileWatcher::get_instance().register_callback(fragment_sources_.back(), [this]() { mark_for_recompilation(); });
     }
 
-    compile();
+    //compile();
 }
 
 engine::Shader::Shader(Shader&& rhs) noexcept
 {
     std::swap(vertex_shader_, rhs.vertex_shader_);
     std::swap(fragment_shader_, rhs.fragment_shader_);
-    std::swap(program_, rhs.program_);
+    //std::swap(program_, rhs.program_);
     std::swap(vertex_sources_, rhs.vertex_sources_);
     std::swap(fragment_sources_, rhs.fragment_sources_);
 }
@@ -157,7 +157,7 @@ engine::Shader& engine::Shader::operator=(Shader&& rhs) noexcept
     {
         std::swap(vertex_shader_, rhs.vertex_shader_);
         std::swap(fragment_shader_, rhs.fragment_shader_);
-        std::swap(program_, rhs.program_);
+        //std::swap(program_, rhs.program_);
         std::swap(vertex_sources_, rhs.vertex_sources_);
         std::swap(fragment_sources_, rhs.fragment_sources_);
     }
@@ -166,13 +166,11 @@ engine::Shader& engine::Shader::operator=(Shader&& rhs) noexcept
 
 engine::Shader::~Shader()
 {
-    reset();
+    reset_shaders();
 }
 
-void engine::Shader::compile()
+bool engine::Shader::compile_shaders(std::uint32_t program)
 {
-    try_recompile_ = false;
-    auto program = glCreateProgram();
     auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     auto fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
 
@@ -192,7 +190,7 @@ void engine::Shader::compile()
     }
 
     // first compilation
-    if (program_ == 0 && !shader_compiled_succesffuly)
+    if (program == 0 && !shader_compiled_succesffuly)
     {
         assert(!"Failed compilation!");
     }
@@ -223,24 +221,16 @@ void engine::Shader::compile()
             glDeleteProgram(program);
         }
 
-        return;
+        return false;
     }
 
-    if (is_valid())
-    {
-        reset();
-    }
-    program_ = program;
+    reset_shaders();
     vertex_shader_ = vertex_shader;
     fragment_shader_ = fragment_shader;
+    return true;
 }
 
-void engine::Shader::mark_for_recompilation()
-{
-    try_recompile_ = true;
-}
-
-void engine::Shader::reset()
+void engine::Shader::reset_shaders()
 {
     if (vertex_shader_)
     {
@@ -252,19 +242,49 @@ void engine::Shader::reset()
         glDeleteShader(fragment_shader_);
         fragment_shader_ = 0;
     }
+}
+
+engine::ShaderBase::~ShaderBase()
+{
+    reset_shaders_and_program();
+}
+
+void engine::ShaderBase::compile()
+{
+    try_recompile_ = false;
+    auto program = glCreateProgram();
+    if (compile_shaders(program))
+    {
+        reset_program();
+        program_ = program;
+    }
+}
+
+void engine::ShaderBase::mark_for_recompilation()
+{
+    try_recompile_ = true;
+}
+
+void engine::ShaderBase::reset_shaders_and_program()
+{
+    reset_program();
+}
+
+void engine::ShaderBase::reset_program()
+{
     if (program_)
     {
         glDeleteProgram(program_);
         program_ = 0;
-    }    
+    }
 }
 
-bool engine::Shader::is_valid() const
+bool engine::ShaderBase::is_valid() const
 {
     return program_ != 0;
 }
 
-void engine::Shader::bind()
+void engine::ShaderBase::bind()
 {
     if (try_recompile_)
     {
@@ -274,14 +294,14 @@ void engine::Shader::bind()
 	glUseProgram(program_);
 }
 
-void engine::Shader::set_uniform_f4(std::string_view name, std::span<const float> host_data)
+void engine::ShaderBase::set_uniform_f4(std::string_view name, std::span<const float> host_data) const
 {
 	assert(host_data.size() == 4 && "[ERROR] Wrong size of data");
     const auto loc = get_uniform_location(name);
 	glUniform4f(loc, host_data[0], host_data[1], host_data[2], host_data[3]);
 }
 
-void engine::Shader::set_uniform_f3(std::string_view name, std::span<const float> host_data)
+void engine::ShaderBase::set_uniform_f3(std::string_view name, std::span<const float> host_data) const
 {
     assert(host_data.size() == 3 && "[ERROR] Wrong size of data");
     const auto loc = get_uniform_location(name);
@@ -289,27 +309,27 @@ void engine::Shader::set_uniform_f3(std::string_view name, std::span<const float
 }
 
 
-void engine::Shader::set_uniform_f2(std::string_view name, std::span<const float> host_data)
+void engine::ShaderBase::set_uniform_f2(std::string_view name, std::span<const float> host_data) const
 {
     assert(host_data.size() == 2 && "[ERROR] Wrong size of data.");
     const auto loc = get_uniform_location(name);
     glUniform2f(loc, host_data[0], host_data[1]);
 }
 
-void engine::Shader::set_uniform_f1(std::string_view name, const float host_data)
+void engine::ShaderBase::set_uniform_f1(std::string_view name, const float host_data) const
 {
     const auto loc = get_uniform_location(name);
     glUniform1f(loc, host_data);
 }
 
-void engine::Shader::set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data)
+void engine::ShaderBase::set_uniform_ui2(std::string_view name, std::span<const std::uint32_t> host_data) const
 {
     assert(host_data.size() == 2 && "[ERROR] Wrong size of data.");
     const auto loc = get_uniform_location(name);
     glUniform2ui(loc, host_data[0], host_data[1]);
 }
 
-void engine::Shader::set_uniform_block(std::string_view name, const UniformBuffer* buffer, std::uint32_t bind_index)
+void engine::ShaderBase::set_uniform_block(std::string_view name, const UniformBuffer* buffer, std::uint32_t bind_index) const
 {
     const auto block_index = glGetUniformBlockIndex(program_, name.data());
     if (block_index != -1)
@@ -320,14 +340,14 @@ void engine::Shader::set_uniform_block(std::string_view name, const UniformBuffe
     }
 }
 
-void engine::Shader::set_uniform_mat_f4(std::string_view name, std::span<const float> host_data)
+void engine::ShaderBase::set_uniform_mat_f4(std::string_view name, std::span<const float> host_data) const
 {
 	assert(host_data.size() == 16 && "[ERROR] Wrong size of data");
     const auto loc = get_uniform_location(name);
 	glUniformMatrix4fv(loc, 1, GL_FALSE, host_data.data());
 }
 
-void engine::Shader::set_texture(std::string_view name, const Texture2D* texture)
+void engine::ShaderBase::set_texture(std::string_view name, const Texture2D* texture) const
 {
     assert(texture &&  "[ERROR] Nullptr texture ptr");
     const auto loc = get_uniform_location(name);
@@ -337,7 +357,7 @@ void engine::Shader::set_texture(std::string_view name, const Texture2D* texture
 }
 
 
-std::int32_t engine::Shader::get_resource_location(std::string_view name, std::int32_t resource_interface)
+std::int32_t engine::ShaderBase::get_resource_location(std::string_view name, std::int32_t resource_interface) const
 {
     // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glGetProgramResourceIndex.xhtml
     const auto location = glGetProgramResourceIndex(program_, resource_interface, name.data());
@@ -345,14 +365,14 @@ std::int32_t engine::Shader::get_resource_location(std::string_view name, std::i
 	return location;
 }
 
-std::int32_t engine::Shader::get_uniform_location(std::string_view name)
+std::int32_t engine::ShaderBase::get_uniform_location(std::string_view name) const
 {
     const auto location = glGetUniformLocation(program_, name.data());
     assert(location != -1 && "[ERROR] Cant find uniform location in the shader.");
     return location;
 }
 
-bool engine::Shader::compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::string> sources)
+bool engine::ShaderBase::compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::string> sources)
 {
 	// set source
     std::vector<const char*> sources_ptrs;

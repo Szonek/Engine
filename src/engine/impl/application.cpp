@@ -5,7 +5,6 @@
 #include "logger.h"
 #include "gltf_parser.h"
 #include "ui_document.h"
-#include "scene.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -137,7 +136,6 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     , shader_full_screen_quad_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
 {
 	{
-		//constexpr const std::array<std::uint8_t, 3> default_texture_color = { 160, 50, 168 };
 		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 255, 255, 255 };
 		engine_texture_2d_create_desc_t tex2d_desc{};
 		tex2d_desc.width = 1;
@@ -146,8 +144,6 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
 		tex2d_desc.data = default_texture_color.data();
         default_texture_idx_ = add_texture(tex2d_desc, "default_1x1_texutre");
 	}
-
-    rdx_.set_clear_color(0.05f, 0.0f, 0.2f, 1.0f);
 
 	timer_.tick();
 
@@ -306,8 +302,8 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
         {
             fbo_scene_.resize(win_w, win_h);
         }
+        rdx_.set_clear_color(0.05f, 0.0f, 0.2f, 1.0f);
         fbo_scene_.clear();
-        fbo_scene_.bind();
     }
     
     on_frame_begine(ret);
