@@ -553,7 +553,7 @@ inline void render_guizmo(engine::Scene* scene, float delta_time)
         auto gizmo_view = scene->create_runtime_view();
         scene->attach_component_to_runtime_view<engine_tranform_component_t>(gizmo_view);
         scene->attach_component_to_runtime_view<engine::guizmo_component_t>(gizmo_view);
-        for (auto& entity : gizmo_view)
+        for (const auto& entity : gizmo_view)
         {
             const auto transform_component = *scene->get_component<engine_tranform_component_t>(entity);
             // ImGuizmo manipulation
@@ -585,6 +585,44 @@ inline void render_guizmo(engine::Scene* scene, float delta_time)
             }
         }
     }
+}
+
+inline void render_outline(engine::RenderContext& rdx, engine::Framebuffer& main_fbo, engine::Scene* scene, float delta_time)
+{
+    const auto window_size = rdx.get_window_size_in_pixels();
+    static engine::Framebuffer fbo_outline(window_size.width, window_size.height, 1, false);
+    fbo_outline.bind();
+    const auto& [fbo_w, fbo_h] = fbo_outline.get_size();
+    if (fbo_w != window_size.width || fbo_h != window_size.height)
+    {
+        fbo_outline.resize(window_size.width, window_size.height);
+    }
+    fbo_outline.clear();
+    fbo_outline.bind();
+    auto camera_view = scene->create_runtime_view();
+    scene->attach_component_to_runtime_view<engine_camera_component_t>(camera_view);
+    for (const auto& camera_entity : camera_view)
+    {
+        const auto camera = *scene->get_component<engine_camera_component_t>(camera_entity);
+        if (!camera.enabled)
+        {
+            continue;
+        }
+        const auto camera_view = scene->get_camera_view(camera_entity);
+        const auto camera_projection = scene->get_camera_projection(camera_entity);
+
+        auto outline_view = scene->create_runtime_view();
+        scene->attach_component_to_runtime_view<engine::outline_component_t>(outline_view);
+        scene->attach_component_to_runtime_view<engine_tranform_component_t>(outline_view);
+        scene->attach_component_to_runtime_view<engine_mesh_component_t>(outline_view);
+        scene->attach_component_to_runtime_view<engine_material_component_t>(outline_view);
+        for (const auto& entity : outline_view)
+        {
+
+        }
+    }
+    fbo_outline.unbind();
+    main_fbo.bind();
 }
 
 inline void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
@@ -764,6 +802,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_t
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
     render_scene_hierarchy_panel(scene, delta_time);
     render_guizmo(scene, delta_time);
+    render_outline(rdx_, fbo_scene_, scene, delta_time);
     camera_context_.on_scene_update_post(scene, delta_time);
 }
 
