@@ -177,7 +177,7 @@ public:
     Framebuffer& operator=(Framebuffer&& rhs)  noexcept;
     ~Framebuffer();
 
-    void bind();
+    void bind(AccessType type = AccessType::eReadWrite);
     void unbind();
     void resize(std::uint32_t width, std::uint32_t height);
     void clear();
@@ -194,6 +194,8 @@ private:
 
     std::uint32_t width_;
     std::uint32_t height_;
+
+    std::uint32_t last_bind_access_type_ = 0;
 };
 
 class Geometry

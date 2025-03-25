@@ -785,7 +785,7 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
 void engine::ApplicationEditor::render_outline(Scene* scene)
 {
     const auto window_size = rdx_.get_window_size_in_pixels();
-    outline_effect_.fbo_outline.bind();
+    outline_effect_.fbo_outline.bind(AccessType::eWriteOnly);
 
     const auto& [fbo_w, fbo_h] = outline_effect_.fbo_outline.get_size();
     if (fbo_w != window_size.width || fbo_h != window_size.height)
@@ -794,7 +794,6 @@ void engine::ApplicationEditor::render_outline(Scene* scene)
     }
     rdx_.set_clear_color(0.0f, 0.0f, 0.0, 1.0f);
     outline_effect_.fbo_outline.clear();
-
 
     auto camera_view = scene->create_runtime_view();
     scene->attach_component_to_runtime_view<engine_camera_component_t>(camera_view);

@@ -1244,14 +1244,29 @@ engine::Framebuffer::~Framebuffer()
     }
 }
 
-void engine::Framebuffer::bind()
+void engine::Framebuffer::bind(AccessType type)
 {
+    switch (type)
+    {
+    case AccessType::eReadWrite:
+        last_bind_access_type_ = GL_FRAMEBUFFER;
+        break;
+    case AccessType::eReadOnly:
+        last_bind_access_type_ = GL_READ_FRAMEBUFFER;
+        break;
+    case AccessType::eWriteOnly:
+        last_bind_access_type_ = GL_DRAW_FRAMEBUFFER;
+        break;
+    default:
+        assert(false && "Unknown access type!");
+    }
     glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
 }
 
 void engine::Framebuffer::unbind()
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    assert(last_bind_access_type_ != 0);
+    glBindFramebuffer(last_bind_access_type_, 0);
 }
 
 void engine::Framebuffer::resize(std::uint32_t width, std::uint32_t height)
