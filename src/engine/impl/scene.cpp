@@ -573,6 +573,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         }
 
                         const auto ctx = MaterialStaticGeometryLit::DrawContext{
+                            .entity_id = static_cast<std::uint32_t>(entity),
                             .camera = camera_internal.camera_ubo,
                             .scene = scene_ubo_,
                             .model_matrix = transform_component.local_to_world,
@@ -611,6 +612,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                         }
 
                         auto ctx = MaterialSkinnedGeometryLit::DrawContext{
+                            .entity_id = static_cast<std::uint32_t>(entity),
                             .camera = camera_internal.camera_ubo,
                             .scene = scene_ubo_,
                             .model_matrix = transform_component.local_to_world,

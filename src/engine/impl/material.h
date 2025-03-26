@@ -7,6 +7,8 @@
 
 #include <span>
 
+#include <cstdint>
+
 namespace engine
 {
 struct SceneGpuData
@@ -22,6 +24,7 @@ class MaterialStaticGeometryLit
 public:
     struct DrawContext
     {
+        std::uint32_t entity_id;
         const UniformBuffer& camera;
         const UniformBuffer& scene;
         const float* model_matrix;
@@ -66,6 +69,7 @@ class MaterialSkinnedGeometryLit
 public:
     struct DrawContext
     {
+        std::uint32_t entity_id;
         const UniformBuffer& camera;
         const UniformBuffer& scene;
         const float* model_matrix;

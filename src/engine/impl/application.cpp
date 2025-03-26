@@ -131,7 +131,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     : rdx_(std::move(RenderContext(desc.name, { 0, 0, desc.width, desc.height }, desc.fullscreen)))
     , ui_manager_(rdx_)
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
-    , fbo_scene_(rdx_.get_window_size_in_pixels().width, rdx_.get_window_size_in_pixels().height, 1, true)
+    , fbo_scene_(rdx_.get_window_size_in_pixels().width, rdx_.get_window_size_in_pixels().height, 2, true)
     , empty_vao_for_full_screen_quad_draw_(6)
     , shader_full_screen_quad_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
 {
@@ -302,7 +302,7 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
         {
             fbo_scene_.resize(win_w, win_h);
         }
-        rdx_.set_clear_color(0.05f, 0.0f, 0.2f, 1.0f);
+        rdx_.set_clear_color(0.00f, 0.0f, 0.0f, 1.0f);
         fbo_scene_.clear();
     }
     

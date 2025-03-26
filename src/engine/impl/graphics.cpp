@@ -328,6 +328,12 @@ void engine::ShaderBase::set_uniform_ui2(std::string_view name, std::span<const 
     glUniform2ui(loc, host_data[0], host_data[1]);
 }
 
+void engine::ShaderBase::set_uniform_ui(std::string_view name, const std::uint32_t host_data) const
+{
+    const auto loc = get_uniform_location(name);
+    glUniform1ui(loc, host_data);
+}
+
 void engine::ShaderBase::set_uniform_block(std::string_view name, const UniformBuffer* buffer, std::uint32_t bind_index) const
 {
     const auto block_index = glGetUniformBlockIndex(program_, name.data());
@@ -1261,6 +1267,14 @@ void engine::Framebuffer::bind(AccessType type)
         assert(false && "Unknown access type!");
     }
     glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
+
+    std::vector<GLenum> attachments;
+    attachments.reserve(color_attachments_.size());
+    for (auto i = 0; i < color_attachments_.size(); i++)
+    {
+        attachments.push_back(GL_COLOR_ATTACHMENT0 + i);
+    }
+    glDrawBuffers(static_cast<std::int32_t>(attachments.size()), attachments.data());
 }
 
 void engine::Framebuffer::unbind()

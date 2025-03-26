@@ -25,11 +25,12 @@ layout (binding = 2, std430) readonly buffer LightPacketSSBO
 	LightPacket light_data[];
 };
 
-out mediump vec4 out_fragment_color;
+layout (location = 0) out vec4 out_fragment_color; 
+layout (location = 1) out uint out_entity_id; 
 
-
-uniform mediump vec4 diffuse_color;
-uniform mediump float shininess;
+uniform vec4 diffuse_color;
+uniform float shininess;
+uniform uint entity_id;
 layout(binding=5) uniform sampler2D texture_diffuse;
 layout(binding=6) uniform sampler2D texture_specular;
 
@@ -66,4 +67,5 @@ void main()
 	
 	// final result
 	out_fragment_color = vec4((out_color + ambient + diffuse + specular), 1.0f);
+	out_entity_id = entity_id;
 } 

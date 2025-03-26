@@ -9,10 +9,14 @@ engine::MaterialStaticGeometryLit::MaterialStaticGeometryLit()
 void engine::MaterialStaticGeometryLit::draw(const Geometry& geometry, const DrawContext& ctx)
 {
     shader_.bind();
+    
+    assert(ctx.entity_id != ENGINE_INVALID_GAME_OBJECT_ID);
+    shader_.set_uniform_ui("entity_id", ctx.entity_id);
 
     shader_.set_uniform_block("CameraData", &ctx.camera, 0);
     shader_.set_uniform_block("SceneData", &ctx.scene, 1);
 
+    assert(ctx.model_matrix != nullptr);
     shader_.set_uniform_mat_f4("model", { ctx.model_matrix, 16 });
 
     shader_.set_uniform_f4("diffuse_color", {ctx.color_diffuse, 4});
@@ -35,9 +39,13 @@ void engine::MaterialSkinnedGeometryLit::draw(const Geometry& geometry, const Dr
 {
     shader_.bind();
 
+    assert(ctx.entity_id != ENGINE_INVALID_GAME_OBJECT_ID);
+    shader_.set_uniform_ui("entity_id", ctx.entity_id);
+
     shader_.set_uniform_block("CameraData", &ctx.camera, 0);
     shader_.set_uniform_block("SceneData",  &ctx.scene, 1);
 
+    assert(ctx.model_matrix != nullptr);
     shader_.set_uniform_mat_f4("model", { ctx.model_matrix, 16 });
 
     shader_.set_uniform_f4("diffuse_color", { ctx.color_diffuse, 4 });

@@ -10,6 +10,7 @@ struct CameraGpuData
     glm::mat4 view;
     glm::mat4 projection;
     glm::vec3 position;
+    float pad_;
 };
 
 struct camera_internal_component_t
