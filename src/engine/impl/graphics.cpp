@@ -41,6 +41,8 @@ inline std::uint32_t to_ogl_datatype(engine::DataLayout layout)
     case engine::DataLayout::eRGBA_FP32:
     case engine::DataLayout::eR_FP32:
         return GL_FLOAT;
+    case engine::DataLayout::eR_U32:
+        return GL_UNSIGNED_INT;
     case engine::DataLayout::eDEPTH24_STENCIL8_U32:
         return GL_UNSIGNED_INT_24_8;
     default:
@@ -62,6 +64,8 @@ inline std::uint32_t to_ogl_format(engine::DataLayout layout)
     case engine::DataLayout::eR_U8:
     case engine::DataLayout::eR_FP32:
         return GL_RED;
+    case engine::DataLayout::eR_U32:
+        return GL_R32UI;
     case engine::DataLayout::eDEPTH24_STENCIL8_U32:
         return GL_DEPTH24_STENCIL8;
     default:
@@ -85,6 +89,8 @@ inline std::uint32_t to_image_unit_format(engine::DataLayout layout)
         return GL_R8UI;
     case engine::DataLayout::eR_FP32:
         return GL_R32F;
+    case engine::DataLayout::eR_U32:
+        return GL_R32UI;
     default:
         assert(false && "Unknown OGL data type for image unit!");
         break;
@@ -94,14 +100,26 @@ inline std::uint32_t to_image_unit_format(engine::DataLayout layout)
 
 inline std::uint32_t to_ogl_host_format(engine::DataLayout layout)
 {
-    if (layout == engine::DataLayout::eDEPTH24_STENCIL8_U32)
+    switch (layout)
     {
+    case engine::DataLayout::eDEPTH24_STENCIL8_U32:
         return GL_DEPTH_STENCIL;
+    case engine::DataLayout::eRGBA_U8:
+    case engine::DataLayout::eRGBA_FP32:
+        return GL_RGBA;
+    case engine::DataLayout::eRGB_U8:
+        return GL_RGB;
+    case engine::DataLayout::eR_U8:
+    case engine::DataLayout::eR_FP32:
+        return GL_RED;
+    case engine::DataLayout::eR_U32:
+        return GL_RED_INTEGER;
+    default:
+        assert(false && "Unknown OGL data type!");
+        break;
     }
-    else
-    {
-        return to_ogl_format(layout);
-    }
+
+
 }
 inline std::uint8_t data_layout_bytes_width(engine::DataLayout layout)
 {
@@ -113,6 +131,9 @@ inline std::uint8_t data_layout_bytes_width(engine::DataLayout layout)
     case engine::DataLayout::eRGBA_U8: return 4 * sizeof(unsigned char);
     case engine::DataLayout::eRGB_U8: return 3 * sizeof(unsigned char);
     case engine::DataLayout::eR_U8: return 1 * sizeof(unsigned char);
+
+    case engine::DataLayout::eR_U32: return 1 * sizeof(std::uint32_t);
+
     case engine::DataLayout::eDEPTH24_STENCIL8_U32: return sizeof(std::uint32_t);
     default:
         assert(false && "Unknown texture data type.");
@@ -1187,7 +1208,7 @@ void engine::RenderContext::end_frame_ui_rendering()
     ui_rml_gl3_renderer_->EndFrame();
 }
 
-engine::Framebuffer::Framebuffer(std::uint32_t width, std::uint32_t height, std::uint32_t color_attachment_count, bool has_depth_attachment)
+engine::Framebuffer::Framebuffer(std::uint32_t width, std::uint32_t height, std::vector<DataLayout> color_attachment_layouts, bool has_depth_attachment)
     : fbo_(0)
     , depth_attachment_()
     , color_attachments_()
@@ -1197,9 +1218,9 @@ engine::Framebuffer::Framebuffer(std::uint32_t width, std::uint32_t height, std:
     glGenFramebuffers(1, &fbo_);
     bind();
     //ToDo: investigare framebuffers which may have better performance, (but cant read from them directly!!)
-    for (std::uint32_t i = 0; i < color_attachment_count; i++)
+    for (std::uint32_t i = 0; i < color_attachment_layouts.size(); i++)
     {
-        color_attachments_.push_back(Texture2D::create_and_attach_to_frame_buffer(width, height, DataLayout::eRGBA_U8, i));
+        color_attachments_.push_back(Texture2D::create_and_attach_to_frame_buffer(width, height, color_attachment_layouts.at(i), i));
     }
 
     if (has_depth_attachment)

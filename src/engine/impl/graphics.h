@@ -33,6 +33,11 @@ enum class DataLayout
     // ..
     eRGBA_FP32,
     eR_FP32,
+    
+    //..
+    //..
+     
+    eR_U32,
 
     // depth and stencil formats
     eDEPTH24_STENCIL8_U32,
@@ -171,7 +176,7 @@ private:
 class Framebuffer
 {
 public:
-    Framebuffer(std::uint32_t width, std::uint32_t height, std::uint32_t color_attachment_count, bool has_depth_attachment);
+    Framebuffer(std::uint32_t width, std::uint32_t height, std::vector<DataLayout> color_attachment_layouts, bool has_depth_attachment);
     Framebuffer(const Framebuffer& rhs) = delete;
     Framebuffer(Framebuffer&& rhs) noexcept;
     Framebuffer& operator=(const Framebuffer& rhs) = delete;

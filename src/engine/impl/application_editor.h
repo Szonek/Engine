@@ -44,7 +44,7 @@ struct OutlinePostProccessEffect
 
     OutlinePostProccessEffect(std::size_t init_width, std::uint32_t init_height)
         : compute_shader_edge_detection({ "sobel_edge_detection.cs" })
-        , fbo_outline(init_width, init_height, 1, false)
+        , fbo_outline(init_width, init_height, { DataLayout::eRGBA_U8 }, false)
     {
     }
 

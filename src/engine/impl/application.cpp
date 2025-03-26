@@ -131,7 +131,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     : rdx_(std::move(RenderContext(desc.name, { 0, 0, desc.width, desc.height }, desc.fullscreen)))
     , ui_manager_(rdx_)
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
-    , fbo_scene_(rdx_.get_window_size_in_pixels().width, rdx_.get_window_size_in_pixels().height, 2, true)
+    , fbo_scene_(rdx_.get_window_size_in_pixels().width, rdx_.get_window_size_in_pixels().height, { DataLayout::eRGBA_U8, DataLayout::eR_U32 }, true)
     , empty_vao_for_full_screen_quad_draw_(6)
     , shader_full_screen_quad_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
 {
