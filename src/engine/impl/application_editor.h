@@ -50,6 +50,17 @@ struct OutlinePostProccessEffect
 
 };
 
+class SceneHierarchyContext
+{
+public:
+    void set_selected_entity(engine::Scene* scene, entt::entity e);
+    entt::entity get_selected_entity() const;
+    bool has_selected_entity() const;
+
+private:
+    entt::entity selected_ = entt::null;
+};
+
 class ApplicationEditor : public Application
 {
 public:
@@ -74,6 +85,7 @@ protected:
 private:
     void render_outline(class Scene* scene);
     void render_guizmo(class Scene* scene);
+    void handle_mouse_picking(class Scene* scene);
 
 private:
     class CameraContext
@@ -98,6 +110,7 @@ private:
     bool editor_controlling_scene_ = false;
     bool draw_guizmo_ = true;
     OutlinePostProccessEffect outline_effect_;
+    SceneHierarchyContext scene_hierarchy_context_;
 };
 
 } // namespace engine

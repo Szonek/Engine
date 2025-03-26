@@ -862,7 +862,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     // we need 4.3 for compute shaders
     // we need 4.4 for glClearTexImage
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
 #if __ANDROID__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, 0);
@@ -1212,6 +1212,7 @@ engine::Framebuffer::Framebuffer(std::uint32_t width, std::uint32_t height, std:
     : fbo_(0)
     , depth_attachment_()
     , color_attachments_()
+    , color_attachment_layouts_(color_attachment_layouts)
     , width_(width)
     , height_(height)
 {
@@ -1316,7 +1317,7 @@ void engine::Framebuffer::resize(std::uint32_t width, std::uint32_t height)
 
     for (std::uint32_t i = 0; i < color_attachments_count; i++)
     {
-        color_attachments_.push_back(Texture2D::create_and_attach_to_frame_buffer(width, height, DataLayout::eRGBA_U8, i));
+        color_attachments_.push_back(Texture2D::create_and_attach_to_frame_buffer(width, height, color_attachment_layouts_.at(i), i));
     }
 
     if (has_depth_attachment)
@@ -1354,6 +1355,15 @@ engine::Texture2D* engine::Framebuffer::get_depth_attachment()
 std::pair<std::uint32_t, std::uint32_t> engine::Framebuffer::get_size() const
 {
     return { width_, height_ };
+}
+
+std::vector<std::byte> engine::Framebuffer::download_pixels(std::size_t attachment_idx, viewport_t region, DataLayout layout)
+{
+    std::vector<std::byte> ret;
+    ret.resize(region.width * region.height * data_layout_bytes_width(layout));
+    glReadBuffer(GL_COLOR_ATTACHMENT0 + attachment_idx);
+    glReadPixels(region.x, region.y, region.width, region.height, to_ogl_host_format(layout), to_ogl_datatype(layout), ret.data());
+    return ret;
 }
 
 engine::UniformBuffer::UniformBuffer(std::size_t size)

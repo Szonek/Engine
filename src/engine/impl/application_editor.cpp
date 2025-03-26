@@ -54,41 +54,6 @@ inline auto get_cartesian_coordinates(const auto& spherical)
     return ret;
 }
 
-class hierarchy_context_t
-{
-public:
-    void set_selected_entity(engine::Scene* scene, entt::entity e)
-    {
-        if (selected_ != entt::null)
-        {
-            scene->remove_component<engine::guizmo_component_t>(selected_);
-            scene->remove_component<engine::outline_component_t>(selected_);
-        }
-
-        selected_ = e;
-        scene->add_component<engine::guizmo_component_t>(selected_);
-        scene->add_component<engine::outline_component_t>(selected_);
-    }
-
-    entt::entity get_selected_entity() const
-    {
-        return selected_;
-    }
-
-    bool has_selected_entity() const
-    {
-        return selected_ != entt::null;
-    }
-
-    void unselect_entity()
-    {
-        selected_ = entt::null;
-    }
-
-private:
-    entt::entity selected_ = entt::null;
-};
-
 struct entity_node_t
 {
     entt::entity entity = entt::null;
@@ -109,7 +74,7 @@ inline void traverse_hierarchy(entity_node_t* node, std::function<void(entity_no
     }
 }
 
-inline void display_node(entity_node_t* node, engine::Scene* scene, hierarchy_context_t& ctx)
+inline void display_node(entity_node_t* node, engine::Scene* scene, engine::SceneHierarchyContext& ctx)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_node");
     node->displayed = true;
@@ -538,7 +503,7 @@ bool display_camera_component(engine_camera_component_t& c)
 }
 
 
-inline void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
+inline void render_scene_hierarchy_panel(engine::SceneHierarchyContext& ctx, engine::Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-render_scene_hierarchy_panel");
     // build memory with all the entites
@@ -566,7 +531,6 @@ inline void render_scene_hierarchy_panel(engine::Scene* scene, float delta_time)
             parent_node.children.push_back(&node);
         }
     }
-    static hierarchy_context_t ctx;
     ImGui::Begin("Scene Panel");
 
     if (ImGui::Button("Add entity"))
@@ -720,10 +684,10 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
 void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
-    render_scene_hierarchy_panel(scene, delta_time);
+    render_scene_hierarchy_panel(scene_hierarchy_context_, scene, delta_time);
     render_guizmo(scene);
     render_outline(scene);
-
+    handle_mouse_picking(scene);
     camera_context_.on_scene_update_post(scene, delta_time);
 }
 
@@ -779,6 +743,33 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
                     });
             }
         }
+    }
+}
+
+void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
+{
+    if (ImGui::GetIO().WantCaptureMouse)
+    {
+        return;
+    }
+    if (mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT))
+    {
+        const auto window_size = rdx_.get_window_size_in_pixels();
+        const auto mouse_coords = mouse_get_coords();
+        viewport_t vp{};
+        vp.x = mouse_coords.x * window_size.width;
+        vp.y = mouse_coords.y * window_size.height;
+        vp.width = 1;
+        vp.height = 1;
+        const auto pixels = fbo_scene_.download_pixels(1, vp, DataLayout::eR_U32);
+        assert(pixels.size() == 4);
+        const auto pixels_u32 = reinterpret_cast<const std::uint32_t*>(pixels.data());
+        entt::entity entity_id = entt::null;
+        if (pixels_u32[0] != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            entity_id = static_cast<entt::entity>(pixels_u32[0]);
+        }
+        scene_hierarchy_context_.set_selected_entity(scene, entity_id);
     }
 }
 
@@ -990,17 +981,21 @@ void engine::CameraScript::update(float dt)
 
     //if (app_->keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LSHIFT))
     {
-        if (lmb)
-        {
-            rotate({ dx * move_speed, dy * move_speed });            
-        }
-        else if (rmb)
+        //if (lmb)
+        //{
+        //    rotate({ dx * move_speed, dy * move_speed });            
+        //}
+        //else if (rmb)
+        //{
+        //    strafe(dx * move_speed, dy * move_speed);
+        //}
+        //else if (mmb)
+        //{
+        //    translate({ 0.0f, 0.0f, dy * move_speed });
+        //}
+        if (rmb)
         {
             strafe(dx * move_speed, dy * move_speed);
-        }
-        else if (mmb)
-        {
-            translate({ 0.0f, 0.0f, dy * move_speed });
         }
     }
 }
@@ -1138,4 +1133,35 @@ void engine::ApplicationEditor::CameraContext::on_scene_update_post(Scene* scene
 bool engine::ApplicationEditor::CameraContext::is_enabled(engine::Scene* scene) const
 {
     return cameras_.at(scene).is_enabled;
+}
+
+void engine::SceneHierarchyContext::set_selected_entity(engine::Scene* scene, entt::entity e)
+{
+    if (selected_ == e)
+    {
+        return;
+    }
+    if (selected_ != entt::null)
+    {
+        scene->remove_component<engine::guizmo_component_t>(selected_);
+        scene->remove_component<engine::outline_component_t>(selected_);
+    }
+
+    selected_ = e;
+    if (selected_ != entt::null)
+    {
+        scene->add_component<engine::guizmo_component_t>(selected_);
+        scene->add_component<engine::outline_component_t>(selected_);
+    }
+
+}
+
+entt::entity engine::SceneHierarchyContext::get_selected_entity() const
+{
+    return selected_;
+}
+
+bool engine::SceneHierarchyContext::has_selected_entity() const
+{
+    return selected_ != entt::null;
 }

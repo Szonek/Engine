@@ -188,13 +188,16 @@ public:
     void resize(std::uint32_t width, std::uint32_t height);
     void clear();
 
-    Texture2D* get_color_attachment(std::size_t idx);
+    Texture2D* get_color_attachment(std::size_t attachment_idx);
     Texture2D* get_depth_attachment();
 
     std::pair<std::uint32_t, std::uint32_t> get_size() const;
 
+    std::vector<std::byte> download_pixels(std::size_t attachment_idx, viewport_t region, DataLayout layout);
+
 private:
     std::uint32_t fbo_{0};
+    std::vector<DataLayout> color_attachment_layouts_;
     std::vector<Texture2D> color_attachments_;
     Texture2D depth_attachment_;
 
