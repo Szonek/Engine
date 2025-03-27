@@ -57,8 +57,12 @@ public:
     entt::entity get_selected_entity() const;
     bool has_selected_entity() const;
 
+    void set_forced_open_selected_parents(bool value);
+    bool is_forced_open_selected_parents() const;
+
 private:
     entt::entity selected_ = entt::null;
+    bool force_open_selected_parents_ = false;
 };
 
 class ApplicationEditor : public Application

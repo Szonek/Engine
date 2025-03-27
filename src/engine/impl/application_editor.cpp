@@ -74,6 +74,20 @@ inline void traverse_hierarchy(entity_node_t* node, std::function<void(entity_no
     }
 }
 
+inline bool is_entity_parent_of(entt::entity parent, entt::entity child, engine::Scene* scene)
+{
+    if (parent == child)
+    {
+        return true;
+    }
+    if (scene->has_component<engine_parent_component_t>(child))
+    {
+        const auto pc = *scene->get_component<engine_parent_component_t>(child);
+        return is_entity_parent_of(parent, static_cast<entt::entity>(pc.parent), scene);
+    }
+    return false;
+}
+
 inline void display_node(entity_node_t* node, engine::Scene* scene, engine::SceneHierarchyContext& ctx)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_node");
@@ -91,6 +105,15 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Scen
         dispaly_flags |= ImGuiTreeNodeFlags_OpenOnArrow;
     }
 
+    // if we have selected entity by mouse then open all parents of selected entity for easier naviation in the scene panel
+    if (ctx.has_selected_entity())
+    {
+        if (ctx.is_forced_open_selected_parents())
+        {
+            ImGui::SetNextItemOpen(is_entity_parent_of(node->entity, ctx.get_selected_entity(), scene));
+        }
+    }
+
     const auto entity_id = std::string(node->name) + "##" + std::to_string(static_cast<std::uint32_t>(node->entity));
     if (ImGui::TreeNodeEx(entity_id.c_str(), dispaly_flags))
     {
@@ -100,9 +123,13 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Scen
         // select entity with LMB
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         {
-            ctx.set_selected_entity(scene, node->entity);
+            // but if tree was expanded (i.e. by pressing arrow) it does not count as selection of entity
+            if (!ImGui::IsItemToggledOpen())
+            {
+                ctx.set_selected_entity(scene, node->entity);
+            }
         }
-
+        
         // context menu with RMB
         if (ImGui::BeginPopupContextItem())
         {
@@ -570,7 +597,6 @@ inline void render_scene_hierarchy_panel(engine::SceneHierarchyContext& ctx, eng
                 display_node(&f, scene, ctx);
             }
         }
-
         ImGui::TreePop();
     }
     /*
@@ -770,6 +796,7 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
             entity_id = static_cast<entt::entity>(pixels_u32[0]);
         }
         scene_hierarchy_context_.set_selected_entity(scene, entity_id);
+        scene_hierarchy_context_.set_forced_open_selected_parents(true);
     }
 }
 
@@ -1164,4 +1191,14 @@ entt::entity engine::SceneHierarchyContext::get_selected_entity() const
 bool engine::SceneHierarchyContext::has_selected_entity() const
 {
     return selected_ != entt::null;
+}
+
+void engine::SceneHierarchyContext::set_forced_open_selected_parents(bool value)
+{
+    force_open_selected_parents_ = value;
+}
+
+bool engine::SceneHierarchyContext::is_forced_open_selected_parents() const
+{
+    return force_open_selected_parents_;
 }
