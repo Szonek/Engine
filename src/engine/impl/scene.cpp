@@ -1,4 +1,5 @@
-﻿#include "scene.h"
+﻿#include "application.h"
+#include "scene.h"
 #include "ui_manager.h"
 #include "nav_mesh.h"
 #include "logger.h"
@@ -117,8 +118,9 @@ static inline void calculate_camera_view_and_projection(std::size_t window_width
     }
 }
 
-engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
-    : rdx_(rdx)
+engine::Scene::Scene(Application* app, RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
+    : app_(app)
+    , rdx_(rdx)
     , physics_world_(&rdx_)
     //, fbo_draw_scene_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, true)
     //, fbo_draw_outline_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, false)
@@ -161,6 +163,11 @@ engine::Scene::Scene(RenderContext& rdx, const engine_scene_create_desc_t& confi
 
 engine::Scene::~Scene()
 {  
+}
+
+engine::Application* engine::Scene::get_application() const
+{
+    return app_;
 }
 
 void engine::Scene::enable_physics_debug_draw(bool enable)
@@ -333,8 +340,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> textures, 
-    std::span<const Geometry> geometries, std::span<class Shader> shaders)
+engine_result_code_t engine::Scene::update(float dt)
 {
     ENGINE_PROFILE_SECTION_N("scene_update");
     physics_update(dt);
@@ -546,7 +552,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 ENGINE_PROFILE_SECTION_N("geometry_renderer");
 
-                geometry_renderer.each([this, &camera_internal, &textures, &geometries](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
+                geometry_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
                     {
                         if (mesh_component.disable)
                         {
@@ -558,19 +564,11 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             return;
                         }
 
-                        auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
-                        if (texture_diffuse_idx > textures.size())
-                        {
-                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Diffuse texture index out of bounds: {}. Are you sure you are doing valid thing?\n", (std::uint32_t)entity, texture_diffuse_idx));
-                            //assert(false);
-                        }
+                        const auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
+                        const auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
 
-                        auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
-                        if (texture_specular_idx > textures.size())
-                        {
-                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Specular exture index out of bounds: {}. Are you sure you are doing valid thing?\n", (std::uint32_t)entity, texture_specular_idx));
-                            //assert(false);
-                        }
+                        const auto tex2d_diffuse_ptr = this->get_application()->get_texture(texture_diffuse_idx);
+                        const auto tex2d_specular_ptr = this->get_application()->get_texture(texture_diffuse_idx);
 
                         const auto ctx = MaterialStaticGeometryLit::DrawContext{
                             .entity_id = static_cast<std::uint32_t>(entity),
@@ -579,9 +577,11 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             .model_matrix = transform_component.local_to_world,
                             .color_diffuse = material_component.data.pong.diffuse_color,
                             .shininess = static_cast<float>(material_component.data.pong.shininess),     
-                            .texture_diffuse = textures[texture_diffuse_idx],
-                            .texture_specular = textures[texture_specular_idx]};
-                        material_static_geometry_lit_.draw(geometries[mesh_component.geometry], ctx);
+                            .texture_diffuse = *tex2d_diffuse_ptr,
+                            .texture_specular = *tex2d_specular_ptr };
+
+                        const auto geo_ptr = this->get_application()->get_geometry(mesh_component.geometry);
+                        material_static_geometry_lit_.draw(*geo_ptr, ctx);
                     }
                 );
             }
@@ -589,7 +589,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 ENGINE_PROFILE_SECTION_N("skinned_geometry_renderer");
 
-                skinned_geometry_renderer.each([this, &camera_internal, &textures, &geometries](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
+                skinned_geometry_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
                     engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
                     {
                         if (mesh_component.disable)
@@ -597,19 +597,11 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             return;
                         }
 
-                        auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
-                        if (texture_diffuse_idx > textures.size())
-                        {
-                            log::log(log::LogLevel::eError, fmt::format("Diffuse texture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_diffuse_idx));
-                            //assert(false);
-                        }
+                        const auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
+                        const auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
 
-                        auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
-                        if (texture_specular_idx > textures.size())
-                        {
-                            log::log(log::LogLevel::eError, fmt::format("Specular exture index out of bounds: {}. Are you sure you are doing valid thing?\n", texture_specular_idx));
-                            //assert(false);
-                        }
+                        const auto tex2d_diffuse_ptr = this->get_application()->get_texture(texture_diffuse_idx);
+                        const auto tex2d_specular_ptr = this->get_application()->get_texture(texture_diffuse_idx);
 
                         auto ctx = MaterialSkinnedGeometryLit::DrawContext{
                             .entity_id = static_cast<std::uint32_t>(entity),
@@ -618,8 +610,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             .model_matrix = transform_component.local_to_world,
                             .color_diffuse = material_component.data.pong.diffuse_color,
                             .shininess = material_component.data.pong.shininess,
-                            .texture_diffuse = textures[texture_diffuse_idx],
-                            .texture_specular = textures[texture_specular_idx] };
+                            .texture_diffuse = *tex2d_diffuse_ptr,
+                            .texture_specular = *tex2d_specular_ptr };
                         ctx.bone_transforms.reserve(ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES); // reallocation this for each geometry each frame. ToDo: optimize it
 
                         const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
@@ -644,8 +636,8 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
                             const auto per_bone_final_transform = inverse_transform * bone_matrix;
                             ctx.bone_transforms.push_back(per_bone_final_transform);
                         }
-
-                        material_skinned_geometry_lit_.draw(geometries[mesh_component.geometry], ctx);
+                        const auto geo_ptr = this->get_application()->get_geometry(mesh_component.geometry);
+                        material_skinned_geometry_lit_.draw(*geo_ptr, ctx);
 
                     }
                 );
@@ -654,7 +646,7 @@ engine_result_code_t engine::Scene::update(float dt, std::span<const Texture2D> 
             {
                 ENGINE_PROFILE_SECTION_N("sprite_renderer");
 
-                sprite_renderer.each([this, &camera_internal, &shaders](const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, const engine_sprite_component_t& sprite_component)
+                sprite_renderer.each([this, &camera_internal](const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, const engine_sprite_component_t& sprite_component)
                     {
 
                         auto model_mat = glm::make_mat4(transform_component.local_to_world);

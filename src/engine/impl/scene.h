@@ -10,19 +10,21 @@
 
 namespace engine
 {
+class Application;
 class Scene
 {
 public:
-    Scene(RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code);
+    Scene(Application* app, RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code);
     Scene(const Scene&) = delete;
     Scene(Scene&& rhs) = delete;
     Scene& operator=(const Scene&) = delete;
     Scene& operator=(Scene&& rhs) = delete;
     ~Scene();
 
+    Application* get_application() const;
+
     void enable_physics_debug_draw(bool enable);
-    engine_result_code_t update(float dt, std::span<const class Texture2D> textures, 
-        std::span<const Geometry> geometries, std::span<class Shader> shaders);
+    engine_result_code_t update(float dt);
 
     entt::entity create_new_entity();
     void destroy_entity(entt::entity entity);
@@ -100,6 +102,7 @@ private:
     engine_result_code_t physics_update(float dt);
 
 private:
+    Application* app_;
     RenderContext& rdx_;
     entt::registry entity_registry_;
     entt::observer transform_model_matrix_update_observer;

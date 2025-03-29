@@ -161,7 +161,7 @@ engine::Application::~Application()
 engine::Scene* engine::Application::allocate_scene(const engine_scene_create_desc_t& desc)
 {
     engine_result_code_t ret_code = ENGINE_RESULT_CODE_FAIL;
-    auto ret = new Scene(rdx_, desc, ret_code);
+    auto ret = new Scene(this, rdx_, desc, ret_code);
     if (ret_code == ENGINE_RESULT_CODE_FAIL)
     {
         delete ret;
@@ -185,10 +185,7 @@ void engine::Application::release_scene(Scene* scene)
 engine_result_code_t engine::Application::update_scene(Scene* scene, float delta_time)
 {
     on_scene_update_pre(scene, delta_time);
-	const auto ret_code = scene->update(delta_time,
-		textures_atlas_.get_objects_view(),
-		geometries_atlas_.get_objects_view(),
-        shader_atlas_.get_objects_view());
+	const auto ret_code = scene->update(delta_time);
     on_scene_update_post(scene, delta_time);
 
     return ret_code;
@@ -359,6 +356,11 @@ std::uint32_t engine::Application::get_texture(std::string_view name) const
     return ret;
 }
 
+const engine::Texture2D* engine::Application::get_texture(std::uint32_t idx) const
+{
+    return textures_atlas_.get_object(idx);
+}
+
 void engine::Application::destroy_texture(std::uint32_t idx)
 {
     textures_atlas_.remove_object(idx);
@@ -399,6 +401,11 @@ std::uint32_t engine::Application::add_geometry(const engine_vertex_attributes_l
 std::uint32_t engine::Application::get_geometry(std::string_view name) const
 {
     return geometries_atlas_.get_object(name);
+}
+
+std::string engine::Application::get_geometry_name(std::uint32_t idx) const
+{
+    return geometries_atlas_.get_object_name(idx);
 }
 
 const engine::Geometry* engine::Application::get_geometry(std::uint32_t idx) const

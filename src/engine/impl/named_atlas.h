@@ -105,6 +105,16 @@ public:
         // it's valid not found object - user may want to check if object exists by trying to get it
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
+    std::string get_object_name(std::uint32_t idx) const
+    {
+        if (idx >= SIZE)
+        {
+            assert(false && "Index out of bounds");
+            return "";
+        }
+        return names_[idx];
+    }
+
 
     const std::array<T, SIZE>& get_objects_view() const { return objects_; }
     std::array<T, SIZE>& get_objects_view() { return objects_; }

@@ -201,7 +201,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Scen
 }
 
 template<typename T>
-inline void display_component(std::string_view name, engine::Scene* scene, entt::entity entity, std::function<bool(T& comp)> fn)
+inline void display_component(std::string_view name, engine::Scene* scene, entt::entity entity, std::function<bool(const engine::Scene* scene, T& comp)> fn)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_component");
     const bool has_component = scene->has_component<T>(entity);
@@ -214,7 +214,7 @@ inline void display_component(std::string_view name, engine::Scene* scene, entt:
         if (has_component)
         {
             auto comp = *scene->get_component<T>(entity);
-            if (fn(comp))
+            if (fn(scene, comp))
             {
                 scene->update_component<T>(entity, comp);
             }
@@ -247,7 +247,7 @@ inline void display_component(std::string_view name, engine::Scene* scene, entt:
     }
 }
 
-bool display_transform_component(engine_tranform_component_t& c)
+bool display_transform_component(const engine::Scene* scene, engine_tranform_component_t& c)
 {
     const float v_speed = 0.1f;
     bool requires_update = ImGui::DragFloat3("Position##transform", c.position, v_speed);
@@ -263,18 +263,20 @@ bool display_transform_component(engine_tranform_component_t& c)
     return requires_update;
 }
 
-bool display_mesh_component(engine_mesh_component_t& c)
+bool display_mesh_component(const engine::Scene* scene, engine_mesh_component_t& c)
 {
     bool enabled = !c.disable;
     if (ImGui::Checkbox("Enabled", &enabled))
     {
         c.disable = !c.disable;
     }
+    const auto geo_name = scene->get_application()->get_geometry_name(c.geometry);
+    ImGui::Text("Geometry: %s", geo_name.c_str());
     ImGui::InputInt("Geometry ID", reinterpret_cast<std::int32_t*>(&c.geometry));
     return true;
 }
 
-bool display_skin_component(engine_skin_component_t& c)
+bool display_skin_component(const engine::Scene* scene, engine_skin_component_t& c)
 {
     for (auto i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
     {
@@ -287,7 +289,7 @@ bool display_skin_component(engine_skin_component_t& c)
     return false;
 }
 
-bool display_bone_component(engine_bone_component_t& c)
+bool display_bone_component(const engine::Scene* scene, engine_bone_component_t& c)
 {
     // display 4x4 matrix
     for (auto i = 0; i < 4; i++)
@@ -300,7 +302,7 @@ bool display_bone_component(engine_bone_component_t& c)
     return false;
 }
 
-bool display_light_component(engine_light_component_t& c)
+bool display_light_component(const engine::Scene* scene, engine_light_component_t& c)
 {
     bool requires_update = false;
     // intensity
@@ -350,7 +352,7 @@ bool display_light_component(engine_light_component_t& c)
 }
 
 
-bool display_material_component(engine_material_component_t& c)
+bool display_material_component(const engine::Scene* scene, engine_material_component_t& c)
 {
     bool requires_component_updated = false;
     // list of types
@@ -386,7 +388,7 @@ bool display_material_component(engine_material_component_t& c)
     return requires_component_updated;
 }
 
-bool display_collider_component(engine_collider_component_t& c)
+bool display_collider_component(const engine::Scene* scene, engine_collider_component_t& c)
 {
     auto print_collider_type = [](engine_collider_type_t type)
      {
@@ -482,14 +484,14 @@ bool display_collider_component(engine_collider_component_t& c)
     return requires_component_updated;
 }
 
-bool display_rigidbody_component(engine_rigid_body_component_t& c)
+bool display_rigidbody_component(const engine::Scene* scene, engine_rigid_body_component_t& c)
 {
     bool requires_update = ImGui::SliderFloat("Mass", &c.mass, 0.0f, 100.0f);
 
     return requires_update;
 }
 
-bool display_camera_component(engine_camera_component_t& c)
+bool display_camera_component(const engine::Scene* scene, engine_camera_component_t& c)
 {
     // is it enabled?
     ImGui::Checkbox("Enabled", &c.enabled);
@@ -527,103 +529,6 @@ bool display_camera_component(engine_camera_component_t& c)
     ImGui::DragFloat("Near Clip Plane", &c.clip_plane_near, 0.1f);
     ImGui::DragFloat("Far Clip Plane", &c.clip_plane_far, 0.1f);
     return true;
-}
-
-
-inline void render_scene_hierarchy_panel(engine::SceneHierarchyContext& ctx, engine::Scene* scene, float delta_time)
-{
-    ENGINE_PROFILE_SECTION_N("editor-render_scene_hierarchy_panel");
-    // build memory with all the entites
-    std::map<entt::entity, entity_node_t> entity_map;
-    for (auto e : scene->get_all_entities())
-    {
-        std::string name = "Unnamed";
-        if (scene->has_component<engine_name_component_t>(e))
-        {
-            const auto nc = scene->get_component<engine_name_component_t>(e);
-            name = nc->name;
-        }
-        entity_map.insert({ e, entity_node_t{ e, name } });
-    }
-
-    for (auto& [e, node] : entity_map)
-    {
-        if (scene->has_component<engine_parent_component_t>(e))
-        {
-            const auto& pc = scene->get_component<engine_parent_component_t>(e);
-            const auto& e_parent = static_cast<entt::entity>(pc->parent);
-            auto& parent_node = entity_map[e_parent];
-            assert(node.parent == nullptr);
-            node.parent = &parent_node;
-            parent_node.children.push_back(&node);
-        }
-    }
-    ImGui::Begin("Scene Panel");
-
-    if (ImGui::Button("Add entity"))
-    {
-        auto e = scene->create_new_entity();
-        auto nc = scene->add_component<engine_name_component_t>(e);
-        const auto new_name = "Entity " + std::to_string(static_cast<std::uint32_t>(e));
-        std::memcpy(nc->name, new_name.c_str(), new_name.size());
-    }
-
-    static bool phys_debug_draw_check = false;
-    ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check);
-    scene->enable_physics_debug_draw(phys_debug_draw_check);
-
-    ImGui::SeparatorText("Scene hierarchy");
-    if (ImGui::TreeNodeEx("Scene Collection", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth))
-    {
-        if (ImGui::BeginDragDropTarget())
-        {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ENTITY"))
-            {
-                IM_ASSERT(payload->DataSize == sizeof(entt::entity));
-                entt::entity payload_n = *static_cast<entt::entity*>(payload->Data);
-                //engine::log::log(engine::log::LogLevel::eInfo, "Dropped entity %d to %d\n", payload_n, node->entity);
-                if (scene->has_component<engine_parent_component_t>(payload_n))
-                {
-                    scene->remove_component<engine_parent_component_t>(payload_n);
-                }
-            }
-            ImGui::EndDragDropTarget();
-        }
-
-        for (auto& [e, f] : entity_map)
-        {
-            if (!f.displayed && !f.parent)
-            {
-                display_node(&f, scene, ctx);
-            }
-        }
-        ImGui::TreePop();
-    }
-    /*
-    here all components should be visible
-        - the one which are not avaialbe in the entitiy (Grayd out) and a "+" button to add them
-        - the one which are available in the entity (whatever color) and a "-" button to remove them
-    */
-    ImGui::SeparatorText("Entity properties.");
-    if (ctx.has_selected_entity())
-    {
-        const auto selected = ctx.get_selected_entity();
-        display_component<engine_tranform_component_t>("Transform", scene, selected, display_transform_component);
-        display_component<engine_light_component_t>("Light", scene, selected, display_light_component);
-        display_component<engine_camera_component_t>("Camera", scene, selected, display_camera_component);
-        display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
-        display_component<engine_skin_component_t>("Skin", scene, selected, display_skin_component);
-        display_component<engine_bone_component_t>("Bone", scene, selected, display_bone_component);
-        display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
-        display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);
-        display_component<engine_rigid_body_component_t>("Rigid Body", scene, selected, display_rigidbody_component);
-    }
-    else
-    {
-        ImGui::Text("Select entity to display its components.");
-    }
-
-    ImGui::End(); // scene panel
 }
 
 } // namespace anonymous
@@ -710,11 +615,107 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
 void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
-    render_scene_hierarchy_panel(scene_hierarchy_context_, scene, delta_time);
+    render_scene_hierarchy_panel(scene, delta_time);
     render_guizmo(scene);
     render_outline(scene);
     handle_mouse_picking(scene);
     camera_context_.on_scene_update_post(scene, delta_time);
+}
+
+void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float dt)
+{
+    ENGINE_PROFILE_SECTION_N("editor-render_scene_hierarchy_panel");
+    // build memory with all the entites
+    std::map<entt::entity, entity_node_t> entity_map;
+    for (auto e : scene->get_all_entities())
+    {
+        std::string name = "Unnamed";
+        if (scene->has_component<engine_name_component_t>(e))
+        {
+            const auto nc = scene->get_component<engine_name_component_t>(e);
+            name = nc->name;
+        }
+        entity_map.insert({ e, entity_node_t{ e, name } });
+    }
+
+    for (auto& [e, node] : entity_map)
+    {
+        if (scene->has_component<engine_parent_component_t>(e))
+        {
+            const auto& pc = scene->get_component<engine_parent_component_t>(e);
+            const auto& e_parent = static_cast<entt::entity>(pc->parent);
+            auto& parent_node = entity_map[e_parent];
+            assert(node.parent == nullptr);
+            node.parent = &parent_node;
+            parent_node.children.push_back(&node);
+        }
+    }
+    ImGui::Begin("Scene Panel");
+
+    if (ImGui::Button("Add entity"))
+    {
+        auto e = scene->create_new_entity();
+        auto nc = scene->add_component<engine_name_component_t>(e);
+        const auto new_name = "Entity " + std::to_string(static_cast<std::uint32_t>(e));
+        std::memcpy(nc->name, new_name.c_str(), new_name.size());
+    }
+
+    static bool phys_debug_draw_check = false;
+    ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check);
+    scene->enable_physics_debug_draw(phys_debug_draw_check);
+
+    ImGui::SeparatorText("Scene hierarchy");
+    if (ImGui::TreeNodeEx("Scene Collection", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth))
+    {
+        if (ImGui::BeginDragDropTarget())
+        {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ENTITY"))
+            {
+                IM_ASSERT(payload->DataSize == sizeof(entt::entity));
+                entt::entity payload_n = *static_cast<entt::entity*>(payload->Data);
+                //engine::log::log(engine::log::LogLevel::eInfo, "Dropped entity %d to %d\n", payload_n, node->entity);
+                if (scene->has_component<engine_parent_component_t>(payload_n))
+                {
+                    scene->remove_component<engine_parent_component_t>(payload_n);
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+        for (auto& [e, f] : entity_map)
+        {
+            if (!f.displayed && !f.parent)
+            {
+                display_node(&f, scene, scene_hierarchy_context_);
+            }
+        }
+        ImGui::TreePop();
+    }
+    /*
+    here all components should be visible
+        - the one which are not avaialbe in the entitiy (Grayd out) and a "+" button to add them
+        - the one which are available in the entity (whatever color) and a "-" button to remove them
+    */
+    ImGui::SeparatorText("Entity properties.");
+    if (scene_hierarchy_context_.has_selected_entity())
+    {
+        const auto selected = scene_hierarchy_context_.get_selected_entity();
+        display_component<engine_tranform_component_t>("Transform", scene, selected, display_transform_component);
+        display_component<engine_light_component_t>("Light", scene, selected, display_light_component);
+        display_component<engine_camera_component_t>("Camera", scene, selected, display_camera_component);
+        display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
+        display_component<engine_skin_component_t>("Skin", scene, selected, display_skin_component);
+        display_component<engine_bone_component_t>("Bone", scene, selected, display_bone_component);
+        display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
+        display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);
+        display_component<engine_rigid_body_component_t>("Rigid Body", scene, selected, display_rigidbody_component);
+    }
+    else
+    {
+        ImGui::Text("Select entity to display its components.");
+    }
+
+    ImGui::End(); // scene panel
 }
 
 void engine::ApplicationEditor::render_guizmo(Scene* scene)

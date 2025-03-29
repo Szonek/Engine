@@ -87,6 +87,7 @@ protected:
     void on_scene_release(class Scene* scene) override;
 
 private:
+    void render_scene_hierarchy_panel(class Scene* scene, float dt);
     void render_outline(class Scene* scene);
     void render_guizmo(class Scene* scene);
     void handle_mouse_picking(class Scene* scene);
