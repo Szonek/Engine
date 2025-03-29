@@ -20,6 +20,7 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
     // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_mesh_primitive_mode
 
     engine::GeometryInfo ret{};
+    ret.name = mesh.name;
     ret.material_index = mesh.primitives.front().material;
     //assert(mesh.primitives.size() == 1 && "Not enabled path for primitives count > 1");
 

@@ -489,7 +489,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     if (ret.geometries_count > 0)
     {
         ret.geometries_array = new engine_geometry_create_desc_t[ret.geometries_count];
-
+        ret.geometires_name_array = new const char* [ret.geometries_count];
         for (std::size_t i = 0; i < ret.geometries_count; i++)
         {
             const auto& int_g = model_info->geometries[i];
@@ -502,6 +502,8 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
             ret_g.verts_data = int_g.vertex_data.data();
             ret_g.verts_layout = int_g.vertex_laytout;
             ret_g.verts_count = int_g.vertex_count;
+
+            ret.geometires_name_array[i] = int_g.name.c_str();
         }
 
     }
@@ -510,6 +512,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     if (ret.textures_count > 0)
     {
         ret.textures_array = new engine_texture_2d_create_desc_t[ret.textures_count];
+        ret.textures_name_array = new const char* [ret.textures_count];
         for (std::size_t i = 0; i < ret.textures_count; i++)
         {
             const auto& int_m = model_info->textures[i];
@@ -519,6 +522,8 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
             ret_m.height = int_m.height;
             ret_m.data_layout = int_m.layout;
             ret_m.data = int_m.data.data();
+
+            ret.textures_name_array[i] = int_m.name.c_str();
         }
     }
 
@@ -526,6 +531,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     if (ret.materials_count > 0)
     {
         ret.materials_array = new engine_model_material_desc_t[ret.materials_count];
+        ret.materials_name_array = new const char* [ret.materials_count];
 
         for (std::size_t i = 0; i < ret.materials_count; i++)
         {
@@ -535,6 +541,8 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
             ret_m.name = int_m.name.c_str();
             std::memcpy(ret_m.diffuse_color, int_m.diffuse_factor.data(), int_m.diffuse_factor.size() * sizeof(int_m.diffuse_factor[0]));
             ret_m.diffuse_texture_index = int_m.diffuse_texture;
+
+            ret.materials_name_array[i] = int_m.name.c_str();
         }
     }
 
@@ -595,6 +603,8 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
     if (ret.skins_counts > 0)
     {
         ret.skins_array = new engine_skin_create_desc_t[ret.skins_counts];
+        ret.skins_name_array = new const char* [ret.skins_counts];
+
         for (std::uint32_t i = 0; i < ret.skins_counts; i++)
         {
             const auto& skin = model_info->skins[i];
@@ -614,6 +624,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
                     std::memcpy(out_bone.inverse_bind_mat, glm::value_ptr(in_bone.inverse_bind_matrix), sizeof(in_bone.inverse_bind_matrix));
                 }
             }
+            ret.skins_name_array[i] = skin.name.c_str();
         }
     }
 
@@ -629,6 +640,7 @@ void engine::Application::release_model_desc(engine_model_desc_t* info)
         if (info->geometries_array)
         {
             delete[] info->geometries_array;
+            delete[] info->geometires_name_array;
         }
         if (info->textures_array)
         {

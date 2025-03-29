@@ -67,8 +67,8 @@ public:
     void update_hook_begin() override;
     static constexpr const char* get_name() { return "TestScene"; }
 
-    void ui_update_item_on_ground(const class Sword* sw);
-    void ui_remove_item_from_ground(const class Sword* sw);
+    void ui_update_item_on_ground(const class Weapon* sw);
+    void ui_remove_item_from_ground(const class Weapon* sw);
 
     void ui_update_enemy(const class Enemy* en);
     void ui_remove_enemy(const class Enemy* en);

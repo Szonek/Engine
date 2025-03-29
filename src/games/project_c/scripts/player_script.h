@@ -20,11 +20,11 @@ private:
     bool is_active_ = false;
 };
 
-class Sword : public BaseNode
+class Weapon : public BaseNode
 {
 public:
-    Sword(engine::IScene* my_scene, engine_game_object_t go);
-    ~Sword();
+    Weapon(engine::IScene* my_scene);
+    ~Weapon();
 
     void attach_to_game_object(engine_game_object_t parent, std::optional<glm::vec3> position, std::optional<glm::quat> rotation);
     void drop_on_ground(glm::vec3 position);
@@ -172,7 +172,7 @@ public:
 
     void update(float dt);
 
-    bool equip_sword(Sword* sword);
+    bool equip_sword(Weapon* sword);
 
 private:
     std::uint32_t state_;
@@ -189,6 +189,6 @@ private:
     engine_game_object_t left_arm_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
 
     // inventory
-    Sword* weapon_;
+    Weapon* weapon_;
 };
 } //namespace project_c

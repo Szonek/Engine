@@ -379,14 +379,14 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     // cleanup any childer of handslot (as model could be prebuilt with attached geomteries)
     if (engineSceneHasChildrenComponent(scene, right_arm_go_))
     {
-        //utils::delete_game_objects_hierarchy(scene, right_arm_go_);
+        utils::delete_game_objects_hierarchy(scene, right_arm_go_);
     }
     left_arm_go_ = utils::get_game_objects_with_name(scene, "handslot.l")[0];
     assert(left_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
     // cleanup any childer of handslot (as model could be prebuilt with attached geomteries)
     if (engineSceneHasChildrenComponent(scene, left_arm_go_))
     {
-        //utils::delete_game_objects_hierarchy(scene, left_arm_go_);
+        utils::delete_game_objects_hierarchy(scene, left_arm_go_);
     }
 
     // add attack trigger

@@ -17,6 +17,7 @@ inline static const std::int32_t INVALID_VALUE = -1;
 
 struct GeometryInfo
 {
+    std::string name = "";
     engine_vertex_attributes_layout_t vertex_laytout{};
     std::vector<std::byte> vertex_data;
     std::int32_t vertex_count = 0;

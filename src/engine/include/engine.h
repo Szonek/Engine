@@ -456,18 +456,22 @@ typedef struct _engine_model_desc_t
     uint32_t nodes_count;
 
     engine_geometry_create_desc_t* geometries_array;
+    const char** geometires_name_array;
     uint32_t geometries_count;
 
     engine_model_material_desc_t* materials_array;
+    const char** materials_name_array;
     uint32_t materials_count;
 
     engine_texture_2d_create_desc_t* textures_array;
+    const char** textures_name_array;
     uint32_t textures_count;
 
     engine_animation_clip_create_desc_t* animations_array;
     uint32_t animations_counts;
 
     engine_skin_create_desc_t* skins_array;
+    const char** skins_name_array;
     uint32_t skins_counts;
 } engine_model_desc_t;
 

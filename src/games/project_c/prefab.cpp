@@ -58,8 +58,10 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
     {
 
         const auto& geo = model_info_.geometries_array[i];
-        const auto name = std::string(model_file_name) + "_geometry_" + std::to_string(i);
-        engine_error_code = engineApplicationCreateGeometryFromDesc(app, &geo, name.c_str(), &geometries_[i]);
+        const auto name_generic = std::string(model_file_name) + "_geometry_" + std::to_string(i);
+        engine_error_code = engineApplicationCreateGeometryFromDesc(app, &geo,
+            model_info_.geometires_name_array[i] ? model_info_.geometires_name_array[i] : name_generic.c_str(),
+            &geometries_[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating geometry for loaded model. Exiting!\n");
@@ -70,8 +72,10 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
     textures_ = std::vector<engine_texture2d_t>(model_info_.textures_count, ENGINE_INVALID_OBJECT_HANDLE);
     for (std::uint32_t i = 0; i < model_info_.textures_count; i++)
     {
-        const auto name = std::string(model_file_name) + "_texture_" + std::to_string(i);
-        engine_error_code = engineApplicationCreateTexture2DFromDesc(app, &model_info_.textures_array[i], name.c_str(), &textures_[i]);
+        const auto name_generic = std::string(model_file_name) + "_texture_" + std::to_string(i);
+        engine_error_code = engineApplicationCreateTexture2DFromDesc(app, &model_info_.textures_array[i],
+            model_info_.textures_name_array[i] ? model_info_.textures_name_array[i] : name_generic.c_str(),
+            &textures_[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating texture for loaded model. Exiting!\n");

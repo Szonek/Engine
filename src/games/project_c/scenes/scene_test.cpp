@@ -246,11 +246,12 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         l->set_world_position(point.x, 1.0f, point.y);
     }
 
-    if (app.is_prefab_available(project_c::PREFAB_TYPE_SWORD))
+    // barb asset comes with some predefined weapnons, so check it here
+    if (app.is_prefab_available(project_c::PREFAB_TYPE_BARBARIAN))
     {
         for (const auto& wpn : scene_spawn_points.weapons)
         {
-            auto w = scene.register_script<project_c::Sword>(app.instantiate_prefab(project_c::PREFAB_TYPE_SWORD, &scene).go);
+            auto w = scene.register_script<project_c::Weapon>();
             w->drop_on_ground(glm::vec3(wpn.x, 0.5f, wpn.y));
         }
     }
@@ -270,7 +271,7 @@ void equip_sword_callback(engine_ui_data_handle_t data_handle, const engine_ui_e
     auto solider_go = project_c::utils::get_game_objects_with_name(scene->get_handle(), "solider");
     assert(solider_go.size() == 1);
     auto solider_script = scene->get_script<project_c::Player>(solider_go[0]);
-    const auto item_equipped = solider_script->equip_sword(scene->get_script<project_c::Sword>(item_go));
+    const auto item_equipped = solider_script->equip_sword(scene->get_script<project_c::Weapon>(item_go));
     if (!item_equipped)
     {
         engineLog(std::format("Tried to equip item, but couldnt do so!\n").c_str());
@@ -408,7 +409,7 @@ void project_c::TestScene::update_hook_begin()
     //engineUiDataHandleDirtyVariable(ui_data_.handle_test, "enemy_health");
 }
 
-void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
+void project_c::TestScene::ui_update_item_on_ground(const project_c::Weapon* sw)
 {
     const auto active_camera_go = utils::get_active_camera_game_objects(scene_)[0];
     const auto item_go = sw->get_game_object();
@@ -452,7 +453,7 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Sword* sw)
     engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_pos_y");
 }
 
-void project_c::TestScene::ui_remove_item_from_ground(const project_c::Sword* sw)
+void project_c::TestScene::ui_remove_item_from_ground(const project_c::Weapon* sw)
 {
     for (auto i = 0; i < engineVectorSizeUint32(ui_data_.items.go); i++)
     {
