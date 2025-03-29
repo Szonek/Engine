@@ -271,7 +271,7 @@ void equip_sword_callback(engine_ui_data_handle_t data_handle, const engine_ui_e
     auto solider_go = project_c::utils::get_game_objects_with_name(scene->get_handle(), "solider");
     assert(solider_go.size() == 1);
     auto solider_script = scene->get_script<project_c::Player>(solider_go[0]);
-    const auto item_equipped = solider_script->equip_sword(scene->get_script<project_c::Weapon>(item_go));
+    const auto item_equipped = solider_script->equip_waepon(scene->get_script<project_c::Weapon>(item_go));
     if (!item_equipped)
     {
         engineLog(std::format("Tried to equip item, but couldnt do so!\n").c_str());

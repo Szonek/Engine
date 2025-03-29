@@ -154,7 +154,7 @@ private:
         bool animation_started = false;
         inline const char* get_animation_name() const
         {
-            return "Dualwield_Melee_Attack_Chop";
+            return "1H_Melee_Attack_Chop";
         }
     };
 
@@ -172,7 +172,7 @@ public:
 
     void update(float dt);
 
-    bool equip_sword(Weapon* sword);
+    bool equip_waepon(Weapon* sword);
 
 private:
     std::uint32_t state_;

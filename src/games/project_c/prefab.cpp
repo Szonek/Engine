@@ -1,6 +1,6 @@
 #include "prefab.h"
 
-#include <fmt/format.h>
+#include <format>
 #include <iscene.h>
 
 project_c::Prefab::Prefab(Prefab&& rhs) noexcept
@@ -72,10 +72,23 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
     textures_ = std::vector<engine_texture2d_t>(model_info_.textures_count, ENGINE_INVALID_OBJECT_HANDLE);
     for (std::uint32_t i = 0; i < model_info_.textures_count; i++)
     {
+
         const auto name_generic = std::string(model_file_name) + "_texture_" + std::to_string(i);
-        engine_error_code = engineApplicationCreateTexture2DFromDesc(app, &model_info_.textures_array[i],
-            model_info_.textures_name_array[i] ? model_info_.textures_name_array[i] : name_generic.c_str(),
-            &textures_[i]);
+        const auto name_real = model_info_.textures_name_array[i];
+        std::string name = name_real ? name_real : name_generic;
+        if (engineApplicationDoTexture2DNameExists(app, name.c_str()))
+        {
+            engineLog(std::format("Texture with name: {} already exists, reusing it.\n", name).c_str());
+            textures_[i] = engineApplicationGetTextured2DByName(app, name.c_str());
+            engine_error_code = textures_[i] == ENGINE_INVALID_OBJECT_HANDLE ? ENGINE_RESULT_CODE_FAIL: ENGINE_RESULT_CODE_OK;
+        }
+        else
+        {
+            engine_error_code = engineApplicationCreateTexture2DFromDesc(app, &model_info_.textures_array[i],
+                name.c_str(),
+                &textures_[i]);
+        }
+
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating texture for loaded model. Exiting!\n");
@@ -115,7 +128,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             auto nc = engineSceneAddNameComponent(scene, go);
             std::strncpy(nc.name, node.name, std::size(nc.name));
             engineSceneUpdateNameComponent(scene, go, &nc);
-            log(fmt::format("Created entity [id: {}] with name: {}\n", go, nc.name));
+            log(std::format("Created entity [id: {}] with name: {}\n", go, nc.name));
         }
 
         // transform
@@ -125,7 +138,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             std::memcpy(&tc.rotation, node.rotation_quaternion, sizeof(tc.rotation));
             std::memcpy(&tc.scale, node.scale, sizeof(tc.scale));
             engineSceneUpdateTransformComponent(scene, go, &tc);
-            log(fmt::format("\t[{}] has added transform component\n", go));
+            log(std::format("\t[{}] has added transform component\n", go));
         }
 
         if (node.geometry_index != -1)
@@ -133,7 +146,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             auto mc = engineSceneAddMeshComponent(scene, go);
             mc.geometry = geometries_.at(node.geometry_index);
             engineSceneUpdateMeshComponent(scene, go, &mc);
-            log(fmt::format("\t[{}] has added mesh component with geometry index: \n", go, node.geometry_index));
+            log(std::format("\t[{}] has added mesh component with geometry index: {}\n", go, node.geometry_index));
         }
 
         if (node.material_index != -1)
@@ -141,7 +154,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             auto material = engineSceneAddMaterialComponent(scene, go);
             material = materials_.at(node.material_index);
             engineSceneUpdateMaterialComponent(scene, go, &material);
-            log(fmt::format("\t[{}] added material component with material idx: \n", go, node.material_index));
+            log(std::format("\t[{}] added material component with material idx: {}\n", go, node.material_index));
         }
 
 
@@ -177,7 +190,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
                 auto pc = engineSceneAddParentComponent(scene, go);
                 pc.parent = node_id_to_game_object[parent_index];
                 engineSceneUpdateParentComponent(scene, go, &pc);
-                log(fmt::format("Entity: {} added parent component: {}\n", go, pc.parent));
+                log(std::format("Entity: {} added parent component: {}\n", go, pc.parent));
         }
     }
 
@@ -190,7 +203,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             break;
         }
         const auto& skin = model_info_.skins_array[skin_idx];
-        log(fmt::format("Adding skin: {}\n", skin.name));
+        log(std::format("Adding skin: {}\n", skin.name));
         for (auto bone_idx = 0; bone_idx < skin.bones_count; bone_idx++)
         {
             const auto& bone = skin.bones_array[bone_idx];
@@ -200,7 +213,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             auto bc = engineSceneAddBoneComponent(scene, go);
             std::memcpy(bc.inverse_bind_matrix, bone.inverse_bind_mat, sizeof(bc.inverse_bind_matrix));
             engineSceneUpdateBoneComponent(scene, go, &bc);
-            log(fmt::format("\tAttached entity: {} to the skin.\n", go));
+            log(std::format("\tAttached entity: {} to the skin.\n", go));
         }
     }
 
@@ -220,7 +233,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
                 sc.bones[bone_idx] = bones_game_object_arr.at(bone_idx);
             }
             engineSceneUpdateSkinComponent(scene, go, &sc);
-            log(fmt::format("Entity: {} added skin component for skin index: \n", go, skin_index));
+            log(std::format("Entity: {} added skin component for skin index: \n", go, skin_index));
         }
     }
 
@@ -251,7 +264,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     for (auto anim_idx = 0; anim_idx < model_info_.animations_counts; anim_idx++)
     {
         const auto& anim_in = model_info_.animations_array[anim_idx];
-        log(fmt::format("Adding animation: {}\n", anim_in.name));
+        log(std::format("Adding animation: {}\n", anim_in.name));
         std::map<engine_game_object_t, project_c::AnimationChannelData> anim_clip_data;
         for (auto channel_idx = 0; channel_idx < anim_in.channels_count; channel_idx++)
         {

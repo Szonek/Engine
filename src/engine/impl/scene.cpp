@@ -567,8 +567,8 @@ engine_result_code_t engine::Scene::update(float dt)
                         const auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
                         const auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
 
-                        const auto tex2d_diffuse_ptr = this->get_application()->get_texture(texture_diffuse_idx);
-                        const auto tex2d_specular_ptr = this->get_application()->get_texture(texture_diffuse_idx);
+                        const auto tex2d_diffuse_ptr = get_application()->get_texture(texture_diffuse_idx);
+                        const auto tex2d_specular_ptr = get_application()->get_texture(texture_diffuse_idx);
 
                         const auto ctx = MaterialStaticGeometryLit::DrawContext{
                             .entity_id = static_cast<std::uint32_t>(entity),
@@ -580,7 +580,7 @@ engine_result_code_t engine::Scene::update(float dt)
                             .texture_diffuse = *tex2d_diffuse_ptr,
                             .texture_specular = *tex2d_specular_ptr };
 
-                        const auto geo_ptr = this->get_application()->get_geometry(mesh_component.geometry);
+                        const auto geo_ptr = get_application()->get_geometry(mesh_component.geometry);
                         material_static_geometry_lit_.draw(*geo_ptr, ctx);
                     }
                 );
@@ -600,8 +600,8 @@ engine_result_code_t engine::Scene::update(float dt)
                         const auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
                         const auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
 
-                        const auto tex2d_diffuse_ptr = this->get_application()->get_texture(texture_diffuse_idx);
-                        const auto tex2d_specular_ptr = this->get_application()->get_texture(texture_diffuse_idx);
+                        const auto tex2d_diffuse_ptr = get_application()->get_texture(texture_diffuse_idx);
+                        const auto tex2d_specular_ptr = get_application()->get_texture(texture_diffuse_idx);
 
                         auto ctx = MaterialSkinnedGeometryLit::DrawContext{
                             .entity_id = static_cast<std::uint32_t>(entity),
@@ -636,7 +636,7 @@ engine_result_code_t engine::Scene::update(float dt)
                             const auto per_bone_final_transform = inverse_transform * bone_matrix;
                             ctx.bone_transforms.push_back(per_bone_final_transform);
                         }
-                        const auto geo_ptr = this->get_application()->get_geometry(mesh_component.geometry);
+                        const auto geo_ptr = get_application()->get_geometry(mesh_component.geometry);
                         material_skinned_geometry_lit_.draw(*geo_ptr, ctx);
 
                     }

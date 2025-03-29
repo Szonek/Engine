@@ -26,13 +26,15 @@ project_c::Weapon::Weapon(engine::IScene* my_scene)
 
     // mesh
     auto mc = engineSceneAddMeshComponent(scene, go_);
-    mc.geometry = engineApplicationGetGeometryByName(app, "Cylinder.404");
+    mc.geometry = engineApplicationGetGeometryByName(app, "Cube.12900");
     assert(mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
     engineSceneUpdateMeshComponent(scene, go_, &mc);
 
     // material
     auto matc = engineSceneAddMaterialComponent(scene, go_);
     set_c_array(matc.data.pong.diffuse_color, std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f});
+    matc.data.pong.shininess = 32.0f;
+    matc.data.pong.diffuse_texture = engineApplicationGetTextured2DByName(app, "barbarian_texture");
     engineSceneUpdateMaterialComponent(scene, go_, &matc);
 
     // physcis
@@ -379,23 +381,18 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     // cleanup any childer of handslot (as model could be prebuilt with attached geomteries)
     if (engineSceneHasChildrenComponent(scene, right_arm_go_))
     {
-        //utils::delete_game_objects_hierarchy(scene, right_arm_go_);
+        utils::delete_game_objects_hierarchy(scene, right_arm_go_);
     }
     left_arm_go_ = utils::get_game_objects_with_name(scene, "handslot.l")[0];
     assert(left_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
     // cleanup any childer of handslot (as model could be prebuilt with attached geomteries)
     if (engineSceneHasChildrenComponent(scene, left_arm_go_))
     {
-        //utils::delete_game_objects_hierarchy(scene, left_arm_go_);
+        utils::delete_game_objects_hierarchy(scene, left_arm_go_);
     }
 
     // add attack trigger
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(scene));
-    //auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
-    //assert(my_app != nullptr);
-    //// add sword
-    //weapon_ =  my_scene_->register_script<project_c::Weapon>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_SWORD, my_scene).go);
-    //weapon_->attach_to_game_object(right_arm_go_, glm::vec3(-0.2f, 0.0f, 0.1f), glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
 }
 
 void project_c::Player::update(float dt)
@@ -609,12 +606,12 @@ void project_c::Player::update(float dt)
     }
 }
 
-bool project_c::Player::equip_sword(Weapon* sword)
+bool project_c::Player::equip_waepon(Weapon* sword)
 {
     if (!weapon_ && sword)
     {
         weapon_ = sword;
-        weapon_->attach_to_game_object(right_arm_go_, glm::vec3(-0.2f, 0.0f, 0.1f), glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
+        weapon_->attach_to_game_object(right_arm_go_, glm::vec3(0.0f, 0.0f, 0.0f), glm::angleAxis(glm::radians(-180.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
         return true;
     }
     return false;
