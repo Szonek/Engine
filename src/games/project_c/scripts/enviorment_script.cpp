@@ -38,12 +38,15 @@ project_c::Floor::Floor(engine::IScene* my_scene, engine_game_object_t go, float
     auto tc = engineSceneGetTransformComponent(scene, go_);
     tc.position[0] += offset_x;
     tc.position[2] += offset_z;
+    tc.scale[0] = 0.25f;
+    tc.scale[1] = 0.25f;
+    tc.scale[2] = 0.25f;
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // physcis
     auto cc = engineSceneAddColliderComponent(scene, go_);
     cc.type = ENGINE_COLLIDER_TYPE_BOX;
-    set_c_array(cc.collider.box.size, std::array<float, 3>{ 0.5f, 0.01f, 0.5f });
+    set_c_array(cc.collider.box.size, std::array<float, 3>{ 2.0f, 0.5f, 2.0f });
     engineSceneUpdateColliderComponent(scene, go_, &cc);
 }
 

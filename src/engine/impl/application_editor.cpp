@@ -774,7 +774,7 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
 
 void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
 {
-    if (ImGui::GetIO().WantCaptureMouse)
+    if (ImGui::GetIO().WantCaptureMouse || !editor_controlling_scene_)
     {
         return;
     }

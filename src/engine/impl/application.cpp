@@ -436,7 +436,7 @@ engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_
         return {};
     }
 
-    const auto assets_dir = engine::AssetStore::get_instance().get_textures_base_path()/base_dir;
+    const auto assets_dir = engine::AssetStore::get_instance().get_models_base_path()/base_dir;
     const auto model_info = new engine::ModelInfo(parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string()));
 
     engine_model_desc_t ret{};

@@ -323,7 +323,7 @@ void project_c::AttackTrigger::activate()
     is_active_ = true;
 }
 
-project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
+project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     : BaseNode(my_scene, pr, "solider")
     , weapon_(nullptr)
     , state_(States::IDLE)
@@ -334,6 +334,9 @@ project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
 
     auto tc = engineSceneGetTransformComponent(scene, go_);
     tc.position[1] = -0.25f;
+    tc.scale[0] = 0.5f;
+    tc.scale[1] = 0.5f;
+    tc.scale[2] = 0.5f;
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // physcis
@@ -353,18 +356,18 @@ project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 
     // add handle to right arm
-    right_arm_go_ = utils::get_game_objects_with_name(scene, "arm-right")[0];
-    assert(right_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
+    //right_arm_go_ = utils::get_game_objects_with_name(scene, "arm-right")[0];
+    //assert(right_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
     // add attack trigger
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(scene));
-    auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
-    assert(my_app != nullptr);
-    // add sword
-    weapon_ =  my_scene_->register_script<project_c::Sword>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_SWORD, my_scene).go);
-    weapon_->attach_to_game_object(right_arm_go_, glm::vec3(-0.2f, 0.0f, 0.1f), glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
+    //auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
+    //assert(my_app != nullptr);
+    //// add sword
+    //weapon_ =  my_scene_->register_script<project_c::Sword>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_SWORD, my_scene).go);
+    //weapon_->attach_to_game_object(right_arm_go_, glm::vec3(-0.2f, 0.0f, 0.1f), glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
 }
 
-void project_c::Solider::update(float dt)
+void project_c::Player::update(float dt)
 {
     auto check_state_bit = [&](States state)
         {
@@ -442,9 +445,14 @@ void project_c::Solider::update(float dt)
         enable_state_bit(States::SKILL_1);
     }
 
+    auto tc = engineSceneGetTransformComponent(scene, go_);
+    const glm::quat rotation = glm::make_quat(tc.rotation);
+    const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
+    const glm::vec3 right = rotation * glm::vec3(1.0f, 0.0f, 0.0f);
+
     if (state_ == States::IDLE)
     {
-        anim_controller_.set_active_animation("idle");
+        anim_controller_.set_active_animation("Idle");
     }
     if (check_state_bit(States::DODGE))
     {
@@ -454,14 +462,11 @@ void project_c::Solider::update(float dt)
         }
         else
         {
-            anim_controller_.set_active_animation("crouch");
+            anim_controller_.set_active_animation("Dodge_Forward");
             const float speed_cooef = 0.015f;
             const float speed = speed_cooef * dt;
             auto tc = engineSceneGetTransformComponent(scene, go_);
-            // move
-            const glm::quat rotation = glm::make_quat(tc.rotation); // Convert the rotation to a glm::quat
-            const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f); // Get the forward direction vector
-            const glm::vec3 right = glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)); // Calculate the right direction vector
+            // move forward // ToDo add doge in other directions
             tc.position[0] += forward.x * speed;
             //tc.position[1] += forward.y * speed;  // dont go up!
             tc.position[2] += forward.z * speed;
@@ -470,10 +475,6 @@ void project_c::Solider::update(float dt)
     }
     if (check_state_bit(States::MOVE))
     {
-        anim_controller_.set_active_animation(move_data_.get_animation_name());
-        move_data_.animation_started = true;
-
-        auto tc = engineSceneGetTransformComponent(scene, go_);
         const float speed_cooef = 0.0025f;
         const float speed = speed_cooef * dt; // ToDo: implement diagonal movement speed coef (use pitagoras(?))
 
@@ -495,6 +496,34 @@ void project_c::Solider::update(float dt)
         }
 
         engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+        // compute forard/left/right/backward direction based on mouse position
+        const glm::vec3 direction = glm::normalize(glm::vec3(hit_info.position[0], hit_info.position[1], hit_info.position[2]) - glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
+        // Compute the dot products
+        const float forward_dot = glm::dot(direction, forward);
+        const float right_dot = glm::dot(direction, right);
+        MoveStateData::Direction anim_move_dir = MoveStateData::Direction::eForward;
+
+        // Determine the direction
+        if (std::abs(forward_dot) > std::abs(right_dot)) {
+            if (forward_dot > 0) {
+                anim_move_dir = MoveStateData::Direction::eForward;
+            }
+            else {
+                anim_move_dir = MoveStateData::Direction::eBackward;
+            }
+        }
+        else {
+            if (right_dot > 0) {
+                anim_move_dir = MoveStateData::Direction::eRight;
+            }
+            else {
+                anim_move_dir = MoveStateData::Direction::eLeft;
+            }
+        }
+
+        anim_controller_.set_active_animation(move_data_.get_animation_name(anim_move_dir));
+        move_data_.animation_started = true;
         clear_state_bit(States::MOVE);
     }
     if (check_state_bit(States::ATTACK))
@@ -548,7 +577,7 @@ void project_c::Solider::update(float dt)
     }
 }
 
-bool project_c::Solider::equip_sword(Sword* sword)
+bool project_c::Player::equip_sword(Sword* sword)
 {
     if (!weapon_ && sword)
     {
@@ -557,33 +586,4 @@ bool project_c::Solider::equip_sword(Sword* sword)
         return true;
     }
     return false;
-}
-
-project_c::Solider2::Solider2(engine::IScene* my_scene, const PrefabResult& pr)
-    : BaseNode(my_scene, pr, "solider2")
-{
-    const auto scene = my_scene_->get_handle();
-
-    const auto app = my_scene_->get_app_handle();
-    auto tc = engineSceneGetTransformComponent(scene, go_);
-
-    tc.position[0] = 0.0f;
-    tc.position[1] = 3.3f;
-    tc.position[2] = 0.9f;
-
-    // rotate character along x BY -66 degrees
-    const auto rotation = glm::angleAxis(glm::radians(-66.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
-
-    tc.scale[0] = 0.1f;
-    tc.scale[1] = 0.1f;
-    tc.scale[2] = 0.1f;
-    engineSceneUpdateTransformComponent(scene, go_, &tc);
-
-}
-
-void project_c::Solider2::update(float dt)
-{
-    anim_controller_.set_active_animation("Idle");
-    anim_controller_.update(dt);
 }

@@ -72,8 +72,7 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
 
     struct SceneSpawnPoints
     {
-        std::vector<engine_coords_2d_t> solider;
-        std::vector<engine_coords_2d_t> solider2;
+        std::vector<engine_coords_2d_t> player;
         std::vector<engine_coords_2d_t> enemy_packs;
         std::vector<engine_coords_2d_t> point_lights;
         std::vector<engine_coords_2d_t> weapons;
@@ -113,9 +112,9 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
                 }
             }
 
-            if(c =='s')
+            if(c =='p')
             {
-                scene_spawn_points.solider.push_back({ x_offset, z_offset });
+                scene_spawn_points.player.push_back({ x_offset, z_offset });
             }
             else if (c == 'e')
             {
@@ -128,10 +127,6 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             else if (c == 'w')
             {
                 scene_spawn_points.weapons.push_back({ x_offset, z_offset });
-            }
-            else if (c == 'l')
-            {
-                scene_spawn_points.solider2.push_back({ x_offset, z_offset });
             }
         }
     }
@@ -223,21 +218,12 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
     }
 
     // at this point nav mesh has to be completed!
-    if (app.is_prefab_available(project_c::PREFAB_TYPE_SOLIDER))
-    {
-        for (const auto& point : scene_spawn_points.solider)
-        {
-             auto s = scene.register_script<project_c::Solider>(app.instantiate_prefab(project_c::PREFAB_TYPE_SOLIDER, &scene));
-            s->set_world_position(point.x, 0.0f, point.y);
-        }
-    }
-
     if (app.is_prefab_available(project_c::PREFAB_TYPE_BARBARIAN))
     {
-        for (const auto& point : scene_spawn_points.solider2)
+        for (const auto& point : scene_spawn_points.player)
         {
-            auto s = scene.register_script<project_c::Solider2>(app.instantiate_prefab(project_c::PREFAB_TYPE_BARBARIAN, &scene));
-            //s->set_world_position(point.x, 0.0f, point.y);
+            auto s = scene.register_script<project_c::Player>(app.instantiate_prefab(project_c::PREFAB_TYPE_BARBARIAN, &scene));
+            s->set_world_position(point.x, 0.0f, point.y);
         }
     }
 
@@ -283,7 +269,7 @@ void equip_sword_callback(engine_ui_data_handle_t data_handle, const engine_ui_e
     auto scene = reinterpret_cast<project_c::TestScene*>(user_data);
     auto solider_go = project_c::utils::get_game_objects_with_name(scene->get_handle(), "solider");
     assert(solider_go.size() == 1);
-    auto solider_script = scene->get_script<project_c::Solider>(solider_go[0]);
+    auto solider_script = scene->get_script<project_c::Player>(solider_go[0]);
     const auto item_equipped = solider_script->equip_sword(scene->get_script<project_c::Sword>(item_go));
     if (!item_equipped)
     {
@@ -400,7 +386,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         //"x    p    x\n"
         "x         x\n"
         "x  w  ee  x\n"
-        "xsl   ee  x\n"
+        "xp    ee  x\n"
         "x     ee  x\n"
         "x         x\n";
         //"xxxxxxxxxxx\n";

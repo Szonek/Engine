@@ -7,15 +7,6 @@
 
 namespace project_c
 {
-
-class Solider2 : public BaseNode
-{
-public:
-    Solider2(engine::IScene* my_scene, const PrefabResult& pr);
-    void update(float dt) override;
-
-};
-
 class AttackTrigger : public BaseNode
 {
 public:
@@ -62,7 +53,7 @@ private:
     Config config_;
 };
 
-class Solider : public BaseNode
+class Player : public BaseNode
 {
 private:
     enum States : std::uint32_t
@@ -130,10 +121,31 @@ private:
 
     struct MoveStateData
     {
-        bool animation_started = false;
-        inline const char* get_animation_name() const
+        enum class Direction
         {
-            return "walk";
+            eForward,
+            eBackward,
+            eLeft,
+            eRight
+        };
+
+        bool animation_started = false;
+        inline const char* get_animation_name(Direction dir) const
+        {
+            switch (dir)
+            {
+            case Direction::eForward:
+                return "Running_A";
+            case Direction::eBackward:
+                return "Running_A";
+            case Direction::eLeft:
+                return "Running_Strafe_Left";
+            case Direction::eRight:
+                return "Running_Strafe_Right";
+            default:
+                assert(!"Unknown move direction for player!");
+            }
+            return "";
         }
     };
 
@@ -142,7 +154,7 @@ private:
         bool animation_started = false;
         inline const char* get_animation_name() const
         {
-            return "attack-melee-right";
+            return "Dualwield_Melee_Attack_Chop";
         }
     };
 
@@ -151,12 +163,12 @@ private:
         bool animation_started = false;
         inline const char* get_animation_name() const
         {
-            return "attack-melee-left";
+            return "Throw";
         }
     };
 
 public:
-    Solider(engine::IScene* my_scene, const PrefabResult& pr);
+    Player(engine::IScene* my_scene, const PrefabResult& pr);
 
     void update(float dt);
 
