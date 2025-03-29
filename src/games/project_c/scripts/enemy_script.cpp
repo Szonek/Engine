@@ -1,5 +1,5 @@
 #include "enemy_script.h"
-#include "solider_script.h"
+#include "player_script.h"
 #include "enviorment_script.h"
 #include "scripts_utils.h"
 

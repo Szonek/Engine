@@ -4,7 +4,7 @@
 #include "../scripts/camera_script.h"
 #include "../scripts/enviorment_script.h"
 #include "../scripts/enemy_script.h"
-#include "../scripts/solider_script.h"
+#include "../scripts/player_script.h"
 #include "../scripts/scripts_utils.h"
 
 #include "../nav_mesh.h"

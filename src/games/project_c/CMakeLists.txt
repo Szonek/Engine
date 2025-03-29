@@ -27,8 +27,8 @@ set(APP_SOURCES
 	scripts/enemy_script.cpp
 	scripts/enviorment_script.h
 	scripts/enviorment_script.cpp
-	scripts/solider_script.h
-	scripts/solider_script.cpp
+	scripts/player_script.h
+	scripts/player_script.cpp
 	
 	scripts/scripts_utils.h
 	scripts/scripts_utils.cpp
