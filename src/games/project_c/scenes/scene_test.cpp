@@ -259,7 +259,7 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
 }
 
 
-void equip_sword_callback(engine_ui_data_handle_t data_handle, const engine_ui_event_t* ev, const engine_vector_engine_ui_data_variant_t args, void* user_data)
+void equip_weapon_callback(engine_ui_data_handle_t data_handle, const engine_ui_event_t* ev, const engine_vector_engine_ui_data_variant_t args, void* user_data)
 {
     assert(args != nullptr);
     assert(engineVectorSizeEngineUiDataVariant(args) == 1);
@@ -318,7 +318,7 @@ inline void register_ui_item_bindings(std::vector<engine_ui_document_data_bindin
     {
         engine_ui_document_data_binding_t binding = {};
         binding.name = "equip";
-        binding.data_callback.fn_ptr = &equip_sword_callback;
+        binding.data_callback.fn_ptr = &equip_weapon_callback;
         binding.data_callback.user_data = scene;
         binding.type = ENGINE_UI_DATA_TYPE_EVENT_CALLBACK;
         registry.push_back(binding);
@@ -440,7 +440,7 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Weapon* sw)
     {
         engineVectorPushBackUint32(ui_data_.items.go, item_go);
         engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_go");
-        engineVectorPushBackEngineString(ui_data_.items.name, engineStringCreate("sword"));
+        engineVectorPushBackEngineString(ui_data_.items.name, engineStringCreate("item"));
         engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_name");
 
         engineVectorPushBackUint32(ui_data_.items.show, 1);
