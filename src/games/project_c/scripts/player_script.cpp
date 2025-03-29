@@ -354,9 +354,9 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
 
     auto tc = engineSceneGetTransformComponent(scene, go_);
     tc.position[1] = -0.25f;
-    tc.scale[0] = 0.5f;
-    tc.scale[1] = 0.5f;
-    tc.scale[2] = 0.5f;
+    tc.scale[0] = 0.35f;
+    tc.scale[1] = 0.35f;
+    tc.scale[2] = 0.35f;
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // physcis

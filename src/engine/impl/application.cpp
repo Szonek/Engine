@@ -436,14 +436,13 @@ void engine::Application::destroy_shader(std::uint32_t idx)
 engine_model_desc_t engine::Application::load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir)
 {
     assert(spec == ENGINE_MODEL_SPECIFICATION_GLTF_2);
-
-    const auto file_data = engine::AssetStore::get_instance().get_model_data(name);
+    const auto assets_dir = engine::AssetStore::get_instance().get_models_base_path() / base_dir;
+    const auto file_data = engine::AssetStore::get_instance().get_raw_data_content(assets_dir / name);
     if(file_data.get_size() == 0)
     {
         return {};
     }
 
-    const auto assets_dir = engine::AssetStore::get_instance().get_models_base_path()/base_dir;
     const auto model_info = new engine::ModelInfo(parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string()));
 
     engine_model_desc_t ret{};
