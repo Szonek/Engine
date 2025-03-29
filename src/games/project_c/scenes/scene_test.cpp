@@ -92,12 +92,21 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         for (std::size_t z = 0; z < scene_height; z++)
         {
             const auto c = scene_str[z * (scene_width + 1) + x];  // + 1 because of '\n' in every line
-            const auto x_offset = (float)std::int32_t(x - scene_width / 2);
+            auto x_offset = (float)std::int32_t(x - scene_width / 2);
             const auto z_offset = (float)std::int32_t(z - scene_height / 2);
             if (c == 'x')
             {
                 if (app.is_prefab_available(project_c::PREFAB_TYPE_WALL))
                 {
+                    // add offset to snap to the grid
+                    if (x_offset > 0)
+                    {
+                        x_offset -= 0.5f;
+                    }
+                    else if (x_offset < 0)
+                    {
+                        x_offset += 0.5f;
+                    }
                     scene.register_script<project_c::Wall>(app.instantiate_prefab(project_c::PREFAB_TYPE_WALL, &scene).go, x_offset, z_offset);
                 }
             }

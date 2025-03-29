@@ -16,7 +16,7 @@ int main(int argc, char** argv)
             //{ project_c::PREFAB_TYPE_BARREL,       { "barrel.glb", "Textures_mini_dungeon" }},
             { project_c::PREFAB_TYPE_FLOOR,        { "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/Floor.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
             { project_c::PREFAB_TYPE_FLOOR_DETAIL, { "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/Floor_Dirt.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-            //{ project_c::PREFAB_TYPE_WALL,         { "wall.glb", "Textures_mini_dungeon" }},
+            { project_c::PREFAB_TYPE_WALL,         { "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/Wall.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
             //{ project_c::PREFAB_TYPE_CUBE,         { "cube.glb", ""}},
         };
 

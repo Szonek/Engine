@@ -59,6 +59,15 @@ project_c::Wall::Wall(engine::IScene* my_scene, engine_game_object_t go, float o
     auto tc = engineSceneGetTransformComponent(scene, go_);
     tc.position[0] += offset_x;
     tc.position[2] += offset_z;
+    tc.scale[0] = 0.25f;
+    tc.scale[1] = 0.25f;
+    tc.scale[2] = 0.25f;
+    // rotate by 90 degrees
+    const glm::quat rot = glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    tc.rotation[0] = rot.x;
+    tc.rotation[1] = rot.y;
+    tc.rotation[2] = rot.z;
+    tc.rotation[3] = rot.w;
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // physcis
