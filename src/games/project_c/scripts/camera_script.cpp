@@ -44,8 +44,8 @@ void project_c::CameraScript::late_update(float dt)
         const auto character_tc = engineSceneGetTransformComponent(scene, character_go);
         auto tc = engineSceneGetTransformComponent(scene, go_);
         tc.position[0] = character_tc.position[0];
-        tc.position[1] = character_tc.position[1] + 7.0f;
-        tc.position[2] = character_tc.position[2] + 3.5f;
+        tc.position[1] = character_tc.position[1] + 6.5f;
+        tc.position[2] = character_tc.position[2] + 4.5f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
         // update targer to point to character go position
         auto camera_comp = engineSceneGetCameraComponent(scene, go_);

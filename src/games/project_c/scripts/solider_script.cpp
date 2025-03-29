@@ -356,8 +356,21 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 
     // add handle to right arm
-    //right_arm_go_ = utils::get_game_objects_with_name(scene, "arm-right")[0];
-    //assert(right_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
+    right_arm_go_ = utils::get_game_objects_with_name(scene, "handslot.r")[0];
+    assert(right_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
+    // cleanup any childer of handslot (as model could be prebuilt with attached geomteries)
+    if (engineSceneHasChildrenComponent(scene, right_arm_go_))
+    {
+        utils::delete_game_objects_hierarchy(scene, right_arm_go_);
+    }
+    left_arm_go_ = utils::get_game_objects_with_name(scene, "handslot.l")[0];
+    assert(left_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
+    // cleanup any childer of handslot (as model could be prebuilt with attached geomteries)
+    if (engineSceneHasChildrenComponent(scene, left_arm_go_))
+    {
+        utils::delete_game_objects_hierarchy(scene, left_arm_go_);
+    }
+
     // add attack trigger
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(scene));
     //auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
@@ -445,7 +458,7 @@ void project_c::Player::update(float dt)
         enable_state_bit(States::SKILL_1);
     }
 
-    auto tc = engineSceneGetTransformComponent(scene, go_);
+    const auto tc = engineSceneGetTransformComponent(scene, go_);
     const glm::quat rotation = glm::make_quat(tc.rotation);
     const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
     const glm::vec3 right = rotation * glm::vec3(1.0f, 0.0f, 0.0f);
@@ -465,40 +478,41 @@ void project_c::Player::update(float dt)
             anim_controller_.set_active_animation("Dodge_Forward");
             const float speed_cooef = 0.015f;
             const float speed = speed_cooef * dt;
-            auto tc = engineSceneGetTransformComponent(scene, go_);
+            auto tc_dodge = engineSceneGetTransformComponent(scene, go_);
             // move forward // ToDo add doge in other directions
-            tc.position[0] += forward.x * speed;
+            tc_dodge.position[0] += forward.x * speed;
             //tc.position[1] += forward.y * speed;  // dont go up!
-            tc.position[2] += forward.z * speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
+            tc_dodge.position[2] += forward.z * speed;
+            engineSceneUpdateTransformComponent(scene, go_, &tc_dodge);
         }
     }
     if (check_state_bit(States::MOVE))
     {
+        auto tc_move = engineSceneGetTransformComponent(scene, go_);
         const float speed_cooef = 0.0025f;
         const float speed = speed_cooef * dt; // ToDo: implement diagonal movement speed coef (use pitagoras(?))
 
         if (button_W)  // up
         {
-            tc.position[2] -= speed;
+            tc_move.position[2] -= speed;
         }
         if (button_S) // down
         {
-            tc.position[2] += speed;
+            tc_move.position[2] += speed;
         }
         if (button_A) // left
         {
-            tc.position[0] -= speed;
+            tc_move.position[0] -= speed;
         }
         if (button_D) // right
         {
-            tc.position[0] += speed;
+            tc_move.position[0] += speed;
         }
 
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
+        engineSceneUpdateTransformComponent(scene, go_, &tc_move);
 
         // compute forard/left/right/backward direction based on mouse position
-        const glm::vec3 direction = glm::normalize(glm::vec3(hit_info.position[0], hit_info.position[1], hit_info.position[2]) - glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
+        const glm::vec3 direction = glm::normalize(glm::vec3(hit_info.position[0], hit_info.position[1], hit_info.position[2]) - glm::vec3(tc_move.position[0], tc_move.position[1], tc_move.position[2]));
         // Compute the dot products
         const float forward_dot = glm::dot(direction, forward);
         const float right_dot = glm::dot(direction, right);

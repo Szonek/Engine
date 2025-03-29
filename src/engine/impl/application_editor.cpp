@@ -568,7 +568,7 @@ inline void render_scene_hierarchy_panel(engine::SceneHierarchyContext& ctx, eng
         std::memcpy(nc->name, new_name.c_str(), new_name.size());
     }
 
-    static bool phys_debug_draw_check = true;
+    static bool phys_debug_draw_check = false;
     ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check);
     scene->enable_physics_debug_draw(phys_debug_draw_check);
 

@@ -186,6 +186,7 @@ private:
 
     // child objects
     engine_game_object_t right_arm_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    engine_game_object_t left_arm_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
 
     // inventory
     Sword* weapon_;
