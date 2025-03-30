@@ -34,25 +34,6 @@ public:
     void update(float dt) override;
 };
 
-class Dagger : public BaseNode
-{
-public:
-    struct Config
-    {
-        glm::vec3 start_position;
-        glm::quat direction;
-        std::uint32_t ricochet_count = 1;
-        engine_game_object_t ignore_go = ENGINE_INVALID_GAME_OBJECT_ID;
-        bool destroy_on_next_frame = false;
-    };
-    Dagger(engine::IScene* my_scene, engine_game_object_t go, const Config& config);
-
-    void update(float dt) override;
-    void on_collision(const collision_t& info) override;
-private:
-    Config config_;
-};
-
 class Player : public BaseNode
 {
 private:
@@ -62,7 +43,7 @@ private:
         ATTACK  = 0x0001,
         MOVE    = 0x0002,
         DODGE   = 0x0004,
-        SKILL_1 = 0x0008,
+        PLACEHOLDER = 0x0008,
 
     };
 
@@ -158,15 +139,6 @@ private:
         }
     };
 
-    struct Skill_1_StateData
-    {
-        bool animation_started = false;
-        inline const char* get_animation_name() const
-        {
-            return "Throw";
-        }
-    };
-
 public:
     Player(engine::IScene* my_scene, const PrefabResult& pr);
 
@@ -178,7 +150,6 @@ private:
     std::uint32_t state_;
     MoveStateData move_data_;
     AttackStateData attack_data_;
-    Skill_1_StateData skill_1_data_;
     GlobalStateData global_data_;
     DodgeStateData dodge_data_;
 

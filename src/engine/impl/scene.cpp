@@ -87,7 +87,6 @@ static inline void destroy_parent_component(entt::registry& registry, entt::enti
     }
     engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component was destroyed, but couldn't reset it's childer.\n"));
 }
-
 static inline void calculate_camera_view_and_projection(std::size_t window_width, std::size_t window_height, const glm::vec3& eye_position, const engine_camera_component_t& camera, engine::camera_internal_component_t& camera_internal)
 {
     // update camera: view and projection

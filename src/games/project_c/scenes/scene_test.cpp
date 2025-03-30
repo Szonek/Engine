@@ -245,7 +245,7 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
             //const auto spawn_area = MobPackSpawner::SpawnAreaRect{ 0.0f, 0.0f, 0.0f, 0.0f };
             const auto spawn_world_pos = MobPackSpawner::Point{ point.x, point.y };
-            spawner.spawn(pack, 1, spawn_world_pos, spawn_area, nav_mesh, app, scene);
+            spawner.spawn(pack, 6, spawn_world_pos, spawn_area, nav_mesh, app, scene);
         }
     }
 
@@ -395,9 +395,9 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         //"xxxxxxxxxxx\n"
         //"x    p    x\n"
         "x         x\n"
-        "x  w  ee  x\n"
-        "xp    ee  x\n"
-        "x     ee  x\n"
+        "x  w      x\n"
+        "xp   e    x\n"
+        "x         x\n"
         "x         x\n";
         //"xxxxxxxxxxx\n";
     register_script<MainLight>();

@@ -21,6 +21,8 @@
 
 namespace
 {
+constexpr const engine_keyboard_keys_t G_MOUSE_SELECT_KEYBOARD_KEY = engine_keyboard_keys_t::ENGINE_KEYBOARD_KEY_LCTRL;
+
 inline auto get_spherical_coordinates(const auto& cartesian)
 {
     const float r = std::sqrt(
@@ -779,7 +781,7 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
     {
         return;
     }
-    if (mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT))
+    if (mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT) && !keyboard_is_key_down(G_MOUSE_SELECT_KEYBOARD_KEY))
     {
         const auto window_size = rdx_.get_window_size_in_pixels();
         const auto mouse_coords = mouse_get_coords();
@@ -1009,21 +1011,17 @@ void engine::CameraScript::update(float dt)
 
     //if (app_->keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LSHIFT))
     {
-        //if (lmb)
-        //{
-        //    rotate({ dx * move_speed, dy * move_speed });            
-        //}
-        //else if (rmb)
-        //{
-        //    strafe(dx * move_speed, dy * move_speed);
-        //}
-        //else if (mmb)
-        //{
-        //    translate({ 0.0f, 0.0f, dy * move_speed });
-        //}
-        if (rmb)
+        if (lmb && app_->keyboard_is_key_down(G_MOUSE_SELECT_KEYBOARD_KEY))
+        {
+            rotate({ dx * move_speed, dy * move_speed });            
+        }
+        else if (rmb)
         {
             strafe(dx * move_speed, dy * move_speed);
+        }
+        else if (mmb)
+        {
+            translate({ 0.0f, 0.0f, dy * move_speed });
         }
     }
 }

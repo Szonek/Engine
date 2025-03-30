@@ -76,9 +76,9 @@ project_c::Wall::Wall(engine::IScene* my_scene, engine_game_object_t go, float o
     cc.is_trigger = false;
     auto& cc_child = cc.collider.compound.children[0];
     cc_child.rotation_quaternion[3] = 1.0f;
-    cc_child.transform[1] = 0.5f;
+    cc_child.transform[1] = 2.0f;
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
-    set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.5f, 0.5f, 0.5f});
+    set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 2.0f, 2.0f, 0.5f});
     engineSceneUpdateColliderComponent(scene, go_, &cc);
 }
 

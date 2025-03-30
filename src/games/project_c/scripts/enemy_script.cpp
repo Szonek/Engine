@@ -96,7 +96,7 @@ void project_c::Enemy::update(float dt)
         if (hp <= 0)
         {
             state_ = States::DIE;
-            anim_controller_.set_active_animation("Death-A");
+            anim_controller_.set_active_animation("Death_A");
             // remove collider so enemy will not be hit by players attacks
             engineSceneRemoveColliderComponent(scene, go_);
         }
@@ -140,7 +140,7 @@ void project_c::Enemy::update(float dt)
     }
     case States::DIE:
     {
-        if (!anim_controller_.is_active_animation("Death-A"))
+        if (!anim_controller_.is_active_animation("Death_A"))
         {
             my_scene_->unregister_script(this);
         }
@@ -155,7 +155,7 @@ void project_c::Enemy::update(float dt)
             state_ = States::DECISION_MAKE;
             break;
         }
-        anim_controller_.set_active_animation("Running-A");
+        anim_controller_.set_active_animation("Running_A");
         for (auto& node : path.nodes)
         {
             const auto n_pos = nav_mesh_->get_node(node).get_center();
