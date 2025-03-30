@@ -305,7 +305,7 @@ project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_ob
     engineSceneUpdateColliderComponent(scene, go_, &cc);
 
     // parent to root
-    const auto gos_with_root_name = utils::get_game_objects_with_name(scene, "solider");
+    const auto gos_with_root_name = utils::get_game_objects_with_name(scene, "player");
     for (auto& parent : gos_with_root_name)
     {
         if (parent != ENGINE_INVALID_GAME_OBJECT_ID)
@@ -344,7 +344,7 @@ void project_c::AttackTrigger::activate()
 }
 
 project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
-    : BaseNode(my_scene, pr, "solider")
+    : BaseNode(my_scene, pr, "player")
     , weapon_(nullptr)
     , state_(States::IDLE)
     , attack_trigger_(nullptr)

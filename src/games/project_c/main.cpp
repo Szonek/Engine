@@ -8,16 +8,16 @@ int main(int argc, char** argv)
     {
         const std::unordered_map<project_c::PrefabType, std::pair<std::string, std::string>> prefabs_data =
         {
+            // player
             { project_c::PREFAB_TYPE_BARBARIAN,     { "Barbarian.glb", "KayKit_Adventurers_1.0_FREE/Characters/gltf" }},
-            //{ project_c::PREFAB_TYPE_DAGGER,       { "dagger_01.glb", ""}},
-            //{ project_c::PREFAB_TYPE_SWORD,        { "weapon-sword.glb", "Textures_mini_arena" }},
-            //{ project_c::PREFAB_TYPE_SOLIDER,      { "character-soldier.glb", "Textures_mini_arena" }},
-            //{ project_c::PREFAB_TYPE_ORC,          { "character-orc.glb", "Textures_mini_dungeon" }},
-            //{ project_c::PREFAB_TYPE_BARREL,       { "barrel.glb", "Textures_mini_dungeon" }},
+
+            // enemies
+            { project_c::PREFAB_TYPE_SKELETON_WARRIOR, { "Skeleton_Warrior.glb", "KayKit_Skeletons_1.0_FREE/characters/gltf" }},
+
+            // scene assets
             { project_c::PREFAB_TYPE_FLOOR,        { "Floor.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
             { project_c::PREFAB_TYPE_FLOOR_DETAIL, { "Floor_Dirt.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
             { project_c::PREFAB_TYPE_WALL,         { "Wall.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-            //{ project_c::PREFAB_TYPE_CUBE,         { "cube.glb", ""}},
         };
 
         project_c::AppProjectC app_project_c(prefabs_data);

@@ -236,11 +236,11 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         }
     }
 
-    if (app.is_prefab_available(project_c::PREFAB_TYPE_ORC))
+    if (app.is_prefab_available(project_c::PREFAB_TYPE_SKELETON_WARRIOR))
     {
         for (const auto& point : scene_spawn_points.enemy_packs)
         {
-            EnemyPack pack{ {project_c::PrefabType::PREFAB_TYPE_ORC} };
+            EnemyPack pack{ {project_c::PrefabType::PREFAB_TYPE_SKELETON_WARRIOR} };
             MobPackSpawner spawner;
             const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
             //const auto spawn_area = MobPackSpawner::SpawnAreaRect{ 0.0f, 0.0f, 0.0f, 0.0f };
@@ -277,10 +277,10 @@ void equip_weapon_callback(engine_ui_data_handle_t data_handle, const engine_ui_
     const auto item_go = arg_0.arg.u32;
 
     auto scene = reinterpret_cast<project_c::TestScene*>(user_data);
-    auto solider_go = project_c::utils::get_game_objects_with_name(scene->get_handle(), "solider");
-    assert(solider_go.size() == 1);
-    auto solider_script = scene->get_script<project_c::Player>(solider_go[0]);
-    const auto item_equipped = solider_script->equip_waepon(scene->get_script<project_c::Weapon>(item_go));
+    auto player_go = project_c::utils::get_game_objects_with_name(scene->get_handle(), "player");
+    assert(player_go.size() == 1);
+    auto player_script = scene->get_script<project_c::Player>(player_go[0]);
+    const auto item_equipped = player_script->equip_waepon(scene->get_script<project_c::Weapon>(item_go));
     if (!item_equipped)
     {
         engineLog(std::format("Tried to equip item, but couldnt do so!\n").c_str());

@@ -26,8 +26,13 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     auto tc = engineSceneGetTransformComponent(scene, go_);
 
     tc.position[0] = offset_x;
-    tc.position[1] -= 0.25f;
+    tc.position[1] += 0.25f;
     tc.position[2] = offset_z;
+
+    tc.scale[0] = 0.35f;
+    tc.scale[1] = 0.35f;
+    tc.scale[2] = 0.35f;
+
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // physcis
@@ -37,17 +42,17 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     {
         child_c.type = ENGINE_COLLIDER_TYPE_BOX;
         child_c.transform[0] = 0.0f;
-        child_c.transform[1] = 0.35f;
+        child_c.transform[1] = 1.0f;
         child_c.transform[2] = 0.0f;
         child_c.rotation_quaternion[3] = 1.0f;
-        set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.3f, 0.35f, 0.3f});
+        set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.7f, 1.0f, 0.5f});
     }
     engineSceneUpdateColliderComponent(scene, go_, &cc);
 
     //rb
     auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
     rbc.mass = 1.0f;
-    //rbc.mass = 0.0f;
+    rbc.mass = 0.0f;
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 }
 
@@ -68,7 +73,7 @@ void project_c::Enemy::update(float dt)
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
 
-    const auto player = utils::get_game_objects_with_name(scene, "solider")[0];
+    const auto player = utils::get_game_objects_with_name(scene, "player")[0];
     auto tc = engineSceneGetTransformComponent(scene, go_);
     auto ec = engineSceneGetTransformComponent(scene, player);
     const auto distance_to_player = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
@@ -91,7 +96,7 @@ void project_c::Enemy::update(float dt)
         if (hp <= 0)
         {
             state_ = States::DIE;
-            anim_controller_.set_active_animation("die");
+            anim_controller_.set_active_animation("Death-A");
             // remove collider so enemy will not be hit by players attacks
             engineSceneRemoveColliderComponent(scene, go_);
         }
@@ -115,7 +120,7 @@ void project_c::Enemy::update(float dt)
     }
     case States::IDLE:
     {
-        anim_controller_.set_active_animation("idle");
+        anim_controller_.set_active_animation("Idle");
         state_ = States::DECISION_MAKE;
         break;
     }
@@ -135,7 +140,7 @@ void project_c::Enemy::update(float dt)
     }
     case States::DIE:
     {
-        if (!anim_controller_.is_active_animation("die"))
+        if (!anim_controller_.is_active_animation("Death-A"))
         {
             my_scene_->unregister_script(this);
         }
@@ -150,7 +155,7 @@ void project_c::Enemy::update(float dt)
             state_ = States::DECISION_MAKE;
             break;
         }
-        anim_controller_.set_active_animation("walk");
+        anim_controller_.set_active_animation("Running-A");
         for (auto& node : path.nodes)
         {
             const auto n_pos = nav_mesh_->get_node(node).get_center();
