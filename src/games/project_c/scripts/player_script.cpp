@@ -239,10 +239,12 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
     cc.is_trigger = false;
     auto& cc_child = cc.collider.compound.children[0];
-    cc_child.transform[1] = 0.35f;
+    cc_child.transform[0] = 0.0f;
+    cc_child.transform[1] = 0.1f;
+    cc_child.transform[2] = 0.0f;
     cc_child.rotation_quaternion[3] = 1.0f;
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
-    set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.3f, 0.35f, 0.2f});
+    set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.5f, 1.0f, 0.4f});
     engineSceneUpdateColliderComponent(scene, go_, &cc);
 
     //rb
