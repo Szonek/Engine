@@ -35,7 +35,10 @@ project_c::Prefab::~Prefab()
         }
         for (const auto& t : textures_)
         {
-            engineApplicationDestroyTexture2D(app_, t);
+            if (t.owner)
+            {
+                engineApplicationDestroyTexture2D(app_, t.obj);
+            }
         }
         materials_.clear();
         engineApplicationReleaseModelDesc(app_, &model_info_);
@@ -69,7 +72,7 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         }
     }
 
-    textures_ = std::vector<engine_texture2d_t>(model_info_.textures_count, ENGINE_INVALID_OBJECT_HANDLE);
+    textures_ = std::vector<EngineObj<engine_texture2d_t>>(model_info_.textures_count);
     for (std::uint32_t i = 0; i < model_info_.textures_count; i++)
     {
 
@@ -79,14 +82,16 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         if (engineApplicationDoTexture2DNameExists(app, name.c_str()))
         {
             engineLog(std::format("Texture with name: {} already exists, reusing it.\n", name).c_str());
-            textures_[i] = engineApplicationGetTextured2DByName(app, name.c_str());
-            engine_error_code = textures_[i] == ENGINE_INVALID_OBJECT_HANDLE ? ENGINE_RESULT_CODE_FAIL: ENGINE_RESULT_CODE_OK;
+            textures_[i].obj = engineApplicationGetTextured2DByName(app, name.c_str());
+            textures_[i].owner = false;
+            engine_error_code = textures_[i].obj == ENGINE_INVALID_OBJECT_HANDLE ? ENGINE_RESULT_CODE_FAIL: ENGINE_RESULT_CODE_OK;
         }
         else
         {
             engine_error_code = engineApplicationCreateTexture2DFromDesc(app, &model_info_.textures_array[i],
                 name.c_str(),
-                &textures_[i]);
+                &textures_[i].obj);
+            textures_[i].owner = true;
         }
 
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
@@ -105,7 +110,7 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         set_c_array(mat_comp.data.pong.diffuse_color, mat_info.diffuse_color);
         if (mat_info.diffuse_texture_index != -1)
         {
-            mat_comp.data.pong.diffuse_texture = textures_.at(mat_info.diffuse_texture_index);
+            mat_comp.data.pong.diffuse_texture = textures_.at(mat_info.diffuse_texture_index).obj;
         }
         mat_comp.data.pong.shininess = 32;
     }

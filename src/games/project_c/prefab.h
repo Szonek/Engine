@@ -35,10 +35,18 @@ struct Prefab
     bool is_valid() const;
 
 private:
+    template<typename T>
+    struct EngineObj
+    {
+        T obj = ENGINE_INVALID_OBJECT_HANDLE;
+        bool owner = false;
+    };
+
+private:
     engine_application_t app_ = nullptr;
     engine_model_desc_t model_info_ = {};
     std::vector<engine_geometry_t> geometries_ = {};
     std::vector<engine_material_component_t> materials_;
-    std::vector<engine_texture2d_t> textures_ = {};
+    std::vector<EngineObj<engine_texture2d_t>> textures_ = {};
 };
 }
