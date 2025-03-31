@@ -87,7 +87,10 @@ protected:
     void on_scene_release(class Scene* scene) override;
 
 private:
+    void render_editor_controls(class Scene* scene, float dt);
     void render_scene_hierarchy_panel(class Scene* scene, float dt);
+    void render_entity_properties_panel(class Scene* scene, float dt);
+    void render_debug_panel(class Scene* scene, float dt);
     void render_outline(class Scene* scene);
     void render_guizmo(class Scene* scene);
     void handle_mouse_picking(class Scene* scene);
@@ -111,8 +114,47 @@ private:
         };
         std::map<engine::Scene*, camera_data_t> cameras_;
     };
+
+
+    class EditorWindowsContext
+    {
+    public:
+        EditorWindowsContext() = default;
+
+        bool is_initialized() const { return initalized_; }
+        void initialize(std::uint32_t dockspace_id);
+
+        const char* get_window_up() const { return window_up; }
+        const char* get_window_down() const { return window_down; }
+        const char* get_window_down_right() const { return window_down_right; }
+        const char* get_window_left() const { return window_left; }
+        const char* get_window_right() const { return window_right; }
+        const char* get_window_scene() const { return window_scene; }
+
+        viewport_t get_scene_render_viewport() const;
+
+    private:
+        bool initalized_ = false;
+
+    private:
+        static constexpr const char* window_up = "Up Window";
+        static constexpr const char* window_down = "Down Window";
+        static constexpr const char* window_down_right = "Down-Right Window";
+        static constexpr const char* window_left = "Left Window";
+        static constexpr const char* window_right = "Right Window";
+        static constexpr const char* window_scene = "Scene Window";
+    };
+
+    enum class EditorView
+    {
+        eGame,
+        eEditor,
+    };
+
+private:
     CameraContext camera_context_;
-    bool editor_controlling_scene_ = false;
+    EditorView editor_view_ = EditorView::eGame;
+    EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;
     OutlinePostProccessEffect outline_effect_;
     SceneHierarchyContext scene_hierarchy_context_;

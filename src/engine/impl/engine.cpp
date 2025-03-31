@@ -359,7 +359,196 @@ engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engin
         return ENGINE_RESULT_CODE_FAIL;
     }
     auto* app = application_cast(handle);
-    *out = app->load_model_desc_from_file(spec, file_name, base_dir);
+    auto model_info = new engine::ModelInfo(app->load_model_desc_from_file(spec, file_name, base_dir));
+
+    out->internal_handle = reinterpret_cast<const void*>(model_info);
+
+    out->nodes_count = static_cast<std::uint32_t>(model_info->nodes.size());
+    if (out->nodes_count > 0)
+    {
+        out->nodes_array = new engine_model_node_desc_t[out->nodes_count];
+        for (std::size_t i = 0; i < out->nodes_count; i++)
+        {
+            auto copy_arr = [](float* const arr, const auto& glm_vec)
+                {
+                    for (auto i = 0; i < glm_vec.length(); i++)
+                    {
+                        arr[i] = glm_vec[i];
+                    }
+                };
+
+            const auto& in_n = model_info->nodes.at(i);
+            auto& ret_n = out->nodes_array[i];
+            ret_n.geometry_index = in_n->mesh;
+            ret_n.skin_index = in_n->skin;
+            ret_n.name = in_n->name.c_str();
+            if (ret_n.geometry_index != -1)
+            {
+                ret_n.material_index = model_info->geometries[ret_n.geometry_index].material_index;
+            }
+            else
+            {
+                ret_n.material_index = ENGINE_INVALID_OBJECT_HANDLE;
+            }
+
+            copy_arr(ret_n.translate, in_n->translation);
+            copy_arr(ret_n.rotation_quaternion, in_n->rotation);
+            copy_arr(ret_n.scale, in_n->scale);
+
+            if (in_n->parent)
+            {
+                ret_n.parent = &out->nodes_array[in_n->parent->index];
+            }
+            else
+            {
+                ret_n.parent = nullptr;
+            }
+        }
+    }
+
+    out->geometries_count = static_cast<std::uint32_t>(model_info->geometries.size());
+    if (out->geometries_count > 0)
+    {
+        out->geometries_array = new engine_geometry_create_desc_t[out->geometries_count];
+        out->geometires_name_array = new const char* [out->geometries_count];
+        for (std::size_t i = 0; i < out->geometries_count; i++)
+        {
+            const auto& int_g = model_info->geometries[i];
+            auto& ret_g = out->geometries_array[i];
+
+            ret_g.inds_count = int_g.indicies.size();
+            ret_g.inds = int_g.indicies.data();
+
+            ret_g.verts_data_size = int_g.vertex_data.size();
+            ret_g.verts_data = int_g.vertex_data.data();
+            ret_g.verts_layout = int_g.vertex_laytout;
+            ret_g.verts_count = int_g.vertex_count;
+
+            out->geometires_name_array[i] = int_g.name.c_str();
+        }
+
+    }
+
+    out->textures_count = static_cast<std::uint32_t>(model_info->textures.size());
+    if (out->textures_count > 0)
+    {
+        out->textures_array = new engine_texture_2d_create_desc_t[out->textures_count];
+        out->textures_name_array = new const char* [out->textures_count];
+        for (std::size_t i = 0; i < out->textures_count; i++)
+        {
+            const auto& int_m = model_info->textures[i];
+            auto& ret_m = out->textures_array[i];
+
+            ret_m.width = int_m.width;
+            ret_m.height = int_m.height;
+            ret_m.data_layout = int_m.layout;
+            ret_m.data = int_m.data.data();
+
+            out->textures_name_array[i] = int_m.name.c_str();
+        }
+    }
+
+    out->materials_count = static_cast<std::uint32_t>(model_info->materials.size());
+    if (out->materials_count > 0)
+    {
+        out->materials_array = new engine_model_material_desc_t[out->materials_count];
+        out->materials_name_array = new const char* [out->materials_count];
+
+        for (std::size_t i = 0; i < out->materials_count; i++)
+        {
+            const auto& int_m = model_info->materials[i];
+            auto& ret_m = out->materials_array[i];
+
+            ret_m.name = int_m.name.c_str();
+            std::memcpy(ret_m.diffuse_color, int_m.diffuse_factor.data(), int_m.diffuse_factor.size() * sizeof(int_m.diffuse_factor[0]));
+            ret_m.diffuse_texture_index = int_m.diffuse_texture;
+
+            out->materials_name_array[i] = int_m.name.c_str();
+        }
+    }
+
+    out->animations_counts = static_cast<std::uint32_t>(model_info->animations.size());
+    if (out->animations_counts > 0)
+    {
+        out->animations_array = new engine_animation_clip_create_desc_t[out->animations_counts];
+        for (std::uint32_t i = 0; i < out->animations_counts; i++)
+        {
+            const auto& in_anim = model_info->animations[i];
+            auto& anim = out->animations_array[i];
+            anim.name = in_anim.name.c_str();
+
+            std::map<std::uint32_t, engine_animation_channel_create_desc_t> channels_map;
+            for (const auto& in_ch : in_anim.channels)
+            {
+                channels_map[in_ch.target_node_idx].model_node_index = in_ch.target_node_idx;
+
+                engine_animation_channel_data_t* channel = nullptr;
+
+                if (in_ch.type == engine::AnimationChannelType::eTranslation)
+                {
+                    channel = &channels_map[in_ch.target_node_idx].channel_translation;
+                }
+                else if (in_ch.type == engine::AnimationChannelType::eRotation)
+                {
+                    channel = &channels_map[in_ch.target_node_idx].channel_rotation;
+                }
+                else if (in_ch.type == engine::AnimationChannelType::eScale)
+                {
+                    channel = &channels_map[in_ch.target_node_idx].channel_scale;
+                }
+                else
+                {
+                    engine::log::log(engine::log::LogLevel::eError, fmt::format("Cant sucesffuly parse animation channel! Id: {}, Animation name: {}\n", i, anim.name));
+                }
+                if (channel)
+                {
+                    channel->data = in_ch.data.data();
+                    channel->data_count = static_cast<std::uint32_t>(in_ch.data.size());
+
+                    channel->timestamps = in_ch.timestamps.data();
+                    channel->timestamps_count = static_cast<std::uint32_t>(in_ch.timestamps.size());
+                }
+            }
+            anim.channels_count = channels_map.size();
+            anim.channels = new engine_animation_channel_create_desc_t[anim.channels_count];
+            std::size_t out_chanel_idx = 0;
+            for (const auto& ch : channels_map)
+            {
+                anim.channels[out_chanel_idx] = ch.second;
+                out_chanel_idx++;
+            }
+        }
+    }
+
+    out->skins_counts = static_cast<std::uint32_t>(model_info->skins.size());
+    if (out->skins_counts > 0)
+    {
+        out->skins_array = new engine_skin_create_desc_t[out->skins_counts];
+        out->skins_name_array = new const char* [out->skins_counts];
+
+        for (std::uint32_t i = 0; i < out->skins_counts; i++)
+        {
+            const auto& skin = model_info->skins[i];
+            auto& skin_out = out->skins_array[i];
+            skin_out.name = skin.name.c_str();
+
+            engine::log::log(engine::log::LogLevel::eTrace, fmt::format("Skin name found in model: {}\n", skin.name));
+            skin_out.bones_count = static_cast<std::uint32_t>(skin.bones.size());
+            if (skin_out.bones_count > 0)
+            {
+                skin_out.bones_array = new engine_bone_create_desc_t[skin_out.bones_count];
+                for (std::uint32_t i = 0; i < skin_out.bones_count; i++)
+                {
+                    const auto& in_bone = skin.bones[i];
+                    auto& out_bone = skin_out.bones_array[i];
+                    out_bone.model_node_index = in_bone.target_node_idx;
+                    std::memcpy(out_bone.inverse_bind_mat, glm::value_ptr(in_bone.inverse_bind_matrix), sizeof(in_bone.inverse_bind_matrix));
+                }
+            }
+            out->skins_name_array[i] = skin.name.c_str();
+        }
+    }
+
     if (!out->internal_handle)
     {
         return ENGINE_RESULT_CODE_FAIL;

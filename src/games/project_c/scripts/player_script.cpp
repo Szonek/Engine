@@ -240,7 +240,7 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     cc.is_trigger = false;
     auto& cc_child = cc.collider.compound.children[0];
     cc_child.transform[0] = 0.0f;
-    cc_child.transform[1] = 0.1f;
+    cc_child.transform[1] = 1.0f;
     cc_child.transform[2] = 0.0f;
     cc_child.rotation_quaternion[3] = 1.0f;
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;

@@ -7,9 +7,8 @@
 #include "ui_document.h"
 #include "named_atlas.h"
 #include "nav_mesh.h"
+#include "gltf_parser.h"
 
-#include <array>
-#include <string>
 
 namespace engine
 {
@@ -53,7 +52,7 @@ public:
     virtual std::uint32_t get_shader(std::string_view name) const;
     virtual void destroy_shader(std::uint32_t idx);
 
-    virtual engine_model_desc_t load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir);
+    virtual ModelInfo load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir);
     virtual void release_model_desc(engine_model_desc_t* info);
 
     virtual UiDocument load_ui_document(std::string_view file_name);

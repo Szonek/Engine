@@ -607,6 +607,18 @@ std::uint32_t engine::Texture2D::get_height() const
     return std::uint32_t(ret);
 }
 
+std::size_t engine::Texture2D::get_imgui_texture_id() const
+{
+    return texture_;
+}
+
+void engine::Texture2D::copy_from_active_fbo(std::uint32_t x, std::uint32_t y, std::uint32_t width, std::uint32_t height)
+{
+    glBindTexture(GL_TEXTURE_2D, texture_);
+    glCopyTexSubImage2D(GL_TEXTURE_2D, 0, x, y, 0, 0, width, height);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
 engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const std::byte> vertex_data, std::int32_t vertex_count, std::span<const std::uint32_t> index_data)
 	: vbo_(0)
 	, vao_(0)
@@ -1063,8 +1075,8 @@ engine::RenderContext::window_size_t engine::RenderContext::get_window_size_in_p
 
 void engine::RenderContext::set_viewport(const viewport_t& viewport)
 {
-	glViewport(0, 0, viewport.width, viewport.height);
-    ui_rml_gl3_renderer_->SetViewport(viewport.width, viewport.height);
+	glViewport(viewport.x, viewport.y, viewport.width, viewport.height);
+    ui_rml_gl3_renderer_->SetViewport(viewport.width, viewport.height, viewport.x, viewport.y);
 }
 
 void engine::RenderContext::set_clear_color(float r, float g, float b, float a)
@@ -1364,6 +1376,12 @@ std::vector<std::byte> engine::Framebuffer::download_pixels(std::size_t attachme
     glReadBuffer(GL_COLOR_ATTACHMENT0 + attachment_idx);
     glReadPixels(region.x, region.y, region.width, region.height, to_ogl_host_format(layout), to_ogl_datatype(layout), ret.data());
     return ret;
+}
+
+void engine::Framebuffer::copy_color_attachment_to_texture2d(std::size_t attachment_idx, Texture2D& texture)
+{
+    glReadBuffer(GL_COLOR_ATTACHMENT0 + attachment_idx);
+    texture.copy_from_active_fbo(0, 0, width_, height_);
 }
 
 engine::UniformBuffer::UniformBuffer(std::size_t size)

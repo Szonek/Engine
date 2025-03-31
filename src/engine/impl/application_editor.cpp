@@ -10,6 +10,7 @@
 #include "components_internals/camera_internal_component.h"
 
 #include "imgui/imgui.h"
+#include "imgui/imgui_internal.h"
 #include "imgui/imgui_impl_sdl3.h"
 #include "imgui/imgui_impl_opengl3.h"
 
@@ -18,10 +19,35 @@
 #include <string>
 #include <map>
 #include <numeric>
+#include <vector>
 
 namespace
 {
 constexpr const engine_keyboard_keys_t G_MOUSE_SELECT_KEYBOARD_KEY = engine_keyboard_keys_t::ENGINE_KEYBOARD_KEY_LCTRL;
+
+struct FileEntry
+{
+    bool is_directory = false;
+    std::filesystem::path path;
+};
+
+inline std::vector<FileEntry> get_files_in_directory(const std::filesystem::path& dir_path, std::vector<std::string> file_exts = {})
+{
+    std::vector<FileEntry> files{};
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(dir_path))
+    {
+
+        const auto file_has_supported_extensions = file_exts.empty() ? true : std::find(file_exts.begin(), file_exts.end(), entry.path().extension()) != file_exts.end();
+        if (file_has_supported_extensions)
+        {
+            FileEntry ret{};
+            ret.is_directory = entry.is_directory();
+            ret.path = entry.path();
+            files.push_back(ret);
+        }
+    }
+    return files;
+}
 
 inline auto get_spherical_coordinates(const auto& cartesian)
 {
@@ -544,7 +570,7 @@ engine::ApplicationEditor::ApplicationEditor(const engine_application_create_des
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // IF using Docking Branch
 
     // Setup Platform/Renderer backends
@@ -567,36 +593,29 @@ void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_b
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
     ImGuizmo::BeginFrame();
-    ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
-    ImGui::Begin("Editor Controllers");
-    const std::string editor_camera_switch_title = editor_controlling_scene_ ? "Disable editor camera" : "Enable editor camera";
-    if (ImGui::Button(editor_camera_switch_title.c_str()))
+
+    // DockSpace
+    const auto viewport = ImGui::GetMainViewport();
+    ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+    ImGui::DockSpaceOverViewport(dockspace_id, viewport, ImGuiDockNodeFlags_PassthruCentralNode);
+    if (!editor_windows_context_.is_initialized())
     {
-        editor_controlling_scene_ = !editor_controlling_scene_;
+        editor_windows_context_.initialize(dockspace_id);
     }
-    const std::string guizmo_switch_title = draw_guizmo_ ? "Disable guizmo" : "Enable guizmo";
-    if (ImGui::Button(guizmo_switch_title.c_str()))
-    {
-        draw_guizmo_ = !draw_guizmo_;
-    }
-    if (auto flag = ImGui::Button("Enable/Disable Rml UI Debugger (if enabled)"))
-    {
-        ui_manager_.enable_ui_document_debugger(!ui_manager_.is_ui_document_debugger_enabled());
-    }
-    assert(frame_begin_info.delta_time > 0.0f);
-    static float avg_fps = 0; 
-    static std::vector<float> fps_values(60);
-    static std::size_t fps_idx = 0;
-    fps_values[fps_idx % fps_values.size()] = 1000.0f / frame_begin_info.delta_time;
-    fps_idx++;
-    ImGui::Text("FPS: %d", static_cast<std::uint32_t>(std::accumulate(fps_values.begin(), fps_values.end(), 0) / (fps_idx < fps_values.size() ? fps_idx : fps_values.size())));
-    ImGui::End();
 }
 
 void engine::ApplicationEditor::on_frame_end()
 {
     ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    static bool render_im_gui = true;
+    if(ImGui::IsKeyPressed(ImGuiKey_F1))
+    {
+        render_im_gui = !render_im_gui;
+    }
+    if (render_im_gui)
+    {
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
 }
 
 void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
@@ -608,7 +627,7 @@ void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
 void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_pre");
-    if (editor_controlling_scene_)
+    if (editor_view_ == EditorView::eEditor)
     {
         camera_context_.on_scene_update_pre(scene, delta_time);
     }
@@ -617,11 +636,42 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
 void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
+    const auto viewport = rdx_.get_window_size_in_pixels();
+
+    render_editor_controls(scene, delta_time);
     render_scene_hierarchy_panel(scene, delta_time);
-    render_guizmo(scene);
-    render_outline(scene);
-    handle_mouse_picking(scene);
+    render_entity_properties_panel(scene, delta_time);
+    render_debug_panel(scene, delta_time);
+
+    if (editor_view_ == EditorView::eEditor)
+    {
+        render_guizmo(scene);
+        render_outline(scene);
+        handle_mouse_picking(scene);
+    }
+
     camera_context_.on_scene_update_post(scene, delta_time);
+}
+
+void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float dt)
+{
+    ImGui::Begin(editor_windows_context_.get_window_up());
+
+    const auto ww = ImGui::GetWindowWidth();
+    const auto wh = ImGui::GetWindowHeight();
+    const auto pos = ImGui::GetWindowPos();
+
+    static std::uint32_t selected = 0;
+    if (ImGui::Selectable("Scene", editor_view_ == EditorView::eGame, ImGuiSelectableFlags_None, ImVec2(50, 0)))
+    {
+        editor_view_ = EditorView::eGame;
+    }
+    ImGui::SameLine();
+    if(ImGui::Selectable("Editor", editor_view_ == EditorView::eEditor, ImGuiSelectableFlags_None, ImVec2(50, 0)))
+    {
+        editor_view_ = EditorView::eEditor;
+    }
+    ImGui::End();
 }
 
 void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float dt)
@@ -652,8 +702,9 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
             parent_node.children.push_back(&node);
         }
     }
-    ImGui::Begin("Scene Panel");
+    ImGui::Begin(editor_windows_context_.get_window_left());
 
+    ImGui::SeparatorText("Scene options");
     if (ImGui::Button("Add entity"))
     {
         auto e = scene->create_new_entity();
@@ -669,6 +720,7 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
     ImGui::SeparatorText("Scene hierarchy");
     if (ImGui::TreeNodeEx("Scene Collection", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth))
     {
+
         if (ImGui::BeginDragDropTarget())
         {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ENTITY"))
@@ -693,11 +745,17 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
         }
         ImGui::TreePop();
     }
+    ImGui::End(); // scene panel
+}
+
+void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scene, float dt)
+{
     /*
     here all components should be visible
         - the one which are not avaialbe in the entitiy (Grayd out) and a "+" button to add them
         - the one which are available in the entity (whatever color) and a "-" button to remove them
     */
+    ImGui::Begin(editor_windows_context_.get_window_right());
     ImGui::SeparatorText("Entity properties.");
     if (scene_hierarchy_context_.has_selected_entity())
     {
@@ -716,8 +774,36 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
     {
         ImGui::Text("Select entity to display its components.");
     }
+    ImGui::End();
+}
 
-    ImGui::End(); // scene panel
+void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
+{
+    ImGui::Begin(editor_windows_context_.get_window_down_right());
+    ImGui::SeparatorText("Debug options");
+
+    ImGui::BeginDisabled(editor_view_ != EditorView::eEditor);
+    const std::string guizmo_switch_title = draw_guizmo_ ? "Disable guizmo" : "Enable guizmo";
+    if (ImGui::Button(guizmo_switch_title.c_str()))
+    {
+        draw_guizmo_ = !draw_guizmo_;
+    }
+    ImGui::EndDisabled();
+
+    const bool is_rml_ui_debugger_enabled = ui_manager_.is_ui_document_debugger_enabled();
+    const std::string rmlui_switch_title = is_rml_ui_debugger_enabled ? "Disable Rml UI Debugger" : "Enable Rml UI Debugger";
+    if (ImGui::Button(rmlui_switch_title.c_str()))
+    {
+        ui_manager_.enable_ui_document_debugger(!is_rml_ui_debugger_enabled);
+    }
+    assert(dt > 0.0f);
+    static float avg_fps = 0;
+    static std::vector<float> fps_values(60);
+    static std::size_t fps_idx = 0;
+    fps_values[fps_idx % fps_values.size()] = 1000.0f / dt;
+    fps_idx++;
+    ImGui::Text("FPS: %d", static_cast<std::uint32_t>(std::accumulate(fps_values.begin(), fps_values.end(), 0) / (fps_idx < fps_values.size() ? fps_idx : fps_values.size())));
+    ImGui::End();
 }
 
 void engine::ApplicationEditor::render_guizmo(Scene* scene)
@@ -777,7 +863,7 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
 
 void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
 {
-    if (ImGui::GetIO().WantCaptureMouse || !editor_controlling_scene_)
+    if (ImGui::GetIO().WantCaptureMouse)
     {
         return;
     }
@@ -906,13 +992,13 @@ void engine::ApplicationEditor::render_outline(Scene* scene)
 
 bool engine::ApplicationEditor::is_mouse_enabled()
 {
-    const bool editor_is_using_mouse = editor_controlling_scene_ || ImGui::GetIO().WantCaptureMouse;
+    const bool editor_is_using_mouse = editor_view_ == EditorView::eEditor || ImGui::GetIO().WantCaptureMouse;
     return !editor_is_using_mouse;
 }
 
 bool engine::ApplicationEditor::is_keyboard_enabled()
 {
-    const bool editor_is_using_keybord = editor_controlling_scene_ || ImGui::GetIO().WantCaptureKeyboard;
+    const bool editor_is_using_keybord = editor_view_ == EditorView::eEditor || ImGui::GetIO().WantCaptureKeyboard;
     return !editor_is_using_keybord;
 }
 
@@ -946,17 +1032,17 @@ engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
             c.clip_plane_far = 1000.0f;
             c.type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
             c.type_union.perspective_fov = 45.0f;
-            c.target[0] = 0.0f;
-            c.target[1] = 0.0f;
-            c.target[2] = 0.0f;
+            c.target[0] = -2.0f;
+            c.target[1] = 0.1f;
+            c.target[2] = 0.2f;
         });
 
     auto camera_transform_comp = scene->add_component<engine_tranform_component_t>(go_);
     scene->patch_component<engine_tranform_component_t>(go_, [](engine_tranform_component_t& c)
         {
-            c.position[0] = 0.0f;
-            c.position[1] = 4.0f;
-            c.position[2] = 1.0f;
+            c.position[0] = -1.0f;
+            c.position[1] = 1.7f;
+            c.position[2] = 5.0f;
         });
 
     sc_ = get_spherical_coordinates(camera_transform_comp->position);
@@ -1200,4 +1286,51 @@ void engine::SceneHierarchyContext::set_forced_open_selected_parents(bool value)
 bool engine::SceneHierarchyContext::is_forced_open_selected_parents() const
 {
     return force_open_selected_parents_;
+}
+
+void engine::ApplicationEditor::EditorWindowsContext::initialize(std::uint32_t dockspace_id)
+{
+    // Dock builder
+    const auto viewport = ImGui::GetMainViewport();
+    ImGui::DockBuilderRemoveNode(dockspace_id); // Clear previous layout
+    ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
+    ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
+
+    auto window_scene_id = dockspace_id;
+
+    ImGuiID dock_id_down = ImGui::DockBuilderSplitNode(window_scene_id, ImGuiDir_Down, 0.2f, nullptr, &window_scene_id);
+    ImGui::DockBuilderDockWindow(window_down, dock_id_down);
+    ImGui::DockBuilderGetNode(dock_id_down)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
+
+    ImGuiID dock_id_down_right = ImGui::DockBuilderSplitNode(dock_id_down, ImGuiDir_Right, 0.3f, nullptr, &dock_id_down);
+    ImGui::DockBuilderDockWindow(window_down_right, dock_id_down_right);
+    ImGui::DockBuilderGetNode(dock_id_down_right)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
+
+    ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(window_scene_id, ImGuiDir_Left, 0.2f, nullptr, &window_scene_id);
+    ImGui::DockBuilderDockWindow(window_left, dock_id_left);
+    ImGui::DockBuilderGetNode(dock_id_left)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
+
+    ImGuiID dock_id_right = ImGui::DockBuilderSplitNode(window_scene_id, ImGuiDir_Right, 0.2f, nullptr, &window_scene_id);
+    ImGui::DockBuilderDockWindow(window_right, dock_id_right);
+    ImGui::DockBuilderGetNode(dock_id_right)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
+
+    ImGuiID dock_id_up = ImGui::DockBuilderSplitNode(window_scene_id, ImGuiDir_Up, 0.2f, nullptr, &window_scene_id);
+    ImGui::DockBuilderDockWindow(window_up, dock_id_up);
+    ImGui::DockBuilderGetNode(dock_id_up)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
+
+    // window scene
+    ImGui::DockBuilderDockWindow(window_scene, window_scene_id);
+    ImGui::DockBuilderGetNode(window_scene_id)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
+
+    ImGui::DockBuilderFinish(dockspace_id);
+
+    this->initalized_ = true;
+}
+
+engine::viewport_t engine::ApplicationEditor::EditorWindowsContext::get_scene_render_viewport() const
+{
+    const auto dock_id_scene = ImGui::DockBuilderGetNode(ImGui::GetID(window_scene));
+    const auto pos = dock_id_scene->Pos;
+    const auto size = dock_id_scene->Size;
+    return viewport_t(pos.x, pos.y, size.x, size.y);
 }

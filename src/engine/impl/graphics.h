@@ -169,6 +169,8 @@ public:
     std::uint32_t get_width() const;
     std::uint32_t get_height() const;
 
+    std::size_t get_imgui_texture_id() const;
+    void copy_from_active_fbo(std::uint32_t x, std::uint32_t y, std::uint32_t width, std::uint32_t height);
 private:
 	std::uint32_t texture_ = 0;
 };
@@ -194,7 +196,7 @@ public:
     std::pair<std::uint32_t, std::uint32_t> get_size() const;
 
     std::vector<std::byte> download_pixels(std::size_t attachment_idx, viewport_t region, DataLayout layout);
-
+    void copy_color_attachment_to_texture2d(std::size_t attachment_idx, Texture2D& texture);
 private:
     std::uint32_t fbo_{0};
     std::vector<DataLayout> color_attachment_layouts_;

@@ -52,7 +52,6 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     //rb
     auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
     rbc.mass = 1.0f;
-    rbc.mass = 0.0f;
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 }
 
