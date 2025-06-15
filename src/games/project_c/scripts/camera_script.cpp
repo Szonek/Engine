@@ -35,8 +35,8 @@ void project_c::CameraScript::late_update(float dt)
     const auto mouse_coords = engineApplicationGetMouseCoords(app);
 
     const float move_speed = 1.0f * dt;
-    const auto all_soliders = utils::get_game_objects_with_name(scene, "solider");
-    const auto character_go = all_soliders.size() > 0 ? all_soliders[0] : ENGINE_INVALID_GAME_OBJECT_ID;
+    const auto all_players = utils::get_game_objects_with_name(scene, "player");
+    const auto character_go = all_players.size() > 0 ? all_players[0] : ENGINE_INVALID_GAME_OBJECT_ID;
     // follow character go
     if (character_go != ENGINE_INVALID_GAME_OBJECT_ID)
     {
@@ -44,8 +44,8 @@ void project_c::CameraScript::late_update(float dt)
         const auto character_tc = engineSceneGetTransformComponent(scene, character_go);
         auto tc = engineSceneGetTransformComponent(scene, go_);
         tc.position[0] = character_tc.position[0];
-        tc.position[1] = character_tc.position[1] + 7.0f;
-        tc.position[2] = character_tc.position[2] + 3.5f;
+        tc.position[1] = character_tc.position[1] + 6.5f;
+        tc.position[2] = character_tc.position[2] + 4.5f;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
         // update targer to point to character go position
         auto camera_comp = engineSceneGetCameraComponent(scene, go_);

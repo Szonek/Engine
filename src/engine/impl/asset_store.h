@@ -81,8 +81,9 @@ public:
     std::filesystem::path get_shaders_base_path() const;
     std::filesystem::path get_ui_docs_base_path() const;
     std::filesystem::path get_textures_base_path() const;
+    std::filesystem::path get_models_base_path() const;
 	TextureAssetContext get_texture_data(std::string_view name) const;
-	RawDataFileContext get_model_data(std::string_view name) const;
+	RawDataFileContext get_raw_data_content(const std::filesystem::path& path) const;
     void save_texture(std::string_view name, const void* data, std::uint32_t width, std::uint32_t height, std::uint32_t channels);
 
 	std::string get_text_file_content(const std::filesystem::path& file_name);

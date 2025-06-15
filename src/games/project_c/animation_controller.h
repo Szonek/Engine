@@ -182,16 +182,19 @@ class AnimationCollection
 public:
     void add_animation_clip(const std::string& name, const AnimationClip& clip)
     {
+        assert(!has_animation_clip(name));  // cant add another animation with already existing name
         animation_clips_[name] = clip;
     }
 
     const AnimationClip& get_animation_clip(const std::string& name) const
     {
+        assert(has_animation_clip(name));
         return animation_clips_.at(name);
     }
 
     AnimationClip& get_animation_clip(const std::string& name)
     {
+        assert(has_animation_clip(name));
         return animation_clips_.at(name);
     }
 
@@ -202,6 +205,7 @@ public:
 
     void remove_animation_clip(const std::string& name)
     {
+        assert(has_animation_clip(name));
         animation_clips_.erase(name);
     }
 

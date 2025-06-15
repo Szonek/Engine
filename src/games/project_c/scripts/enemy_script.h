@@ -21,7 +21,7 @@ private:
         bool attack_with_right = false;
         inline const char* get_animation_name() const
         {
-            return attack_with_right ? "attack-melee-right" : "attack-melee-left";
+            return attack_with_right ? "1H_Melee_Attack_Slice_Diagonal" : "1H_Melee_Attack_Slice_Horizontal";
         }
     };
     struct DyingStateData {};

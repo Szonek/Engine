@@ -1,4 +1,4 @@
-#include "solider_script.h"
+#include "player_script.h"
 #include "scripts_utils.h"
 #include "enemy_script.h"
 #include "enviorment_script.h"
@@ -11,11 +11,29 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
-    : BaseNode(my_scene, go, "weapon-sword")
+project_c::Weapon::Weapon(engine::IScene* my_scene)
+    : BaseNode(my_scene, "weapon-sword")
 {
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
+
+    // transform
+    auto tc = engineSceneAddTransformComponent(scene, go_);
+    tc.position[0] = 0.0f;
+    tc.position[1] = 0.0f;
+    tc.position[2] = 0.0f;
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
+
+    // mesh
+    auto mc = engineSceneAddMeshComponent(scene, go_);
+    mc.geometry = engineApplicationGetGeometryByName(app, "Cylinder.404");
+    assert(mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
+    engineSceneUpdateMeshComponent(scene, go_, &mc);
+
+    // material
+    auto matc = engineSceneAddMaterialComponent(scene, go_);
+    set_c_array(matc.data.pong.diffuse_color, std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f});
+    engineSceneUpdateMaterialComponent(scene, go_, &matc);
 
     // physcis
     auto cc = engineSceneAddColliderComponent(scene, go_);
@@ -32,11 +50,11 @@ project_c::Sword::Sword(engine::IScene* my_scene, engine_game_object_t go)
     engineSceneUpdateColliderComponent(scene, go_, &cc);
 }
 
-project_c::Sword::~Sword()
+project_c::Weapon::~Weapon()
 {
 }
 
-void project_c::Sword::attach_to_game_object(engine_game_object_t parent, std::optional<glm::vec3> position = std::nullopt, std::optional<glm::quat> rotation = std::nullopt)
+void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::optional<glm::vec3> position = std::nullopt, std::optional<glm::quat> rotation = std::nullopt)
 {
     const auto scene = my_scene_->get_handle();
     // parent to hand
@@ -63,7 +81,7 @@ void project_c::Sword::attach_to_game_object(engine_game_object_t parent, std::o
     }
 }
 
-void project_c::Sword::drop_on_ground(glm::vec3 position)
+void project_c::Weapon::drop_on_ground(glm::vec3 position)
 {
     const auto scene = my_scene_->get_handle();
 
@@ -99,7 +117,7 @@ void project_c::Sword::drop_on_ground(glm::vec3 position)
     //}
 }
 
-void project_c::Sword::on_collision(const collision_t& info)
+void project_c::Weapon::on_collision(const collision_t& info)
 {
     if (auto* floor = my_scene_->get_script<Floor>(info.other))
     {
@@ -115,7 +133,7 @@ void project_c::Sword::on_collision(const collision_t& info)
     }
 }
 
-void project_c::Sword::update(float dt)
+void project_c::Weapon::update(float dt)
 {
     auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
     const auto scene = typed_scene->get_handle();
@@ -323,7 +341,7 @@ void project_c::AttackTrigger::activate()
     is_active_ = true;
 }
 
-project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
+project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     : BaseNode(my_scene, pr, "solider")
     , weapon_(nullptr)
     , state_(States::IDLE)
@@ -334,6 +352,9 @@ project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
 
     auto tc = engineSceneGetTransformComponent(scene, go_);
     tc.position[1] = -0.25f;
+    tc.scale[0] = 0.5f;
+    tc.scale[1] = 0.5f;
+    tc.scale[2] = 0.5f;
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // physcis
@@ -353,18 +374,31 @@ project_c::Solider::Solider(engine::IScene* my_scene, const PrefabResult& pr)
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 
     // add handle to right arm
-    right_arm_go_ = utils::get_game_objects_with_name(scene, "arm-right")[0];
+    right_arm_go_ = utils::get_game_objects_with_name(scene, "handslot.r")[0];
     assert(right_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
+    // cleanup any childer of handslot (as model could be prebuilt with attached geomteries)
+    if (engineSceneHasChildrenComponent(scene, right_arm_go_))
+    {
+        utils::delete_game_objects_hierarchy(scene, right_arm_go_);
+    }
+    left_arm_go_ = utils::get_game_objects_with_name(scene, "handslot.l")[0];
+    assert(left_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
+    // cleanup any childer of handslot (as model could be prebuilt with attached geomteries)
+    if (engineSceneHasChildrenComponent(scene, left_arm_go_))
+    {
+        utils::delete_game_objects_hierarchy(scene, left_arm_go_);
+    }
+
     // add attack trigger
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(scene));
-    auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
-    assert(my_app != nullptr);
-    // add sword
-    weapon_ =  my_scene_->register_script<project_c::Sword>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_SWORD, my_scene).go);
-    weapon_->attach_to_game_object(right_arm_go_, glm::vec3(-0.2f, 0.0f, 0.1f), glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
+    //auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
+    //assert(my_app != nullptr);
+    //// add sword
+    //weapon_ =  my_scene_->register_script<project_c::Weapon>(my_app->instantiate_prefab(project_c::PREFAB_TYPE_SWORD, my_scene).go);
+    //weapon_->attach_to_game_object(right_arm_go_, glm::vec3(-0.2f, 0.0f, 0.1f), glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
 }
 
-void project_c::Solider::update(float dt)
+void project_c::Player::update(float dt)
 {
     auto check_state_bit = [&](States state)
         {
@@ -407,7 +441,7 @@ void project_c::Solider::update(float dt)
 
     //if (!weapon_ && hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID && lmb)
     //{
-    //    if (auto* sword = my_scene_->get_script<Sword>(hit_info.go))
+    //    if (auto* sword = my_scene_->get_script<Weapon>(hit_info.go))
     //    {
     //        weapon_ = sword;
     //        weapon_->attach_to_game_object(right_arm_go_, glm::vec3(-0.2f, 0.0f, 0.1f), glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
@@ -442,9 +476,14 @@ void project_c::Solider::update(float dt)
         enable_state_bit(States::SKILL_1);
     }
 
+    const auto tc = engineSceneGetTransformComponent(scene, go_);
+    const glm::quat rotation = glm::make_quat(tc.rotation);
+    const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
+    const glm::vec3 right = rotation * glm::vec3(1.0f, 0.0f, 0.0f);
+
     if (state_ == States::IDLE)
     {
-        anim_controller_.set_active_animation("idle");
+        anim_controller_.set_active_animation("Idle");
     }
     if (check_state_bit(States::DODGE))
     {
@@ -454,47 +493,69 @@ void project_c::Solider::update(float dt)
         }
         else
         {
-            anim_controller_.set_active_animation("crouch");
+            anim_controller_.set_active_animation("Dodge_Forward");
             const float speed_cooef = 0.015f;
             const float speed = speed_cooef * dt;
-            auto tc = engineSceneGetTransformComponent(scene, go_);
-            // move
-            const glm::quat rotation = glm::make_quat(tc.rotation); // Convert the rotation to a glm::quat
-            const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f); // Get the forward direction vector
-            const glm::vec3 right = glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)); // Calculate the right direction vector
-            tc.position[0] += forward.x * speed;
+            auto tc_dodge = engineSceneGetTransformComponent(scene, go_);
+            // move forward // ToDo add doge in other directions
+            tc_dodge.position[0] += forward.x * speed;
             //tc.position[1] += forward.y * speed;  // dont go up!
-            tc.position[2] += forward.z * speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
+            tc_dodge.position[2] += forward.z * speed;
+            engineSceneUpdateTransformComponent(scene, go_, &tc_dodge);
         }
     }
     if (check_state_bit(States::MOVE))
     {
-        anim_controller_.set_active_animation(move_data_.get_animation_name());
-        move_data_.animation_started = true;
-
-        auto tc = engineSceneGetTransformComponent(scene, go_);
+        auto tc_move = engineSceneGetTransformComponent(scene, go_);
         const float speed_cooef = 0.0025f;
         const float speed = speed_cooef * dt; // ToDo: implement diagonal movement speed coef (use pitagoras(?))
 
         if (button_W)  // up
         {
-            tc.position[2] -= speed;
+            tc_move.position[2] -= speed;
         }
         if (button_S) // down
         {
-            tc.position[2] += speed;
+            tc_move.position[2] += speed;
         }
         if (button_A) // left
         {
-            tc.position[0] -= speed;
+            tc_move.position[0] -= speed;
         }
         if (button_D) // right
         {
-            tc.position[0] += speed;
+            tc_move.position[0] += speed;
         }
 
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
+        engineSceneUpdateTransformComponent(scene, go_, &tc_move);
+
+        // compute forard/left/right/backward direction based on mouse position
+        const glm::vec3 direction = glm::normalize(glm::vec3(hit_info.position[0], hit_info.position[1], hit_info.position[2]) - glm::vec3(tc_move.position[0], tc_move.position[1], tc_move.position[2]));
+        // Compute the dot products
+        const float forward_dot = glm::dot(direction, forward);
+        const float right_dot = glm::dot(direction, right);
+        MoveStateData::Direction anim_move_dir = MoveStateData::Direction::eForward;
+
+        // Determine the direction
+        if (std::abs(forward_dot) > std::abs(right_dot)) {
+            if (forward_dot > 0) {
+                anim_move_dir = MoveStateData::Direction::eForward;
+            }
+            else {
+                anim_move_dir = MoveStateData::Direction::eBackward;
+            }
+        }
+        else {
+            if (right_dot > 0) {
+                anim_move_dir = MoveStateData::Direction::eRight;
+            }
+            else {
+                anim_move_dir = MoveStateData::Direction::eLeft;
+            }
+        }
+
+        anim_controller_.set_active_animation(move_data_.get_animation_name(anim_move_dir));
+        move_data_.animation_started = true;
         clear_state_bit(States::MOVE);
     }
     if (check_state_bit(States::ATTACK))
@@ -548,7 +609,7 @@ void project_c::Solider::update(float dt)
     }
 }
 
-bool project_c::Solider::equip_sword(Sword* sword)
+bool project_c::Player::equip_sword(Weapon* sword)
 {
     if (!weapon_ && sword)
     {

@@ -117,11 +117,23 @@ void engine::AssetStore::configure_base_path(std::string_view path)
 	base_path_ = path;
 }
 
+engine::RawDataFileContext engine::AssetStore::get_font_data(std::string_view name) const
+{
+    return RawDataFileContext(get_font_base_path() / name);
+}
+
 std::filesystem::path engine::AssetStore::get_textures_base_path() const
 {
     const std::filesystem::path textures_folder = "textures";
     const auto textures_assets_path = base_path_ / textures_folder;
     return textures_assets_path;
+}
+
+std::filesystem::path engine::AssetStore::get_models_base_path() const
+{
+    const std::filesystem::path models_folder = "models";
+    const auto models_assets_path = base_path_ / models_folder;
+    return models_assets_path;
 }
 
 engine::TextureAssetContext engine::AssetStore::get_texture_data(std::string_view name) const
@@ -161,10 +173,9 @@ std::string engine::AssetStore::get_text_file_content(const std::filesystem::pat
     return ret;
 }
 
-engine::RawDataFileContext engine::AssetStore::get_font_data(std::string_view name) const
+engine::RawDataFileContext engine::AssetStore::get_raw_data_content(const std::filesystem::path& path) const
 {
-	const auto full_path = get_font_base_path() / name.data();
-	return RawDataFileContext(full_path);
+	return RawDataFileContext(path);
 }
 
 std::filesystem::path engine::AssetStore::get_font_base_path() const
@@ -180,13 +191,3 @@ std::filesystem::path engine::AssetStore::get_ui_docs_base_path() const
     const auto ui_docs_ssets_path = base_path_ / ui_docs_folder;
     return ui_docs_ssets_path;
 }
-
-engine::RawDataFileContext engine::AssetStore::get_model_data(std::string_view name) const
-{
-	const std::filesystem::path models_folder = "models";
-	const auto models_assets_path = base_path_ / models_folder;
-	const auto full_path = models_assets_path / name.data();
-
-	return RawDataFileContext(full_path);
-}
-
