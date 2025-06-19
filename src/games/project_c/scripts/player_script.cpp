@@ -2,6 +2,7 @@
 #include "scripts_utils.h"
 #include "enemy_script.h"
 #include "enviorment_script.h"
+#include "interactable_script.h"
 #include "../scenes/scene_test.h"
 
 #include "../app.h"
