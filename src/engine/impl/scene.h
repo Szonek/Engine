@@ -92,6 +92,7 @@ public:
     void set_physcis_gravity(std::array<float, 3> g);
     void get_physcis_collisions_list(const engine_collision_info_t*& ptr_first, size_t* count);
     engine_ray_hit_info_t raycast_into_physics_world(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance);
+    bool add_force_to_physics_entity(entt::entity entity, std::array<float, 3> force, engine_force_type_t type);
 
     glm::vec3 convert_world_point_to_screen_point(const glm::vec3& world_point, engine_game_object_t camera_go);
     glm::vec3 convert_screen_point_to_world_point(glm::vec3 screen_point, engine_game_object_t camera_go);

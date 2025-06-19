@@ -733,6 +733,27 @@ engine_ray_hit_info_t engine::Scene::raycast_into_physics_world(const engine_ray
     return physics_world_.raycast(ray, ignore_list, max_distance);
 }
 
+bool engine::Scene::add_force_to_physics_entity(entt::entity entity, std::array<float, 3> force, engine_force_type_t type)
+{
+    if (has_component<physcic_internal_component_t>(entity))
+    {
+        auto& physcics_component = entity_registry_.get<physcic_internal_component_t>(entity);
+        if (physcics_component.rigid_body)
+        {
+            if (type == engine_force_type_t::ENGINE_FORCE_TYPE_FORCE)
+            {
+                physcics_component.rigid_body->applyCentralForce(btVector3(force[0], force[1], force[2]));
+            }
+            else if (type == engine_force_type_t::ENGINE_FORCE_TYPE_IMPLUSE)
+            {
+                physcics_component.rigid_body->applyCentralImpulse(btVector3(force[0], force[1], force[2]));
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
 glm::vec3 engine::Scene::convert_world_point_to_screen_point(const glm::vec3& world_point, engine_game_object_t camera_go)
 {
     auto ret = glm::vec3(0.5f, 0.5f, 0.0f);

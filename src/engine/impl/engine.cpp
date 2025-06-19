@@ -622,6 +622,15 @@ engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engi
     return sc->raycast_into_physics_world(*ray, { ignore_list, ignore_list_count }, max_distance);
 }
 
+bool engineScenePhysicsAddForce(engine_scene_t scene, engine_game_object_t go, const float force[3], engine_force_type_t type)
+{
+    auto sc = scene_cast(scene);
+    auto entity = entity_cast(go);
+    const auto result = sc->add_force_to_physics_entity(entity, std::array<float, 3>{force[0], force[1], force[2]}, type);
+    assert(result && "Failed to add force to physics entity!");
+    return result;
+}
+
 engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)
 {
     if (bindings_count == 0 && !bindings)

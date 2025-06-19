@@ -14,16 +14,16 @@ project_c::Coin::Coin(engine::IScene* my_scene, engine_game_object_t go)
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     //// physcis
-    //auto cc = engineSceneAddColliderComponent(scene, go_);
-    //cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
-    //auto& child_c = cc.collider.compound.children[0];
-    //{
-    //    child_c.type = ENGINE_COLLIDER_TYPE_BOX;
-    //    child_c.transform[1] = 0.2f;
-    //    child_c.rotation_quaternion[3] = 1.0f;
-    //    set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.2f, 0.2f, 0.2f});
-    //}
-    //engineSceneUpdateColliderComponent(scene, go_, &cc);
+    auto cc = engineSceneAddColliderComponent(scene, go_);
+    cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
+    auto& child_c = cc.collider.compound.children[0];
+    {
+        child_c.type = ENGINE_COLLIDER_TYPE_BOX;
+        child_c.transform[1] = 0.0f;
+        child_c.rotation_quaternion[3] = 1.0f;
+        set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.35f, 0.35f, 0.15f});
+    }
+    engineSceneUpdateColliderComponent(scene, go_, &cc);
 }
 
 void project_c::Coin::update(float dt)
@@ -34,4 +34,9 @@ void project_c::Coin::update(float dt)
 
 void project_c::Coin::on_collision(const collision_t& info)
 {
+}
+void project_c::Coin::push_force(float x, float y, float z, engine_force_type_t type)
+{
+    const auto scene = my_scene_->get_handle();
+    engineScenePhysicsAddForce(scene, go_, std::array<float, 3>{x, y, z}.data(), type);
 }

@@ -41,7 +41,7 @@ void project_c::Chest::interact()
         const auto tc = engineSceneGetTransformComponent(scene, go_);
         auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD, my_scene_).go);
         coin->set_world_position(tc.position[0], tc.position[1] + 1.0f, tc.position[2]);
-
+        coin->push_force(0.0f, 1.0f, 0.0f, ENGINE_FORCE_TYPE_IMPLUSE);
         // update chest to dark color to simulate opened chest
         auto mat = engineSceneGetMaterialComponent(scene, go_);
         set_c_array(mat.data.pong.diffuse_color, std::array<float, 4>{ 0.2f, 0.2f, 0.2f, 1.0f });
