@@ -23,6 +23,10 @@ set(APP_SOURCES
 	scripts/base_script.cpp
 	scripts/camera_script.h
 	scripts/camera_script.cpp
+	scripts/interactable_script.h
+	scripts/interactable_script.cpp
+	scripts/coin_script.h
+	scripts/coin_script.cpp
 	scripts/enemy_script.h
 	scripts/enemy_script.cpp
 	scripts/enviorment_script.h

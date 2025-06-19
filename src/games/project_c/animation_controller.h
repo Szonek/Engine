@@ -144,8 +144,8 @@ private:
         const auto timestamp_next = timestamps[timestamp_idx_next];
         const auto interpolation_value = (animation_time - timestamp_prev) / (timestamp_next - timestamp_prev);
 
-        const auto data_prev = channel[timestamp_idx_prev];
-        const auto data_next = channel[timestamp_idx_next];
+        const auto& data_prev = channel[timestamp_idx_prev];
+        const auto& data_next = channel[timestamp_idx_next];
 
         const auto slerp = glm::slerp(data_prev, data_next, interpolation_value);
         return glm::normalize(slerp);
