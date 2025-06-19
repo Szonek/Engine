@@ -77,8 +77,8 @@ void project_c::Enemy::update(float dt)
     auto ec = engineSceneGetTransformComponent(scene, player);
     const auto distance_to_player = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
 
-    const auto my_node_idx = -1;// nav_mesh_->get_node_idx({ tc.position[0], tc.position[1], tc.position[2] });
-    const auto player_node_idx = -1;// nav_mesh_->get_node_idx({ ec.position[0], ec.position[1], ec.position[2] });
+    const auto my_node_idx =  nav_mesh_->get_node_idx({ tc.position[0], tc.position[1], tc.position[2] });
+    const auto player_node_idx =  nav_mesh_->get_node_idx({ ec.position[0], ec.position[1], ec.position[2] });
     auto path = [&]()
         {
             if (distance_to_player < 0.8f || my_node_idx == -1 || player_node_idx == -1)
@@ -160,7 +160,7 @@ void project_c::Enemy::update(float dt)
             const auto n_pos = nav_mesh_->get_node(node).get_center();
             debug_scripts_.push_back(my_scene_->register_script<project_c::DebugPathNode>(n_pos.x, n_pos.z));
         }
-        const auto target_node = nav_mesh_->get_node(path.nodes[0]);
+        const auto& target_node = nav_mesh_->get_node(path.nodes[0]);
         auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), target_node.get_center());
         //auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
         quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
@@ -172,7 +172,7 @@ void project_c::Enemy::update(float dt)
         //tc.position[1] += forward.y * speed;
         tc.position[2] += forward.z * speed;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
-        state_ = States::DECISION_MAKE;
+        //state_ = States::DECISION_MAKE;
         break;
     }
     default:

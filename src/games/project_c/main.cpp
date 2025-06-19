@@ -18,6 +18,7 @@ int main(int argc, char** argv)
             { project_c::PREFAB_TYPE_FLOOR,        { "Floor.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
             { project_c::PREFAB_TYPE_FLOOR_DETAIL, { "Floor_Dirt.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
             { project_c::PREFAB_TYPE_WALL,         { "Wall.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
+            { project_c::PREFAB_TYPE_BOX,          { "Box_C.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
         };
 
         project_c::AppProjectC app_project_c(prefabs_data);

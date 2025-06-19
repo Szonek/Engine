@@ -34,6 +34,21 @@ public:
     Barrel(engine::IScene* my_scene, engine_game_object_t go);
 };
 
+class Interactable
+{
+public:
+    virtual ~Interactable() = default;
+    virtual void interact() = 0;
+};
+
+class Chest : public BaseNode, public Interactable
+{
+public:
+    Chest(engine::IScene* my_scene, engine_game_object_t go);
+    void interact() override;
+};
+
+
 class LightBaseScript : public BaseNode
 {
 public:

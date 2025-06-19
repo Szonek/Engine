@@ -76,6 +76,7 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         std::vector<engine_coords_2d_t> enemy_packs;
         std::vector<engine_coords_2d_t> point_lights;
         std::vector<engine_coords_2d_t> weapons;
+        std::vector<engine_coords_2d_t> chests;
     } scene_spawn_points;
 
     const auto scene_width = (std::int32_t)scene_str.find_first_of('\n');
@@ -136,6 +137,10 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             else if (c == 'w')
             {
                 scene_spawn_points.weapons.push_back({ x_offset, z_offset });
+            }
+            else if (c == 'b')
+            {
+                scene_spawn_points.chests.push_back({ x_offset, z_offset });
             }
         }
     }
@@ -245,7 +250,7 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
             //const auto spawn_area = MobPackSpawner::SpawnAreaRect{ 0.0f, 0.0f, 0.0f, 0.0f };
             const auto spawn_world_pos = MobPackSpawner::Point{ point.x, point.y };
-            spawner.spawn(pack, 6, spawn_world_pos, spawn_area, nav_mesh, app, scene);
+            spawner.spawn(pack, 1, spawn_world_pos, spawn_area, nav_mesh, app, scene);
         }
     }
 
@@ -253,6 +258,12 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
     {
         auto l = scene.register_script<project_c::PointLight>();
         l->set_world_position(point.x, 1.0f, point.y);
+    }
+
+    for (const auto& chest : scene_spawn_points.chests)
+    {
+        auto c = scene.register_script<project_c::Chest>(app.instantiate_prefab(project_c::PREFAB_TYPE_BOX, &scene).go);
+        c->set_world_position(chest.x, 0.1f, chest.y);
     }
 
     // barb asset comes with some predefined weapnons, so check it here
@@ -268,7 +279,7 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
 }
 
 
-void equip_weapon_callback(engine_ui_data_handle_t data_handle, const engine_ui_event_t* ev, const engine_vector_engine_ui_data_variant_t args, void* user_data)
+static void equip_weapon_callback(engine_ui_data_handle_t data_handle, const engine_ui_event_t* ev, const engine_vector_engine_ui_data_variant_t args, void* user_data)
 {
     assert(args != nullptr);
     assert(engineVectorSizeEngineUiDataVariant(args) == 1);
@@ -287,7 +298,7 @@ void equip_weapon_callback(engine_ui_data_handle_t data_handle, const engine_ui_
     }
 }
 
-inline void register_ui_item_bindings(std::vector<engine_ui_document_data_binding_t>& registry, project_c::UI_data& ui_data, project_c::TestScene* scene)
+inline static void register_ui_item_bindings(std::vector<engine_ui_document_data_binding_t>& registry, project_c::UI_data& ui_data, project_c::TestScene* scene)
 {
     {
         engine_ui_document_data_binding_t binding = {};
@@ -334,7 +345,7 @@ inline void register_ui_item_bindings(std::vector<engine_ui_document_data_bindin
     }
 }
 
-inline void register_ui_enemy_bindings(std::vector<engine_ui_document_data_binding_t>& registry, project_c::UI_data& ui_data)
+static void register_ui_enemy_bindings(std::vector<engine_ui_document_data_binding_t>& registry, project_c::UI_data& ui_data)
 {
     {
         engine_ui_document_data_binding_t binding = {};
@@ -394,7 +405,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         //"x     x   x\n"
         //"xxxxxxxxxxx\n"
         //"x    p    x\n"
-        "x         x\n"
+        "xb        x\n"
         "x  w      x\n"
         "xp   e    x\n"
         "x         x\n"
@@ -462,7 +473,7 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Weapon* sw)
     engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_pos_y");
 }
 
-void project_c::TestScene::ui_remove_item_from_ground(const project_c::Weapon* sw)
+void project_c::TestScene::ui_remove_item_from_ground(const project_c::Weapon* sw) const
 {
     for (auto i = 0; i < engineVectorSizeUint32(ui_data_.items.go); i++)
     {

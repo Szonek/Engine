@@ -43,7 +43,8 @@ private:
         ATTACK  = 0x0001,
         MOVE    = 0x0002,
         DODGE   = 0x0004,
-        PLACEHOLDER = 0x0008,
+        INTERACT = 0x0008,
+        PLACEHOLDER = 0x0010,
 
     };
 
