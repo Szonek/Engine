@@ -17,5 +17,8 @@ class Chest : public BaseNode, public Interactable
 public:
     Chest(engine::IScene* my_scene, engine_game_object_t go);
     void interact() override;
+
+protected:
+    bool was_interacted_ = false;
 };
 }

@@ -1,6 +1,9 @@
 #include "interactable_script.h"
-
 #include <iscene.h>
+#include "coin_script.h"
+#include "../app.h"
+#include "../prefab_types.h"
+#include <cassert>
 
 project_c::Chest::Chest(engine::IScene* my_scene, engine_game_object_t go)
     : BaseNode(my_scene, go, "chest")
@@ -24,17 +27,30 @@ project_c::Chest::Chest(engine::IScene* my_scene, engine_game_object_t go)
 
 void project_c::Chest::interact()
 {
+    if (was_interacted_)
+    {
+        engineLog("Chest was already interacted with!\n");
+        return;
+    }
     // placeholder: change color to dark
-    auto scene = my_scene_->get_handle();
+    const auto scene = my_scene_->get_handle();
     auto mc = engineSceneGetMeshComponent(scene, go_);
     if (mc.geometry != ENGINE_INVALID_OBJECT_HANDLE)
     {
+        // drop coin, ToDO: random items?
+        const auto tc = engineSceneGetTransformComponent(scene, go_);
+        auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD, my_scene_).go);
+        coin->set_world_position(tc.position[0], tc.position[1] + 1.0f, tc.position[2]);
+
+        // update chest to dark color to simulate opened chest
         auto mat = engineSceneGetMaterialComponent(scene, go_);
         set_c_array(mat.data.pong.diffuse_color, std::array<float, 4>{ 0.2f, 0.2f, 0.2f, 1.0f });
         engineSceneUpdateMaterialComponent(scene, go_, &mat);
+        was_interacted_ = true;
     }
     else
     {
         engineLog("Chest has no mesh component to change color!\n");
+        assert(false);
     }
 }
