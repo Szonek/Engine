@@ -1,4 +1,5 @@
 #include "coin_script.h"
+#include "player_script.h"
 #include <iscene.h>
 
 project_c::Coin::Coin(engine::IScene* my_scene, engine_game_object_t go)
@@ -38,7 +39,15 @@ void project_c::Coin::update(float dt)
 
 void project_c::Coin::on_collision(const collision_t& info)
 {
+    // Handle collision logic for the coin, if necessary.
+    // For example, you might want to play a sound or trigger an effect.
+    if (auto* player = my_scene_->get_script<project_c::Player>(info.other))
+    {
+        player->add_coin(1); // Assuming Player has a method to add coins
+        my_scene_->unregister_script(this); // Remove the coin from the scene
+    }
 }
+
 void project_c::Coin::push_force(float x, float y, float z, engine_force_type_t type)
 {
     const auto scene = my_scene_->get_handle();

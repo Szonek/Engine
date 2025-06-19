@@ -147,6 +147,8 @@ public:
 
     bool equip_waepon(Weapon* sword);
 
+    void add_coin(std::uint64_t amount);
+
 private:
     std::uint32_t state_;
     MoveStateData move_data_;
@@ -162,5 +164,6 @@ private:
 
     // inventory
     Weapon* weapon_;
+    std::uint64_t coins_ = 0;
 };
 } //namespace project_c

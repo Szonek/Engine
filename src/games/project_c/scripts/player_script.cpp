@@ -475,3 +475,10 @@ bool project_c::Player::equip_waepon(Weapon* sword)
     }
     return false;
 }
+
+void project_c::Player::add_coin(std::uint64_t amount)
+{   
+    coins_ += amount;
+    // for now only log, but we should update UI
+    engineLog(std::format("Player coins: {}\n", coins_).c_str());
+}
