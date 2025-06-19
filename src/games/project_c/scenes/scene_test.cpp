@@ -113,10 +113,9 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             }
             else
             {
-                if (app.is_prefab_available(project_c::PREFAB_TYPE_FLOOR) || app.is_prefab_available(project_c::PREFAB_TYPE_FLOOR_DETAIL))
+                if (app.is_prefab_available(project_c::PREFAB_TYPE_FLOOR))
                 {
-                    auto flor_moodel = dist6(rng) ? project_c::PREFAB_TYPE_FLOOR_DETAIL : project_c::PREFAB_TYPE_FLOOR;
-                    scene.register_script<project_c::Floor>(app.instantiate_prefab(flor_moodel, &scene).go, x_offset, z_offset);
+                    scene.register_script<project_c::Floor>(app.instantiate_prefab(project_c::PREFAB_TYPE_FLOOR, &scene).go, x_offset, z_offset);
                     const auto id = nav_mesh.add_node({ x_offset, 0.0f, z_offset }, { 0.5f, 0.0f, 0.5f });
                     nodes_id[x][z] = id;
                 }

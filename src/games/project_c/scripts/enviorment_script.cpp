@@ -133,7 +133,7 @@ void project_c::Chest::interact()
     auto mc = engineSceneGetMeshComponent(scene, go_);
     if (mc.geometry != ENGINE_INVALID_OBJECT_HANDLE)
     {
-        auto mat = engineSceneGetMaterialComponent(scene, mc.geometry);
+        auto mat = engineSceneGetMaterialComponent(scene, go_);
         set_c_array(mat.data.pong.diffuse_color, std::array<float, 4>{ 0.2f, 0.2f, 0.2f, 1.0f });
         engineSceneUpdateMaterialComponent(scene, go_, &mat);
     }
