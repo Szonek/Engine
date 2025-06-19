@@ -105,7 +105,7 @@ void project_c::Weapon::drop_on_ground(glm::vec3 position)
 
     // add rigid body component
     auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
-    rbc.mass = 1.0f;
+    rbc.mass = 1000.0f;
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 
     // update collider to not be trigger, so it will stop on collision

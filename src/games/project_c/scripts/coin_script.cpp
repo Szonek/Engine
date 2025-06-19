@@ -13,7 +13,7 @@ project_c::Coin::Coin(engine::IScene* my_scene, engine_game_object_t go)
     tc.scale[2] *= 0.35f;
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
-    //// physcis
+    // physcis
     auto cc = engineSceneAddColliderComponent(scene, go_);
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
     auto& child_c = cc.collider.compound.children[0];
@@ -24,6 +24,10 @@ project_c::Coin::Coin(engine::IScene* my_scene, engine_game_object_t go)
         set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.35f, 0.35f, 0.15f});
     }
     engineSceneUpdateColliderComponent(scene, go_, &cc);
+
+    auto rc = engineSceneAddRigidBodyComponent(scene, go_);
+    rc.mass = 100.0f; // Set a small mass for the coin
+    engineSceneUpdateRigidBodyComponent(scene, go_, &rc);
 }
 
 void project_c::Coin::update(float dt)

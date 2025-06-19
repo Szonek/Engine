@@ -115,7 +115,7 @@ private:
     entt::observer rigid_body_update_observer;
 
     PhysicsWorld physics_world_;
-
+    std::deque<std::tuple<entt::entity, std::array<float, 3>, engine_force_type_t>> forces_to_apply_;
     UniformBuffer scene_ubo_;
     ShaderStorageBuffer light_data_ssbo_;
 

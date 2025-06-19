@@ -290,6 +290,31 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     //}
     //rigid_body_update_observer.clear();
 
+    for (const auto& f : forces_to_apply_)
+    {
+        const auto entity = std::get<0>(f);
+        const auto force = std::get<1>(f);
+        const auto type = std::get<2>(f);
+        if (!has_component<physcic_internal_component_t>(entity))
+        {
+            continue;
+        }
+        auto& physcics = *get_component<physcic_internal_component_t>(entity);
+        if (!physcics.rigid_body)
+        {
+            continue;
+        }
+        if (type == engine_force_type_t::ENGINE_FORCE_TYPE_FORCE)
+        {
+            physcics.rigid_body->applyCentralForce(btVector3(force[0], force[1], force[2]));
+        }
+        else if (type == engine_force_type_t::ENGINE_FORCE_TYPE_IMPLUSE)
+        {
+            physcics.rigid_body->applyCentralImpulse(btVector3(force[0], force[1], force[2]));
+        }
+    }
+    forces_to_apply_.clear();
+
     physics_world_.update(dt / 1000.0f);
 
     // sync physcis to graphics world
@@ -735,21 +760,26 @@ engine_ray_hit_info_t engine::Scene::raycast_into_physics_world(const engine_ray
 
 bool engine::Scene::add_force_to_physics_entity(entt::entity entity, std::array<float, 3> force, engine_force_type_t type)
 {
+    /*
+    Deffered force application to the physics world. Beacuse at this point rigid body may not be created yet (i.e. force applied immeditly after creating object).
+    */
     if (has_component<physcic_internal_component_t>(entity))
     {
         auto& physcics_component = entity_registry_.get<physcic_internal_component_t>(entity);
-        if (physcics_component.rigid_body)
+        if (type == engine_force_type_t::ENGINE_FORCE_TYPE_FORCE)
         {
-            if (type == engine_force_type_t::ENGINE_FORCE_TYPE_FORCE)
-            {
-                physcics_component.rigid_body->applyCentralForce(btVector3(force[0], force[1], force[2]));
-            }
-            else if (type == engine_force_type_t::ENGINE_FORCE_TYPE_IMPLUSE)
-            {
-                physcics_component.rigid_body->applyCentralImpulse(btVector3(force[0], force[1], force[2]));
-            }
-            return true;
+            forces_to_apply_.push_back({ entity, force, type });
         }
+        else if (type == engine_force_type_t::ENGINE_FORCE_TYPE_IMPLUSE)
+        {
+            forces_to_apply_.push_back({ entity, force, type });
+        }
+        else
+        {
+            log::log(log::LogLevel::eError, fmt::format("Unknown force type: {}\n", static_cast<std::uint32_t>(type)));
+            return false;
+        }
+        return true;
     }
     return false;
 }
