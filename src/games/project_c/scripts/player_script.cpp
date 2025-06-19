@@ -2,6 +2,7 @@
 #include "scripts_utils.h"
 #include "enemy_script.h"
 #include "enviorment_script.h"
+#include "interactable_script.h"
 #include "../scenes/scene_test.h"
 
 #include "../app.h"
@@ -104,7 +105,7 @@ void project_c::Weapon::drop_on_ground(glm::vec3 position)
 
     // add rigid body component
     auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
-    rbc.mass = 1.0f;
+    rbc.mass = 1000.0f;
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 
     // update collider to not be trigger, so it will stop on collision
@@ -322,6 +323,20 @@ void project_c::Player::update(float dt)
     //    }
     //}
 
+    if (hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID && lmb)
+    {
+        if (auto* interactable = my_scene_->get_script<Interactable>(hit_info.go))
+        {
+            // check distance and interace if close enough
+            const auto tc = engineSceneGetTransformComponent(scene, go_);
+            const float distance = glm::distance(glm::vec3(hit_info.position[0], hit_info.position[1], hit_info.position[2]), glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
+            if (distance < 1.0f)
+            {
+                interactable->interact();
+            }
+        }
+    }
+
     const auto button_A = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A);
     const auto button_W = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W);
     const auto button_D = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D);
@@ -459,4 +474,11 @@ bool project_c::Player::equip_waepon(Weapon* sword)
         return true;
     }
     return false;
+}
+
+void project_c::Player::add_coin(std::uint64_t amount)
+{   
+    coins_ += amount;
+    // for now only log, but we should update UI
+    engineLog(std::format("Player coins: {}\n", coins_).c_str());
 }

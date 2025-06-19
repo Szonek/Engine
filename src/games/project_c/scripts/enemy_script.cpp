@@ -2,6 +2,7 @@
 #include "player_script.h"
 #include "enviorment_script.h"
 #include "scripts_utils.h"
+#include "coin_script.h"
 
 #include "../app.h"
 #include "../scenes/scene_test.h"
@@ -51,7 +52,7 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
 
     //rb
     auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
-    rbc.mass = 1.0f;
+    rbc.mass = 100000.0f;
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 }
 
@@ -77,8 +78,8 @@ void project_c::Enemy::update(float dt)
     auto ec = engineSceneGetTransformComponent(scene, player);
     const auto distance_to_player = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
 
-    const auto my_node_idx = -1;// nav_mesh_->get_node_idx({ tc.position[0], tc.position[1], tc.position[2] });
-    const auto player_node_idx = -1;// nav_mesh_->get_node_idx({ ec.position[0], ec.position[1], ec.position[2] });
+    const auto my_node_idx =  nav_mesh_->get_node_idx({ tc.position[0], tc.position[1], tc.position[2] });
+    const auto player_node_idx =  nav_mesh_->get_node_idx({ ec.position[0], ec.position[1], ec.position[2] });
     auto path = [&]()
         {
             if (distance_to_player < 0.8f || my_node_idx == -1 || player_node_idx == -1)
@@ -88,32 +89,32 @@ void project_c::Enemy::update(float dt)
             return NavMeshPathFinder::find_path(*nav_mesh_, my_node_idx, player_node_idx);
         }();
 
+    if (hp <= 0 && state_ != States::DIE)
+    {
+        state_ = States::DIE;
+        anim_controller_.set_active_animation("Death_A");
+        // remove collider so enemy will not be hit by players attacks
+        engineSceneRemoveColliderComponent(scene, go_);
+        auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD, my_scene_).go);
+        coin->set_world_position(tc.position[0], tc.position[1] + 1.0f, tc.position[2]);
+    }
+
     switch (state_)
     {
     case States::DECISION_MAKE:
     {
-        if (hp <= 0)
+        if (path.nodes.size() == 0 && distance_to_player < 0.8f)
         {
-            state_ = States::DIE;
-            anim_controller_.set_active_animation("Death_A");
-            // remove collider so enemy will not be hit by players attacks
-            engineSceneRemoveColliderComponent(scene, go_);
+            state_ = States::ATTACK;
+            anim_controller_.set_active_animation(attack_data_.get_animation_name());
+        }
+        else if (path.nodes.size() >= 1 && path.nodes.size() < 6)
+        {
+            state_ = States::MOVE;
         }
         else
         {
-            if (path.nodes.size() == 0 && distance_to_player < 0.8f)
-            {
-                state_ = States::ATTACK;
-                anim_controller_.set_active_animation(attack_data_.get_animation_name());
-            }
-            else if (path.nodes.size() >= 1 && path.nodes.size() < 6)
-            {
-                state_ = States::MOVE;
-            }
-            else
-            {
-                state_ = States::IDLE;
-            }
+            state_ = States::IDLE;
         }
         break;
     }
@@ -160,7 +161,7 @@ void project_c::Enemy::update(float dt)
             const auto n_pos = nav_mesh_->get_node(node).get_center();
             debug_scripts_.push_back(my_scene_->register_script<project_c::DebugPathNode>(n_pos.x, n_pos.z));
         }
-        const auto target_node = nav_mesh_->get_node(path.nodes[0]);
+        const auto& target_node = nav_mesh_->get_node(path.nodes[0]);
         auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), target_node.get_center());
         //auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
         quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
@@ -172,7 +173,7 @@ void project_c::Enemy::update(float dt)
         //tc.position[1] += forward.y * speed;
         tc.position[2] += forward.z * speed;
         engineSceneUpdateTransformComponent(scene, go_, &tc);
-        state_ = States::DECISION_MAKE;
+        //state_ = States::DECISION_MAKE;
         break;
     }
     default:

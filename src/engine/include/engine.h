@@ -495,6 +495,23 @@ typedef struct _engine_geometry_attribute_limit_t
     float max[4];
 } engine_geometry_attribute_limit_t;
 
+/**
+ * @enum _engine_force_type_t
+ * @brief Specifies the type of force applied to a physics object in the engine.
+ *
+ * This enumeration is used to define how a force is applied to a game object in the physics simulation.
+ *
+ *  * @var ENGINE_FORCE_TYPE_FORCE
+ *   Continous force applied to the object.
+ * 
+ * @var ENGINE_FORCE_TYPE_IMPLUSE
+ *   Instantaneous force (impulse) applied to the object, causing an immediate change in velocity.
+ */
+typedef enum _engine_force_type_t
+{
+    ENGINE_FORCE_TYPE_FORCE = 0, // continous force applied to the object
+    ENGINE_FORCE_TYPE_IMPLUSE = 1, // instant force applied to the object
+} engine_force_type_t;
 
 // cross platform log
 ENGINE_API void engineLog(const char* str);
@@ -556,6 +573,7 @@ ENGINE_API bool engineApplicationDoTexture2DNameExists(engine_application_t hand
 ENGINE_API void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3]);
 ENGINE_API void engineScenePhysicsGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
 ENGINE_API engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance);
+ENGINE_API bool engineScenePhysicsAddForce(engine_scene_t scene, engine_game_object_t go, const float force[3], engine_force_type_t type);
 
 // ui
 // create data handel first, before loading document!

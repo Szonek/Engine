@@ -91,7 +91,7 @@ project_c::NavMeshPathFinder::PathFromStartToEnd project_c::NavMeshPathFinder::f
 
     while (!frontier.empty())
     {
-        const auto current = mesh.get_node(frontier.front());
+        const auto& current = mesh.get_node(frontier.front());
         if constexpr (optimization_early_exit)
         {
             if (current.get_idx() == end)
@@ -100,8 +100,8 @@ project_c::NavMeshPathFinder::PathFromStartToEnd project_c::NavMeshPathFinder::f
             }
         }
         frontier.pop();
-        const auto edges = current.get_edges();
-        for (const auto next : edges)
+        const auto& edges = current.get_edges();
+        for (const auto& next : edges)
         {
             if (came_from.find(next.first) == came_from.end())
             {
