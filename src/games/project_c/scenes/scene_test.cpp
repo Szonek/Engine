@@ -94,22 +94,57 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         for (std::size_t z = 0; z < scene_height; z++)
         {
             const auto c = scene_str[z * (scene_width + 1) + x];  // + 1 because of '\n' in every line
-            auto x_offset = (float)std::int32_t(x - scene_width / 2);
+            const auto x_offset = (float)std::int32_t(x - scene_width / 2);
             const auto z_offset = (float)std::int32_t(z - scene_height / 2);
-            if (c == 'x')
-            {
+            if (c == '|' || c == '-')
+            {             
                 if (app.is_prefab_available(project_c::PREFAB_TYPE_WALL))
                 {
-                    // add offset to snap to the grid
-                    if (x_offset > 0)
+                    auto x_offset_snap = 0.0f;
+                    auto z_offset_snap = 0.0f;
+                    auto y_rotation = 0.0f;
+                    if (c == '|')
                     {
-                        x_offset -= 0.5f;
+                        y_rotation = 90.0f; // rotate wall by 90 degrees
+                        const auto c_left = scene_str[z * (scene_width + 1) + x - 1];
+                        const auto c_right = scene_str[z * (scene_width + 1) + x + 1];
+                        // add offset to snap to the grid
+                        if (c_left == 'x' || c_right != 'x')
+                        {
+                            x_offset_snap += 0.5f;
+                        }
+                        else if (c_right == 'x' || c_left != 'x')
+                        {
+                            x_offset_snap -= 0.5f;
+                        }
                     }
-                    else if (x_offset < 0)
+                    else if (c == '-')
                     {
-                        x_offset += 0.5f;
+                        // add offset to snap to the grid
+                        if (z_offset > 0)
+                        {
+                            z_offset_snap -= 0.5f;
+                        }
+                        else if (z_offset < 0)
+                        {
+                            z_offset_snap += 0.5f;
+                        }
                     }
-                    scene.register_script<project_c::Wall>(app.instantiate_prefab(project_c::PREFAB_TYPE_WALL, &scene).go, x_offset, z_offset);
+                    scene.register_script<project_c::Wall>(app.instantiate_prefab(project_c::PREFAB_TYPE_WALL, &scene).go, 
+                        x_offset + x_offset_snap, z_offset + z_offset_snap, y_rotation);
+                }
+                if (app.is_prefab_available(project_c::PREFAB_FLOOR_OUTSIDE_REGION))
+                {
+                    auto sc = scene.register_script<project_c::FloorOutsideRegion>(app.instantiate_prefab(project_c::PREFAB_FLOOR_OUTSIDE_REGION, &scene).go);
+                    sc->set_world_position(x_offset, 0.0f, z_offset);
+                }
+            }
+            else if (c == 'x')
+            {
+                if (app.is_prefab_available(project_c::PREFAB_FLOOR_OUTSIDE_REGION))
+                {
+                    auto sc = scene.register_script<project_c::FloorOutsideRegion>(app.instantiate_prefab(project_c::PREFAB_FLOOR_OUTSIDE_REGION, &scene).go);
+                    sc->set_world_position(x_offset, 0.0f, z_offset);
                 }
             }
             else
@@ -250,7 +285,7 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
             //const auto spawn_area = MobPackSpawner::SpawnAreaRect{ 0.0f, 0.0f, 0.0f, 0.0f };
             const auto spawn_world_pos = MobPackSpawner::Point{ point.x, point.y };
-            spawner.spawn(pack, 2, spawn_world_pos, spawn_area, nav_mesh, app, scene);
+            spawner.spawn(pack, 1, spawn_world_pos, spawn_area, nav_mesh, app, scene);
         }
     }
 
@@ -397,20 +432,23 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     }
 
     const std::string scene_str =
-        //"xxxxxxxxxxx\n"
-        //"x         x\n"
-        //"x         x\n"
-        //"x         x\n"
-        //"x         x\n"
-        //"x     x   x\n"
-        //"xxxxxxxxxxx\n"
-        //"x    p    x\n"
-        "xb        x\n"
-        "x  w      x\n"
-        "xp   e    x\n"
-        "x         x\n"
-        "x         x\n";
-        //"xxxxxxxxxxx\n";
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+        "xxxxxxb                            xxxxxxxxxx\n"
+        "xxxxxx e        wp             e b xxxxxxxxxx\n"
+        "xxxxxx                           b xxxxxxxxxx\n"
+        "xxxxxx                             xxxxxxxxxx\n"
+        "xxxxxxxxxxxxxxxxx      xxxxxxxxxxxxxxxxxxxxxx\n"
+        "xxxxxxxxxxxxxxxxx   e  xxxxxxxxxxxxxxxxxxxxxx\n"
+        "xxxxxxxxxxxxxxxxx bbbb xxxxxxxxxxxxxxxxxxxxxx\n"
+        "xxxxxxxxxxxxxxxxx      xxxxxxxxxxxxxxxxxxxxxx\n"
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
+
     register_script<MainLight>();
     auto typed_app = static_cast<AppProjectC*>(app);
     generate_scene(scene_str, nav_mesh_, *typed_app, *this);

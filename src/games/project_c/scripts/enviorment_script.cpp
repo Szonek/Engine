@@ -50,7 +50,7 @@ project_c::Floor::Floor(engine::IScene* my_scene, engine_game_object_t go, float
     engineSceneUpdateColliderComponent(scene, go_, &cc);
 }
 
-project_c::Wall::Wall(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z)
+project_c::Wall::Wall(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z, float y_rotation)
     : EnviormentBaseScript(my_scene, go, "wall")
 {
     const auto scene = my_scene_->get_handle();
@@ -63,7 +63,7 @@ project_c::Wall::Wall(engine::IScene* my_scene, engine_game_object_t go, float o
     tc.scale[1] = 0.25f;
     tc.scale[2] = 0.25f;
     // rotate by 90 degrees
-    const glm::quat rot = glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    const glm::quat rot = glm::angleAxis(glm::radians(y_rotation), glm::vec3(0.0f, 1.0f, 0.0f));
     tc.rotation[0] = rot.x;
     tc.rotation[1] = rot.y;
     tc.rotation[2] = rot.z;
@@ -80,6 +80,22 @@ project_c::Wall::Wall(engine::IScene* my_scene, engine_game_object_t go, float o
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
     set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 2.0f, 2.0f, 0.5f});
     engineSceneUpdateColliderComponent(scene, go_, &cc);
+}
+
+
+project_c::FloorOutsideRegion::FloorOutsideRegion(engine::IScene* my_scene, engine_game_object_t go)
+    : BaseNode(my_scene, go, "primitive-cube")
+{
+    add_parent_component_for_editor(*my_scene, go_, "enviorment");
+
+    const auto scene = my_scene_->get_handle();
+    const auto app = my_scene_->get_app_handle();
+
+    auto tc = engineSceneGetTransformComponent(scene, go_);
+    tc.scale[0] = 0.25f;
+    tc.scale[1] = 0.25f;
+    tc.scale[2] = 0.25f;
+    engineSceneUpdateTransformComponent(scene, go_, &tc);
 }
 
 project_c::Barrel::Barrel(engine::IScene* my_scene, engine_game_object_t go)
@@ -281,3 +297,4 @@ project_c::LightBaseScript::LightBaseScript(engine::IScene* my_scene, std::strin
 {
     add_parent_component_for_editor(*my_scene, go_, "lights");
 }
+
