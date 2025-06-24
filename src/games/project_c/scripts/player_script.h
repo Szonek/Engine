@@ -39,11 +39,12 @@ class Player : public BaseNode
 private:
     enum States : std::uint32_t
     {
-        IDLE    = 0x0000,
-        ATTACK  = 0x0001,
-        MOVE    = 0x0002,
-        DODGE   = 0x0004,
-        PLACEHOLDER = 0x0008,
+        IDLE           = 0x0000,
+        TRIGGER_ATTACK = 0x0001,
+        ATTACK         = 0x0002,
+        MOVE           = 0x0004,
+        DODGE          = 0x0008,
+        PLACEHOLDER    = 0x0010,
 
     };
 
@@ -110,7 +111,6 @@ private:
             eRight
         };
 
-        bool animation_started = false;
         inline const char* get_animation_name(Direction dir) const
         {
             switch (dir)
@@ -132,7 +132,6 @@ private:
 
     struct AttackStateData
     {
-        bool animation_started = false;
         inline const char* get_animation_name() const
         {
             return "1H_Melee_Attack_Chop";

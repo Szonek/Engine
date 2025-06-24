@@ -309,9 +309,9 @@ void project_c::Player::update(float dt)
 
     const auto lmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT);
     const auto rmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT);
-    if (weapon_ && rmb)
+    if (weapon_ && rmb && !check_state_bit(States::ATTACK))
     {
-        enable_state_bit(States::ATTACK);
+        enable_state_bit(States::TRIGGER_ATTACK);
     }
 
     //if (!weapon_ && hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID && lmb)
@@ -364,6 +364,29 @@ void project_c::Player::update(float dt)
     const glm::quat rotation = glm::make_quat(tc.rotation);
     const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
     const glm::vec3 right = rotation * glm::vec3(1.0f, 0.0f, 0.0f);
+
+    // print states for debug purposes
+    if (check_state_bit(States::ATTACK))
+    {
+        engineLog(std::format("Player state: ATTACK, hit info: {}\n", hit_info.go).c_str());
+    }
+    if (check_state_bit(States::TRIGGER_ATTACK))
+    {
+        engineLog("Player state: TRIGGER_ATTACK\n");
+    }
+    if (check_state_bit(States::MOVE))
+    {
+        engineLog("Player state: MOVE\n");
+    }
+    if (check_state_bit(States::DODGE))
+    {
+        engineLog("Player state: DODGE\n");
+    }
+    if (check_state_bit(States::IDLE))
+    {
+        engineLog("Player state: IDLE\n");
+    }
+
 
     if (state_ == States::IDLE)
     {
@@ -439,29 +462,23 @@ void project_c::Player::update(float dt)
         }
 
         anim_controller_.set_active_animation(move_data_.get_animation_name(anim_move_dir));
-        move_data_.animation_started = true;
         clear_state_bit(States::MOVE);
+    }
+    if (check_state_bit(States::TRIGGER_ATTACK))
+    {
+        anim_controller_.set_active_animation(attack_data_.get_animation_name());
+        attack_trigger_->activate();
+        clear_state_bit(States::TRIGGER_ATTACK);
+        enable_state_bit(States::ATTACK);
     }
     if (check_state_bit(States::ATTACK))
     {
-        /*
-        ToDo: attack is bugged due to lack of possiblity to play multiple animations
-        // i.e. attack -> (hit enemy), press move button (it will remove attack animation) -> we can attack instantly again (beacuse attack animation was removed due to move animation)
-        */
-        if (attack_data_.animation_started)
+        if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
         {
-            if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
-            {
-                clear_state_bit(States::ATTACK);
-                attack_data_ = {};
-            }
+            clear_state_bit(States::ATTACK);
+            attack_data_ = {};
         }
-        else if (hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID)
-        {
-            anim_controller_.set_active_animation(attack_data_.get_animation_name());
-            attack_data_.animation_started = true;
-            attack_trigger_->activate();
-        }
+
     }
 }
 
