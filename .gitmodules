@@ -34,3 +34,6 @@
 [submodule "thirdparty/ImGuizmo"]
 	path = thirdparty/ImGuizmo
 	url = https://github.com/CedricGuillemet/ImGuizmo.git
+[submodule "thirdparty/ozz-animation"]
+	path = thirdparty/ozz-animation
+	url = https://github.com/guillaumeblanc/ozz-animation.git

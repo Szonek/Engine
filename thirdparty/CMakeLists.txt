@@ -24,6 +24,15 @@ add_subdirectory(tracy-0.10)
 # gtests
 add_subdirectory(googletest)
 
+# skeleton animations
+set(ozz_build_tools OFF CACHE BOOL "")
+set(ozz_build_fbx OFF CACHE BOOL "")
+set(ozz_build_gltf ON CACHE BOOL "")
+set(ozz_build_samples OFF CACHE BOOL "")
+set(ozz_build_howtos OFF CACHE BOOL "")
+set(ozz_build_tests OFF CACHE BOOL "")
+add_subdirectory(ozz-animation)
+
 # rapidJson
 set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "")
 set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "")
