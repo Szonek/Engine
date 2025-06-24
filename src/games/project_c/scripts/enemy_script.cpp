@@ -108,7 +108,7 @@ void project_c::Enemy::update(float dt)
             state_ = States::ATTACK;
             anim_controller_.set_active_animation(attack_data_.get_animation_name());
         }
-        else if (path.nodes.size() >= 1 && path.nodes.size() < 6)
+        else if (path.nodes.size() >= 1 && path.nodes.size() < 3)
         {
             state_ = States::MOVE;
         }

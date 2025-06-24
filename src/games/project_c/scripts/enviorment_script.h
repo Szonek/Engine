@@ -16,6 +16,12 @@ protected:
     EnviormentBaseScript(engine::IScene* my_scene, engine_game_object_t go, std::string_view name);
 };
 
+class FloorOutsideRegion : public BaseNode
+{
+public:
+    FloorOutsideRegion(engine::IScene* my_scene, engine_game_object_t go);
+};
+
 class Floor : public EnviormentBaseScript
 {
 public:
@@ -25,7 +31,7 @@ public:
 class Wall : public EnviormentBaseScript
 {
 public:
-    Wall(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z);
+    Wall(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z, float y_rotation);
 };
 
 class Barrel : public BaseNode
