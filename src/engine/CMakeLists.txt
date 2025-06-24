@@ -25,6 +25,11 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/ui_document.h
 	${ENGINE_SOURCES_DIR}/logger.cpp
 	${ENGINE_SOURCES_DIR}/logger.h
+	${ENGINE_SOURCES_DIR}/data_layout.h
+	${ENGINE_SOURCES_DIR}/math_helpers.h
+	
+	${ENGINE_SOURCES_DIR}/animation_controller.cpp
+	${ENGINE_SOURCES_DIR}/animation_controller.h
 	
 	${ENGINE_SOURCES_DIR}/file_watcher.cpp
 	${ENGINE_SOURCES_DIR}/file_watcher.h	
@@ -32,16 +37,21 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/profiler.h
 	${ENGINE_SOURCES_DIR}/named_atlas.h
 		
+	${ENGINE_SOURCES_DIR}/mesh_defs.h
 	${ENGINE_SOURCES_DIR}/gltf_parser.h
 	${ENGINE_SOURCES_DIR}/gltf_parser.cpp
 	${ENGINE_SOURCES_DIR}/physics_world.h
 	${ENGINE_SOURCES_DIR}/physics_world.cpp
+	${ENGINE_SOURCES_DIR}/collision_desc.h
 
 	${ENGINE_SOURCES_DIR}/material.h
 	${ENGINE_SOURCES_DIR}/material.cpp
 
 	${ENGINE_SOURCES_DIR}/nav_mesh.h
 	${ENGINE_SOURCES_DIR}/nav_mesh.cpp
+	
+	${ENGINE_SOURCES_DIR}/skin.h
+	${ENGINE_SOURCES_DIR}/skin.cpp
 	
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.h
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.cpp
@@ -97,6 +107,8 @@ set(ENGINE_API_SOURCES
     ${ENGINE_API_COMPONENTS}/parent_component.h
     ${ENGINE_API_COMPONENTS}/nav_component.h
     ${ENGINE_API_COMPONENTS}/sprite_component.h
+    ${ENGINE_API_COMPONENTS}/animation_controller_component.h
+    ${ENGINE_API_COMPONENTS}/skin_component.h
 )
 
 set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})
@@ -104,8 +116,8 @@ set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})
 add_library(${ENGINE} SHARED ${ENGINE_ALL_SOURCES})
 
 target_include_directories(${ENGINE} PUBLIC ${ENGINE_API} PRIVATE ${BULLET_INCLUDE_DIRS} ${ENGINE_SOURCES_DIR}/imgui)
-target_link_libraries(${ENGINE} PRIVATE stb tinygltf glad glm EnTT::EnTT SDL3::SDL3-static fmt::fmt-header-only Freetype::Freetype RmlUi::RmlUi RmlUi::Debugger TracyClient ${BULLET_LIBRARIES})
-target_compile_definitions(${ENGINE} PUBLIC GLM_FORCE_QUAT_DATA_XYZW GLM_ENABLE_EXPERIMENTAL RMLUI_SDL_VERSION_MAJOR=3)
+target_link_libraries(${ENGINE} PRIVATE stb tinygltf glad glm EnTT::EnTT SDL3::SDL3-static fmt::fmt-header-only Freetype::Freetype RmlUi::RmlUi RmlUi::Debugger TracyClient ozz_animation ozz_animation_offline ${BULLET_LIBRARIES})
+target_compile_definitions(${ENGINE} PUBLIC GLM_FORCE_QUAT_DATA_XYZW GLM_ENABLE_EXPERIMENTAL PRIVATE RMLUI_SDL_VERSION_MAJOR=3 BT_NO_SIMD_OPERATOR_OVERLOADS=1)
 
 target_compile_options(${ENGINE} PRIVATE
   #$<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>

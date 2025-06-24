@@ -27,6 +27,13 @@ void engine::initialize_mesh_component(entt::registry& registry, entt::entity en
     comp.geometry = ENGINE_INVALID_OBJECT_HANDLE;
 }
 
+void engine::initialize_skinned_mesh_component(entt::registry& registry, entt::entity entity)
+{
+    auto& comp = get_zero_init_component<engine_skinned_mesh_component_t>(registry, entity);
+    comp.geometry = ENGINE_INVALID_OBJECT_HANDLE;
+    comp.skin = nullptr;
+}
+
 void engine::initialize_light_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_light_component_t>(registry, entity);
@@ -114,9 +121,18 @@ void engine::initialize_collider_component(entt::registry& registry, entt::entit
 void engine::initialize_skin_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_skin_component_t>(registry, entity);
-    static_assert(ENGINE_INVALID_GAME_OBJECT_ID == 0, "Invalid game object id should be 0. If it's not 0 than update this function to initalize skeleton array.");
-    for (auto& bone : comp.bones)
-    {
-        bone = ENGINE_INVALID_GAME_OBJECT_ID;
-    }
+    comp.skin = nullptr;
+}
+
+void engine::initialize_joint_attachment_component(entt::registry& registry, entt::entity entity)
+{
+    auto& comp = get_zero_init_component<engine_joint_attachment_component_t>(registry, entity);
+    comp.skin = nullptr;
+    comp.joint_name = engineStringCreate("");
+}
+
+void engine::initialize_animation_controller_component(entt::registry& registry, entt::entity entity)
+{
+    auto& comp = get_zero_init_component<engine_animation_controller_component_t>(registry, entity);
+    comp.controller = nullptr;
 }

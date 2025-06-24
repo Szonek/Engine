@@ -20,10 +20,6 @@
 engine::PhysicsWorld::PhysicsWorld(RenderContext* renderer)
     : debug_drawer_(std::make_unique<DebugDrawer>(renderer))
 {
-
-    collisions_info_buffer_.reserve(1024 * 2);
-    collisions_contact_points_buffer_.reserve(1024 * 16);
-
     collision_config_ = std::make_unique<btDefaultCollisionConfiguration>();
     dispatcher_ = std::make_unique<btCollisionDispatcher>(collision_config_.get());
     overlapping_pair_cache_ = std::make_unique<btDbvtBroadphase>();
@@ -171,13 +167,17 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
 void engine::PhysicsWorld::update(float dt)
 {
     dynamics_world_->stepSimulation(dt, 10);
+
+    collisions_desc_cache_.clear();
 }
 
-const std::vector<engine_collision_info_t>& engine::PhysicsWorld::get_collisions()
+const std::vector<engine::CollisionDesc>& engine::PhysicsWorld::get_collisions() const
 {
-    collisions_info_buffer_.clear();
-    collisions_contact_points_buffer_.clear();
-
+    // Collisions were computed this frame already, no need to do anything
+    if (!collisions_desc_cache_.empty())
+    {
+        return collisions_desc_cache_;
+    }
     const auto num_manifolds = dynamics_world_->getDispatcher()->getNumManifolds();
     //log::log(log::LogLevel::eTrace, fmt::format("Collisions: {}\n", num_manifolds));
 
@@ -192,12 +192,10 @@ const std::vector<engine_collision_info_t>& engine::PhysicsWorld::get_collisions
             continue;
         }
 
-
-        engine_collision_info_t new_collision{};
-        new_collision.contact_points_count = num_contacts;
-        new_collision.contact_points = collisions_contact_points_buffer_.data() + collisions_contact_points_buffer_.size();
-        new_collision.object_a = static_cast<engine_game_object_t>(manifold->getBody0()->getUserIndex());
-        new_collision.object_b = static_cast<engine_game_object_t>(manifold->getBody1()->getUserIndex());
+        CollisionDesc new_collision{};
+        new_collision.contact_points.reserve(num_contacts);
+        new_collision.object_a = manifold->getBody0()->getUserIndex();
+        new_collision.object_b = manifold->getBody1()->getUserIndex();
 
         for (auto j = 0; j < num_contacts; j++)
         {
@@ -206,25 +204,19 @@ const std::vector<engine_collision_info_t>& engine::PhysicsWorld::get_collisions
             const auto& position_a = pt.getPositionWorldOnA();
             const auto& position_b = pt.getPositionWorldOnB();
 
-            engine_collision_contact_point_t new_contact_point{};
+            CollisionContactPointDesc new_contact_point{};
             new_contact_point.lifetime = pt.getLifeTime();
 
-            new_contact_point.point_object_a[0] = position_a.getX();
-            new_contact_point.point_object_a[1] = position_a.getY();
-            new_contact_point.point_object_a[2] = position_a.getZ();
-
-            new_contact_point.point_object_b[0] = position_b.getX();
-            new_contact_point.point_object_b[1] = position_b.getY();
-            new_contact_point.point_object_b[2] = position_b.getZ();
-
-            collisions_contact_points_buffer_.push_back(new_contact_point);
+            new_contact_point.point_on_obj_a = { position_a.getX(), position_a.getY(), position_a.getZ() };
+            new_contact_point.point_on_obj_b = { position_b.getX(), position_b.getY(), position_b.getZ() };
+            new_collision.contact_points.push_back(new_contact_point);
             //log::log(log::LogLevel::eTrace, fmt::format("PT: {}\n", pt.getDistance()));
         }
 
-        collisions_info_buffer_.push_back(new_collision);
+        collisions_desc_cache_.push_back(new_collision);
     }
 
-    return collisions_info_buffer_;
+    return collisions_desc_cache_;
 }
 
 void engine::PhysicsWorld::set_gravity(std::span<const float> g)
@@ -293,24 +285,24 @@ engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, std
     //);
 
     RayWithIgnoreResultCallbackClosestHit closest_result(
-        btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
-        btVector3(ray.direction[0], ray.direction[1], ray.direction[2]),
+        btVector3(ray.origin.x, ray.origin.y, ray.origin.z),
+        btVector3(ray.direction.x, ray.direction.y, ray.direction.z),
         ignore_list);
     dynamics_world_->rayTest(
-        btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
-        btVector3(ray.direction[0], ray.direction[1], ray.direction[2]),
+        btVector3(ray.origin.x, ray.origin.y, ray.origin.z),
+        btVector3(ray.direction.x, ray.direction.y, ray.direction.z),
         closest_result
     );
     engine_ray_hit_info_t ret{};
     if (closest_result.hasHit())
     {
         ret.go = closest_result.m_collisionObject->getUserIndex();
-        ret.position[0] = closest_result.m_hitPointWorld.getX();
-        ret.position[1] = closest_result.m_hitPointWorld.getY();
-        ret.position[2] = closest_result.m_hitPointWorld.getZ();
-        ret.normal[0] = closest_result.m_hitNormalWorld.getX();
-        ret.normal[1] = closest_result.m_hitNormalWorld.getY();
-        ret.normal[2] = closest_result.m_hitNormalWorld.getZ();
+        ret.position.x = closest_result.m_hitPointWorld.getX();
+        ret.position.y = closest_result.m_hitPointWorld.getY();
+        ret.position.z = closest_result.m_hitPointWorld.getZ();
+        ret.normal.x = closest_result.m_hitNormalWorld.getX();
+        ret.normal.y = closest_result.m_hitNormalWorld.getY();
+        ret.normal.z = closest_result.m_hitNormalWorld.getZ();
     }
     return ret;
 }

@@ -136,13 +136,14 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     , shader_full_screen_quad_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
 {
 	{
-		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 255, 255, 255 };
-		engine_texture_2d_create_desc_t tex2d_desc{};
+		const std::vector<std::byte> default_texture_color = { static_cast<std::byte>(255), static_cast<std::byte>(255), static_cast<std::byte>(255) };
+		TextureDesc tex2d_desc{};
+        tex2d_desc.name = "default_texture";
 		tex2d_desc.width = 1;
 		tex2d_desc.height = 1;
-        tex2d_desc.data_layout = ENGINE_DATA_LAYOUT_RGB_U8;
-		tex2d_desc.data = default_texture_color.data();
-        default_texture_idx_ = add_texture(tex2d_desc, "default_1x1_texutre");
+        tex2d_desc.layout = engine::DataLayout::eRGBA_U8;
+        tex2d_desc.data = default_texture_color;
+        default_texture_idx_ = add_texture(tex2d_desc);
 	}
 
 	timer_.tick();
@@ -326,23 +327,9 @@ engine_application_frame_end_info_t engine::Application::end_frame()
 	return ret;
 }
 
-std::uint32_t engine::Application::add_texture(const engine_texture_2d_create_desc_t& desc, std::string_view texture_name)
+std::uint32_t engine::Application::add_texture(const TextureDesc& desc)
 {
-    const auto data_layout = [](const auto engine_api_layout)
-    {
-        switch (engine_api_layout)
-        {
-        case ENGINE_DATA_LAYOUT_RGBA_FP32: return DataLayout::eRGBA_FP32;
-        case ENGINE_DATA_LAYOUT_R_FP32: return DataLayout::eR_FP32;
-
-        case ENGINE_DATA_LAYOUT_RGBA_U8: return DataLayout::eRGBA_U8;
-        case ENGINE_DATA_LAYOUT_RGB_U8: return DataLayout::eRGB_U8;
-        case ENGINE_DATA_LAYOUT_R_U8: return DataLayout::eR_U8;
-        default:
-            return DataLayout::eCount;
-        }
-    }(desc.data_layout);
-	return textures_atlas_.add_object(texture_name, Texture2D(desc.width, desc.height, true, desc.data, data_layout, TextureAddressClampMode::eClampToEdge));
+    return textures_atlas_.add_object(desc.name, Texture2D(desc.width, desc.height, true, desc.data.data(), desc.layout, TextureAddressClampMode::eClampToEdge));
 }
 
 std::uint32_t engine::Application::add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t /*color_space*/)
@@ -433,67 +420,10 @@ void engine::Application::destroy_shader(std::uint32_t idx)
     shader_atlas_.remove_object(idx);
 }
 
-engine::ModelInfo engine::Application::load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir)
-{
-    assert(spec == ENGINE_MODEL_SPECIFICATION_GLTF_2);
-    const auto assets_dir = engine::AssetStore::get_instance().get_models_base_path() / base_dir;
-    const auto file_data = engine::AssetStore::get_instance().get_raw_data_content(assets_dir / name);
-    if(file_data.get_size() == 0)
-    {
-        return {};
-    }
-
-    const auto model_info = engine::ModelInfo(parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string()));
-    return model_info;
-}
-
-void engine::Application::release_model_desc(engine_model_desc_t* info)
-{
-    if (info)
-    {
-        const auto model_info = reinterpret_cast<const engine::ModelInfo*>(info->internal_handle);
-        delete model_info;
-        if (info->geometries_array)
-        {
-            delete[] info->geometries_array;
-            delete[] info->geometires_name_array;
-        }
-        if (info->textures_array)
-        {
-            delete[] info->textures_array;
-        }
-        if (info->materials_array)
-        {
-            delete[] info->materials_array;
-        }
-        if (info->animations_array)
-        {
-            for (std::uint32_t i = 0; i < info->animations_counts; i++)
-            {
-                delete[] info->animations_array[i].channels;
-            }
-            delete[] info->animations_array;
-        }
-        if (info->skins_array)
-        {
-            for (std::uint32_t i = 0; i < info->skins_counts; i++)
-            {
-                if (info->skins_array[i].bones_count > 0)
-                {
-                    delete[] info->skins_array[i].bones_array;
-                }
-            }
-            delete[] info->skins_array;
-        }
-        std::memset(info, 0, sizeof(engine_model_desc_t));
-    }
-}
-
 engine::UiDocument engine::Application::load_ui_document(std::string_view file_name)
 {
     return ui_manager_.load_document_from_file(file_name);
 }
-
 
 engine::UiDataHandle engine::Application::create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
 {
@@ -506,7 +436,7 @@ bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
     return static_cast<bool>(state[key]);
 }
 
-engine_coords_2d_t engine::Application::mouse_get_coords()
+engine_fvec2_t engine::Application::mouse_get_coords()
 {
 	float coord_x = 0.;
 	float coord_y = 0.;
@@ -514,7 +444,7 @@ engine_coords_2d_t engine::Application::mouse_get_coords()
 
     const auto window_size = rdx_.get_window_size_in_pixels();
 
-    engine_coords_2d_t ret{};
+    engine_fvec2_t ret{};
 	ret.x = static_cast<std::int32_t>(std::floor(coord_x)) / static_cast<float>(window_size.width);
     // flip Y coords so left, bottom corner is (0, 0) and right top is (1, 1)
     ret.y = 1.0f - static_cast<std::int32_t>(std::floor(coord_y)) / static_cast<float>(window_size.height);

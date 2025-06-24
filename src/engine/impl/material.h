@@ -73,7 +73,7 @@ public:
         const UniformBuffer& camera;
         const UniformBuffer& scene;
         const float* model_matrix;
-        std::vector<glm::mat4> bone_transforms;
+        std::span<const glm::mat4> bone_transforms;
 
         const float* color_diffuse;
         float shininess;

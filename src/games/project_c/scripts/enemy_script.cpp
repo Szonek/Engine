@@ -64,14 +64,16 @@ project_c::Enemy::~Enemy()
 
 void project_c::Enemy::update(float dt)
 {
+    const auto scene = my_scene_->get_handle();
+    const auto app = my_scene_->get_app_handle();
+
+    auto animation_controller = engineSceneGetAnimationControllerComponent(scene, go_).controller;
+
     for (auto& s : debug_scripts_)
     {
         my_scene_->unregister_script(s);
     }
     debug_scripts_.clear();
-    anim_controller_.update(dt);
-    const auto scene = my_scene_->get_handle();
-    const auto app = my_scene_->get_app_handle();
 
     const auto player = utils::get_game_objects_with_name(scene, "player")[0];
     auto tc = engineSceneGetTransformComponent(scene, go_);
@@ -92,11 +94,14 @@ void project_c::Enemy::update(float dt)
     if (hp <= 0 && state_ != States::DIE)
     {
         state_ = States::DIE;
-        anim_controller_.set_active_animation("Death_A");
+        engineAnimationControllerAnimationPlay(animation_controller, "Death_A");
         // remove collider so enemy will not be hit by players attacks
         engineSceneRemoveColliderComponent(scene, go_);
-        auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD, my_scene_).go);
-        coin->set_world_position(tc.position[0], tc.position[1] + 1.0f, tc.position[2]);
+        if (reinterpret_cast<AppProjectC*>(my_scene_->get_app())->is_prefab_available(project_c::PrefabType::PREFAB_TYPE_COIN_GOLD))
+        {
+            auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD, my_scene_).go);
+            coin->set_world_position(tc.position[0], tc.position[1] + 1.0f, tc.position[2]);
+        }
     }
 
     switch (state_)
@@ -106,7 +111,7 @@ void project_c::Enemy::update(float dt)
         if (path.nodes.size() == 0 && distance_to_player < 0.8f)
         {
             state_ = States::ATTACK;
-            anim_controller_.set_active_animation(attack_data_.get_animation_name());
+            engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name());
         }
         else if (path.nodes.size() >= 1 && path.nodes.size() < 3)
         {
@@ -120,13 +125,13 @@ void project_c::Enemy::update(float dt)
     }
     case States::IDLE:
     {
-        anim_controller_.set_active_animation("Idle");
+        engineAnimationControllerAnimationPlay(animation_controller, "Idle");
         state_ = States::DECISION_MAKE;
         break;
     }
     case States::ATTACK:
     {
-        if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
+        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name()))
         {
             state_ = States::DECISION_MAKE;
             attack_data_.attack_with_right = !attack_data_.attack_with_right;
@@ -140,7 +145,7 @@ void project_c::Enemy::update(float dt)
     }
     case States::DIE:
     {
-        if (!anim_controller_.is_active_animation("Death_A"))
+        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Death_A"))
         {
             my_scene_->unregister_script(this);
         }
@@ -155,7 +160,7 @@ void project_c::Enemy::update(float dt)
             state_ = States::DECISION_MAKE;
             break;
         }
-        anim_controller_.set_active_animation("Running_A");
+        engineAnimationControllerAnimationPlay(animation_controller, "Running_A");
         for (auto& node : path.nodes)
         {
             const auto n_pos = nav_mesh_->get_node(node).get_center();

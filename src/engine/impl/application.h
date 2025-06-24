@@ -7,7 +7,7 @@
 #include "ui_document.h"
 #include "named_atlas.h"
 #include "nav_mesh.h"
-#include "gltf_parser.h"
+#include "mesh_defs.h"
 
 
 namespace engine
@@ -29,7 +29,7 @@ public:
     virtual engine_application_frame_begine_info_t begine_frame();
     virtual engine_application_frame_end_info_t end_frame();
 
-    virtual std::uint32_t add_texture(const engine_texture_2d_create_desc_t& desc, std::string_view texture_name);
+    virtual std::uint32_t add_texture(const TextureDesc& desc);
     virtual std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
     virtual std::uint32_t get_texture(std::string_view name) const;
     virtual const Texture2D* get_texture(std::uint32_t idx) const;
@@ -52,9 +52,6 @@ public:
     virtual std::uint32_t get_shader(std::string_view name) const;
     virtual void destroy_shader(std::uint32_t idx);
 
-    virtual ModelInfo load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir);
-    virtual void release_model_desc(engine_model_desc_t* info);
-
     virtual UiDocument load_ui_document(std::string_view file_name);
     virtual UiDataHandle create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
 
@@ -63,7 +60,7 @@ public:
 
     virtual bool keyboard_is_key_down(engine_keyboard_keys_t key);
 
-    virtual engine_coords_2d_t mouse_get_coords();
+    virtual engine_fvec2_t mouse_get_coords();
     virtual bool mouse_is_button_down(engine_mouse_button_t button);
 
     virtual std::array<engine_finger_info_t, 10> get_finger_info_events() const;

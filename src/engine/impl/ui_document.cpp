@@ -313,9 +313,6 @@ engine::UiElement::UiElement(Rml::Element* element, engine_result_code_t& err_ou
     : element_(element)
 {
     err_out = element_ ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
-
-    Rml::ObserverPtr<Rml::Element> t;
-    t.get();
 }
 
 engine::UiElement::UiElement(UiElement&& rhs)

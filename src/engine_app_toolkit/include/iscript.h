@@ -12,7 +12,8 @@ class ENGINE_APP_TOOLKIT_API IScript
 public:
     struct contact_point_t
     {
-        float point[3];
+        engine_fvec3_t point_on_a;
+        engine_fvec3_t point_on_b;
         std::int32_t lifetime;
     };
     struct collision_t
