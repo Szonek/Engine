@@ -134,7 +134,9 @@ private:
     {
         inline const char* get_animation_name() const
         {
-            return "1H_Melee_Attack_Chop";
+            //return "1H_Melee_Attack_Chop";
+            //return "1H_Melee_Attack_Slice_Horizontal";
+            return "1H_Melee_Attack_Slice_Diagonal";
         }
     };
 

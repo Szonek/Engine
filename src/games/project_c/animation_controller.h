@@ -249,8 +249,6 @@ public:
             return;
         }
         active_clips_.push_back(name);
-        //current_clip_ = &collection_.get_animation_clip(name);
-        //current_clip_name_ = name;
     }
 
     bool is_active_animation(const std::string& name) const
