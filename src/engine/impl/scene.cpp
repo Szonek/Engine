@@ -20,6 +20,7 @@
 
 #include <RmlUi/Core.h>
 
+#include <ozz/animation/offline/animation_builder.h>
 
 #include <cmath>
 

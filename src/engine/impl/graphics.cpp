@@ -755,12 +755,13 @@ engine::Geometry::~Geometry()
 
 void engine::Geometry::bind() const
 {
+    ENGINE_PROFILER_GPU_SECTION("Geometry::bind");
 	glBindVertexArray(vao_);
 }
 
 void engine::Geometry::draw(Mode mode) const
 {
-    ENGINE_PROFILER_GPU_SECTION("Draw geometry");
+    ENGINE_PROFILER_GPU_SECTION("Geometry::draw");
 	std::uint32_t gl_mode = 0;
 	switch (mode)
 	{

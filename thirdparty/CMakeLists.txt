@@ -19,7 +19,7 @@ add_subdirectory(glm)
 add_subdirectory(entt)
 
 # profiler
-add_subdirectory(tracy-0.10)
+add_subdirectory(tracy-0.12.1)
 
 # gtests
 add_subdirectory(googletest)

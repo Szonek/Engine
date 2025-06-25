@@ -1,6 +1,8 @@
 #include "material.h"
 #include "math_helpers.h"
 
+#include "profiler.h"
+
 engine::MaterialStaticGeometryLit::MaterialStaticGeometryLit()
     : shader_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "lit_helpers.h", "lit.fs" }))
 {
@@ -8,6 +10,7 @@ engine::MaterialStaticGeometryLit::MaterialStaticGeometryLit()
 
 void engine::MaterialStaticGeometryLit::draw(const Geometry& geometry, const DrawContext& ctx)
 {
+    ENGINE_PROFILE_SECTION_N("MaterialStaticGeometryLit::draw");
     shader_.bind();
     
     assert(ctx.entity_id != ENGINE_INVALID_GAME_OBJECT_ID);
@@ -37,6 +40,7 @@ engine::MaterialSkinnedGeometryLit::MaterialSkinnedGeometryLit()
 
 void engine::MaterialSkinnedGeometryLit::draw(const Geometry& geometry, const DrawContext& ctx)
 {
+    ENGINE_PROFILE_SECTION_N("MaterialSkinnedGeometryLit::draw");
     shader_.bind();
 
     assert(ctx.entity_id != ENGINE_INVALID_GAME_OBJECT_ID);
@@ -73,6 +77,7 @@ engine::MaterialSprite::MaterialSprite()
 
 void engine::MaterialSprite::draw(const DrawContext& ctx)
 {
+    ENGINE_PROFILE_SECTION_N("MaterialSprite::draw");
     shader_.bind();
 
     shader_.set_uniform_block("CameraData", &ctx.camera, 0);
@@ -91,6 +96,7 @@ engine::MaterialSkinnedGeometryUnlit::MaterialSkinnedGeometryUnlit()
 
 void engine::MaterialSkinnedGeometryUnlit::draw(const Geometry& geometry, const DrawContext& ctx)
 {
+    ENGINE_PROFILE_SECTION_N("MaterialSkinnedGeometryUnlit::draw");
     shader_.bind();
 
     shader_.set_uniform_block("CameraData", &ctx.camera, 0);
@@ -117,6 +123,7 @@ engine::MaterialStaticGeometryUnlit::MaterialStaticGeometryUnlit()
 
 void engine::MaterialStaticGeometryUnlit::draw(const Geometry& geometry, const DrawContext& ctx)
 {
+    ENGINE_PROFILE_SECTION_N("MaterialStaticGeometryUnlit::draw");
     shader_.bind();
 
     shader_.set_uniform_block("CameraData", &ctx.camera, 0);
