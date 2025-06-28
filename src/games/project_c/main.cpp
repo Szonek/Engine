@@ -12,15 +12,15 @@ int main(int argc, char** argv)
             { project_c::PREFAB_TYPE_BARBARIAN,     { "Barbarian.glb", "KayKit_Adventurers_1.0_FREE/Characters/gltf" }},
 
             // enemies
-            { project_c::PREFAB_TYPE_SKELETON_WARRIOR, { "Skeleton_Warrior.glb", "KayKit_Skeletons_1.0_FREE/characters/gltf" }},
+           // { project_c::PREFAB_TYPE_SKELETON_WARRIOR, { "Skeleton_Warrior.glb", "KayKit_Skeletons_1.0_FREE/characters/gltf" }},
 
             // scene assets
             { project_c::PREFAB_TYPE_FLOOR,          { "Floor_Prototype.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-            { project_c::PREFAB_FLOOR_OUTSIDE_REGION, { "Floor.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
+            //{ project_c::PREFAB_FLOOR_OUTSIDE_REGION, { "Floor.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
             
-            { project_c::PREFAB_TYPE_WALL,      { "Wall.gltf",   "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-            { project_c::PREFAB_TYPE_BOX,       { "Box_B.gltf",  "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-            { project_c::PREFAB_TYPE_COIN_GOLD, { "Coin_A.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
+            //{ project_c::PREFAB_TYPE_WALL,      { "Wall.gltf",   "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
+            //{ project_c::PREFAB_TYPE_BOX,       { "Box_B.gltf",  "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
+            //{ project_c::PREFAB_TYPE_COIN_GOLD, { "Coin_A.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
         };
 
         project_c::AppProjectC app_project_c(prefabs_data);

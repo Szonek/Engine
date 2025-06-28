@@ -555,9 +555,7 @@ ENGINE_API void engineApplicationDestroyShader(engine_application_t handle, engi
 // fonts
 ENGINE_API engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name);
 
-
-
-ENGINE_API engine_skin_t engineSceneCreateSkinFromDesc(engine_scene_t scene, const engine_vector_uint32_t* bones, const char* name);
+ENGINE_API engine_skin_t engineSceneCreateSkinFromDesc(engine_scene_t scene, const engine_skin_create_desc_t* skin_desc, const engine_model_node_desc_t* nodes);
 
 
 // model loading

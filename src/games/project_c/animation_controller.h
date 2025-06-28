@@ -258,6 +258,10 @@ public:
 
     void update(float dt)
     {
+        if (collection_.is_empty())
+        {
+            return;
+        }
         std::map<engine_game_object_t, AnimationTransform> final_transforms;
         for (auto& clip_name : active_clips_)
         {

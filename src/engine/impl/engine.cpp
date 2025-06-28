@@ -261,10 +261,15 @@ engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t ha
     return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
-engine_skin_t engineSceneCreateSkinFromDesc(engine_scene_t scene, const engine_vector_uint32_t* bones, const char* name)
+engine_skin_t engineSceneCreateSkinFromDesc(engine_scene_t scene, const engine_skin_create_desc_t* skin_desc, const engine_model_node_desc_t* nodes)
 {
-    if (!scene || !bones || !name)
+    if (!scene || !skin_desc || !nodes)
     {
+        return nullptr;
+    }
+    if (!skin_desc->name || skin_desc->name[0] == '\0')
+    {
+        engineLog("Skin name is empty, cannot create skin.\n");
         return nullptr;
     }
     auto* sc = scene_cast(scene);
