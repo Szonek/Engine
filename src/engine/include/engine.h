@@ -533,7 +533,7 @@ ENGINE_API uint32_t engineModelNodeDescGetIndex(const engine_model_node_desc2_t 
 ENGINE_API uint32_t engineModelNodeDescGetGeometryIndex(const engine_model_node_desc2_t desc); // -1 if not used
 ENGINE_API uint32_t engineModelNodeDescGetSkinIndex(const engine_model_node_desc2_t desc); // -1 if not used
 ENGINE_API uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc2_t desc); // -1 if not used
-ENGINE_API engine_fvec3_t engineModelNodeDescGetTranslate(const engine_model_node_desc2_t desc);
+ENGINE_API engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc2_t desc);
 ENGINE_API engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc2_t desc);
 ENGINE_API engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_desc2_t desc); // quaternion: {x, y, z, w}
 

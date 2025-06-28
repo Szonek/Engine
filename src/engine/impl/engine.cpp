@@ -1471,6 +1471,40 @@ uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc2_t des
     return api_cast(desc)->material;
 }
 
+engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc2_t desc)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    engine_fvec3_t ret{};
+    ret.x = typed_desc->translation[0];
+    ret.y = typed_desc->translation[1];
+    ret.z = typed_desc->translation[2];
+    return ret;
+}
+
+engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc2_t desc)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    engine_fvec3_t ret{};
+    ret.x = typed_desc->scale[0];
+    ret.y = typed_desc->scale[1];
+    ret.z = typed_desc->scale[2];
+    return ret;
+}
+
+engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_desc2_t desc)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    engine_fvec4_t ret{};
+    ret.x = typed_desc->rotation[0];
+    ret.y = typed_desc->rotation[1];
+    ret.z = typed_desc->rotation[2];
+    ret.w = typed_desc->rotation[3];
+    return ret;
+}
+
 const engine_model_node_desc2_t engineModelDescGetNodeDesc(const engine_model_desc2_t desc, size_t idx)
 {
     assert(desc);

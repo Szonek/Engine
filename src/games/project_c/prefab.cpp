@@ -6,6 +6,7 @@
 project_c::Prefab::Prefab(Prefab&& rhs) noexcept
 {
     std::swap(app_, rhs.app_);
+    std::swap(model_info2_, rhs.model_info2_);
     std::swap(model_info_, rhs.model_info_);
     std::swap(geometries_, rhs.geometries_);
     std::swap(textures_, rhs.textures_);
@@ -17,6 +18,7 @@ project_c::Prefab& project_c::Prefab::operator=(Prefab&& rhs) noexcept
     if (this != &rhs)
     {
         std::swap(app_, rhs.app_);
+        std::swap(model_info2_, rhs.model_info2_);
         std::swap(model_info_, rhs.model_info_);
         std::swap(geometries_, rhs.geometries_);
         std::swap(textures_, rhs.textures_);
@@ -180,6 +182,75 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     project_c::PrefabResult ret{};
     ret.go = ENGINE_INVALID_GAME_OBJECT_ID;
 
+    std::map<std::uint32_t, engine_game_object_t> node_id_to_game_object;
+    const auto nodes_count = engineModelDescGetNodesDescCount(model_info2_);
+    for (auto i = 0; i < nodes_count; i++)
+    {
+        const auto node_desc = engineModelDescGetNodeDesc(model_info2_, i);
+        const auto& go = engineSceneCreateGameObject(scene);
+        node_id_to_game_object[engineModelNodeDescGetIndex(node_desc)] = go;
+        const auto name = engineModelNodeDescGetName(node_desc);
+        if (name)
+        {
+            auto nc = engineSceneAddNameComponent(scene, go);
+            std::strncpy(nc.name, name, std::size(nc.name));
+            engineSceneUpdateNameComponent(scene, go, &nc);
+
+        }
+        log(std::format("Created entity [id: {}] with name: {}\n", go, name));
+
+        // transform
+        {
+            auto tc = engineSceneAddTransformComponent(scene, go);
+            set_c_array(tc.position, engineModelNodeDescGetTranslation(node_desc));
+            set_c_array(tc.rotation, engineModelNodeDescGetRotationQuaternion(node_desc));
+            set_c_array(tc.scale, engineModelNodeDescGetScale(node_desc));
+            engineSceneUpdateTransformComponent(scene, go, &tc);
+            log(std::format("\t[{}] has added transform component\n", go));
+        }
+
+        const auto geo_index = engineModelNodeDescGetGeometryIndex(node_desc);
+        if (geo_index != -1)
+        {
+            auto mc = engineSceneAddMeshComponent(scene, go);
+            mc.geometry = geometries_.at(geo_index);
+            engineSceneUpdateMeshComponent(scene, go, &mc);
+            log(std::format("\t[{}] has added mesh component with geometry index: {}\n", go, geo_index));
+        }
+
+        const auto mat_index = engineModelNodeDescGetMaterialIndex(node_desc);
+        if (mat_index != -1)
+        {
+            auto material = engineSceneAddMaterialComponent(scene, go);
+            material = materials_.at(mat_index);
+            engineSceneUpdateMaterialComponent(scene, go, &material);
+            log(std::format("\t[{}] added material component with material idx: {}\n", go, mat_index));
+        }
+
+        if (!engineModelNodeDescGetParent(node_desc))
+        {
+            ret.go = go;
+        }
+    }
+    assert(ret.go != ENGINE_INVALID_GAME_OBJECT_ID);
+
+    // hierarchy
+    for (auto i = 0; i < nodes_count; i++)
+    {
+        const auto node_desc = engineModelDescGetNodeDesc(model_info2_, i);
+        const auto& go = node_id_to_game_object[engineModelNodeDescGetIndex(node_desc)];
+        if (const auto parent_node_desc = engineModelNodeDescGetParent(node_desc))
+        {
+            const std::uint32_t parent_index = engineModelNodeDescGetIndex(parent_node_desc);
+            // add parent component
+            auto pc = engineSceneAddParentComponent(scene, go);
+            pc.parent = node_id_to_game_object[parent_index];
+            engineSceneUpdateParentComponent(scene, go, &pc);
+            log(std::format("Entity: {} added parent component: {}\n", go, pc.parent));
+        }
+    }
+
+#if 0
     std::map<std::uint32_t, engine_game_object_t> node_id_to_game_object;
     for (auto i = 0; i < model_info_.nodes_count; i++)
     {
@@ -352,11 +423,12 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     //    }
     //    ret.anim_controller.add_animation_clip(anim_in.name, project_c::AnimationClip(std::move(anim_clip_data)));
     //}
-
+#endif
     return ret;
 }
 
 bool project_c::Prefab::is_valid() const
 {
-    return model_info_.nodes_count > 0;
+    return model_info2_ && engineModelDescGetNodesDescCount(model_info2_) > 0;
+    //return model_info_.nodes_count > 0;
 }

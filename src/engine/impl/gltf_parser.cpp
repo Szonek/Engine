@@ -463,7 +463,10 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         n.index = idx++;
         n.name = node.name;
         n.mesh = node.mesh;
-        n.material = model.meshes[n.mesh].primitives.front().material; // ToDo: add support for multiple materials
+        if (n.mesh != INVALID_VALUE)
+        {
+            n.material = model.meshes[n.mesh].primitives.front().material; // ToDo: add support for multiple materials
+        }
         n.skin = node.skin;
         if (!node.translation.empty())
         {
