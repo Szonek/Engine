@@ -300,14 +300,6 @@ typedef enum _engine_texture_color_space_t
     ENGINE_TEXTURE_COLOR_SPACE_LINEAR,
 } engine_texture_color_space_t;
 
-typedef struct _texture_2d_create_desc_t
-{
-    uint32_t width;
-    uint32_t height;
-    engine_data_layout_t data_layout;
-    const void* data;
-} engine_texture_2d_create_desc_t;
-
 typedef enum _engine_result_code_t
 {
     ENGINE_RESULT_CODE_OK = 0,
@@ -364,23 +356,6 @@ typedef struct _engine_vertex_attributes_layout_t
 {
     engine_vertex_attribute_desc_t attributes[ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT];
 } engine_vertex_attributes_layout_t;
-
-typedef struct _engine_collision_contact_t
-{
-    float point_object_a[3];
-    float point_object_b[3];
-    int32_t lifetime;
-} engine_collision_contact_point_t;
-
-typedef struct _engine_collision_info_t
-{
-    engine_game_object_t object_a;
-    engine_game_object_t object_b;
-
-    size_t contact_points_count;
-    const engine_collision_contact_point_t* contact_points;
-
-} engine_collision_info_t;
 
 typedef struct _engine_collision_contact_point_desc_t engine_collision_contact_point_desc_t;
 ENGINE_API engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectA(const engine_collision_contact_point_desc_t* contact);
