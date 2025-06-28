@@ -112,14 +112,6 @@ void project_c::Weapon::drop_on_ground(glm::vec3 position)
     auto cc = engineSceneGetColliderComponent(scene, go_);
     cc.is_trigger = false;
     engineSceneUpdateColliderComponent(scene, go_, &cc);
-
-
-        //if (engineApplicationIsMouseButtonDown(my_scene_->get_app_handle(), ENGINE_MOUSE_BUTTON_LEFT))
-        {
-
-            //engineLog(std::format("[TEST] scenn point: [{}, {}, {}]\n", coords.x, coords.y, coords.z).c_str());
-        }
-    //}
 }
 
 void project_c::Weapon::on_collision(const collision_t& info)
@@ -314,15 +306,6 @@ void project_c::Player::update(float dt)
         enable_state_bit(States::TRIGGER_ATTACK);
     }
 
-    //if (!weapon_ && hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID && lmb)
-    //{
-    //    if (auto* sword = my_scene_->get_script<Weapon>(hit_info.go))
-    //    {
-    //        weapon_ = sword;
-    //        weapon_->attach_to_game_object(right_arm_go_, glm::vec3(-0.2f, 0.0f, 0.1f), glm::angleAxis(glm::radians(-65.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
-    //    }
-    //}
-
     if (hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID && lmb)
     {
         if (auto* interactable = my_scene_->get_script<Interactable>(hit_info.go))
@@ -364,29 +347,6 @@ void project_c::Player::update(float dt)
     const glm::quat rotation = glm::make_quat(tc.rotation);
     const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
     const glm::vec3 right = rotation * glm::vec3(1.0f, 0.0f, 0.0f);
-
-    // print states for debug purposes
-    if (check_state_bit(States::ATTACK))
-    {
-        engineLog(std::format("Player state: ATTACK, hit info: {}\n", hit_info.go).c_str());
-    }
-    if (check_state_bit(States::TRIGGER_ATTACK))
-    {
-        engineLog("Player state: TRIGGER_ATTACK\n");
-    }
-    if (check_state_bit(States::MOVE))
-    {
-        engineLog("Player state: MOVE\n");
-    }
-    if (check_state_bit(States::DODGE))
-    {
-        engineLog("Player state: DODGE\n");
-    }
-    if (check_state_bit(States::IDLE))
-    {
-        engineLog("Player state: IDLE\n");
-    }
-
 
     if (state_ == States::IDLE)
     {

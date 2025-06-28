@@ -272,7 +272,9 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         for (const auto& point : scene_spawn_points.player)
         {
             auto s = scene.register_script<project_c::Player>(app.instantiate_prefab(project_c::PREFAB_TYPE_BARBARIAN, &scene));
-            s->set_world_position(point.x, 0.0f, point.y);
+            s->set_world_position(point.x, 1.0f, point.y);
+            auto w = scene.register_script<project_c::Weapon>();
+            const auto item_equipped = s->equip_waepon(w);
         }
     }
 
@@ -431,23 +433,29 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         engineUiDocumentShow(ui_data_.doc);
     }
 
+    //const std::string scene_str =
+    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+    //    "xxxxxxb                            xxxxxxxxxx\n"
+    //    "xxxxxx e        wp             e b xxxxxxxxxx\n"
+    //    "xxxxxx                           b xxxxxxxxxx\n"
+    //    "xxxxxx                             xxxxxxxxxx\n"
+    //    "xxxxxxxxxxxxxxxxx      xxxxxxxxxxxxxxxxxxxxxx\n"
+    //    "xxxxxxxxxxxxxxxxx   e  xxxxxxxxxxxxxxxxxxxxxx\n"
+    //    "xxxxxxxxxxxxxxxxx bbbb xxxxxxxxxxxxxxxxxxxxxx\n"
+    //    "xxxxxxxxxxxxxxxxx      xxxxxxxxxxxxxxxxxxxxxx\n"
+    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
+
     const std::string scene_str =
-        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-        "xxxxxxb                            xxxxxxxxxx\n"
-        "xxxxxx e        wp             e b xxxxxxxxxx\n"
-        "xxxxxx                           b xxxxxxxxxx\n"
-        "xxxxxx                             xxxxxxxxxx\n"
-        "xxxxxxxxxxxxxxxxx      xxxxxxxxxxxxxxxxxxxxxx\n"
-        "xxxxxxxxxxxxxxxxx   e  xxxxxxxxxxxxxxxxxxxxxx\n"
-        "xxxxxxxxxxxxxxxxx bbbb xxxxxxxxxxxxxxxxxxxxxx\n"
-        "xxxxxxxxxxxxxxxxx      xxxxxxxxxxxxxxxxxxxxxx\n"
-        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
+        "         \n"
+        "    p    \n"
+        "         \n";
+
 
     register_script<MainLight>();
     auto typed_app = static_cast<AppProjectC*>(app);
