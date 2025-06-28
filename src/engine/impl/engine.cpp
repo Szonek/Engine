@@ -1084,7 +1084,23 @@ uint32_t engineTexture2dDescGetHeight(const engine_texture_2d_desc2_t desc)
 
 engine_data_layout_t engineTexture2dDescGetDataLayout(const engine_texture_2d_desc2_t desc)
 {
-    return api_cast(desc)->layout;
+    using namespace engine;
+    const auto data_layout = [](const auto engine_api_layout)
+        {
+            switch (engine_api_layout)
+            {
+            case DataLayout::eRGBA_FP32: return ENGINE_DATA_LAYOUT_RGBA_FP32;
+            case DataLayout::eR_FP32: return ENGINE_DATA_LAYOUT_R_FP32;
+
+            case DataLayout::eRGBA_U8: return ENGINE_DATA_LAYOUT_RGBA_U8;
+            case DataLayout::eRGB_U8: return ENGINE_DATA_LAYOUT_RGB_U8;
+            case DataLayout::eR_U8: return ENGINE_DATA_LAYOUT_R_U8;
+
+            default:
+                return ENGINE_DATA_LAYOUT_COUNT;
+            }
+        }(api_cast(desc)->layout);
+    return data_layout;
 }
 
 const void* engineTexture2dDescGetData(const engine_texture_2d_desc2_t desc)

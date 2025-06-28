@@ -141,7 +141,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
         tex2d_desc.name = "default_texture";
 		tex2d_desc.width = 1;
 		tex2d_desc.height = 1;
-        tex2d_desc.layout = ENGINE_DATA_LAYOUT_RGB_U8;
+        tex2d_desc.layout = engine::DataLayout::eRGBA_U8;
         tex2d_desc.data = default_texture_color;
         default_texture_idx_ = add_texture(tex2d_desc);
 	}
@@ -329,21 +329,7 @@ engine_application_frame_end_info_t engine::Application::end_frame()
 
 std::uint32_t engine::Application::add_texture(const TextureDesc& desc)
 {
-    const auto data_layout = [](const auto engine_api_layout)
-        {
-            switch (engine_api_layout)
-            {
-            case ENGINE_DATA_LAYOUT_RGBA_FP32: return DataLayout::eRGBA_FP32;
-            case ENGINE_DATA_LAYOUT_R_FP32: return DataLayout::eR_FP32;
-
-            case ENGINE_DATA_LAYOUT_RGBA_U8: return DataLayout::eRGBA_U8;
-            case ENGINE_DATA_LAYOUT_RGB_U8: return DataLayout::eRGB_U8;
-            case ENGINE_DATA_LAYOUT_R_U8: return DataLayout::eR_U8;
-            default:
-                return DataLayout::eCount;
-            }
-        }(desc.layout);
-    return textures_atlas_.add_object(desc.name, Texture2D(desc.width, desc.height, true, desc.data.data(), data_layout, TextureAddressClampMode::eClampToEdge));
+    return textures_atlas_.add_object(desc.name, Texture2D(desc.width, desc.height, true, desc.data.data(), desc.layout, TextureAddressClampMode::eClampToEdge));
 }
 
 std::uint32_t engine::Application::add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t /*color_space*/)

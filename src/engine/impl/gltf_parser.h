@@ -29,7 +29,7 @@ struct TextureDesc
     std::string name;
     std::uint32_t width;
     std::uint32_t height;
-    engine_data_layout_t layout;
+    DataLayout layout;
     std::vector<std::byte> data;
 };
 

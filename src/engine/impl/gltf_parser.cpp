@@ -270,7 +270,7 @@ inline engine::TextureDesc parse_texture(const tinygltf::Texture& texture, const
         tex_info.name = tex.uri;
         tex_info.width = tc.get_width();
         tex_info.height = tc.get_height();
-        tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
+        tex_info.layout = engine::DataLayout::eRGB_U8;
         assert(tc.get_type() == engine::TextureAssetContext::TextureAssetDataType::eUchar8);
         tex_info.data.resize(tc.get_width() * tc.get_height() * tc.get_channels());
         std::memcpy(tex_info.data.data(), tc.get_data_ptr(), tex_info.data.size());
@@ -280,19 +280,19 @@ inline engine::TextureDesc parse_texture(const tinygltf::Texture& texture, const
         tex_info.name = tex.name;
         tex_info.width = tex.width;
         tex_info.height = tex.height;
-        tex_info.layout = ENGINE_DATA_LAYOUT_COUNT;
+        tex_info.layout = engine::DataLayout::eCount;
         if (tex.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
         {
             if (tex.component == 4)
             {
-                tex_info.layout = ENGINE_DATA_LAYOUT_RGBA_U8;
+                tex_info.layout = engine::DataLayout::eRGBA_U8;
             }
             else if (tex.component == 3)
             {
-                tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
+                tex_info.layout = engine::DataLayout::eRGB_U8;
             }
         }
-        assert(tex_info.layout != ENGINE_DATA_LAYOUT_COUNT);
+        assert(tex_info.layout != engine::DataLayout::eCount);
         tex_info.data.resize(tex.image.size());
         std::memcpy(tex_info.data.data(), tex.image.data(), tex_info.data.size());
     }
