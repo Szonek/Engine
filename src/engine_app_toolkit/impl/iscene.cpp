@@ -34,12 +34,9 @@ engine_result_code_t propagate_collisions_events(engine_application_t app, engin
         for (std::size_t j = 0; j < collision.contact_points.size(); j++)
         {
             const auto cp = engineCollisionDescGetContactPoint(col_desc, j);
-            const auto point_on_a = engineCollisionContactPointDescGetPointOnObjectA(cp);
             collision.contact_points[j].lifetime = engineCollisionContactPointDescGetLifetime(cp);
-            //ToDo: this is not correct, obj_b should should point_on_b variable
-            collision.contact_points[j].point[0] = point_on_a.x;
-            collision.contact_points[j].point[1] = point_on_a.y;
-            collision.contact_points[j].point[2] = point_on_a.z;
+            collision.contact_points[j].point_on_a = engineCollisionContactPointDescGetPointOnObjectA(cp);
+            collision.contact_points[j].point_on_b = engineCollisionContactPointDescGetPointOnObjectB(cp);
         }
 
         collision.other = obj_b;
