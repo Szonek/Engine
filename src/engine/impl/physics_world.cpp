@@ -227,6 +227,51 @@ const std::vector<engine_collision_info_t>& engine::PhysicsWorld::get_collisions
     return collisions_info_buffer_;
 }
 
+const std::vector<engine::CollisionDesc>& engine::PhysicsWorld::get_collisions2()
+{
+    collisions_desc_cache_.clear();
+
+    const auto num_manifolds = dynamics_world_->getDispatcher()->getNumManifolds();
+    //log::log(log::LogLevel::eTrace, fmt::format("Collisions: {}\n", num_manifolds));
+
+    for (auto i = 0; i < num_manifolds; i++)
+    {
+        const auto manifold = dynamics_world_->getDispatcher()->getManifoldByIndexInternal(i);
+
+        const auto num_contacts = manifold->getNumContacts();
+        //log::log(log::LogLevel::eTrace, fmt::format("Num contacts: {}\n", num_contacts));
+        if (num_contacts == 0)
+        {
+            continue;
+        }
+
+        CollisionDesc new_collision{};
+        new_collision.contact_points.reserve(num_contacts);
+        new_collision.object_a = manifold->getBody0()->getUserIndex();
+        new_collision.object_b = manifold->getBody1()->getUserIndex();
+
+        for (auto j = 0; j < num_contacts; j++)
+        {
+            const auto pt = manifold->getContactPoint(j);
+
+            const auto& position_a = pt.getPositionWorldOnA();
+            const auto& position_b = pt.getPositionWorldOnB();
+
+            CollisionContactPointDesc new_contact_point{};
+            new_contact_point.lifetime = pt.getLifeTime();
+
+            new_contact_point.point_on_obj_a = { position_a.getX(), position_a.getY(), position_a.getZ() };
+            new_contact_point.point_on_obj_b = { position_b.getX(), position_b.getY(), position_b.getZ() };
+            new_collision.contact_points.push_back(new_contact_point);
+            //log::log(log::LogLevel::eTrace, fmt::format("PT: {}\n", pt.getDistance()));
+        }
+
+        collisions_desc_cache_.push_back(new_collision);
+    }
+
+    return collisions_desc_cache_;
+}
+
 void engine::PhysicsWorld::set_gravity(std::span<const float> g)
 {
     dynamics_world_->setGravity(btVector3(g[0], g[1], g[2]));

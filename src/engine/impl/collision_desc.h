@@ -14,8 +14,8 @@ struct CollisionContactPointDesc
 
 struct CollisionDesc
 {
-    std::uint32_t object_a;
-    std::uint32_t object_b;
+    std::int32_t object_a;
+    std::int32_t object_b;
 
     std::vector<CollisionContactPointDesc> contact_points;
 

@@ -382,16 +382,16 @@ typedef struct _engine_collision_info_t
 
 } engine_collision_info_t;
 
-typedef struct _engine_collision_contact_point_desc_t* engine_collision_contact_point_desc_t;
-ENGINE_API engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectA(const engine_collision_contact_point_desc_t contact);
-ENGINE_API engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectB(const engine_collision_contact_point_desc_t contact);
-ENGINE_API int32_t engineCollisionContactPointDescGetLifetime(const engine_collision_contact_point_desc_t contact);
+typedef struct _engine_collision_contact_point_desc_t engine_collision_contact_point_desc_t;
+ENGINE_API engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectA(const engine_collision_contact_point_desc_t* contact);
+ENGINE_API engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectB(const engine_collision_contact_point_desc_t* contact);
+ENGINE_API int32_t engineCollisionContactPointDescGetLifetime(const engine_collision_contact_point_desc_t* contact);
 
-typedef struct _engine_collision_desc_t* engine_collision_desc_t;
-ENGINE_API engine_game_object_t engineCollisionDescGetObjectA(const engine_collision_desc_t desc);
-ENGINE_API engine_game_object_t engineCollisionDescGetObjectB(const engine_collision_desc_t desc);
-ENGINE_API size_t engineCollisionDescGetContactPointsCount(const engine_collision_desc_t desc);
-ENGINE_API const engine_collision_contact_point_desc_t engineCollisionDescGetContactPoint(const engine_collision_desc_t desc, size_t idx);
+typedef struct _engine_collision_desc_t engine_collision_desc_t;
+ENGINE_API engine_game_object_t engineCollisionDescGetObjectA(const engine_collision_desc_t* desc);
+ENGINE_API engine_game_object_t engineCollisionDescGetObjectB(const engine_collision_desc_t* desc);
+ENGINE_API size_t engineCollisionDescGetContactPointsCount(const engine_collision_desc_t* desc);
+ENGINE_API const engine_collision_contact_point_desc_t* engineCollisionDescGetContactPoint(const engine_collision_desc_t* desc, size_t idx);
 
 typedef struct _engine_uniform_buffer_create_desc_t
 {
@@ -562,6 +562,7 @@ ENGINE_API bool engineApplicationDoTexture2DNameExists(engine_application_t hand
 // physics 
 ENGINE_API void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3]);
 ENGINE_API void engineScenePhysicsGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
+ENGINE_API void engineScenePhysicsGetCollisions2(engine_scene_t scene, size_t* num_collision, const engine_collision_desc_t* collisions);
 ENGINE_API engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance);
 ENGINE_API bool engineScenePhysicsAddForce(engine_scene_t scene, engine_game_object_t go, const float force[3], engine_force_type_t type);
 

@@ -95,17 +95,17 @@ inline auto api_cast(engine::MaterialDesc& desc)
     return reinterpret_cast<engine_material_desc2_t>(&desc);
 }
 
-inline auto api_cast(const engine_collision_contact_point_desc_t& contact)
+inline auto api_cast(const engine_collision_contact_point_desc_t* contact)
 {
     return reinterpret_cast<const engine::CollisionContactPointDesc*>(&contact);
 }
 
-inline auto api_cast(const engine::CollisionContactPointDesc* contact)
+inline auto api_cast(const engine::CollisionContactPointDesc& contact)
 {
-    return reinterpret_cast<const engine_collision_contact_point_desc_t>(&contact);
+    return reinterpret_cast<const engine_collision_contact_point_desc_t*>(&contact);
 }
 
-inline auto api_cast(const engine_collision_desc_t& contact)
+inline auto api_cast(const engine_collision_desc_t* contact)
 {
     return reinterpret_cast<const engine::CollisionDesc*>(&contact);
 }
@@ -493,6 +493,22 @@ void engineScenePhysicsGetCollisions(engine_scene_t scene, size_t* num_collision
 {
     auto sc = api_cast(scene);
     sc->get_physcis_collisions_list(*collisions, num_collision);
+}
+
+void engineScenePhysicsGetCollisions2(engine_scene_t scene, size_t* num_collision, const engine_collision_desc_t* collisions)
+{
+    if (!scene || !num_collision || !collisions)
+    {
+        return;
+    }
+    auto sc = api_cast(scene);
+    auto collisions_list = sc->get_physcis_collisions();
+    *num_collision = collisions_list.size();
+    if (*num_collision == 0)
+    {
+        return;
+    }
+    collisions = reinterpret_cast<const engine_collision_desc_t*>(collisions_list.data());
 }
 
 engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance)
@@ -1080,7 +1096,7 @@ bool engineSceneHasChildrenComponent(engine_scene_t scene, engine_game_object_t 
     return has_component<engine_children_component_t>(scene, game_object);
 }
 
-engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectA(const engine_collision_contact_point_desc_t contact)
+engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectA(const engine_collision_contact_point_desc_t* contact)
 {
     assert(contact);
     const auto typed_contact = api_cast(contact);
@@ -1091,7 +1107,7 @@ engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectA(const engine_col
     return { 0.0f, 0.0f, 0.0f };
 }
 
-engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectB(const engine_collision_contact_point_desc_t contact)
+engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectB(const engine_collision_contact_point_desc_t* contact)
 {
     assert(contact);
     const auto typed_contact = api_cast(contact);
@@ -1102,42 +1118,42 @@ engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectB(const engine_col
     return { 0.0f, 0.0f, 0.0f };
 }
 
-int32_t engineCollisionContactPointDescGetLifetime(const engine_collision_contact_point_desc_t contact)
+int32_t engineCollisionContactPointDescGetLifetime(const engine_collision_contact_point_desc_t* contact)
 {
     assert(contact);
     return api_cast(contact)->lifetime;
 }
 
-engine_game_object_t engineCollisionDescGetObjectA(const engine_collision_desc_t desc)
+engine_game_object_t engineCollisionDescGetObjectA(const engine_collision_desc_t* desc)
 {
     assert(desc);
     return static_cast<engine_game_object_t>(api_cast(desc)->object_a);
 }
 
-engine_game_object_t engineCollisionDescGetObjectB(const engine_collision_desc_t desc)
+engine_game_object_t engineCollisionDescGetObjectB(const engine_collision_desc_t* desc)
 {
     assert(desc);
     return static_cast<engine_game_object_t>(api_cast(desc)->object_b);
 }
 
-size_t engineCollisionDescGetContactPointsCount(const engine_collision_desc_t desc)
+size_t engineCollisionDescGetContactPointsCount(const engine_collision_desc_t* desc)
 {
     assert(desc);
     return api_cast(desc)->contact_points.size();
 }
 
-const engine_collision_contact_point_desc_t engineCollisionDescGetContactPoint(const engine_collision_desc_t desc, size_t idx)
+const engine_collision_contact_point_desc_t* engineCollisionDescGetContactPoint(const engine_collision_desc_t* desc, size_t idx)
 {
     assert(desc);
-    const auto typed_desc = api_cast(desc);
+    auto typed_desc = api_cast(desc);
     if (idx < typed_desc->contact_points.size())
     {
-        return api_cast(&typed_desc->contact_points.at(idx));
+        auto ret = api_cast(typed_desc->contact_points.at(idx));
+        return ret;
     }
     assert("Index out of bounds for contact points array!");
     return nullptr;
 }
-
 const char* engineTexture2dDescGetName(const engine_texture_2d_desc2_t desc)
 {
     assert(desc);
