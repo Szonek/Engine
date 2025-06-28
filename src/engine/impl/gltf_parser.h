@@ -22,7 +22,6 @@ struct GeometryInfo
     std::vector<std::byte> vertex_data;
     std::int32_t vertex_count = 0;
     std::vector<std::uint32_t> indicies;
-    std::int32_t material_index = INVALID_VALUE;
 };
 
 struct TextureInfo
@@ -81,6 +80,7 @@ struct ModelNode
     std::string name = "";
     std::int32_t index = INVALID_VALUE;
     std::int32_t mesh = INVALID_VALUE;
+    std::int32_t material = INVALID_VALUE;
     std::int32_t skin = INVALID_VALUE;
     std::shared_ptr<ModelNode> parent = nullptr; // shared_ptr to have pointer stability while erasing nodes
     std::vector<std::shared_ptr<ModelNode>> children = {};

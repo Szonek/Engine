@@ -33,10 +33,10 @@ inline void set_c_array(std::span<float> in, std::span<const float> data)
 inline void set_c_array(std::span<float> in, const engine_color_desc_t& desc)
 {
     assert(in.size() == 4);
-    in[0] = engineColorDescGetR(desc);
-    in[1] = engineColorDescGetG(desc);
-    in[2] = engineColorDescGetB(desc);
-    in[3] = engineColorDescGetA(desc);
+    in[0] = desc.r;
+    in[1] = desc.g;
+    in[2] = desc.b;
+    in[3] = desc.a;
 }
 
 template<typename T, std::size_t S>

@@ -21,13 +21,13 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
 
     engine::GeometryInfo ret{};
     ret.name = mesh.name;
-    ret.material_index = mesh.primitives.front().material;
+    //ret.material_index = mesh.primitives.front().material;
     //assert(mesh.primitives.size() == 1 && "Not enabled path for primitives count > 1");
-
+    const auto material = mesh.primitives.front().material;
     for (std::size_t prim_idx = 0; prim_idx < mesh.primitives.size(); prim_idx++)
     {
         const auto& primitive = mesh.primitives[prim_idx];
-        assert(ret.material_index  == primitive.material && "Currently not supporting multi-material meshes!");
+        assert(material == primitive.material && "Currently not supporting multi-material meshes!");
 
         static const std::map<std::string, engine_vertex_attribute_type_t> expected_attrib_names = []()
         {
@@ -463,6 +463,7 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         n.index = idx++;
         n.name = node.name;
         n.mesh = node.mesh;
+        n.material = model.meshes[n.mesh].primitives.front().material; // ToDo: add support for multiple materials
         n.skin = node.skin;
         if (!node.translation.empty())
         {

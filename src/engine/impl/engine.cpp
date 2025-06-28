@@ -54,9 +54,14 @@ inline auto api_cast(engine_model_desc2_t desc)
     return reinterpret_cast<engine::ModelInfo*>(desc);
 }
 
-inline auto api_cast(engine_color_desc_t desc)
+inline auto api_cast(engine_model_node_desc2_t desc)
 {
-    return reinterpret_cast<glm::vec4*>(desc);
+    return reinterpret_cast<engine::ModelNode*>(desc);
+}
+
+inline auto api_cast(engine::ModelNode* desc)
+{
+    return reinterpret_cast<engine_model_node_desc2_t>(desc);
 }
 
 inline auto api_cast(engine_texture_2d_desc2_t desc)
@@ -469,7 +474,7 @@ engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engin
             ret_n.name = in_n->name.c_str();
             if (ret_n.geometry_index != -1)
             {
-                ret_n.material_index = model_info->geometries[ret_n.geometry_index].material_index;
+                ret_n.material_index = in_n->material;
             }
             else
             {
@@ -1382,30 +1387,6 @@ engine_vertex_attributes_layout_t engineGeometryDescGetAttributesLayout(const en
     return api_cast(desc)->vertex_laytout;
 }
 
-float engineColorDescGetR(const engine_color_desc_t desc)
-{
-    assert(desc);
-    return api_cast(desc)->r;
-}
-
-float engineColorDescGetG(const engine_color_desc_t desc)
-{
-    assert(desc);
-    return api_cast(desc)->g;
-}
-
-float engineColorDescGetB(const engine_color_desc_t desc)
-{
-    assert(desc);
-    return api_cast(desc)->b;
-}
-
-float engineColorDescGetA(const engine_color_desc_t desc)
-{
-    assert(desc);
-    return api_cast(desc)->a;
-}
-
 const char* engineMaterialDescGetName(const engine_material_desc2_t desc)
 {
     assert(desc);
@@ -1415,13 +1396,92 @@ const char* engineMaterialDescGetName(const engine_material_desc2_t desc)
 engine_color_desc_t engineMaterialDescGetDiffuseColor(const engine_material_desc2_t desc)
 {
     assert(desc);
-    return reinterpret_cast<engine_color_desc_t>(&api_cast(desc)->diffuse_factor);
+    const auto typed_desc = api_cast(desc);
+    // memcpy?
+    engine_color_desc_t ret{};
+    ret.r = typed_desc->diffuse_factor.r;
+    ret.g = typed_desc->diffuse_factor.g;
+    ret.b = typed_desc->diffuse_factor.b;
+    ret.a = typed_desc->diffuse_factor.a;
+    return ret;
 }
 
 uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_material_desc2_t desc)
 {
     assert(desc);
     return api_cast(desc)->diffuse_texture;
+}
+
+const char* engineModelNodeDescGetName(const engine_model_node_desc2_t desc)
+{
+    assert(desc);
+    return api_cast(desc)->name.c_str();
+}
+
+engine_model_node_desc2_t engineModelNodeDescGetParent(const engine_model_node_desc2_t desc)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    if (typed_desc->parent)
+    {
+        return api_cast(typed_desc->parent.get());
+    }
+    return nullptr;
+}
+
+engine_model_node_desc2_t engineModelNodeDescGetChildren(const engine_model_node_desc2_t desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    if (idx < typed_desc->children.size())
+    {
+        return api_cast(typed_desc->children.at(idx).get());
+    }
+    assert("Index out of bounds for children array!");
+    return nullptr;
+}
+
+uint32_t engineModelNodeDescGetChildrenCount(const engine_model_node_desc2_t desc)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    return static_cast<uint32_t>(typed_desc->children.size());
+}
+
+uint32_t engineModelNodeDescGetIndex(const engine_model_node_desc2_t desc)
+{
+    return api_cast(desc)->index;
+}
+
+uint32_t engineModelNodeDescGetGeometryIndex(const engine_model_node_desc2_t desc)
+{
+    assert(desc);
+    return api_cast(desc)->mesh;
+}
+
+uint32_t engineModelNodeDescGetSkinIndex(const engine_model_node_desc2_t desc)
+{
+    assert(desc);
+    return api_cast(desc)->skin;
+}
+
+uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc2_t desc)
+{
+    assert(desc);
+    return api_cast(desc)->material;
+}
+
+const engine_model_node_desc2_t engineModelDescGetNodeDesc(const engine_model_desc2_t desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    return api_cast(typed_desc->nodes.at(idx).get());
+}
+
+uint32_t engineModelDescGetNodesDescCount(const engine_model_desc2_t desc)
+{
+    assert(desc);
+    return api_cast(desc)->nodes.size();
 }
 
 const engine_texture_2d_desc2_t engineModelDescGetTexture2dDesc(const engine_model_desc2_t desc, size_t idx)
