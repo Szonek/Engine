@@ -48,7 +48,25 @@ project_c::Prefab::~Prefab()
 project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name, std::string_view base_dir)
     : app_(app)
 {
+#if 1
+    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile_2(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_info2_);
 
+    materials_ = std::vector<engine_material_component_t>(engineModelDescGetMaterialsDescCount(model_info2_));
+    for (std::uint32_t i = 0; i < materials_.size(); i++)
+    {
+        const auto& desc = engineModelDescGetMaterialDesc(model_info2_, i);
+        auto& mat_comp = materials_.at(i);
+        mat_comp.type = ENGINE_MATERIAL_TYPE_PONG;
+        set_c_array(mat_comp.data.pong.diffuse_color, engineMaterialDescGetDiffuseColor(desc));
+        const auto diffuse_texture_idx = engineMaterialDescGetDiffuseTextureIndex(desc);
+        if (diffuse_texture_idx != -1)
+        {
+            mat_comp.data.pong.diffuse_texture = textures_.at(diffuse_texture_idx).obj;
+        }
+        mat_comp.data.pong.shininess = 32;
+    }
+
+#else
     engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_info_);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
@@ -114,6 +132,7 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         }
         mat_comp.data.pong.shininess = 32;
     }
+#endif
 }
 
 project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp) const

@@ -30,6 +30,15 @@ inline void set_c_array(std::span<float> in, std::span<const float> data)
     std::memcpy(in.data(), data.data(), in.size_bytes());
 }
 
+inline void set_c_array(std::span<float> in, const engine_color_desc_t& desc)
+{
+    assert(in.size() == 4);
+    in[0] = engineColorDescGetR(desc);
+    in[1] = engineColorDescGetG(desc);
+    in[2] = engineColorDescGetB(desc);
+    in[3] = engineColorDescGetA(desc);
+}
+
 template<typename T, std::size_t S>
 inline std::array<T, S>  to_array(const T(&data)[S])
 {

@@ -511,14 +511,14 @@ ENGINE_API uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_materi
 typedef struct _engine_model_node_desc2_t* engine_model_node_desc2_t;
 typedef struct _engine_model_desc2_t* engine_model_desc2_t;
 
-ENGINE_API const engine_model_node_desc2_t engineModelDescGetNodeDesc(const engine_model_desc2_t desc);
+ENGINE_API const engine_model_node_desc2_t engineModelDescGetNodeDesc(const engine_model_desc2_t desc, size_t idx);
 
 ENGINE_API uint32_t engineModelDescGetNodesDescCount(const engine_model_desc2_t desc);
-ENGINE_API const engine_geometry_desc2_t engineModelDescGetGeometryDesc(const engine_model_desc2_t desc);
+ENGINE_API const engine_geometry_desc2_t engineModelDescGetGeometryDesc(const engine_model_desc2_t desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetGeometriesDescCount(const engine_model_desc2_t desc);
 
-ENGINE_API const engine_material_desc2_t engineModelDescGetMaterialDesc(const engine_model_desc2_t* desc);
-ENGINE_API uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc2_t* desc);
+ENGINE_API const engine_material_desc2_t engineModelDescGetMaterialDesc(const engine_model_desc2_t desc, size_t idx);
+ENGINE_API uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc2_t desc);
 
 //ENGINE_API const engine_texture_2d_create_desc_t* engineModelDescGetTexturesArray(const engine_model_desc2_t* desc);
 //ENGINE_API const char* const* engineModelDescGetTexturesNameArray(const engine_model_desc2_t* desc);
@@ -612,6 +612,7 @@ ENGINE_API engine_skin_t engineSceneCreateSkinFromDesc(engine_scene_t scene, con
 
 // model loading
 ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t* out);
+ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile_2(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc2_t* out);
 ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info);
 
 // geometry
