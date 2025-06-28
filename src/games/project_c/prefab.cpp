@@ -51,6 +51,18 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
 #if 1
     engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile_2(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_info2_);
 
+    geometries_ = std::vector(engineModelDescGetGeometriesDescCount(model_info2_), ENGINE_INVALID_OBJECT_HANDLE);
+    for (std::uint32_t i = 0; i < geometries_.size(); i++)
+    {
+        const auto& geo = engineModelDescGetGeometryDesc(model_info2_, i);
+        engine_error_code = engineApplicationCreateGeometryFromDesc_2(app, geo, &geometries_[i]);
+        if (engine_error_code != ENGINE_RESULT_CODE_OK)
+        {
+            engineLog("Failed creating geometry for loaded model. Exiting!\n");
+            return;
+        }
+    }
+
     materials_ = std::vector<engine_material_component_t>(engineModelDescGetMaterialsDescCount(model_info2_));
     for (std::uint32_t i = 0; i < materials_.size(); i++)
     {

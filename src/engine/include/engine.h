@@ -497,6 +497,8 @@ ENGINE_API uint32_t engineGeometryDescGetVertsCount(const engine_geometry_desc2_
 ENGINE_API const uint32_t* engineGeometryDescGetIndsData(const engine_geometry_desc2_t desc);
 ENGINE_API uint32_t engineGeometryDescGetIndsCount(const engine_geometry_desc2_t desc);
 
+ENGINE_API engine_vertex_attributes_layout_t engineGeometryDescGetAttributesLayout(const engine_geometry_desc2_t desc);
+
 typedef struct _engine_color_desc_t* engine_color_desc_t;
 ENGINE_API float engineColorDescGetR(const engine_color_desc_t desc);
 ENGINE_API float engineColorDescGetG(const engine_color_desc_t desc);
@@ -512,8 +514,8 @@ typedef struct _engine_model_node_desc2_t* engine_model_node_desc2_t;
 typedef struct _engine_model_desc2_t* engine_model_desc2_t;
 
 ENGINE_API const engine_model_node_desc2_t engineModelDescGetNodeDesc(const engine_model_desc2_t desc, size_t idx);
-
 ENGINE_API uint32_t engineModelDescGetNodesDescCount(const engine_model_desc2_t desc);
+
 ENGINE_API const engine_geometry_desc2_t engineModelDescGetGeometryDesc(const engine_model_desc2_t desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetGeometriesDescCount(const engine_model_desc2_t desc);
 
@@ -617,6 +619,7 @@ ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, e
 
 // geometry
 ENGINE_API engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out);
+ENGINE_API engine_result_code_t engineApplicationCreateGeometryFromDesc_2(engine_application_t handle, const engine_geometry_desc2_t desc, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 ENGINE_API engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_application_t handle, engine_geometry_t geometry, engine_vertex_attribute_type_t type);
 ENGINE_API void engineApplicationDestroyGeometry(engine_application_t handle, engine_geometry_t geometry);

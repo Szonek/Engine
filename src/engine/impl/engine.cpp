@@ -59,6 +59,16 @@ inline auto api_cast(engine_color_desc_t desc)
     return reinterpret_cast<glm::vec4*>(desc);
 }
 
+inline auto api_cast(engine_geometry_desc2_t desc)
+{
+    return reinterpret_cast<engine::GeometryInfo*>(desc);
+}
+
+inline auto api_cast(engine::GeometryInfo& desc)
+{
+    return reinterpret_cast<engine_geometry_desc2_t>(&desc);
+}
+
 inline auto api_cast(engine_material_desc2_t desc)
 {
     return reinterpret_cast<engine::MaterialInfo*>(desc);
@@ -306,6 +316,20 @@ engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_
     }
     *out = ret;
     engineLog(fmt::format("Created geometry: {}, with id: {}\n", name, ret).c_str());
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t engineApplicationCreateGeometryFromDesc_2(engine_application_t handle, const engine_geometry_desc2_t desc, engine_geometry_t* out)
+{
+    auto* app = api_cast(handle);
+    const auto geo_desc = api_cast(desc);
+    const auto ret = app->add_geometry(geo_desc->vertex_laytout, geo_desc->vertex_count, geo_desc->vertex_data, geo_desc->indicies, geo_desc->name);
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    *out = ret;
+    engineLog(fmt::format("Created geometry: {}, with id: {}\n", geo_desc->name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -1263,6 +1287,41 @@ bool engineSceneHasChildrenComponent(engine_scene_t scene, engine_game_object_t 
     return has_component<engine_children_component_t>(scene, game_object);
 }
 
+const char* engineGeometryDescGetName(const engine_geometry_desc2_t desc)
+{
+    return api_cast(desc)->name.c_str();
+}
+
+const void* engineGeometryDescGetVertsData(const engine_geometry_desc2_t desc)
+{
+    return api_cast(desc)->vertex_data.data();
+}
+
+size_t engineGeometryDescGetVertsDataSize(const engine_geometry_desc2_t desc)
+{
+    return api_cast(desc)->vertex_data.size();
+}
+
+uint32_t engineGeometryDescGetVertsCount(const engine_geometry_desc2_t desc)
+{
+    return api_cast(desc)->vertex_count;
+}
+
+const uint32_t* engineGeometryDescGetIndsData(const engine_geometry_desc2_t desc)
+{
+    return api_cast(desc)->indicies.data();
+}
+
+uint32_t engineGeometryDescGetIndsCount(const engine_geometry_desc2_t desc)
+{
+    return api_cast(desc)->indicies.size();
+}
+
+engine_vertex_attributes_layout_t engineGeometryDescGetAttributesLayout(const engine_geometry_desc2_t desc)
+{
+    return api_cast(desc)->vertex_laytout;
+}
+
 float engineColorDescGetR(const engine_color_desc_t desc)
 {
     assert(desc);
@@ -1303,6 +1362,19 @@ uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_material_desc2_t 
 {
     assert(desc);
     return api_cast(desc)->diffuse_texture;
+}
+
+const engine_geometry_desc2_t engineModelDescGetGeometryDesc(const engine_model_desc2_t desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    return api_cast(typed_desc->geometries.at(idx));
+}
+
+uint32_t engineModelDescGetGeometriesDescCount(const engine_model_desc2_t desc)
+{
+    assert(desc);
+    return api_cast(desc)->geometries.size();
 }
 
 const engine_material_desc2_t engineModelDescGetMaterialDesc(const engine_model_desc2_t desc, size_t idx)
