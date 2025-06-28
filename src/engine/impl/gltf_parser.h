@@ -15,7 +15,7 @@ namespace engine
 
 inline static const std::int32_t INVALID_VALUE = -1;
 
-struct GeometryInfo
+struct GeometryDesc
 {
     std::string name = "";
     engine_vertex_attributes_layout_t vertex_laytout{};
@@ -24,7 +24,7 @@ struct GeometryInfo
     std::vector<std::uint32_t> indicies;
 };
 
-struct TextureInfo
+struct TextureDesc
 {
     std::string name;
     std::uint32_t width;
@@ -33,7 +33,7 @@ struct TextureInfo
     std::vector<std::byte> data;
 };
 
-struct MaterialInfo
+struct MaterialDesc
 {
     std::string name;
     glm::vec4 diffuse_factor;
@@ -48,7 +48,7 @@ enum class AnimationChannelType
     eScale
 };
 
-struct AnimationChannelInfo
+struct AnimationChannelDesc
 {
     AnimationChannelType type = AnimationChannelType::eUnknown;
     std::vector<float> timestamps;
@@ -56,34 +56,34 @@ struct AnimationChannelInfo
     std::int32_t target_node_idx = INVALID_VALUE;
 };
 
-struct AnimationClipInfo
+struct AnimationClipDesc
 {
     std::string name;
-    std::vector<AnimationChannelInfo> channels;
+    std::vector<AnimationChannelDesc> channels;
 };
 
-struct BoneInfo
+struct BoneDesc
 {
     std::int32_t target_node_idx = INVALID_VALUE;
     glm::mat4 inverse_bind_matrix;
 };
 
-struct SkinInfo
+struct SkinDesc
 {
     std::string name = "";
-    std::vector<BoneInfo> bones;
+    std::vector<BoneDesc> bones;
 };
 
 
-struct ModelNode
+struct ModelNodeDesc
 {
     std::string name = "";
     std::int32_t index = INVALID_VALUE;
     std::int32_t mesh = INVALID_VALUE;
     std::int32_t material = INVALID_VALUE;
     std::int32_t skin = INVALID_VALUE;
-    std::shared_ptr<ModelNode> parent = nullptr; // shared_ptr to have pointer stability while erasing nodes
-    std::vector<std::shared_ptr<ModelNode>> children = {};
+    std::shared_ptr<ModelNodeDesc> parent = nullptr; // shared_ptr to have pointer stability while erasing nodes
+    std::vector<std::shared_ptr<ModelNodeDesc>> children = {};
 
     glm::vec3 translation;
     glm::vec3 scale = glm::vec3(1.0f);
@@ -91,17 +91,17 @@ struct ModelNode
 };
 
 
-struct ModelInfo
+struct ModelDesc
 {
-    std::vector<std::shared_ptr<ModelNode>> nodes;
-    std::vector<GeometryInfo> geometries;
-    std::vector<MaterialInfo> materials;
-    std::vector<TextureInfo> textures;
-    std::vector<AnimationClipInfo> animations;
-    std::vector<SkinInfo> skins;
+    std::vector<std::shared_ptr<ModelNodeDesc>> nodes;
+    std::vector<GeometryDesc> geometries;
+    std::vector<MaterialDesc> materials;
+    std::vector<TextureDesc> textures;
+    std::vector<AnimationClipDesc> animations;
+    std::vector<SkinDesc> skins;
 };
 
 
 // base dir to search for assets (i.e. images)
-ModelInfo parse_gltf_data_from_memory(std::span<const std::uint8_t> data, const std::string& base_dir);
+ModelDesc parse_gltf_data_from_memory(std::span<const std::uint8_t> data, const std::string& base_dir);
 } // namespace engine>

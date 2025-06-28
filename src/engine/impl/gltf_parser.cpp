@@ -15,11 +15,11 @@
 
 namespace
 {
-inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model)
+inline engine::GeometryDesc parse_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model)
 {
     // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_mesh_primitive_mode
 
-    engine::GeometryInfo ret{};
+    engine::GeometryDesc ret{};
     ret.name = mesh.name;
     //ret.material_index = mesh.primitives.front().material;
     //assert(mesh.primitives.size() == 1 && "Not enabled path for primitives count > 1");
@@ -260,10 +260,10 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
     return ret;
 }
 
-inline engine::TextureInfo parse_texture(const tinygltf::Texture& texture, const tinygltf::Model& model)
+inline engine::TextureDesc parse_texture(const tinygltf::Texture& texture, const tinygltf::Model& model)
 {
     const auto& tex = model.images[texture.source];
-    engine::TextureInfo tex_info{};
+    engine::TextureDesc tex_info{};
     if (tex.image.empty() && !tex.uri.empty())
     {
         const auto tc = engine::AssetStore::get_instance().get_texture_data(tex.uri);
@@ -300,9 +300,9 @@ inline engine::TextureInfo parse_texture(const tinygltf::Texture& texture, const
     return tex_info;
 }
 
-inline engine::MaterialInfo parse_material(const tinygltf::Material& material)
+inline engine::MaterialDesc parse_material(const tinygltf::Material& material)
 {
-    engine::MaterialInfo new_material{};
+    engine::MaterialDesc new_material{};
     new_material.name = material.name;
     // copy diffuse color
     for (std::size_t c = 0; c < 4; c++)
@@ -315,9 +315,9 @@ inline engine::MaterialInfo parse_material(const tinygltf::Material& material)
     return new_material;
 }
 
-inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::Model& model)
+inline engine::SkinDesc parse_skin(const tinygltf::Skin& skin, const tinygltf::Model& model)
 {
-    engine::SkinInfo new_skin{};
+    engine::SkinDesc new_skin{};
     new_skin.name = skin.name;
     new_skin.bones.reserve(skin.joints.size());
     for (std::size_t i = 0; i < skin.joints.size(); i++)
@@ -334,7 +334,7 @@ inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::M
         const auto inv_bind_mtx_buffer = reinterpret_cast<const float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);
         const auto inverse_bind_matrix = glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
         
-        engine::BoneInfo info{};
+        engine::BoneDesc info{};
         info.target_node_idx = node_id;
         info.inverse_bind_matrix = inverse_bind_matrix;
         new_skin.bones.push_back(info);
@@ -342,9 +342,9 @@ inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::M
     return new_skin;
 }
 
-inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& animation, const tinygltf::Model& model)
+inline engine::AnimationClipDesc parse_animation(const tinygltf::Animation& animation, const tinygltf::Model& model)
 {
-    engine::AnimationClipInfo new_animation{};
+    engine::AnimationClipDesc new_animation{};
     new_animation.name = animation.name;
     new_animation.channels.resize(animation.channels.size());
     for (std::size_t ch_idx = 0; const auto & ch : animation.channels)
@@ -406,7 +406,7 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
 
 }  // namespace anonymous
 
-engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8_t> data, const std::string& base_dir)
+engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8_t> data, const std::string& base_dir)
 {
     assert(!data.empty());
 
@@ -450,13 +450,13 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     }
 
     // Dont resize this vector later, it will invalidate pointers of the nodes
-    std::vector<std::shared_ptr<engine::ModelNode>> nodes(model.nodes.size());
+    std::vector<std::shared_ptr<engine::ModelNodeDesc>> nodes(model.nodes.size());
     std::vector<std::size_t> skins_root_nodes_idx{};
     std::vector<std::size_t> meshes_root_nodes_idx{};
     // Build all nodes first
     for (std::int32_t idx = 0; const auto& node : model.nodes)
     {
-        nodes.at(idx) = std::make_shared<engine::ModelNode>();
+        nodes.at(idx) = std::make_shared<engine::ModelNodeDesc>();
         auto& n_ptr = nodes.at(idx);
         auto& n = *n_ptr;
         // general params
@@ -519,7 +519,7 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     }
 
 
-    engine::ModelInfo out{};
+    engine::ModelDesc out{};
 
     // textures
     out.textures.reserve(model.textures.size());

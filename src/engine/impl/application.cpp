@@ -137,7 +137,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
 {
 	{
 		const std::vector<std::byte> default_texture_color = { static_cast<std::byte>(255), static_cast<std::byte>(255), static_cast<std::byte>(255) };
-		TextureInfo tex2d_desc{};
+		TextureDesc tex2d_desc{};
         tex2d_desc.name = "default_texture";
 		tex2d_desc.width = 1;
 		tex2d_desc.height = 1;
@@ -327,7 +327,7 @@ engine_application_frame_end_info_t engine::Application::end_frame()
 	return ret;
 }
 
-std::uint32_t engine::Application::add_texture(const TextureInfo& desc)
+std::uint32_t engine::Application::add_texture(const TextureDesc& desc)
 {
     const auto data_layout = [](const auto engine_api_layout)
         {

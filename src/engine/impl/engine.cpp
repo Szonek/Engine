@@ -51,45 +51,45 @@ inline auto api_cast(engine_component_iterator_t it)
 
 inline auto api_cast(engine_model_desc2_t desc)
 {
-    return reinterpret_cast<engine::ModelInfo*>(desc);
+    return reinterpret_cast<engine::ModelDesc*>(desc);
 }
 
 inline auto api_cast(engine_model_node_desc2_t desc)
 {
-    return reinterpret_cast<engine::ModelNode*>(desc);
+    return reinterpret_cast<engine::ModelNodeDesc*>(desc);
 }
 
-inline auto api_cast(engine::ModelNode* desc)
+inline auto api_cast(engine::ModelNodeDesc* desc)
 {
     return reinterpret_cast<engine_model_node_desc2_t>(desc);
 }
 
 inline auto api_cast(engine_texture_2d_desc2_t desc)
 {
-    return reinterpret_cast<engine::TextureInfo*>(desc);
+    return reinterpret_cast<engine::TextureDesc*>(desc);
 }
 
-inline auto api_cast(engine::TextureInfo& desc)
+inline auto api_cast(engine::TextureDesc& desc)
 {
     return reinterpret_cast<engine_texture_2d_desc2_t>(&desc);
 }
 
 inline auto api_cast(engine_geometry_desc2_t desc)
 {
-    return reinterpret_cast<engine::GeometryInfo*>(desc);
+    return reinterpret_cast<engine::GeometryDesc*>(desc);
 }
 
-inline auto api_cast(engine::GeometryInfo& desc)
+inline auto api_cast(engine::GeometryDesc& desc)
 {
     return reinterpret_cast<engine_geometry_desc2_t>(&desc);
 }
 
 inline auto api_cast(engine_material_desc2_t desc)
 {
-    return reinterpret_cast<engine::MaterialInfo*>(desc);
+    return reinterpret_cast<engine::MaterialDesc*>(desc);
 }
 
-inline auto api_cast(engine::MaterialInfo& desc)
+inline auto api_cast(engine::MaterialDesc& desc)
 {
     return reinterpret_cast<engine_material_desc2_t>(&desc);
 }
@@ -413,7 +413,7 @@ engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile_2(eng
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    const auto model_info = new engine::ModelInfo(engine::parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string()));
+    const auto model_info = new engine::ModelDesc(engine::parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string()));
     *out = reinterpret_cast<engine_model_desc2_t>(model_info);
     return ENGINE_RESULT_CODE_OK;
 }

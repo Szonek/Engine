@@ -29,7 +29,7 @@ public:
     virtual engine_application_frame_begine_info_t begine_frame();
     virtual engine_application_frame_end_info_t end_frame();
 
-    virtual std::uint32_t add_texture(const TextureInfo& desc);
+    virtual std::uint32_t add_texture(const TextureDesc& desc);
     virtual std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
     virtual std::uint32_t get_texture(std::string_view name) const;
     virtual const Texture2D* get_texture(std::uint32_t idx) const;
