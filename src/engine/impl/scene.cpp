@@ -783,17 +783,9 @@ void engine::Scene::set_physcis_gravity(std::array<float, 3> g)
     physics_world_.set_gravity(g);
 }
 
-void engine::Scene::get_physcis_collisions_list(const engine_collision_info_t*& ptr_first, size_t* count)
+const std::vector<engine::CollisionDesc>& engine::Scene::get_physcis_collisions() const
 {
-    assert(count != nullptr);
-    const auto& collisions = physics_world_.get_collisions();
-    ptr_first = collisions.data();
-    *count = collisions.size();
-}
-
-const std::vector<engine::CollisionDesc>& engine::Scene::get_physcis_collisions()
-{
-    return physics_world_.get_collisions2();
+    return physics_world_.get_collisions();
 }
 
 engine_ray_hit_info_t engine::Scene::raycast_into_physics_world(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance)

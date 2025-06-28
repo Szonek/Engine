@@ -267,6 +267,8 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
 
 void project_c::Player::update(float dt)
 {
+
+
     auto check_state_bit = [&](States state)
         {
             return (state_ & state) != 0;
@@ -284,6 +286,12 @@ void project_c::Player::update(float dt)
     dodge_data_.update(dt);
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
+
+    if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_0))
+    {
+        set_world_position( 0.0f, 1.0f, 0.0f );
+    }
+
 
     const std::array<engine_game_object_t, 1> raycast_ignore_list = { attack_trigger_->get_game_object() };
     const auto active_camera_go = utils::get_active_camera_game_objects(scene)[0];

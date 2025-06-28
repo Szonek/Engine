@@ -70,9 +70,7 @@ public:
     }
 
     void update(float dt);
-
-    const std::vector<engine_collision_info_t>& get_collisions();
-    const std::vector<CollisionDesc>& get_collisions2();
+    const std::vector<CollisionDesc>& get_collisions() const;
 
     void set_gravity(std::span<const float> g);
 
@@ -144,10 +142,7 @@ private:
 
     std::unique_ptr<btDiscreteDynamicsWorld> dynamics_world_;
 
-    std::vector<engine_collision_info_t> collisions_info_buffer_;
-    std::vector<engine_collision_contact_point_t> collisions_contact_points_buffer_;
-
-    std::vector<CollisionDesc> collisions_desc_cache_;
+    mutable std::vector<CollisionDesc> collisions_desc_cache_;
 };
 
 }// namespace engine

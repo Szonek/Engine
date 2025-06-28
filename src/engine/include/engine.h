@@ -561,8 +561,8 @@ ENGINE_API bool engineApplicationDoTexture2DNameExists(engine_application_t hand
 
 // physics 
 ENGINE_API void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3]);
-ENGINE_API void engineScenePhysicsGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions);
-ENGINE_API void engineScenePhysicsGetCollisions2(engine_scene_t scene, size_t* num_collision, const engine_collision_desc_t* collisions);
+ENGINE_API size_t engineScenePhysicsGetNumCollisions(engine_scene_t scene);
+ENGINE_API const engine_collision_desc_t* engineScenePhysicsGetCollisionDesc(engine_scene_t scene, size_t idx);
 ENGINE_API engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance);
 ENGINE_API bool engineScenePhysicsAddForce(engine_scene_t scene, engine_game_object_t go, const float force[3], engine_force_type_t type);
 

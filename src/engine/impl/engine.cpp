@@ -109,6 +109,10 @@ inline auto api_cast(const engine_collision_desc_t* contact)
 {
     return reinterpret_cast<const engine::CollisionDesc*>(contact);
 }
+inline auto api_cast(const engine::CollisionDesc& contact)
+{
+    return reinterpret_cast<const engine_collision_desc_t*>(&contact);
+}
 
 template<typename T>
 inline T add_component(engine_scene_t scene, engine_game_object_t engine_game_object_t)
@@ -489,26 +493,16 @@ void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravit
     sc->set_physcis_gravity(std::array<float, 3>{gravity[0], gravity[1], gravity[2]});
 }
 
-void engineScenePhysicsGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions)
+size_t engineScenePhysicsGetNumCollisions(engine_scene_t scene)
 {
     auto sc = api_cast(scene);
-    sc->get_physcis_collisions_list(*collisions, num_collision);
+    return sc->get_physcis_collisions().size();
 }
 
-void engineScenePhysicsGetCollisions2(engine_scene_t scene, size_t* num_collision, const engine_collision_desc_t* collisions)
+const engine_collision_desc_t* engineScenePhysicsGetCollisionDesc(engine_scene_t scene, size_t idx)
 {
-    if (!scene || !num_collision || !collisions)
-    {
-        return;
-    }
     auto sc = api_cast(scene);
-    auto collisions_list = sc->get_physcis_collisions();
-    *num_collision = collisions_list.size();
-    if (*num_collision == 0)
-    {
-        return;
-    }
-    collisions = reinterpret_cast<const engine_collision_desc_t*>(collisions_list.data());
+    return api_cast(sc->get_physcis_collisions().at(idx));
 }
 
 engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance)

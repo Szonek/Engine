@@ -92,8 +92,7 @@ public:
     }
 
     void set_physcis_gravity(std::array<float, 3> g);
-    void get_physcis_collisions_list(const engine_collision_info_t*& ptr_first, size_t* count);
-    const std::vector<CollisionDesc>& get_physcis_collisions();
+    const std::vector<CollisionDesc>& get_physcis_collisions() const;
 
     engine_ray_hit_info_t raycast_into_physics_world(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance);
     bool add_force_to_physics_entity(entt::entity entity, std::array<float, 3> force, engine_force_type_t type);

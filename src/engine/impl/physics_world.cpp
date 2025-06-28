@@ -20,10 +20,6 @@
 engine::PhysicsWorld::PhysicsWorld(RenderContext* renderer)
     : debug_drawer_(std::make_unique<DebugDrawer>(renderer))
 {
-
-    collisions_info_buffer_.reserve(1024 * 2);
-    collisions_contact_points_buffer_.reserve(1024 * 16);
-
     collision_config_ = std::make_unique<btDefaultCollisionConfiguration>();
     dispatcher_ = std::make_unique<btCollisionDispatcher>(collision_config_.get());
     overlapping_pair_cache_ = std::make_unique<btDbvtBroadphase>();
@@ -171,66 +167,17 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
 void engine::PhysicsWorld::update(float dt)
 {
     dynamics_world_->stepSimulation(dt, 10);
-}
 
-const std::vector<engine_collision_info_t>& engine::PhysicsWorld::get_collisions()
-{
-    collisions_info_buffer_.clear();
-    collisions_contact_points_buffer_.clear();
-
-    const auto num_manifolds = dynamics_world_->getDispatcher()->getNumManifolds();
-    //log::log(log::LogLevel::eTrace, fmt::format("Collisions: {}\n", num_manifolds));
-
-    for (auto i = 0; i < num_manifolds; i++)
-    {
-        const auto manifold = dynamics_world_->getDispatcher()->getManifoldByIndexInternal(i);
-
-        const auto num_contacts = manifold->getNumContacts();
-        //log::log(log::LogLevel::eTrace, fmt::format("Num contacts: {}\n", num_contacts));
-        if (num_contacts == 0)
-        {
-            continue;
-        }
-
-
-        engine_collision_info_t new_collision{};
-        new_collision.contact_points_count = num_contacts;
-        new_collision.contact_points = collisions_contact_points_buffer_.data() + collisions_contact_points_buffer_.size();
-        new_collision.object_a = static_cast<engine_game_object_t>(manifold->getBody0()->getUserIndex());
-        new_collision.object_b = static_cast<engine_game_object_t>(manifold->getBody1()->getUserIndex());
-
-        for (auto j = 0; j < num_contacts; j++)
-        {
-            const auto pt = manifold->getContactPoint(j);
-
-            const auto& position_a = pt.getPositionWorldOnA();
-            const auto& position_b = pt.getPositionWorldOnB();
-
-            engine_collision_contact_point_t new_contact_point{};
-            new_contact_point.lifetime = pt.getLifeTime();
-
-            new_contact_point.point_object_a[0] = position_a.getX();
-            new_contact_point.point_object_a[1] = position_a.getY();
-            new_contact_point.point_object_a[2] = position_a.getZ();
-
-            new_contact_point.point_object_b[0] = position_b.getX();
-            new_contact_point.point_object_b[1] = position_b.getY();
-            new_contact_point.point_object_b[2] = position_b.getZ();
-
-            collisions_contact_points_buffer_.push_back(new_contact_point);
-            //log::log(log::LogLevel::eTrace, fmt::format("PT: {}\n", pt.getDistance()));
-        }
-
-        collisions_info_buffer_.push_back(new_collision);
-    }
-
-    return collisions_info_buffer_;
-}
-
-const std::vector<engine::CollisionDesc>& engine::PhysicsWorld::get_collisions2()
-{
     collisions_desc_cache_.clear();
+}
 
+const std::vector<engine::CollisionDesc>& engine::PhysicsWorld::get_collisions() const
+{
+    // Collisions were computed this frame already, no need to do anything
+    if (!collisions_desc_cache_.empty())
+    {
+        return collisions_desc_cache_;
+    }
     const auto num_manifolds = dynamics_world_->getDispatcher()->getNumManifolds();
     //log::log(log::LogLevel::eTrace, fmt::format("Collisions: {}\n", num_manifolds));
 
