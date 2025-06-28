@@ -54,7 +54,7 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
     for (std::uint32_t i = 0; i < geometries_.size(); i++)
     {
         const auto& geo_desc = engineModelDescGetGeometryDesc(model_info2_, i);
-        engine_error_code = engineApplicationCreateGeometryFromDesc_2(app, geo_desc, &geometries_[i]);
+        engine_error_code = engineApplicationCreateGeometryFromDesc(app, geo_desc, &geometries_[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating geometry for loaded model. Exiting!\n");
@@ -78,7 +78,7 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         }
         else
         {
-            engine_error_code = engineApplicationCreateTexture2DFromDesc_2(app, texture_desc, &textures_[i].obj);
+            engine_error_code = engineApplicationCreateTexture2DFromDesc(app, texture_desc, &textures_[i].obj);
             textures_[i].owner = true;
         }
 

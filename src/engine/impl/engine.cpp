@@ -306,7 +306,7 @@ engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t ha
     return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
-engine_result_code_t engineApplicationCreateGeometryFromDesc_2(engine_application_t handle, const engine_geometry_desc2_t desc, engine_geometry_t* out)
+engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_desc2_t desc, engine_geometry_t* out)
 {
     auto* app = api_cast(handle);
     const auto geo_desc = api_cast(desc);
@@ -352,7 +352,7 @@ void engineApplicationDestroyGeometry(engine_application_t handle, engine_geomet
     api_cast(handle)->destroy_geometry(geometry);
 }
 
-engine_result_code_t engineApplicationCreateTexture2DFromDesc_2(engine_application_t handle, const engine_texture_2d_desc2_t desc, engine_texture2d_t* out)
+engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_desc2_t desc, engine_texture2d_t* out)
 {
     auto* app = api_cast(handle);
     const auto typed_desc = api_cast(desc);

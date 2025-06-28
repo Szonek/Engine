@@ -536,13 +536,13 @@ ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFro
 ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc2_t model_info);
 
 // geometry
-ENGINE_API engine_result_code_t engineApplicationCreateGeometryFromDesc_2(engine_application_t handle, const engine_geometry_desc2_t desc, engine_geometry_t* out);
+ENGINE_API engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_desc2_t desc, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 ENGINE_API engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_application_t handle, engine_geometry_t geometry, engine_vertex_attribute_type_t type);
 ENGINE_API void engineApplicationDestroyGeometry(engine_application_t handle, engine_geometry_t geometry);
 
 // textures 
-ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc_2(engine_application_t handle, const engine_texture_2d_desc2_t desc, engine_texture2d_t* out);
+ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_desc2_t desc, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
 ENGINE_API void engineApplicationDestroyTexture2D(engine_application_t handle, engine_texture2d_t tex2d);
