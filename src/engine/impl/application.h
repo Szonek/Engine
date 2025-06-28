@@ -63,7 +63,7 @@ public:
 
     virtual bool keyboard_is_key_down(engine_keyboard_keys_t key);
 
-    virtual engine_coords_2d_t mouse_get_coords();
+    virtual engine_fvec2_t mouse_get_coords();
     virtual bool mouse_is_button_down(engine_mouse_button_t button);
 
     virtual std::array<engine_finger_info_t, 10> get_finger_info_events() const;

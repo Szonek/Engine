@@ -513,7 +513,7 @@ bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
     return static_cast<bool>(state[key]);
 }
 
-engine_coords_2d_t engine::Application::mouse_get_coords()
+engine_fvec2_t engine::Application::mouse_get_coords()
 {
 	float coord_x = 0.;
 	float coord_y = 0.;
@@ -521,7 +521,7 @@ engine_coords_2d_t engine::Application::mouse_get_coords()
 
     const auto window_size = rdx_.get_window_size_in_pixels();
 
-    engine_coords_2d_t ret{};
+    engine_fvec2_t ret{};
 	ret.x = static_cast<std::int32_t>(std::floor(coord_x)) / static_cast<float>(window_size.width);
     // flip Y coords so left, bottom corner is (0, 0) and right top is (1, 1)
     ret.y = 1.0f - static_cast<std::int32_t>(std::floor(coord_y)) / static_cast<float>(window_size.height);

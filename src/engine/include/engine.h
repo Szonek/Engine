@@ -41,18 +41,26 @@ typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_animation_controller_t;
 typedef uint32_t engine_shader_t;
 
-typedef struct _engine_coords_2d_t
+typedef struct _engine_fvec2_t
 {
     float x;
     float y;
-} engine_coords_2d_t;
+} engine_fvec2_t;
 
-typedef struct _engine_coords_3d_t
+typedef struct _engine_fvec3_t
 {
     float x;
     float y;
     float z;
-} engine_coords_3d_t;
+} engine_fvec3_t;
+
+typedef struct _engine_fvec4_t
+{
+    float x;
+    float y;
+    float z;
+    float w;
+} engine_fvec4_t;
 
 typedef struct _engine_ray_t
 {
@@ -81,7 +89,7 @@ typedef enum _engine_ui_event_type_t
 typedef struct _engine_ui_event_t
 {
     engine_ui_event_type_t type;
-    engine_coords_2d_t normalized_screen_position;
+    engine_fvec2_t normalized_screen_position;
 } engine_ui_event_t;
 
 typedef enum _engine_ui_data_type_t
@@ -478,6 +486,50 @@ typedef struct _engine_model_desc_t
     uint32_t skins_counts;
 } engine_model_desc_t;
 
+
+typedef struct _engine_geometry_desc2_t* engine_geometry_desc2_t;
+ENGINE_API const char* engineGeometryDescGetName(const engine_geometry_desc2_t desc);
+
+ENGINE_API const void* engineGeometryDescGetVertsData(const engine_geometry_desc2_t desc);
+ENGINE_API size_t engineGeometryDescGetVertsDataSize(const engine_geometry_desc2_t desc);
+ENGINE_API uint32_t engineGeometryDescGetVertsCount(const engine_geometry_desc2_t desc);
+
+ENGINE_API const uint32_t* engineGeometryDescGetIndsData(const engine_geometry_desc2_t desc);
+ENGINE_API uint32_t engineGeometryDescGetIndsCount(const engine_geometry_desc2_t desc);
+
+typedef struct _engine_color_desc_t* engine_color_desc_t;
+ENGINE_API float engineColorDescGetR(const engine_color_desc_t desc);
+ENGINE_API float engineColorDescGetG(const engine_color_desc_t desc);
+ENGINE_API float engineColorDescGetB(const engine_color_desc_t desc);
+ENGINE_API float engineColorDescGetA(const engine_color_desc_t desc);
+
+typedef struct _engine_material_desc2_t* engine_material_desc2_t;
+ENGINE_API const char* engineMaterialDescGetName(const engine_material_desc2_t desc);
+ENGINE_API engine_color_desc_t engineMaterialDescGetDiffuseColor(const engine_material_desc2_t desc);
+ENGINE_API uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_material_desc2_t desc); // -1 if not used
+
+typedef struct _engine_model_node_desc2_t* engine_model_node_desc2_t;
+typedef struct _engine_model_desc2_t* engine_model_desc2_t;
+
+ENGINE_API const engine_model_node_desc2_t engineModelDescGetNodeDesc(const engine_model_desc2_t desc);
+
+ENGINE_API uint32_t engineModelDescGetNodesDescCount(const engine_model_desc2_t desc);
+ENGINE_API const engine_geometry_desc2_t engineModelDescGetGeometryDesc(const engine_model_desc2_t desc);
+ENGINE_API uint32_t engineModelDescGetGeometriesDescCount(const engine_model_desc2_t desc);
+
+ENGINE_API const engine_material_desc2_t engineModelDescGetMaterialDesc(const engine_model_desc2_t* desc);
+ENGINE_API uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc2_t* desc);
+
+//ENGINE_API const engine_texture_2d_create_desc_t* engineModelDescGetTexturesArray(const engine_model_desc2_t* desc);
+//ENGINE_API const char* const* engineModelDescGetTexturesNameArray(const engine_model_desc2_t* desc);
+//ENGINE_API uint32_t engineModelDescGetTexturesCount(const engine_model_desc2_t* desc);
+//
+//ENGINE_API const engine_animation_clip_create_desc_t* engineModelDescGetAnimationsArray(const engine_model_desc2_t* desc);
+//ENGINE_API uint32_t engineModelDescGetAnimationsCount(const engine_model_desc2_t* desc);
+//
+//ENGINE_API const engine_skin_create_desc_t* engineModelDescGetSkinsArray(const engine_model_desc2_t* desc);
+//ENGINE_API uint32_t engineModelDescGetSkinsCount(const engine_model_desc2_t* desc);
+
 /**
  * @struct engine_geometry_attribute_limit_t
  * @brief A structure representing the limits of a geometry attribute in the engine.
@@ -536,7 +588,7 @@ ENGINE_API void                 engineSceneDestroyGameObject(engine_scene_t scen
 ENGINE_API bool engineApplicationIsKeyboardButtonDown(engine_application_t handle, engine_keyboard_keys_t key);
 ENGINE_API bool engineApplicationIsKeyboardButtonUp(engine_application_t handle, engine_keyboard_keys_t key);
 
-ENGINE_API engine_coords_2d_t engineApplicationGetMouseCoords(engine_application_t handle);
+ENGINE_API engine_fvec2_t engineApplicationGetMouseCoords(engine_application_t handle);
 ENGINE_API bool engineApplicationIsMouseButtonDown(engine_application_t handle, engine_mouse_button_t);
 ENGINE_API bool engineApplicationIsMouseButtonUp(engine_application_t handle, engine_mouse_button_t);
 
@@ -682,8 +734,8 @@ ENGINE_API void engineSceneUpdateCameraComponent(engine_scene_t scene, engine_ga
 ENGINE_API void engineSceneRemoveCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void engineSceneComponentViewAttachCameraComponent(engine_scene_t scene, engine_component_view_t view);
-ENGINE_API engine_coords_3d_t engineSceneCameraComponentConvertWorldPositionToScreenPosition(engine_scene_t scene, engine_game_object_t game_object, const float world_pos[3]);
-ENGINE_API engine_coords_3d_t engineSceneCameraComponentConvertSpacePositionToWorldPosition(engine_scene_t scene, engine_game_object_t game_object, const engine_coords_3d_t screen_position);
+ENGINE_API engine_fvec3_t engineSceneCameraComponentConvertWorldPositionToScreenPosition(engine_scene_t scene, engine_game_object_t game_object, const float world_pos[3]);
+ENGINE_API engine_fvec3_t engineSceneCameraComponentConvertSpacePositionToWorldPosition(engine_scene_t scene, engine_game_object_t game_object, const engine_fvec3_t screen_position);
 
 // rigid body component
 ENGINE_API engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);

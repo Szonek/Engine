@@ -73,11 +73,11 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
 
     struct SceneSpawnPoints
     {
-        std::vector<engine_coords_2d_t> player;
-        std::vector<engine_coords_2d_t> enemy_packs;
-        std::vector<engine_coords_2d_t> point_lights;
-        std::vector<engine_coords_2d_t> weapons;
-        std::vector<engine_coords_2d_t> chests;
+        std::vector<engine_fvec2_t> player;
+        std::vector<engine_fvec2_t> enemy_packs;
+        std::vector<engine_fvec2_t> point_lights;
+        std::vector<engine_fvec2_t> weapons;
+        std::vector<engine_fvec2_t> chests;
     } scene_spawn_points;
 
     const auto scene_width = (std::int32_t)scene_str.find_first_of('\n');

@@ -94,7 +94,7 @@ engine_ray_t project_c::utils::get_ray_from_mouse_position(engine_application_t 
     ray.origin[2] = camera_transform.position[2];
 
     const auto mouse_coords = engineApplicationGetMouseCoords(app);
-    const auto ray_dir = engineSceneCameraComponentConvertSpacePositionToWorldPosition(scene, go_camera, engine_coords_3d_t{mouse_coords.x, mouse_coords.y, 1.0f});
+    const auto ray_dir = engineSceneCameraComponentConvertSpacePositionToWorldPosition(scene, go_camera, engine_fvec3_t{mouse_coords.x, mouse_coords.y, 1.0f});
     ray.direction[0] = ray_dir.x;
     ray.direction[1] = ray_dir.y;
     ray.direction[2] = ray_dir.z;

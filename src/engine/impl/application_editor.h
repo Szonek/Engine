@@ -32,7 +32,7 @@ private:
     ApplicationEditor* app_ = nullptr;
     entt::entity go_ = entt::null;
     std::array<float, 3> sc_;  // {radius, phi, theta}
-    engine_coords_2d_t mouse_coords_prev_{};
+    engine_fvec2_t mouse_coords_prev_{};
 };
 
 struct OutlinePostProccessEffect

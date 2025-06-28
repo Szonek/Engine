@@ -145,7 +145,7 @@ bool engineApplicationIsKeyboardButtonUp(engine_application_t handle, engine_key
 	return !engineApplicationIsKeyboardButtonDown(handle, key);
 }
 
-engine_coords_2d_t engineApplicationGetMouseCoords(engine_application_t handle)
+engine_fvec2_t engineApplicationGetMouseCoords(engine_application_t handle)
 {
 	auto* app = application_cast(handle);
     if (!app->is_mouse_enabled())
@@ -1120,23 +1120,23 @@ void engineSceneComponentViewAttachCameraComponent(engine_scene_t scene, engine_
     sc->attach_component_to_runtime_view<engine_camera_component_t>(*rv);
 }
 
-engine_coords_3d_t engineSceneCameraComponentConvertWorldPositionToScreenPosition(engine_scene_t scene, engine_game_object_t game_object, const float world_pos[3])
+engine_fvec3_t engineSceneCameraComponentConvertWorldPositionToScreenPosition(engine_scene_t scene, engine_game_object_t game_object, const float world_pos[3])
 {
     assert(has_component<engine_camera_component_t>(scene, game_object));
     auto sc = scene_cast(scene);
     const auto coords = sc->convert_world_point_to_screen_point({ world_pos[0], world_pos[1], world_pos[2] }, game_object);
-    engine_coords_3d_t ret{};
+    engine_fvec3_t ret{};
     ret.x = coords.x;
     ret.y = coords.y;
     ret.z = coords.z;
     return ret;
 }
 
-engine_coords_3d_t engineSceneCameraComponentConvertSpacePositionToWorldPosition(engine_scene_t scene, engine_game_object_t game_object, const engine_coords_3d_t screen_position)
+engine_fvec3_t engineSceneCameraComponentConvertSpacePositionToWorldPosition(engine_scene_t scene, engine_game_object_t game_object, const engine_fvec3_t screen_position)
 {
     assert(has_component<engine_camera_component_t>(scene, game_object));
     auto sc = scene_cast(scene);
-    engine_coords_3d_t ret{};
+    engine_fvec3_t ret{};
     const auto coords = sc->convert_screen_point_to_world_point({ screen_position.x, screen_position.y, screen_position.z }, game_object);
     ret.x = coords.x;
     ret.y = coords.y;
