@@ -430,17 +430,6 @@ typedef struct _engine_skin_create_desc_t
     uint32_t bones_count;
 } engine_skin_create_desc_t;
 
-typedef struct _engine_joint_desc_t
-{
-    const char* name;
-    float default_translation[3];
-    float default_scale[3];
-    float default_rotation[4];
-
-    engine_joint_desc_t* parent;
-    engine_vector_engine_joint_desc_t children;
-} engine_joint_desc_t;
-
 typedef struct _engine_model_material_desc_t
 {
     const char* name;
@@ -452,6 +441,9 @@ typedef struct _engine_model_node_desc_t
 {
     const char* name;
     struct _engine_model_node_desc_t* parent; // nullptr if no parent
+    struct _engine_model_node_desc_t** children; // nullptr if no childs
+    uint32_t children_count;
+    uint32_t index;  // unique index, i.e. skin desc pointing
     uint32_t geometry_index;  // -1 if not used
     uint32_t skin_index;      // -1 if not used
     uint32_t material_index;  // -1 if not used
@@ -483,7 +475,6 @@ typedef struct _engine_model_desc_t
     uint32_t animations_counts;
 
     engine_skin_create_desc_t* skins_array;
-    const char** skins_name_array;
     uint32_t skins_counts;
 } engine_model_desc_t;
 

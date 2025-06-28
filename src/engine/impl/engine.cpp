@@ -389,6 +389,7 @@ engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engin
 
             const auto& in_n = model_info->nodes.at(i);
             auto& ret_n = out->nodes_array[i];
+            ret_n.index = in_n->index;
             ret_n.geometry_index = in_n->mesh;
             ret_n.skin_index = in_n->skin;
             ret_n.name = in_n->name.c_str();
@@ -412,6 +413,20 @@ engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engin
             else
             {
                 ret_n.parent = nullptr;
+            }
+            if (!in_n->children.empty())
+            {
+                ret_n.children_count = static_cast<std::uint32_t>(in_n->children.size());
+                ret_n.children = new engine_model_node_desc_t*[ret_n.children_count];
+                for (std::size_t j = 0; j < in_n->children.size(); j++)
+                {
+                    ret_n.children[j] = &out->nodes_array[in_n->children[j]->index];
+                }
+            }
+            else
+            {
+                ret_n.children_count = 0;
+                ret_n.children = nullptr;
             }
         }
     }
@@ -534,7 +549,6 @@ engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engin
     if (out->skins_counts > 0)
     {
         out->skins_array = new engine_skin_create_desc_t[out->skins_counts];
-        out->skins_name_array = new const char* [out->skins_counts];
 
         for (std::uint32_t i = 0; i < out->skins_counts; i++)
         {
@@ -555,7 +569,6 @@ engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engin
                     std::memcpy(out_bone.inverse_bind_mat, glm::value_ptr(in_bone.inverse_bind_matrix), sizeof(in_bone.inverse_bind_matrix));
                 }
             }
-            out->skins_name_array[i] = skin.name.c_str();
         }
     }
 

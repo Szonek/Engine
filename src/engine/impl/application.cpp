@@ -453,6 +453,13 @@ void engine::Application::release_model_desc(engine_model_desc_t* info)
     {
         const auto model_info = reinterpret_cast<const engine::ModelInfo*>(info->internal_handle);
         delete model_info;
+        for (std::uint32_t i = 0; i < info->nodes_count; i++)
+        {
+            if (info->nodes_array[i].children_count > 0)
+            {
+                delete[] info->nodes_array[i].children;
+            }
+        }
         if (info->geometries_array)
         {
             delete[] info->geometries_array;
