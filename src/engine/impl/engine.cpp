@@ -261,6 +261,16 @@ engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t ha
     return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
+engine_skin_t engineSceneCreateSkinFromDesc(engine_scene_t scene, const engine_vector_uint32_t* bones, const char* name)
+{
+    if (!scene || !bones || !name)
+    {
+        return nullptr;
+    }
+    auto* sc = scene_cast(scene);
+    return nullptr;
+}
+
 engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out)
 {
     auto* app = application_cast(handle);

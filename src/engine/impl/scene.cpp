@@ -9,7 +9,7 @@
 #include "components_internals/guizmo_component.h"
 #include "components_internals/outline_component.h"
 #include "profiler.h"
-
+#include "engine_vector_impl_def.h"
 #include "imgui/imgui.h"
 #include "imguizmo/ImGuizmo.h"
 
@@ -20,7 +20,10 @@
 
 #include <RmlUi/Core.h>
 
-#include <ozz/animation/offline/animation_builder.h>
+#include "ozz/animation/offline/raw_skeleton.h"
+#include "ozz/animation/offline/skeleton_builder.h"
+#include "ozz/animation/runtime/skeleton.h"
+
 
 #include <cmath>
 
@@ -119,6 +122,30 @@ static inline void calculate_camera_view_and_projection(std::size_t window_width
         camera_internal.data.view = glm::lookAt(eye_position, target, up);
     }
 }
+
+namespace engine
+{
+class Skin
+{
+public:
+    Skin() = default;
+    Skin(const engine_skin_create_desc_t& desc)
+        : skeleton_(nullptr)
+    {
+        if (desc.bones_count > 0 && desc.bones_array)
+        {
+            ozz::animation::offline::RawSkeleton raw_skeleton;
+            raw_skeleton.roots.resize(1);
+            ozz::animation::offline::RawSkeleton::Joint& root = raw_skeleton.roots[0];
+            root.name = "root";
+        }
+    }
+
+private:
+    ozz::unique_ptr<ozz::animation::Skeleton> skeleton_;
+};
+}
+
 
 engine::Scene::Scene(Application* app, RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : app_(app)
@@ -741,6 +768,38 @@ std::vector<entt::entity> engine::Scene::get_all_entities() const
         }
     }
     return entities;
+}
+
+engine::Skin* engine::Scene::create_skin(const engine_vector_uint32_t& bones, const char* name)
+{
+    if (bones->data.empty())
+    {
+        return nullptr;
+    }
+    //ToDo: modify this, so user pass only root bone and other bones are recurisvly added by getting parent/children components
+
+    ozz::animation::offline::RawSkeleton raw_skeleton;
+    raw_skeleton.roots.resize(1);
+    raw_skeleton.roots[0].name = "root";
+
+    //for (std::size_t i = 0; i < bones->data.size(); ++i)
+    //{
+    //    const auto entity = static_cast<entt::entity>(bones->data[i]);
+    //    const auto& tc = get_component<engine_tranform_component_t>(entity);
+    //    if (has_component<engine_parent_component_t>(entity))
+    //    {
+    //        const auto& pc = get_component<engine_parent_component_t>(entity);
+    //        if()
+    //    }
+
+
+    //    ozz::animation::offline::RawSkeleton::Joint joint;
+    //    joint.name = fmt::format("bone_{}", i);
+    //    joint.parent = (i == 0) ? -1 : static_cast<int>(i - 1);
+    //    raw_skeleton.joints.push_back(joint);
+    //}
+
+    return nullptr;
 }
 
 void engine::Scene::set_physcis_gravity(std::array<float, 3> g)

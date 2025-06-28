@@ -25,13 +25,13 @@ add_subdirectory(tracy-0.12.1)
 add_subdirectory(googletest)
 
 # skeleton animations
-set(BUILD_SHARED_LIBS ON CACHE BOOL "")
 set(ozz_build_tools OFF CACHE BOOL "")
 set(ozz_build_fbx OFF CACHE BOOL "")
 set(ozz_build_gltf ON CACHE BOOL "")
 set(ozz_build_samples OFF CACHE BOOL "")
 set(ozz_build_howtos OFF CACHE BOOL "")
 set(ozz_build_tests OFF CACHE BOOL "")
+set(ozz_build_msvc_rt_dll ON CACHE BOOL "")
 add_subdirectory(ozz-animation)
 
 # rapidJson

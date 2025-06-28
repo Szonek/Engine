@@ -34,6 +34,7 @@ typedef struct _engine_component_iterator_t* engine_component_iterator_t;
 typedef struct _engine_ui_document_t* engine_ui_document_t;
 typedef struct _engine_ui_data_handle_t* engine_ui_data_handle_t;
 typedef struct _engine_ui_element_t* engine_ui_element_t;
+typedef struct _engine_skin_t* engine_skin_t;
 typedef uint32_t engine_material_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
@@ -422,12 +423,23 @@ typedef struct _engine_bones_create_desc_t
     float inverse_bind_mat[16];
 } engine_bone_create_desc_t;
 
-typedef struct _engine_skin_reate_desc_t
+typedef struct _engine_skin_create_desc_t
 {
     const char* name;
     engine_bone_create_desc_t* bones_array;
     uint32_t bones_count;
 } engine_skin_create_desc_t;
+
+typedef struct _engine_joint_desc_t
+{
+    const char* name;
+    float default_translation[3];
+    float default_scale[3];
+    float default_rotation[4];
+
+    engine_joint_desc_t* parent;
+    engine_vector_engine_joint_desc_t children;
+} engine_joint_desc_t;
 
 typedef struct _engine_model_material_desc_t
 {
@@ -551,6 +563,11 @@ ENGINE_API void engineApplicationDestroyShader(engine_application_t handle, engi
 
 // fonts
 ENGINE_API engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name);
+
+
+
+ENGINE_API engine_skin_t engineSceneCreateSkinFromDesc(engine_scene_t scene, const engine_vector_uint32_t* bones, const char* name);
+
 
 // model loading
 ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t* out);

@@ -33,6 +33,8 @@ public:
 
     std::vector<entt::entity> get_all_entities() const;
 
+    class Skin* create_skin(const engine_vector_uint32_t& bones, const char* name);
+
     template<typename T>
     void attach_component_to_runtime_view(entt::runtime_view& rv)
     {
