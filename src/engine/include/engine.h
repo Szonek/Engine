@@ -382,6 +382,17 @@ typedef struct _engine_collision_info_t
 
 } engine_collision_info_t;
 
+typedef struct _engine_collision_contact_point_desc_t* engine_collision_contact_point_desc_t;
+ENGINE_API engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectA(const engine_collision_contact_point_desc_t contact);
+ENGINE_API engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectB(const engine_collision_contact_point_desc_t contact);
+ENGINE_API int32_t engineCollisionContactPointDescGetLifetime(const engine_collision_contact_point_desc_t contact);
+
+typedef struct _engine_collision_desc_t* engine_collision_desc_t;
+ENGINE_API engine_game_object_t engineCollisionDescGetObjectA(const engine_collision_desc_t desc);
+ENGINE_API engine_game_object_t engineCollisionDescGetObjectB(const engine_collision_desc_t desc);
+ENGINE_API size_t engineCollisionDescGetContactPointsCount(const engine_collision_desc_t desc);
+ENGINE_API const engine_collision_contact_point_desc_t engineCollisionDescGetContactPoint(const engine_collision_desc_t desc, size_t idx);
+
 typedef struct _engine_uniform_buffer_create_desc_t
 {
     uint32_t size;

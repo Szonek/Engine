@@ -5,6 +5,7 @@
 #include "scene.h"
 #include "asset_store.h"
 #include "ui_document.h"
+#include "collision_desc.h"
 
 #include "logger.h"
 
@@ -92,6 +93,21 @@ inline auto api_cast(engine_material_desc2_t desc)
 inline auto api_cast(engine::MaterialDesc& desc)
 {
     return reinterpret_cast<engine_material_desc2_t>(&desc);
+}
+
+inline auto api_cast(const engine_collision_contact_point_desc_t& contact)
+{
+    return reinterpret_cast<const engine::CollisionContactPointDesc*>(&contact);
+}
+
+inline auto api_cast(const engine::CollisionContactPointDesc* contact)
+{
+    return reinterpret_cast<const engine_collision_contact_point_desc_t>(&contact);
+}
+
+inline auto api_cast(const engine_collision_desc_t& contact)
+{
+    return reinterpret_cast<const engine::CollisionDesc*>(&contact);
 }
 
 template<typename T>
@@ -1062,6 +1078,64 @@ engine_children_component_t engineSceneGetChildrenComponent(engine_scene_t scene
 bool engineSceneHasChildrenComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return has_component<engine_children_component_t>(scene, game_object);
+}
+
+engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectA(const engine_collision_contact_point_desc_t contact)
+{
+    assert(contact);
+    const auto typed_contact = api_cast(contact);
+    if (typed_contact)
+    {
+        return { typed_contact->point_on_obj_a.x, typed_contact->point_on_obj_a.y, typed_contact->point_on_obj_a.z };
+    }
+    return { 0.0f, 0.0f, 0.0f };
+}
+
+engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectB(const engine_collision_contact_point_desc_t contact)
+{
+    assert(contact);
+    const auto typed_contact = api_cast(contact);
+    if (typed_contact)
+    {
+        return { typed_contact->point_on_obj_b.x, typed_contact->point_on_obj_b.y, typed_contact->point_on_obj_b.z };
+    }
+    return { 0.0f, 0.0f, 0.0f };
+}
+
+int32_t engineCollisionContactPointDescGetLifetime(const engine_collision_contact_point_desc_t contact)
+{
+    assert(contact);
+    return api_cast(contact)->lifetime;
+}
+
+engine_game_object_t engineCollisionDescGetObjectA(const engine_collision_desc_t desc)
+{
+    assert(desc);
+    return static_cast<engine_game_object_t>(api_cast(desc)->object_a);
+}
+
+engine_game_object_t engineCollisionDescGetObjectB(const engine_collision_desc_t desc)
+{
+    assert(desc);
+    return static_cast<engine_game_object_t>(api_cast(desc)->object_b);
+}
+
+size_t engineCollisionDescGetContactPointsCount(const engine_collision_desc_t desc)
+{
+    assert(desc);
+    return api_cast(desc)->contact_points.size();
+}
+
+const engine_collision_contact_point_desc_t engineCollisionDescGetContactPoint(const engine_collision_desc_t desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    if (idx < typed_desc->contact_points.size())
+    {
+        return api_cast(&typed_desc->contact_points.at(idx));
+    }
+    assert("Index out of bounds for contact points array!");
+    return nullptr;
 }
 
 const char* engineTexture2dDescGetName(const engine_texture_2d_desc2_t desc)
