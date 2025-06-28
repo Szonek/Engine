@@ -50,54 +50,54 @@ inline auto api_cast(engine_component_iterator_t it)
     return reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(it);
 }
 
-inline auto api_cast(engine_model_desc2_t desc)
+inline auto api_cast(engine_model_desc_t desc)
 {
     return reinterpret_cast<engine::ModelDesc*>(desc);
 }
 
-inline auto api_cast(engine_model_node_desc2_t desc)
+inline auto api_cast(engine_model_node_desc_t desc)
 {
     return reinterpret_cast<engine::ModelNodeDesc*>(desc);
 }
 
 inline auto api_cast(engine::ModelNodeDesc* desc)
 {
-    return reinterpret_cast<engine_model_node_desc2_t>(desc);
+    return reinterpret_cast<engine_model_node_desc_t>(desc);
 }
 
-inline auto api_cast(engine_texture_2d_desc2_t desc)
+inline auto api_cast(engine_texture_2d_desc_t desc)
 {
     return reinterpret_cast<engine::TextureDesc*>(desc);
 }
 
 inline auto api_cast(engine::TextureDesc& desc)
 {
-    return reinterpret_cast<engine_texture_2d_desc2_t>(&desc);
+    return reinterpret_cast<engine_texture_2d_desc_t>(&desc);
 }
 
-inline auto api_cast(engine_geometry_desc2_t desc)
+inline auto api_cast(engine_geometry_desc_t desc)
 {
     return reinterpret_cast<engine::GeometryDesc*>(desc);
 }
 
 inline auto api_cast(engine::GeometryDesc& desc)
 {
-    return reinterpret_cast<engine_geometry_desc2_t>(&desc);
+    return reinterpret_cast<engine_geometry_desc_t>(&desc);
 }
 
-inline auto api_cast(engine_material_desc2_t desc)
+inline auto api_cast(engine_material_desc_t desc)
 {
     return reinterpret_cast<engine::MaterialDesc*>(desc);
 }
 
 inline auto api_cast(engine::MaterialDesc& desc)
 {
-    return reinterpret_cast<engine_material_desc2_t>(&desc);
+    return reinterpret_cast<engine_material_desc_t>(&desc);
 }
 
 inline auto api_cast(const engine_collision_contact_point_desc_t* contact)
 {
-    return reinterpret_cast<const engine::CollisionContactPointDesc*>(&contact);
+    return reinterpret_cast<const engine::CollisionContactPointDesc*>(contact);
 }
 
 inline auto api_cast(const engine::CollisionContactPointDesc& contact)
@@ -107,7 +107,7 @@ inline auto api_cast(const engine::CollisionContactPointDesc& contact)
 
 inline auto api_cast(const engine_collision_desc_t* contact)
 {
-    return reinterpret_cast<const engine::CollisionDesc*>(&contact);
+    return reinterpret_cast<const engine::CollisionDesc*>(contact);
 }
 
 template<typename T>
@@ -322,7 +322,7 @@ engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t ha
     return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
-engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_desc2_t desc, engine_geometry_t* out)
+engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_desc_t desc, engine_geometry_t* out)
 {
     auto* app = api_cast(handle);
     const auto geo_desc = api_cast(desc);
@@ -368,7 +368,7 @@ void engineApplicationDestroyGeometry(engine_application_t handle, engine_geomet
     api_cast(handle)->destroy_geometry(geometry);
 }
 
-engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_desc2_t desc, engine_texture2d_t* out)
+engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_desc_t desc, engine_texture2d_t* out)
 {
     auto* app = api_cast(handle);
     const auto typed_desc = api_cast(desc);
@@ -415,7 +415,7 @@ bool engineApplicationDoTexture2DNameExists(engine_application_t handle, const c
     return app->get_texture(name) != ENGINE_INVALID_OBJECT_HANDLE;
 }
 
-engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile_2(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc2_t* out)
+engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile_2(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t* out)
 {
     if (!handle || !out || !file_name || !base_dir)
     {
@@ -430,11 +430,11 @@ engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile_2(eng
         return ENGINE_RESULT_CODE_FAIL;
     }
     const auto model_info = new engine::ModelDesc(engine::parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string()));
-    *out = reinterpret_cast<engine_model_desc2_t>(model_info);
+    *out = reinterpret_cast<engine_model_desc_t>(model_info);
     return ENGINE_RESULT_CODE_OK;
 }
 
-void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc2_t model_info)
+void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t model_info)
 {
     auto* app = api_cast(handle);
     auto typed_desc = api_cast(model_info);
@@ -1154,25 +1154,25 @@ const engine_collision_contact_point_desc_t* engineCollisionDescGetContactPoint(
     assert("Index out of bounds for contact points array!");
     return nullptr;
 }
-const char* engineTexture2dDescGetName(const engine_texture_2d_desc2_t desc)
+const char* engineTexture2dDescGetName(const engine_texture_2d_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->name.c_str();
 }
 
-uint32_t engineTexture2dDescGetWidth(const engine_texture_2d_desc2_t desc)
+uint32_t engineTexture2dDescGetWidth(const engine_texture_2d_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->width;
 }
 
-uint32_t engineTexture2dDescGetHeight(const engine_texture_2d_desc2_t desc)
+uint32_t engineTexture2dDescGetHeight(const engine_texture_2d_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->height;
 }
 
-engine_data_layout_t engineTexture2dDescGetDataLayout(const engine_texture_2d_desc2_t desc)
+engine_data_layout_t engineTexture2dDescGetDataLayout(const engine_texture_2d_desc_t desc)
 {
     using namespace engine;
     const auto data_layout = [](const auto engine_api_layout)
@@ -1193,60 +1193,60 @@ engine_data_layout_t engineTexture2dDescGetDataLayout(const engine_texture_2d_de
     return data_layout;
 }
 
-const void* engineTexture2dDescGetData(const engine_texture_2d_desc2_t desc)
+const void* engineTexture2dDescGetData(const engine_texture_2d_desc_t desc)
 {
     return api_cast(desc)->data.data();
 }
 
-const char* engineGeometryDescGetName(const engine_geometry_desc2_t desc)
+const char* engineGeometryDescGetName(const engine_geometry_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->name.c_str();
 }
 
-const void* engineGeometryDescGetVertsData(const engine_geometry_desc2_t desc)
+const void* engineGeometryDescGetVertsData(const engine_geometry_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->vertex_data.data();
 }
 
-size_t engineGeometryDescGetVertsDataSize(const engine_geometry_desc2_t desc)
+size_t engineGeometryDescGetVertsDataSize(const engine_geometry_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->vertex_data.size();
 }
 
-uint32_t engineGeometryDescGetVertsCount(const engine_geometry_desc2_t desc)
+uint32_t engineGeometryDescGetVertsCount(const engine_geometry_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->vertex_count;
 }
 
-const uint32_t* engineGeometryDescGetIndsData(const engine_geometry_desc2_t desc)
+const uint32_t* engineGeometryDescGetIndsData(const engine_geometry_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->indicies.data();
 }
 
-uint32_t engineGeometryDescGetIndsCount(const engine_geometry_desc2_t desc)
+uint32_t engineGeometryDescGetIndsCount(const engine_geometry_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->indicies.size();
 }
 
-engine_vertex_attributes_layout_t engineGeometryDescGetAttributesLayout(const engine_geometry_desc2_t desc)
+engine_vertex_attributes_layout_t engineGeometryDescGetAttributesLayout(const engine_geometry_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->vertex_laytout;
 }
 
-const char* engineMaterialDescGetName(const engine_material_desc2_t desc)
+const char* engineMaterialDescGetName(const engine_material_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->name.c_str();
 }
 
-engine_color_desc_t engineMaterialDescGetDiffuseColor(const engine_material_desc2_t desc)
+engine_color_desc_t engineMaterialDescGetDiffuseColor(const engine_material_desc_t desc)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
@@ -1259,19 +1259,19 @@ engine_color_desc_t engineMaterialDescGetDiffuseColor(const engine_material_desc
     return ret;
 }
 
-uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_material_desc2_t desc)
+uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_material_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->diffuse_texture;
 }
 
-const char* engineModelNodeDescGetName(const engine_model_node_desc2_t desc)
+const char* engineModelNodeDescGetName(const engine_model_node_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->name.c_str();
 }
 
-engine_model_node_desc2_t engineModelNodeDescGetParent(const engine_model_node_desc2_t desc)
+engine_model_node_desc_t engineModelNodeDescGetParent(const engine_model_node_desc_t desc)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
@@ -1282,7 +1282,7 @@ engine_model_node_desc2_t engineModelNodeDescGetParent(const engine_model_node_d
     return nullptr;
 }
 
-engine_model_node_desc2_t engineModelNodeDescGetChildren(const engine_model_node_desc2_t desc, size_t idx)
+engine_model_node_desc_t engineModelNodeDescGetChildren(const engine_model_node_desc_t desc, size_t idx)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
@@ -1294,37 +1294,37 @@ engine_model_node_desc2_t engineModelNodeDescGetChildren(const engine_model_node
     return nullptr;
 }
 
-uint32_t engineModelNodeDescGetChildrenCount(const engine_model_node_desc2_t desc)
+uint32_t engineModelNodeDescGetChildrenCount(const engine_model_node_desc_t desc)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
     return static_cast<uint32_t>(typed_desc->children.size());
 }
 
-uint32_t engineModelNodeDescGetIndex(const engine_model_node_desc2_t desc)
+uint32_t engineModelNodeDescGetIndex(const engine_model_node_desc_t desc)
 {
     return api_cast(desc)->index;
 }
 
-uint32_t engineModelNodeDescGetGeometryIndex(const engine_model_node_desc2_t desc)
+uint32_t engineModelNodeDescGetGeometryIndex(const engine_model_node_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->mesh;
 }
 
-uint32_t engineModelNodeDescGetSkinIndex(const engine_model_node_desc2_t desc)
+uint32_t engineModelNodeDescGetSkinIndex(const engine_model_node_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->skin;
 }
 
-uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc2_t desc)
+uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->material;
 }
 
-engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc2_t desc)
+engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc_t desc)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
@@ -1335,7 +1335,7 @@ engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc2_t
     return ret;
 }
 
-engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc2_t desc)
+engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc_t desc)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
@@ -1346,7 +1346,7 @@ engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc2_t desc)
     return ret;
 }
 
-engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_desc2_t desc)
+engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_desc_t desc)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
@@ -1358,53 +1358,53 @@ engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_
     return ret;
 }
 
-const engine_model_node_desc2_t engineModelDescGetNodeDesc(const engine_model_desc2_t desc, size_t idx)
+const engine_model_node_desc_t engineModelDescGetNodeDesc(const engine_model_desc_t desc, size_t idx)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
     return api_cast(typed_desc->nodes.at(idx).get());
 }
 
-uint32_t engineModelDescGetNodesDescCount(const engine_model_desc2_t desc)
+uint32_t engineModelDescGetNodesDescCount(const engine_model_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->nodes.size();
 }
 
-const engine_texture_2d_desc2_t engineModelDescGetTexture2dDesc(const engine_model_desc2_t desc, size_t idx)
+const engine_texture_2d_desc_t engineModelDescGetTexture2dDesc(const engine_model_desc_t desc, size_t idx)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
     return api_cast(typed_desc->textures.at(idx));
 }
 
-uint32_t engineModelDescGetTextures2dDescCount(const engine_model_desc2_t desc)
+uint32_t engineModelDescGetTextures2dDescCount(const engine_model_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->textures.size();
 }
 
-const engine_geometry_desc2_t engineModelDescGetGeometryDesc(const engine_model_desc2_t desc, size_t idx)
+const engine_geometry_desc_t engineModelDescGetGeometryDesc(const engine_model_desc_t desc, size_t idx)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
     return api_cast(typed_desc->geometries.at(idx));
 }
 
-uint32_t engineModelDescGetGeometriesDescCount(const engine_model_desc2_t desc)
+uint32_t engineModelDescGetGeometriesDescCount(const engine_model_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->geometries.size();
 }
 
-const engine_material_desc2_t engineModelDescGetMaterialDesc(const engine_model_desc2_t desc, size_t idx)
+const engine_material_desc_t engineModelDescGetMaterialDesc(const engine_model_desc_t desc, size_t idx)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
     return api_cast(typed_desc->materials.at(idx));
 }
 
-uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc2_t desc)
+uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc_t desc)
 {
     assert(desc);
     return api_cast(desc)->materials.size();

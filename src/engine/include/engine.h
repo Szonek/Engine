@@ -411,59 +411,59 @@ typedef enum _engine_model_specification_t
 } engine_model_specification_t;
 
 // Texture2D DESC
-typedef struct _engine_texture_2d_desc2_t* engine_texture_2d_desc2_t;
-ENGINE_API const char* engineTexture2dDescGetName(const engine_texture_2d_desc2_t desc);
-ENGINE_API uint32_t engineTexture2dDescGetWidth(const engine_texture_2d_desc2_t desc);
-ENGINE_API uint32_t engineTexture2dDescGetHeight(const engine_texture_2d_desc2_t desc);
-ENGINE_API engine_data_layout_t engineTexture2dDescGetDataLayout(const engine_texture_2d_desc2_t desc);
-ENGINE_API const void* engineTexture2dDescGetData(const engine_texture_2d_desc2_t desc);
+typedef struct _engine_texture_2d_desc_t* engine_texture_2d_desc_t;
+ENGINE_API const char* engineTexture2dDescGetName(const engine_texture_2d_desc_t desc);
+ENGINE_API uint32_t engineTexture2dDescGetWidth(const engine_texture_2d_desc_t desc);
+ENGINE_API uint32_t engineTexture2dDescGetHeight(const engine_texture_2d_desc_t desc);
+ENGINE_API engine_data_layout_t engineTexture2dDescGetDataLayout(const engine_texture_2d_desc_t desc);
+ENGINE_API const void* engineTexture2dDescGetData(const engine_texture_2d_desc_t desc);
 
 // Geometry DESC
-typedef struct _engine_geometry_desc2_t* engine_geometry_desc2_t;
-ENGINE_API const char* engineGeometryDescGetName(const engine_geometry_desc2_t desc);
+typedef struct _engine_geometry_desc_t* engine_geometry_desc_t;
+ENGINE_API const char* engineGeometryDescGetName(const engine_geometry_desc_t desc);
 
-ENGINE_API const void* engineGeometryDescGetVertsData(const engine_geometry_desc2_t desc);
-ENGINE_API size_t engineGeometryDescGetVertsDataSize(const engine_geometry_desc2_t desc);
-ENGINE_API uint32_t engineGeometryDescGetVertsCount(const engine_geometry_desc2_t desc);
+ENGINE_API const void* engineGeometryDescGetVertsData(const engine_geometry_desc_t desc);
+ENGINE_API size_t engineGeometryDescGetVertsDataSize(const engine_geometry_desc_t desc);
+ENGINE_API uint32_t engineGeometryDescGetVertsCount(const engine_geometry_desc_t desc);
 
-ENGINE_API const uint32_t* engineGeometryDescGetIndsData(const engine_geometry_desc2_t desc);
-ENGINE_API uint32_t engineGeometryDescGetIndsCount(const engine_geometry_desc2_t desc);
+ENGINE_API const uint32_t* engineGeometryDescGetIndsData(const engine_geometry_desc_t desc);
+ENGINE_API uint32_t engineGeometryDescGetIndsCount(const engine_geometry_desc_t desc);
 
-ENGINE_API engine_vertex_attributes_layout_t engineGeometryDescGetAttributesLayout(const engine_geometry_desc2_t desc);
+ENGINE_API engine_vertex_attributes_layout_t engineGeometryDescGetAttributesLayout(const engine_geometry_desc_t desc);
 
 // Material DESC
-typedef struct _engine_material_desc2_t* engine_material_desc2_t;
-ENGINE_API const char* engineMaterialDescGetName(const engine_material_desc2_t desc);
-ENGINE_API engine_color_desc_t engineMaterialDescGetDiffuseColor(const engine_material_desc2_t desc);
-ENGINE_API uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_material_desc2_t desc); // -1 if not used
+typedef struct _engine_material_desc_t* engine_material_desc_t;
+ENGINE_API const char* engineMaterialDescGetName(const engine_material_desc_t desc);
+ENGINE_API engine_color_desc_t engineMaterialDescGetDiffuseColor(const engine_material_desc_t desc);
+ENGINE_API uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_material_desc_t desc); // -1 if not used
 
 // Model Node DESC
-typedef struct _engine_model_node_desc2_t* engine_model_node_desc2_t;
-ENGINE_API const char* engineModelNodeDescGetName(const engine_model_node_desc2_t desc);
-ENGINE_API engine_model_node_desc2_t engineModelNodeDescGetParent(const engine_model_node_desc2_t desc);
-ENGINE_API engine_model_node_desc2_t engineModelNodeDescGetChildren(const engine_model_node_desc2_t desc, size_t idx);
-ENGINE_API uint32_t engineModelNodeDescGetChildrenCount(const engine_model_node_desc2_t desc);
-ENGINE_API uint32_t engineModelNodeDescGetIndex(const engine_model_node_desc2_t desc);
-ENGINE_API uint32_t engineModelNodeDescGetGeometryIndex(const engine_model_node_desc2_t desc); // -1 if not used
-ENGINE_API uint32_t engineModelNodeDescGetSkinIndex(const engine_model_node_desc2_t desc); // -1 if not used
-ENGINE_API uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc2_t desc); // -1 if not used
-ENGINE_API engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc2_t desc);
-ENGINE_API engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc2_t desc);
-ENGINE_API engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_desc2_t desc); // quaternion: {x, y, z, w}
+typedef struct _engine_model_node_desc_t* engine_model_node_desc_t;
+ENGINE_API const char* engineModelNodeDescGetName(const engine_model_node_desc_t desc);
+ENGINE_API engine_model_node_desc_t engineModelNodeDescGetParent(const engine_model_node_desc_t desc);
+ENGINE_API engine_model_node_desc_t engineModelNodeDescGetChildren(const engine_model_node_desc_t desc, size_t idx);
+ENGINE_API uint32_t engineModelNodeDescGetChildrenCount(const engine_model_node_desc_t desc);
+ENGINE_API uint32_t engineModelNodeDescGetIndex(const engine_model_node_desc_t desc);
+ENGINE_API uint32_t engineModelNodeDescGetGeometryIndex(const engine_model_node_desc_t desc); // -1 if not used
+ENGINE_API uint32_t engineModelNodeDescGetSkinIndex(const engine_model_node_desc_t desc); // -1 if not used
+ENGINE_API uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc_t desc); // -1 if not used
+ENGINE_API engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc_t desc);
+ENGINE_API engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc_t desc);
+ENGINE_API engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_desc_t desc); // quaternion: {x, y, z, w}
 
 // Model DESC
-typedef struct _engine_model_desc2_t* engine_model_desc2_t;
-ENGINE_API const engine_model_node_desc2_t engineModelDescGetNodeDesc(const engine_model_desc2_t desc, size_t idx);
-ENGINE_API uint32_t engineModelDescGetNodesDescCount(const engine_model_desc2_t desc);
+typedef struct _engine_model_desc_t* engine_model_desc_t;
+ENGINE_API const engine_model_node_desc_t engineModelDescGetNodeDesc(const engine_model_desc_t desc, size_t idx);
+ENGINE_API uint32_t engineModelDescGetNodesDescCount(const engine_model_desc_t desc);
 
-ENGINE_API const engine_texture_2d_desc2_t engineModelDescGetTexture2dDesc(const engine_model_desc2_t desc, size_t idx);
-ENGINE_API uint32_t engineModelDescGetTextures2dDescCount(const engine_model_desc2_t desc);
+ENGINE_API const engine_texture_2d_desc_t engineModelDescGetTexture2dDesc(const engine_model_desc_t desc, size_t idx);
+ENGINE_API uint32_t engineModelDescGetTextures2dDescCount(const engine_model_desc_t desc);
 
-ENGINE_API const engine_geometry_desc2_t engineModelDescGetGeometryDesc(const engine_model_desc2_t desc, size_t idx);
-ENGINE_API uint32_t engineModelDescGetGeometriesDescCount(const engine_model_desc2_t desc);
+ENGINE_API const engine_geometry_desc_t engineModelDescGetGeometryDesc(const engine_model_desc_t desc, size_t idx);
+ENGINE_API uint32_t engineModelDescGetGeometriesDescCount(const engine_model_desc_t desc);
 
-ENGINE_API const engine_material_desc2_t engineModelDescGetMaterialDesc(const engine_model_desc2_t desc, size_t idx);
-ENGINE_API uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc2_t desc);
+ENGINE_API const engine_material_desc_t engineModelDescGetMaterialDesc(const engine_model_desc_t desc, size_t idx);
+ENGINE_API uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc_t desc);
 
 /**
  * @struct engine_geometry_attribute_limit_t
@@ -543,17 +543,17 @@ ENGINE_API void engineApplicationDestroyShader(engine_application_t handle, engi
 ENGINE_API engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name);
 
 // model loading
-ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile_2(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc2_t* out);
-ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc2_t model_info);
+ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile_2(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t* out);
+ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t model_info);
 
 // geometry
-ENGINE_API engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_desc2_t desc, engine_geometry_t* out);
+ENGINE_API engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_desc_t desc, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 ENGINE_API engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_application_t handle, engine_geometry_t geometry, engine_vertex_attribute_type_t type);
 ENGINE_API void engineApplicationDestroyGeometry(engine_application_t handle, engine_geometry_t geometry);
 
 // textures 
-ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_desc2_t desc, engine_texture2d_t* out);
+ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_desc_t desc, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
 ENGINE_API void engineApplicationDestroyTexture2D(engine_application_t handle, engine_texture2d_t tex2d);

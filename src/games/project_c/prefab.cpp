@@ -6,7 +6,7 @@
 project_c::Prefab::Prefab(Prefab&& rhs) noexcept
 {
     std::swap(app_, rhs.app_);
-    std::swap(model_info2_, rhs.model_info2_);
+    std::swap(model_desc_, rhs.model_desc_);
     std::swap(geometries_, rhs.geometries_);
     std::swap(textures_, rhs.textures_);
     std::swap(materials_, rhs.materials_);
@@ -17,7 +17,7 @@ project_c::Prefab& project_c::Prefab::operator=(Prefab&& rhs) noexcept
     if (this != &rhs)
     {
         std::swap(app_, rhs.app_);
-        std::swap(model_info2_, rhs.model_info2_);
+        std::swap(model_desc_, rhs.model_desc_);
         std::swap(geometries_, rhs.geometries_);
         std::swap(textures_, rhs.textures_);
         std::swap(materials_, rhs.materials_);
@@ -41,19 +41,19 @@ project_c::Prefab::~Prefab()
             }
         }
         materials_.clear();
-        engineApplicationReleaseModelDesc(app_, model_info2_);
+        engineApplicationReleaseModelDesc(app_, model_desc_);
     }
 }
 
 project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name, std::string_view base_dir)
     : app_(app)
 {
-    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile_2(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_info2_);
+    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile_2(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_desc_);
 
-    geometries_ = std::vector(engineModelDescGetGeometriesDescCount(model_info2_), ENGINE_INVALID_OBJECT_HANDLE);
+    geometries_ = std::vector(engineModelDescGetGeometriesDescCount(model_desc_), ENGINE_INVALID_OBJECT_HANDLE);
     for (std::uint32_t i = 0; i < geometries_.size(); i++)
     {
-        const auto& geo_desc = engineModelDescGetGeometryDesc(model_info2_, i);
+        const auto& geo_desc = engineModelDescGetGeometryDesc(model_desc_, i);
         engine_error_code = engineApplicationCreateGeometryFromDesc(app, geo_desc, &geometries_[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
@@ -62,10 +62,10 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         }
     }
 
-    textures_ = std::vector<EngineObj<engine_texture2d_t>>(engineModelDescGetTextures2dDescCount(model_info2_));
+    textures_ = std::vector<EngineObj<engine_texture2d_t>>(engineModelDescGetTextures2dDescCount(model_desc_));
     for (std::uint32_t i = 0; i < textures_.size(); i++)
     {
-        const auto& texture_desc = engineModelDescGetTexture2dDesc(model_info2_, i);
+        const auto& texture_desc = engineModelDescGetTexture2dDesc(model_desc_, i);
         const auto name_generic = std::string(model_file_name) + "_texture_" + std::to_string(i);
         const auto name_real = engineTexture2dDescGetName(texture_desc);
         const std::string name = name_real ? name_real : name_generic;
@@ -89,10 +89,10 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         }
     }
 
-    materials_ = std::vector<engine_material_component_t>(engineModelDescGetMaterialsDescCount(model_info2_));
+    materials_ = std::vector<engine_material_component_t>(engineModelDescGetMaterialsDescCount(model_desc_));
     for (std::uint32_t i = 0; i < materials_.size(); i++)
     {
-        const auto& mat_desc = engineModelDescGetMaterialDesc(model_info2_, i);
+        const auto& mat_desc = engineModelDescGetMaterialDesc(model_desc_, i);
         auto& mat_comp = materials_.at(i);
         mat_comp.type = ENGINE_MATERIAL_TYPE_PONG;
         set_c_array(mat_comp.data.pong.diffuse_color, engineMaterialDescGetDiffuseColor(mat_desc));
@@ -112,10 +112,10 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     ret.go = ENGINE_INVALID_GAME_OBJECT_ID;
 
     std::map<std::uint32_t, engine_game_object_t> node_id_to_game_object;
-    const auto nodes_count = engineModelDescGetNodesDescCount(model_info2_);
+    const auto nodes_count = engineModelDescGetNodesDescCount(model_desc_);
     for (auto i = 0; i < nodes_count; i++)
     {
-        const auto node_desc = engineModelDescGetNodeDesc(model_info2_, i);
+        const auto node_desc = engineModelDescGetNodeDesc(model_desc_, i);
         const auto& go = engineSceneCreateGameObject(scene);
         node_id_to_game_object[engineModelNodeDescGetIndex(node_desc)] = go;
         const auto name = engineModelNodeDescGetName(node_desc);
@@ -166,7 +166,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     // hierarchy
     for (auto i = 0; i < nodes_count; i++)
     {
-        const auto node_desc = engineModelDescGetNodeDesc(model_info2_, i);
+        const auto node_desc = engineModelDescGetNodeDesc(model_desc_, i);
         const auto& go = node_id_to_game_object[engineModelNodeDescGetIndex(node_desc)];
         if (const auto parent_node_desc = engineModelNodeDescGetParent(node_desc))
         {
@@ -268,5 +268,5 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
 
 bool project_c::Prefab::is_valid() const
 {
-    return model_info2_ && engineModelDescGetNodesDescCount(model_info2_) > 0;
+    return model_desc_ && engineModelDescGetNodesDescCount(model_desc_) > 0;
 }
