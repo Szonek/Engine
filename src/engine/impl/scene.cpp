@@ -123,30 +123,6 @@ static inline void calculate_camera_view_and_projection(std::size_t window_width
     }
 }
 
-namespace engine
-{
-class Skin
-{
-public:
-    Skin() = default;
-    Skin(const engine_skin_create_desc_t& desc)
-        : skeleton_(nullptr)
-    {
-        if (desc.bones_count > 0 && desc.bones_array)
-        {
-            ozz::animation::offline::RawSkeleton raw_skeleton;
-            raw_skeleton.roots.resize(1);
-            ozz::animation::offline::RawSkeleton::Joint& root = raw_skeleton.roots[0];
-            root.name = "root";
-        }
-    }
-
-private:
-    ozz::unique_ptr<ozz::animation::Skeleton> skeleton_;
-};
-}
-
-
 engine::Scene::Scene(Application* app, RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : app_(app)
     , rdx_(rdx)

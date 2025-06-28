@@ -136,13 +136,14 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     , shader_full_screen_quad_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
 {
 	{
-		constexpr const std::array<std::uint8_t, 3> default_texture_color = { 255, 255, 255 };
-		engine_texture_2d_create_desc_t tex2d_desc{};
+		const std::vector<std::byte> default_texture_color = { static_cast<std::byte>(255), static_cast<std::byte>(255), static_cast<std::byte>(255) };
+		TextureInfo tex2d_desc{};
+        tex2d_desc.name = "default_texture";
 		tex2d_desc.width = 1;
 		tex2d_desc.height = 1;
-        tex2d_desc.data_layout = ENGINE_DATA_LAYOUT_RGB_U8;
-		tex2d_desc.data = default_texture_color.data();
-        default_texture_idx_ = add_texture(tex2d_desc, "default_1x1_texutre");
+        tex2d_desc.layout = ENGINE_DATA_LAYOUT_RGB_U8;
+        tex2d_desc.data = default_texture_color;
+        default_texture_idx_ = add_texture(tex2d_desc);
 	}
 
 	timer_.tick();
@@ -324,25 +325,6 @@ engine_application_frame_end_info_t engine::Application::end_frame()
 	//ret.success = !glfwWindowShouldClose(rdx_.get_glfw_window());;
     ret.success = true;
 	return ret;
-}
-
-std::uint32_t engine::Application::add_texture(const engine_texture_2d_create_desc_t& desc, std::string_view texture_name)
-{
-    const auto data_layout = [](const auto engine_api_layout)
-    {
-        switch (engine_api_layout)
-        {
-        case ENGINE_DATA_LAYOUT_RGBA_FP32: return DataLayout::eRGBA_FP32;
-        case ENGINE_DATA_LAYOUT_R_FP32: return DataLayout::eR_FP32;
-
-        case ENGINE_DATA_LAYOUT_RGBA_U8: return DataLayout::eRGBA_U8;
-        case ENGINE_DATA_LAYOUT_RGB_U8: return DataLayout::eRGB_U8;
-        case ENGINE_DATA_LAYOUT_R_U8: return DataLayout::eR_U8;
-        default:
-            return DataLayout::eCount;
-        }
-    }(desc.data_layout);
-	return textures_atlas_.add_object(texture_name, Texture2D(desc.width, desc.height, true, desc.data, data_layout, TextureAddressClampMode::eClampToEdge));
 }
 
 std::uint32_t engine::Application::add_texture(const TextureInfo& desc)

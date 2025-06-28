@@ -399,101 +399,6 @@ typedef enum _engine_model_specification_t
     ENGINE_MODEL_SPECIFICATION_GLTF_2
 } engine_model_specification_t;
 
-typedef struct _engine_geometry_create_desc_t
-{
-    const void* verts_data;
-    size_t verts_data_size;
-    int32_t verts_count;
-    engine_vertex_attributes_layout_t verts_layout;
-    const uint32_t* inds;
-    size_t inds_count;
-} engine_geometry_create_desc_t;
-
-typedef struct _engine_animation_channel_data_t
-{
-    const float* timestamps;
-    uint32_t timestamps_count;
-
-    const float* data;
-    size_t data_count;
-} engine_animation_channel_data_t;
-
-typedef struct _engine_animation_channel_create_desc_t
-{
-    uint32_t model_node_index;
-    engine_animation_channel_data_t channel_translation;  // data is {x, y, z}
-    engine_animation_channel_data_t channel_rotation;  // data is quatenion: {x, y, z, w}
-    engine_animation_channel_data_t channel_scale;  // data is {x, y, z}
-} engine_animation_channel_create_desc_t;
-
-typedef struct _engine_animation_clip_create_desc_t
-{
-    const char* name;
-    engine_animation_channel_create_desc_t* channels;
-    uint32_t channels_count;
-} engine_animation_clip_create_desc_t;
-
-typedef struct _engine_bones_create_desc_t
-{
-    uint32_t model_node_index;
-    float inverse_bind_mat[16];
-} engine_bone_create_desc_t;
-
-typedef struct _engine_skin_create_desc_t
-{
-    const char* name;
-    engine_bone_create_desc_t* bones_array;
-    uint32_t bones_count;
-} engine_skin_create_desc_t;
-
-typedef struct _engine_model_material_desc_t
-{
-    const char* name;
-    float diffuse_color[4];
-    uint32_t diffuse_texture_index;  // -1 if not used
-} engine_model_material_desc_t;
-
-typedef struct _engine_model_node_desc_t
-{
-    const char* name;
-    struct _engine_model_node_desc_t* parent; // nullptr if no parent
-    struct _engine_model_node_desc_t** children; // nullptr if no childs
-    uint32_t children_count;
-    uint32_t index;  // unique index, i.e. skin desc pointing
-    uint32_t geometry_index;  // -1 if not used
-    uint32_t skin_index;      // -1 if not used
-    uint32_t material_index;  // -1 if not used
-    float translate[3];
-    float scale[3];
-    float rotation_quaternion[4];
-} engine_model_node_desc_t;
-
-typedef struct _engine_model_desc_t
-{
-    const void* internal_handle;
-
-    engine_model_node_desc_t* nodes_array;
-    uint32_t nodes_count;
-
-    engine_geometry_create_desc_t* geometries_array;
-    const char** geometires_name_array;
-    uint32_t geometries_count;
-
-    engine_model_material_desc_t* materials_array;
-    const char** materials_name_array;
-    uint32_t materials_count;
-
-    engine_texture_2d_create_desc_t* textures_array;
-    const char** textures_name_array;
-    uint32_t textures_count;
-
-    engine_animation_clip_create_desc_t* animations_array;
-    uint32_t animations_counts;
-
-    engine_skin_create_desc_t* skins_array;
-    uint32_t skins_counts;
-} engine_model_desc_t;
-
 // Texture2D DESC
 typedef struct _engine_texture_2d_desc2_t* engine_texture_2d_desc2_t;
 ENGINE_API const char* engineTexture2dDescGetName(const engine_texture_2d_desc2_t desc);
@@ -514,8 +419,6 @@ ENGINE_API const uint32_t* engineGeometryDescGetIndsData(const engine_geometry_d
 ENGINE_API uint32_t engineGeometryDescGetIndsCount(const engine_geometry_desc2_t desc);
 
 ENGINE_API engine_vertex_attributes_layout_t engineGeometryDescGetAttributesLayout(const engine_geometry_desc2_t desc);
-
-
 
 // Material DESC
 typedef struct _engine_material_desc2_t* engine_material_desc2_t;
@@ -633,14 +536,12 @@ ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFro
 ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc2_t model_info);
 
 // geometry
-ENGINE_API engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out);
 ENGINE_API engine_result_code_t engineApplicationCreateGeometryFromDesc_2(engine_application_t handle, const engine_geometry_desc2_t desc, engine_geometry_t* out);
 ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
 ENGINE_API engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_application_t handle, engine_geometry_t geometry, engine_vertex_attribute_type_t type);
 ENGINE_API void engineApplicationDestroyGeometry(engine_application_t handle, engine_geometry_t geometry);
 
 // textures 
-ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc_2(engine_application_t handle, const engine_texture_2d_desc2_t desc, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);

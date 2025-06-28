@@ -306,34 +306,6 @@ engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t ha
     return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
-engine_skin_t engineSceneCreateSkinFromDesc(engine_scene_t scene, const engine_skin_create_desc_t* skin_desc, const engine_model_node_desc_t* nodes)
-{
-    if (!scene || !skin_desc || !nodes)
-    {
-        return nullptr;
-    }
-    if (!skin_desc->name || skin_desc->name[0] == '\0')
-    {
-        engineLog("Skin name is empty, cannot create skin.\n");
-        return nullptr;
-    }
-    auto* sc = api_cast(scene);
-    return nullptr;
-}
-
-engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out)
-{
-    auto* app = api_cast(handle);
-    const auto ret = app->add_geometry(desc->verts_layout, desc->verts_count, { reinterpret_cast<const std::byte*>(desc->verts_data), desc->verts_data_size }, { desc->inds, desc->inds_count}, name);
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    *out = ret;
-    engineLog(fmt::format("Created geometry: {}, with id: {}\n", name, ret).c_str());
-    return ENGINE_RESULT_CODE_OK;
-}
-
 engine_result_code_t engineApplicationCreateGeometryFromDesc_2(engine_application_t handle, const engine_geometry_desc2_t desc, engine_geometry_t* out)
 {
     auto* app = api_cast(handle);
@@ -378,20 +350,6 @@ void engineApplicationDestroyGeometry(engine_application_t handle, engine_geomet
 {
     assert(handle);
     api_cast(handle)->destroy_geometry(geometry);
-}
-
-engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out)
-{
-    auto* app = api_cast(handle);
-    const auto ret =  app->add_texture(*info, name);
-
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    *out = ret;
-    engineLog(fmt::format("Created texture: {}, with id: {}\n", name, ret).c_str());
-    return ENGINE_RESULT_CODE_OK;
 }
 
 engine_result_code_t engineApplicationCreateTexture2DFromDesc_2(engine_application_t handle, const engine_texture_2d_desc2_t desc, engine_texture2d_t* out)
