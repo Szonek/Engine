@@ -95,8 +95,11 @@ void project_c::Enemy::update(float dt)
         anim_controller_.set_active_animation("Death_A");
         // remove collider so enemy will not be hit by players attacks
         engineSceneRemoveColliderComponent(scene, go_);
-        auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD, my_scene_).go);
-        coin->set_world_position(tc.position[0], tc.position[1] + 1.0f, tc.position[2]);
+        if (reinterpret_cast<AppProjectC*>(my_scene_->get_app())->is_prefab_available(project_c::PrefabType::PREFAB_TYPE_COIN_GOLD))
+        {
+            auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD, my_scene_).go);
+            coin->set_world_position(tc.position[0], tc.position[1] + 1.0f, tc.position[2]);
+        }
     }
 
     switch (state_)

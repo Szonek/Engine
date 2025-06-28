@@ -260,6 +260,7 @@ public:
     {
         if (collection_.is_empty())
         {
+            active_clips_.clear();
             return;
         }
         std::map<engine_game_object_t, AnimationTransform> final_transforms;

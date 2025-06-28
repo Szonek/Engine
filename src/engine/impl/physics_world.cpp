@@ -285,24 +285,24 @@ engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, std
     //);
 
     RayWithIgnoreResultCallbackClosestHit closest_result(
-        btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
-        btVector3(ray.direction[0], ray.direction[1], ray.direction[2]),
+        btVector3(ray.origin.x, ray.origin.y, ray.origin.z),
+        btVector3(ray.direction.x, ray.direction.y, ray.direction.z),
         ignore_list);
     dynamics_world_->rayTest(
-        btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
-        btVector3(ray.direction[0], ray.direction[1], ray.direction[2]),
+        btVector3(ray.origin.x, ray.origin.y, ray.origin.z),
+        btVector3(ray.direction.x, ray.direction.y, ray.direction.z),
         closest_result
     );
     engine_ray_hit_info_t ret{};
     if (closest_result.hasHit())
     {
         ret.go = closest_result.m_collisionObject->getUserIndex();
-        ret.position[0] = closest_result.m_hitPointWorld.getX();
-        ret.position[1] = closest_result.m_hitPointWorld.getY();
-        ret.position[2] = closest_result.m_hitPointWorld.getZ();
-        ret.normal[0] = closest_result.m_hitNormalWorld.getX();
-        ret.normal[1] = closest_result.m_hitNormalWorld.getY();
-        ret.normal[2] = closest_result.m_hitNormalWorld.getZ();
+        ret.position.x = closest_result.m_hitPointWorld.getX();
+        ret.position.y = closest_result.m_hitPointWorld.getY();
+        ret.position.z = closest_result.m_hitPointWorld.getZ();
+        ret.normal.x = closest_result.m_hitNormalWorld.getX();
+        ret.normal.y = closest_result.m_hitNormalWorld.getY();
+        ret.normal.z = closest_result.m_hitNormalWorld.getZ();
     }
     return ret;
 }

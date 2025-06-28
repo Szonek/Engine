@@ -72,15 +72,15 @@ typedef struct _engine_color_desc_t
 
 typedef struct _engine_ray_t
 {
-    float origin[3];
-    float direction[3];
+    engine_fvec3_t origin;
+    engine_fvec3_t direction;
 } engine_ray_t;
 
 typedef struct _engine_ray_hit_info_t
 {
     engine_game_object_t go;
-    float position[3];
-    float normal[3];
+    engine_fvec3_t position;
+    engine_fvec3_t normal;
 } engine_ray_hit_info_t;
 
 typedef enum _engine_ui_event_type_t

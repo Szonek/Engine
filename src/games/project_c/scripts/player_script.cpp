@@ -301,7 +301,7 @@ void project_c::Player::update(float dt)
     auto rotate_towards_global_target = [&]()
         {
             auto tc = engineSceneGetTransformComponent(scene, go_);
-            auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(hit_info.position[0], hit_info.position[1], hit_info.position[2]));
+            auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(hit_info.position.x, hit_info.position.y, hit_info.position.z));
             std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
             engineSceneUpdateTransformComponent(scene, go_, &tc);
         };
@@ -320,7 +320,7 @@ void project_c::Player::update(float dt)
         {
             // check distance and interace if close enough
             const auto tc = engineSceneGetTransformComponent(scene, go_);
-            const float distance = glm::distance(glm::vec3(hit_info.position[0], hit_info.position[1], hit_info.position[2]), glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
+            const float distance = glm::distance(glm::vec3(hit_info.position.x, hit_info.position.y, hit_info.position.z), glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
             if (distance < 1.0f)
             {
                 interactable->interact();
@@ -405,7 +405,7 @@ void project_c::Player::update(float dt)
         engineSceneUpdateTransformComponent(scene, go_, &tc_move);
 
         // compute forard/left/right/backward direction based on mouse position
-        const glm::vec3 direction = glm::normalize(glm::vec3(hit_info.position[0], hit_info.position[1], hit_info.position[2]) - glm::vec3(tc_move.position[0], tc_move.position[1], tc_move.position[2]));
+        const glm::vec3 direction = glm::normalize(glm::vec3(hit_info.position.x, hit_info.position.y, hit_info.position.z) - glm::vec3(tc_move.position[0], tc_move.position[1], tc_move.position[2]));
         // Compute the dot products
         const float forward_dot = glm::dot(direction, forward);
         const float right_dot = glm::dot(direction, right);
