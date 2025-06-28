@@ -82,7 +82,6 @@ struct ModelNode
     std::int32_t index = INVALID_VALUE;
     std::int32_t mesh = INVALID_VALUE;
     std::int32_t skin = INVALID_VALUE;
-    std::int32_t joint = INVALID_VALUE;
     std::shared_ptr<ModelNode> parent = nullptr; // shared_ptr to have pointer stability while erasing nodes
     std::vector<std::shared_ptr<ModelNode>> children = {};
 
