@@ -672,10 +672,11 @@ engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile_2(eng
     return ENGINE_RESULT_CODE_OK;
 }
 
-void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info)
+void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc2_t model_info)
 {
     auto* app = api_cast(handle);
-    app->release_model_desc(model_info);
+    auto typed_desc = api_cast(model_info);
+    delete typed_desc;
 }
 
 engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, engine_scene_create_desc_t desc, engine_scene_t* out)

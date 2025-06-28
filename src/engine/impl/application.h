@@ -54,7 +54,6 @@ public:
     virtual void destroy_shader(std::uint32_t idx);
 
     virtual ModelInfo load_model_desc_from_file(engine_model_specification_t spec, std::string_view name, std::string_view base_dir);
-    virtual void release_model_desc(engine_model_desc_t* info);
 
     virtual UiDocument load_ui_document(std::string_view file_name);
     virtual UiDataHandle create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);

@@ -631,7 +631,7 @@ ENGINE_API engine_result_code_t engineApplicationCreateFontFromFile(engine_appli
 // model loading
 ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t* out);
 ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile_2(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc2_t* out);
-ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info);
+ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc2_t model_info);
 
 // geometry
 ENGINE_API engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out);

@@ -466,55 +466,6 @@ engine::ModelInfo engine::Application::load_model_desc_from_file(engine_model_sp
     return model_info;
 }
 
-void engine::Application::release_model_desc(engine_model_desc_t* info)
-{
-    if (info)
-    {
-        const auto model_info = reinterpret_cast<const engine::ModelInfo*>(info->internal_handle);
-        delete model_info;
-        for (std::uint32_t i = 0; i < info->nodes_count; i++)
-        {
-            if (info->nodes_array[i].children_count > 0)
-            {
-                delete[] info->nodes_array[i].children;
-            }
-        }
-        if (info->geometries_array)
-        {
-            delete[] info->geometries_array;
-            delete[] info->geometires_name_array;
-        }
-        if (info->textures_array)
-        {
-            delete[] info->textures_array;
-        }
-        if (info->materials_array)
-        {
-            delete[] info->materials_array;
-        }
-        if (info->animations_array)
-        {
-            for (std::uint32_t i = 0; i < info->animations_counts; i++)
-            {
-                delete[] info->animations_array[i].channels;
-            }
-            delete[] info->animations_array;
-        }
-        if (info->skins_array)
-        {
-            for (std::uint32_t i = 0; i < info->skins_counts; i++)
-            {
-                if (info->skins_array[i].bones_count > 0)
-                {
-                    delete[] info->skins_array[i].bones_array;
-                }
-            }
-            delete[] info->skins_array;
-        }
-        std::memset(info, 0, sizeof(engine_model_desc_t));
-    }
-}
-
 engine::UiDocument engine::Application::load_ui_document(std::string_view file_name)
 {
     return ui_manager_.load_document_from_file(file_name);

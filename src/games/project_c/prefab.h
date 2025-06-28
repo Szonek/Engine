@@ -44,7 +44,6 @@ private:
 
 private:
     engine_application_t app_ = nullptr;
-    engine_model_desc_t model_info_ = {};
     engine_model_desc2_t model_info2_ = {};
     std::vector<engine_geometry_t> geometries_ = {};
     std::vector<engine_material_component_t> materials_;

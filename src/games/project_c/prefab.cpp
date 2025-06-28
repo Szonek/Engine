@@ -7,7 +7,6 @@ project_c::Prefab::Prefab(Prefab&& rhs) noexcept
 {
     std::swap(app_, rhs.app_);
     std::swap(model_info2_, rhs.model_info2_);
-    std::swap(model_info_, rhs.model_info_);
     std::swap(geometries_, rhs.geometries_);
     std::swap(textures_, rhs.textures_);
     std::swap(materials_, rhs.materials_);
@@ -19,7 +18,6 @@ project_c::Prefab& project_c::Prefab::operator=(Prefab&& rhs) noexcept
     {
         std::swap(app_, rhs.app_);
         std::swap(model_info2_, rhs.model_info2_);
-        std::swap(model_info_, rhs.model_info_);
         std::swap(geometries_, rhs.geometries_);
         std::swap(textures_, rhs.textures_);
         std::swap(materials_, rhs.materials_);
@@ -43,14 +41,13 @@ project_c::Prefab::~Prefab()
             }
         }
         materials_.clear();
-        engineApplicationReleaseModelDesc(app_, &model_info_);
+        engineApplicationReleaseModelDesc(app_, model_info2_);
     }
 }
 
 project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name, std::string_view base_dir)
     : app_(app)
 {
-#if 1
     engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile_2(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_info2_);
 
     geometries_ = std::vector(engineModelDescGetGeometriesDescCount(model_info2_), ENGINE_INVALID_OBJECT_HANDLE);
@@ -106,74 +103,6 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         }
         mat_comp.data.pong.shininess = 32;
     }
-
-#else
-    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_info_);
-    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-    {
-        engineLog("Failed loading TABLE model. Exiting!\n");
-        return;
-    }
-
-    geometries_ = std::vector(model_info_.geometries_count, ENGINE_INVALID_OBJECT_HANDLE);
-    for (std::uint32_t i = 0; i < model_info_.geometries_count; i++)
-    {
-
-        const auto& geo = model_info_.geometries_array[i];
-        const auto name_generic = std::string(model_file_name) + "_geometry_" + std::to_string(i);
-        engine_error_code = engineApplicationCreateGeometryFromDesc(app, &geo,
-            model_info_.geometires_name_array[i] ? model_info_.geometires_name_array[i] : name_generic.c_str(),
-            &geometries_[i]);
-        if (engine_error_code != ENGINE_RESULT_CODE_OK)
-        {
-            engineLog("Failed creating geometry for loaded model. Exiting!\n");
-            return;
-        }
-    }
-
-    textures_ = std::vector<EngineObj<engine_texture2d_t>>(model_info_.textures_count);
-    for (std::uint32_t i = 0; i < model_info_.textures_count; i++)
-    {
-
-        const auto name_generic = std::string(model_file_name) + "_texture_" + std::to_string(i);
-        const auto name_real = model_info_.textures_name_array[i];
-        std::string name = name_real ? name_real : name_generic;
-        if (engineApplicationDoTexture2DNameExists(app, name.c_str()))
-        {
-            engineLog(std::format("Texture with name: {} already exists, reusing it.\n", name).c_str());
-            textures_[i].obj = engineApplicationGetTextured2DByName(app, name.c_str());
-            textures_[i].owner = false;
-            engine_error_code = textures_[i].obj == ENGINE_INVALID_OBJECT_HANDLE ? ENGINE_RESULT_CODE_FAIL: ENGINE_RESULT_CODE_OK;
-        }
-        else
-        {
-            engine_error_code = engineApplicationCreateTexture2DFromDesc(app, &model_info_.textures_array[i],
-                name.c_str(),
-                &textures_[i].obj);
-            textures_[i].owner = true;
-        }
-
-        if (engine_error_code != ENGINE_RESULT_CODE_OK)
-        {
-            engineLog("Failed creating texture for loaded model. Exiting!\n");
-            return;
-        }
-    }
-
-    materials_ = std::vector<engine_material_component_t>(model_info_.materials_count);
-    for (std::uint32_t i = 0; i < model_info_.materials_count; i++)
-    {
-        const auto& mat_info = model_info_.materials_array[i];
-        auto& mat_comp = materials_.at(i);
-        mat_comp.type = ENGINE_MATERIAL_TYPE_PONG;
-        set_c_array(mat_comp.data.pong.diffuse_color, mat_info.diffuse_color);
-        if (mat_info.diffuse_texture_index != -1)
-        {
-            mat_comp.data.pong.diffuse_texture = textures_.at(mat_info.diffuse_texture_index).obj;
-        }
-        mat_comp.data.pong.shininess = 32;
-    }
-#endif
 }
 
 project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp) const
@@ -247,95 +176,6 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             pc.parent = node_id_to_game_object[parent_index];
             engineSceneUpdateParentComponent(scene, go, &pc);
             log(std::format("Entity: {} added parent component: {}\n", go, pc.parent));
-        }
-    }
-
-#if 0
-    std::map<std::uint32_t, engine_game_object_t> node_id_to_game_object;
-    for (auto i = 0; i < model_info_.nodes_count; i++)
-    {
-        const auto& node = model_info_.nodes_array[i];
-        node_id_to_game_object[i] = engineSceneCreateGameObject(scene);
-        const auto& go = node_id_to_game_object[i];
-        if (node.name)
-        {
-            auto nc = engineSceneAddNameComponent(scene, go);
-            std::strncpy(nc.name, node.name, std::size(nc.name));
-            engineSceneUpdateNameComponent(scene, go, &nc);
-            log(std::format("Created entity [id: {}] with name: {}\n", go, nc.name));
-        }
-
-        // transform
-        {
-            auto tc = engineSceneAddTransformComponent(scene, go);
-            std::memcpy(&tc.position, node.translate, sizeof(tc.position));
-            std::memcpy(&tc.rotation, node.rotation_quaternion, sizeof(tc.rotation));
-            std::memcpy(&tc.scale, node.scale, sizeof(tc.scale));
-            engineSceneUpdateTransformComponent(scene, go, &tc);
-            log(std::format("\t[{}] has added transform component\n", go));
-        }
-
-        if (node.geometry_index != -1)
-        {
-            auto mc = engineSceneAddMeshComponent(scene, go);
-            mc.geometry = geometries_.at(node.geometry_index);
-            engineSceneUpdateMeshComponent(scene, go, &mc);
-            log(std::format("\t[{}] has added mesh component with geometry index: {}\n", go, node.geometry_index));
-        }
-
-        if (node.material_index != -1)
-        {
-            auto material = engineSceneAddMaterialComponent(scene, go);
-            material = materials_.at(node.material_index);
-            engineSceneUpdateMaterialComponent(scene, go, &material);
-            log(std::format("\t[{}] added material component with material idx: {}\n", go, node.material_index));
-        }
-
-
-        if (!node.parent)
-        {
-            ret.go = go;
-        }
-    }
-    assert(ret.go != ENGINE_INVALID_GAME_OBJECT_ID);
-
-    // hierarchy
-    for (auto i = 0; i < model_info_.nodes_count; i++)
-    {
-        const auto& node = model_info_.nodes_array[i];
-        const auto& go = node_id_to_game_object[i];
-        if (node.parent)
-        {
-            // find parent index - not optimal. ToDo: consider having parent index instead parent pointer
-            const std::uint32_t parent_index = [&]()
-                {
-                    for (std::uint32_t j = 0; j < model_info_.nodes_count; j++)
-                    {
-                        if (&model_info_.nodes_array[j] == node.parent)
-                        {
-                            return j;
-                        }
-                    }
-                    return std::uint32_t(ENGINE_INVALID_GAME_OBJECT_ID);
-                }();
-
-
-            // add parent component
-            auto pc = engineSceneAddParentComponent(scene, go);
-            pc.parent = node_id_to_game_object[parent_index];
-            engineSceneUpdateParentComponent(scene, go, &pc);
-            log(std::format("Entity: {} added parent component: {}\n", go, pc.parent));
-        }
-    }
-
-    for (auto i = 0; i < model_info_.skins_counts; i++)
-    {
-        const auto& skin = model_info_.skins_array[i];
-        log(std::format("Adding skin: {}\n", skin.name));
-        for (auto bone_idx = 0; bone_idx < skin.bones_count; bone_idx++)
-        {
-            const auto& bone = skin.bones_array[bone_idx];
-           //bone.model_node_index
         }
     }
 
@@ -423,12 +263,10 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     //    }
     //    ret.anim_controller.add_animation_clip(anim_in.name, project_c::AnimationClip(std::move(anim_clip_data)));
     //}
-#endif
     return ret;
 }
 
 bool project_c::Prefab::is_valid() const
 {
     return model_info2_ && engineModelDescGetNodesDescCount(model_info2_) > 0;
-    //return model_info_.nodes_count > 0;
 }
