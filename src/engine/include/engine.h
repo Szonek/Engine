@@ -486,6 +486,12 @@ typedef struct _engine_model_desc_t
     uint32_t skins_counts;
 } engine_model_desc_t;
 
+typedef struct _engine_texture_2d_desc2_t* engine_texture_2d_desc2_t;
+ENGINE_API const char* engineTexture2dDescGetName(const engine_texture_2d_desc2_t desc);
+ENGINE_API uint32_t engineTexture2dDescGetWidth(const engine_texture_2d_desc2_t desc);
+ENGINE_API uint32_t engineTexture2dDescGetHeight(const engine_texture_2d_desc2_t desc);
+ENGINE_API engine_data_layout_t engineTexture2dDescGetDataLayout(const engine_texture_2d_desc2_t desc);
+ENGINE_API const void* engineTexture2dDescGetData(const engine_texture_2d_desc2_t desc);
 
 typedef struct _engine_geometry_desc2_t* engine_geometry_desc2_t;
 ENGINE_API const char* engineGeometryDescGetName(const engine_geometry_desc2_t desc);
@@ -515,6 +521,9 @@ typedef struct _engine_model_desc2_t* engine_model_desc2_t;
 
 ENGINE_API const engine_model_node_desc2_t engineModelDescGetNodeDesc(const engine_model_desc2_t desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetNodesDescCount(const engine_model_desc2_t desc);
+
+ENGINE_API const engine_texture_2d_desc2_t engineModelDescGetTexture2dDesc(const engine_model_desc2_t desc, size_t idx);
+ENGINE_API uint32_t engineModelDescGetTextures2dDescCount(const engine_model_desc2_t desc);
 
 ENGINE_API const engine_geometry_desc2_t engineModelDescGetGeometryDesc(const engine_model_desc2_t desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetGeometriesDescCount(const engine_model_desc2_t desc);
@@ -626,6 +635,7 @@ ENGINE_API void engineApplicationDestroyGeometry(engine_application_t handle, en
 
 // textures 
 ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out);
+ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc_2(engine_application_t handle, const engine_texture_2d_desc2_t desc, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
 ENGINE_API void engineApplicationDestroyTexture2D(engine_application_t handle, engine_texture2d_t tex2d);

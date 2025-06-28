@@ -54,8 +54,8 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
     geometries_ = std::vector(engineModelDescGetGeometriesDescCount(model_info2_), ENGINE_INVALID_OBJECT_HANDLE);
     for (std::uint32_t i = 0; i < geometries_.size(); i++)
     {
-        const auto& geo = engineModelDescGetGeometryDesc(model_info2_, i);
-        engine_error_code = engineApplicationCreateGeometryFromDesc_2(app, geo, &geometries_[i]);
+        const auto& geo_desc = engineModelDescGetGeometryDesc(model_info2_, i);
+        engine_error_code = engineApplicationCreateGeometryFromDesc_2(app, geo_desc, &geometries_[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating geometry for loaded model. Exiting!\n");
@@ -63,14 +63,41 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         }
     }
 
+    textures_ = std::vector<EngineObj<engine_texture2d_t>>(engineModelDescGetTextures2dDescCount(model_info2_));
+    for (std::uint32_t i = 0; i < textures_.size(); i++)
+    {
+        const auto& texture_desc = engineModelDescGetTexture2dDesc(model_info2_, i);
+        const auto name_generic = std::string(model_file_name) + "_texture_" + std::to_string(i);
+        const auto name_real = engineTexture2dDescGetName(texture_desc);
+        const std::string name = name_real ? name_real : name_generic;
+        if (engineApplicationDoTexture2DNameExists(app, name.c_str()))
+        {
+            engineLog(std::format("Texture with name: {} already exists, reusing it.\n", name).c_str());
+            textures_[i].obj = engineApplicationGetTextured2DByName(app, name.c_str());
+            textures_[i].owner = false;
+            engine_error_code = textures_[i].obj == ENGINE_INVALID_OBJECT_HANDLE ? ENGINE_RESULT_CODE_FAIL : ENGINE_RESULT_CODE_OK;
+        }
+        else
+        {
+            engine_error_code = engineApplicationCreateTexture2DFromDesc_2(app, texture_desc, &textures_[i].obj);
+            textures_[i].owner = true;
+        }
+
+        if (engine_error_code != ENGINE_RESULT_CODE_OK)
+        {
+            engineLog("Failed creating texture for loaded model. Exiting!\n");
+            return;
+        }
+    }
+
     materials_ = std::vector<engine_material_component_t>(engineModelDescGetMaterialsDescCount(model_info2_));
     for (std::uint32_t i = 0; i < materials_.size(); i++)
     {
-        const auto& desc = engineModelDescGetMaterialDesc(model_info2_, i);
+        const auto& mat_desc = engineModelDescGetMaterialDesc(model_info2_, i);
         auto& mat_comp = materials_.at(i);
         mat_comp.type = ENGINE_MATERIAL_TYPE_PONG;
-        set_c_array(mat_comp.data.pong.diffuse_color, engineMaterialDescGetDiffuseColor(desc));
-        const auto diffuse_texture_idx = engineMaterialDescGetDiffuseTextureIndex(desc);
+        set_c_array(mat_comp.data.pong.diffuse_color, engineMaterialDescGetDiffuseColor(mat_desc));
+        const auto diffuse_texture_idx = engineMaterialDescGetDiffuseTextureIndex(mat_desc);
         if (diffuse_texture_idx != -1)
         {
             mat_comp.data.pong.diffuse_texture = textures_.at(diffuse_texture_idx).obj;
