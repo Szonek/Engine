@@ -510,8 +510,8 @@ engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8
             {
                 auto child = nodes.at(child_idx);
                 assert(child->parent == nullptr);
-                child->parent = n_ptr;
-                n_ptr->children.push_back(child);
+                child->parent = n_ptr.get();
+                n_ptr->children.push_back(child.get());
             });
         idx++;
     }

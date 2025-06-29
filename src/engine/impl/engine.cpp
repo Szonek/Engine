@@ -1290,7 +1290,7 @@ const engine_model_node_desc_t* engineModelNodeDescGetParent(const engine_model_
     const auto typed_desc = api_cast(desc);
     if (typed_desc->parent)
     {
-        return api_cast(typed_desc->parent.get());
+        return api_cast(typed_desc->parent);
     }
     return nullptr;
 }
@@ -1301,7 +1301,7 @@ const engine_model_node_desc_t* engineModelNodeDescGetChildren(const engine_mode
     const auto typed_desc = api_cast(desc);
     if (idx < typed_desc->children.size())
     {
-        return api_cast(typed_desc->children.at(idx).get());
+        return api_cast(typed_desc->children.at(idx));
     }
     assert("Index out of bounds for children array!");
     return nullptr;

@@ -72,8 +72,8 @@ namespace engine
         std::int32_t mesh = INVALID_VALUE;
         std::int32_t material = INVALID_VALUE;
         std::int32_t skin = INVALID_VALUE;
-        std::shared_ptr<ModelNodeDesc> parent = nullptr; // shared_ptr to have pointer stability while erasing nodes
-        std::vector<std::shared_ptr<ModelNodeDesc>> children = {};
+        ModelNodeDesc* parent = nullptr;
+        std::vector<ModelNodeDesc*> children = {};
 
         glm::vec3 translation;
         glm::vec3 scale = glm::vec3(1.0f);
