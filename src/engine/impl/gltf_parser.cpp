@@ -319,7 +319,6 @@ inline engine::SkinDesc parse_skin(const tinygltf::Skin& skin, const tinygltf::M
 {
     engine::SkinDesc new_skin{};
     new_skin.name = skin.name;
-    new_skin.bones.reserve(skin.joints.size());
     for (std::size_t i = 0; i < skin.joints.size(); i++)
     {
         const auto node_id = skin.joints[i];
@@ -334,10 +333,9 @@ inline engine::SkinDesc parse_skin(const tinygltf::Skin& skin, const tinygltf::M
         const auto inv_bind_mtx_buffer = reinterpret_cast<const float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);
         const auto inverse_bind_matrix = glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
         
-        engine::BoneDesc info{};
-        info.target_node_idx = node_id;
-        info.inverse_bind_matrix = inverse_bind_matrix;
-        new_skin.bones.push_back(info);
+        assert(new_skin.inverse_bind_matrix_map.find(node_id) == new_skin.inverse_bind_matrix_map.end() &&
+            "Skin should not have duplicate nodes with inverse bind matrices!");
+        new_skin.inverse_bind_matrix_map[node_id] = inverse_bind_matrix;
     }
     return new_skin;
 }

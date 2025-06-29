@@ -103,6 +103,18 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         }
         mat_comp.data.pong.shininess = 32;
     }
+
+    skins_ = std::vector<engine_skin_t>(engineModelDescGetSkinsDescCount(model_desc_));
+    //for (std::uint32_t i = 0; i < skins_.size(); i++)
+    //{
+    //    const auto& skin_desc = engineModelDescGetSkinDesc(model_desc_, i);
+    //    skins_[i] = engineApplicationCreateSkinFromDesc(app, skin_desc, &skins_[i]);
+    //    if (engine_error_code != ENGINE_RESULT_CODE_OK)
+    //    {
+    //        engineLog("Failed creating skin for loaded model. Exiting!\n");
+    //        return;
+    //    }
+    //}
 }
 
 project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp) const

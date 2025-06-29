@@ -449,6 +449,10 @@ ENGINE_API uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc
 ENGINE_API const engine_skin_desc_t* engineModelDescGetSkinDesc(const engine_model_desc_t* desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc);
 
+
+ENGINE_API const engine_skin_t engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t** roots, size_t roots_count);
+
+
 /**
  * @struct engine_geometry_attribute_limit_t
  * @brief A structure representing the limits of a geometry attribute in the engine.

@@ -6,6 +6,8 @@
 #include <memory>
 #include <cstdint>
 #include <string>
+#include <unordered_map>
+
 namespace engine
 {
     inline static const std::int32_t INVALID_VALUE = -1;
@@ -57,18 +59,11 @@ namespace engine
         std::vector<AnimationChannelDesc> channels;
     };
 
-    struct BoneDesc
-    {
-        std::int32_t target_node_idx = INVALID_VALUE;
-        glm::mat4 inverse_bind_matrix;
-    };
-
     struct SkinDesc
     {
         std::string name = "";
-        std::vector<BoneDesc> bones;
+        std::unordered_map<std::int32_t, glm::mat4> inverse_bind_matrix_map;
     };
-
 
     struct ModelNodeDesc
     {

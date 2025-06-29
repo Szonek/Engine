@@ -7,6 +7,7 @@
 #include "ui_document.h"
 #include "collision_desc.h"
 #include "gltf_parser.h"
+#include "skin.h"
 
 #include "logger.h"
 
@@ -1159,6 +1160,7 @@ const engine_collision_contact_point_desc_t* engineCollisionDescGetContactPoint(
     assert("Index out of bounds for contact points array!");
     return nullptr;
 }
+
 const char* engineTexture2dDescGetName(const engine_texture_2d_desc_t* desc)
 {
     assert(desc);
@@ -1432,4 +1434,25 @@ uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc)
 {
     assert(desc);
     return api_cast(desc)->skins.size();
+}
+
+const engine_skin_t engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t** roots, size_t roots_count)
+{
+    if (!handle || !desc || !roots || roots_count == 0)
+    {
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    auto* app = api_cast(handle);
+    const auto typed_desc = api_cast(desc);
+    std::vector<const engine::ModelNodeDesc*> typed_roots;
+    typed_roots.reserve(roots_count);
+    for (size_t i = 0; i < roots_count; ++i)
+    {
+        if (roots[i])
+        {
+            typed_roots.push_back(api_cast(roots[i]));
+        }
+    }
+    engine::Skin skin(*typed_desc, typed_roots);
+    return 0;
 }
