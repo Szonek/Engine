@@ -416,7 +416,6 @@ ENGINE_API uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_materi
 // Skin DESC
 typedef struct _engine_skin_desc_t engine_skin_desc_t;
 ENGINE_API const char* engineSkinDescGetName(const engine_skin_desc_t* desc);
-ENGINE_API uint32_t engineSkinDescGetBonesCount(const engine_skin_desc_t* desc);
 
 // Model Node DESC
 typedef struct _engine_model_node_desc_t engine_model_node_desc_t;
@@ -445,6 +444,9 @@ ENGINE_API uint32_t engineModelDescGetGeometriesDescCount(const engine_model_des
 
 ENGINE_API const engine_material_desc_t* engineModelDescGetMaterialDesc(const engine_model_desc_t* desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc_t* desc);
+
+ENGINE_API const engine_skin_desc_t* engineModelDescGetSkinDesc(const engine_model_desc_t* desc, size_t idx);
+ENGINE_API uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc);
 
 /**
  * @struct engine_geometry_attribute_limit_t

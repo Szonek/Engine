@@ -1419,3 +1419,16 @@ uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc_t* desc)
     assert(desc);
     return api_cast(desc)->materials.size();
 }
+
+const engine_skin_desc_t* engineModelDescGetSkinDesc(const engine_model_desc_t* desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    return api_cast(typed_desc->skins.at(idx));
+}
+
+uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->skins.size();
+}
