@@ -6,6 +6,7 @@
 #include "asset_store.h"
 #include "ui_document.h"
 #include "collision_desc.h"
+#include "gltf_parser.h"
 
 #include "logger.h"
 

@@ -7,7 +7,7 @@
 #include "ui_document.h"
 #include "named_atlas.h"
 #include "nav_mesh.h"
-#include "gltf_parser.h"
+#include "mesh_defs.h"
 
 
 namespace engine

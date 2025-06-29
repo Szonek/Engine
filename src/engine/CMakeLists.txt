@@ -25,6 +25,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/ui_document.h
 	${ENGINE_SOURCES_DIR}/logger.cpp
 	${ENGINE_SOURCES_DIR}/logger.h
+	${ENGINE_SOURCES_DIR}/data_layout.h
 	
 	${ENGINE_SOURCES_DIR}/file_watcher.cpp
 	${ENGINE_SOURCES_DIR}/file_watcher.h	
@@ -32,6 +33,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/profiler.h
 	${ENGINE_SOURCES_DIR}/named_atlas.h
 		
+	${ENGINE_SOURCES_DIR}/mesh_defs.h
 	${ENGINE_SOURCES_DIR}/gltf_parser.h
 	${ENGINE_SOURCES_DIR}/gltf_parser.cpp
 	${ENGINE_SOURCES_DIR}/physics_world.h
@@ -43,6 +45,9 @@ set(ENGINE_SOURCES
 
 	${ENGINE_SOURCES_DIR}/nav_mesh.h
 	${ENGINE_SOURCES_DIR}/nav_mesh.cpp
+	
+	${ENGINE_SOURCES_DIR}/skin.h
+	${ENGINE_SOURCES_DIR}/skin.cpp
 	
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.h
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.cpp

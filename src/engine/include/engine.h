@@ -34,10 +34,11 @@ typedef struct _engine_component_iterator_t* engine_component_iterator_t;
 typedef struct _engine_ui_document_t* engine_ui_document_t;
 typedef struct _engine_ui_data_handle_t* engine_ui_data_handle_t;
 typedef struct _engine_ui_element_t* engine_ui_element_t;
-typedef struct _engine_skin_t* engine_skin_t;
+
 typedef uint32_t engine_material_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
+typedef uint32_t engine_skin_t;
 typedef uint32_t engine_animation_controller_t;
 typedef uint32_t engine_shader_t;
 
