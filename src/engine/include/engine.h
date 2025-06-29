@@ -309,8 +309,8 @@ typedef struct _engine_ui_document_data_binding_t
 
 typedef struct _engine_vertex_attribute_t
 {
-    float position[3];
-    float uv[2];
+    engine_fvec3_t position;
+    engine_fvec2_t uv;
 } engine_vertex_attribute_t;
 
 typedef enum _engine_vertex_attribute_type_t
@@ -413,23 +413,28 @@ ENGINE_API const char* engineMaterialDescGetName(const engine_material_desc_t de
 ENGINE_API engine_color_desc_t engineMaterialDescGetDiffuseColor(const engine_material_desc_t desc);
 ENGINE_API uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_material_desc_t desc); // -1 if not used
 
+// Skin DESC
+typedef struct _engine_skin_desc_t engine_skin_desc_t;
+ENGINE_API const char* engineSkinDescGetName(const engine_skin_desc_t* desc);
+ENGINE_API uint32_t engineSkinDescGetBonesCount(const engine_skin_desc_t* desc);
+
 // Model Node DESC
-typedef struct _engine_model_node_desc_t* engine_model_node_desc_t;
-ENGINE_API const char* engineModelNodeDescGetName(const engine_model_node_desc_t desc);
-ENGINE_API engine_model_node_desc_t engineModelNodeDescGetParent(const engine_model_node_desc_t desc);
-ENGINE_API engine_model_node_desc_t engineModelNodeDescGetChildren(const engine_model_node_desc_t desc, size_t idx);
-ENGINE_API uint32_t engineModelNodeDescGetChildrenCount(const engine_model_node_desc_t desc);
-ENGINE_API uint32_t engineModelNodeDescGetIndex(const engine_model_node_desc_t desc);
-ENGINE_API uint32_t engineModelNodeDescGetGeometryIndex(const engine_model_node_desc_t desc); // -1 if not used
-ENGINE_API uint32_t engineModelNodeDescGetSkinIndex(const engine_model_node_desc_t desc); // -1 if not used
-ENGINE_API uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc_t desc); // -1 if not used
-ENGINE_API engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc_t desc);
-ENGINE_API engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc_t desc);
-ENGINE_API engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_desc_t desc); // quaternion: {x, y, z, w}
+typedef struct _engine_model_node_desc_t engine_model_node_desc_t;
+ENGINE_API const char* engineModelNodeDescGetName(const engine_model_node_desc_t* desc);
+ENGINE_API const engine_model_node_desc_t* engineModelNodeDescGetParent(const engine_model_node_desc_t* desc);
+ENGINE_API const engine_model_node_desc_t* engineModelNodeDescGetChildren(const engine_model_node_desc_t* desc, size_t idx);
+ENGINE_API uint32_t engineModelNodeDescGetChildrenCount(const engine_model_node_desc_t* desc);
+ENGINE_API uint32_t engineModelNodeDescGetIndex(const engine_model_node_desc_t* desc);
+ENGINE_API uint32_t engineModelNodeDescGetGeometryIndex(const engine_model_node_desc_t* desc); // -1 if not used
+ENGINE_API uint32_t engineModelNodeDescGetSkinIndex(const engine_model_node_desc_t* desc); // -1 if not used
+ENGINE_API uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc_t* desc); // -1 if not used
+ENGINE_API engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc_t* desc);
+ENGINE_API engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc_t* desc);
+ENGINE_API engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_desc_t* desc); // quaternion: {x, y, z, w}
 
 // Model DESC
 typedef struct _engine_model_desc_t* engine_model_desc_t;
-ENGINE_API const engine_model_node_desc_t engineModelDescGetNodeDesc(const engine_model_desc_t desc, size_t idx);
+ENGINE_API const engine_model_node_desc_t* engineModelDescGetNodeDesc(const engine_model_desc_t desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetNodesDescCount(const engine_model_desc_t desc);
 
 ENGINE_API const engine_texture_2d_desc_t engineModelDescGetTexture2dDesc(const engine_model_desc_t desc, size_t idx);

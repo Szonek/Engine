@@ -55,14 +55,14 @@ inline auto api_cast(engine_model_desc_t desc)
     return reinterpret_cast<engine::ModelDesc*>(desc);
 }
 
-inline auto api_cast(engine_model_node_desc_t desc)
+inline auto api_cast(const engine_model_node_desc_t* desc)
 {
-    return reinterpret_cast<engine::ModelNodeDesc*>(desc);
+    return reinterpret_cast<const engine::ModelNodeDesc*>(desc);
 }
 
 inline auto api_cast(engine::ModelNodeDesc* desc)
 {
-    return reinterpret_cast<engine_model_node_desc_t>(desc);
+    return reinterpret_cast<const engine_model_node_desc_t*>(desc);
 }
 
 inline auto api_cast(engine_texture_2d_desc_t desc)
@@ -93,6 +93,16 @@ inline auto api_cast(engine_material_desc_t desc)
 inline auto api_cast(engine::MaterialDesc& desc)
 {
     return reinterpret_cast<engine_material_desc_t>(&desc);
+}
+
+inline auto api_cast(const engine_skin_desc_t* desc)
+{
+    return reinterpret_cast<const engine::SkinDesc*>(desc);
+}
+
+inline auto api_cast(const engine::SkinDesc& desc)
+{
+    return reinterpret_cast<const engine_skin_desc_t*>(&desc);
 }
 
 inline auto api_cast(const engine_collision_contact_point_desc_t* contact)
@@ -1259,13 +1269,19 @@ uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_material_desc_t d
     return api_cast(desc)->diffuse_texture;
 }
 
-const char* engineModelNodeDescGetName(const engine_model_node_desc_t desc)
+const char* engineSkinDescGetName(const engine_skin_desc_t* desc)
 {
     assert(desc);
     return api_cast(desc)->name.c_str();
 }
 
-engine_model_node_desc_t engineModelNodeDescGetParent(const engine_model_node_desc_t desc)
+const char* engineModelNodeDescGetName(const engine_model_node_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->name.c_str();
+}
+
+const engine_model_node_desc_t* engineModelNodeDescGetParent(const engine_model_node_desc_t* desc)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
@@ -1276,7 +1292,7 @@ engine_model_node_desc_t engineModelNodeDescGetParent(const engine_model_node_de
     return nullptr;
 }
 
-engine_model_node_desc_t engineModelNodeDescGetChildren(const engine_model_node_desc_t desc, size_t idx)
+const engine_model_node_desc_t* engineModelNodeDescGetChildren(const engine_model_node_desc_t* desc, size_t idx)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
@@ -1288,37 +1304,37 @@ engine_model_node_desc_t engineModelNodeDescGetChildren(const engine_model_node_
     return nullptr;
 }
 
-uint32_t engineModelNodeDescGetChildrenCount(const engine_model_node_desc_t desc)
+uint32_t engineModelNodeDescGetChildrenCount(const engine_model_node_desc_t* desc)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
     return static_cast<uint32_t>(typed_desc->children.size());
 }
 
-uint32_t engineModelNodeDescGetIndex(const engine_model_node_desc_t desc)
+uint32_t engineModelNodeDescGetIndex(const engine_model_node_desc_t* desc)
 {
     return api_cast(desc)->index;
 }
 
-uint32_t engineModelNodeDescGetGeometryIndex(const engine_model_node_desc_t desc)
+uint32_t engineModelNodeDescGetGeometryIndex(const engine_model_node_desc_t* desc)
 {
     assert(desc);
     return api_cast(desc)->mesh;
 }
 
-uint32_t engineModelNodeDescGetSkinIndex(const engine_model_node_desc_t desc)
+uint32_t engineModelNodeDescGetSkinIndex(const engine_model_node_desc_t* desc)
 {
     assert(desc);
     return api_cast(desc)->skin;
 }
 
-uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc_t desc)
+uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc_t* desc)
 {
     assert(desc);
     return api_cast(desc)->material;
 }
 
-engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc_t desc)
+engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc_t* desc)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
@@ -1329,7 +1345,7 @@ engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc_t 
     return ret;
 }
 
-engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc_t desc)
+engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc_t* desc)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
@@ -1340,7 +1356,7 @@ engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc_t desc)
     return ret;
 }
 
-engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_desc_t desc)
+engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_desc_t* desc)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
@@ -1352,7 +1368,7 @@ engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_
     return ret;
 }
 
-const engine_model_node_desc_t engineModelDescGetNodeDesc(const engine_model_desc_t desc, size_t idx)
+const engine_model_node_desc_t* engineModelDescGetNodeDesc(const engine_model_desc_t desc, size_t idx)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
