@@ -41,6 +41,13 @@ typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_animation_controller_t;
 typedef uint32_t engine_shader_t;
 
+
+typedef enum _engine_result_code_t
+{
+    ENGINE_RESULT_CODE_OK = 0,
+    ENGINE_RESULT_CODE_FAIL = -1
+} engine_result_code_t;
+
 typedef struct _engine_fvec2_t
 {
     float x;
@@ -68,7 +75,158 @@ typedef struct _engine_color_desc_t
     float g;
     float b;
     float a;
-}engine_color_desc_t;
+} engine_color_desc_t;
+
+typedef struct _engine_application_create_desc_t
+{
+    const char* name;
+    const char* asset_store_path;
+    uint32_t width;
+    uint32_t height;
+    bool fullscreen;
+    bool enable_editor;
+} engine_application_create_desc_t;
+
+typedef struct _engine_scene_create_desc_t
+{
+} engine_scene_create_desc_t;
+
+typedef enum _engine_begin_frame_event_flags_t
+{
+    ENGINE_EVENT_NONE = 0x0,
+    ENGINE_EVENT_QUIT = 0x2,
+    ENGINE_EVENT_WINDOW_MOVED = 0x4,
+    ENGINE_EVENT_WINDOW_RESIZED = 0x8,
+} engine_begin_frame_event_flags_t;
+typedef uint32_t engine_begin_frame_events_mask_t;
+
+typedef struct _engine_application_frame_begine_info_t
+{
+    float delta_time;
+    engine_begin_frame_events_mask_t events;
+} engine_application_frame_begine_info_t;
+
+typedef struct _engine_application_frame_end_info_t
+{
+    bool success;
+} engine_application_frame_end_info_t;
+
+typedef enum _engine_data_layout_t
+{
+    ENGINE_DATA_LAYOUT_RGBA_U8 = 0,
+    ENGINE_DATA_LAYOUT_RGB_U8 = 1,
+    ENGINE_DATA_LAYOUT_R_U8 = 2,
+    // ..
+    // ..
+    // ..
+    ENGINE_DATA_LAYOUT_RGBA_FP32,
+    ENGINE_DATA_LAYOUT_R_FP32,
+    ENGINE_DATA_LAYOUT_COUNT
+} engine_data_layout_t;
+
+typedef enum _engine_finger_event_t
+{
+    ENGINE_FINGER_UNKNOWN = 0x0,
+    ENGINE_FINGER_DOWN = 0x1,
+    ENGINE_FINGER_MOTION = 0x2,
+    ENGINE_FINGER_UP = 0x4
+} engine_finger_event_t;
+
+typedef struct _engine_finger_info_t
+{
+    uint32_t event_type_flags;
+    float x;  // pos normalized (0, 1)
+    float y;  // pos normalized (0, 1)
+    float dx; // normalized (-1, 1) delta of movement (if motion detected)
+    float dy; // normalized (-1, 1) delta of movement (if motion detected)
+} engine_finger_info_t;
+
+#define ENGINE_FINGERS_INFOS_LIST_COUNT 10
+typedef struct _engine_fingers_infos_list_t
+{
+    engine_finger_info_t infos[ENGINE_FINGERS_INFOS_LIST_COUNT];
+} engine_fingers_infos_list_t;
+
+typedef enum _engine_mouse_button_t
+{
+    ENGINE_MOUSE_BUTTON_UNKNOWN = 0,
+    ENGINE_MOUSE_BUTTON_LEFT = 1,
+    ENGINE_MOUSE_BUTTON_MIDDLE = 2,
+    ENGINE_MOUSE_BUTTON_RIGHT = 3,
+    ENGINE_MOUSE_BUTTON_X1 = 4,
+    ENGINE_MOUSE_BUTTON_X2 = 5,
+    ENGINE_MOUSE_BUTTON_COUNT
+} engine_mouse_button_t;
+
+typedef enum _engine_keyboard_keys_t
+{
+    ENGINE_KEYBOARD_KEY_UNKNOWN = 0,
+    ENGINE_KEYBOARD_KEY_A = 4,
+    ENGINE_KEYBOARD_KEY_B = 5,
+    ENGINE_KEYBOARD_KEY_C = 6,
+    ENGINE_KEYBOARD_KEY_D = 7,
+    ENGINE_KEYBOARD_KEY_E = 8,
+    ENGINE_KEYBOARD_KEY_F = 9,
+    ENGINE_KEYBOARD_KEY_G = 10,
+    ENGINE_KEYBOARD_KEY_H = 11,
+    ENGINE_KEYBOARD_KEY_I = 12,
+    ENGINE_KEYBOARD_KEY_J = 13,
+    ENGINE_KEYBOARD_KEY_K = 14,
+    ENGINE_KEYBOARD_KEY_L = 15,
+    ENGINE_KEYBOARD_KEY_M = 16,
+    ENGINE_KEYBOARD_KEY_N = 17,
+    ENGINE_KEYBOARD_KEY_O = 18,
+    ENGINE_KEYBOARD_KEY_P = 19,
+    ENGINE_KEYBOARD_KEY_Q = 20,
+    ENGINE_KEYBOARD_KEY_R = 21,
+    ENGINE_KEYBOARD_KEY_S = 22,
+    ENGINE_KEYBOARD_KEY_T = 23,
+    ENGINE_KEYBOARD_KEY_U = 24,
+    ENGINE_KEYBOARD_KEY_V = 25,
+    ENGINE_KEYBOARD_KEY_W = 26,
+    ENGINE_KEYBOARD_KEY_X = 27,
+    ENGINE_KEYBOARD_KEY_Y = 28,
+    ENGINE_KEYBOARD_KEY_Z = 29,
+    ENGINE_KEYBOARD_KEY_1 = 30,
+    ENGINE_KEYBOARD_KEY_2 = 31,
+    ENGINE_KEYBOARD_KEY_3 = 32,
+    ENGINE_KEYBOARD_KEY_4 = 33,
+    ENGINE_KEYBOARD_KEY_5 = 34,
+    ENGINE_KEYBOARD_KEY_6 = 35,
+    ENGINE_KEYBOARD_KEY_7 = 36,
+    ENGINE_KEYBOARD_KEY_8 = 37,
+    ENGINE_KEYBOARD_KEY_9 = 38,
+    ENGINE_KEYBOARD_KEY_0 = 39,
+    ENGINE_KEYBOARD_KEY_ENTER = 40,
+    ENGINE_KEYBOARD_KEY_ESCAPE = 41,
+    ENGINE_KEYBOARD_KEY_BACKSPACE = 42,
+    ENGINE_KEYBOARD_KEY_TAB = 43,
+    ENGINE_KEYBOARD_KEY_SPACE = 44,
+    ENGINE_KEYBOARD_KEY_PAGEDOWN = 78,
+    ENGINE_KEYBOARD_KEY_RIGHT = 79,
+    ENGINE_KEYBOARD_KEY_LEFT = 80,
+    ENGINE_KEYBOARD_KEY_DOWN = 81,
+    ENGINE_KEYBOARD_KEY_UP = 82,
+    ENGINE_KEYBOARD_KEY_NUMLOCKCLEAR = 83,
+    ENGINE_KEYBOARD_KEY_KP_DIVIDE = 84,
+    ENGINE_KEYBOARD_KEY_KP_MULTIPLY = 85,
+    ENGINE_KEYBOARD_KEY_KP_MINUS = 86,
+    ENGINE_KEYBOARD_KEY_KP_PLUS = 87,
+    ENGINE_KEYBOARD_KEY_KP_ENTER = 88,
+    ENGINE_KEYBOARD_KEY_LCTRL = 224,
+    ENGINE_KEYBOARD_KEY_LSHIFT = 225,
+    ENGINE_KEYBOARD_KEY_LALT = 226, /**< alt, option */
+    ENGINE_KEYBOARD_KEY_LGUI = 227, /**< windows, command (apple), meta */
+    ENGINE_KEYBOARD_KEY_RCTRL = 228,
+    ENGINE_KEYBOARD_KEY_RSHIFT = 229,
+    ENGINE_KEYBOARD_KEY_RALT = 230, /**< alt gr, option */
+} engine_keyboard_keys_t;
+
+typedef enum _engine_texture_color_space_t
+{
+    ENGINE_TEXTURE_COLOR_SPACE_SRGB = 0,
+    ENGINE_TEXTURE_COLOR_SPACE_LINEAR,
+} engine_texture_color_space_t;
 
 typedef struct _engine_ray_t
 {
@@ -149,162 +307,6 @@ typedef struct _engine_ui_document_data_binding_t
     };
 } engine_ui_document_data_binding_t;
 
-typedef struct _engine_application_create_desc_t
-{
-    const char* name;
-    const char* asset_store_path;
-    uint32_t width;
-    uint32_t height;
-    bool fullscreen;
-    bool enable_editor;
-} engine_application_create_desc_t;
-
-typedef struct _engine_scene_create_desc_t
-{
-} engine_scene_create_desc_t;
-
-typedef enum _engine_begin_frame_event_flags_t
-{
-    ENGINE_EVENT_NONE = 0x0,
-    ENGINE_EVENT_QUIT = 0x2,
-    ENGINE_EVENT_WINDOW_MOVED = 0x4,
-    ENGINE_EVENT_WINDOW_RESIZED = 0x8,
-} engine_begin_frame_event_flags_t;
-typedef uint32_t engine_begin_frame_events_mask_t;
-
-typedef struct _engine_application_frame_begine_info_t
-{
-    float delta_time;
-    engine_begin_frame_events_mask_t events;
-} engine_application_frame_begine_info_t;
-
-typedef struct _engine_application_frame_end_info_t
-{
-    bool success;
-} engine_application_frame_end_info_t;
-
-typedef enum _engine_data_layout_t
-{
-    ENGINE_DATA_LAYOUT_RGBA_U8 = 0,
-    ENGINE_DATA_LAYOUT_RGB_U8 = 1,
-    ENGINE_DATA_LAYOUT_R_U8 = 2,
-    // ..
-    // ..
-    // ..
-    ENGINE_DATA_LAYOUT_RGBA_FP32,
-    ENGINE_DATA_LAYOUT_R_FP32,
-    ENGINE_DATA_LAYOUT_COUNT
-} engine_data_layout_t;
-
-typedef enum _engine_finger_event_t
-{
-    ENGINE_FINGER_UNKNOWN = 0x0,
-    ENGINE_FINGER_DOWN = 0x1,
-    ENGINE_FINGER_MOTION = 0x2,
-    ENGINE_FINGER_UP = 0x4
-} engine_finger_event_t;
-
-typedef struct _engine_finger_info_t
-{
-    uint32_t event_type_flags;
-    float x;  // pos normalized (0, 1)
-    float y;  // pos normalized (0, 1)
-    float dx; // normalized (-1, 1) delta of movement (if motion detected)
-    float dy; // normalized (-1, 1) delta of movement (if motion detected)
-} engine_finger_info_t;
-
-#define ENGINE_FINGERS_INFOS_LIST_COUNT 10
-typedef struct _engine_fingers_infos_list_t
-{
-    engine_finger_info_t infos[ENGINE_FINGERS_INFOS_LIST_COUNT];
-} engine_fingers_infos_list_t;
-
-typedef enum _engine_mouse_button_t
-{
-    ENGINE_MOUSE_BUTTON_UNKNOWN  = 0,
-    ENGINE_MOUSE_BUTTON_LEFT     = 1,
-    ENGINE_MOUSE_BUTTON_MIDDLE   = 2,
-    ENGINE_MOUSE_BUTTON_RIGHT    = 3,
-    ENGINE_MOUSE_BUTTON_X1       = 4,
-    ENGINE_MOUSE_BUTTON_X2       = 5,
-    ENGINE_MOUSE_BUTTON_COUNT
-} engine_mouse_button_t;
-
-typedef enum _engine_keyboard_keys_t
-{
-    ENGINE_KEYBOARD_KEY_UNKNOWN = 0,
-    ENGINE_KEYBOARD_KEY_A = 4,
-    ENGINE_KEYBOARD_KEY_B = 5,
-    ENGINE_KEYBOARD_KEY_C = 6,
-    ENGINE_KEYBOARD_KEY_D = 7,
-    ENGINE_KEYBOARD_KEY_E = 8,
-    ENGINE_KEYBOARD_KEY_F = 9,
-    ENGINE_KEYBOARD_KEY_G = 10,
-    ENGINE_KEYBOARD_KEY_H = 11,
-    ENGINE_KEYBOARD_KEY_I = 12,
-    ENGINE_KEYBOARD_KEY_J = 13,
-    ENGINE_KEYBOARD_KEY_K = 14,
-    ENGINE_KEYBOARD_KEY_L = 15,
-    ENGINE_KEYBOARD_KEY_M = 16,
-    ENGINE_KEYBOARD_KEY_N = 17,
-    ENGINE_KEYBOARD_KEY_O = 18,
-    ENGINE_KEYBOARD_KEY_P = 19,
-    ENGINE_KEYBOARD_KEY_Q = 20,
-    ENGINE_KEYBOARD_KEY_R = 21,
-    ENGINE_KEYBOARD_KEY_S = 22,
-    ENGINE_KEYBOARD_KEY_T = 23,
-    ENGINE_KEYBOARD_KEY_U = 24,
-    ENGINE_KEYBOARD_KEY_V = 25,
-    ENGINE_KEYBOARD_KEY_W = 26,
-    ENGINE_KEYBOARD_KEY_X = 27,
-    ENGINE_KEYBOARD_KEY_Y = 28,
-    ENGINE_KEYBOARD_KEY_Z = 29,
-    ENGINE_KEYBOARD_KEY_1 = 30,
-    ENGINE_KEYBOARD_KEY_2 = 31,
-    ENGINE_KEYBOARD_KEY_3 = 32,
-    ENGINE_KEYBOARD_KEY_4 = 33,
-    ENGINE_KEYBOARD_KEY_5 = 34,
-    ENGINE_KEYBOARD_KEY_6 = 35,
-    ENGINE_KEYBOARD_KEY_7 = 36,
-    ENGINE_KEYBOARD_KEY_8 = 37,
-    ENGINE_KEYBOARD_KEY_9 = 38,
-    ENGINE_KEYBOARD_KEY_0 = 39,
-    ENGINE_KEYBOARD_KEY_ENTER = 40,
-    ENGINE_KEYBOARD_KEY_ESCAPE = 41,
-    ENGINE_KEYBOARD_KEY_BACKSPACE = 42,
-    ENGINE_KEYBOARD_KEY_TAB = 43,
-    ENGINE_KEYBOARD_KEY_SPACE = 44,
-    ENGINE_KEYBOARD_KEY_PAGEDOWN = 78,
-    ENGINE_KEYBOARD_KEY_RIGHT = 79,
-    ENGINE_KEYBOARD_KEY_LEFT = 80,
-    ENGINE_KEYBOARD_KEY_DOWN = 81,
-    ENGINE_KEYBOARD_KEY_UP = 82,
-    ENGINE_KEYBOARD_KEY_NUMLOCKCLEAR = 83,
-    ENGINE_KEYBOARD_KEY_KP_DIVIDE = 84,
-    ENGINE_KEYBOARD_KEY_KP_MULTIPLY = 85,
-    ENGINE_KEYBOARD_KEY_KP_MINUS = 86,
-    ENGINE_KEYBOARD_KEY_KP_PLUS = 87,
-    ENGINE_KEYBOARD_KEY_KP_ENTER = 88,
-    ENGINE_KEYBOARD_KEY_LCTRL = 224,
-    ENGINE_KEYBOARD_KEY_LSHIFT = 225,
-    ENGINE_KEYBOARD_KEY_LALT = 226, /**< alt, option */
-    ENGINE_KEYBOARD_KEY_LGUI = 227, /**< windows, command (apple), meta */
-    ENGINE_KEYBOARD_KEY_RCTRL = 228,
-    ENGINE_KEYBOARD_KEY_RSHIFT = 229,
-    ENGINE_KEYBOARD_KEY_RALT = 230, /**< alt gr, option */
-} engine_keyboard_keys_t;
-
-typedef enum _engine_texture_color_space_t
-{
-    ENGINE_TEXTURE_COLOR_SPACE_SRGB = 0,
-    ENGINE_TEXTURE_COLOR_SPACE_LINEAR,
-} engine_texture_color_space_t;
-
-typedef enum _engine_result_code_t
-{
-    ENGINE_RESULT_CODE_OK = 0,
-    ENGINE_RESULT_CODE_FAIL = -1
-} engine_result_code_t;
 
 typedef struct _engine_vertex_attribute_t
 {
