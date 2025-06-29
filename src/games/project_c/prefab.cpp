@@ -105,16 +105,33 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
     }
 
     skins_ = std::vector<engine_skin_t>(engineModelDescGetSkinsDescCount(model_desc_));
-    //for (std::uint32_t i = 0; i < skins_.size(); i++)
-    //{
-    //    const auto& skin_desc = engineModelDescGetSkinDesc(model_desc_, i);
-    //    skins_[i] = engineApplicationCreateSkinFromDesc(app, skin_desc, &skins_[i]);
-    //    if (engine_error_code != ENGINE_RESULT_CODE_OK)
-    //    {
-    //        engineLog("Failed creating skin for loaded model. Exiting!\n");
-    //        return;
-    //    }
-    //}
+    for (std::uint32_t i = 0; i < skins_.size(); i++)
+    {
+        const auto& skin_desc = engineModelDescGetSkinDesc(model_desc_, i);
+        const auto skin_name = engineSkinDescGetName(skin_desc);
+        const auto joints_count = engineSkinDescGetJointsCount(skin_desc);
+        // find root node for the skin
+        const engine_model_node_desc_t* root_node_desc = nullptr;
+        for (auto j = 0; j < joints_count; j++)
+        {
+            const auto joint_index = engineSkinDescGetJointIndex(skin_desc, j);
+            const auto node_desc = engineModelDescGetNodeDesc(model_desc_, joint_index);
+            if (!root_node_desc || engineModelNodeDescGetIndex(node_desc) > engineModelNodeDescGetIndex(root_node_desc))
+            {
+                root_node_desc = node_desc;
+            }
+        }
+        if (root_node_desc)
+        {
+            skins_[i] = engineApplicationCreateSkinFromDesc(app, skin_desc, root_node_desc);
+        }
+
+        if (skins_[i] == ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            engineLog("Failed creating skin for loaded model. Exiting!\n");
+            //return;
+        }
+    }
 }
 
 project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp) const

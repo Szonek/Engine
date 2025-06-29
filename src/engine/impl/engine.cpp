@@ -1278,6 +1278,26 @@ const char* engineSkinDescGetName(const engine_skin_desc_t* desc)
     return api_cast(desc)->name.c_str();
 }
 
+uint32_t engineSkinDescGetJointsCount(const engine_skin_desc_t* desc)
+{
+    assert(desc);
+    return static_cast<uint32_t>(api_cast(desc)->inverse_bind_matrix_map.size());
+}
+
+uint32_t engineSkinDescGetJointIndex(const engine_skin_desc_t* desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    // get key value from map
+    if (idx < typed_desc->inverse_bind_matrix_map.size())
+    {
+        auto it = typed_desc->inverse_bind_matrix_map.begin();
+        std::advance(it, idx);
+        return it->first;
+    }
+    return ENGINE_INVALID_OBJECT_HANDLE;
+}
+
 const char* engineModelNodeDescGetName(const engine_model_node_desc_t* desc)
 {
     assert(desc);
@@ -1436,23 +1456,15 @@ uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc)
     return api_cast(desc)->skins.size();
 }
 
-const engine_skin_t engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t** roots, size_t roots_count)
+const engine_skin_t engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t* root)
 {
-    if (!handle || !desc || !roots || roots_count == 0)
+    if (!handle || !desc || !root)
     {
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
     auto* app = api_cast(handle);
     const auto typed_desc = api_cast(desc);
-    std::vector<const engine::ModelNodeDesc*> typed_roots;
-    typed_roots.reserve(roots_count);
-    for (size_t i = 0; i < roots_count; ++i)
-    {
-        if (roots[i])
-        {
-            typed_roots.push_back(api_cast(roots[i]));
-        }
-    }
-    engine::Skin skin(*typed_desc, typed_roots);
+    const auto typed_root = api_cast(root);
+    engine::Skin skin(*typed_desc, *typed_root);
     return 0;
 }
