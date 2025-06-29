@@ -48,7 +48,7 @@ project_c::Prefab::~Prefab()
 project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name, std::string_view base_dir)
     : app_(app)
 {
-    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile_2(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_desc_);
+    engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_desc_);
 
     geometries_ = std::vector(engineModelDescGetGeometriesDescCount(model_desc_), ENGINE_INVALID_OBJECT_HANDLE);
     for (std::uint32_t i = 0; i < geometries_.size(); i++)
