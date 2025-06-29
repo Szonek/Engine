@@ -307,7 +307,6 @@ typedef struct _engine_ui_document_data_binding_t
     };
 } engine_ui_document_data_binding_t;
 
-
 typedef struct _engine_vertex_attribute_t
 {
     float position[3];
