@@ -97,7 +97,7 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
     //}
 }
 
-std::string engine::Skin::get_name() const
+const std::string& engine::Skin::get_name() const
 {
     return name_;
 }

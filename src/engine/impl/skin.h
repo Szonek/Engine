@@ -16,7 +16,7 @@ class Skin
 public:
     Skin(const SkinDesc& desc, const ModelNodeDesc& root);
 
-    std::string get_name() const;
+    const std::string& get_name() const;
 
 private:
     std::string name_;

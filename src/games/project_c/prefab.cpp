@@ -169,7 +169,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
 
         for (const auto& skin : skins_)
         {
-            const auto skin_name = engineSkinGetName(skin);
+            const auto& skin_name = engineSkinGetName(skin);
             if (std::strcmp(skin_name, name) == 0)
             {
                 auto sc = engineSceneAddSkinComponent(scene, go);

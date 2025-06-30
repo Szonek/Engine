@@ -4,6 +4,7 @@
 #include "math_helpers.h"
 #include "logger.h"
 #include "profiler.h"
+#include "skin.h"
 
 #include "components_internals/guizmo_component.h"
 #include "components_internals/outline_component.h"
@@ -306,6 +307,8 @@ bool display_mesh_component(const engine::Scene* scene, engine_mesh_component_t&
 
 bool display_skin_component(const engine::Scene* scene, engine_skin_component_t& c)
 {
+    const auto typed_skin = reinterpret_cast<engine::Skin*>(c.skin);
+    ImGui::Text("Name: %s", typed_skin->get_name().c_str());
     for (auto i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
     {
         // display list of bones if bone at index "i" is valid
