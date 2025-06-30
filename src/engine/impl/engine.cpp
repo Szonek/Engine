@@ -126,6 +126,26 @@ inline auto api_cast(const engine::CollisionDesc& contact)
     return reinterpret_cast<const engine_collision_desc_t*>(&contact);
 }
 
+inline auto api_cast(const engine_skin_t* contact)
+{
+    return reinterpret_cast<const engine::Skin*>(contact);
+}
+
+inline auto api_cast(engine_skin_t* contact)
+{
+    return reinterpret_cast<engine::Skin*>(contact);
+}
+
+inline auto api_cast(const engine::Skin& contact)
+{
+    return reinterpret_cast<const engine_skin_t*>(&contact);
+}
+
+inline auto api_cast(engine::Skin& contact)
+{
+    return reinterpret_cast<engine_skin_t*>(&contact);
+}
+
 template<typename T>
 inline T add_component(engine_scene_t scene, engine_game_object_t engine_game_object_t)
 {
@@ -1456,16 +1476,25 @@ uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc)
     return api_cast(desc)->skins.size();
 }
 
-const engine_skin_t engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t* root)
+engine_skin_t* engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t* root)
 {
     if (!handle || !desc || !root)
     {
-        return ENGINE_INVALID_OBJECT_HANDLE;
+        return nullptr;
     }
     auto* app = api_cast(handle);
     const auto typed_desc = api_cast(desc);
     const auto typed_root = api_cast(root);
-    engine::Skin skin(*typed_desc, *typed_root);
-    skin.update(16.6f);
-    return 0;
+    return reinterpret_cast<engine_skin_t*>(new engine::Skin(*typed_desc, *typed_root));
+}
+
+void engineApplicationDestroySkin(engine_application_t handle, engine_skin_t* skin)
+{
+    if (!handle || !skin)
+    {
+        return;
+    }
+    auto* app = api_cast(handle);
+    auto typed_skin = api_cast(skin);
+    delete typed_skin;
 }

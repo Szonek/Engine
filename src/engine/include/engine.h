@@ -38,7 +38,7 @@ typedef struct _engine_ui_element_t* engine_ui_element_t;
 typedef uint32_t engine_material_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
-typedef uint32_t engine_skin_t;
+typedef struct _engine_skin_t engine_skin_t;
 typedef uint32_t engine_animation_controller_t;
 typedef uint32_t engine_shader_t;
 
@@ -451,9 +451,9 @@ ENGINE_API uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc
 ENGINE_API const engine_skin_desc_t* engineModelDescGetSkinDesc(const engine_model_desc_t* desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc);
 
-
-ENGINE_API const engine_skin_t engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t* root);
-
+// Skin and animations
+ENGINE_API engine_skin_t* engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t* root);
+ENGINE_API void engineApplicationDestroySkin(engine_application_t handle, engine_skin_t* skin);
 
 /**
  * @struct engine_geometry_attribute_limit_t

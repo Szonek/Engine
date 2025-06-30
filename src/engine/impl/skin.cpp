@@ -54,53 +54,45 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
 
     // Allocates a context that matches animation requirements.
     context_.Resize(num_joints);
-}
 
-bool engine::Skin::update(float dt)
-{
+    // Initialize rest pose (just in case, if there was no animation played).
     ozz::animation::LocalToModelJob ltm_job{};
     ltm_job.skeleton = skeleton_.get();
+    ltm_job.input = skeleton_->joint_rest_poses();
     ltm_job.output = ozz::make_span(models_);
 
-    if (false)
-    {
-        ozz::animation::offline::RawAnimation raw_animation;
-        raw_animation.duration = 1.0f; 
-        raw_animation.tracks.resize(skeleton_->num_joints());
-        raw_animation.name = "testa_anim";
-        if (!raw_animation.Validate())
-        {
-            log::log(log::LogLevel::eError, std::format("Invalid raw animation data for skin: {}.\n", name_).c_str());
-            return false;
-        }
-        ozz::animation::offline::AnimationBuilder builder;
-        ozz::unique_ptr<ozz::animation::Animation> animation = builder(raw_animation);
-
-        ozz::animation::SamplingJob sampling_job{};
-        sampling_job.animation = animation.get();
-        sampling_job.context = &context_;
-        sampling_job.ratio = 0.0f;
-        sampling_job.output = ozz::make_span(locals_);
-
-        assert(sampling_job.Validate());
-        if (!sampling_job.Run())
-        {
-            log::log(log::LogLevel::eError, std::format("Failed to sample animation for skin: {}.\n", name_).c_str());
-            return false;
-        }
-        ltm_job.input = ozz::make_span(locals_);
-    }
-    else
-    {
-        ltm_job.input = skeleton_->joint_rest_poses();
-    }
-
-
-
-    if (!ltm_job.Run()) 
+    if (!ltm_job.Run())
     {
         log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", name_).c_str());
-        return false;
+        throw std::runtime_error("Failed to convert local to model space for skin.");
     }
-    return true;
+
+    //if (false)
+    //{
+    //    ozz::animation::offline::RawAnimation raw_animation;
+    //    raw_animation.duration = 1.0f;
+    //    raw_animation.tracks.resize(skeleton_->num_joints());
+    //    raw_animation.name = "testa_anim";
+    //    if (!raw_animation.Validate())
+    //    {
+    //        log::log(log::LogLevel::eError, std::format("Invalid raw animation data for skin: {}.\n", name_).c_str());
+    //        return false;
+    //    }
+    //    ozz::animation::offline::AnimationBuilder builder;
+    //    ozz::unique_ptr<ozz::animation::Animation> animation = builder(raw_animation);
+
+    //    ozz::animation::SamplingJob sampling_job{};
+    //    sampling_job.animation = animation.get();
+    //    sampling_job.context = &context_;
+    //    sampling_job.ratio = 0.0f;
+    //    sampling_job.output = ozz::make_span(locals_);
+
+    //    assert(sampling_job.Validate());
+    //    if (!sampling_job.Run())
+    //    {
+    //        log::log(log::LogLevel::eError, std::format("Failed to sample animation for skin: {}.\n", name_).c_str());
+    //        return false;
+    //    }
+    //    ltm_job.input = ozz::make_span(locals_);
+    //}
 }

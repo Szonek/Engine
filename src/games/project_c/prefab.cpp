@@ -40,6 +40,13 @@ project_c::Prefab::~Prefab()
                 engineApplicationDestroyTexture2D(app_, t.obj);
             }
         }
+        for (const auto& skin : skins_)
+        {
+            if (skin)
+            {
+                engineApplicationDestroySkin(app_, skin);
+            }
+        }
         materials_.clear();
         engineApplicationReleaseModelDesc(app_, model_desc_);
     }
@@ -104,7 +111,7 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         mat_comp.data.pong.shininess = 32;
     }
 
-    skins_ = std::vector<engine_skin_t>(engineModelDescGetSkinsDescCount(model_desc_));
+    skins_ = std::vector<engine_skin_t*>(engineModelDescGetSkinsDescCount(model_desc_));
     for (std::uint32_t i = 0; i < skins_.size(); i++)
     {
         const auto& skin_desc = engineModelDescGetSkinDesc(model_desc_, i);
@@ -126,7 +133,7 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
             skins_[i] = engineApplicationCreateSkinFromDesc(app, skin_desc, root_node_desc);
         }
 
-        if (skins_[i] == ENGINE_INVALID_OBJECT_HANDLE)
+        if (!skins_[i])
         {
             engineLog("Failed creating skin for loaded model. Exiting!\n");
             //return;

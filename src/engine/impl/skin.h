@@ -16,8 +16,6 @@ class Skin
 public:
     Skin(const SkinDesc& desc, const ModelNodeDesc& root);
 
-    bool update(float dt);
-
 private:
     std::string name_;
     ozz::unique_ptr<ozz::animation::Skeleton> skeleton_;
