@@ -10,8 +10,7 @@
 #include "components_internals/outline_component.h"
 #include "profiler.h"
 #include "engine_vector_impl_def.h"
-#include "imgui/imgui.h"
-#include "imguizmo/ImGuizmo.h"
+#include "skin.h"
 
 #include <fmt/format.h>
 
@@ -24,6 +23,8 @@
 #include "ozz/animation/offline/skeleton_builder.h"
 #include "ozz/animation/runtime/skeleton.h"
 
+#include "imgui/imgui.h"
+#include "imguizmo/ImGuizmo.h"
 
 #include <cmath>
 
@@ -408,6 +409,20 @@ engine_result_code_t engine::Scene::update(float dt)
     }
 
     {
+        ENGINE_PROFILE_SECTION_N("skin_update_view");
+        auto skin_updated_view = entity_registry_.view<engine_skin_component_t>();
+        skin_updated_view.each([this](engine_skin_component_t& skin_component)
+            {
+                if (!skin_component.skin)
+                {
+                    log::log(log::LogLevel::eError, fmt::format("Skin component has no skin assigned. Are you sure you are doing valid thing?\n"));
+                }
+                auto typed_skin = reinterpret_cast<engine::Skin*>(skin_component.skin);
+                
+            });
+    }
+
+    {
         ENGINE_PROFILE_SECTION_N("parent_to_child_transform_view");
         std::map<entt::entity, glm::mat4> ltw_map;
         //ToDo: this coule be optimized if entityies are sorted, so parents are always computed first
@@ -633,12 +648,34 @@ engine_result_code_t engine::Scene::update(float dt)
                             return;
                         }
 
+                        if (!skinned_mesh_component.skin)
+                        {
+                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Skinned mesh component has no skin assigned. Are you sure you are doing valid thing?\n", (std::uint32_t)entity));
+                            return;
+                        }
+
                         const auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
                         const auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
 
                         const auto tex2d_diffuse_ptr = get_application()->get_texture(texture_diffuse_idx);
                         const auto tex2d_specular_ptr = get_application()->get_texture(texture_diffuse_idx);
 
+#if 1
+                        auto ctx = MaterialSkinnedGeometryLit::DrawContext{
+                            .entity_id = static_cast<std::uint32_t>(entity),
+                            .camera = camera_internal.camera_ubo,
+                            .scene = scene_ubo_,
+                            .model_matrix = transform_component.local_to_world,
+                            .color_diffuse = material_component.data.pong.diffuse_color,
+                            .shininess = material_component.data.pong.shininess,
+                            .texture_diffuse = *tex2d_diffuse_ptr,
+                            .texture_specular = *tex2d_specular_ptr };
+                        const auto typed_skin = reinterpret_cast<engine::Skin*>(skinned_mesh_component.skin);
+                        ctx.bone_transforms = typed_skin->get_skinning_matrices();
+
+                        const auto geo_ptr = get_application()->get_geometry(skinned_mesh_component.geometry);
+                        material_skinned_geometry_lit_.draw(*geo_ptr, ctx);
+#else
                         const auto ctx = MaterialStaticGeometryLit::DrawContext{
                             .entity_id = static_cast<std::uint32_t>(entity),
                             .camera = camera_internal.camera_ubo,
@@ -651,6 +688,7 @@ engine_result_code_t engine::Scene::update(float dt)
 
                         const auto geo_ptr = get_application()->get_geometry(skinned_mesh_component.geometry);
                         material_static_geometry_lit_.draw(*geo_ptr, ctx);
+#endif
                     }
                 );
             }

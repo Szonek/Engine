@@ -101,3 +101,19 @@ const std::string& engine::Skin::get_name() const
 {
     return name_;
 }
+
+std::vector<glm::mat4> engine::Skin::get_skinning_matrices() const
+{
+    std::vector<glm::mat4> ret{};
+    ret.reserve(skeleton_->num_joints());
+    for (int i = 0; i < skeleton_->num_joints(); ++i)
+    {
+        const auto& model = models_[i];
+        ret.emplace_back(glm::mat4(
+            model.cols[0].m128_f32[1], model.cols[0].m128_f32[1], model.cols[0].m128_f32[2], model.cols[0].m128_f32[3],
+            model.cols[1].m128_f32[1], model.cols[1].m128_f32[1], model.cols[1].m128_f32[2], model.cols[1].m128_f32[3],
+            model.cols[2].m128_f32[1], model.cols[2].m128_f32[1], model.cols[2].m128_f32[2], model.cols[2].m128_f32[3],
+            model.cols[3].m128_f32[1], model.cols[3].m128_f32[1], model.cols[3].m128_f32[2], model.cols[3].m128_f32[3]));
+    }
+    return ret;
+}

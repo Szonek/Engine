@@ -18,6 +18,8 @@ public:
 
     const std::string& get_name() const;
 
+    std::vector<glm::mat4> get_skinning_matrices() const;
+
 private:
     std::string name_;
     ozz::unique_ptr<ozz::animation::Skeleton> skeleton_;
