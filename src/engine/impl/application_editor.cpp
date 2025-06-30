@@ -305,10 +305,25 @@ bool display_mesh_component(const engine::Scene* scene, engine_mesh_component_t&
     return true;
 }
 
+bool display_skinned_mesh_component(const engine::Scene* scene, engine_skinned_mesh_component_t& c)
+{
+    const auto typed_skin = reinterpret_cast<engine::Skin*>(c.skin);
+    bool enabled = !c.disable;
+    if (ImGui::Checkbox("Enabled", &enabled))
+    {
+        c.disable = !c.disable;
+    }
+    const auto geo_name = scene->get_application()->get_geometry_name(c.geometry);
+    ImGui::Text("Geometry: %s", geo_name.c_str());
+    ImGui::InputInt("Geometry ID", reinterpret_cast<std::int32_t*>(&c.geometry));
+    ImGui::Text("Skin: %s", typed_skin ? typed_skin->get_name().c_str() : "None");
+    return true;
+}
+
 bool display_skin_component(const engine::Scene* scene, engine_skin_component_t& c)
 {
     const auto typed_skin = reinterpret_cast<engine::Skin*>(c.skin);
-    ImGui::Text("Name: %s", typed_skin->get_name().c_str());
+    ImGui::Text("Name: %s", typed_skin ? typed_skin->get_name().c_str() : "None");
     for (auto i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
     {
         // display list of bones if bone at index "i" is valid
@@ -767,6 +782,7 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
         display_component<engine_light_component_t>("Light", scene, selected, display_light_component);
         display_component<engine_camera_component_t>("Camera", scene, selected, display_camera_component);
         display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
+        display_component<engine_skinned_mesh_component_t>("Skinned Mesh", scene, selected, display_skinned_mesh_component);
         display_component<engine_skin_component_t>("Skin", scene, selected, display_skin_component);
         display_component<engine_bone_component_t>("Bone", scene, selected, display_bone_component);
         display_component<engine_material_component_t>("Material", scene, selected, display_material_component);

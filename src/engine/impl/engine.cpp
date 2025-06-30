@@ -852,6 +852,31 @@ bool engineSceneHasMeshComponent(engine_scene_t scene, engine_game_object_t game
     return has_component<engine_mesh_component_t>(scene, game_object);
 }
 
+engine_skinned_mesh_component_t engineSceneAddSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_skinned_mesh_component_t>(scene, game_object);
+}
+
+engine_skinned_mesh_component_t engineSceneGetSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_skinned_mesh_component_t>(scene, game_object);
+}
+
+void engineSceneUpdateSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_skinned_mesh_component_t* comp)
+{
+    update_component(scene, game_object, comp);
+}
+
+void engineSceneRemoveSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_skinned_mesh_component_t>(scene, game_object);
+}
+
+bool engineSceneHasSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_skinned_mesh_component_t>(scene, game_object);
+}
+
 // skinned mesh
 engine_skin_component_t engineSceneAddSkinComponent(engine_scene_t scene, engine_game_object_t game_object)
 {

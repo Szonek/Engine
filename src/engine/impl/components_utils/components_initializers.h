@@ -6,6 +6,7 @@ namespace engine
 {
 void initialize_transform_component(entt::registry& registry, entt::entity entity);
 void initialize_mesh_component(entt::registry& registry, entt::entity entity);
+void initialize_skinned_mesh_component(entt::registry& registry, entt::entity entity);
 void initialize_material_component(entt::registry& registry, entt::entity entity);
 void initialize_parent_component(entt::registry& registry, entt::entity entity);
 void initialize_name_component(entt::registry& registry, entt::entity entity);

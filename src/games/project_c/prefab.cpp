@@ -195,10 +195,10 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         {
             if (skin_index != -1)
             {
-                //auto smc = engineSceneAddSkinnedMeshComponent(scene, go);
-                //smc.geometry = geometries_.at(geo_index);
-                //smc.skin = skins_.at(skin_index);
-                //engineSceneUpdateSkinnedMeshComponent(scene, go, &smc);
+                auto smc = engineSceneAddSkinnedMeshComponent(scene, go);
+                smc.geometry = geometries_.at(geo_index);
+                smc.skin = skins_.at(skin_index);
+                engineSceneUpdateSkinnedMeshComponent(scene, go, &smc);
                 log(std::format("\t[{}] has added skinned mesh component with geometry index: {} and skin index: {}\n", go, geo_index, skin_index));
             }
             else
