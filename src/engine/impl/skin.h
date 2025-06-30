@@ -2,6 +2,7 @@
 
 #include "mesh_defs.h"
 #include "ozz/animation/runtime/skeleton.h"
+#include "ozz/animation/runtime/animation.h"
 #include "ozz/base/memory/unique_ptr.h"
 #include "ozz/base/containers/vector.h"
 #include "ozz/base/maths/soa_transform.h"

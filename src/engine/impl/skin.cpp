@@ -2,9 +2,11 @@
 #include "logger.h"
 
 #include "ozz/animation/offline/raw_skeleton.h"
+#include "ozz/animation/offline/raw_animation.h"
+#include "ozz/animation/offline/animation_builder.h"
 #include "ozz/animation/offline/skeleton_builder.h"
 #include "ozz/animation/runtime/local_to_model_job.h"
-
+#include "ozz/animation/runtime/animation_utils.h"
 #include <stdexcept>
 #include <format>
 
@@ -56,22 +58,45 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
 
 bool engine::Skin::update(float dt)
 {
-    ozz::animation::SamplingJob sampling_job{};
-    sampling_job.animation = nullptr;
-    sampling_job.context = &context_;
-    sampling_job.ratio = 0.0f;
-    sampling_job.output = ozz::make_span(locals_);
-
-    assert(sampling_job.Validate());
-    if (!sampling_job.Run())
-    {
-        log::log(log::LogLevel::eError, std::format("Failed to sample animation for skin: {}.\n", name_).c_str());
-        return false;
-    }
     ozz::animation::LocalToModelJob ltm_job{};
     ltm_job.skeleton = skeleton_.get();
-    ltm_job.input = ozz::make_span(locals_);
     ltm_job.output = ozz::make_span(models_);
+
+    if (false)
+    {
+        ozz::animation::offline::RawAnimation raw_animation;
+        raw_animation.duration = 1.0f; 
+        raw_animation.tracks.resize(skeleton_->num_joints());
+        raw_animation.name = "testa_anim";
+        if (!raw_animation.Validate())
+        {
+            log::log(log::LogLevel::eError, std::format("Invalid raw animation data for skin: {}.\n", name_).c_str());
+            return false;
+        }
+        ozz::animation::offline::AnimationBuilder builder;
+        ozz::unique_ptr<ozz::animation::Animation> animation = builder(raw_animation);
+
+        ozz::animation::SamplingJob sampling_job{};
+        sampling_job.animation = animation.get();
+        sampling_job.context = &context_;
+        sampling_job.ratio = 0.0f;
+        sampling_job.output = ozz::make_span(locals_);
+
+        assert(sampling_job.Validate());
+        if (!sampling_job.Run())
+        {
+            log::log(log::LogLevel::eError, std::format("Failed to sample animation for skin: {}.\n", name_).c_str());
+            return false;
+        }
+        ltm_job.input = ozz::make_span(locals_);
+    }
+    else
+    {
+        ltm_job.input = skeleton_->joint_rest_poses();
+    }
+
+
+
     if (!ltm_job.Run()) 
     {
         log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", name_).c_str());
