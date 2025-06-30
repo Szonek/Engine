@@ -1466,5 +1466,6 @@ const engine_skin_t engineApplicationCreateSkinFromDesc(engine_application_t han
     const auto typed_desc = api_cast(desc);
     const auto typed_root = api_cast(root);
     engine::Skin skin(*typed_desc, *typed_root);
+    skin.update(16.6f);
     return 0;
 }

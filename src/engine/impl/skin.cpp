@@ -1,7 +1,12 @@
 #include "skin.h"
+#include "logger.h"
+
 #include "ozz/animation/offline/raw_skeleton.h"
 #include "ozz/animation/offline/skeleton_builder.h"
+#include "ozz/animation/runtime/local_to_model_job.h"
+
 #include <stdexcept>
+#include <format>
 
 inline void construct_skeleton(ozz::animation::offline::RawSkeleton::Joint& joint, const engine::ModelNodeDesc& node_desc, const engine::SkinDesc& skin_desc)
 {
@@ -27,6 +32,7 @@ inline void construct_skeleton(ozz::animation::offline::RawSkeleton::Joint& join
 
 engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
     : skeleton_(nullptr)
+    , name_(desc.name)
 {
     ozz::animation::offline::RawSkeleton raw_skeleton;
     raw_skeleton.roots.resize(1);
@@ -37,4 +43,39 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
         throw std::runtime_error("Invalid raw skeleton data.");
     }
     skeleton_ = builder(raw_skeleton);
+
+    const int num_soa_joints = skeleton_->num_soa_joints();
+    locals_.resize(num_soa_joints, ozz::math::SoaTransform::identity());
+    const int num_joints = skeleton_->num_joints();
+    models_.resize(num_joints);
+    log::log(log::LogLevel::eTrace, std::format("Skin {} created with {} joints and {} SoA joints.\n", name_, num_joints, num_soa_joints).c_str());
+
+    // Allocates a context that matches animation requirements.
+    context_.Resize(num_joints);
+}
+
+bool engine::Skin::update(float dt)
+{
+    ozz::animation::SamplingJob sampling_job{};
+    sampling_job.animation = nullptr;
+    sampling_job.context = &context_;
+    sampling_job.ratio = 0.0f;
+    sampling_job.output = ozz::make_span(locals_);
+
+    assert(sampling_job.Validate());
+    if (!sampling_job.Run())
+    {
+        log::log(log::LogLevel::eError, std::format("Failed to sample animation for skin: {}.\n", name_).c_str());
+        return false;
+    }
+    ozz::animation::LocalToModelJob ltm_job{};
+    ltm_job.skeleton = skeleton_.get();
+    ltm_job.input = ozz::make_span(locals_);
+    ltm_job.output = ozz::make_span(models_);
+    if (!ltm_job.Run()) 
+    {
+        log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", name_).c_str());
+        return false;
+    }
+    return true;
 }
