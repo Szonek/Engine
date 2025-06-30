@@ -10,6 +10,7 @@ project_c::Prefab::Prefab(Prefab&& rhs) noexcept
     std::swap(geometries_, rhs.geometries_);
     std::swap(textures_, rhs.textures_);
     std::swap(materials_, rhs.materials_);
+    std::swap(skins_, rhs.skins_);
 }
 
 project_c::Prefab& project_c::Prefab::operator=(Prefab&& rhs) noexcept
@@ -21,6 +22,7 @@ project_c::Prefab& project_c::Prefab::operator=(Prefab&& rhs) noexcept
         std::swap(geometries_, rhs.geometries_);
         std::swap(textures_, rhs.textures_);
         std::swap(materials_, rhs.materials_);
+        std::swap(skins_, rhs.skins_);
     }
     return *this;
 }
@@ -143,6 +145,7 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
 
 project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp) const
 {
+
     auto scene = scene_cpp->get_handle();
     project_c::PrefabResult ret{};
     ret.go = ENGINE_INVALID_GAME_OBJECT_ID;
@@ -164,6 +167,18 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         }
         log(std::format("Created entity [id: {}] with name: {}\n", go, name));
 
+        for (const auto& skin : skins_)
+        {
+            const auto skin_name = engineSkinGetName(skin);
+            if (std::strcmp(skin_name, name) == 0)
+            {
+                auto sc = engineSceneAddSkinComponent(scene, go);
+                sc.skin = skin;
+                engineSceneUpdateSkinComponent(scene, go, &sc);
+                log(std::format("\t[{}] has added skin component with name: {}\n", go, skin_name));
+            }
+        }
+
         // transform
         {
             auto tc = engineSceneAddTransformComponent(scene, go);
@@ -174,13 +189,26 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             log(std::format("\t[{}] has added transform component\n", go));
         }
 
+        const auto skin_index = engineModelNodeDescGetSkinIndex(node_desc);
         const auto geo_index = engineModelNodeDescGetGeometryIndex(node_desc);
         if (geo_index != -1)
         {
-            auto mc = engineSceneAddMeshComponent(scene, go);
-            mc.geometry = geometries_.at(geo_index);
-            engineSceneUpdateMeshComponent(scene, go, &mc);
-            log(std::format("\t[{}] has added mesh component with geometry index: {}\n", go, geo_index));
+            if (skin_index != -1)
+            {
+                //auto smc = engineSceneAddSkinnedMeshComponent(scene, go);
+                //smc.geometry = geometries_.at(geo_index);
+                //smc.skin = skins_.at(skin_index);
+                //engineSceneUpdateSkinnedMeshComponent(scene, go, &smc);
+                log(std::format("\t[{}] has added skinned mesh component with geometry index: {} and skin index: {}\n", go, geo_index, skin_index));
+            }
+            else
+            {
+                auto mc = engineSceneAddMeshComponent(scene, go);
+                mc.geometry = geometries_.at(geo_index);
+                engineSceneUpdateMeshComponent(scene, go, &mc);
+                log(std::format("\t[{}] has added mesh component with geometry index: {}\n", go, geo_index));
+            }
+
         }
 
         const auto mat_index = engineModelNodeDescGetMaterialIndex(node_desc);

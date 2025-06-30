@@ -1498,3 +1498,12 @@ void engineApplicationDestroySkin(engine_application_t handle, engine_skin_t* sk
     auto typed_skin = api_cast(skin);
     delete typed_skin;
 }
+
+const char* engineSkinGetName(const engine_skin_t* skin)
+{
+    if (!skin)
+    {
+        return nullptr;
+    }
+    return api_cast(skin)->get_name().c_str();
+}

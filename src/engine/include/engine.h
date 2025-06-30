@@ -454,6 +454,7 @@ ENGINE_API uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* 
 // Skin and animations
 ENGINE_API engine_skin_t* engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t* root);
 ENGINE_API void engineApplicationDestroySkin(engine_application_t handle, engine_skin_t* skin);
+ENGINE_API const char* engineSkinGetName(const engine_skin_t* skin);
 
 /**
  * @struct engine_geometry_attribute_limit_t

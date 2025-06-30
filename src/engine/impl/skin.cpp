@@ -96,3 +96,8 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
     //    ltm_job.input = ozz::make_span(locals_);
     //}
 }
+
+std::string engine::Skin::get_name() const
+{
+    return name_;
+}
