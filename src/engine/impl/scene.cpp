@@ -547,6 +547,8 @@ engine_result_code_t engine::Scene::update(float dt)
     {
         ENGINE_PROFILE_SECTION_N("camera_loop");
 
+        auto mesh_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
+        auto skinned_mesh_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_skinned_mesh_component_t, const engine_material_component_t>();
         auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
         auto sprite_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_material_component_t, const engine_sprite_component_t>();
@@ -582,7 +584,7 @@ engine_result_code_t engine::Scene::update(float dt)
             {
                 ENGINE_PROFILE_SECTION_N("geometry_renderer");
 
-                geometry_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
+                mesh_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
                     {
                         if (mesh_component.disable)
                         {
@@ -617,13 +619,17 @@ engine_result_code_t engine::Scene::update(float dt)
             }
 
             {
-                ENGINE_PROFILE_SECTION_N("skinned_geometry_renderer");
+                ENGINE_PROFILE_SECTION_N("skinned_mesh_renderer");
 
-                skinned_geometry_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
-                    engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
+                skinned_mesh_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_skinned_mesh_component_t& skinned_mesh_component, const engine_material_component_t& material_component)
                     {
-                        if (mesh_component.disable)
+                        if (skinned_mesh_component.disable)
                         {
+                            return;
+                        }
+                        if (skinned_mesh_component.geometry == ENGINE_INVALID_OBJECT_HANDLE)
+                        {
+                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n", (std::uint32_t)entity));
                             return;
                         }
 
@@ -633,45 +639,78 @@ engine_result_code_t engine::Scene::update(float dt)
                         const auto tex2d_diffuse_ptr = get_application()->get_texture(texture_diffuse_idx);
                         const auto tex2d_specular_ptr = get_application()->get_texture(texture_diffuse_idx);
 
-                        auto ctx = MaterialSkinnedGeometryLit::DrawContext{
+                        const auto ctx = MaterialStaticGeometryLit::DrawContext{
                             .entity_id = static_cast<std::uint32_t>(entity),
                             .camera = camera_internal.camera_ubo,
                             .scene = scene_ubo_,
                             .model_matrix = transform_component.local_to_world,
                             .color_diffuse = material_component.data.pong.diffuse_color,
-                            .shininess = material_component.data.pong.shininess,
+                            .shininess = static_cast<float>(material_component.data.pong.shininess),
                             .texture_diffuse = *tex2d_diffuse_ptr,
                             .texture_specular = *tex2d_specular_ptr };
-                        ctx.bone_transforms.reserve(ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES); // reallocation this for each geometry each frame. ToDo: optimize it
 
-                        const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
-                        for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
-                        {
-                            const auto& bone_entity = static_cast<entt::entity>(skin_component.bones[i]);
-                            if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
-                            {
-                                continue;
-                            }
-
-                            if (has_component<engine_bone_component_t>(bone_entity) == false)
-                            {
-                                log::log(log::LogLevel::eError, fmt::format("Bone entity does not have bone component. Are you sure you are doing valid thing?\n"));
-                                skin_component.bones[i] = ENGINE_INVALID_GAME_OBJECT_ID;
-                                continue;
-                            }
-                            const auto& bone_component = get_component<engine_bone_component_t>(bone_entity);
-                            const auto& bone_transform = get_component<engine_tranform_component_t>(bone_entity);
-                            const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
-                            const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
-                            const auto per_bone_final_transform = inverse_transform * bone_matrix;
-                            ctx.bone_transforms.push_back(per_bone_final_transform);
-                        }
-                        const auto geo_ptr = get_application()->get_geometry(mesh_component.geometry);
-                        material_skinned_geometry_lit_.draw(*geo_ptr, ctx);
-
+                        const auto geo_ptr = get_application()->get_geometry(skinned_mesh_component.geometry);
+                        material_static_geometry_lit_.draw(*geo_ptr, ctx);
                     }
                 );
             }
+
+            //{
+            //    ENGINE_PROFILE_SECTION_N("skinned_geometry_renderer");
+
+            //    skinned_geometry_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
+            //        engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
+            //        {
+            //            if (mesh_component.disable)
+            //            {
+            //                return;
+            //            }
+
+            //            const auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
+            //            const auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
+
+            //            const auto tex2d_diffuse_ptr = get_application()->get_texture(texture_diffuse_idx);
+            //            const auto tex2d_specular_ptr = get_application()->get_texture(texture_diffuse_idx);
+
+            //            auto ctx = MaterialSkinnedGeometryLit::DrawContext{
+            //                .entity_id = static_cast<std::uint32_t>(entity),
+            //                .camera = camera_internal.camera_ubo,
+            //                .scene = scene_ubo_,
+            //                .model_matrix = transform_component.local_to_world,
+            //                .color_diffuse = material_component.data.pong.diffuse_color,
+            //                .shininess = material_component.data.pong.shininess,
+            //                .texture_diffuse = *tex2d_diffuse_ptr,
+            //                .texture_specular = *tex2d_specular_ptr };
+            //            ctx.bone_transforms.reserve(ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES); // reallocation this for each geometry each frame. ToDo: optimize it
+
+            //            const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
+            //            for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
+            //            {
+            //                const auto& bone_entity = static_cast<entt::entity>(skin_component.bones[i]);
+            //                if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
+            //                {
+            //                    continue;
+            //                }
+
+            //                if (has_component<engine_bone_component_t>(bone_entity) == false)
+            //                {
+            //                    log::log(log::LogLevel::eError, fmt::format("Bone entity does not have bone component. Are you sure you are doing valid thing?\n"));
+            //                    skin_component.bones[i] = ENGINE_INVALID_GAME_OBJECT_ID;
+            //                    continue;
+            //                }
+            //                const auto& bone_component = get_component<engine_bone_component_t>(bone_entity);
+            //                const auto& bone_transform = get_component<engine_tranform_component_t>(bone_entity);
+            //                const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
+            //                const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
+            //                const auto per_bone_final_transform = inverse_transform * bone_matrix;
+            //                ctx.bone_transforms.push_back(per_bone_final_transform);
+            //            }
+            //            const auto geo_ptr = get_application()->get_geometry(mesh_component.geometry);
+            //            material_skinned_geometry_lit_.draw(*geo_ptr, ctx);
+
+            //        }
+            //    );
+            //}
 
             {
                 ENGINE_PROFILE_SECTION_N("sprite_renderer");
