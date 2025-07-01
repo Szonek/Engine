@@ -138,8 +138,13 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         if (!skins_[i])
         {
             engineLog("Failed creating skin for loaded model. Exiting!\n");
-            //return;
+            return;
         }
+    }
+    if (skins_.size() > 1)
+    {
+        engineLog("Model has multiple skins. Model parsing may not work correctly. Only the first one will be used for instantiation!\n");
+        assert(false);
     }
 }
 

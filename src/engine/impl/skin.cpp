@@ -61,17 +61,26 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
 
     const int num_soa_joints = skeleton_->num_soa_joints();
     locals_.resize(num_soa_joints, ozz::math::SoaTransform::identity());
+    for (auto i = 0; i < num_soa_joints; i++)
+    {
+        locals_[i] = skeleton_->joint_rest_poses()[i];
+    }
     const int num_joints = skeleton_->num_joints();
     models_.resize(num_joints);
     log::log(log::LogLevel::eTrace, std::format("Skin {} created with {} joints and {} SoA joints.\n", name_, num_joints, num_soa_joints).c_str());
+}
 
-    // Allocates a context that matches animation requirements.
-    context_.Resize(num_joints);
+const std::string& engine::Skin::get_name() const
+{
+    return name_;
+}
 
+std::vector<glm::mat4> engine::Skin::get_skinning_matrices()
+{
     // Initialize rest pose (just in case, if there was no animation played).
     ozz::animation::LocalToModelJob ltm_job{};
     ltm_job.skeleton = skeleton_.get();
-    ltm_job.input = skeleton_->joint_rest_poses();
+    ltm_job.input = ozz::make_span(locals_);
     ltm_job.output = ozz::make_span(models_);
 
     if (!ltm_job.Run())
@@ -80,46 +89,6 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
         throw std::runtime_error("Failed to convert local to model space for skin.");
     }
 
-    if (false)
-    {
-        ozz::animation::offline::RawAnimation raw_animation;
-        raw_animation.duration = 1.0f;
-        raw_animation.tracks.resize(skeleton_->num_joints());
-        raw_animation.name = "testa_anim";
-        if (!raw_animation.Validate())
-        {
-            log::log(log::LogLevel::eError, std::format("Invalid raw animation data for skin: {}.\n", name_).c_str());
-            throw std::runtime_error("Invalid raw animation data.");
-        }
-        ozz::animation::offline::AnimationBuilder builder;
-        ozz::unique_ptr<ozz::animation::Animation> animation = builder(raw_animation);
-
-        ozz::animation::SamplingJob sampling_job{};
-        sampling_job.animation = animation.get();
-        sampling_job.context = &context_;
-        sampling_job.ratio = 0.0f;
-        sampling_job.output = ozz::make_span(locals_);
-
-        assert(sampling_job.Validate());
-        if (!sampling_job.Run())
-        {
-            log::log(log::LogLevel::eError, std::format("Failed to sample animation for skin: {}.\n", name_).c_str());
-            throw std::runtime_error("Invalid raw animation data.");
-        }
-        ozz::animation::LocalToModelJob ltm_job{};
-        ltm_job.skeleton = skeleton_.get();
-        ltm_job.input = ozz::make_span(locals_);
-        ltm_job.output = ozz::make_span(models_);
-    }
-}
-
-const std::string& engine::Skin::get_name() const
-{
-    return name_;
-}
-
-std::vector<glm::mat4> engine::Skin::get_skinning_matrices() const
-{
     std::vector<glm::mat4> ret{};
     ret.resize(skeleton_->num_joints());
     for (int i = 0; i < skeleton_->num_joints(); ++i)
