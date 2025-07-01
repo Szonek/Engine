@@ -112,13 +112,27 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         }
         mat_comp.data.pong.shininess = 32;
     }
+}
 
-    skins_ = std::vector<engine_skin_t*>(engineModelDescGetSkinsDescCount(model_desc_));
-    for (std::uint32_t i = 0; i < skins_.size(); i++)
+project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp)
+{
+    auto scene = scene_cpp->get_handle();
+    auto app = scene_cpp->get_app_handle();
+
+    project_c::PrefabResult ret{};
+    ret.go = ENGINE_INVALID_GAME_OBJECT_ID;
+
+    const auto skins_count = engineModelDescGetSkinsDescCount(model_desc_);
+    assert(skins_count <= 1); // only non-skinned or single-skin models allowed
+    engine_skin_t* skin_handle = nullptr;
+    std::string skin_name = "";
+    // skin
+    if (skins_count == 1)
     {
-        const auto& skin_desc = engineModelDescGetSkinDesc(model_desc_, i);
-        const auto skin_name = engineSkinDescGetName(skin_desc);
+        const auto& skin_desc = engineModelDescGetSkinDesc(model_desc_, 0);
+        skin_name = engineSkinDescGetName(skin_desc);
         const auto joints_count = engineSkinDescGetJointsCount(skin_desc);
+
         // find root node for the skin
         const engine_model_node_desc_t* root_node_desc = nullptr;
         for (auto j = 0; j < joints_count; j++)
@@ -130,31 +144,18 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
                 root_node_desc = node_desc;
             }
         }
-        if (root_node_desc)
+        if (!root_node_desc)
         {
-            skins_[i] = engineApplicationCreateSkinFromDesc(app, skin_desc, root_node_desc);
+            engineLog("Failed to find root node for the skin. Exiting!\n");
+            return ret;
         }
-
-        if (!skins_[i])
+        skin_handle = engineApplicationCreateSkinFromDesc(app, skin_desc, root_node_desc);
+        if (!skin_handle)
         {
             engineLog("Failed creating skin for loaded model. Exiting!\n");
-            return;
+            return ret;
         }
     }
-    if (skins_.size() > 1)
-    {
-        engineLog("Model has multiple skins. Model parsing may not work correctly. Only the first one will be used for instantiation!\n");
-        assert(false);
-    }
-}
-
-project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp) const
-{
-
-    auto scene = scene_cpp->get_handle();
-    project_c::PrefabResult ret{};
-    ret.go = ENGINE_INVALID_GAME_OBJECT_ID;
-
     std::map<std::uint32_t, engine_game_object_t> node_id_to_game_object;
     const auto nodes_count = engineModelDescGetNodesDescCount(model_desc_);
     for (auto i = 0; i < nodes_count; i++)
@@ -172,16 +173,14 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         }
         log(std::format("Created entity [id: {}] with name: {}\n", go, name));
 
-        for (const auto& skin : skins_)
+        // skin
+        if (skin_handle && skin_name == std::string(name))
         {
-            const auto& skin_name = engineSkinGetName(skin);
-            if (std::strcmp(skin_name, name) == 0)
-            {
-                auto sc = engineSceneAddSkinComponent(scene, go);
-                sc.skin = skin;
-                engineSceneUpdateSkinComponent(scene, go, &sc);
-                log(std::format("\t[{}] has added skin component with name: {}\n", go, skin_name));
-            }
+            auto sc = engineSceneAddSkinComponent(scene, go);
+            sc.skin = skin_handle;
+            engineSceneUpdateSkinComponent(scene, go, &sc);
+            log(std::format("\t[{}] has added skin component with name: {}\n", go, skin_name));
+            skins_.push_back(skin_handle);
         }
 
         // transform
@@ -200,9 +199,14 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         {
             if (skin_index != -1)
             {
+                if (!skin_handle)
+                {
+                    engineLog("Failed creating skin for loaded model. Exiting!\n");
+                    assert(false);
+                }
                 auto smc = engineSceneAddSkinnedMeshComponent(scene, go);
                 smc.geometry = geometries_.at(geo_index);
-                smc.skin = skins_.at(skin_index);
+                smc.skin = skin_handle;
                 engineSceneUpdateSkinnedMeshComponent(scene, go, &smc);
                 log(std::format("\t[{}] has added skinned mesh component with geometry index: {} and skin index: {}\n", go, geo_index, skin_index));
             }

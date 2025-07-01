@@ -31,7 +31,7 @@ struct Prefab
     Prefab& operator=(Prefab&& rhs) noexcept;
     ~Prefab();
 
-    PrefabResult instantiate(engine::IScene* scene) const;
+    PrefabResult instantiate(engine::IScene* scene);
     bool is_valid() const;
 
 private:

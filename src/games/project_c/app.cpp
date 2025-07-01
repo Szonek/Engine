@@ -65,7 +65,7 @@ project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType ty
         return { ENGINE_INVALID_GAME_OBJECT_ID };
     }
 
-    const auto& prefab = prefabs_[type];
+    auto& prefab = prefabs_[type];
     if (!prefab.is_valid())
     {
         log(fmt::format("Prefab: {} is not valid\n", type));
