@@ -39,15 +39,6 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
     : skeleton_(nullptr)
     , name_(desc.name)
 {
-    // copy inverse bind matrix map from desc into linear array
-    temp_inverse_bind_matrices_.reserve(desc.inverse_bind_matrix_map.size());
-    for (auto i = 0; i < desc.inverse_bind_matrix_map.size(); i++)
-    {
-        temp_inverse_bind_matrices_.push_back(glm::mat4{ 1.0f });
-        //ozz::animation::FindJoint(*skeleton_.get(), "");
-        //ozz::animation::GetJointLocalRestPose(*skeleton_.get(), 0);
-    }
-
     ozz::animation::offline::RawSkeleton raw_skeleton;
     raw_skeleton.roots.resize(1);
     construct_skeleton(raw_skeleton.roots[0], root, desc);
@@ -57,6 +48,18 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
         throw std::runtime_error("Invalid raw skeleton data.");
     }
     skeleton_ = builder(raw_skeleton);
+
+    // copy inverse bind matrix map from desc into linear array
+    temp_joint_index_map_ = desc.joint_index_map;
+    temp_inverse_bind_matrices_.resize(desc.inverse_bind_matrix_map.size());
+    for (const auto& [name, inv_bind_mtx] : desc.inverse_bind_matrix_map)
+    {
+        const auto joint_idx = ozz::animation::FindJoint(*skeleton_.get(), name.c_str());
+        assert(joint_idx != -1);
+        temp_inverse_bind_matrices_.at(joint_idx) = inv_bind_mtx;
+    }
+
+
 
     const int num_soa_joints = skeleton_->num_soa_joints();
     locals_.resize(num_soa_joints, ozz::math::SoaTransform::identity());
@@ -117,7 +120,7 @@ const std::string& engine::Skin::get_name() const
 std::vector<glm::mat4> engine::Skin::get_skinning_matrices() const
 {
     std::vector<glm::mat4> ret{};
-    ret.reserve(skeleton_->num_joints());
+    ret.resize(skeleton_->num_joints());
     for (int i = 0; i < skeleton_->num_joints(); ++i)
     {
         const auto transform = ozz::animation::GetJointLocalRestPose(*skeleton_.get(), i);
@@ -125,7 +128,8 @@ std::vector<glm::mat4> engine::Skin::get_skinning_matrices() const
         const auto glm_scale = glm::vec3(transform.scale.x, transform.scale.y, transform.scale.z);
         const auto glm_rotation = glm::quat(transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w);
 
-        ret.emplace_back(compute_model_matrix(glm_translation, glm_rotation, glm_scale) * temp_inverse_bind_matrices_[i]);
+        const std::string joint_name = skeleton_->joint_names()[i];
+        ret[temp_joint_index_map_.at(joint_name)] = compute_model_matrix(glm_translation, glm_rotation, glm_scale) * temp_inverse_bind_matrices_[i];
         //ozz::math::Float4x4::Translation
         //ret.emplace_back(glm::mat4(
         //    model.cols[0].m128_f32[1], model.cols[0].m128_f32[1], model.cols[0].m128_f32[2], model.cols[0].m128_f32[3],

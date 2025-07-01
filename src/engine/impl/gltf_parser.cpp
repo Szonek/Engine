@@ -337,6 +337,8 @@ inline engine::SkinDesc parse_skin(const tinygltf::Skin& skin, const tinygltf::M
         assert(new_skin.inverse_bind_matrix_map.find(join_name) == new_skin.inverse_bind_matrix_map.end() &&
             "Skin should not have duplicate nodes with inverse bind matrices!");
         new_skin.inverse_bind_matrix_map[join_name] = inverse_bind_matrix;
+        new_skin.joint_index_map[join_name] = static_cast<std::int32_t>(i);
+
     }
     return new_skin;
 }
