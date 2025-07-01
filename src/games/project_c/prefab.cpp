@@ -181,11 +181,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         {
             const auto& anim_desc = engineModelDescGetAnimationDesc(model_desc_, i);
             const auto anim_name = engineAnimationDescGetName(anim_desc);
-            if (engineAnimationControllerAddAnimation(anim_controller, anim_desc))
-            {
-                log(std::format("Added animation: {} to the controller.\n", anim_name));
-            }
-            else
+            if (!engineAnimationControllerAddAnimation(anim_controller, anim_desc))
             {
                 engineLog(std::format("Failed adding animation: {} to the controller. Exiting!\n", anim_name).c_str());
                 engineApplicationDestroyAnimationController(app, anim_controller);
