@@ -14,7 +14,7 @@ class AnimationController
 public:
     AnimationController(class Skin* skin);
 
-    void add_animation(const AnimationClipDesc& animation_clip);
+    bool add_animation(const AnimationClipDesc& animation_clip);
 
 private:
     ozz::animation::Skeleton* skeleton_ = nullptr;

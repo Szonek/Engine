@@ -147,6 +147,26 @@ inline auto api_cast(engine::Skin& contact)
     return reinterpret_cast<engine_skin_t*>(&contact);
 }
 
+inline auto api_cast(engine_animation_desc_t* desc)
+{
+    return reinterpret_cast<engine::AnimationClipDesc*>(desc);
+}
+
+inline auto api_cast(const engine_animation_desc_t* desc)
+{
+    return reinterpret_cast<const engine::AnimationClipDesc*>(desc);
+}
+
+inline auto api_cast(engine::AnimationClipDesc& desc)
+{
+    return reinterpret_cast<engine_animation_desc_t*>(&desc);
+}
+
+inline auto api_cast(const engine::AnimationClipDesc& desc)
+{
+    return reinterpret_cast<const engine_animation_desc_t*>(&desc);
+}
+
 inline auto api_cast(engine_animation_controller_t* controller)
 {
     return reinterpret_cast<engine::AnimationController*>(controller);
@@ -1364,6 +1384,12 @@ const char* engineSkinDescGetJointName(const engine_skin_desc_t* desc, size_t id
     return nullptr;
 }
 
+const char* engineAnimationDescGetName(const engine_animation_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->name.c_str();
+}
+
 const char* engineModelNodeDescGetName(const engine_model_node_desc_t* desc)
 {
     assert(desc);
@@ -1538,6 +1564,24 @@ uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc)
     return api_cast(desc)->skins.size();
 }
 
+const engine_animation_desc_t* engineModelDescGetAnimationDesc(const engine_model_desc_t* desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    if (idx < typed_desc->animations.size())
+    {
+        return api_cast(typed_desc->animations.at(idx));
+    }
+    return nullptr;
+}
+
+uint32_t engineModelDescGetAnimationsDescCount(const engine_model_desc_t* desc)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    return static_cast<uint32_t>(typed_desc->animations.size());
+}
+
 engine_skin_t* engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t* root)
 {
     if (!handle || !desc || !root)
@@ -1591,4 +1635,15 @@ void engineApplicationDestroyAnimationController(engine_application_t handle, en
     auto* app = api_cast(handle);
     auto typed_controller = api_cast(controller);
     delete typed_controller;
+}
+
+bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc)
+{
+    if (!controller || !desc)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    auto typed_desc = api_cast(desc);
+    return typed_controller->add_animation(*typed_desc);
 }

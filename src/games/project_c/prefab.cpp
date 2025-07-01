@@ -10,7 +10,7 @@ project_c::Prefab::Prefab(Prefab&& rhs) noexcept
     std::swap(geometries_, rhs.geometries_);
     std::swap(textures_, rhs.textures_);
     std::swap(materials_, rhs.materials_);
-    std::swap(skins_, rhs.skins_);
+    std::swap(animation_controllers_, rhs.animation_controllers_);
 }
 
 project_c::Prefab& project_c::Prefab::operator=(Prefab&& rhs) noexcept
@@ -23,6 +23,7 @@ project_c::Prefab& project_c::Prefab::operator=(Prefab&& rhs) noexcept
         std::swap(textures_, rhs.textures_);
         std::swap(materials_, rhs.materials_);
         std::swap(skins_, rhs.skins_);
+        std::swap(animation_controllers_, rhs.animation_controllers_);
     }
     return *this;
 }
@@ -47,6 +48,13 @@ project_c::Prefab::~Prefab()
             if (skin)
             {
                 engineApplicationDestroySkin(app_, skin);
+            }
+        }
+        for (const auto& anim_controller : animation_controllers_)
+        {
+            if (anim_controller)
+            {
+                engineApplicationDestroyAnimationController(app_, anim_controller);
             }
         }
         materials_.clear();
@@ -156,6 +164,37 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             return ret;
         }
     }
+
+    engine_animation_controller_t* anim_controller = nullptr;
+    const auto animations_count = engineModelDescGetAnimationsDescCount(model_desc_);
+    if (animations_count > 0)
+    {
+        // create animation controller
+        anim_controller = engineApplicationCreateAnimationControllerWithSkin(app, skin_handle);
+        if (!anim_controller)
+        {
+            engineLog("Failed creating animation controller for loaded model. Exiting!\n");
+            return ret;
+        }
+        // add animations to the controller
+        for (auto i = 0; i < animations_count; i++)
+        {
+            const auto& anim_desc = engineModelDescGetAnimationDesc(model_desc_, i);
+            const auto anim_name = engineAnimationDescGetName(anim_desc);
+            if (engineAnimationControllerAddAnimation(anim_controller, anim_desc))
+            {
+                log(std::format("Added animation: {} to the controller.\n", anim_name));
+            }
+            else
+            {
+                engineLog(std::format("Failed adding animation: {} to the controller. Exiting!\n", anim_name).c_str());
+                engineApplicationDestroyAnimationController(app, anim_controller);
+                return ret;
+            }
+        }
+        animation_controllers_.push_back(anim_controller);
+    }
+
     std::map<std::uint32_t, engine_game_object_t> node_id_to_game_object;
     const auto nodes_count = engineModelDescGetNodesDescCount(model_desc_);
     for (auto i = 0; i < nodes_count; i++)

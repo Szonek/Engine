@@ -420,6 +420,9 @@ ENGINE_API const char* engineSkinDescGetName(const engine_skin_desc_t* desc);
 ENGINE_API uint32_t engineSkinDescGetJointsCount(const engine_skin_desc_t* desc);
 ENGINE_API const char* engineSkinDescGetJointName(const engine_skin_desc_t* desc, size_t idx);
 
+typedef struct _engine_animation_desc_t engine_animation_desc_t;
+ENGINE_API const char* engineAnimationDescGetName(const engine_animation_desc_t* desc);
+
 // Model Node DESC
 typedef struct _engine_model_node_desc_t engine_model_node_desc_t;
 ENGINE_API const char* engineModelNodeDescGetName(const engine_model_node_desc_t* desc);
@@ -452,6 +455,9 @@ ENGINE_API uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc
 ENGINE_API const engine_skin_desc_t* engineModelDescGetSkinDesc(const engine_model_desc_t* desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc);
 
+ENGINE_API const engine_animation_desc_t* engineModelDescGetAnimationDesc(const engine_model_desc_t* desc, size_t idx);
+ENGINE_API uint32_t engineModelDescGetAnimationsDescCount(const engine_model_desc_t* desc);
+
 // Skin
 ENGINE_API engine_skin_t* engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t* root);
 ENGINE_API void engineApplicationDestroySkin(engine_application_t handle, engine_skin_t* skin);
@@ -460,7 +466,7 @@ ENGINE_API const char* engineSkinGetName(const engine_skin_t* skin);
 // Animation
 ENGINE_API engine_animation_controller_t* engineApplicationCreateAnimationControllerWithSkin(engine_application_t handle, engine_skin_t* skin);
 ENGINE_API void engineApplicationDestroyAnimationController(engine_application_t handle, engine_animation_controller_t* controller);
-
+ENGINE_API bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc);
 /**
  * @struct engine_geometry_attribute_limit_t
  * @brief A structure representing the limits of a geometry attribute in the engine.

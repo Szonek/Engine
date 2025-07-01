@@ -18,11 +18,32 @@ if (!skeleton_)
 }
 }
 
-void engine::AnimationController::add_animation(const AnimationClipDesc& animation_clip)
+bool engine::AnimationController::add_animation(const AnimationClipDesc& animation_clip)
 {
     ozz::animation::offline::RawAnimation raw_animation;
     raw_animation.name = animation_clip.name;
     raw_animation.duration = animation_clip.duration;
+
+    if (raw_animation.duration <= 0.0f)
+    {
+        log::log(log::LogLevel::eError, std::format("Invalid animation duration: {} for animation '{}'.\n", raw_animation.duration, raw_animation.name).c_str());
+        raw_animation.duration = 0.00001f;
+    }
+    if (raw_animation.name.empty())
+    {
+        log::log(log::LogLevel::eError, "Animation name cannot be empty.\n");
+        return false;
+    }
+    if (animations_.find(animation_clip.name) != animations_.end())
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' already exists in the controller.\n", raw_animation.name).c_str());
+        return false;
+    }
+    if (animation_clip.channels.empty())
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' has no channels.\n", raw_animation.name).c_str());
+        return false;
+    }
     raw_animation.tracks.resize(skeleton_->num_joints());
 
     for (const auto& channel : animation_clip.channels)
@@ -78,4 +99,5 @@ void engine::AnimationController::add_animation(const AnimationClipDesc& animati
     ozz::animation::offline::AnimationBuilder builder;
     ozz::unique_ptr<ozz::animation::Animation> animation = builder(raw_animation);
     animations_.emplace(raw_animation.name, std::move(animation));
+    return true;
 }
