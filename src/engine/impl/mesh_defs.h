@@ -50,12 +50,13 @@ namespace engine
         AnimationChannelType type = AnimationChannelType::eUnknown;
         std::vector<float> timestamps;
         std::vector<float> data;
-        std::int32_t target_node_idx = INVALID_VALUE;
+        std::string joint_name;
     };
 
     struct AnimationClipDesc
     {
-        std::string name;
+        std::string name = "";
+        float duration = 0.0f;
         std::vector<AnimationChannelDesc> channels;
     };
 

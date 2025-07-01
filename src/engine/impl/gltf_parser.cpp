@@ -358,6 +358,9 @@ inline engine::AnimationClipDesc parse_animation(const tinygltf::Animation& anim
         assert(accessor_timestamps.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
         assert(accessor_timestamps.type == TINYGLTF_TYPE_SCALAR);
 
+        // duration of animation
+        new_animation.duration = std::max(float(accessor_timestamps.maxValues[0] - accessor_timestamps.minValues[0]), new_animation.duration);
+
         const auto& accessor_data = model.accessors[sampler.output];
         const auto& buffer_view_data = model.bufferViews[accessor_data.bufferView];
         assert(accessor_data.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
@@ -372,7 +375,7 @@ inline engine::AnimationClipDesc parse_animation(const tinygltf::Animation& anim
         }
 
         auto& new_channel = new_animation.channels[ch_idx++];
-        new_channel.target_node_idx = ch.target_node;
+        new_channel.joint_name = model.nodes[ch.target_node].name;
 
         if (ch.target_path.compare("rotation") == 0)
         {
