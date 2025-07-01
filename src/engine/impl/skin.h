@@ -21,6 +21,7 @@ public:
     std::vector<glm::mat4> get_skinning_matrices() const;
 
 private:
+    friend class AnimationController;
     std::string name_;
     ozz::unique_ptr<ozz::animation::Skeleton> skeleton_;
 

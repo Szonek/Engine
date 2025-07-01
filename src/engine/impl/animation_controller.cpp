@@ -9,10 +9,10 @@
 #include <stdexcept>
 #include <format>
 
-engine::AnimationController::AnimationController(ozz::animation::Skeleton* skeleton)
-    : skeleton_(skeleton)
+engine::AnimationController::AnimationController(Skin* skin)
+    : skeleton_(skin->skeleton_.get())
 {
-if (!skeleton)
+if (!skeleton_)
 {
     throw std::invalid_argument("Skeleton pointer cannot be null!");
 }

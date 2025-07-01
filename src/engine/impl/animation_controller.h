@@ -12,7 +12,7 @@ namespace engine
 class AnimationController
 {
 public:
-    AnimationController(ozz::animation::Skeleton* skeleton);
+    AnimationController(class Skin* skin);
 
     void add_animation(const AnimationClipDesc& animation_clip);
 

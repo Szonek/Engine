@@ -8,6 +8,7 @@
 #include "collision_desc.h"
 #include "gltf_parser.h"
 #include "skin.h"
+#include "animation_controller.h"
 
 #include "logger.h"
 
@@ -144,6 +145,26 @@ inline auto api_cast(const engine::Skin& contact)
 inline auto api_cast(engine::Skin& contact)
 {
     return reinterpret_cast<engine_skin_t*>(&contact);
+}
+
+inline auto api_cast(engine_animation_controller_t* controller)
+{
+    return reinterpret_cast<engine::AnimationController*>(controller);
+}
+
+inline auto api_cast(const engine_animation_controller_t* controller)
+{
+    return reinterpret_cast<const engine::AnimationController*>(controller);
+}
+
+inline auto api_cast(engine::AnimationController& contact)
+{
+    return reinterpret_cast<engine_animation_controller_t*>(&contact);
+}
+
+inline auto api_cast(const engine::AnimationController& contact)
+{
+    return reinterpret_cast<const engine_animation_controller_t*>(&contact);
 }
 
 template<typename T>
@@ -1547,4 +1568,27 @@ const char* engineSkinGetName(const engine_skin_t* skin)
         return nullptr;
     }
     return api_cast(skin)->get_name().c_str();
+}
+
+engine_animation_controller_t* engineApplicationCreateAnimationControllerWithSkin(engine_application_t handle, engine_skin_t* skin)
+{
+    if (!handle || !skin)
+    {
+        return nullptr;
+    }
+    auto* app = api_cast(handle);
+    auto typed_skin = api_cast(skin);
+    auto controller = new engine::AnimationController(typed_skin);
+    return api_cast(*controller);
+}
+
+void engineApplicationDestroyAnimationController(engine_application_t handle, engine_animation_controller_t* controller)
+{
+    if (!handle || !controller)
+    {
+        return;
+    }
+    auto* app = api_cast(handle);
+    auto typed_controller = api_cast(controller);
+    delete typed_controller;
 }
