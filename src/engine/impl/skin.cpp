@@ -59,8 +59,6 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
         temp_inverse_bind_matrices_.at(joint_idx) = inv_bind_mtx;
     }
 
-
-
     const int num_soa_joints = skeleton_->num_soa_joints();
     locals_.resize(num_soa_joints, ozz::math::SoaTransform::identity());
     const int num_joints = skeleton_->num_joints();
@@ -82,34 +80,37 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
         throw std::runtime_error("Failed to convert local to model space for skin.");
     }
 
-    //if (false)
-    //{
-    //    ozz::animation::offline::RawAnimation raw_animation;
-    //    raw_animation.duration = 1.0f;
-    //    raw_animation.tracks.resize(skeleton_->num_joints());
-    //    raw_animation.name = "testa_anim";
-    //    if (!raw_animation.Validate())
-    //    {
-    //        log::log(log::LogLevel::eError, std::format("Invalid raw animation data for skin: {}.\n", name_).c_str());
-    //        return false;
-    //    }
-    //    ozz::animation::offline::AnimationBuilder builder;
-    //    ozz::unique_ptr<ozz::animation::Animation> animation = builder(raw_animation);
+    if (false)
+    {
+        ozz::animation::offline::RawAnimation raw_animation;
+        raw_animation.duration = 1.0f;
+        raw_animation.tracks.resize(skeleton_->num_joints());
+        raw_animation.name = "testa_anim";
+        if (!raw_animation.Validate())
+        {
+            log::log(log::LogLevel::eError, std::format("Invalid raw animation data for skin: {}.\n", name_).c_str());
+            throw std::runtime_error("Invalid raw animation data.");
+        }
+        ozz::animation::offline::AnimationBuilder builder;
+        ozz::unique_ptr<ozz::animation::Animation> animation = builder(raw_animation);
 
-    //    ozz::animation::SamplingJob sampling_job{};
-    //    sampling_job.animation = animation.get();
-    //    sampling_job.context = &context_;
-    //    sampling_job.ratio = 0.0f;
-    //    sampling_job.output = ozz::make_span(locals_);
+        ozz::animation::SamplingJob sampling_job{};
+        sampling_job.animation = animation.get();
+        sampling_job.context = &context_;
+        sampling_job.ratio = 0.0f;
+        sampling_job.output = ozz::make_span(locals_);
 
-    //    assert(sampling_job.Validate());
-    //    if (!sampling_job.Run())
-    //    {
-    //        log::log(log::LogLevel::eError, std::format("Failed to sample animation for skin: {}.\n", name_).c_str());
-    //        return false;
-    //    }
-    //    ltm_job.input = ozz::make_span(locals_);
-    //}
+        assert(sampling_job.Validate());
+        if (!sampling_job.Run())
+        {
+            log::log(log::LogLevel::eError, std::format("Failed to sample animation for skin: {}.\n", name_).c_str());
+            throw std::runtime_error("Invalid raw animation data.");
+        }
+        ozz::animation::LocalToModelJob ltm_job{};
+        ltm_job.skeleton = skeleton_.get();
+        ltm_job.input = ozz::make_span(locals_);
+        ltm_job.output = ozz::make_span(models_);
+    }
 }
 
 const std::string& engine::Skin::get_name() const
@@ -123,19 +124,13 @@ std::vector<glm::mat4> engine::Skin::get_skinning_matrices() const
     ret.resize(skeleton_->num_joints());
     for (int i = 0; i < skeleton_->num_joints(); ++i)
     {
-        const auto transform = ozz::animation::GetJointLocalRestPose(*skeleton_.get(), i);
-        const auto glm_translation = glm::vec3(transform.translation.x, transform.translation.y, transform.translation.z);
-        const auto glm_scale = glm::vec3(transform.scale.x, transform.scale.y, transform.scale.z);
-        const auto glm_rotation = glm::quat(transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w);
-
         const std::string joint_name = skeleton_->joint_names()[i];
-        ret[temp_joint_index_map_.at(joint_name)] = compute_model_matrix(glm_translation, glm_rotation, glm_scale) * temp_inverse_bind_matrices_[i];
-        //ozz::math::Float4x4::Translation
-        //ret.emplace_back(glm::mat4(
-        //    model.cols[0].m128_f32[1], model.cols[0].m128_f32[1], model.cols[0].m128_f32[2], model.cols[0].m128_f32[3],
-        //    model.cols[1].m128_f32[1], model.cols[1].m128_f32[1], model.cols[1].m128_f32[2], model.cols[1].m128_f32[3],
-        //    model.cols[2].m128_f32[1], model.cols[2].m128_f32[1], model.cols[2].m128_f32[2], model.cols[2].m128_f32[3],
-        //    model.cols[3].m128_f32[1], model.cols[3].m128_f32[1], model.cols[3].m128_f32[2], model.cols[3].m128_f32[3]) * temp_inverse_bind_matrices_[i]);
+        const auto& model = models_[i];
+        ret[temp_joint_index_map_.at(joint_name)] = glm::mat4(
+            model.cols[0].m128_f32[0], model.cols[0].m128_f32[1], model.cols[0].m128_f32[2], model.cols[0].m128_f32[3],
+            model.cols[1].m128_f32[0], model.cols[1].m128_f32[1], model.cols[1].m128_f32[2], model.cols[1].m128_f32[3],
+            model.cols[2].m128_f32[0], model.cols[2].m128_f32[1], model.cols[2].m128_f32[2], model.cols[2].m128_f32[3],
+            model.cols[3].m128_f32[0], model.cols[3].m128_f32[1], model.cols[3].m128_f32[2], model.cols[3].m128_f32[3]) * temp_inverse_bind_matrices_[i];
     }
     return ret;
 }
