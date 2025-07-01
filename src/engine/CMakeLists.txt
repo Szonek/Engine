@@ -28,6 +28,9 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/data_layout.h
 	${ENGINE_SOURCES_DIR}/math_helpers.h
 	
+	${ENGINE_SOURCES_DIR}/animation_controller.cpp
+	${ENGINE_SOURCES_DIR}/animation_controller.h
+	
 	${ENGINE_SOURCES_DIR}/file_watcher.cpp
 	${ENGINE_SOURCES_DIR}/file_watcher.h	
 	
