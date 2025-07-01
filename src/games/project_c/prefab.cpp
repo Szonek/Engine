@@ -123,8 +123,8 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         const engine_model_node_desc_t* root_node_desc = nullptr;
         for (auto j = 0; j < joints_count; j++)
         {
-            const auto joint_index = engineSkinDescGetJointIndex(skin_desc, j);
-            const auto node_desc = engineModelDescGetNodeDesc(model_desc_, joint_index);
+            const auto joint_name = engineSkinDescGetJointName(skin_desc, j);
+            const auto node_desc = engineModelDescGetNodeDescByName(model_desc_, joint_name);
             if (!root_node_desc || engineModelNodeDescGetIndex(node_desc) > engineModelNodeDescGetIndex(root_node_desc))
             {
                 root_node_desc = node_desc;

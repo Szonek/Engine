@@ -26,6 +26,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/logger.cpp
 	${ENGINE_SOURCES_DIR}/logger.h
 	${ENGINE_SOURCES_DIR}/data_layout.h
+	${ENGINE_SOURCES_DIR}/math_helpers.h
 	
 	${ENGINE_SOURCES_DIR}/file_watcher.cpp
 	${ENGINE_SOURCES_DIR}/file_watcher.h	

@@ -1,5 +1,6 @@
 #include "skin.h"
 #include "logger.h"
+#include "math_helpers.h"
 
 #include "ozz/animation/offline/raw_skeleton.h"
 #include "ozz/animation/offline/raw_animation.h"
@@ -7,6 +8,8 @@
 #include "ozz/animation/offline/skeleton_builder.h"
 #include "ozz/animation/runtime/local_to_model_job.h"
 #include "ozz/animation/runtime/animation_utils.h"
+#include "ozz/animation/runtime/skeleton_utils.h"
+#include "ozz/base/maths/transform.h"
 #include <stdexcept>
 #include <format>
 
@@ -21,7 +24,7 @@ inline void construct_skeleton(ozz::animation::offline::RawSkeleton::Joint& join
     {
         // if the child node is not part of the skin, skip it 
         // ToDo: refactor skin API to provide only joints.
-        if (skin_desc.inverse_bind_matrix_map.find(child->index) == skin_desc.inverse_bind_matrix_map.end())
+        if (skin_desc.inverse_bind_matrix_map.find(child->name) == skin_desc.inverse_bind_matrix_map.end())
         {
             continue;
         }
@@ -36,6 +39,15 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
     : skeleton_(nullptr)
     , name_(desc.name)
 {
+    // copy inverse bind matrix map from desc into linear array
+    temp_inverse_bind_matrices_.reserve(desc.inverse_bind_matrix_map.size());
+    for (auto i = 0; i < desc.inverse_bind_matrix_map.size(); i++)
+    {
+        temp_inverse_bind_matrices_.push_back(glm::mat4{ 1.0f });
+        //ozz::animation::FindJoint(*skeleton_.get(), "");
+        //ozz::animation::GetJointLocalRestPose(*skeleton_.get(), 0);
+    }
+
     ozz::animation::offline::RawSkeleton raw_skeleton;
     raw_skeleton.roots.resize(1);
     construct_skeleton(raw_skeleton.roots[0], root, desc);
@@ -108,12 +120,18 @@ std::vector<glm::mat4> engine::Skin::get_skinning_matrices() const
     ret.reserve(skeleton_->num_joints());
     for (int i = 0; i < skeleton_->num_joints(); ++i)
     {
-        const auto& model = models_[i];
-        ret.emplace_back(glm::mat4(
-            model.cols[0].m128_f32[1], model.cols[0].m128_f32[1], model.cols[0].m128_f32[2], model.cols[0].m128_f32[3],
-            model.cols[1].m128_f32[1], model.cols[1].m128_f32[1], model.cols[1].m128_f32[2], model.cols[1].m128_f32[3],
-            model.cols[2].m128_f32[1], model.cols[2].m128_f32[1], model.cols[2].m128_f32[2], model.cols[2].m128_f32[3],
-            model.cols[3].m128_f32[1], model.cols[3].m128_f32[1], model.cols[3].m128_f32[2], model.cols[3].m128_f32[3]));
+        const auto transform = ozz::animation::GetJointLocalRestPose(*skeleton_.get(), i);
+        const auto glm_translation = glm::vec3(transform.translation.x, transform.translation.y, transform.translation.z);
+        const auto glm_scale = glm::vec3(transform.scale.x, transform.scale.y, transform.scale.z);
+        const auto glm_rotation = glm::quat(transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w);
+
+        ret.emplace_back(compute_model_matrix(glm_translation, glm_rotation, glm_scale) * temp_inverse_bind_matrices_[i]);
+        //ozz::math::Float4x4::Translation
+        //ret.emplace_back(glm::mat4(
+        //    model.cols[0].m128_f32[1], model.cols[0].m128_f32[1], model.cols[0].m128_f32[2], model.cols[0].m128_f32[3],
+        //    model.cols[1].m128_f32[1], model.cols[1].m128_f32[1], model.cols[1].m128_f32[2], model.cols[1].m128_f32[3],
+        //    model.cols[2].m128_f32[1], model.cols[2].m128_f32[1], model.cols[2].m128_f32[2], model.cols[2].m128_f32[3],
+        //    model.cols[3].m128_f32[1], model.cols[3].m128_f32[1], model.cols[3].m128_f32[2], model.cols[3].m128_f32[3]) * temp_inverse_bind_matrices_[i]);
     }
     return ret;
 }

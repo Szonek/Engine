@@ -418,7 +418,7 @@ ENGINE_API uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_materi
 typedef struct _engine_skin_desc_t engine_skin_desc_t;
 ENGINE_API const char* engineSkinDescGetName(const engine_skin_desc_t* desc);
 ENGINE_API uint32_t engineSkinDescGetJointsCount(const engine_skin_desc_t* desc);
-ENGINE_API uint32_t engineSkinDescGetJointIndex(const engine_skin_desc_t* desc, size_t idx);
+ENGINE_API const char* engineSkinDescGetJointName(const engine_skin_desc_t* desc, size_t idx);
 
 // Model Node DESC
 typedef struct _engine_model_node_desc_t engine_model_node_desc_t;
@@ -437,6 +437,7 @@ ENGINE_API engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_
 // Model DESC
 typedef struct _engine_model_desc_t engine_model_desc_t;
 ENGINE_API const engine_model_node_desc_t* engineModelDescGetNodeDesc(const engine_model_desc_t* desc, size_t idx);
+ENGINE_API const engine_model_node_desc_t* engineModelDescGetNodeDescByName(const engine_model_desc_t* desc, const char* name);
 ENGINE_API uint32_t engineModelDescGetNodesDescCount(const engine_model_desc_t* desc);
 
 ENGINE_API const engine_texture_2d_desc_t* engineModelDescGetTexture2dDesc(const engine_model_desc_t* desc, size_t idx);

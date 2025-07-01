@@ -32,5 +32,7 @@ private:
 
     // Buffer of model space matrices.
     ozz::vector<ozz::math::Float4x4> models_;
+
+    std::vector<glm::mat4> temp_inverse_bind_matrices_;
 };
 }

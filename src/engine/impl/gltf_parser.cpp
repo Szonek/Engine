@@ -322,6 +322,7 @@ inline engine::SkinDesc parse_skin(const tinygltf::Skin& skin, const tinygltf::M
     for (std::size_t i = 0; i < skin.joints.size(); i++)
     {
         const auto node_id = skin.joints[i];
+        const auto join_name = model.nodes[node_id].name;
         /*
             https://lisyarus.github.io/blog/graphics/2023/07/03/gltf-animation.html
             However, the vertices of the model are in, well, the model’s coordinate system (that’s the definition of this coordinate system).
@@ -333,9 +334,9 @@ inline engine::SkinDesc parse_skin(const tinygltf::Skin& skin, const tinygltf::M
         const auto inv_bind_mtx_buffer = reinterpret_cast<const float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);
         const auto inverse_bind_matrix = glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
         
-        assert(new_skin.inverse_bind_matrix_map.find(node_id) == new_skin.inverse_bind_matrix_map.end() &&
+        assert(new_skin.inverse_bind_matrix_map.find(join_name) == new_skin.inverse_bind_matrix_map.end() &&
             "Skin should not have duplicate nodes with inverse bind matrices!");
-        new_skin.inverse_bind_matrix_map[node_id] = inverse_bind_matrix;
+        new_skin.inverse_bind_matrix_map[join_name] = inverse_bind_matrix;
     }
     return new_skin;
 }
@@ -491,16 +492,6 @@ engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8
             //ToDo: add valiation to check if trasnform matrix equals to matric computed from decomposed components!
 
         }
-
-        // utility
-        if (n.skin != engine::INVALID_VALUE)
-        {
-            skins_root_nodes_idx.push_back(n.index);
-        }
-        if (n.mesh != engine::INVALID_VALUE)
-        {
-            meshes_root_nodes_idx.push_back(n.index);
-        }
     }
     // build hierarchy
     for (std::int32_t idx = 0; const auto & node : model.nodes)
@@ -532,15 +523,14 @@ engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8
         {
             out.materials.push_back(parse_material(material));
         });
+
     // meshes
-    out.geometries.reserve(meshes_root_nodes_idx.size());
     std::for_each(model.meshes.begin(), model.meshes.end(), [&out, &model](const auto& mesh)
         {
             out.geometries.push_back(parse_mesh(mesh, model));
         });
 
     // skins
-    out.skins.reserve(skins_root_nodes_idx.size());
     std::for_each(model.skins.begin(), model.skins.end(), [&out, &model, &nodes](const auto& skin)
         {
             out.skins.push_back(parse_skin(skin, model));

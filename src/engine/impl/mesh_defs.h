@@ -62,7 +62,7 @@ namespace engine
     struct SkinDesc
     {
         std::string name = "";
-        std::unordered_map<std::int32_t, glm::mat4> inverse_bind_matrix_map;
+        std::unordered_map<std::string, glm::mat4> inverse_bind_matrix_map;
     };
 
     struct ModelNodeDesc

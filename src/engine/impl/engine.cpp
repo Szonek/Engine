@@ -1329,7 +1329,7 @@ uint32_t engineSkinDescGetJointsCount(const engine_skin_desc_t* desc)
     return static_cast<uint32_t>(api_cast(desc)->inverse_bind_matrix_map.size());
 }
 
-uint32_t engineSkinDescGetJointIndex(const engine_skin_desc_t* desc, size_t idx)
+const char* engineSkinDescGetJointName(const engine_skin_desc_t* desc, size_t idx)
 {
     assert(desc);
     const auto typed_desc = api_cast(desc);
@@ -1338,9 +1338,9 @@ uint32_t engineSkinDescGetJointIndex(const engine_skin_desc_t* desc, size_t idx)
     {
         auto it = typed_desc->inverse_bind_matrix_map.begin();
         std::advance(it, idx);
-        return it->first;
+        return it->first.c_str();
     }
-    return ENGINE_INVALID_OBJECT_HANDLE;
+    return nullptr;
 }
 
 const char* engineModelNodeDescGetName(const engine_model_node_desc_t* desc)
@@ -1441,6 +1441,22 @@ const engine_model_node_desc_t* engineModelDescGetNodeDesc(const engine_model_de
     assert(desc);
     const auto typed_desc = api_cast(desc);
     return api_cast(typed_desc->nodes.at(idx).get());
+}
+
+const engine_model_node_desc_t* engineModelDescGetNodeDescByName(const engine_model_desc_t* desc, const char* name)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    const auto fnd = std::find_if(typed_desc->nodes.begin(), typed_desc->nodes.end(),
+        [&name](const auto& node) {
+            return node->name == name;
+        });
+    if (fnd != typed_desc->nodes.end())
+    {
+        return api_cast(fnd->get());
+    }
+    assert("Node with given name not found in model desc!");
+    return nullptr;
 }
 
 uint32_t engineModelDescGetNodesDescCount(const engine_model_desc_t* desc)
