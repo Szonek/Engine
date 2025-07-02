@@ -324,27 +324,6 @@ bool display_skin_component(const engine::Scene* scene, engine_skin_component_t&
 {
     const auto typed_skin = reinterpret_cast<engine::Skin*>(c.skin);
     ImGui::Text("Name: %s", typed_skin ? typed_skin->get_name().c_str() : "None");
-    for (auto i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
-    {
-        // display list of bones if bone at index "i" is valid
-        if (c.bones[i] != ENGINE_INVALID_GAME_OBJECT_ID)
-        {
-            ImGui::Text("[%d] ID: %d", i, c.bones[i]);
-        }
-    }
-    return false;
-}
-
-bool display_bone_component(const engine::Scene* scene, engine_bone_component_t& c)
-{
-    // display 4x4 matrix
-    for (auto i = 0; i < 4; i++)
-    {
-        for (auto j = 0; j < 4; j++)
-        {
-            ImGui::Text("[%d][%d]: %f", i, j, c.inverse_bind_matrix[i * 4 + j]);
-        }
-    }
     return false;
 }
 
@@ -784,7 +763,6 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
         display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
         display_component<engine_skinned_mesh_component_t>("Skinned Mesh", scene, selected, display_skinned_mesh_component);
         display_component<engine_skin_component_t>("Skin", scene, selected, display_skin_component);
-        display_component<engine_bone_component_t>("Bone", scene, selected, display_bone_component);
         display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
         display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);
         display_component<engine_rigid_body_component_t>("Rigid Body", scene, selected, display_rigidbody_component);
@@ -948,53 +926,15 @@ void engine::ApplicationEditor::render_outline(Scene* scene)
 
             const auto& white_texture = *textures_atlas_.get_object(0);
             const auto& geometry = *geometries_atlas_.get_object(mesh_component->geometry);
-
-            if (scene->has_component<engine_skin_component_t>(entity))
+     
+            engine::MaterialStaticGeometryUnlit::DrawContext ctx
             {
-                engine::MaterialSkinnedGeometryUnlit::DrawContext ctx
-                {
-                    .camera = camera_internal->camera_ubo,
-                    .model_matrix = transform_component->local_to_world,
-                    .color_diffuse = color_white,
-                    .texture_diffuse = white_texture
-                };
-
-                auto skin_component = scene->get_component<engine_skin_component_t>(entity);
-                const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component->local_to_world));
-                for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
-                {
-                    const auto& bone_entity = static_cast<entt::entity>(skin_component->bones[i]);
-                    if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
-                    {
-                        continue;
-                    }
-
-                    if (scene->has_component<engine_bone_component_t>(bone_entity) == false)
-                    {
-                        engine::log::log(engine::log::LogLevel::eError, fmt::format("Bone entity does not have bone component. Are you sure you are doing valid thing?\n"));
-                        skin_component->bones[i] = ENGINE_INVALID_GAME_OBJECT_ID;
-                        continue;
-                    }
-                    const auto& bone_component = scene->get_component<engine_bone_component_t>(bone_entity);
-                    const auto& bone_transform = scene->get_component<engine_tranform_component_t>(bone_entity);
-                    const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
-                    const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
-                    const auto per_bone_final_transform = inverse_transform * bone_matrix;
-                    ctx.bone_transforms.push_back(per_bone_final_transform);
-                }
-                outline_effect_.material_skinned_geometry_unlit.draw(geometry, ctx);
-            }
-            else
-            {
-                engine::MaterialStaticGeometryUnlit::DrawContext ctx
-                {
-                    .camera = camera_internal->camera_ubo,
-                    .model_matrix = transform_component->local_to_world,
-                    .color_diffuse = color_white,
-                    .texture_diffuse = white_texture
-                };
-                outline_effect_.material_static_geometry_unlit.draw(geometry, ctx);
-            }
+                .camera = camera_internal->camera_ubo,
+                .model_matrix = transform_component->local_to_world,
+                .color_diffuse = color_white,
+                .texture_diffuse = white_texture
+            };
+            outline_effect_.material_static_geometry_unlit.draw(geometry, ctx);
         }
     }
 

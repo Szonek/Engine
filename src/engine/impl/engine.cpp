@@ -945,33 +945,6 @@ bool engineSceneHasSkinComponent(engine_scene_t scene, engine_game_object_t game
 }
 // -- 
 
-// bone
-engine_bone_component_t engineSceneAddBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return add_component<engine_bone_component_t>(scene, game_object);
-}
-
-engine_bone_component_t engineSceneGetBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return get_component<engine_bone_component_t>(scene, game_object);
-}
-
-void engineSceneUpdateBoneComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_bone_component_t* comp)
-{
-    update_component(scene, game_object, comp);
-}
-
-void engineSceneRemoveBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    remove_component<engine_bone_component_t>(scene, game_object);
-}
-
-bool engineSceneHasBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
-{
-    return has_component<engine_bone_component_t>(scene, game_object);
-}
-// -- 
-
 engine_material_component_t engineSceneAddMaterialComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return add_component<engine_material_component_t>(scene, game_object);

@@ -107,6 +107,8 @@ set(ENGINE_API_SOURCES
     ${ENGINE_API_COMPONENTS}/parent_component.h
     ${ENGINE_API_COMPONENTS}/nav_component.h
     ${ENGINE_API_COMPONENTS}/sprite_component.h
+    ${ENGINE_API_COMPONENTS}/animation_controller_component.h
+    ${ENGINE_API_COMPONENTS}/skin_component.h
 )
 
 set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})

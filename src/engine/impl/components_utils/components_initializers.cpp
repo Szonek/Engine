@@ -122,9 +122,4 @@ void engine::initialize_skin_component(entt::registry& registry, entt::entity en
 {
     auto& comp = get_zero_init_component<engine_skin_component_t>(registry, entity);
     comp.skin = nullptr;
-    static_assert(ENGINE_INVALID_GAME_OBJECT_ID == 0, "Invalid game object id should be 0. If it's not 0 than update this function to initalize skeleton array.");
-    for (auto& bone : comp.bones)
-    {
-        bone = ENGINE_INVALID_GAME_OBJECT_ID;
-    }
 }
