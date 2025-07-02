@@ -643,6 +643,14 @@ ENGINE_API void engineSceneUpdateSkinComponent(engine_scene_t scene, engine_game
 ENGINE_API void engineSceneRemoveSkinComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasSkinComponent(engine_scene_t scene, engine_game_object_t game_object);
 
+// animation controller component
+ENGINE_API engine_animation_controller_component_t engineSceneAddAnimationControlleromponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_animation_controller_component_t engineSceneGetAnimationControlleromponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_controller_component_t* comp);
+ENGINE_API void engineSceneRemoveAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+
 // material component
 ENGINE_API engine_material_component_t engineSceneAddMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_material_component_t engineSceneGetMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);

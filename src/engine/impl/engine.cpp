@@ -943,6 +943,31 @@ bool engineSceneHasSkinComponent(engine_scene_t scene, engine_game_object_t game
 {
     return has_component<engine_skin_component_t>(scene, game_object);
 }
+
+engine_animation_controller_component_t engineSceneAddAnimationControlleromponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_animation_controller_component_t>(scene, game_object);
+}
+
+engine_animation_controller_component_t engineSceneGetAnimationControlleromponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_animation_controller_component_t>(scene, game_object);
+
+}
+void engineSceneUpdateAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_controller_component_t* comp)
+{
+    update_component(scene, game_object, comp);
+}
+
+void engineSceneRemoveAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_skin_component_t>(scene, game_object);
+}
+
+bool engineSceneHasAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_animation_controller_component_t>(scene, game_object);
+}
 // -- 
 
 engine_material_component_t engineSceneAddMaterialComponent(engine_scene_t scene, engine_game_object_t game_object)
