@@ -944,12 +944,12 @@ bool engineSceneHasSkinComponent(engine_scene_t scene, engine_game_object_t game
     return has_component<engine_skin_component_t>(scene, game_object);
 }
 
-engine_animation_controller_component_t engineSceneAddAnimationControlleromponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_animation_controller_component_t engineSceneAddAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return add_component<engine_animation_controller_component_t>(scene, game_object);
 }
 
-engine_animation_controller_component_t engineSceneGetAnimationControlleromponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_animation_controller_component_t engineSceneGetAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return get_component<engine_animation_controller_component_t>(scene, game_object);
 

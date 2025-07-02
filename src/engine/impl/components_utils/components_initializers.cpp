@@ -127,5 +127,5 @@ void engine::initialize_skin_component(entt::registry& registry, entt::entity en
 void engine::initialize_animation_controller_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_animation_controller_component_t>(registry, entity);
-    comp.animation_controller = nullptr;
+    comp.controller = nullptr;
 }

@@ -209,13 +209,26 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         log(std::format("Created entity [id: {}] with name: {}\n", go, name));
 
         // skin
-        if (skin_handle && skin_name == std::string(name))
+        if (skin_name == std::string(name))
         {
-            auto sc = engineSceneAddSkinComponent(scene, go);
-            sc.skin = skin_handle;
-            engineSceneUpdateSkinComponent(scene, go, &sc);
-            log(std::format("\t[{}] has added skin component with name: {}\n", go, skin_name));
-            skins_.push_back(skin_handle);
+            // node with the same name as skin will be owner of the skin
+            if (skin_handle)
+            {
+                auto sc = engineSceneAddSkinComponent(scene, go);
+                sc.skin = skin_handle;
+                engineSceneUpdateSkinComponent(scene, go, &sc);
+                log(std::format("\t[{}] has added skin component with name: {}\n", go, skin_name));
+                skins_.push_back(skin_handle);
+            }
+
+            // and owner of the animation controller
+            if (anim_controller)
+            {
+                auto ac = engineSceneAddAnimationControllerComponent(scene, go);
+                ac.controller = anim_controller;
+                engineSceneUpdateAnimationControllerComponent(scene, go, &ac);
+                log(std::format("\t[{}] has added animation controller component with name: {}\n", go, skin_name));
+            }
         }
 
         // transform
