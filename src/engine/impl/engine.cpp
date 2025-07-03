@@ -1645,3 +1645,13 @@ bool engineAnimationControllerAddAnimation(engine_animation_controller_t* contro
     auto typed_desc = api_cast(desc);
     return typed_controller->add_animation(*typed_desc);
 }
+
+bool engineAnimationControllerPlayback(engine_animation_controller_t* controller, const char* name, float dt)
+{
+    if (!controller || !name)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->playback(name, dt);
+}

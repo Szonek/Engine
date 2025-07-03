@@ -351,6 +351,13 @@ void project_c::Player::update(float dt)
         dodge_data_.activate();
     }
 
+    if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_M))
+    {
+        auto ac = engineSceneGetAnimationControllerComponent(scene, go_);
+        engineAnimationControllerPlayback(ac.controller, "1H_Melee_Attack_Slice_Diagonal", dt);
+    }
+
+
     const auto tc = engineSceneGetTransformComponent(scene, go_);
     const glm::quat rotation = glm::make_quat(tc.rotation);
     const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);

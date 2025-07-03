@@ -10,12 +10,13 @@
 #include <format>
 
 engine::AnimationController::AnimationController(Skin* skin)
-    : skeleton_(skin->skeleton_.get())
+    : skin_(skin)
 {
-if (!skeleton_)
-{
-    throw std::invalid_argument("Skeleton pointer cannot be null!");
-}
+    if (!skin_)
+    {
+        throw std::invalid_argument("Skin pointer cannot be null!");
+    }
+    context_.Resize(skin_->skeleton_->num_joints());
 }
 
 bool engine::AnimationController::add_animation(const AnimationClipDesc& animation_clip)
@@ -44,11 +45,11 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
         log::log(log::LogLevel::eError, std::format("Animation '{}' has no channels.\n", raw_animation.name).c_str());
         return false;
     }
-    raw_animation.tracks.resize(skeleton_->num_joints());
+    raw_animation.tracks.resize(skin_->skeleton_->num_joints());
 
     for (const auto& channel : animation_clip.channels)
     {
-        const auto joint_idx = ozz::animation::FindJoint(*skeleton_, channel.joint_name.c_str());
+        const auto joint_idx = ozz::animation::FindJoint(*skin_->skeleton_, channel.joint_name.c_str());
         auto& track = raw_animation.tracks[joint_idx];
         
         switch (channel.type)
@@ -99,5 +100,39 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
     ozz::animation::offline::AnimationBuilder builder;
     ozz::unique_ptr<ozz::animation::Animation> animation = builder(raw_animation);
     animations_.emplace(raw_animation.name, std::move(animation));
+    return true;
+}
+
+bool engine::AnimationController::playback(const std::string& animation_name, float delta_time)
+{
+    auto it = animations_.find(animation_name);
+    if (it == animations_.end())
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
+        return false;
+    }
+    const auto& animation = it->second;
+    if (!animation)
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' is null.\n", animation_name).c_str());
+        return false;
+    }
+
+    ozz::animation::SamplingJob sampling_job;
+    sampling_job.animation = animation.get();
+    sampling_job.context = &context_;
+    sampling_job.ratio = temp_playback_ratio_;
+    sampling_job.output = ozz::make_span(skin_->locals_);
+    if (!sampling_job.Run()) 
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' has failed sampling jobl.\n", animation_name).c_str());
+        return false;
+    }
+    // scale delta time to seconds
+    temp_playback_ratio_ += ((delta_time/1000.0f) / animation->duration());
+    if (temp_playback_ratio_ > 1.0f)
+    {
+        temp_playback_ratio_ = 0.0f;
+    }
     return true;
 }
