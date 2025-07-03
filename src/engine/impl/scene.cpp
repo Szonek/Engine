@@ -94,6 +94,13 @@ static inline void destroy_parent_component(entt::registry& registry, entt::enti
     }
     engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component was destroyed, but couldn't reset it's childer.\n"));
 }
+
+static inline void destroy_joint_attachment(entt::registry& registry, entt::entity entity)
+{
+    auto& comp = registry.get<engine_joint_attachment_component_t>(entity);
+    engineStringDestroy(comp.joint_name);
+}
+
 static inline void calculate_camera_view_and_projection(std::size_t window_width, std::size_t window_height, const glm::vec3& eye_position, const engine_camera_component_t& camera, engine::camera_internal_component_t& camera_internal)
 {
     // update camera: view and projection
@@ -153,6 +160,7 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, const engine_scene_cr
     entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
     entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
+    entity_registry_.on_construct<engine_joint_attachment_component_t>().connect<&initialize_joint_attachment_component>();
     entity_registry_.on_construct<engine_light_component_t>().connect<&initialize_light_component>();
     entity_registry_.on_construct<engine_sprite_component_t>().connect<&initialize_sprite_component>();
     

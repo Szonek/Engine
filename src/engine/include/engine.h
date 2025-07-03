@@ -645,6 +645,13 @@ ENGINE_API void engineSceneUpdateSkinComponent(engine_scene_t scene, engine_game
 ENGINE_API void engineSceneRemoveSkinComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasSkinComponent(engine_scene_t scene, engine_game_object_t game_object);
 
+// joint attchment component
+ENGINE_API engine_joint_attachment_component_t engineSceneAddJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_joint_attachment_component_t engineSceneGetJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API void engineSceneUpdateJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_joint_attachment_component_t* comp);
+ENGINE_API void engineSceneRemoveJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API bool engineSceneHasJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object);
+
 // animation controller component
 ENGINE_API engine_animation_controller_component_t engineSceneAddAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_animation_controller_component_t engineSceneGetAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object);
@@ -673,6 +680,7 @@ ENGINE_API engine_sprite_component_t engineSceneGetSpriteComponent(engine_scene_
 ENGINE_API void engineSceneUpdateSpriteComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_sprite_component_t* comp);
 ENGINE_API void engineSceneRemoveSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
+
 
 // camera component
 ENGINE_API engine_camera_component_t engineSceneAddCameraComponent(engine_scene_t scene, engine_game_object_t game_object);

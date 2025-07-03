@@ -6,6 +6,7 @@
 #include "profiler.h"
 #include "skin.h"
 #include "animation_controller.h"
+#include "engine_string_impl_def.h"
 
 #include "components_internals/guizmo_component.h"
 #include "components_internals/outline_component.h"
@@ -325,6 +326,14 @@ bool display_skin_component(const engine::Scene* scene, engine_skin_component_t&
 {
     const auto typed_skin = reinterpret_cast<engine::Skin*>(c.skin);
     ImGui::Text("Name: %s", typed_skin ? typed_skin->get_name().c_str() : "None");
+    return false;
+}
+
+bool display_joint_attachment_component(const engine::Scene* scene, engine_joint_attachment_component_t& c)
+{
+    const auto typed_skin = reinterpret_cast<engine::Skin*>(c.skin);
+    ImGui::Text("Skin Name: %s", typed_skin ? typed_skin->get_name().c_str() : "None");
+    ImGui::Text("Join name: %f", c.joint_name->str.c_str());
     return false;
 }
 
@@ -779,6 +788,7 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
         display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
         display_component<engine_skinned_mesh_component_t>("Skinned Mesh", scene, selected, display_skinned_mesh_component);
         display_component<engine_skin_component_t>("Skin", scene, selected, display_skin_component);
+        display_component<engine_joint_attachment_component_t>("Joint Attachment", scene, selected, display_joint_attachment_component);
         display_component<engine_animation_controller_component_t>("Animation controller", scene, selected, display_animation_controller_component);
         display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
         display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);

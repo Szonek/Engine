@@ -59,7 +59,7 @@ project_c::Weapon::~Weapon()
 {
 }
 
-void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::optional<glm::vec3> position = std::nullopt, std::optional<glm::quat> rotation = std::nullopt)
+void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::string_view joint_name, std::optional<glm::vec3> position = std::nullopt, std::optional<glm::quat> rotation = std::nullopt)
 {
     const auto scene = my_scene_->get_handle();
     // parent to hand
@@ -69,6 +69,11 @@ void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::
         pc.parent = parent;
         engineSceneUpdateParentComponent(scene, go_, &pc);
     }
+
+    auto jac = engineSceneAddJointAttachmentComponent(scene, go_);
+    jac.skin = engineSceneGetSkinComponent(scene, parent).skin;
+    engineStringSet(jac.joint_name, joint_name.data());
+    engineSceneUpdateJointAttachmentComponent(scene, go_, &jac);
 
     if (position.has_value() || rotation.has_value())
     {
@@ -462,7 +467,8 @@ bool project_c::Player::equip_waepon(Weapon* sword)
     if (!weapon_ && sword)
     {
         weapon_ = sword;
-        weapon_->attach_to_game_object(right_arm_go_, glm::vec3(0.0f, 0.0f, 0.0f), glm::angleAxis(glm::radians(-180.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
+        const auto right_hand_slot_name = engineSceneGetNameComponent(my_scene_->get_handle(), right_arm_go_);
+        weapon_->attach_to_game_object(go_, right_hand_slot_name.name, glm::vec3(0.0f, 0.0f, 0.0f), glm::angleAxis(glm::radians(-180.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
         return true;
     }
     return false;
