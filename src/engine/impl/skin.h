@@ -18,6 +18,8 @@ public:
 
     const std::string& get_name() const;
 
+    glm::mat4 get_model_matrix_for_joint(std::string_view joint_name) const;
+
     std::vector<glm::mat4> get_skinning_matrices();
 
 private:

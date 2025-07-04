@@ -68,6 +68,19 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
     const int num_joints = skeleton_->num_joints();
     models_.resize(num_joints);
     log::log(log::LogLevel::eTrace, std::format("Skin {} created with {} joints and {} SoA joints.\n", name_, num_joints, num_soa_joints).c_str());
+
+    // Initialize rest pose (just in case, if there was no animation played).
+    ozz::animation::LocalToModelJob ltm_job{};
+    ltm_job.skeleton = skeleton_.get();
+    ltm_job.input = ozz::make_span(locals_);
+    ltm_job.output = ozz::make_span(models_);
+
+    if (!ltm_job.Run())
+    {
+        log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", name_).c_str());
+        throw std::runtime_error("Failed to convert local to model space for skin.");
+    }
+
 }
 
 const std::string& engine::Skin::get_name() const
@@ -75,9 +88,19 @@ const std::string& engine::Skin::get_name() const
     return name_;
 }
 
+glm::mat4 engine::Skin::get_model_matrix_for_joint(std::string_view joint_name) const
+{
+    const auto joint_id = ozz::animation::FindJoint(*skeleton_, joint_name.data());
+    const auto& model = models_[joint_id];
+    return glm::mat4(
+        model.cols[0].m128_f32[0], model.cols[0].m128_f32[1], model.cols[0].m128_f32[2], model.cols[0].m128_f32[3],
+        model.cols[1].m128_f32[0], model.cols[1].m128_f32[1], model.cols[1].m128_f32[2], model.cols[1].m128_f32[3],
+        model.cols[2].m128_f32[0], model.cols[2].m128_f32[1], model.cols[2].m128_f32[2], model.cols[2].m128_f32[3],
+        model.cols[3].m128_f32[0], model.cols[3].m128_f32[1], model.cols[3].m128_f32[2], model.cols[3].m128_f32[3]);
+}
+
 std::vector<glm::mat4> engine::Skin::get_skinning_matrices()
 {
-    // Initialize rest pose (just in case, if there was no animation played).
     ozz::animation::LocalToModelJob ltm_job{};
     ltm_job.skeleton = skeleton_.get();
     ltm_job.input = ozz::make_span(locals_);

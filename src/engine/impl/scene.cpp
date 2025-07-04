@@ -431,6 +431,24 @@ engine_result_code_t engine::Scene::update(float dt)
     }
 
     {
+        ENGINE_PROFILE_SECTION_N("join_attachment_view");
+        auto joint_attachment_view = entity_registry_.view<engine_tranform_component_t, const engine_joint_attachment_component_t>();
+        joint_attachment_view.each([this](engine_tranform_component_t& transform_component, const engine_joint_attachment_component_t& joint_attachment_component)
+            {
+                if (!joint_attachment_component.skin)
+                {
+                    log::log(log::LogLevel::eError, fmt::format("Skin component has no skin assigned. Are you sure you are doing valid thing?\n"));
+                }
+                const auto typed_skin = reinterpret_cast<const engine::Skin*>(joint_attachment_component.skin);
+                auto attachment_model_matrix = typed_skin->get_model_matrix_for_joint(joint_attachment_component.joint_name->str);
+                attachment_model_matrix = attachment_model_matrix * glm::make_mat4x4(transform_component.local_to_world);
+                
+
+                std::memcpy(transform_component.local_to_world, &attachment_model_matrix, sizeof(attachment_model_matrix));
+            });
+    }
+
+    {
         ENGINE_PROFILE_SECTION_N("parent_to_child_transform_view");
         std::map<entt::entity, glm::mat4> ltw_map;
         //ToDo: this coule be optimized if entityies are sorted, so parents are always computed first
