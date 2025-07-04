@@ -250,6 +250,7 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     rbc.mass = 100000.0f;
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 
+#if 0
     // add handle to right arm
     right_arm_go_ = utils::get_game_objects_with_name(scene, "handslot.r")[0];
     assert(right_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
@@ -265,7 +266,7 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     {
         utils::delete_game_objects_hierarchy(scene, left_arm_go_);
     }
-
+#endif
     // add attack trigger
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(scene));
 }
@@ -467,8 +468,7 @@ bool project_c::Player::equip_waepon(Weapon* sword)
     if (!weapon_ && sword)
     {
         weapon_ = sword;
-        const auto right_hand_slot_name = engineSceneGetNameComponent(my_scene_->get_handle(), right_arm_go_);
-        weapon_->attach_to_game_object(go_, right_hand_slot_name.name, glm::vec3(0.0f, 0.0f, 0.0f), glm::angleAxis(glm::radians(-180.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
+        weapon_->attach_to_game_object(go_, "handslot.r", glm::vec3(0.0f, 0.0f, 0.0f), glm::angleAxis(glm::radians(-180.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
         return true;
     }
     return false;

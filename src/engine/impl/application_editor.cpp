@@ -333,7 +333,7 @@ bool display_joint_attachment_component(const engine::Scene* scene, engine_joint
 {
     const auto typed_skin = reinterpret_cast<engine::Skin*>(c.skin);
     ImGui::Text("Skin Name: %s", typed_skin ? typed_skin->get_name().c_str() : "None");
-    ImGui::Text("Join name: %f", c.joint_name->str.c_str());
+    ImGui::Text("Join name: %s", c.joint_name->str.c_str());
     return false;
 }
 

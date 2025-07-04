@@ -439,12 +439,15 @@ engine_result_code_t engine::Scene::update(float dt)
                 {
                     log::log(log::LogLevel::eError, fmt::format("Skin component has no skin assigned. Are you sure you are doing valid thing?\n"));
                 }
-                const auto typed_skin = reinterpret_cast<const engine::Skin*>(joint_attachment_component.skin);
-                auto attachment_model_matrix = typed_skin->get_model_matrix_for_joint(joint_attachment_component.joint_name->str);
-                attachment_model_matrix = attachment_model_matrix * glm::make_mat4x4(transform_component.local_to_world);
-                
+                else
+                {
+                    const auto typed_skin = reinterpret_cast<const engine::Skin*>(joint_attachment_component.skin);
+                    auto attachment_model_matrix = typed_skin->get_model_matrix_for_joint(joint_attachment_component.joint_name->str);
+                    attachment_model_matrix = attachment_model_matrix * glm::make_mat4x4(transform_component.local_to_world);
 
-                std::memcpy(transform_component.local_to_world, &attachment_model_matrix, sizeof(attachment_model_matrix));
+                    std::memcpy(transform_component.local_to_world, &attachment_model_matrix, sizeof(attachment_model_matrix));
+                }
+
             });
     }
 

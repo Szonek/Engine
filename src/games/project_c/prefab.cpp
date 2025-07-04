@@ -1,5 +1,7 @@
 #include "prefab.h"
 
+#include "scripts/scripts_utils.h"
+
 #include <format>
 #include <iscene.h>
 
@@ -300,90 +302,21 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         }
     }
 
-    //// bones
-    //std::map<uint32_t, std::vector<engine_game_object_t>> skin_to_game_object;
-    //for (auto skin_idx = 0; skin_idx < model_info_.skins_counts; skin_idx++)
+    //for (auto i = 0; i < skins_count; i++)
     //{
-    //    if (skin_idx == 1)
+    //    const auto& skin_desc = engineModelDescGetSkinDesc(model_desc_, i);
+    //    for (auto j = 0; j < engineSkinDescGetJointsCount(skin_desc); j++)
     //    {
-    //        break;
-    //    }
-    //    const auto& skin = model_info_.skins_array[skin_idx];
-    //    log(std::format("Adding skin: {}\n", skin.name));
-    //    for (auto bone_idx = 0; bone_idx < skin.bones_count; bone_idx++)
-    //    {
-    //        const auto& bone = skin.bones_array[bone_idx];
-    //        const auto& go = node_id_to_game_object[bone.model_node_index];
-    //        skin_to_game_object[skin_idx].push_back(go);
-
-    //        auto bc = engineSceneAddBoneComponent(scene, go);
-    //        std::memcpy(bc.inverse_bind_matrix, bone.inverse_bind_mat, sizeof(bc.inverse_bind_matrix));
-    //        engineSceneUpdateBoneComponent(scene, go, &bc);
-    //        log(std::format("\tAttached entity: {} to the skin.\n", go));
+    //        const auto joint_name = engineSkinDescGetJointName(skin_desc, j);
+    //        const auto go = utils::get_game_objects_with_name(scene, joint_name).at(0);
+    //        auto jac = engineSceneAddJointAttachmentComponent(scene, go);
+    //        assert(skin_handle != nullptr);
+    //        jac.skin = skin_handle;
+    //        engineStringSet(jac.joint_name, joint_name);
+    //        engineSceneUpdateJointAttachmentComponent(scene, go, &jac);
     //    }
     //}
 
-    // update nodes with skin components
-    //for (auto i = 0; i < model_info_.nodes_count; i++)
-    //{
-    //    const auto& node = model_info_.nodes_array[i];
-    //    const auto& go = node_id_to_game_object[i];
-    //    auto skin_index = node.skin_index;
-    //    if (skin_index != -1)
-    //    {
-    //        skin_index = 0;
-    //        const auto& bones_game_object_arr = skin_to_game_object[skin_index];
-    //        auto sc = engineSceneAddSkinComponent(scene, go);
-    //        for (auto bone_idx = 0; bone_idx < bones_game_object_arr.size(); bone_idx++)
-    //        {
-    //            sc.bones[bone_idx] = bones_game_object_arr.at(bone_idx);
-    //        }
-    //        engineSceneUpdateSkinComponent(scene, go, &sc);
-    //        log(std::format("Entity: {} added skin component for skin index: \n", go, skin_index));
-    //    }
-    //}
-
-    //// animations
-    //auto copy_anim_channel_data_vec3 = [](project_c::AnimationChannelVec3& out_channel, const engine_animation_channel_data_t& in_channel)
-    //    {
-    //        //timestamps
-    //        out_channel.timestamps.resize(in_channel.timestamps_count);
-    //        std::memcpy(out_channel.timestamps.data(), in_channel.timestamps, in_channel.timestamps_count * sizeof(in_channel.timestamps[0]));
-
-    //        // data
-    //        out_channel.data.resize(in_channel.data_count / project_c::AnimationChannelVec3::DataType::length());
-    //        std::memcpy(out_channel.data.data(), in_channel.data, in_channel.data_count * sizeof(in_channel.data[0]));
-    //    };
-
-    //auto copy_anim_channel_data_quat = [](project_c::AnimationChannelQuat& out_channel, const engine_animation_channel_data_t& in_channel)
-    //    {
-    //        //timestamps
-    //        out_channel.timestamps.resize(in_channel.timestamps_count);
-    //        std::memcpy(out_channel.timestamps.data(), in_channel.timestamps, in_channel.timestamps_count * sizeof(in_channel.timestamps[0]));
-
-    //        // data
-    //        out_channel.data.resize(in_channel.data_count / project_c::AnimationChannelQuat::DataType::length());
-    //        std::memcpy(out_channel.data.data(), in_channel.data, in_channel.data_count * sizeof(in_channel.data[0]));
-    //    };
-
-    //ret.anim_controller.set_scene(scene);
-    //for (auto anim_idx = 0; anim_idx < model_info_.animations_counts; anim_idx++)
-    //{
-    //    const auto& anim_in = model_info_.animations_array[anim_idx];
-    //    log(std::format("Adding animation: {}\n", anim_in.name));
-    //    std::map<engine_game_object_t, project_c::AnimationChannelData> anim_clip_data;
-    //    for (auto channel_idx = 0; channel_idx < anim_in.channels_count; channel_idx++)
-    //    {
-    //        const auto& in_channel = anim_in.channels[channel_idx];
-    //        const auto& go = node_id_to_game_object[in_channel.model_node_index];
-    //        assert(anim_clip_data.find(go) == anim_clip_data.end());
-    //        project_c::AnimationChannelData& out_channel = anim_clip_data[go];
-    //        copy_anim_channel_data_vec3(out_channel.translation, in_channel.channel_translation);
-    //        copy_anim_channel_data_vec3(out_channel.scale, in_channel.channel_scale);
-    //        copy_anim_channel_data_quat(out_channel.rotation, in_channel.channel_rotation);
-    //    }
-    //    ret.anim_controller.add_animation_clip(anim_in.name, project_c::AnimationClip(std::move(anim_clip_data)));
-    //}
     return ret;
 }
 
