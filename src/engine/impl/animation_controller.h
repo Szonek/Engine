@@ -6,25 +6,45 @@
 #include "ozz/animation/runtime/sampling_job.h"
 #include "ozz/base/memory/unique_ptr.h"
 
+#include <deque>
 #include <unordered_map>
 
 namespace engine
 {
+class PlayBackJob
+{
+public:
+    PlayBackJob(ozz::animation::Animation* anim, ozz::animation::SamplingJob::Context& ctx, std::size_t num_joints);
+
+    bool update(float dt, ozz::span<ozz::math::SoaTransform> output);
+
+    std::string get_animation_name() const { return animation_->name(); }
+
+private:
+    const ozz::animation::Animation* animation_ = nullptr;
+    ozz::animation::SamplingJob::Context& context_;
+    float time_ = 0.0f;
+};
+
 class AnimationController
 {
     friend class Skin;
 public:
     AnimationController(Skin* skin);
 
+    void update(float dt);
+
     bool add_animation(const AnimationClipDesc& animation_clip);
-    bool playback(const std::string& animation_name, float delta_time);
+
+    bool play(const std::string& animation_name);
+    bool is_playing(const std::string& animation_name) const;
 
 private:
     Skin* skin_ = nullptr;
     ozz::animation::SamplingJob::Context context_;
     std::unordered_map<std::string, ozz::unique_ptr<ozz::animation::Animation>> animations_;
 
-    float temp_playback_ratio_ = 0.0f;
+    std::unordered_map<std::size_t, PlayBackJob> jobs_;
 };
 
 } // namespace engine

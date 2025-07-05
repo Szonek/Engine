@@ -342,8 +342,7 @@ void project_c::Player::update(float dt)
 
     if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_M))
     {
-
-        engineAnimationControllerPlayback(ac.controller, "1H_Melee_Attack_Slice_Diagonal", dt);
+        engineAnimationControllerAnimationPlay(animation_controller, "1H_Melee_Attack_Slice_Diagonal");
     }
 
     const auto tc = engineSceneGetTransformComponent(scene, go_);
@@ -410,14 +409,14 @@ void project_c::Player::update(float dt)
     }
     if (check_state_bit(States::TRIGGER_ATTACK))
     {
-        anim_controller_.set_active_animation(attack_data_.get_animation_name());
+        engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name());
         attack_trigger_->activate();
         clear_state_bit(States::TRIGGER_ATTACK);
         enable_state_bit(States::ATTACK);
     }
     if (check_state_bit(States::ATTACK))
     {
-        if (!anim_controller_.is_active_animation(attack_data_.get_animation_name()))
+        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name()))
         {
             clear_state_bit(States::ATTACK);
             attack_data_ = {};

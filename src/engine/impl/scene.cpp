@@ -11,6 +11,7 @@
 #include "profiler.h"
 #include "engine_vector_impl_def.h"
 #include "skin.h"
+#include "animation_controller.h"
 
 #include <fmt/format.h>
 
@@ -429,16 +430,12 @@ engine_result_code_t engine::Scene::update(float dt)
     }
 
     {
-        ENGINE_PROFILE_SECTION_N("skin_update_view");
-        auto skin_updated_view = entity_registry_.view<engine_skin_component_t>();
-        skin_updated_view.each([this](engine_skin_component_t& skin_component)
+        ENGINE_PROFILE_SECTION_N("animation_controller_update_view");
+        auto animation_controller_updated_view = entity_registry_.view<engine_animation_controller_component_t>();
+        animation_controller_updated_view.each([this, dt](engine_animation_controller_component_t& ac_component)
             {
-                if (!skin_component.skin)
-                {
-                    log::log(log::LogLevel::eError, fmt::format("Skin component has no skin assigned. Are you sure you are doing valid thing?\n"));
-                }
-                auto typed_skin = reinterpret_cast<engine::Skin*>(skin_component.skin);
-                
+                auto typed_ac = reinterpret_cast<engine::AnimationController*>(ac_component.controller);
+                typed_ac->update(dt);
             });
     }
 

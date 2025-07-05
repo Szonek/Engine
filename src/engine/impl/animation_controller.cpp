@@ -103,7 +103,23 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
     return true;
 }
 
-bool engine::AnimationController::playback(const std::string& animation_name, float delta_time)
+void engine::AnimationController::update(float dt)
+{
+    for (auto it = jobs_.begin(); it != jobs_.end(); )
+    {
+        const auto should_erase = it->second.update(dt, ozz::make_span(skin_->locals_));
+        if (should_erase)
+        {
+            it = jobs_.erase(it);
+        }
+        else 
+        {
+            ++it;
+        }
+    }
+}
+
+bool engine::AnimationController::play(const std::string& animation_name)
 {
     auto it = animations_.find(animation_name);
     if (it == animations_.end())
@@ -117,22 +133,44 @@ bool engine::AnimationController::playback(const std::string& animation_name, fl
         log::log(log::LogLevel::eError, std::format("Animation '{}' is null.\n", animation_name).c_str());
         return false;
     }
+    const auto layer_id = 0;
+    jobs_.emplace(layer_id, PlayBackJob(animation.get(), context_, skin_->skeleton_->num_joints()));
+    return true;
+}
 
+bool engine::AnimationController::is_playing(const std::string& animation_name) const
+{
+    auto it = std::find_if(jobs_.begin(), jobs_.end(), [&animation_name](const auto& it)
+        {
+            return it.second.get_animation_name() == animation_name;
+        }
+    );
+    return it != jobs_.end();
+}
+
+engine::PlayBackJob::PlayBackJob(ozz::animation::Animation* anim, ozz::animation::SamplingJob::Context& ctx, std::size_t num_joints)
+    : animation_(anim)
+    , context_(ctx)
+{
+    assert(animation_ != nullptr);
+}
+
+
+bool engine::PlayBackJob::update(float dt, ozz::span<ozz::math::SoaTransform> output)
+{
+    assert(animation_ != nullptr);
+    assert(dt != 0.0f);
+    time_ += (dt / 1000.0f); // time is in seconds
+    const auto time_ratio = std::min(1.0f, time_ / animation_->duration());
     ozz::animation::SamplingJob sampling_job;
-    sampling_job.animation = animation.get();
+    sampling_job.animation = animation_;
     sampling_job.context = &context_;
-    sampling_job.ratio = temp_playback_ratio_;
-    sampling_job.output = ozz::make_span(skin_->locals_);
+    sampling_job.ratio = time_ratio;
+    sampling_job.output = output;
     if (!sampling_job.Run()) 
     {
-        log::log(log::LogLevel::eError, std::format("Animation '{}' has failed sampling jobl.\n", animation_name).c_str());
-        return false;
+        log::log(log::LogLevel::eError, std::format("Animation playback '{}' has failed sampling jobl.\n", animation_->name()).c_str());
     }
     // scale delta time to seconds
-    temp_playback_ratio_ += ((delta_time/1000.0f) / animation->duration());
-    if (temp_playback_ratio_ > 1.0f)
-    {
-        temp_playback_ratio_ = 0.0f;
-    }
-    return true;
+    return time_ >= animation_->duration();
 }
