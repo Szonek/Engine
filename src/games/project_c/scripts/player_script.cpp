@@ -263,8 +263,6 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
 
 void project_c::Player::update(float dt)
 {
-
-
     auto check_state_bit = [&](States state)
         {
             return (state_ & state) != 0;
@@ -278,11 +276,12 @@ void project_c::Player::update(float dt)
             state_ |= state;
         };
 
-    anim_controller_.update(dt);
-    dodge_data_.update(dt);
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
 
+    auto animation_controller = engineSceneGetAnimationControllerComponent(scene, go_).controller;
+
+    // [DEBUG} reset position  ToDo: remove it later
     if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_0))
     {
         set_world_position( 0.0f, 1.0f, 0.0f );
@@ -341,18 +340,11 @@ void project_c::Player::update(float dt)
         weapon_ = nullptr;
     }
 
-    if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_SPACE) && dodge_data_.can_dodge())
-    {
-        enable_state_bit(States::DODGE);
-        dodge_data_.activate();
-    }
-
     if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_M))
     {
-        auto ac = engineSceneGetAnimationControllerComponent(scene, go_);
+
         engineAnimationControllerPlayback(ac.controller, "1H_Melee_Attack_Slice_Diagonal", dt);
     }
-
 
     const auto tc = engineSceneGetTransformComponent(scene, go_);
     const glm::quat rotation = glm::make_quat(tc.rotation);
@@ -362,25 +354,6 @@ void project_c::Player::update(float dt)
     if (state_ == States::IDLE)
     {
         anim_controller_.set_active_animation("Idle");
-    }
-    if (check_state_bit(States::DODGE))
-    {
-        if (!dodge_data_.animation_is_playing())
-        {
-            clear_state_bit(States::DODGE);
-        }
-        else
-        {
-            anim_controller_.set_active_animation("Dodge_Forward");
-            const float speed_cooef = 0.015f;
-            const float speed = speed_cooef * dt;
-            auto tc_dodge = engineSceneGetTransformComponent(scene, go_);
-            // move forward // ToDo add doge in other directions
-            tc_dodge.position[0] += forward.x * speed;
-            //tc.position[1] += forward.y * speed;  // dont go up!
-            tc_dodge.position[2] += forward.z * speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc_dodge);
-        }
     }
     if (check_state_bit(States::MOVE))
     {

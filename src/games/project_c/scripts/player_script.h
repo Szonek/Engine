@@ -43,7 +43,6 @@ private:
         TRIGGER_ATTACK = 0x0001,
         ATTACK         = 0x0002,
         MOVE           = 0x0004,
-        DODGE          = 0x0008,
         PLACEHOLDER    = 0x0010,
 
     };
@@ -51,54 +50,6 @@ private:
     struct GlobalStateData
     {
         engine_ray_hit_info_t last_mouse_hit = {};
-    };
-
-    struct DodgeStateData
-    {
-        std::chrono::milliseconds dodge_timer_cooldown = std::chrono::milliseconds(0);
-        std::chrono::milliseconds dodge_timer_animation = std::chrono::milliseconds(0);
-
-        void update(float dt)
-        {
-            if (animation_playing_)
-            {
-                dodge_timer_animation += std::chrono::milliseconds(static_cast<std::int64_t>(dt));
-            }
-            if (cooldown_playing_)
-            {
-                dodge_timer_cooldown += std::chrono::milliseconds(static_cast<std::int64_t>(dt));
-            }
-
-            if (dodge_timer_animation >= std::chrono::milliseconds(150))
-            {
-                dodge_timer_animation = std::chrono::milliseconds(0);
-                animation_playing_ = false;
-            }
-            if (dodge_timer_cooldown >= std::chrono::milliseconds(3000))
-            {
-                dodge_timer_cooldown = std::chrono::milliseconds(0);
-                cooldown_playing_ = false;
-            }
-        }
-
-        inline bool animation_is_playing() const
-        {
-            return animation_playing_;
-        }
-
-        inline void activate()
-        {
-            animation_playing_ = true;
-            cooldown_playing_ = true;
-        }
-
-        inline bool can_dodge() const
-        {
-            return !cooldown_playing_;
-        }
-    private:
-        bool animation_playing_ = false;
-        bool cooldown_playing_ = false;
     };
 
     struct MoveStateData
@@ -154,7 +105,6 @@ private:
     MoveStateData move_data_;
     AttackStateData attack_data_;
     GlobalStateData global_data_;
-    DodgeStateData dodge_data_;
 
     AttackTrigger* attack_trigger_;
 
