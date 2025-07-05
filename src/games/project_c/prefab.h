@@ -1,5 +1,4 @@
 #pragma once
-#include "animation_controller.h"
 
 #include <engine.h>
 
@@ -17,7 +16,6 @@ namespace project_c
 struct PrefabResult
 {
     engine_game_object_t go;
-    AnimationController anim_controller;
 };
 
 struct Prefab

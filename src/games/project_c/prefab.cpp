@@ -1,9 +1,10 @@
+#include <iscene.h>
 #include "prefab.h"
 
 #include "scripts/scripts_utils.h"
 
+#include <map>
 #include <format>
-#include <iscene.h>
 
 project_c::Prefab::Prefab(Prefab&& rhs) noexcept
 {

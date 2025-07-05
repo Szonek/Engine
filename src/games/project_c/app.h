@@ -5,7 +5,6 @@
 #include "iscene.h"
 
 #include "prefab.h"
-#include "animation_controller.h"
 #include "prefab_types.h"
 
 #include <fmt/format.h>
