@@ -340,11 +340,6 @@ void project_c::Player::update(float dt)
         weapon_ = nullptr;
     }
 
-    if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_M))
-    {
-        engineAnimationControllerAnimationPlay(animation_controller, "1H_Melee_Attack_Slice_Diagonal");
-    }
-
     const auto tc = engineSceneGetTransformComponent(scene, go_);
     const glm::quat rotation = glm::make_quat(tc.rotation);
     const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
@@ -352,7 +347,7 @@ void project_c::Player::update(float dt)
 
     if (state_ == States::IDLE)
     {
-        anim_controller_.set_active_animation("Idle");
+        engineAnimationControllerAnimationPlay(animation_controller, "Idle");
     }
     if (check_state_bit(States::MOVE))
     {
@@ -404,7 +399,10 @@ void project_c::Player::update(float dt)
             }
         }
 
-        anim_controller_.set_active_animation(move_data_.get_animation_name(anim_move_dir));
+        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, move_data_.get_animation_name(anim_move_dir)))
+        {
+            engineAnimationControllerAnimationPlay(animation_controller, move_data_.get_animation_name(anim_move_dir));
+        }
         clear_state_bit(States::MOVE);
     }
     if (check_state_bit(States::TRIGGER_ATTACK))

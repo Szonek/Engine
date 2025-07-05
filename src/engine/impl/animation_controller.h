@@ -22,7 +22,7 @@ public:
 
 private:
     const ozz::animation::Animation* animation_ = nullptr;
-    ozz::animation::SamplingJob::Context& context_;
+    ozz::animation::SamplingJob::Context* context_;
     float time_ = 0.0f;
 };
 

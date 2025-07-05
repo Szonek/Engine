@@ -134,7 +134,7 @@ bool engine::AnimationController::play(const std::string& animation_name)
         return false;
     }
     const auto layer_id = 0;
-    jobs_.emplace(layer_id, PlayBackJob(animation.get(), context_, skin_->skeleton_->num_joints()));
+    jobs_.insert_or_assign(layer_id, PlayBackJob(animation.get(), context_, skin_->skeleton_->num_joints()));
     return true;
 }
 
@@ -150,9 +150,10 @@ bool engine::AnimationController::is_playing(const std::string& animation_name) 
 
 engine::PlayBackJob::PlayBackJob(ozz::animation::Animation* anim, ozz::animation::SamplingJob::Context& ctx, std::size_t num_joints)
     : animation_(anim)
-    , context_(ctx)
+    , context_(&ctx)
 {
     assert(animation_ != nullptr);
+    assert(context_ != nullptr);
 }
 
 
@@ -164,7 +165,7 @@ bool engine::PlayBackJob::update(float dt, ozz::span<ozz::math::SoaTransform> ou
     const auto time_ratio = std::min(1.0f, time_ / animation_->duration());
     ozz::animation::SamplingJob sampling_job;
     sampling_job.animation = animation_;
-    sampling_job.context = &context_;
+    sampling_job.context = context_;
     sampling_job.ratio = time_ratio;
     sampling_job.output = output;
     if (!sampling_job.Run()) 
