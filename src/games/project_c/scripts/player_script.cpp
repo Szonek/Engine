@@ -250,23 +250,13 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     rbc.mass = 100000.0f;
     engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
 
-#if 0
-    // add handle to right arm
-    right_arm_go_ = utils::get_game_objects_with_name(scene, "handslot.r")[0];
-    assert(right_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
-    // cleanup any childer of handslot (as model could be prebuilt with attached geomteries)
-    if (engineSceneHasChildrenComponent(scene, right_arm_go_))
-    {
-        utils::delete_game_objects_hierarchy(scene, right_arm_go_);
-    }
-    left_arm_go_ = utils::get_game_objects_with_name(scene, "handslot.l")[0];
-    assert(left_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
-    // cleanup any childer of handslot (as model could be prebuilt with attached geomteries)
-    if (engineSceneHasChildrenComponent(scene, left_arm_go_))
-    {
-        utils::delete_game_objects_hierarchy(scene, left_arm_go_);
-    }
-#endif
+    // deleye objects not needed at creation time
+    engineSceneDestroyGameObject(scene, utils::get_game_objects_with_name(scene, "1H_Axe")[0]);
+    engineSceneDestroyGameObject(scene, utils::get_game_objects_with_name(scene, "2H_Axe")[0]);
+    engineSceneDestroyGameObject(scene, utils::get_game_objects_with_name(scene, "Mug")[0]);
+    engineSceneDestroyGameObject(scene, utils::get_game_objects_with_name(scene, "Barbarian_Round_Shield")[0]);
+    engineSceneDestroyGameObject(scene, utils::get_game_objects_with_name(scene, "1H_Axe_Offhand")[0]);
+
     // add attack trigger
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(scene));
 }

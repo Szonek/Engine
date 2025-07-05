@@ -286,7 +286,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     }
     assert(ret.go != ENGINE_INVALID_GAME_OBJECT_ID);
 
-    // remove not needed transforms
+    // remove not needed objects (joints)
     for (auto i = 0; i < skins_count; i++)
     {
         const auto& skin_desc = engineModelDescGetSkinDesc(model_desc_, i);
@@ -298,22 +298,36 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
 
             const auto model_node_desc = engineModelDescGetNodeDescByName(model_desc_, joint_name);
             node_id_to_game_object.erase(engineModelNodeDescGetIndex(model_node_desc));
+
+            // but objects which parent was joint have to have added joint attachment
+            for (auto c = 0; c < engineModelNodeDescGetChildrenCount(model_node_desc); c++)
+            {
+                const auto child = engineModelNodeDescGetChildren(model_node_desc, c);
+                const auto child_has_geometry = engineModelNodeDescGetGeometryIndex(child) != -1;
+                if (child_has_geometry)
+                {
+                    const auto child_go = node_id_to_game_object.at(engineModelNodeDescGetIndex(child));
+                    auto jac = engineSceneAddJointAttachmentComponent(scene, child_go);
+                    assert(skin_handle != nullptr);
+                    jac.skin = skin_handle;
+                    engineStringSet(jac.joint_name, joint_name);
+                    engineSceneUpdateJointAttachmentComponent(scene, child_go, &jac);
+                }
+            }
         }
     }
 
-    // hierarchy
+
+    // all objects are children of the return object
     for (const auto& [node_id, go] : node_id_to_game_object)
     {
-        const auto node_desc = engineModelDescGetNodeDesc(model_desc_, node_id);
-        if (const auto parent_node_desc = engineModelNodeDescGetParent(node_desc))
+        if (go == ret.go)
         {
-            const std::uint32_t parent_index = engineModelNodeDescGetIndex(parent_node_desc);
-            // add parent component
-            auto pc = engineSceneAddParentComponent(scene, go);
-            pc.parent = ret.go;// node_id_to_game_object[parent_index];
-            engineSceneUpdateParentComponent(scene, go, &pc);
-            log(std::format("Entity: {} added parent component: {}\n", go, pc.parent));
+            continue;
         }
+        auto pc = engineSceneAddParentComponent(scene, go);
+        pc.parent = ret.go;
+        engineSceneUpdateParentComponent(scene, go, &pc);
     }
 
     return ret;
