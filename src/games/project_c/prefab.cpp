@@ -286,36 +286,35 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     }
     assert(ret.go != ENGINE_INVALID_GAME_OBJECT_ID);
 
-    // hierarchy
-    for (auto i = 0; i < nodes_count; i++)
+    // remove not needed transforms
+    for (auto i = 0; i < skins_count; i++)
     {
-        const auto node_desc = engineModelDescGetNodeDesc(model_desc_, i);
-        const auto& go = node_id_to_game_object[engineModelNodeDescGetIndex(node_desc)];
+        const auto& skin_desc = engineModelDescGetSkinDesc(model_desc_, i);
+        for (auto j = 0; j < engineSkinDescGetJointsCount(skin_desc); j++)
+        {
+            const auto joint_name = engineSkinDescGetJointName(skin_desc, j);
+            const auto go = utils::get_game_objects_with_name(scene, joint_name).at(0);
+            engineSceneDestroyGameObject(scene, go);
+
+            const auto model_node_desc = engineModelDescGetNodeDescByName(model_desc_, joint_name);
+            node_id_to_game_object.erase(engineModelNodeDescGetIndex(model_node_desc));
+        }
+    }
+
+    // hierarchy
+    for (const auto& [node_id, go] : node_id_to_game_object)
+    {
+        const auto node_desc = engineModelDescGetNodeDesc(model_desc_, node_id);
         if (const auto parent_node_desc = engineModelNodeDescGetParent(node_desc))
         {
             const std::uint32_t parent_index = engineModelNodeDescGetIndex(parent_node_desc);
             // add parent component
             auto pc = engineSceneAddParentComponent(scene, go);
-            pc.parent = node_id_to_game_object[parent_index];
+            pc.parent = ret.go;// node_id_to_game_object[parent_index];
             engineSceneUpdateParentComponent(scene, go, &pc);
             log(std::format("Entity: {} added parent component: {}\n", go, pc.parent));
         }
     }
-
-    //for (auto i = 0; i < skins_count; i++)
-    //{
-    //    const auto& skin_desc = engineModelDescGetSkinDesc(model_desc_, i);
-    //    for (auto j = 0; j < engineSkinDescGetJointsCount(skin_desc); j++)
-    //    {
-    //        const auto joint_name = engineSkinDescGetJointName(skin_desc, j);
-    //        const auto go = utils::get_game_objects_with_name(scene, joint_name).at(0);
-    //        auto jac = engineSceneAddJointAttachmentComponent(scene, go);
-    //        assert(skin_handle != nullptr);
-    //        jac.skin = skin_handle;
-    //        engineStringSet(jac.joint_name, joint_name);
-    //        engineSceneUpdateJointAttachmentComponent(scene, go, &jac);
-    //    }
-    //}
 
     return ret;
 }

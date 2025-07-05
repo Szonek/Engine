@@ -84,15 +84,34 @@ static inline void destroy_parent_component(entt::registry& registry, entt::enti
 {
     const auto parent_entt = static_cast<entt::entity>(registry.get<engine_parent_component_t>(entity).parent);
     auto& cc = registry.get<engine_children_component_t>(parent_entt);
+    std::size_t child_counter = 0;
     for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
     {
+        if (cc.child[i] != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            child_counter++;
+        }
         if (cc.child[i] == static_cast<std::uint32_t>(entity))
         {
             cc.child[i] = ENGINE_INVALID_GAME_OBJECT_ID;
-            return;
         }
     }
-    engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component was destroyed, but couldn't reset it's childer.\n"));
+    if (child_counter == 1)
+    {
+        registry.erase<engine_children_component_t>(parent_entt);
+    }
+}
+
+static inline void destroy_children_component(entt::registry& registry, entt::entity entity)
+{
+    auto& cc = registry.get<engine_children_component_t>(entity);
+    for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
+    {
+        if (cc.child[i] != static_cast<std::uint32_t>(entity))
+        {
+            registry.erase<engine_parent_component_t>(static_cast<entt::entity>(cc.child[i]));
+        }
+    }
 }
 
 static inline void destroy_joint_attachment(entt::registry& registry, entt::entity entity)
