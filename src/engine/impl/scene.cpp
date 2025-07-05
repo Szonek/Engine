@@ -87,18 +87,10 @@ static inline void destroy_parent_component(entt::registry& registry, entt::enti
     std::size_t child_counter = 0;
     for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
     {
-        if (cc.child[i] != ENGINE_INVALID_GAME_OBJECT_ID)
-        {
-            child_counter++;
-        }
         if (cc.child[i] == static_cast<std::uint32_t>(entity))
         {
             cc.child[i] = ENGINE_INVALID_GAME_OBJECT_ID;
         }
-    }
-    if (child_counter == 1)
-    {
-        registry.erase<engine_children_component_t>(parent_entt);
     }
 }
 
@@ -107,7 +99,7 @@ static inline void destroy_children_component(entt::registry& registry, entt::en
     auto& cc = registry.get<engine_children_component_t>(entity);
     for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
     {
-        if (cc.child[i] != static_cast<std::uint32_t>(entity))
+        if (cc.child[i] != ENGINE_INVALID_GAME_OBJECT_ID)
         {
             registry.erase<engine_parent_component_t>(static_cast<entt::entity>(cc.child[i]));
         }
@@ -185,6 +177,7 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, const engine_scene_cr
     
     entity_registry_.on_update<engine_parent_component_t>().connect<&update_parent_component>();
     entity_registry_.on_destroy<engine_parent_component_t>().connect<&destroy_parent_component>();
+    entity_registry_.on_destroy<engine_children_component_t>().connect<&destroy_children_component>();
 
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<physcic_internal_component_t>>();
     entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<physcic_internal_component_t>>();
