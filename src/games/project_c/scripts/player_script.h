@@ -26,7 +26,7 @@ public:
     Weapon(engine::IScene* my_scene);
     ~Weapon();
 
-    void attach_to_game_object(engine_game_object_t parent, std::optional<glm::vec3> position, std::optional<glm::quat> rotation);
+    void attach_to_game_object(engine_game_object_t parent, std::string_view joint_name, std::optional<glm::vec3> position, std::optional<glm::quat> rotation);
     void drop_on_ground(glm::vec3 position);
 
     void on_collision(const collision_t& info) override;
@@ -39,65 +39,17 @@ class Player : public BaseNode
 private:
     enum States : std::uint32_t
     {
-        IDLE    = 0x0000,
-        ATTACK  = 0x0001,
-        MOVE    = 0x0002,
-        DODGE   = 0x0004,
-        PLACEHOLDER = 0x0008,
+        IDLE           = 0x0000,
+        TRIGGER_ATTACK = 0x0001,
+        ATTACK         = 0x0002,
+        MOVE           = 0x0004,
+        PLACEHOLDER    = 0x0010,
 
     };
 
     struct GlobalStateData
     {
         engine_ray_hit_info_t last_mouse_hit = {};
-    };
-
-    struct DodgeStateData
-    {
-        std::chrono::milliseconds dodge_timer_cooldown = std::chrono::milliseconds(0);
-        std::chrono::milliseconds dodge_timer_animation = std::chrono::milliseconds(0);
-
-        void update(float dt)
-        {
-            if (animation_playing_)
-            {
-                dodge_timer_animation += std::chrono::milliseconds(static_cast<std::int64_t>(dt));
-            }
-            if (cooldown_playing_)
-            {
-                dodge_timer_cooldown += std::chrono::milliseconds(static_cast<std::int64_t>(dt));
-            }
-
-            if (dodge_timer_animation >= std::chrono::milliseconds(150))
-            {
-                dodge_timer_animation = std::chrono::milliseconds(0);
-                animation_playing_ = false;
-            }
-            if (dodge_timer_cooldown >= std::chrono::milliseconds(3000))
-            {
-                dodge_timer_cooldown = std::chrono::milliseconds(0);
-                cooldown_playing_ = false;
-            }
-        }
-
-        inline bool animation_is_playing() const
-        {
-            return animation_playing_;
-        }
-
-        inline void activate()
-        {
-            animation_playing_ = true;
-            cooldown_playing_ = true;
-        }
-
-        inline bool can_dodge() const
-        {
-            return !cooldown_playing_;
-        }
-    private:
-        bool animation_playing_ = false;
-        bool cooldown_playing_ = false;
     };
 
     struct MoveStateData
@@ -110,7 +62,6 @@ private:
             eRight
         };
 
-        bool animation_started = false;
         inline const char* get_animation_name(Direction dir) const
         {
             switch (dir)
@@ -132,10 +83,11 @@ private:
 
     struct AttackStateData
     {
-        bool animation_started = false;
         inline const char* get_animation_name() const
         {
-            return "1H_Melee_Attack_Chop";
+            //return "1H_Melee_Attack_Chop";
+            //return "1H_Melee_Attack_Slice_Horizontal";
+            return "1H_Melee_Attack_Slice_Diagonal";
         }
     };
 
@@ -153,13 +105,8 @@ private:
     MoveStateData move_data_;
     AttackStateData attack_data_;
     GlobalStateData global_data_;
-    DodgeStateData dodge_data_;
 
     AttackTrigger* attack_trigger_;
-
-    // child objects
-    engine_game_object_t right_arm_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
-    engine_game_object_t left_arm_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
 
     // inventory
     Weapon* weapon_;

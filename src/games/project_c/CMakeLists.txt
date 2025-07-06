@@ -13,9 +13,6 @@ set(APP_SOURCES
 	nav_mesh.h
 	nav_mesh.cpp
 	
-	animation_controller.h
-	animation_controller.cpp
-	
 	scenes/scene_test.h
 	scenes/scene_test.cpp
 	

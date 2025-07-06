@@ -1,6 +1,8 @@
 #include "material.h"
 #include "math_helpers.h"
 
+#include "profiler.h"
+
 engine::MaterialStaticGeometryLit::MaterialStaticGeometryLit()
     : shader_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "lit_helpers.h", "lit.fs" }))
 {
@@ -8,6 +10,7 @@ engine::MaterialStaticGeometryLit::MaterialStaticGeometryLit()
 
 void engine::MaterialStaticGeometryLit::draw(const Geometry& geometry, const DrawContext& ctx)
 {
+    ENGINE_PROFILE_SECTION_N("MaterialStaticGeometryLit::draw");
     shader_.bind();
     
     assert(ctx.entity_id != ENGINE_INVALID_GAME_OBJECT_ID);
@@ -37,6 +40,7 @@ engine::MaterialSkinnedGeometryLit::MaterialSkinnedGeometryLit()
 
 void engine::MaterialSkinnedGeometryLit::draw(const Geometry& geometry, const DrawContext& ctx)
 {
+    ENGINE_PROFILE_SECTION_N("MaterialSkinnedGeometryLit::draw");
     shader_.bind();
 
     assert(ctx.entity_id != ENGINE_INVALID_GAME_OBJECT_ID);
@@ -54,12 +58,16 @@ void engine::MaterialSkinnedGeometryLit::draw(const Geometry& geometry, const Dr
     shader_.set_texture_with_sampler("texture_diffuse", &ctx.texture_diffuse);
     shader_.set_texture_with_sampler("texture_specular", &ctx.texture_specular);
 
-    for (auto i = 0; i < ctx.bone_transforms.size(); i++)
     {
-        const auto& per_bone_final_transform = ctx.bone_transforms.at(i);
-        const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
-        shader_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
+        ENGINE_PROFILE_SECTION_N("MaterialSkinnedGeometryLit::draw::UpdatePerBoneUniform");
+        for (auto i = 0; i < ctx.bone_transforms.size(); i++)
+        {
+            const auto& per_bone_final_transform = ctx.bone_transforms[i];
+            const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
+            shader_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
+        }
     }
+
 
     geometry.bind();
     geometry.draw(Geometry::Mode::eTriangles);
@@ -73,6 +81,7 @@ engine::MaterialSprite::MaterialSprite()
 
 void engine::MaterialSprite::draw(const DrawContext& ctx)
 {
+    ENGINE_PROFILE_SECTION_N("MaterialSprite::draw");
     shader_.bind();
 
     shader_.set_uniform_block("CameraData", &ctx.camera, 0);
@@ -91,6 +100,7 @@ engine::MaterialSkinnedGeometryUnlit::MaterialSkinnedGeometryUnlit()
 
 void engine::MaterialSkinnedGeometryUnlit::draw(const Geometry& geometry, const DrawContext& ctx)
 {
+    ENGINE_PROFILE_SECTION_N("MaterialSkinnedGeometryUnlit::draw");
     shader_.bind();
 
     shader_.set_uniform_block("CameraData", &ctx.camera, 0);
@@ -117,6 +127,7 @@ engine::MaterialStaticGeometryUnlit::MaterialStaticGeometryUnlit()
 
 void engine::MaterialStaticGeometryUnlit::draw(const Geometry& geometry, const DrawContext& ctx)
 {
+    ENGINE_PROFILE_SECTION_N("MaterialStaticGeometryUnlit::draw");
     shader_.bind();
 
     shader_.set_uniform_block("CameraData", &ctx.camera, 0);

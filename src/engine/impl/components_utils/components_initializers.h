@@ -6,6 +6,7 @@ namespace engine
 {
 void initialize_transform_component(entt::registry& registry, entt::entity entity);
 void initialize_mesh_component(entt::registry& registry, entt::entity entity);
+void initialize_skinned_mesh_component(entt::registry& registry, entt::entity entity);
 void initialize_material_component(entt::registry& registry, entt::entity entity);
 void initialize_parent_component(entt::registry& registry, entt::entity entity);
 void initialize_name_component(entt::registry& registry, entt::entity entity);
@@ -13,6 +14,8 @@ void initialize_camera_component(entt::registry& registry, entt::entity entity);
 void initialize_rigidbody_component(entt::registry& registry, entt::entity entity);
 void initialize_collider_component(entt::registry& registry, entt::entity entity);
 void initialize_skin_component(entt::registry& registry, entt::entity entity);
+void initialize_joint_attachment_component(entt::registry& registry, entt::entity entity);
+void initialize_animation_controller_component(entt::registry& registry, entt::entity entity);
 void initialize_light_component(entt::registry& registry, entt::entity entity);
 void initialize_sprite_component(entt::registry& registry, entt::entity entity);
 } // namespace engine

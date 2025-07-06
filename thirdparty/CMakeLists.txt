@@ -19,10 +19,20 @@ add_subdirectory(glm)
 add_subdirectory(entt)
 
 # profiler
-add_subdirectory(tracy-0.10)
+add_subdirectory(tracy-0.12.1)
 
 # gtests
 add_subdirectory(googletest)
+
+# skeleton animations
+set(ozz_build_tools OFF CACHE BOOL "")
+set(ozz_build_fbx OFF CACHE BOOL "")
+set(ozz_build_gltf ON CACHE BOOL "")
+set(ozz_build_samples OFF CACHE BOOL "")
+set(ozz_build_howtos OFF CACHE BOOL "")
+set(ozz_build_tests OFF CACHE BOOL "")
+set(ozz_build_msvc_rt_dll ON CACHE BOOL "")
+add_subdirectory(ozz-animation)
 
 # rapidJson
 set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "")
@@ -43,6 +53,9 @@ set(BUILD_OPENGL3_DEMOS OFF CACHE BOOL "")
 set(BUILD_BULLET2_DEMOS OFF CACHE BOOL "")
 set(BUILD_CPU_DEMOS OFF CACHE BOOL "")
 set(BUILD_UNIT_TESTS OFF CACHE BOOL "")
+set(BUILD_ENET OFF CACHE BOOL "")
+set(BUILD_CLSOCKET OFF CACHE BOOL "")
+set(BUILD_EXTRAS OFF CACHE BOOL "")
 add_subdirectory(bullet3)
 set(BULLET_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/bullet3/src  CACHE STRING "Include headers of bullet dependency")
 set(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath CACHE STRING "Include libraries of bullet dependency")

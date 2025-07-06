@@ -15,19 +15,19 @@
 
 namespace
 {
-inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model)
+inline engine::GeometryDesc parse_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model)
 {
     // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_mesh_primitive_mode
 
-    engine::GeometryInfo ret{};
+    engine::GeometryDesc ret{};
     ret.name = mesh.name;
-    ret.material_index = mesh.primitives.front().material;
+    //ret.material_index = mesh.primitives.front().material;
     //assert(mesh.primitives.size() == 1 && "Not enabled path for primitives count > 1");
-
+    const auto material = mesh.primitives.front().material;
     for (std::size_t prim_idx = 0; prim_idx < mesh.primitives.size(); prim_idx++)
     {
         const auto& primitive = mesh.primitives[prim_idx];
-        assert(ret.material_index  == primitive.material && "Currently not supporting multi-material meshes!");
+        assert(material == primitive.material && "Currently not supporting multi-material meshes!");
 
         static const std::map<std::string, engine_vertex_attribute_type_t> expected_attrib_names = []()
         {
@@ -260,17 +260,17 @@ inline engine::GeometryInfo parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
     return ret;
 }
 
-inline engine::TextureInfo parse_texture(const tinygltf::Texture& texture, const tinygltf::Model& model)
+inline engine::TextureDesc parse_texture(const tinygltf::Texture& texture, const tinygltf::Model& model)
 {
     const auto& tex = model.images[texture.source];
-    engine::TextureInfo tex_info{};
+    engine::TextureDesc tex_info{};
     if (tex.image.empty() && !tex.uri.empty())
     {
         const auto tc = engine::AssetStore::get_instance().get_texture_data(tex.uri);
         tex_info.name = tex.uri;
         tex_info.width = tc.get_width();
         tex_info.height = tc.get_height();
-        tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
+        tex_info.layout = engine::DataLayout::eRGB_U8;
         assert(tc.get_type() == engine::TextureAssetContext::TextureAssetDataType::eUchar8);
         tex_info.data.resize(tc.get_width() * tc.get_height() * tc.get_channels());
         std::memcpy(tex_info.data.data(), tc.get_data_ptr(), tex_info.data.size());
@@ -280,19 +280,19 @@ inline engine::TextureInfo parse_texture(const tinygltf::Texture& texture, const
         tex_info.name = tex.name;
         tex_info.width = tex.width;
         tex_info.height = tex.height;
-        tex_info.layout = ENGINE_DATA_LAYOUT_COUNT;
+        tex_info.layout = engine::DataLayout::eCount;
         if (tex.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
         {
             if (tex.component == 4)
             {
-                tex_info.layout = ENGINE_DATA_LAYOUT_RGBA_U8;
+                tex_info.layout = engine::DataLayout::eRGBA_U8;
             }
             else if (tex.component == 3)
             {
-                tex_info.layout = ENGINE_DATA_LAYOUT_RGB_U8;
+                tex_info.layout = engine::DataLayout::eRGB_U8;
             }
         }
-        assert(tex_info.layout != ENGINE_DATA_LAYOUT_COUNT);
+        assert(tex_info.layout != engine::DataLayout::eCount);
         tex_info.data.resize(tex.image.size());
         std::memcpy(tex_info.data.data(), tex.image.data(), tex_info.data.size());
     }
@@ -300,9 +300,9 @@ inline engine::TextureInfo parse_texture(const tinygltf::Texture& texture, const
     return tex_info;
 }
 
-inline engine::MaterialInfo parse_material(const tinygltf::Material& material)
+inline engine::MaterialDesc parse_material(const tinygltf::Material& material)
 {
-    engine::MaterialInfo new_material{};
+    engine::MaterialDesc new_material{};
     new_material.name = material.name;
     // copy diffuse color
     for (std::size_t c = 0; c < 4; c++)
@@ -315,14 +315,14 @@ inline engine::MaterialInfo parse_material(const tinygltf::Material& material)
     return new_material;
 }
 
-inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::Model& model)
+inline engine::SkinDesc parse_skin(const tinygltf::Skin& skin, const tinygltf::Model& model)
 {
-    engine::SkinInfo new_skin{};
+    engine::SkinDesc new_skin{};
     new_skin.name = skin.name;
-    new_skin.bones.reserve(skin.joints.size());
     for (std::size_t i = 0; i < skin.joints.size(); i++)
     {
         const auto node_id = skin.joints[i];
+        const auto join_name = model.nodes[node_id].name;
         /*
             https://lisyarus.github.io/blog/graphics/2023/07/03/gltf-animation.html
             However, the vertices of the model are in, well, the model’s coordinate system (that’s the definition of this coordinate system).
@@ -334,17 +334,18 @@ inline engine::SkinInfo parse_skin(const tinygltf::Skin& skin, const tinygltf::M
         const auto inv_bind_mtx_buffer = reinterpret_cast<const float*>(model.buffers[inv_bind_mtx_buffer_view.buffer].data.data() + inv_bind_mtx_buffer_view.byteOffset + inv_bind_mtx_accesor.byteOffset);
         const auto inverse_bind_matrix = glm::make_mat4x4(inv_bind_mtx_buffer + i * 16);
         
-        engine::BoneInfo info{};
-        info.target_node_idx = node_id;
-        info.inverse_bind_matrix = inverse_bind_matrix;
-        new_skin.bones.push_back(info);
+        assert(new_skin.inverse_bind_matrix_map.find(join_name) == new_skin.inverse_bind_matrix_map.end() &&
+            "Skin should not have duplicate nodes with inverse bind matrices!");
+        new_skin.inverse_bind_matrix_map[join_name] = inverse_bind_matrix;
+        new_skin.joint_index_map[join_name] = static_cast<std::int32_t>(i);
+
     }
     return new_skin;
 }
 
-inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& animation, const tinygltf::Model& model)
+inline engine::AnimationClipDesc parse_animation(const tinygltf::Animation& animation, const tinygltf::Model& model)
 {
-    engine::AnimationClipInfo new_animation{};
+    engine::AnimationClipDesc new_animation{};
     new_animation.name = animation.name;
     new_animation.channels.resize(animation.channels.size());
     for (std::size_t ch_idx = 0; const auto & ch : animation.channels)
@@ -356,6 +357,9 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
         const auto& buffer_view_timestamps = model.bufferViews[accessor_timestamps.bufferView];
         assert(accessor_timestamps.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
         assert(accessor_timestamps.type == TINYGLTF_TYPE_SCALAR);
+
+        // duration of animation
+        new_animation.duration = std::max(float(accessor_timestamps.maxValues[0] - accessor_timestamps.minValues[0]), new_animation.duration);
 
         const auto& accessor_data = model.accessors[sampler.output];
         const auto& buffer_view_data = model.bufferViews[accessor_data.bufferView];
@@ -371,7 +375,7 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
         }
 
         auto& new_channel = new_animation.channels[ch_idx++];
-        new_channel.target_node_idx = ch.target_node;
+        new_channel.joint_name = model.nodes[ch.target_node].name;
 
         if (ch.target_path.compare("rotation") == 0)
         {
@@ -394,8 +398,6 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
         new_channel.timestamps.resize(accessor_timestamps.count * tinygltf::GetNumComponentsInType(accessor_timestamps.type));
         const auto& buffer_timings = reinterpret_cast<const float*>(model.buffers[buffer_view_timestamps.buffer].data.data() + accessor_timestamps.byteOffset + buffer_view_timestamps.byteOffset);
         std::memcpy(new_channel.timestamps.data(), buffer_timings, new_channel.timestamps.size() * sizeof(float));
-        // go over each element and scale by 1000 to get miliseconds
-        std::for_each(new_channel.timestamps.begin(), new_channel.timestamps.end(), [](auto& v) {v *= 1000.0f; });
 
         new_channel.data.resize(accessor_data.count * tinygltf::GetNumComponentsInType(accessor_data.type));
         const auto& buffer_data = reinterpret_cast<const float*>(model.buffers[buffer_view_data.buffer].data.data() + accessor_data.byteOffset + buffer_view_data.byteOffset);
@@ -406,7 +408,7 @@ inline engine::AnimationClipInfo parse_animation(const tinygltf::Animation& anim
 
 }  // namespace anonymous
 
-engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8_t> data, const std::string& base_dir)
+engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8_t> data, const std::string& base_dir)
 {
     assert(!data.empty());
 
@@ -450,19 +452,23 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
     }
 
     // Dont resize this vector later, it will invalidate pointers of the nodes
-    std::vector<std::shared_ptr<engine::ModelNode>> nodes(model.nodes.size());
+    std::vector<std::shared_ptr<engine::ModelNodeDesc>> nodes(model.nodes.size());
     std::vector<std::size_t> skins_root_nodes_idx{};
     std::vector<std::size_t> meshes_root_nodes_idx{};
     // Build all nodes first
     for (std::int32_t idx = 0; const auto& node : model.nodes)
     {
-        nodes.at(idx) = std::make_shared<engine::ModelNode>();
+        nodes.at(idx) = std::make_shared<engine::ModelNodeDesc>();
         auto& n_ptr = nodes.at(idx);
         auto& n = *n_ptr;
         // general params
         n.index = idx++;
         n.name = node.name;
         n.mesh = node.mesh;
+        if (n.mesh != INVALID_VALUE)
+        {
+            n.material = model.meshes[n.mesh].primitives.front().material; // ToDo: add support for multiple materials
+        }
         n.skin = node.skin;
         if (!node.translation.empty())
         {
@@ -489,16 +495,6 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             //ToDo: add valiation to check if trasnform matrix equals to matric computed from decomposed components!
 
         }
-
-        // utility
-        if (n.skin != engine::INVALID_VALUE)
-        {
-            skins_root_nodes_idx.push_back(n.index);
-        }
-        if (n.mesh != engine::INVALID_VALUE)
-        {
-            meshes_root_nodes_idx.push_back(n.index);
-        }
     }
     // build hierarchy
     for (std::int32_t idx = 0; const auto & node : model.nodes)
@@ -508,14 +504,14 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
             {
                 auto child = nodes.at(child_idx);
                 assert(child->parent == nullptr);
-                child->parent = n_ptr;
-                n_ptr->children.push_back(child);
+                child->parent = n_ptr.get();
+                n_ptr->children.push_back(child.get());
             });
         idx++;
     }
 
 
-    engine::ModelInfo out{};
+    engine::ModelDesc out{};
 
     // textures
     out.textures.reserve(model.textures.size());
@@ -530,15 +526,14 @@ engine::ModelInfo engine::parse_gltf_data_from_memory(std::span<const std::uint8
         {
             out.materials.push_back(parse_material(material));
         });
+
     // meshes
-    out.geometries.reserve(meshes_root_nodes_idx.size());
     std::for_each(model.meshes.begin(), model.meshes.end(), [&out, &model](const auto& mesh)
         {
             out.geometries.push_back(parse_mesh(mesh, model));
         });
 
     // skins
-    out.skins.reserve(skins_root_nodes_idx.size());
     std::for_each(model.skins.begin(), model.skins.end(), [&out, &model, &nodes](const auto& skin)
         {
             out.skins.push_back(parse_skin(skin, model));

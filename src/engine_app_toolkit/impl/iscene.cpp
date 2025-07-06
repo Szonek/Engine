@@ -22,46 +22,37 @@ engine_result_code_t update_scene(engine_application_t app, engine_scene_t scene
 
 engine_result_code_t propagate_collisions_events(engine_application_t app, engine_scene_t scene, engine::IScene::ScriptsMap& scripts)
 {
-    std::size_t num_collisions = 0;
-    const engine_collision_info_t* collisions_list = nullptr;
-    engineScenePhysicsGetCollisions(scene, &num_collisions, &collisions_list);
-
-    static std::map<std::uint64_t, engine::IScript::collision_t> collision_cache{};
-
+    const auto num_collisions = engineScenePhysicsGetNumCollisions(scene);
     for (std::size_t i = 0; i < num_collisions; i++)
     {
-        const auto& col = collisions_list[i];
-        //const std::uint64_t cache_key = (static_cast<std::uint64_t>(col.object_a) << 32) | col.object_b;
-        //if (collision_cache.find(cache_key) != collision_cache.end())
-        //{
-        //    auto& collision = collision_cache[cache_key];
-        //    collision.
-        //    continue;
-        //}
+        const auto col_desc = engineScenePhysicsGetCollisionDesc(scene, i);
+        const auto obj_a = engineCollisionDescGetObjectA(col_desc);
+        const auto obj_b = engineCollisionDescGetObjectB(col_desc);
+
         engine::IScript::collision_t collision{};
-        collision.contact_points.resize(col.contact_points_count);
-        for (std::size_t j = 0; j < col.contact_points_count; j++)
+        collision.contact_points.resize(engineCollisionDescGetContactPointsCount(col_desc));
+        for (std::size_t j = 0; j < collision.contact_points.size(); j++)
         {
-            collision.contact_points[j].lifetime = col.contact_points[j].lifetime;
-            collision.contact_points[j].point[0] = col.contact_points[j].point_object_a[0];
-            collision.contact_points[j].point[1] = col.contact_points[j].point_object_a[1];
-            collision.contact_points[j].point[2] = col.contact_points[j].point_object_a[2];
+            const auto cp = engineCollisionDescGetContactPoint(col_desc, j);
+            collision.contact_points[j].lifetime = engineCollisionContactPointDescGetLifetime(cp);
+            collision.contact_points[j].point_on_a = engineCollisionContactPointDescGetPointOnObjectA(cp);
+            collision.contact_points[j].point_on_b = engineCollisionContactPointDescGetPointOnObjectB(cp);
         }
 
-        collision.other = col.object_b;
-        if (scripts.find(col.object_a) != scripts.end())
+        collision.other = obj_b;
+        if (scripts.find(obj_a) != scripts.end())
         {
-           scripts[col.object_a]->on_collision(collision);
+            scripts[obj_a]->on_collision(collision);
         }
         else
         {
             //engineLog(fmt::format("Possible bug. Tried to send event to object without attached script, go id: {}\n", col.object_a).c_str());
         }
 
-        collision.other = col.object_a;
-        if (scripts.find(col.object_b) != scripts.end())
+        collision.other = obj_a;
+        if (scripts.find(obj_b) != scripts.end())
         {
-            scripts[col.object_b]->on_collision(collision);
+            scripts[obj_b]->on_collision(collision);
         }
         else
         {

@@ -755,12 +755,13 @@ engine::Geometry::~Geometry()
 
 void engine::Geometry::bind() const
 {
+    ENGINE_PROFILER_GPU_SECTION("Geometry::bind");
 	glBindVertexArray(vao_);
 }
 
 void engine::Geometry::draw(Mode mode) const
 {
-    ENGINE_PROFILER_GPU_SECTION("Draw geometry");
+    ENGINE_PROFILER_GPU_SECTION("Geometry::draw");
 	std::uint32_t gl_mode = 0;
 	switch (mode)
 	{
@@ -1387,6 +1388,7 @@ void engine::Framebuffer::copy_color_attachment_to_texture2d(std::size_t attachm
 engine::UniformBuffer::UniformBuffer(std::size_t size)
     : size_(size)
 {
+    ENGINE_PROFILE_SECTION_N("engine::UniformBuffer::UniformBuffer(std::size_t size)");
     if (size == 0)
     {
         log::log(log::LogLevel::eCritical, "Uniform buffer size cant be 0!");
@@ -1426,12 +1428,14 @@ engine::UniformBuffer::~UniformBuffer()
 
 void engine::UniformBuffer::bind(std::uint32_t slot) const
 {
+    ENGINE_PROFILE_SECTION_N("engine::UniformBuffer::bind(std::uint32_t slot)");
     assert(is_valid() && "Invalid uniform buffer object");
     glBindBufferBase(GL_UNIFORM_BUFFER, slot, ubo_);
 }
 
 void* engine::UniformBuffer::map(bool read, bool write)
 {
+    ENGINE_PROFILE_SECTION_N("engine::UniformBuffer::map(bool read, bool write)");
     bind();
     std::uint32_t flags = 0;
     if (read && write)
@@ -1453,6 +1457,7 @@ void* engine::UniformBuffer::map(bool read, bool write)
 
 void engine::UniformBuffer::unmap()
 {
+    ENGINE_PROFILE_SECTION_N("engine::UniformBuffer::unmap()");
     //bind();
     glUnmapBuffer(GL_UNIFORM_BUFFER);
     unbind();
@@ -1460,12 +1465,14 @@ void engine::UniformBuffer::unmap()
 
 void engine::UniformBuffer::bind() const
 {
+    ENGINE_PROFILE_SECTION_N("engine::UniformBuffer::bind()");
     assert(is_valid() && "Invalid uniform buffer object");
     glBindBuffer(GL_UNIFORM_BUFFER, ubo_);
 }
 
 void engine::UniformBuffer::unbind() const
 {
+    ENGINE_PROFILE_SECTION_N("engine::UniformBuffer::unbind()");
     assert(is_valid() && "Invalid uniform buffer object");
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
@@ -1473,6 +1480,7 @@ void engine::UniformBuffer::unbind() const
 engine::ShaderStorageBuffer::ShaderStorageBuffer(std::size_t size)
     : size_(size)
 {
+    ENGINE_PROFILE_SECTION_N("engine::ShaderStorageBuffer::ShaderStorageBuffer(std::size_t size)");
     if (size == 0)
     {
         log::log(log::LogLevel::eCritical, "Shader storage buffer size cant be 0!");
@@ -1512,12 +1520,14 @@ engine::ShaderStorageBuffer::~ShaderStorageBuffer()
 
 void engine::ShaderStorageBuffer::bind(std::uint32_t slot) const
 {
+    ENGINE_PROFILE_SECTION_N("engine::ShaderStorageBuffer::bindstd::uint32_t slot)");
     assert(is_valid() && "Invalid uniform buffer object");
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, slot, ssbo_);
 }
 
 void* engine::ShaderStorageBuffer::map(bool read, bool write)
 {
+    ENGINE_PROFILE_SECTION_N("engine::ShaderStorageBuffer::map(bool read, bool write)");
     bind();
     std::uint32_t flags = 0;
     if (read && write)
@@ -1540,6 +1550,7 @@ void* engine::ShaderStorageBuffer::map(bool read, bool write)
 
 void engine::ShaderStorageBuffer::unmap()
 {
+    ENGINE_PROFILE_SECTION_N("engine::ShaderStorageBuffer::unmap()");
     bind();
     glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
     unbind();
@@ -1547,12 +1558,14 @@ void engine::ShaderStorageBuffer::unmap()
 
 void engine::ShaderStorageBuffer::bind() const
 {
+    ENGINE_PROFILE_SECTION_N("engine::ShaderStorageBuffer::bind()");
     assert(is_valid() && "Invalid uniform buffer object");
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_);
 }
 
 void engine::ShaderStorageBuffer::unbind() const
 {
+    ENGINE_PROFILE_SECTION_N("engine::ShaderStorageBuffer::unbind()");
     assert(is_valid() && "Invalid uniform buffer object");
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }

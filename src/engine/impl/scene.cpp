@@ -9,17 +9,25 @@
 #include "components_internals/guizmo_component.h"
 #include "components_internals/outline_component.h"
 #include "profiler.h"
+#include "engine_vector_impl_def.h"
+#include "skin.h"
+#include "animation_controller.h"
 
-#include "imgui/imgui.h"
-#include "imguizmo/ImGuizmo.h"
-
-#include <cmath>
 #include <fmt/format.h>
 
 #include <glm/gtx/matrix_decompose.hpp>
 #include <SDL3/SDL.h>
 
 #include <RmlUi/Core.h>
+
+#include "ozz/animation/offline/raw_skeleton.h"
+#include "ozz/animation/offline/skeleton_builder.h"
+#include "ozz/animation/runtime/skeleton.h"
+
+#include "imgui/imgui.h"
+#include "imguizmo/ImGuizmo.h"
+
+#include <cmath>
 
 struct SceneGpuData
 {
@@ -77,16 +85,34 @@ static inline void destroy_parent_component(entt::registry& registry, entt::enti
 {
     const auto parent_entt = static_cast<entt::entity>(registry.get<engine_parent_component_t>(entity).parent);
     auto& cc = registry.get<engine_children_component_t>(parent_entt);
+    std::size_t child_counter = 0;
     for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
     {
         if (cc.child[i] == static_cast<std::uint32_t>(entity))
         {
             cc.child[i] = ENGINE_INVALID_GAME_OBJECT_ID;
-            return;
         }
     }
-    engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component was destroyed, but couldn't reset it's childer.\n"));
 }
+
+static inline void destroy_children_component(entt::registry& registry, entt::entity entity)
+{
+    auto& cc = registry.get<engine_children_component_t>(entity);
+    for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
+    {
+        if (cc.child[i] != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            registry.erase<engine_parent_component_t>(static_cast<entt::entity>(cc.child[i]));
+        }
+    }
+}
+
+static inline void destroy_joint_attachment(entt::registry& registry, entt::entity entity)
+{
+    auto& comp = registry.get<engine_joint_attachment_component_t>(entity);
+    engineStringDestroy(comp.joint_name);
+}
+
 static inline void calculate_camera_view_and_projection(std::size_t window_width, std::size_t window_height, const glm::vec3& eye_position, const engine_camera_component_t& camera, engine::camera_internal_component_t& camera_internal)
 {
     // update camera: view and projection
@@ -146,11 +172,13 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, const engine_scene_cr
     entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
     entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
+    entity_registry_.on_construct<engine_joint_attachment_component_t>().connect<&initialize_joint_attachment_component>();
     entity_registry_.on_construct<engine_light_component_t>().connect<&initialize_light_component>();
     entity_registry_.on_construct<engine_sprite_component_t>().connect<&initialize_sprite_component>();
     
     entity_registry_.on_update<engine_parent_component_t>().connect<&update_parent_component>();
     entity_registry_.on_destroy<engine_parent_component_t>().connect<&destroy_parent_component>();
+    entity_registry_.on_destroy<engine_children_component_t>().connect<&destroy_children_component>();
 
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<physcic_internal_component_t>>();
     entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<physcic_internal_component_t>>();
@@ -278,18 +306,6 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     //);
     transform_update_collider_observer.clear();
 
-    // detect if rigid body component was updated by the user
-    //for (const auto entt : rigid_body_update_observer)
-    //{
-    //    const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
-    //    auto physcics_component = get_component<PhysicsWorld::physcic_internal_component_t>(entt);
-
-    //    physcics_component->rigid_body->activate(true);
-    //    physcics_component->rigid_body->setLinearVelocity(btVector3(rigidbody_component->linear_velocity[0], rigidbody_component->linear_velocity[1], rigidbody_component->linear_velocity[2]));
-    //    physcics_component->rigid_body->setAngularVelocity(btVector3(rigidbody_component->angular_velocity[0], rigidbody_component->angular_velocity[1], rigidbody_component->angular_velocity[2]));
-    //}
-    //rigid_body_update_observer.clear();
-
     for (const auto& f : forces_to_apply_)
     {
         const auto entity = std::get<0>(f);
@@ -399,6 +415,47 @@ engine_result_code_t engine::Scene::update(float dt)
         transform_model_matrix_update_observer.clear();
 #endif
 
+    }
+
+    {
+        ENGINE_PROFILE_SECTION_N("animation_controller_update_view");
+        auto animation_controller_updated_view = entity_registry_.view<engine_animation_controller_component_t>();
+        animation_controller_updated_view.each([this, dt](engine_animation_controller_component_t& ac_component)
+            {
+                auto typed_ac = reinterpret_cast<engine::AnimationController*>(ac_component.controller);
+                typed_ac->update(dt);
+            });
+    }
+
+    {
+        ENGINE_PROFILE_SECTION_N("join_attachment_view");
+        auto joint_attachment_view = entity_registry_.view<engine_tranform_component_t, const engine_joint_attachment_component_t>();
+        joint_attachment_view.each([this](engine_tranform_component_t& transform_component, const engine_joint_attachment_component_t& joint_attachment_component)
+            {
+                if (!joint_attachment_component.skin)
+                {
+                    log::log(log::LogLevel::eError, fmt::format("Skin component has no skin assigned. Are you sure you are doing valid thing?\n"));
+                }
+                else
+                {
+                    const auto typed_skin = reinterpret_cast<const engine::Skin*>(joint_attachment_component.skin);
+                    auto attachment_model_matrix = typed_skin->get_model_matrix_for_joint(joint_attachment_component.joint_name->str);
+                    attachment_model_matrix = attachment_model_matrix * glm::make_mat4x4(transform_component.local_to_world);
+
+                    std::memcpy(transform_component.local_to_world, &attachment_model_matrix, sizeof(attachment_model_matrix));
+                }
+
+            });
+    }
+
+    {
+        ENGINE_PROFILE_SECTION_N("skin_component_view");
+        auto skin_component_view = entity_registry_.view<engine_skin_component_t>();
+        skin_component_view.each([this, dt](engine_skin_component_t& skin_component)
+            {
+                auto typed_ac = reinterpret_cast<engine::Skin*>(skin_component.skin);
+                typed_ac->compute_skinning_matrices();
+            });
     }
 
     {
@@ -541,6 +598,8 @@ engine_result_code_t engine::Scene::update(float dt)
     {
         ENGINE_PROFILE_SECTION_N("camera_loop");
 
+        auto mesh_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
+        auto skinned_mesh_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_skinned_mesh_component_t, const engine_material_component_t>();
         auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
         auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
         auto sprite_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_material_component_t, const engine_sprite_component_t>();
@@ -576,7 +635,7 @@ engine_result_code_t engine::Scene::update(float dt)
             {
                 ENGINE_PROFILE_SECTION_N("geometry_renderer");
 
-                geometry_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
+                mesh_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
                     {
                         if (mesh_component.disable)
                         {
@@ -611,13 +670,23 @@ engine_result_code_t engine::Scene::update(float dt)
             }
 
             {
-                ENGINE_PROFILE_SECTION_N("skinned_geometry_renderer");
+                ENGINE_PROFILE_SECTION_N("skinned_mesh_renderer");
 
-                skinned_geometry_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component,
-                    engine_skin_component_t& skin_component, const engine_material_component_t& material_component)
+                skinned_mesh_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_skinned_mesh_component_t& skinned_mesh_component, const engine_material_component_t& material_component)
                     {
-                        if (mesh_component.disable)
+                        if (skinned_mesh_component.disable)
                         {
+                            return;
+                        }
+                        if (skinned_mesh_component.geometry == ENGINE_INVALID_OBJECT_HANDLE)
+                        {
+                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n", (std::uint32_t)entity));
+                            return;
+                        }
+
+                        if (!skinned_mesh_component.skin)
+                        {
+                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Skinned mesh component has no skin assigned. Are you sure you are doing valid thing?\n", (std::uint32_t)entity));
                             return;
                         }
 
@@ -636,33 +705,11 @@ engine_result_code_t engine::Scene::update(float dt)
                             .shininess = material_component.data.pong.shininess,
                             .texture_diffuse = *tex2d_diffuse_ptr,
                             .texture_specular = *tex2d_specular_ptr };
-                        ctx.bone_transforms.reserve(ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES); // reallocation this for each geometry each frame. ToDo: optimize it
+                        const auto typed_skin = reinterpret_cast<engine::Skin*>(skinned_mesh_component.skin);
+                        ctx.bone_transforms = typed_skin->get_skinning_matrices();
 
-                        const auto inverse_transform = glm::inverse(glm::make_mat4(transform_component.local_to_world));
-                        for (std::size_t i = 0; i < ENGINE_SKINNED_MESH_COMPONENT_MAX_SKELETON_BONES; i++)
-                        {
-                            const auto& bone_entity = static_cast<entt::entity>(skin_component.bones[i]);
-                            if (static_cast<std::uint32_t>(bone_entity) == ENGINE_INVALID_GAME_OBJECT_ID)
-                            {
-                                continue;
-                            }
-
-                            if (has_component<engine_bone_component_t>(bone_entity) == false)
-                            {
-                                log::log(log::LogLevel::eError, fmt::format("Bone entity does not have bone component. Are you sure you are doing valid thing?\n"));
-                                skin_component.bones[i] = ENGINE_INVALID_GAME_OBJECT_ID;
-                                continue;
-                            }
-                            const auto& bone_component = get_component<engine_bone_component_t>(bone_entity);
-                            const auto& bone_transform = get_component<engine_tranform_component_t>(bone_entity);
-                            const auto inverse_bind_matrix = glm::make_mat4(bone_component->inverse_bind_matrix);
-                            const auto bone_matrix = glm::make_mat4(bone_transform->local_to_world) * inverse_bind_matrix;
-                            const auto per_bone_final_transform = inverse_transform * bone_matrix;
-                            ctx.bone_transforms.push_back(per_bone_final_transform);
-                        }
-                        const auto geo_ptr = get_application()->get_geometry(mesh_component.geometry);
+                        const auto geo_ptr = get_application()->get_geometry(skinned_mesh_component.geometry);
                         material_skinned_geometry_lit_.draw(*geo_ptr, ctx);
-
                     }
                 );
             }
@@ -745,12 +792,9 @@ void engine::Scene::set_physcis_gravity(std::array<float, 3> g)
     physics_world_.set_gravity(g);
 }
 
-void engine::Scene::get_physcis_collisions_list(const engine_collision_info_t*& ptr_first, size_t* count)
+const std::vector<engine::CollisionDesc>& engine::Scene::get_physcis_collisions() const
 {
-    assert(count != nullptr);
-    const auto& collisions = physics_world_.get_collisions();
-    ptr_first = collisions.data();
-    *count = collisions.size();
+    return physics_world_.get_collisions();
 }
 
 engine_ray_hit_info_t engine::Scene::raycast_into_physics_world(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance)

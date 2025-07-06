@@ -1,5 +1,4 @@
 #pragma once
-#include "animation_controller.h"
 
 #include <engine.h>
 
@@ -17,7 +16,6 @@ namespace project_c
 struct PrefabResult
 {
     engine_game_object_t go;
-    AnimationController anim_controller;
 };
 
 struct Prefab
@@ -31,7 +29,7 @@ struct Prefab
     Prefab& operator=(Prefab&& rhs) noexcept;
     ~Prefab();
 
-    PrefabResult instantiate(engine::IScene* scene) const;
+    PrefabResult instantiate(engine::IScene* scene);
     bool is_valid() const;
 
 private:
@@ -44,9 +42,11 @@ private:
 
 private:
     engine_application_t app_ = nullptr;
-    engine_model_desc_t model_info_ = {};
+    engine_model_desc_t* model_desc_ = {};
     std::vector<engine_geometry_t> geometries_ = {};
     std::vector<engine_material_component_t> materials_;
     std::vector<EngineObj<engine_texture2d_t>> textures_ = {};
+    std::vector<engine_skin_t*> skins_ = {};
+    std::vector<engine_animation_controller_t*> animation_controllers_ = {};
 };
 }

@@ -5,6 +5,10 @@
 #include "scene.h"
 #include "asset_store.h"
 #include "ui_document.h"
+#include "collision_desc.h"
+#include "gltf_parser.h"
+#include "skin.h"
+#include "animation_controller.h"
 
 #include "logger.h"
 
@@ -14,46 +18,180 @@
 
 namespace
 {
-inline engine::Application* application_cast(engine_application_t engine_app)
+inline auto api_cast(engine_application_t engine_app)
 {
     return reinterpret_cast<engine::Application*>(engine_app);
 }
 
-inline engine::UiDocument* ui_document_cast(engine_ui_document_t doc)
+inline auto api_cast(engine_ui_document_t doc)
 {
     return reinterpret_cast<engine::UiDocument*>(doc);
 }
 
-inline engine::UiDataHandle* ui_data_handle_cast(engine_ui_data_handle_t handle)
+inline auto api_cast(engine_ui_data_handle_t handle)
 {
     return reinterpret_cast<engine::UiDataHandle*>(handle);
 }
 
-inline engine::Scene* scene_cast(engine_scene_t engine_scene_t)
+inline auto api_cast(engine_scene_t engine_scene_t)
 {
     return reinterpret_cast<engine::Scene*>(engine_scene_t);
 }
 
-inline entt::entity entity_cast(engine_game_object_t go)
+inline auto api_cast(engine_game_object_t go)
 {
     return static_cast<entt::entity>(go);
 }
 
-inline entt::runtime_view* runtime_view_cast(engine_component_view_t comp_view)
+inline auto api_cast(engine_component_view_t comp_view)
 {
     return reinterpret_cast<entt::runtime_view*>(comp_view);
 }
 
-inline auto component_iterator_cast(engine_component_iterator_t it)
+inline auto api_cast(engine_component_iterator_t it)
 {
     return reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(it);
+}
+
+inline auto api_cast(const engine_model_desc_t* desc)
+{
+    return reinterpret_cast<const engine::ModelDesc*>(desc);
+}
+
+inline auto api_cast(const engine_model_node_desc_t* desc)
+{
+    return reinterpret_cast<const engine::ModelNodeDesc*>(desc);
+}
+
+inline auto api_cast(const engine::ModelNodeDesc* desc)
+{
+    return reinterpret_cast<const engine_model_node_desc_t*>(desc);
+}
+
+inline auto api_cast(const engine_texture_2d_desc_t* desc)
+{
+    return reinterpret_cast<const engine::TextureDesc*>(desc);
+}
+
+inline auto api_cast(const engine::TextureDesc& desc)
+{
+    return reinterpret_cast<const engine_texture_2d_desc_t*>(&desc);
+}
+
+inline auto api_cast(const engine_geometry_desc_t* desc)
+{
+    return reinterpret_cast<const engine::GeometryDesc*>(desc);
+}
+
+inline auto api_cast(const engine::GeometryDesc& desc)
+{
+    return reinterpret_cast<const engine_geometry_desc_t*>(&desc);
+}
+
+inline auto api_cast(const engine_material_desc_t* desc)
+{
+    return reinterpret_cast<const engine::MaterialDesc*>(desc);
+}
+
+inline auto api_cast(const engine::MaterialDesc& desc)
+{
+    return reinterpret_cast<const engine_material_desc_t*>(&desc);
+}
+
+inline auto api_cast(const engine_skin_desc_t* desc)
+{
+    return reinterpret_cast<const engine::SkinDesc*>(desc);
+}
+
+inline auto api_cast(const engine::SkinDesc& desc)
+{
+    return reinterpret_cast<const engine_skin_desc_t*>(&desc);
+}
+
+inline auto api_cast(const engine_collision_contact_point_desc_t* contact)
+{
+    return reinterpret_cast<const engine::CollisionContactPointDesc*>(contact);
+}
+
+inline auto api_cast(const engine::CollisionContactPointDesc& contact)
+{
+    return reinterpret_cast<const engine_collision_contact_point_desc_t*>(&contact);
+}
+
+inline auto api_cast(const engine_collision_desc_t* contact)
+{
+    return reinterpret_cast<const engine::CollisionDesc*>(contact);
+}
+inline auto api_cast(const engine::CollisionDesc& contact)
+{
+    return reinterpret_cast<const engine_collision_desc_t*>(&contact);
+}
+
+inline auto api_cast(const engine_skin_t* contact)
+{
+    return reinterpret_cast<const engine::Skin*>(contact);
+}
+
+inline auto api_cast(engine_skin_t* contact)
+{
+    return reinterpret_cast<engine::Skin*>(contact);
+}
+
+inline auto api_cast(const engine::Skin& contact)
+{
+    return reinterpret_cast<const engine_skin_t*>(&contact);
+}
+
+inline auto api_cast(engine::Skin& contact)
+{
+    return reinterpret_cast<engine_skin_t*>(&contact);
+}
+
+inline auto api_cast(engine_animation_desc_t* desc)
+{
+    return reinterpret_cast<engine::AnimationClipDesc*>(desc);
+}
+
+inline auto api_cast(const engine_animation_desc_t* desc)
+{
+    return reinterpret_cast<const engine::AnimationClipDesc*>(desc);
+}
+
+inline auto api_cast(engine::AnimationClipDesc& desc)
+{
+    return reinterpret_cast<engine_animation_desc_t*>(&desc);
+}
+
+inline auto api_cast(const engine::AnimationClipDesc& desc)
+{
+    return reinterpret_cast<const engine_animation_desc_t*>(&desc);
+}
+
+inline auto api_cast(engine_animation_controller_t* controller)
+{
+    return reinterpret_cast<engine::AnimationController*>(controller);
+}
+
+inline auto api_cast(const engine_animation_controller_t* controller)
+{
+    return reinterpret_cast<const engine::AnimationController*>(controller);
+}
+
+inline auto api_cast(engine::AnimationController& contact)
+{
+    return reinterpret_cast<engine_animation_controller_t*>(&contact);
+}
+
+inline auto api_cast(const engine::AnimationController& contact)
+{
+    return reinterpret_cast<const engine_animation_controller_t*>(&contact);
 }
 
 template<typename T>
 inline T add_component(engine_scene_t scene, engine_game_object_t engine_game_object_t)
 {
-    auto sc = scene_cast(scene);
-    auto entity = entity_cast(engine_game_object_t);
+    auto sc = api_cast(scene);
+    auto entity = api_cast(engine_game_object_t);
     auto ret = sc->add_component<T>(entity);
     return *ret;
 }
@@ -61,32 +199,32 @@ inline T add_component(engine_scene_t scene, engine_game_object_t engine_game_ob
 template<typename T>
 inline T get_component(engine_scene_t scene, engine_game_object_t game_object)
 {
-    auto sc = scene_cast(scene);
-    auto entity = entity_cast(game_object);
+    auto sc = api_cast(scene);
+    auto entity = api_cast(game_object);
     return *sc->get_component<T>(entity);
 }
 
 template<typename T>
 inline void update_component(engine_scene_t scene, engine_game_object_t game_object, const T* comp)
 {
-    auto sc = scene_cast(scene);
-    auto entity = entity_cast(game_object);
+    auto sc = api_cast(scene);
+    auto entity = api_cast(game_object);
     sc->update_component<T>(entity, *comp);
 }
 
 template<typename T>
 inline void remove_component(engine_scene_t scene, engine_game_object_t game_object)
 {
-    auto sc = scene_cast(scene);
-    auto entity = entity_cast(game_object);
+    auto sc = api_cast(scene);
+    auto entity = api_cast(game_object);
     sc->remove_component<T>(entity);
 }
 
 template<typename T>
 inline bool has_component(engine_scene_t scene, engine_game_object_t game_object)
 {
-    auto sc = scene_cast(scene);
-    auto entity = entity_cast(game_object);
+    auto sc = api_cast(scene);
+    auto entity = api_cast(game_object);
     return sc->has_component<T>(entity);
 }
 
@@ -121,18 +259,18 @@ engine_result_code_t engineApplicationCreate(engine_application_t* handle, engin
 
 bool engineApplicationIsEditorEnabled(engine_application_t handle)
 {
-    return dynamic_cast<engine::ApplicationEditor*>(application_cast(handle)) != nullptr;
+    return dynamic_cast<engine::ApplicationEditor*>(api_cast(handle)) != nullptr;
 }
 
 void engineApplicationDestroy(engine_application_t handle)
 {
-	auto* app = application_cast(handle);
+	auto* app = api_cast(handle);
 	delete app;
 }
 
 bool engineApplicationIsKeyboardButtonDown(engine_application_t handle, engine_keyboard_keys_t key)
 {
-	auto* app = application_cast(handle);
+	auto* app = api_cast(handle);
     if (!app->is_keyboard_enabled())
     {
         return false;
@@ -145,9 +283,9 @@ bool engineApplicationIsKeyboardButtonUp(engine_application_t handle, engine_key
 	return !engineApplicationIsKeyboardButtonDown(handle, key);
 }
 
-engine_coords_2d_t engineApplicationGetMouseCoords(engine_application_t handle)
+engine_fvec2_t engineApplicationGetMouseCoords(engine_application_t handle)
 {
-	auto* app = application_cast(handle);
+	auto* app = api_cast(handle);
     if (!app->is_mouse_enabled())
     {
         return {};
@@ -157,7 +295,7 @@ engine_coords_2d_t engineApplicationGetMouseCoords(engine_application_t handle)
 
 bool engineApplicationIsMouseButtonDown(engine_application_t handle, engine_mouse_button_t button)
 {
-	auto* app = application_cast(handle);
+	auto* app = api_cast(handle);
     if (!app->is_mouse_enabled())
     {
         return false;
@@ -176,7 +314,7 @@ bool engineApplicationGetFingerInfo(engine_application_t handle, engine_fingers_
     {
         return false;
     }
-    auto* app = application_cast(handle);
+    auto* app = api_cast(handle);
     const auto finger_list = app->get_finger_info_events();
     if(finger_list.empty())
     {
@@ -189,7 +327,7 @@ bool engineApplicationGetFingerInfo(engine_application_t handle, engine_fingers_
 
 engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_application_t handle)
 {
-	auto* app = application_cast(handle);
+	auto* app = api_cast(handle);
 	return app->begine_frame();
 }
 
@@ -199,14 +337,14 @@ engine_result_code_t engineApplicationFrameSceneUpdate(engine_application_t hand
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-	auto* app = application_cast(handle);
-	auto* scene_typed = scene_cast(scene);
+	auto* app = api_cast(handle);
+	auto* scene_typed = api_cast(scene);
 	return app->update_scene(scene_typed, delta_time);
 }
 
 engine_application_frame_end_info_t engineApplicationFrameEnd(engine_application_t handle)
 {
-	auto* app = application_cast(handle);
+	auto* app = api_cast(handle);
 	return app->end_frame();
 }
 
@@ -216,7 +354,7 @@ engine_result_code_t engineApplicationCreateShader(engine_application_t handle, 
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    auto* app = application_cast(handle);
+    auto* app = api_cast(handle);
 
     std::vector<std::string> vertex_shaders;
     auto ptr = desc->vertex_shader_filenames;
@@ -241,7 +379,7 @@ engine_result_code_t engineApplicationCreateShader(engine_application_t handle, 
 
 engine_shader_t engineApplicationGetShaderByName(engine_application_t handle, const char* name)
 {
-    const auto* app = application_cast(handle);
+    const auto* app = api_cast(handle);
     return app->get_shader(name);
 }
 
@@ -249,34 +387,35 @@ void engineApplicationDestroyShader(engine_application_t handle, engine_shader_t
 {
     if (handle)
     {       
-        auto* app = application_cast(handle);
+        auto* app = api_cast(handle);
         app->destroy_shader(shader);  
     }
 }
 
 engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name)
 {
-    auto* app = application_cast(handle);
+    auto* app = api_cast(handle);
     const auto result = app->add_font_from_file(file_name, handle_name);
     return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
-engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_create_desc_t* desc, const char* name, engine_geometry_t* out)
+engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_desc_t* desc, engine_geometry_t* out)
 {
-    auto* app = application_cast(handle);
-    const auto ret = app->add_geometry(desc->verts_layout, desc->verts_count, { reinterpret_cast<const std::byte*>(desc->verts_data), desc->verts_data_size }, { desc->inds, desc->inds_count}, name);
+    auto* app = api_cast(handle);
+    const auto geo_desc = api_cast(desc);
+    const auto ret = app->add_geometry(geo_desc->vertex_laytout, geo_desc->vertex_count, geo_desc->vertex_data, geo_desc->indicies, geo_desc->name);
     if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
     *out = ret;
-    engineLog(fmt::format("Created geometry: {}, with id: {}\n", name, ret).c_str());
+    engineLog(fmt::format("Created geometry: {}, with id: {}\n", geo_desc->name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 
 engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name)
 {
-    const auto* app = application_cast(handle);
+    const auto* app = api_cast(handle);
     return app->get_geometry(name);
 }
 
@@ -288,7 +427,7 @@ engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(en
     {
         return ret;
     }
-    const auto* app = application_cast(handle);
+    const auto* app = api_cast(handle);
     const auto geometry_obj = app->get_geometry(geometry);
     const auto attrib = geometry_obj->get_vertex_attribute(type);
     ret.elements_count = attrib.range_max.size();
@@ -303,26 +442,27 @@ engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(en
 void engineApplicationDestroyGeometry(engine_application_t handle, engine_geometry_t geometry)
 {
     assert(handle);
-    application_cast(handle)->destroy_geometry(geometry);
+    api_cast(handle)->destroy_geometry(geometry);
 }
 
-engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_create_desc_t* info, const char* name, engine_texture2d_t* out)
+engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_desc_t* desc, engine_texture2d_t* out)
 {
-    auto* app = application_cast(handle);
-    const auto ret =  app->add_texture(*info, name);
+    auto* app = api_cast(handle);
+    const auto typed_desc = api_cast(desc);
+    const auto ret = app->add_texture(*typed_desc);
 
     if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
     *out = ret;
-    engineLog(fmt::format("Created texture: {}, with id: {}\n", name, ret).c_str());
+    engineLog(fmt::format("Created texture: {}, with id: {}\n", typed_desc->name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 
 engine_result_code_t engineApplicationCreateTexture2DFromFile(engine_application_t handle, const char* file_name, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out)
 {
-    auto* app = application_cast(handle);
+    auto* app = api_cast(handle);
     const auto ret = app->add_texture_from_file(file_name, name, color_space);
     if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
     {
@@ -335,231 +475,47 @@ engine_result_code_t engineApplicationCreateTexture2DFromFile(engine_application
 
 engine_texture2d_t engineApplicationGetTextured2DByName(engine_application_t handle, const char* name)
 {
-    const auto* app = application_cast(handle);
+    const auto* app = api_cast(handle);
     return app->get_texture(name);
 }
 
 void engineApplicationDestroyTexture2D(engine_application_t handle, engine_texture2d_t tex2d)
 {
     assert(handle);
-    application_cast(handle)->destroy_texture(tex2d);
+    api_cast(handle)->destroy_texture(tex2d);
 }
 
 bool engineApplicationDoTexture2DNameExists(engine_application_t handle, const char* name)
 {
     assert(handle);
-    const auto* app = application_cast(handle);
+    const auto* app = api_cast(handle);
     return app->get_texture(name) != ENGINE_INVALID_OBJECT_HANDLE;
 }
 
-engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char *file_name, const char* base_dir, engine_model_desc_t* out)
+engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t** out)
 {
-    if (!out)
+    if (!handle || !out || !file_name || !base_dir)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    auto* app = application_cast(handle);
-    auto model_info = new engine::ModelInfo(app->load_model_desc_from_file(spec, file_name, base_dir));
-
-    out->internal_handle = reinterpret_cast<const void*>(model_info);
-
-    out->nodes_count = static_cast<std::uint32_t>(model_info->nodes.size());
-    if (out->nodes_count > 0)
-    {
-        out->nodes_array = new engine_model_node_desc_t[out->nodes_count];
-        for (std::size_t i = 0; i < out->nodes_count; i++)
-        {
-            auto copy_arr = [](float* const arr, const auto& glm_vec)
-                {
-                    for (auto i = 0; i < glm_vec.length(); i++)
-                    {
-                        arr[i] = glm_vec[i];
-                    }
-                };
-
-            const auto& in_n = model_info->nodes.at(i);
-            auto& ret_n = out->nodes_array[i];
-            ret_n.geometry_index = in_n->mesh;
-            ret_n.skin_index = in_n->skin;
-            ret_n.name = in_n->name.c_str();
-            if (ret_n.geometry_index != -1)
-            {
-                ret_n.material_index = model_info->geometries[ret_n.geometry_index].material_index;
-            }
-            else
-            {
-                ret_n.material_index = ENGINE_INVALID_OBJECT_HANDLE;
-            }
-
-            copy_arr(ret_n.translate, in_n->translation);
-            copy_arr(ret_n.rotation_quaternion, in_n->rotation);
-            copy_arr(ret_n.scale, in_n->scale);
-
-            if (in_n->parent)
-            {
-                ret_n.parent = &out->nodes_array[in_n->parent->index];
-            }
-            else
-            {
-                ret_n.parent = nullptr;
-            }
-        }
-    }
-
-    out->geometries_count = static_cast<std::uint32_t>(model_info->geometries.size());
-    if (out->geometries_count > 0)
-    {
-        out->geometries_array = new engine_geometry_create_desc_t[out->geometries_count];
-        out->geometires_name_array = new const char* [out->geometries_count];
-        for (std::size_t i = 0; i < out->geometries_count; i++)
-        {
-            const auto& int_g = model_info->geometries[i];
-            auto& ret_g = out->geometries_array[i];
-
-            ret_g.inds_count = int_g.indicies.size();
-            ret_g.inds = int_g.indicies.data();
-
-            ret_g.verts_data_size = int_g.vertex_data.size();
-            ret_g.verts_data = int_g.vertex_data.data();
-            ret_g.verts_layout = int_g.vertex_laytout;
-            ret_g.verts_count = int_g.vertex_count;
-
-            out->geometires_name_array[i] = int_g.name.c_str();
-        }
-
-    }
-
-    out->textures_count = static_cast<std::uint32_t>(model_info->textures.size());
-    if (out->textures_count > 0)
-    {
-        out->textures_array = new engine_texture_2d_create_desc_t[out->textures_count];
-        out->textures_name_array = new const char* [out->textures_count];
-        for (std::size_t i = 0; i < out->textures_count; i++)
-        {
-            const auto& int_m = model_info->textures[i];
-            auto& ret_m = out->textures_array[i];
-
-            ret_m.width = int_m.width;
-            ret_m.height = int_m.height;
-            ret_m.data_layout = int_m.layout;
-            ret_m.data = int_m.data.data();
-
-            out->textures_name_array[i] = int_m.name.c_str();
-        }
-    }
-
-    out->materials_count = static_cast<std::uint32_t>(model_info->materials.size());
-    if (out->materials_count > 0)
-    {
-        out->materials_array = new engine_model_material_desc_t[out->materials_count];
-        out->materials_name_array = new const char* [out->materials_count];
-
-        for (std::size_t i = 0; i < out->materials_count; i++)
-        {
-            const auto& int_m = model_info->materials[i];
-            auto& ret_m = out->materials_array[i];
-
-            ret_m.name = int_m.name.c_str();
-            std::memcpy(ret_m.diffuse_color, int_m.diffuse_factor.data(), int_m.diffuse_factor.size() * sizeof(int_m.diffuse_factor[0]));
-            ret_m.diffuse_texture_index = int_m.diffuse_texture;
-
-            out->materials_name_array[i] = int_m.name.c_str();
-        }
-    }
-
-    out->animations_counts = static_cast<std::uint32_t>(model_info->animations.size());
-    if (out->animations_counts > 0)
-    {
-        out->animations_array = new engine_animation_clip_create_desc_t[out->animations_counts];
-        for (std::uint32_t i = 0; i < out->animations_counts; i++)
-        {
-            const auto& in_anim = model_info->animations[i];
-            auto& anim = out->animations_array[i];
-            anim.name = in_anim.name.c_str();
-
-            std::map<std::uint32_t, engine_animation_channel_create_desc_t> channels_map;
-            for (const auto& in_ch : in_anim.channels)
-            {
-                channels_map[in_ch.target_node_idx].model_node_index = in_ch.target_node_idx;
-
-                engine_animation_channel_data_t* channel = nullptr;
-
-                if (in_ch.type == engine::AnimationChannelType::eTranslation)
-                {
-                    channel = &channels_map[in_ch.target_node_idx].channel_translation;
-                }
-                else if (in_ch.type == engine::AnimationChannelType::eRotation)
-                {
-                    channel = &channels_map[in_ch.target_node_idx].channel_rotation;
-                }
-                else if (in_ch.type == engine::AnimationChannelType::eScale)
-                {
-                    channel = &channels_map[in_ch.target_node_idx].channel_scale;
-                }
-                else
-                {
-                    engine::log::log(engine::log::LogLevel::eError, fmt::format("Cant sucesffuly parse animation channel! Id: {}, Animation name: {}\n", i, anim.name));
-                }
-                if (channel)
-                {
-                    channel->data = in_ch.data.data();
-                    channel->data_count = static_cast<std::uint32_t>(in_ch.data.size());
-
-                    channel->timestamps = in_ch.timestamps.data();
-                    channel->timestamps_count = static_cast<std::uint32_t>(in_ch.timestamps.size());
-                }
-            }
-            anim.channels_count = channels_map.size();
-            anim.channels = new engine_animation_channel_create_desc_t[anim.channels_count];
-            std::size_t out_chanel_idx = 0;
-            for (const auto& ch : channels_map)
-            {
-                anim.channels[out_chanel_idx] = ch.second;
-                out_chanel_idx++;
-            }
-        }
-    }
-
-    out->skins_counts = static_cast<std::uint32_t>(model_info->skins.size());
-    if (out->skins_counts > 0)
-    {
-        out->skins_array = new engine_skin_create_desc_t[out->skins_counts];
-        out->skins_name_array = new const char* [out->skins_counts];
-
-        for (std::uint32_t i = 0; i < out->skins_counts; i++)
-        {
-            const auto& skin = model_info->skins[i];
-            auto& skin_out = out->skins_array[i];
-            skin_out.name = skin.name.c_str();
-
-            engine::log::log(engine::log::LogLevel::eTrace, fmt::format("Skin name found in model: {}\n", skin.name));
-            skin_out.bones_count = static_cast<std::uint32_t>(skin.bones.size());
-            if (skin_out.bones_count > 0)
-            {
-                skin_out.bones_array = new engine_bone_create_desc_t[skin_out.bones_count];
-                for (std::uint32_t i = 0; i < skin_out.bones_count; i++)
-                {
-                    const auto& in_bone = skin.bones[i];
-                    auto& out_bone = skin_out.bones_array[i];
-                    out_bone.model_node_index = in_bone.target_node_idx;
-                    std::memcpy(out_bone.inverse_bind_mat, glm::value_ptr(in_bone.inverse_bind_matrix), sizeof(in_bone.inverse_bind_matrix));
-                }
-            }
-            out->skins_name_array[i] = skin.name.c_str();
-        }
-    }
-
-    if (!out->internal_handle)
+    assert(*out == nullptr && "Model desc handle must be nullptr before calling this function!");
+    assert(spec == ENGINE_MODEL_SPECIFICATION_GLTF_2);
+    const auto assets_dir = engine::AssetStore::get_instance().get_models_base_path() / base_dir;
+    const auto file_data = engine::AssetStore::get_instance().get_raw_data_content(assets_dir / file_name);
+    if (file_data.get_size() == 0)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
+    const auto model_info = new engine::ModelDesc(engine::parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string()));
+    *out = reinterpret_cast<engine_model_desc_t*>(model_info);
     return ENGINE_RESULT_CODE_OK;
 }
 
 void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info)
 {
-    auto* app = application_cast(handle);
-    app->release_model_desc(model_info);
+    auto* app = api_cast(handle);
+    auto typed_desc = api_cast(model_info);
+    delete typed_desc;
 }
 
 engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, engine_scene_create_desc_t desc, engine_scene_t* out)
@@ -568,7 +524,7 @@ engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, e
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    auto* app = application_cast(handle);
+    auto* app = api_cast(handle);
     *out = reinterpret_cast<engine_scene_t>(app->allocate_scene(desc));
     if (!out)
     {
@@ -585,47 +541,53 @@ void engineApplicationSceneDestroy(engine_application_t handle, engine_scene_t s
     }
     if (scene)
     {
-        auto* app = application_cast(handle);
-        app->release_scene(scene_cast(scene));
+        auto* app = api_cast(handle);
+        app->release_scene(api_cast(scene));
     }
 }
 
 
 engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene)
 {
-    auto sc = scene_cast(scene);
+    auto sc = api_cast(scene);
     auto new_entity = sc->create_new_entity();
     return static_cast<engine_game_object_t>(new_entity);
 }
 
 void engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object)
 {
-    auto sc = scene_cast(scene);
-    sc->destroy_entity(entity_cast(game_object));
+    auto sc = api_cast(scene);
+    sc->destroy_entity(api_cast(game_object));
 }
 
 void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3])
 {
-    auto sc = scene_cast(scene);
+    auto sc = api_cast(scene);
     sc->set_physcis_gravity(std::array<float, 3>{gravity[0], gravity[1], gravity[2]});
 }
 
-void engineScenePhysicsGetCollisions(engine_scene_t scene, size_t* num_collision, const engine_collision_info_t** collisions)
+size_t engineScenePhysicsGetNumCollisions(engine_scene_t scene)
 {
-    auto sc = scene_cast(scene);
-    sc->get_physcis_collisions_list(*collisions, num_collision);
+    auto sc = api_cast(scene);
+    return sc->get_physcis_collisions().size();
+}
+
+const engine_collision_desc_t* engineScenePhysicsGetCollisionDesc(engine_scene_t scene, size_t idx)
+{
+    auto sc = api_cast(scene);
+    return api_cast(sc->get_physcis_collisions().at(idx));
 }
 
 engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance)
 {
-    auto sc = scene_cast(scene);
+    auto sc = api_cast(scene);
     return sc->raycast_into_physics_world(*ray, { ignore_list, ignore_list_count }, max_distance);
 }
 
 bool engineScenePhysicsAddForce(engine_scene_t scene, engine_game_object_t go, const float force[3], engine_force_type_t type)
 {
-    auto sc = scene_cast(scene);
-    auto entity = entity_cast(go);
+    auto sc = api_cast(scene);
+    auto entity = api_cast(go);
     const auto result = sc->add_force_to_physics_entity(entity, std::array<float, 3>{force[0], force[1], force[2]}, type);
     assert(result && "Failed to add force to physics entity!");
     return result;
@@ -640,7 +602,7 @@ engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_applicat
 
     if (app && name && out)
     {
-        auto* app_handle = application_cast(app);
+        auto* app_handle = api_cast(app);
         auto ret = new engine::UiDataHandle(app_handle->create_ui_document_data_handle(name, { bindings, bindings_count}));
         if (ret)
         {
@@ -655,7 +617,7 @@ void engineUiDataHandleDestroy(engine_ui_data_handle_t handle)
 {
     if (handle)
     {
-        auto* data_handle = ui_data_handle_cast(handle);
+        auto* data_handle = api_cast(handle);
         delete data_handle;
     }
 }
@@ -664,7 +626,7 @@ void engineUiDataHandleDirtyAllVariables(engine_ui_data_handle_t handle)
 {
     if (handle)
     {
-        auto* data_handle = ui_data_handle_cast(handle);
+        auto* data_handle = api_cast(handle);
         data_handle->dirty_all_variables();
     }
 }
@@ -673,7 +635,7 @@ void engineUiDataHandleDirtyVariable(engine_ui_data_handle_t handle, const char*
 {
     if (handle)
     {
-        auto* data_handle = ui_data_handle_cast(handle);
+        auto* data_handle = api_cast(handle);
         data_handle->dirty_variable(name);
     }
 }
@@ -682,7 +644,7 @@ engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_applicatio
 {
     if (app && file_path && out)
     {
-        auto* app_handle = application_cast(app);
+        auto* app_handle = api_cast(app);
         auto* ret = new engine::UiDocument(app_handle->load_ui_document(file_path));
         if (ret)
         {
@@ -697,7 +659,7 @@ void engineApplicationUiDocumentDestroy(engine_ui_document_t doc)
 {
     if (doc)
     {
-        auto* doc_handle = ui_document_cast(doc);
+        auto* doc_handle = api_cast(doc);
         delete doc_handle;  
     }
 }
@@ -706,7 +668,7 @@ void engineUiDocumentShow(engine_ui_document_t ui_doc)
 {
     if (ui_doc)
     {
-        auto* doc = ui_document_cast(ui_doc);
+        auto* doc = api_cast(ui_doc);
         doc->show();
     }
 }
@@ -715,7 +677,7 @@ void engineUiDocumentHide(engine_ui_document_t ui_doc)
 {
     if (ui_doc)
     {
-        auto* doc = ui_document_cast(ui_doc);
+        auto* doc = api_cast(ui_doc);
         doc->hide();
     }
 }
@@ -726,7 +688,7 @@ engine_result_code_t engineUiDocumentGetElementById(engine_ui_document_t documen
     engine_result_code_t ret = ENGINE_RESULT_CODE_FAIL;
     if (document && id && out)
     {
-        auto doc = ui_document_cast(document);
+        auto doc = api_cast(document);
         auto element = doc->get_element_by_id(id, ret);
         if (ret == ENGINE_RESULT_CODE_OK)
         {
@@ -783,7 +745,7 @@ void engineDestroyComponentView(engine_component_view_t view)
 {
     if (view)
     {
-        auto rv = runtime_view_cast(view);
+        auto rv = api_cast(view);
         delete rv;
     }
 }
@@ -792,7 +754,7 @@ engine_result_code_t engineComponentViewCreateBeginComponentIterator(engine_comp
 {
     if (view && out)
     {
-        auto rv = runtime_view_cast(view);
+        auto rv = api_cast(view);
         *out = reinterpret_cast<engine_component_iterator_t>(new decltype(rv->begin())(rv->begin()));
         return ENGINE_RESULT_CODE_OK;
     }
@@ -803,7 +765,7 @@ engine_result_code_t engineComponentViewCreateEndComponentIterator(engine_compon
 {
     if (view && out)
     {
-        auto rv = runtime_view_cast(view);
+        auto rv = api_cast(view);
         *out = reinterpret_cast<engine_component_iterator_t>(new decltype(rv->end())(rv->end()));
         return ENGINE_RESULT_CODE_OK;
     }
@@ -814,7 +776,7 @@ void engineComponentIteratorNext(engine_component_iterator_t iterator)
 {
     if (iterator)
     {
-        auto it_typed = component_iterator_cast(iterator);
+        auto it_typed = api_cast(iterator);
         (*it_typed)++;
     }
 }
@@ -823,7 +785,7 @@ engine_game_object_t engineComponentIteratorGetGameObject(engine_component_itera
 {
     if (iterator)
     {
-        auto it_typed = component_iterator_cast(iterator);
+        auto it_typed = api_cast(iterator);
         return static_cast<engine_game_object_t>(**it_typed);
     }
     return ENGINE_INVALID_GAME_OBJECT_ID;
@@ -834,8 +796,8 @@ bool engineComponentIteratorCheckEqual(engine_component_iterator_t lhs, engine_c
     bool ret = false;
     if (lhs && rhs)
     {
-        auto lhs_typed = component_iterator_cast(lhs);
-        auto rhs_typed = component_iterator_cast(rhs);
+        auto lhs_typed = api_cast(lhs);
+        auto rhs_typed = api_cast(rhs);
         ret = (*lhs_typed == *rhs_typed);
     }
     return ret;
@@ -845,7 +807,7 @@ void engineDeleteComponentIterator(engine_component_iterator_t iterator)
 {
     if (iterator)
     {
-        auto it = component_iterator_cast(iterator);
+        auto it = api_cast(iterator);
         delete it;
     }
 }
@@ -876,8 +838,8 @@ bool engineSceneHasNameComponent(engine_scene_t scene, engine_game_object_t game
 }
 void engineSceneComponentViewAttachNameComponent(engine_scene_t scene, engine_component_view_t view)
 {
-    auto sc = scene_cast(scene);
-    auto rv = runtime_view_cast(view);
+    auto sc = api_cast(scene);
+    auto rv = api_cast(view);
     sc->attach_component_to_runtime_view<engine_name_component_t>(*rv);
 }
 
@@ -931,6 +893,31 @@ bool engineSceneHasMeshComponent(engine_scene_t scene, engine_game_object_t game
     return has_component<engine_mesh_component_t>(scene, game_object);
 }
 
+engine_skinned_mesh_component_t engineSceneAddSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_skinned_mesh_component_t>(scene, game_object);
+}
+
+engine_skinned_mesh_component_t engineSceneGetSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_skinned_mesh_component_t>(scene, game_object);
+}
+
+void engineSceneUpdateSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_skinned_mesh_component_t* comp)
+{
+    update_component(scene, game_object, comp);
+}
+
+void engineSceneRemoveSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_skinned_mesh_component_t>(scene, game_object);
+}
+
+bool engineSceneHasSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_skinned_mesh_component_t>(scene, game_object);
+}
+
 // skinned mesh
 engine_skin_component_t engineSceneAddSkinComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
@@ -956,32 +943,55 @@ bool engineSceneHasSkinComponent(engine_scene_t scene, engine_game_object_t game
 {
     return has_component<engine_skin_component_t>(scene, game_object);
 }
-// -- 
 
-// bone
-engine_bone_component_t engineSceneAddBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_joint_attachment_component_t engineSceneAddJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return add_component<engine_bone_component_t>(scene, game_object);
+    return add_component<engine_joint_attachment_component_t>(scene, game_object);
 }
 
-engine_bone_component_t engineSceneGetBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_joint_attachment_component_t engineSceneGetJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return get_component<engine_bone_component_t>(scene, game_object);
+    return get_component<engine_joint_attachment_component_t>(scene, game_object);
 }
 
-void engineSceneUpdateBoneComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_bone_component_t* comp)
+void engineSceneUpdateJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_joint_attachment_component_t* comp)
 {
     update_component(scene, game_object, comp);
 }
 
-void engineSceneRemoveBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
+void engineSceneRemoveJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    remove_component<engine_bone_component_t>(scene, game_object);
+    remove_component<engine_joint_attachment_component_t>(scene, game_object);
 }
 
-bool engineSceneHasBoneComponent(engine_scene_t scene, engine_game_object_t game_object)
+bool engineSceneHasJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
-    return has_component<engine_bone_component_t>(scene, game_object);
+    return has_component<engine_joint_attachment_component_t>(scene, game_object);
+}
+
+engine_animation_controller_component_t engineSceneAddAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return add_component<engine_animation_controller_component_t>(scene, game_object);
+}
+
+engine_animation_controller_component_t engineSceneGetAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return get_component<engine_animation_controller_component_t>(scene, game_object);
+
+}
+void engineSceneUpdateAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_controller_component_t* comp)
+{
+    update_component(scene, game_object, comp);
+}
+
+void engineSceneRemoveAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    remove_component<engine_skin_component_t>(scene, game_object);
+}
+
+bool engineSceneHasAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object)
+{
+    return has_component<engine_animation_controller_component_t>(scene, game_object);
 }
 // -- 
 
@@ -1087,28 +1097,28 @@ bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t ga
 
 void engineSceneComponentViewAttachCameraComponent(engine_scene_t scene, engine_component_view_t view)
 {
-    auto sc = scene_cast(scene);
-    auto rv = runtime_view_cast(view);
+    auto sc = api_cast(scene);
+    auto rv = api_cast(view);
     sc->attach_component_to_runtime_view<engine_camera_component_t>(*rv);
 }
 
-engine_coords_3d_t engineSceneCameraComponentConvertWorldPositionToScreenPosition(engine_scene_t scene, engine_game_object_t game_object, const float world_pos[3])
+engine_fvec3_t engineSceneCameraComponentConvertWorldPositionToScreenPosition(engine_scene_t scene, engine_game_object_t game_object, const float world_pos[3])
 {
     assert(has_component<engine_camera_component_t>(scene, game_object));
-    auto sc = scene_cast(scene);
+    auto sc = api_cast(scene);
     const auto coords = sc->convert_world_point_to_screen_point({ world_pos[0], world_pos[1], world_pos[2] }, game_object);
-    engine_coords_3d_t ret{};
+    engine_fvec3_t ret{};
     ret.x = coords.x;
     ret.y = coords.y;
     ret.z = coords.z;
     return ret;
 }
 
-engine_coords_3d_t engineSceneCameraComponentConvertSpacePositionToWorldPosition(engine_scene_t scene, engine_game_object_t game_object, const engine_coords_3d_t screen_position)
+engine_fvec3_t engineSceneCameraComponentConvertSpacePositionToWorldPosition(engine_scene_t scene, engine_game_object_t game_object, const engine_fvec3_t screen_position)
 {
     assert(has_component<engine_camera_component_t>(scene, game_object));
-    auto sc = scene_cast(scene);
-    engine_coords_3d_t ret{};
+    auto sc = api_cast(scene);
+    engine_fvec3_t ret{};
     const auto coords = sc->convert_screen_point_to_world_point({ screen_position.x, screen_position.y, screen_position.z }, game_object);
     ret.x = coords.x;
     ret.y = coords.y;
@@ -1199,4 +1209,484 @@ engine_children_component_t engineSceneGetChildrenComponent(engine_scene_t scene
 bool engineSceneHasChildrenComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return has_component<engine_children_component_t>(scene, game_object);
+}
+
+engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectA(const engine_collision_contact_point_desc_t* contact)
+{
+    assert(contact);
+    const auto typed_contact = api_cast(contact);
+    if (typed_contact)
+    {
+        return { typed_contact->point_on_obj_a.x, typed_contact->point_on_obj_a.y, typed_contact->point_on_obj_a.z };
+    }
+    return { 0.0f, 0.0f, 0.0f };
+}
+
+engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectB(const engine_collision_contact_point_desc_t* contact)
+{
+    assert(contact);
+    const auto typed_contact = api_cast(contact);
+    if (typed_contact)
+    {
+        return { typed_contact->point_on_obj_b.x, typed_contact->point_on_obj_b.y, typed_contact->point_on_obj_b.z };
+    }
+    return { 0.0f, 0.0f, 0.0f };
+}
+
+int32_t engineCollisionContactPointDescGetLifetime(const engine_collision_contact_point_desc_t* contact)
+{
+    assert(contact);
+    return api_cast(contact)->lifetime;
+}
+
+engine_game_object_t engineCollisionDescGetObjectA(const engine_collision_desc_t* desc)
+{
+    assert(desc);
+    return static_cast<engine_game_object_t>(api_cast(desc)->object_a);
+}
+
+engine_game_object_t engineCollisionDescGetObjectB(const engine_collision_desc_t* desc)
+{
+    assert(desc);
+    return static_cast<engine_game_object_t>(api_cast(desc)->object_b);
+}
+
+size_t engineCollisionDescGetContactPointsCount(const engine_collision_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->contact_points.size();
+}
+
+const engine_collision_contact_point_desc_t* engineCollisionDescGetContactPoint(const engine_collision_desc_t* desc, size_t idx)
+{
+    assert(desc);
+    auto typed_desc = api_cast(desc);
+    if (idx < typed_desc->contact_points.size())
+    {
+        auto ret = api_cast(typed_desc->contact_points.at(idx));
+        return ret;
+    }
+    assert("Index out of bounds for contact points array!");
+    return nullptr;
+}
+
+const char* engineTexture2dDescGetName(const engine_texture_2d_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->name.c_str();
+}
+
+uint32_t engineTexture2dDescGetWidth(const engine_texture_2d_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->width;
+}
+
+uint32_t engineTexture2dDescGetHeight(const engine_texture_2d_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->height;
+}
+
+engine_data_layout_t engineTexture2dDescGetDataLayout(const engine_texture_2d_desc_t* desc)
+{
+    using namespace engine;
+    const auto data_layout = [](const auto engine_api_layout)
+        {
+            switch (engine_api_layout)
+            {
+            case DataLayout::eRGBA_FP32: return ENGINE_DATA_LAYOUT_RGBA_FP32;
+            case DataLayout::eR_FP32: return ENGINE_DATA_LAYOUT_R_FP32;
+
+            case DataLayout::eRGBA_U8: return ENGINE_DATA_LAYOUT_RGBA_U8;
+            case DataLayout::eRGB_U8: return ENGINE_DATA_LAYOUT_RGB_U8;
+            case DataLayout::eR_U8: return ENGINE_DATA_LAYOUT_R_U8;
+
+            default:
+                return ENGINE_DATA_LAYOUT_COUNT;
+            }
+        }(api_cast(desc)->layout);
+    return data_layout;
+}
+
+const void* engineTexture2dDescGetData(const engine_texture_2d_desc_t* desc)
+{
+    return api_cast(desc)->data.data();
+}
+
+const char* engineGeometryDescGetName(const engine_geometry_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->name.c_str();
+}
+
+const void* engineGeometryDescGetVertsData(const engine_geometry_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->vertex_data.data();
+}
+
+size_t engineGeometryDescGetVertsDataSize(const engine_geometry_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->vertex_data.size();
+}
+
+uint32_t engineGeometryDescGetVertsCount(const engine_geometry_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->vertex_count;
+}
+
+const uint32_t* engineGeometryDescGetIndsData(const engine_geometry_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->indicies.data();
+}
+
+uint32_t engineGeometryDescGetIndsCount(const engine_geometry_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->indicies.size();
+}
+
+engine_vertex_attributes_layout_t engineGeometryDescGetAttributesLayout(const engine_geometry_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->vertex_laytout;
+}
+
+const char* engineMaterialDescGetName(const engine_material_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->name.c_str();
+}
+
+engine_color_desc_t engineMaterialDescGetDiffuseColor(const engine_material_desc_t* desc)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    // memcpy?
+    engine_color_desc_t ret{};
+    ret.r = typed_desc->diffuse_factor.r;
+    ret.g = typed_desc->diffuse_factor.g;
+    ret.b = typed_desc->diffuse_factor.b;
+    ret.a = typed_desc->diffuse_factor.a;
+    return ret;
+}
+
+uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_material_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->diffuse_texture;
+}
+
+const char* engineSkinDescGetName(const engine_skin_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->name.c_str();
+}
+
+uint32_t engineSkinDescGetJointsCount(const engine_skin_desc_t* desc)
+{
+    assert(desc);
+    return static_cast<uint32_t>(api_cast(desc)->inverse_bind_matrix_map.size());
+}
+
+const char* engineSkinDescGetJointName(const engine_skin_desc_t* desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    // get key value from map
+    if (idx < typed_desc->inverse_bind_matrix_map.size())
+    {
+        auto it = typed_desc->inverse_bind_matrix_map.begin();
+        std::advance(it, idx);
+        return it->first.c_str();
+    }
+    return nullptr;
+}
+
+const char* engineAnimationDescGetName(const engine_animation_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->name.c_str();
+}
+
+const char* engineModelNodeDescGetName(const engine_model_node_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->name.c_str();
+}
+
+const engine_model_node_desc_t* engineModelNodeDescGetParent(const engine_model_node_desc_t* desc)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    if (typed_desc->parent)
+    {
+        return api_cast(typed_desc->parent);
+    }
+    return nullptr;
+}
+
+const engine_model_node_desc_t* engineModelNodeDescGetChildren(const engine_model_node_desc_t* desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    if (idx < typed_desc->children.size())
+    {
+        return api_cast(typed_desc->children.at(idx));
+    }
+    assert("Index out of bounds for children array!");
+    return nullptr;
+}
+
+uint32_t engineModelNodeDescGetChildrenCount(const engine_model_node_desc_t* desc)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    return static_cast<uint32_t>(typed_desc->children.size());
+}
+
+uint32_t engineModelNodeDescGetIndex(const engine_model_node_desc_t* desc)
+{
+    return api_cast(desc)->index;
+}
+
+uint32_t engineModelNodeDescGetGeometryIndex(const engine_model_node_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->mesh;
+}
+
+uint32_t engineModelNodeDescGetSkinIndex(const engine_model_node_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->skin;
+}
+
+uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->material;
+}
+
+engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc_t* desc)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    engine_fvec3_t ret{};
+    ret.x = typed_desc->translation[0];
+    ret.y = typed_desc->translation[1];
+    ret.z = typed_desc->translation[2];
+    return ret;
+}
+
+engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc_t* desc)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    engine_fvec3_t ret{};
+    ret.x = typed_desc->scale[0];
+    ret.y = typed_desc->scale[1];
+    ret.z = typed_desc->scale[2];
+    return ret;
+}
+
+engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_desc_t* desc)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    engine_fvec4_t ret{};
+    ret.x = typed_desc->rotation[0];
+    ret.y = typed_desc->rotation[1];
+    ret.z = typed_desc->rotation[2];
+    ret.w = typed_desc->rotation[3];
+    return ret;
+}
+
+const engine_model_node_desc_t* engineModelDescGetNodeDesc(const engine_model_desc_t* desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    return api_cast(typed_desc->nodes.at(idx).get());
+}
+
+const engine_model_node_desc_t* engineModelDescGetNodeDescByName(const engine_model_desc_t* desc, const char* name)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    const auto fnd = std::find_if(typed_desc->nodes.begin(), typed_desc->nodes.end(),
+        [&name](const auto& node) {
+            return node->name == name;
+        });
+    if (fnd != typed_desc->nodes.end())
+    {
+        return api_cast(fnd->get());
+    }
+    assert("Node with given name not found in model desc!");
+    return nullptr;
+}
+
+uint32_t engineModelDescGetNodesDescCount(const engine_model_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->nodes.size();
+}
+
+const engine_texture_2d_desc_t* engineModelDescGetTexture2dDesc(const engine_model_desc_t* desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    return api_cast(typed_desc->textures.at(idx));
+}
+
+uint32_t engineModelDescGetTextures2dDescCount(const engine_model_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->textures.size();
+}
+
+const engine_geometry_desc_t* engineModelDescGetGeometryDesc(const engine_model_desc_t* desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    return api_cast(typed_desc->geometries.at(idx));
+}
+
+uint32_t engineModelDescGetGeometriesDescCount(const engine_model_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->geometries.size();
+}
+
+const engine_material_desc_t* engineModelDescGetMaterialDesc(const engine_model_desc_t* desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    return api_cast(typed_desc->materials.at(idx));
+}
+
+uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->materials.size();
+}
+
+const engine_skin_desc_t* engineModelDescGetSkinDesc(const engine_model_desc_t* desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    return api_cast(typed_desc->skins.at(idx));
+}
+
+uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc)
+{
+    assert(desc);
+    return api_cast(desc)->skins.size();
+}
+
+const engine_animation_desc_t* engineModelDescGetAnimationDesc(const engine_model_desc_t* desc, size_t idx)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    if (idx < typed_desc->animations.size())
+    {
+        return api_cast(typed_desc->animations.at(idx));
+    }
+    return nullptr;
+}
+
+uint32_t engineModelDescGetAnimationsDescCount(const engine_model_desc_t* desc)
+{
+    assert(desc);
+    const auto typed_desc = api_cast(desc);
+    return static_cast<uint32_t>(typed_desc->animations.size());
+}
+
+engine_skin_t* engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t* root)
+{
+    if (!handle || !desc || !root)
+    {
+        return nullptr;
+    }
+    auto* app = api_cast(handle);
+    const auto typed_desc = api_cast(desc);
+    const auto typed_root = api_cast(root);
+    return reinterpret_cast<engine_skin_t*>(new engine::Skin(*typed_desc, *typed_root));
+}
+
+void engineApplicationDestroySkin(engine_application_t handle, engine_skin_t* skin)
+{
+    if (!handle || !skin)
+    {
+        return;
+    }
+    auto* app = api_cast(handle);
+    auto typed_skin = api_cast(skin);
+    delete typed_skin;
+}
+
+const char* engineSkinGetName(const engine_skin_t* skin)
+{
+    if (!skin)
+    {
+        return nullptr;
+    }
+    return api_cast(skin)->get_name().c_str();
+}
+
+engine_animation_controller_t* engineApplicationCreateAnimationControllerWithSkin(engine_application_t handle, engine_skin_t* skin)
+{
+    if (!handle || !skin)
+    {
+        return nullptr;
+    }
+    auto* app = api_cast(handle);
+    auto typed_skin = api_cast(skin);
+    auto controller = new engine::AnimationController(typed_skin);
+    return api_cast(*controller);
+}
+
+void engineApplicationDestroyAnimationController(engine_application_t handle, engine_animation_controller_t* controller)
+{
+    if (!handle || !controller)
+    {
+        return;
+    }
+    auto* app = api_cast(handle);
+    auto typed_controller = api_cast(controller);
+    delete typed_controller;
+}
+
+bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc)
+{
+    if (!controller || !desc)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    auto typed_desc = api_cast(desc);
+    return typed_controller->add_animation(*typed_desc);
+}
+
+bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name)
+{
+    if (!controller || !name)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->play(name);
+}
+
+bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name)
+{
+    if (!controller || !name)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->is_playing(name);
 }
