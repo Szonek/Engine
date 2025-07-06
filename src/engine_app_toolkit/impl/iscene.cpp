@@ -1,6 +1,6 @@
 #include "iscene.h"
 #include "iapplication.h"
-
+#include "profiler.h"
 #include "event_types_defs.h"
 
 #include <fmt/format.h>
@@ -22,6 +22,7 @@ engine_result_code_t update_scene(engine_application_t app, engine_scene_t scene
 
 engine_result_code_t propagate_collisions_events(engine_application_t app, engine_scene_t scene, engine::IScene::ScriptsMap& scripts)
 {
+    engine::ScopedProfiler prof("propagate_collisions_events");
     const auto num_collisions = engineScenePhysicsGetNumCollisions(scene);
     for (std::size_t i = 0; i < num_collisions; i++)
     {
@@ -59,11 +60,13 @@ engine_result_code_t propagate_collisions_events(engine_application_t app, engin
             //engineLog(fmt::format("Possible bug. Tried to send event to object without attached script, go id: {}\n", col.object_b).c_str());
         }
     }
+
     return ENGINE_RESULT_CODE_OK;
 }
 
 engine_result_code_t update_scripts(std::unordered_map<engine_game_object_t, std::unique_ptr<engine::IScript>>& scripts, float dt)
 {
+    engine::ScopedProfiler prof("update_scripts");
     for (auto& [go, script] : scripts)
     {
         script->update(dt);
@@ -73,6 +76,7 @@ engine_result_code_t update_scripts(std::unordered_map<engine_game_object_t, std
 
 engine_result_code_t late_update_scripts(std::unordered_map<engine_game_object_t, std::unique_ptr<engine::IScript>>& scripts, float dt)
 {
+    engine::ScopedProfiler prof("late_update_scripts");
     for (auto& [go, script] : scripts)
     {
         script->late_update(dt);
@@ -82,6 +86,7 @@ engine_result_code_t late_update_scripts(std::unordered_map<engine_game_object_t
 
 inline engine_scene_t create_scene(engine_application_t app_handle)
 {
+    engine::ScopedProfiler prof("create_scene");
     engine_scene_t scene = nullptr;
 
     engine_scene_create_desc_t desc{};
@@ -142,6 +147,7 @@ bool engine::IScene::is_active() const
 
 engine_result_code_t engine::IScene::update(float dt)
 {
+    engine::ScopedProfiler prof("engine::IScene::update");
     if (!is_active())
     {
         return ENGINE_RESULT_CODE_OK;

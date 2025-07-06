@@ -119,7 +119,7 @@ private:
     std::deque<std::tuple<entt::entity, std::array<float, 3>, engine_force_type_t>> forces_to_apply_;
     UniformBuffer scene_ubo_;
     ShaderStorageBuffer light_data_ssbo_;
-
+    void* light_data_ssbo_ptr_ = nullptr;
     MaterialStaticGeometryLit material_static_geometry_lit_;
     MaterialSkinnedGeometryLit material_skinned_geometry_lit_;
 

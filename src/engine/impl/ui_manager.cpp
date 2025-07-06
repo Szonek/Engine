@@ -3,6 +3,7 @@
 #include "engine.h"
 #include "logger.h"
 #include "math_helpers.h"
+#include "profiler.h"
 
 #include <RmlUi/Core.h>
 
@@ -20,6 +21,7 @@
 engine::UiManager::UiManager(RenderContext& rdx)
     : rdx_(rdx)
 {
+    ENGINE_PROFILE_SECTION;
     Rml::Initialise();
     // create context with some aribtrary name and dimension.  (dimensions wil lbe update in update(..))
     const auto window_size_pixels = rdx_.get_window_size_in_pixels();
@@ -53,11 +55,13 @@ engine::UiManager::~UiManager()
 
 bool engine::UiManager::is_ui_document_debugger_enabled() const
 {
+    ENGINE_PROFILE_SECTION;
     return Rml::Debugger::IsVisible();
 }
 
 void engine::UiManager::enable_ui_document_debugger(bool v)
 {
+    ENGINE_PROFILE_SECTION;
     if (ui_rml_debugger_available)
     {
         Rml::Debugger::SetVisible(v);
@@ -66,16 +70,19 @@ void engine::UiManager::enable_ui_document_debugger(bool v)
 
 engine::UiDataHandle engine::UiManager::create_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings)
 {
-   return UiDataHandle(ui_rml_context_, name, bindings);
+    ENGINE_PROFILE_SECTION;
+    return UiDataHandle(ui_rml_context_, name, bindings);
 }
 
 engine::UiDocument engine::UiManager::load_document_from_file(std::string_view file_name)
 {
+    ENGINE_PROFILE_SECTION;
     return UiDocument(ui_rml_context_, file_name);
 }
 
 bool engine::UiManager::load_font_from_file(std::string_view file_name, std::string_view /*handle_name*/)
 {
+    ENGINE_PROFILE_SECTION;
     const auto font_path = AssetStore::get_instance().get_font_base_path() / file_name;
     const auto success = Rml::LoadFontFace(font_path.string(), true);
     return success;
@@ -83,11 +90,13 @@ bool engine::UiManager::load_font_from_file(std::string_view file_name, std::str
 
 void engine::UiManager::parse_sdl_event(SDL_Event ev)
 {
+    ENGINE_PROFILE_SECTION;
     RmlSDL::InputEventHandler(ui_rml_context_, rdx_.get_sdl_window(), ev);
 }
 
 void engine::UiManager::update_state_and_render()
 {
+    ENGINE_PROFILE_SECTION;
     ui_rml_context_->Update();
     rdx_.begin_frame_ui_rendering();
     ui_rml_context_->Render();

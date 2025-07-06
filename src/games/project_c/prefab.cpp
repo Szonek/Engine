@@ -313,6 +313,13 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
                     jac.skin = skin_handle;
                     engineStringSet(jac.joint_name, joint_name);
                     engineSceneUpdateJointAttachmentComponent(scene, child_go, &jac);
+
+                    // reset transform (it is not needed, since it will be picked from joint.
+                    auto tc = engineSceneGetTransformComponent(scene, child_go);
+                    set_c_array(tc.position, engine_fvec3_t{ 0.0f, 0.0f, 0.0f});
+                    set_c_array(tc.scale, engine_fvec3_t{ 1.0f, 1.0f, 1.0f });
+                    set_c_array(tc.rotation, engine_fvec4_t{ 0.0f, 0.0f, 0.0f, 1.0f });
+                    engineSceneUpdateTransformComponent(scene, child_go, &tc);
                 }
             }
         }

@@ -9,6 +9,7 @@
 #include "gltf_parser.h"
 #include "skin.h"
 #include "animation_controller.h"
+#include "profiler.h"
 
 #include "logger.h"
 
@@ -234,6 +235,22 @@ inline bool has_component(engine_scene_t scene, engine_game_object_t game_object
 void engineLog(const char* str)
 {
     engine::log::log(engine::log::LogLevel::eTrace, str);
+}
+
+engine_profiler_ctx_t* engineProfileZoneStart(const char* name, bool capture_call_stack)
+{
+    TracyCZoneCtx* ret = new TracyCZoneCtx;
+    ENGINE_PROFILE_ZONE_CONTEXT_START(context, "engine_api", capture_call_stack);
+    TracyCZoneName(context, name, std::strlen(name));
+    *ret = context;
+    return reinterpret_cast<engine_profiler_ctx_t*>(ret);
+}
+
+void engineProfileZoneEnd(engine_profiler_ctx_t* ctx)
+{
+    auto tracy_ctx = reinterpret_cast<TracyCZoneCtx*>(ctx);
+    ENGINE_PROFILE_ZONE_CONTEXT_END(*tracy_ctx);
+    delete tracy_ctx;
 }
 
 engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc)
@@ -1679,6 +1696,16 @@ bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* contr
     }
     auto typed_controller = api_cast(controller);
     return typed_controller->play(name);
+}
+
+bool engineAnimationControllerAnimationSetLayerId(engine_animation_controller_t* controller, const char* name, size_t layer_id)
+{
+    if (!controller || !name)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->set_layer_id(name, layer_id);
 }
 
 bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name)

@@ -470,6 +470,7 @@ ENGINE_API engine_animation_controller_t* engineApplicationCreateAnimationContro
 ENGINE_API void engineApplicationDestroyAnimationController(engine_application_t handle, engine_animation_controller_t* controller);
 ENGINE_API bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc);
 ENGINE_API bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name);
+ENGINE_API bool engineAnimationControllerAnimationSetLayerId(engine_animation_controller_t* controller, const char* name, size_t layer_id);
 ENGINE_API bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name);
 
 /**
@@ -510,8 +511,12 @@ typedef enum _engine_force_type_t
     ENGINE_FORCE_TYPE_IMPLUSE = 1, // instant force applied to the object
 } engine_force_type_t;
 
-// cross platform log
+// utilities
 ENGINE_API void engineLog(const char* str);
+
+typedef struct _engine_profiler_ctx_t engine_profiler_ctx_t;
+ENGINE_API engine_profiler_ctx_t* engineProfileZoneStart(const char* name, bool capture_call_stack);
+ENGINE_API void engineProfileZoneEnd(engine_profiler_ctx_t* ctx);
 
 // app
 ENGINE_API engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc);

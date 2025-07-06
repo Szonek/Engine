@@ -452,9 +452,13 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
 
     const std::string scene_str =
-        "    b    \n"
-        "    p e  \n"
-        "         \n";
+        "             \n"
+        "             \n"
+        "      b      \n"
+        "      p e    \n"
+        "             \n"
+        "             \n"
+        "             \n";
 
 
     register_script<MainLight>();
@@ -477,6 +481,7 @@ void project_c::TestScene::update_hook_begin()
 
 void project_c::TestScene::ui_update_item_on_ground(const project_c::Weapon* sw)
 {
+    engine::ScopedProfiler prof("project_c::TestScene::ui_update_item_on_ground");
     const auto active_camera_go = utils::get_active_camera_game_objects(scene_)[0];
     const auto item_go = sw->get_game_object();
     const auto item_tc = engineSceneGetTransformComponent(scene_, item_go);
@@ -521,6 +526,7 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Weapon* sw)
 
 void project_c::TestScene::ui_remove_item_from_ground(const project_c::Weapon* sw) const
 {
+    engine::ScopedProfiler prof("project_c::TestScene::ui_remove_item_from_ground");
     for (auto i = 0; i < engineVectorSizeUint32(ui_data_.items.go); i++)
     {
         const auto go = engineVectorGetUint32(ui_data_.items.go, i);
@@ -545,6 +551,7 @@ void project_c::TestScene::ui_remove_item_from_ground(const project_c::Weapon* s
 
 void project_c::TestScene::ui_update_enemy(const Enemy* en)
 {
+    engine::ScopedProfiler prof("project_c::TestScene::ui_update_enemy");
     const auto active_camera_go = utils::get_active_camera_game_objects(scene_)[0];
     const auto enemy_go = en->get_game_object();
     auto enemy_tc = engineSceneGetTransformComponent(scene_, enemy_go);
@@ -598,6 +605,7 @@ void project_c::TestScene::ui_update_enemy(const Enemy* en)
 
 void project_c::TestScene::ui_remove_enemy(const Enemy* en)
 {
+    engine::ScopedProfiler prof("project_c::TestScene::ui_remove_enemy");
     for (auto i = 0; i < engineVectorSizeUint32(ui_data_.enemies.go); i++)
     {
         const auto go = engineVectorGetUint32(ui_data_.enemies.go, i);
