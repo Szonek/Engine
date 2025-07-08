@@ -1193,6 +1193,7 @@ void engine::RenderContext::begin_frame()
 
 void engine::RenderContext::end_frame()
 {
+    //ENGINE_PROFILER_GPU_SECTION("engine::RenderContext::end_frame()");
     //ui_rml_gl3_renderer_->EndFrame();
     SDL_GL_SwapWindow(window_);
     ENGINE_PROFILER_GPU_SWAP_WINDOW;
@@ -1208,6 +1209,7 @@ void engine::RenderContext::end_frame()
 
 void engine::RenderContext::begin_frame_ui_rendering()
 {
+    ENGINE_PROFILER_GPU_SECTION("engine::RenderContext::begin_frame_ui_rendering()");
     //glClearStencil(0);
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     //ui_rml_gl3_renderer_->Clear();
@@ -1388,7 +1390,7 @@ void engine::Framebuffer::copy_color_attachment_to_texture2d(std::size_t attachm
 engine::UniformBuffer::UniformBuffer(std::size_t size)
     : size_(size)
 {
-    ENGINE_PROFILE_SECTION_N("engine::UniformBuffer::UniformBuffer(std::size_t size)");
+    ENGINE_PROFILER_GPU_SECTION("engine::UniformBuffer::UniformBuffer(std::size_t size)");
     if (size == 0)
     {
         log::log(log::LogLevel::eCritical, "Uniform buffer size cant be 0!");
@@ -1428,14 +1430,14 @@ engine::UniformBuffer::~UniformBuffer()
 
 void engine::UniformBuffer::bind(std::uint32_t slot) const
 {
-    ENGINE_PROFILE_SECTION_N("engine::UniformBuffer::bind(std::uint32_t slot)");
+    ENGINE_PROFILER_GPU_SECTION("engine::UniformBuffer::bind(std::uint32_t slot)");
     assert(is_valid() && "Invalid uniform buffer object");
     glBindBufferBase(GL_UNIFORM_BUFFER, slot, ubo_);
 }
 
 void* engine::UniformBuffer::map(bool read, bool write)
 {
-    ENGINE_PROFILE_SECTION_N("engine::UniformBuffer::map(bool read, bool write)");
+    ENGINE_PROFILER_GPU_SECTION("engine::UniformBuffer::map(bool read, bool write)");
     bind();
     std::uint32_t flags = 0;
     if (read && write)
@@ -1457,7 +1459,7 @@ void* engine::UniformBuffer::map(bool read, bool write)
 
 void engine::UniformBuffer::unmap()
 {
-    ENGINE_PROFILE_SECTION_N("engine::UniformBuffer::unmap()");
+    ENGINE_PROFILER_GPU_SECTION("engine::UniformBuffer::unmap()");
     //bind();
     glUnmapBuffer(GL_UNIFORM_BUFFER);
     unbind();
@@ -1465,14 +1467,14 @@ void engine::UniformBuffer::unmap()
 
 void engine::UniformBuffer::bind() const
 {
-    ENGINE_PROFILE_SECTION_N("engine::UniformBuffer::bind()");
+    ENGINE_PROFILER_GPU_SECTION("engine::UniformBuffer::bind()");
     assert(is_valid() && "Invalid uniform buffer object");
     glBindBuffer(GL_UNIFORM_BUFFER, ubo_);
 }
 
 void engine::UniformBuffer::unbind() const
 {
-    ENGINE_PROFILE_SECTION_N("engine::UniformBuffer::unbind()");
+    ENGINE_PROFILER_GPU_SECTION("engine::UniformBuffer::unbind()");
     assert(is_valid() && "Invalid uniform buffer object");
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
@@ -1480,7 +1482,7 @@ void engine::UniformBuffer::unbind() const
 engine::ShaderStorageBuffer::ShaderStorageBuffer(std::size_t size)
     : size_(size)
 {
-    ENGINE_PROFILE_SECTION_N("engine::ShaderStorageBuffer::ShaderStorageBuffer(std::size_t size)");
+    ENGINE_PROFILER_GPU_SECTION("engine::ShaderStorageBuffer::ShaderStorageBuffer(std::size_t size)");
     if (size == 0)
     {
         log::log(log::LogLevel::eCritical, "Shader storage buffer size cant be 0!");
@@ -1490,7 +1492,10 @@ engine::ShaderStorageBuffer::ShaderStorageBuffer(std::size_t size)
     glGenBuffers(1, &ssbo_);
     bind();
     // GL_STATIC_DRAW? 
-    glBufferData(GL_SHADER_STORAGE_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
+    //glBufferData(GL_SHADER_STORAGE_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
+    // Allocate immutable storage with persistent mapping
+    GLbitfield flags = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+    glBufferStorage(GL_SHADER_STORAGE_BUFFER, size, nullptr, flags);
     unbind();
 }
 
@@ -1520,37 +1525,39 @@ engine::ShaderStorageBuffer::~ShaderStorageBuffer()
 
 void engine::ShaderStorageBuffer::bind(std::uint32_t slot) const
 {
-    ENGINE_PROFILE_SECTION_N("engine::ShaderStorageBuffer::bindstd::uint32_t slot)");
+    ENGINE_PROFILER_GPU_SECTION("engine::ShaderStorageBuffer::bindstd::uint32_t slot)");
     assert(is_valid() && "Invalid uniform buffer object");
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, slot, ssbo_);
 }
 
 void* engine::ShaderStorageBuffer::map(bool read, bool write)
 {
-    ENGINE_PROFILE_SECTION_N("engine::ShaderStorageBuffer::map(bool read, bool write)");
+    ENGINE_PROFILER_GPU_SECTION("engine::ShaderStorageBuffer::map(bool read, bool write)");
     bind();
-    std::uint32_t flags = 0;
-    if (read && write)
+    GLbitfield flags = GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+    //if (read && write)
+    //{
+    //    flags = GL_READ_WRITE;
+    //}
+    if (read)
     {
-        flags = GL_READ_WRITE;
+        flags |= GL_MAP_READ_BIT;
     }
-    else if (read)
+    if (write)
     {
-        flags = GL_READ_ONLY;
-    }
-    else if (write)
-    {
-        flags = GL_WRITE_ONLY;
+        flags |= GL_MAP_WRITE_BIT;
     }
 
-    void* ret = glMapBuffer(GL_SHADER_STORAGE_BUFFER, flags);
+    //void* ret = glMapBuffer(GL_SHADER_STORAGE_BUFFER, flags);
+    //GLbitfield flags = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT;
+    void* ret = glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, get_size(), flags);
     unbind();
     return ret;
 }
 
 void engine::ShaderStorageBuffer::unmap()
 {
-    ENGINE_PROFILE_SECTION_N("engine::ShaderStorageBuffer::unmap()");
+    ENGINE_PROFILER_GPU_SECTION("engine::ShaderStorageBuffer::unmap()");
     bind();
     glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
     unbind();
@@ -1558,14 +1565,14 @@ void engine::ShaderStorageBuffer::unmap()
 
 void engine::ShaderStorageBuffer::bind() const
 {
-    ENGINE_PROFILE_SECTION_N("engine::ShaderStorageBuffer::bind()");
+    ENGINE_PROFILER_GPU_SECTION("engine::ShaderStorageBuffer::bind()");
     assert(is_valid() && "Invalid uniform buffer object");
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_);
 }
 
 void engine::ShaderStorageBuffer::unbind() const
 {
-    ENGINE_PROFILE_SECTION_N("engine::ShaderStorageBuffer::unbind()");
+    ENGINE_PROFILER_GPU_SECTION("engine::ShaderStorageBuffer::unbind()");
     assert(is_valid() && "Invalid uniform buffer object");
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }

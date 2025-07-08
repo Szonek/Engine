@@ -80,13 +80,23 @@ public:
         const Texture2D& texture_diffuse;
         const Texture2D& texture_specular;
     };
+
 public:
     MaterialSkinnedGeometryLit();
-
+    ~MaterialSkinnedGeometryLit();
     void draw(const Geometry& geometry, const DrawContext& ctx);
+
+    void new_frame();
+
+private:
+    constexpr static std::size_t MAX_BONES_PER_FRAME = 32768;
+    using BonePacket = glm::mat4;
 
 private:
     Shader shader_;
+    ShaderStorageBuffer skinning_matrices_ssbo_;
+    std::size_t offset_into_ssbo_ = 0;
+    BonePacket* skinning_mtx_gpu_ptr_ = nullptr;
 };
 
 class MaterialSkinnedGeometryUnlit

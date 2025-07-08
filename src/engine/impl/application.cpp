@@ -185,6 +185,7 @@ void engine::Application::release_scene(Scene* scene)
 
 engine_result_code_t engine::Application::update_scene(Scene* scene, float delta_time)
 {
+    ENGINE_PROFILE_SECTION;
     on_scene_update_pre(scene, delta_time);
 	const auto ret_code = scene->update(delta_time);
     on_scene_update_post(scene, delta_time);
@@ -194,6 +195,7 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 
 engine_application_frame_begine_info_t engine::Application::begine_frame()
 {
+    ENGINE_PROFILE_SECTION;
 	timer_.tick();
 
     engine_application_frame_begine_info_t ret{};
@@ -310,6 +312,7 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
 
 engine_application_frame_end_info_t engine::Application::end_frame()
 {
+    ENGINE_PROFILE_SECTION;
     on_frame_end();
     // copy fbo_scene color attachment to the default framebuffer
     fbo_scene_.unbind();

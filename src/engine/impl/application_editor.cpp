@@ -1216,6 +1216,7 @@ void engine::ApplicationEditor::CameraContext::on_scene_update_pre(Scene* scene,
 
 void engine::ApplicationEditor::CameraContext::on_scene_update_post(Scene* scene, float dt)
 {
+    ENGINE_PROFILE_SECTION;
     for (auto& [script, camera_data] : cameras_)
     {
         camera_data.camera.disable();

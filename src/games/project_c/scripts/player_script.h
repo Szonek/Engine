@@ -64,7 +64,8 @@ private:
 
         inline const char* get_animation_name(Direction dir) const
         {
-            switch (dir)
+            return "Running_A";
+/*            switch (dir)
             {
             case Direction::eForward:
                 return "Running_A";
@@ -77,7 +78,7 @@ private:
             default:
                 assert(!"Unknown move direction for player!");
             }
-            return "";
+            return ""*/;
         }
     };
 

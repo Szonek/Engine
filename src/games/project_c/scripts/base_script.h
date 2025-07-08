@@ -1,7 +1,7 @@
 #pragma once
-#include "iscript.h"
+#include <iscript.h>
+#include <profiler.h>
 #include "../prefab.h"
-
 namespace project_c
 {
 class BaseNode : public engine::IScript

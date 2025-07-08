@@ -183,6 +183,14 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, const engine_scene_cr
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<physcic_internal_component_t>>();
     entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<physcic_internal_component_t>>();
     entity_registry_.on_destroy<physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
+    
+    // if buffer is valid: map and bind
+    if (light_data_ssbo_.is_valid())
+    {
+        light_data_ssbo_ptr_ = light_data_ssbo_.map(false, true);
+        light_data_ssbo_.bind(2);
+    }
+
     out_code = ENGINE_RESULT_CODE_OK;
 
     
@@ -382,7 +390,8 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 
 engine_result_code_t engine::Scene::update(float dt)
 {
-    ENGINE_PROFILE_SECTION_N("scene_update");
+    ENGINE_PROFILE_SECTION;
+    material_skinned_geometry_lit_.new_frame();
     physics_update(dt);
 
     {
@@ -539,22 +548,25 @@ engine_result_code_t engine::Scene::update(float dt)
             {
                 log::log(log::LogLevel::eTrace, fmt::format("Light data SSBO is too small. Increasing the size of the buffer. Current size: {}. Required size: {}\n", light_data_ssbo_.get_size(), total_lights));
                 light_data_ssbo_ = ShaderStorageBuffer(total_lights * sizeof(LightGpuData));
+                light_data_ssbo_ptr_ = light_data_ssbo_.map(false, true);
+                light_data_ssbo_.bind(2);
             }
-            BufferMapContext<LightGpuData, ShaderStorageBuffer> light_data(light_data_ssbo_, false, true);
+            assert(light_data_ssbo_ptr_ != nullptr);
+            auto* light_gpu_data_ptr = reinterpret_cast<LightGpuData*>(light_data_ssbo_ptr_);
             std::int32_t dir_idx = 0;
             std::int32_t point_idx = directional_light_count;
             std::int32_t spot_idx = directional_light_count + point_light_count;
-            lights_view.each([&light_data, &dir_idx, &point_idx, &spot_idx](const engine_tranform_component_t& transform, const engine_light_component_t& light)
+            lights_view.each([&light_gpu_data_ptr, &dir_idx, &point_idx, &spot_idx](const engine_tranform_component_t& transform, const engine_light_component_t& light)
                 {
-                    LightGpuData* light_data_ptr = nullptr;;
+                    LightGpuData* light_data_ptr = light_gpu_data_ptr;
                     if (light.type == ENGINE_LIGHT_TYPE_DIRECTIONAL)
                     {
-                        light_data_ptr = &light_data.data[dir_idx++];
+                        light_data_ptr = &light_data_ptr[dir_idx++];
                         light_data_ptr->direction = glm::make_vec3(light.directional.direction);
                     }
                     else if (light.type == ENGINE_LIGHT_TYPE_POINT)
                     {
-                        light_data_ptr = &light_data.data[point_idx++];
+                        light_data_ptr = &light_data_ptr[point_idx++];
                         light_data_ptr->position = glm::make_vec3(transform.position);
                         light_data_ptr->constant = light.point.constant;
                         light_data_ptr->linear = light.point.linear;
@@ -562,7 +574,7 @@ engine_result_code_t engine::Scene::update(float dt)
                     }
                     else if (light.type == ENGINE_LIGHT_TYPE_SPOT)
                     {
-                        light_data_ptr = &light_data.data[spot_idx++];
+                        light_data_ptr = &light_data_ptr[spot_idx++];
                         light_data_ptr->position = glm::make_vec3(transform.position);
                         light_data_ptr->direction = glm::make_vec3(light.spot.direction);
                         light_data_ptr->cutoff = glm::cos(glm::radians(light.spot.cut_off));
@@ -576,8 +588,6 @@ engine_result_code_t engine::Scene::update(float dt)
                     light_data_ptr->diffuse = glm::make_vec3(light.intensity.diffuse);
                     light_data_ptr->specular = glm::make_vec3(light.intensity.specular);
                 });
-            light_data.unmap();
-            light_data_ssbo_.bind(2);
 
             assert(dir_idx == directional_light_count);
             assert(point_idx == directional_light_count + point_light_count);
@@ -671,7 +681,6 @@ engine_result_code_t engine::Scene::update(float dt)
 
             {
                 ENGINE_PROFILE_SECTION_N("skinned_mesh_renderer");
-
                 skinned_mesh_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_skinned_mesh_component_t& skinned_mesh_component, const engine_material_component_t& material_component)
                     {
                         if (skinned_mesh_component.disable)
@@ -761,21 +770,25 @@ engine_result_code_t engine::Scene::update(float dt)
 
 entt::entity engine::Scene::create_new_entity()
 {
+    ENGINE_PROFILE_SECTION;
     return entity_registry_.create();
 }
 
 void engine::Scene::destroy_entity(entt::entity entity)
 {
+    ENGINE_PROFILE_SECTION;
     entity_registry_.destroy(entity);
 }
 
 entt::runtime_view engine::Scene::create_runtime_view()
 {
+    ENGINE_PROFILE_SECTION;
     return entt::runtime_view{};
 }
 
 std::vector<entt::entity> engine::Scene::get_all_entities() const
 {
+    ENGINE_PROFILE_SECTION;
     std::vector<entt::entity> entities;
     for (const auto entity : entity_registry_.view<entt::entity>())
     {
@@ -789,21 +802,25 @@ std::vector<entt::entity> engine::Scene::get_all_entities() const
 
 void engine::Scene::set_physcis_gravity(std::array<float, 3> g)
 {
+    ENGINE_PROFILE_SECTION;
     physics_world_.set_gravity(g);
 }
 
 const std::vector<engine::CollisionDesc>& engine::Scene::get_physcis_collisions() const
 {
+    ENGINE_PROFILE_SECTION;
     return physics_world_.get_collisions();
 }
 
 engine_ray_hit_info_t engine::Scene::raycast_into_physics_world(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance)
 {
+    ENGINE_PROFILE_SECTION;
     return physics_world_.raycast(ray, ignore_list, max_distance);
 }
 
 bool engine::Scene::add_force_to_physics_entity(entt::entity entity, std::array<float, 3> force, engine_force_type_t type)
 {
+    ENGINE_PROFILE_SECTION;
     /*
     Deffered force application to the physics world. Beacuse at this point rigid body may not be created yet (i.e. force applied immeditly after creating object).
     */
@@ -830,6 +847,7 @@ bool engine::Scene::add_force_to_physics_entity(entt::entity entity, std::array<
 
 glm::vec3 engine::Scene::convert_world_point_to_screen_point(const glm::vec3& world_point, engine_game_object_t camera_go)
 {
+    ENGINE_PROFILE_SECTION;
     auto ret = glm::vec3(0.5f, 0.5f, 0.0f);
     const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(entt::entity(camera_go));
     const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(entt::entity(camera_go));
@@ -848,6 +866,7 @@ glm::vec3 engine::Scene::convert_world_point_to_screen_point(const glm::vec3& wo
 
 glm::vec3 engine::Scene::convert_screen_point_to_world_point(glm::vec3 screen_point, engine_game_object_t camera_go)
 {
+    ENGINE_PROFILE_SECTION;
     auto ret = glm::vec3(0.0f, 0.0f, 0.0f);
     const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(entt::entity(camera_go));
     const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(entt::entity(camera_go));
@@ -868,6 +887,7 @@ glm::vec3 engine::Scene::convert_screen_point_to_world_point(glm::vec3 screen_po
 
 glm::mat4 engine::Scene::get_camera_view(entt::entity camera_go)
 {
+    ENGINE_PROFILE_SECTION;
     const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(camera_go);
     const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(camera_go);
     const auto window_size = rdx_.get_window_size_in_pixels();
@@ -883,6 +903,7 @@ glm::mat4 engine::Scene::get_camera_view(entt::entity camera_go)
 
 glm::mat4 engine::Scene::get_camera_projection(entt::entity camera_go)
 {
+    ENGINE_PROFILE_SECTION;
     const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(camera_go);
     const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(camera_go);
     const auto window_size = rdx_.get_window_size_in_pixels();

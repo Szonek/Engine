@@ -2,6 +2,10 @@
 
 //#undef TRACY_ENABLE
 #include "tracy/Tracy.hpp"
+#include "tracy/TracyC.h"
+
+#define RMLUI_TRACY_PROFILING 1
+#include <RmlUi/Core/Profiling.h>
 
 namespace engine
 {
@@ -18,5 +22,6 @@ namespace engine
 #define ENGINE_PROFILE_LOG(text, size) TracyMessage(text, size)
 #define ENGINE_PROFILE_VALUE(text, value) TracyPlot(text, value)
 
-
+#define ENGINE_PROFILE_ZONE_CONTEXT_START(ctx, name, capture_callstack) TracyCZoneN(ctx, name, capture_callstack)
+#define ENGINE_PROFILE_ZONE_CONTEXT_END(ctx) TracyCZoneEnd(ctx)
 }

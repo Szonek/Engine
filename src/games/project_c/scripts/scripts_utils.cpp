@@ -1,3 +1,4 @@
+#include <profiler.h>
 #include "scripts_utils.h"
 
 #include <glm/glm.hpp>
@@ -24,6 +25,7 @@ void project_c::utils::delete_game_objects_hierarchy(engine_scene_t scene, engin
 
 std::vector<engine_game_object_t> project_c::utils::get_active_camera_game_objects(engine_scene_t scene)
 {
+    engine::ScopedProfiler prof("project_c::utils::get_active_camera_game_objects");
     engine_component_view_t cv{};
     engineCreateComponentView(&cv);
     engineSceneComponentViewAttachCameraComponent(scene, cv);
@@ -51,6 +53,7 @@ std::vector<engine_game_object_t> project_c::utils::get_active_camera_game_objec
 }
 std::vector<engine_game_object_t> project_c::utils::get_game_objects_with_name(engine_scene_t scene, std::string_view name)
 {
+    engine::ScopedProfiler prof("project_c::utils::get_game_objects_with_name");
     engine_component_view_t cv{};
     engineCreateComponentView(&cv);
     engineSceneComponentViewAttachNameComponent(scene, cv);

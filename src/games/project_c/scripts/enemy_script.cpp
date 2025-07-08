@@ -64,8 +64,14 @@ project_c::Enemy::~Enemy()
 
 void project_c::Enemy::update(float dt)
 {
+    engine::ScopedProfiler prof("project_c::Enemy::update");
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
+
+    if (player_go_ == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        player_go_ = utils::get_game_objects_with_name(scene, "player")[0];
+    }
 
     auto animation_controller = engineSceneGetAnimationControllerComponent(scene, go_).controller;
 
@@ -75,9 +81,8 @@ void project_c::Enemy::update(float dt)
     }
     debug_scripts_.clear();
 
-    const auto player = utils::get_game_objects_with_name(scene, "player")[0];
     auto tc = engineSceneGetTransformComponent(scene, go_);
-    auto ec = engineSceneGetTransformComponent(scene, player);
+    auto ec = engineSceneGetTransformComponent(scene, player_go_);
     const auto distance_to_player = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
 
     const auto my_node_idx =  nav_mesh_->get_node_idx({ tc.position[0], tc.position[1], tc.position[2] });

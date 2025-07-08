@@ -4,7 +4,7 @@
 #include "iscene.h"
 
 project_c::CameraScript::CameraScript(engine::IScene* my_scene)
-: BaseNode(my_scene, "camera")
+    : BaseNode(my_scene, "camera")
 {
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
@@ -30,6 +30,7 @@ project_c::CameraScript::CameraScript(engine::IScene* my_scene)
 
 void project_c::CameraScript::late_update(float dt)
 {
+    engine::ScopedProfiler profiler("project_c::CameraScript::late_update");
     const auto scene = my_scene_->get_handle();
     const auto app = my_scene_->get_app_handle();
     const auto mouse_coords = engineApplicationGetMouseCoords(app);

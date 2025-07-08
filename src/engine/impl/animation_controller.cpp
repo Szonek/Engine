@@ -13,7 +13,7 @@
 engine::AnimationController::AnimationController(Skin* skin)
     : skin_(skin)
 {
-    ENGINE_PROFILE_SECTION_N("engine::AnimationController::AnimationController(Skin* skin)");
+    ENGINE_PROFILE_SECTION;
     if (!skin_)
     {
         throw std::invalid_argument("Skin pointer cannot be null!");
@@ -23,7 +23,7 @@ engine::AnimationController::AnimationController(Skin* skin)
 
 bool engine::AnimationController::add_animation(const AnimationClipDesc& animation_clip)
 {
-    ENGINE_PROFILE_SECTION_N("engine::AnimationController::add_animation(const AnimationClipDesc& animation_clip)");
+    ENGINE_PROFILE_SECTION;
     ozz::animation::offline::RawAnimation raw_animation;
     raw_animation.name = animation_clip.name;
     raw_animation.duration = animation_clip.duration;
@@ -99,16 +99,32 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
     }
     const auto num_tracks = raw_animation.tracks.size();
     log::log(log::LogLevel::eTrace, std::format("Adding animation '{}' with {} tracks to controller.\n", raw_animation.name, num_tracks).c_str());
-
     ozz::animation::offline::AnimationBuilder builder;
-    ozz::unique_ptr<ozz::animation::Animation> animation = builder(raw_animation);
-    animations_.emplace(raw_animation.name, std::move(animation));
+
+    animation_desc desc{};
+    desc.layer_id = 0;
+    desc.animation = builder(raw_animation);
+
+    animations_.emplace(raw_animation.name, std::move(desc));
+    return true;
+}
+
+bool engine::AnimationController::set_layer_id(const std::string& animation_name, std::size_t layer_id)
+{
+    ENGINE_PROFILE_SECTION;
+    auto it = animations_.find(animation_name);
+    if (it == animations_.end())
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
+        return false;
+    }
+    it->second.layer_id = layer_id;
     return true;
 }
 
 void engine::AnimationController::update(float dt)
 {
-    ENGINE_PROFILE_SECTION_N("engine::AnimationController::update(float dt)");
+    ENGINE_PROFILE_SECTION;
     for (auto it = jobs_.begin(); it != jobs_.end(); )
     {
         const auto should_erase = it->second.update(dt, ozz::make_span(skin_->locals_));
@@ -125,27 +141,27 @@ void engine::AnimationController::update(float dt)
 
 bool engine::AnimationController::play(const std::string& animation_name)
 {
-    ENGINE_PROFILE_SECTION_N("engine::AnimationController::play(const std::string& animation_name)");
+    ENGINE_PROFILE_SECTION;
     auto it = animations_.find(animation_name);
     if (it == animations_.end())
     {
         log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
         return false;
     }
-    const auto& animation = it->second;
+    const auto& animation = it->second.animation;
     if (!animation)
     {
         log::log(log::LogLevel::eError, std::format("Animation '{}' is null.\n", animation_name).c_str());
         return false;
     }
-    const auto layer_id = 0;
+    const auto layer_id = it->second.layer_id;
     jobs_.insert_or_assign(layer_id, PlayBackJob(animation.get(), context_, skin_->skeleton_->num_joints()));
     return true;
 }
 
 bool engine::AnimationController::is_playing(const std::string& animation_name) const
 {
-    ENGINE_PROFILE_SECTION_N("engine::AnimationController::is_playing(const std::string& animation_name)");
+    ENGINE_PROFILE_SECTION;
     auto it = std::find_if(jobs_.begin(), jobs_.end(), [&animation_name](const auto& it)
         {
             return it.second.get_animation_name() == animation_name;
@@ -158,7 +174,7 @@ engine::PlayBackJob::PlayBackJob(ozz::animation::Animation* anim, ozz::animation
     : animation_(anim)
     , context_(&ctx)
 {
-    ENGINE_PROFILE_SECTION_N("engine::PlayBackJob::PlayBackJob(ozz::animation::Animation* anim, ozz::animation::SamplingJob::Context& ctx, std::size_t num_joints)");
+    ENGINE_PROFILE_SECTION;
     assert(animation_ != nullptr);
     assert(context_ != nullptr);
 }
@@ -166,7 +182,7 @@ engine::PlayBackJob::PlayBackJob(ozz::animation::Animation* anim, ozz::animation
 
 bool engine::PlayBackJob::update(float dt, ozz::span<ozz::math::SoaTransform> output)
 {
-    ENGINE_PROFILE_SECTION_N("engine::PlayBackJob::update(float dt, ozz::span<ozz::math::SoaTransform> output)");
+    ENGINE_PROFILE_SECTION;
     assert(animation_ != nullptr);
     assert(dt != 0.0f);
     time_ += (dt / 1000.0f); // time is in seconds

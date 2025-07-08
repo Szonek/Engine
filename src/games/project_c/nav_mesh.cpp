@@ -1,3 +1,4 @@
+#include <profiler.h>
 #include "nav_mesh.h"
 
 #include <queue>
@@ -34,12 +35,14 @@ void project_c::NavMesh::add_edge(NavMeshNodeIdx node_idx_1, NavMeshNodeIdx node
 
 const project_c::NavMeshNode& project_c::NavMesh::get_node(NavMeshNodeIdx idx) const
 {
+    engine::ScopedProfiler prof("project_c::NavMesh::get_node");
     assert(idx >= 0 && idx < nodes_.size() && "Invalid node index");
     return nodes_[idx];
 }
 
 project_c::NavMeshNodeIdx project_c::NavMesh::get_node_idx(const NavMeshPosition3D& pos) const
 {
+    engine::ScopedProfiler prof("project_c::NavMesh::get_node_idx");
     // iterate over all nodes and check if "pos" is in bounding box of Node
     for (const auto& node : nodes_)
     {
@@ -80,6 +83,7 @@ project_c::NavMesh::NavMesh()
 
 project_c::NavMeshPathFinder::PathFromStartToEnd project_c::NavMeshPathFinder::find_path(const NavMesh& mesh, NavMeshNodeIdx start, NavMeshNodeIdx end)
 {
+    engine::ScopedProfiler prof("project_c::NavMeshPathFinder::find_path");
     constexpr bool optimization_early_exit = true;
 
     PathFromStartToEnd ret{};

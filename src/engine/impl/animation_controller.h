@@ -35,14 +35,21 @@ public:
     void update(float dt);
 
     bool add_animation(const AnimationClipDesc& animation_clip);
-
+    bool set_layer_id(const std::string& animation_name, std::size_t layer_id);
     bool play(const std::string& animation_name);
     bool is_playing(const std::string& animation_name) const;
 
 private:
+    struct animation_desc
+    {
+        ozz::unique_ptr<ozz::animation::Animation> animation = nullptr;
+        std::size_t layer_id = 0;
+    };
+
+private:
     Skin* skin_ = nullptr;
     ozz::animation::SamplingJob::Context context_;
-    std::unordered_map<std::string, ozz::unique_ptr<ozz::animation::Animation>> animations_;
+    std::unordered_map<std::string, animation_desc> animations_;
 
     std::unordered_map<std::size_t, PlayBackJob> jobs_;
 };
