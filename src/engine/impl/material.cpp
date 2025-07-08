@@ -65,31 +65,13 @@ void engine::MaterialSkinnedGeometryLit::draw(const Geometry& geometry, const Dr
     shader_.set_texture_with_sampler("texture_diffuse", &ctx.texture_diffuse);
     shader_.set_texture_with_sampler("texture_specular", &ctx.texture_specular);
 
-
-
-
-#if 1
-
-    shader_.set_uniform_ui("ssbo_base_offset", offset_into_ssbo_);
-    offset_into_ssbo_  += ctx.bone_transforms.size();
-    if (offset_into_ssbo_ * sizeof(BonePacket) > skinning_matrices_ssbo_.get_size())
+    if (((offset_into_ssbo_ + ctx.bone_transforms.size()) * sizeof(BonePacket)) > skinning_matrices_ssbo_.get_size())
     {
         throw std::runtime_error("Not enough space for all the characters/bones in uniform buffer.");
     }
+    shader_.set_uniform_ui("ssbo_base_offset", offset_into_ssbo_);
     std::memcpy(skinning_mtx_gpu_ptr_ + offset_into_ssbo_, ctx.bone_transforms.data(), ctx.bone_transforms.size_bytes());
-
-#else
-    {
-        ENGINE_PROFILE_SECTION_N("MaterialSkinnedGeometryLit::draw::UpdatePerBoneUniform");
-        for (auto i = 0; i < ctx.bone_transforms.size(); i++)
-        {
-            const auto& per_bone_final_transform = ctx.bone_transforms[i];
-            const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";
-            shader_.set_uniform_mat_f4(uniform_name, { glm::value_ptr(per_bone_final_transform), sizeof(per_bone_final_transform) / sizeof(float) });
-        }
-    }
-#endif
-
+    offset_into_ssbo_ += ctx.bone_transforms.size();
     geometry.bind();
     geometry.draw(Geometry::Mode::eTriangles);
 }

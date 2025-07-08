@@ -43,6 +43,6 @@ private:
     States state_;
     AttackStateData attack_data_;
     std::vector<IScript*> debug_scripts_;
-    engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;  // cache the result, beacuse it's performance expensive to find player go with each frame
+    engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;  // cache the result, because  it's performance expensive to find player go with each frame
 };
 } //namespace project_c
