@@ -465,14 +465,24 @@ ENGINE_API engine_skin_t* engineApplicationCreateSkinFromDesc(engine_application
 ENGINE_API void engineApplicationDestroySkin(engine_application_t handle, engine_skin_t* skin);
 ENGINE_API const char* engineSkinGetName(const engine_skin_t* skin);
 
-// Animation
+// Animation - by default layer with 0 and weight 1.0 is created.
 ENGINE_API engine_animation_controller_t* engineApplicationCreateAnimationControllerWithSkin(engine_application_t handle, engine_skin_t* skin);
 ENGINE_API void engineApplicationDestroyAnimationController(engine_application_t handle, engine_animation_controller_t* controller);
 ENGINE_API bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc);
-ENGINE_API bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name);
-ENGINE_API bool engineAnimationControllerAnimationSetLayerId(engine_animation_controller_t* controller, const char* name, size_t layer_id);
 ENGINE_API bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name);
-
+ENGINE_API bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name, size_t layer_id);
+// Start fading in from current animation to 'new_animation' over 'duration' seconds
+ENGINE_API bool engineAnimationControllerAnimationCrossFade(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float duration);
+// layers
+typedef enum _engine_animation_layer_mode_t
+{
+    ENGINE_ANIMATION_LAYER_MODE_OVERRIDE,
+    ENGINE_ANIMATION_LAYER_MODE_ADDITIVE
+} engine_animation_layer_mode_t;
+ENGINE_API bool engineAnimationControllerAddLayer(engine_animation_controller_t* controller, size_t id, float default_weight);
+ENGINE_API bool engineAnimationControllerRemoveLayer(engine_animation_controller_t* controller, size_t id);
+ENGINE_API bool engineAnimationControllerLayerSetWeight(engine_animation_controller_t* controller, size_t id, float new_weight);
+ENGINE_API bool engineAnimationControllerSetMode(engine_animation_controller_t* controller, size_t id, engine_animation_layer_mode_t mode);
 /**
  * @struct engine_geometry_attribute_limit_t
  * @brief A structure representing the limits of a geometry attribute in the engine.

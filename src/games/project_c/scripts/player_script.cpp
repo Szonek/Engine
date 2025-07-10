@@ -279,9 +279,11 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     // add attack trigger
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(scene));
 
-    // animations layers id
+    // set animation layers
     auto animation_controller = engineSceneGetAnimationControllerComponent(scene, go_).controller;
-    engineAnimationControllerAnimationSetLayerId(animation_controller, attack_data_.get_animation_name(), 123);
+    engineAnimationControllerLayerSetWeight(animation_controller, LOCOMOTION_LAYER_ID, 0.1f); // default layer (lower body layer)
+    engineAnimationControllerAddLayer(animation_controller, COMBAT_LAYER_ID, 1.0f);     // upper body layer
+    engineAnimationControllerSetMode(animation_controller, COMBAT_LAYER_ID, ENGINE_ANIMATION_LAYER_MODE_ADDITIVE);
 }
 
 void project_c::Player::update(float dt)
@@ -371,67 +373,67 @@ void project_c::Player::update(float dt)
 
     if (state_ == States::IDLE)
     {
-        //engineAnimationControllerAnimationPlay(animation_controller, "Idle");
+        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Unarmed_Idle"))
+        {
+            engineAnimationControllerAnimationCrossFade(animation_controller, "Unarmed_Idle", LOCOMOTION_LAYER_ID, 0.15f);
+        }
     }
     if (check_state_bit(States::MOVE))
     {
         auto tc_move = engineSceneGetTransformComponent(scene, go_);
         const float speed_cooef = 0.0025f;
         const float speed = speed_cooef * dt; // ToDo: implement diagonal movement speed coef (use pitagoras(?))
-
-        if (button_W)  // up
-        {
-            tc_move.position[2] -= speed;
-        }
-        if (button_S) // down
-        {
-            tc_move.position[2] += speed;
-        }
-        if (button_A) // left
-        {
-            tc_move.position[0] -= speed;
-        }
-        if (button_D) // right
-        {
-            tc_move.position[0] += speed;
-        }
+       
+        // Compute intended movement direction based on input
+        glm::vec3 move_dir(0.0f);
+        if (button_W) move_dir.z -= 1.0f; // up
+        if (button_S) move_dir.z += 1.0f; // down
+        if (button_D) move_dir.x += 1.0f; // right
+        if (button_A) move_dir.x -= 1.0f; // left
 
         engineSceneUpdateTransformComponent(scene, go_, &tc_move);
 
-        // compute forard/left/right/backward direction based on mouse position
-        const glm::vec3 direction = glm::normalize(glm::vec3(hit_info.position.x, hit_info.position.y, hit_info.position.z) - glm::vec3(tc_move.position[0], tc_move.position[1], tc_move.position[2]));
-        // Compute the dot products
-        const float forward_dot = glm::dot(direction, forward);
-        const float right_dot = glm::dot(direction, right);
-        MoveStateData::Direction anim_move_dir = MoveStateData::Direction::eForward;
 
-        // Determine the direction
-        if (std::abs(forward_dot) > std::abs(right_dot)) {
-            if (forward_dot > 0) {
-                anim_move_dir = MoveStateData::Direction::eForward;
+        MoveStateData::Direction anim_move_dir = MoveStateData::Direction::eForward;
+        if (glm::length(move_dir) > 0.0f)
+        {
+            move_dir = glm::normalize(move_dir);
+
+            // 2. Move in world space
+            tc_move.position[0] += move_dir.x * speed;
+            tc_move.position[2] += move_dir.z * speed;
+            engineSceneUpdateTransformComponent(scene, go_, &tc_move);
+
+            // 3. Compute facing (character's forward in world space)
+            const auto tc = engineSceneGetTransformComponent(scene, go_);
+            glm::quat facing = glm::make_quat(tc.rotation);
+            glm::vec3 char_forward = facing * glm::vec3(0.0f, 0.0f, 1.0f);
+            glm::vec3 char_right = facing * glm::vec3(1.0f, 0.0f, 0.0f);
+
+            // 4. Project move_dir onto character's local axes to determine anim direction
+            float forward_dot = glm::dot(move_dir, glm::normalize(char_forward));
+            float right_dot = glm::dot(move_dir, glm::normalize(char_right));
+
+            if (std::abs(forward_dot) > std::abs(right_dot))
+            {
+                anim_move_dir = (forward_dot > 0) ? MoveStateData::Direction::eForward : MoveStateData::Direction::eBackward;
             }
-            else {
-                anim_move_dir = MoveStateData::Direction::eBackward;
-            }
-        }
-        else {
-            if (right_dot > 0) {
-                anim_move_dir = MoveStateData::Direction::eRight;
-            }
-            else {
-                anim_move_dir = MoveStateData::Direction::eLeft;
+            else 
+            {
+                anim_move_dir = (right_dot > 0) ? MoveStateData::Direction::eRight : MoveStateData::Direction::eLeft;
             }
         }
 
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, move_data_.get_animation_name(anim_move_dir)))
         {
-            engineAnimationControllerAnimationPlay(animation_controller, move_data_.get_animation_name(anim_move_dir));
+            engineAnimationControllerAnimationCrossFade(animation_controller, move_data_.get_animation_name(anim_move_dir), LOCOMOTION_LAYER_ID, 0.2f);
         }
+
         clear_state_bit(States::MOVE);
     }
     if (check_state_bit(States::TRIGGER_ATTACK))
     {
-        engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name());
+        engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name(), COMBAT_LAYER_ID);
         attack_trigger_->activate();
         clear_state_bit(States::TRIGGER_ATTACK);
         enable_state_bit(States::ATTACK);
@@ -440,6 +442,7 @@ void project_c::Player::update(float dt)
     {
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name()))
         {
+            engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name());
             clear_state_bit(States::ATTACK);
             attack_data_ = {};
         }
@@ -463,4 +466,43 @@ void project_c::Player::add_coin(std::uint64_t amount)
     coins_ += amount;
     // for now only log, but we should update UI
     engineLog(std::format("Player coins: {}\n", coins_).c_str());
+}
+
+const char* project_c::Player::MoveStateData::direction_to_string(Direction dir) const
+{
+    switch (dir) 
+    {
+    case MoveStateData::Direction::eForward:  return "Forward";
+    case MoveStateData::Direction::eBackward: return "Backward";
+    case MoveStateData::Direction::eLeft:     return "Left";
+    case MoveStateData::Direction::eRight:    return "Right";
+    default:                                  return "Unknown";
+    }
+}
+
+const char* project_c::Player::MoveStateData::get_animation_name(Direction dir) const
+{
+    //engineLog(std::format("anim_move_dir: {}\n", direction_to_string(dir)).c_str());
+    switch (dir)
+    {
+    case Direction::eForward:
+        return "Running_A";
+    case Direction::eBackward:
+        return "Running_A";
+    case Direction::eLeft:
+        return "Running_Strafe_Left";
+    case Direction::eRight:
+        return "Running_Strafe_Right";
+    default:
+        assert(!"Unknown move direction for player!");
+    }
+    return "";
+}
+
+const char* project_c::Player::AttackStateData::get_animation_name() const
+{
+    //return "1H_Melee_Attack_Chop";
+    //return "1H_Melee_Attack_Slice_Horizontal";
+    //return "1H_Melee_Attack_Stab";
+    return "1H_Melee_Attack_Slice_Diagonal";
 }

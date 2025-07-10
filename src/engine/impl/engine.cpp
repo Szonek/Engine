@@ -15,7 +15,7 @@
 
 #include <utility>
 
-#include <fmt/format.h>
+#include <format>
 
 namespace
 {
@@ -1688,25 +1688,26 @@ bool engineAnimationControllerAddAnimation(engine_animation_controller_t* contro
     return typed_controller->add_animation(*typed_desc);
 }
 
-bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name)
+bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name, size_t layer_id)
 {
     if (!controller || !name)
     {
         return false;
     }
     auto typed_controller = api_cast(controller);
-    return typed_controller->play(name);
+    return typed_controller->play(name, layer_id);
 }
 
-bool engineAnimationControllerAnimationSetLayerId(engine_animation_controller_t* controller, const char* name, size_t layer_id)
+bool engineAnimationControllerAnimationCrossFade(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float duration)
 {
-    if (!controller || !name)
+    if (!controller || !new_animation_name)
     {
         return false;
     }
     auto typed_controller = api_cast(controller);
-    return typed_controller->set_layer_id(name, layer_id);
+    return typed_controller->cross_fade_to(new_animation_name, layer_id, std::max(0.0f, duration));
 }
+
 
 bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name)
 {
@@ -1715,5 +1716,64 @@ bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* 
         return false;
     }
     auto typed_controller = api_cast(controller);
+
     return typed_controller->is_playing(name);
+}
+
+bool engineAnimationControllerAddLayer(engine_animation_controller_t* controller, size_t id, float default_weight)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->add_layer(id, default_weight);
+}
+
+bool engineAnimationControllerRemoveLayer(engine_animation_controller_t* controller, size_t id)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->remove_layer(id);
+}
+
+bool engineAnimationControllerLayerSetWeight(engine_animation_controller_t* controller, size_t id, float new_weight)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->set_layer_weight(id, new_weight);
+}
+
+bool engineAnimationControllerSetMode(engine_animation_controller_t* controller, size_t id, engine_animation_layer_mode_t mode)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    engine::LayerBlendMode blend_mode = engine::LayerBlendMode::eOverride;
+    switch (mode)
+    {
+    case ENGINE_ANIMATION_LAYER_MODE_OVERRIDE:
+    {
+        blend_mode = engine::LayerBlendMode::eOverride;
+        break;
+    }
+    case ENGINE_ANIMATION_LAYER_MODE_ADDITIVE:
+    {
+        blend_mode = engine::LayerBlendMode::eAdditive;
+        break;
+    }
+    default:
+    {
+        engine::log::log(engine::log::LogLevel::eError, std::format("Unrecognized blend mode: {} for layer id: {}", (std::int32_t)mode, id));
+    }
+    }
+    return typed_controller->set_layer_mode(id, blend_mode);
 }
