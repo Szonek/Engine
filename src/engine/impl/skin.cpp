@@ -7,9 +7,9 @@
 #include "ozz/animation/offline/raw_animation.h"
 #include "ozz/animation/offline/animation_builder.h"
 #include "ozz/animation/offline/skeleton_builder.h"
-#include "ozz/animation/runtime/local_to_model_job.h"
 #include "ozz/animation/runtime/animation_utils.h"
 #include "ozz/animation/runtime/skeleton_utils.h"
+#include "ozz/animation/runtime/local_to_model_job.h"
 #include "ozz/base/maths/transform.h"
 #include <stdexcept>
 #include <format>
@@ -105,17 +105,6 @@ glm::mat4 engine::Skin::get_model_matrix_for_joint(std::string_view joint_name) 
 void engine::Skin::compute_skinning_matrices()
 {
     ENGINE_PROFILE_SECTION_N("engine::Skin::compute_skinning_matrices()");
-    ozz::animation::LocalToModelJob ltm_job{};
-    ltm_job.skeleton = skeleton_.get();
-    ltm_job.input = ozz::make_span(locals_);
-    ltm_job.output = ozz::make_span(models_);
-
-    if (!ltm_job.Run())
-    {
-        log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", name_).c_str());
-        throw std::runtime_error("Failed to convert local to model space for skin.");
-    }
-
     
     skinning_matrices_.resize(skeleton_->num_joints());
     for (int i = 0; i < skeleton_->num_joints(); ++i)
