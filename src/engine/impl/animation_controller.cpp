@@ -6,6 +6,7 @@
 #include "ozz/animation/offline/animation_builder.h"
 #include "ozz/animation/offline/raw_animation.h"
 #include "ozz/animation/runtime/skeleton_utils.h"
+#include "ozz/animation/runtime/local_to_model_job.h"
 
 #include <stdexcept>
 #include <format>
@@ -125,6 +126,7 @@ bool engine::AnimationController::set_layer_id(const std::string& animation_name
 void engine::AnimationController::update(float dt)
 {
     ENGINE_PROFILE_SECTION;
+    const auto run_ltm_job = !jobs_.empty();
     for (auto it = jobs_.begin(); it != jobs_.end(); )
     {
         const auto should_erase = it->second.update(dt, ozz::make_span(skin_->locals_));
@@ -135,6 +137,19 @@ void engine::AnimationController::update(float dt)
         else 
         {
             ++it;
+        }
+    }
+    if (run_ltm_job)
+    {
+        ozz::animation::LocalToModelJob ltm_job{};
+        ltm_job.skeleton = skin_->skeleton_.get();
+        ltm_job.input = ozz::make_span(skin_->locals_);
+        ltm_job.output = ozz::make_span(skin_->models_);
+
+        if (!ltm_job.Run())
+        {
+            log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", skin_->get_name()).c_str());
+            throw std::runtime_error("Failed to convert local to model space for skin.");
         }
     }
 }
