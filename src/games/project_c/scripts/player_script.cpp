@@ -279,9 +279,6 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     // add attack trigger
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(scene));
 
-    // animations layers id
-    auto animation_controller = engineSceneGetAnimationControllerComponent(scene, go_).controller;
-    engineAnimationControllerAnimationSetLayerId(animation_controller, attack_data_.get_animation_name(), 123);
 }
 
 void project_c::Player::update(float dt)
@@ -371,7 +368,10 @@ void project_c::Player::update(float dt)
 
     if (state_ == States::IDLE)
     {
-        //engineAnimationControllerAnimationPlay(animation_controller, "Idle");
+        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Idle"))
+        {
+            engineAnimationControllerAnimationPlay(animation_controller, "Idle", 0, 0.5f);
+        }
     }
     if (check_state_bit(States::MOVE))
     {
@@ -425,13 +425,13 @@ void project_c::Player::update(float dt)
 
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, move_data_.get_animation_name(anim_move_dir)))
         {
-            engineAnimationControllerAnimationPlay(animation_controller, move_data_.get_animation_name(anim_move_dir));
+            engineAnimationControllerAnimationPlay(animation_controller, move_data_.get_animation_name(anim_move_dir), 0, 0.5f);
         }
         clear_state_bit(States::MOVE);
     }
     if (check_state_bit(States::TRIGGER_ATTACK))
     {
-        engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name());
+        engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name(), 0, 0.5f);
         attack_trigger_->activate();
         clear_state_bit(States::TRIGGER_ATTACK);
         enable_state_bit(States::ATTACK);

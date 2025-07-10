@@ -1688,25 +1688,26 @@ bool engineAnimationControllerAddAnimation(engine_animation_controller_t* contro
     return typed_controller->add_animation(*typed_desc);
 }
 
-bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name)
+bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name, size_t layer_id, float weight)
 {
     if (!controller || !name)
     {
         return false;
     }
     auto typed_controller = api_cast(controller);
-    return typed_controller->play(name);
+    return typed_controller->play(name, layer_id, weight);
 }
 
-bool engineAnimationControllerAnimationSetLayerId(engine_animation_controller_t* controller, const char* name, size_t layer_id)
+bool engineAnimationControllerBlendTo(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float weight, float duration)
 {
-    if (!controller || !name)
+    if (!controller || !new_animation_name)
     {
         return false;
     }
     auto typed_controller = api_cast(controller);
-    return typed_controller->set_layer_id(name, layer_id);
+    return typed_controller->blend_to(new_animation_name, layer_id, weight, duration);
 }
+
 
 bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name)
 {

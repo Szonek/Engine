@@ -469,9 +469,10 @@ ENGINE_API const char* engineSkinGetName(const engine_skin_t* skin);
 ENGINE_API engine_animation_controller_t* engineApplicationCreateAnimationControllerWithSkin(engine_application_t handle, engine_skin_t* skin);
 ENGINE_API void engineApplicationDestroyAnimationController(engine_application_t handle, engine_animation_controller_t* controller);
 ENGINE_API bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc);
-ENGINE_API bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name);
-ENGINE_API bool engineAnimationControllerAnimationSetLayerId(engine_animation_controller_t* controller, const char* name, size_t layer_id);
 ENGINE_API bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name);
+ENGINE_API bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name, size_t layer_id, float weight);
+// Start blending from current animation to 'new_animation' over 'duration' seconds
+ENGINE_API bool engineAnimationControllerBlendTo(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float weight, float duration);
 
 /**
  * @struct engine_geometry_attribute_limit_t

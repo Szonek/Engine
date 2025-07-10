@@ -19,7 +19,6 @@ engine::AnimationController::AnimationController(Skin* skin)
     {
         throw std::invalid_argument("Skin pointer cannot be null!");
     }
-    context_.Resize(skin_->skeleton_->num_joints());
 }
 
 bool engine::AnimationController::add_animation(const AnimationClipDesc& animation_clip)
@@ -101,25 +100,7 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
     const auto num_tracks = raw_animation.tracks.size();
     log::log(log::LogLevel::eTrace, std::format("Adding animation '{}' with {} tracks to controller.\n", raw_animation.name, num_tracks).c_str());
     ozz::animation::offline::AnimationBuilder builder;
-
-    animation_desc desc{};
-    desc.layer_id = 0;
-    desc.animation = builder(raw_animation);
-
-    animations_.emplace(raw_animation.name, std::move(desc));
-    return true;
-}
-
-bool engine::AnimationController::set_layer_id(const std::string& animation_name, std::size_t layer_id)
-{
-    ENGINE_PROFILE_SECTION;
-    auto it = animations_.find(animation_name);
-    if (it == animations_.end())
-    {
-        log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
-        return false;
-    }
-    it->second.layer_id = layer_id;
+    animations_.emplace(raw_animation.name, builder(raw_animation));
     return true;
 }
 
@@ -154,7 +135,7 @@ void engine::AnimationController::update(float dt)
     }
 }
 
-bool engine::AnimationController::play(const std::string& animation_name)
+bool engine::AnimationController::play(const std::string& animation_name, std::size_t layer_id, float weight)
 {
     ENGINE_PROFILE_SECTION;
     auto it = animations_.find(animation_name);
@@ -163,15 +144,32 @@ bool engine::AnimationController::play(const std::string& animation_name)
         log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
         return false;
     }
-    const auto& animation = it->second.animation;
+    const auto& animation = it->second;
     if (!animation)
     {
         log::log(log::LogLevel::eError, std::format("Animation '{}' is null.\n", animation_name).c_str());
         return false;
     }
-    const auto layer_id = it->second.layer_id;
-    jobs_.insert_or_assign(layer_id, PlayBackJob(animation.get(), context_, skin_->skeleton_->num_joints()));
+    jobs_.insert_or_assign(layer_id, PlayBackJob(animation.get(), skin_->skeleton_->num_joints(), weight));
     return true;
+}
+
+bool engine::AnimationController::blend_to(const std::string& animation_name, std::size_t layer_id, float weight, float duration)
+{
+    ENGINE_PROFILE_SECTION;
+    auto it = animations_.find(animation_name);
+    if (it == animations_.end())
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
+        return false;
+    }
+    const auto& animation = it->second;
+    if (!animation)
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' is null.\n", animation_name).c_str());
+        return false;
+    }
+    return false;
 }
 
 bool engine::AnimationController::is_playing(const std::string& animation_name) const
@@ -185,13 +183,13 @@ bool engine::AnimationController::is_playing(const std::string& animation_name) 
     return it != jobs_.end();
 }
 
-engine::PlayBackJob::PlayBackJob(ozz::animation::Animation* anim, ozz::animation::SamplingJob::Context& ctx, std::size_t num_joints)
+engine::PlayBackJob::PlayBackJob(ozz::animation::Animation* anim, std::size_t num_joints, float weight)
     : animation_(anim)
-    , context_(&ctx)
+    , context_(ozz::make_unique<ozz::animation::SamplingJob::Context>(num_joints))
+    , weight(weight)
 {
     ENGINE_PROFILE_SECTION;
     assert(animation_ != nullptr);
-    assert(context_ != nullptr);
 }
 
 
@@ -204,7 +202,7 @@ bool engine::PlayBackJob::update(float dt, ozz::span<ozz::math::SoaTransform> ou
     const auto time_ratio = std::min(1.0f, time_ / animation_->duration());
     ozz::animation::SamplingJob sampling_job;
     sampling_job.animation = animation_;
-    sampling_job.context = context_;
+    sampling_job.context = context_.get();
     sampling_job.ratio = time_ratio;
     sampling_job.output = output;
     if (!sampling_job.Run()) 
