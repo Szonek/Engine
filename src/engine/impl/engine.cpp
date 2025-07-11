@@ -1793,3 +1793,179 @@ bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* 
     auto typed_controller = api_cast(controller);
     return typed_controller->is_playing(name);
 }
+
+// Additional component functions for new API
+engine_skin_component_t engineAddSkinComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_skin_component_t>(game_object);
+}
+
+engine_skin_component_t engineGetSkinComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_skin_component_t>(game_object);
+}
+
+void engineUpdateSkinComponent(engine_game_object_t game_object, const engine_skin_component_t* comp)
+{
+    update_component(game_object, comp);
+}
+
+void engineRemoveSkinComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_skin_component_t>(game_object);
+}
+
+bool engineHasSkinComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_skin_component_t>(game_object);
+}
+
+engine_mesh_component_t engineAddMeshComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_mesh_component_t>(game_object);
+}
+
+engine_mesh_component_t engineGetMeshComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_mesh_component_t>(game_object);
+}
+
+void engineUpdateMeshComponent(engine_game_object_t game_object, const engine_mesh_component_t* comp)
+{
+    update_component(game_object, comp);
+}
+
+void engineRemoveMeshComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_mesh_component_t>(game_object);
+}
+
+bool engineHasMeshComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_mesh_component_t>(game_object);
+}
+
+engine_skinned_mesh_component_t engineAddSkinnedMeshComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_skinned_mesh_component_t>(game_object);
+}
+
+engine_skinned_mesh_component_t engineGetSkinnedMeshComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_skinned_mesh_component_t>(game_object);
+}
+
+void engineUpdateSkinnedMeshComponent(engine_game_object_t game_object, const engine_skinned_mesh_component_t* comp)
+{
+    update_component(game_object, comp);
+}
+
+void engineRemoveSkinnedMeshComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_skinned_mesh_component_t>(game_object);
+}
+
+bool engineHasSkinnedMeshComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_skinned_mesh_component_t>(game_object);
+}
+
+engine_material_component_t engineAddMaterialComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_material_component_t>(game_object);
+}
+
+engine_material_component_t engineGetMaterialComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_material_component_t>(game_object);
+}
+
+void engineUpdateMaterialComponent(engine_game_object_t game_object, const engine_material_component_t* comp)
+{
+    update_component(game_object, comp);
+}
+
+void engineRemoveMaterialComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_material_component_t>(game_object);
+}
+
+bool engineHasMaterialComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_material_component_t>(game_object);
+}
+
+engine_animation_controller_component_t engineAddAnimationControllerComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_animation_controller_component_t>(game_object);
+}
+
+engine_animation_controller_component_t engineGetAnimationControllerComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_animation_controller_component_t>(game_object);
+}
+
+void engineUpdateAnimationControllerComponent(engine_game_object_t game_object, const engine_animation_controller_component_t* comp)
+{
+    update_component(game_object, comp);
+}
+
+void engineRemoveAnimationControllerComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_animation_controller_component_t>(game_object);
+}
+
+bool engineHasAnimationControllerComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_animation_controller_component_t>(game_object);
+}
+
+engine_joint_attachment_component_t engineAddJointAttachmentComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_joint_attachment_component_t>(game_object);
+}
+
+engine_joint_attachment_component_t engineGetJointAttachmentComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_joint_attachment_component_t>(game_object);
+}
+
+void engineUpdateJointAttachmentComponent(engine_game_object_t game_object, const engine_joint_attachment_component_t* comp)
+{
+    update_component(game_object, comp);
+}
+
+void engineRemoveJointAttachmentComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_joint_attachment_component_t>(game_object);
+}
+
+bool engineHasJointAttachmentComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_joint_attachment_component_t>(game_object);
+}
+
+engine_parent_component_t engineAddParentComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_parent_component_t>(game_object);
+}
+
+engine_parent_component_t engineGetParentComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_parent_component_t>(game_object);
+}
+
+void engineUpdateParentComponent(engine_game_object_t game_object, const engine_parent_component_t* comp)
+{
+    update_component(game_object, comp);
+}
+
+void engineRemoveParentComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_parent_component_t>(game_object);
+}
+
+bool engineHasParentComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_parent_component_t>(game_object);
+}

@@ -216,9 +216,9 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             // node with the same name as skin will be owner of the skin
             if (skin_handle)
             {
-                auto sc = engineSceneAddSkinComponent(scene, go);
+                auto sc = engineAddSkinComponent(go);
                 sc.skin = skin_handle;
-                engineSceneUpdateSkinComponent(scene, go, &sc);
+                engineUpdateSkinComponent(go, &sc);
                 log(std::format("\t[{}] has added skin component with name: {}\n", go, skin_name));
                 skins_.push_back(skin_handle);
             }
@@ -226,20 +226,20 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             // and owner of the animation controller
             if (anim_controller)
             {
-                auto ac = engineSceneAddAnimationControllerComponent(scene, go);
+                auto ac = engineAddAnimationControllerComponent(go);
                 ac.controller = anim_controller;
-                engineSceneUpdateAnimationControllerComponent(scene, go, &ac);
+                engineUpdateAnimationControllerComponent(go, &ac);
                 log(std::format("\t[{}] has added animation controller component with name: {}\n", go, skin_name));
             }
         }
 
         // transform
         {
-            auto tc = engineSceneAddTransformComponent(scene, go);
+            auto tc = engineAddTransformComponent(go);
             set_c_array(tc.position, engineModelNodeDescGetTranslation(node_desc));
             set_c_array(tc.rotation, engineModelNodeDescGetRotationQuaternion(node_desc));
             set_c_array(tc.scale, engineModelNodeDescGetScale(node_desc));
-            engineSceneUpdateTransformComponent(scene, go, &tc);
+            engineUpdateTransformComponent(go, &tc);
             log(std::format("\t[{}] has added transform component\n", go));
         }
 
@@ -254,17 +254,17 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
                     engineLog("Failed creating skin for loaded model. Exiting!\n");
                     assert(false);
                 }
-                auto smc = engineSceneAddSkinnedMeshComponent(scene, go);
+                auto smc = engineAddSkinnedMeshComponent(go);
                 smc.geometry = geometries_.at(geo_index);
                 smc.skin = skin_handle;
-                engineSceneUpdateSkinnedMeshComponent(scene, go, &smc);
+                engineUpdateSkinnedMeshComponent(go, &smc);
                 log(std::format("\t[{}] has added skinned mesh component with geometry index: {} and skin index: {}\n", go, geo_index, skin_index));
             }
             else
             {
-                auto mc = engineSceneAddMeshComponent(scene, go);
+                auto mc = engineAddMeshComponent(go);
                 mc.geometry = geometries_.at(geo_index);
-                engineSceneUpdateMeshComponent(scene, go, &mc);
+                engineUpdateMeshComponent(go, &mc);
                 log(std::format("\t[{}] has added mesh component with geometry index: {}\n", go, geo_index));
             }
 
@@ -273,9 +273,9 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         const auto mat_index = engineModelNodeDescGetMaterialIndex(node_desc);
         if (mat_index != -1)
         {
-            auto material = engineSceneAddMaterialComponent(scene, go);
+            auto material = engineAddMaterialComponent(go);
             material = materials_.at(mat_index);
-            engineSceneUpdateMaterialComponent(scene, go, &material);
+            engineUpdateMaterialComponent(go, &material);
             log(std::format("\t[{}] added material component with material idx: {}\n", go, mat_index));
         }
 
@@ -294,7 +294,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         {
             const auto joint_name = engineSkinDescGetJointName(skin_desc, j);
             const auto go = utils::get_game_objects_with_name(scene, joint_name).at(0);
-            engineSceneDestroyGameObject(scene, go);
+            engineDestroyGameObject(go);
 
             const auto model_node_desc = engineModelDescGetNodeDescByName(model_desc_, joint_name);
             node_id_to_game_object.erase(engineModelNodeDescGetIndex(model_node_desc));
@@ -307,18 +307,18 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
                 if (child_has_geometry)
                 {
                     const auto child_go = node_id_to_game_object.at(engineModelNodeDescGetIndex(child));
-                    auto jac = engineSceneAddJointAttachmentComponent(scene, child_go);
+                    auto jac = engineAddJointAttachmentComponent(child_go);
                     assert(skin_handle != nullptr);
                     jac.skin = skin_handle;
                     engineStringSet(jac.joint_name, joint_name);
-                    engineSceneUpdateJointAttachmentComponent(scene, child_go, &jac);
+                    engineUpdateJointAttachmentComponent(child_go, &jac);
 
                     // reset transform (it is not needed, since it will be picked from joint.
-                    auto tc = engineSceneGetTransformComponent(scene, child_go);
+                    auto tc = engineGetTransformComponent(child_go);
                     set_c_array(tc.position, engine_fvec3_t{ 0.0f, 0.0f, 0.0f});
                     set_c_array(tc.scale, engine_fvec3_t{ 1.0f, 1.0f, 1.0f });
                     set_c_array(tc.rotation, engine_fvec4_t{ 0.0f, 0.0f, 0.0f, 1.0f });
-                    engineSceneUpdateTransformComponent(scene, child_go, &tc);
+                    engineUpdateTransformComponent(child_go, &tc);
                 }
             }
         }
@@ -332,9 +332,9 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         {
             continue;
         }
-        auto pc = engineSceneAddParentComponent(scene, go);
+        auto pc = engineAddParentComponent(go);
         pc.parent = ret.go;
-        engineSceneUpdateParentComponent(scene, go, &pc);
+        engineUpdateParentComponent(go, &pc);
     }
 
     return ret;
