@@ -85,10 +85,8 @@ public:
     engine_scene_t& get_handle() { return scene_; }
     engine_application_t get_app_handle();
 
-    virtual void activate();
-    virtual void deactivate();
     virtual bool is_active() const;
-    virtual void set_active(bool active);
+    virtual void set_active();
     virtual engine_result_code_t update(float dt);
     
     UserEventSystem* get_user_event_sysmte() { return &user_event_system_; }
@@ -110,6 +108,5 @@ protected:
     ScriptsQueue scripts_register_queue_{};
     ScriptsQueue scripts_unregister_queue_{};
     UserEventSystem user_event_system_;
-    bool is_activate_ = true;
 };
 }

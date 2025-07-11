@@ -130,27 +130,14 @@ engine_application_t engine::IScene::get_app_handle()
     return app_->get_handle();
 }
 
-void engine::IScene::activate()
-{
-    is_activate_ = true;
-}
-
-void engine::IScene::deactivate()
-{
-    is_activate_ = false;
-}
-
 bool engine::IScene::is_active() const
 {
-    return is_activate_;
+    return engineGetActiveScene() == scene_;
 }
 
-void engine::IScene::set_active(bool active)
+void engine::IScene::set_active()
 {
-    if (active)
-    {
-        engineSetActiveScene(scene_);
-    }
+    engineSetActiveScene(scene_);
 }
 
 engine_result_code_t engine::IScene::update(float dt)

@@ -46,21 +46,12 @@ public:
     TestScene(engine::IApplication* app);
     ~TestScene();
 
-    void activate()
+    void set_active() override
     {
-        IScene::activate();
+        IScene::set_active();
         if (ui_data_.doc)
         {
             engineUiDocumentShow(ui_data_.doc);
-        }
-    }
-
-    void deactivate()
-    {
-        IScene::deactivate();
-        if (ui_data_.doc)
-        {
-            engineUiDocumentHide(ui_data_.doc);
         }
     }
 
