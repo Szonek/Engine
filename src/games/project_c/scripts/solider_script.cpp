@@ -14,29 +14,27 @@
 project_c::Weapon::Weapon(engine::IScene* my_scene)
     : BaseNode(my_scene, "weapon-sword")
 {
-    const auto scene = my_scene_->get_handle();
-    const auto app = my_scene_->get_app_handle();
 
     // transform
-    auto tc = engineSceneAddTransformComponent(scene, go_);
+    auto tc = engineAddTransformComponent(go_);
     tc.position[0] = 0.0f;
     tc.position[1] = 0.0f;
     tc.position[2] = 0.0f;
-    engineSceneUpdateTransformComponent(scene, go_, &tc);
+    engineUpdateTransformComponent(go_, &tc);
 
     // mesh
-    auto mc = engineSceneAddMeshComponent(scene, go_);
-    mc.geometry = engineApplicationGetGeometryByName(app, "Cylinder.404");
+    auto mc = engineAddMeshComponent(go_);
+    mc.geometry = engineGetGeometryByName("Cylinder.404");
     assert(mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
-    engineSceneUpdateMeshComponent(scene, go_, &mc);
+    engineUpdateMeshComponent(go_, &mc);
 
     // material
-    auto matc = engineSceneAddMaterialComponent(scene, go_);
+    auto matc = engineAddMaterialComponent(go_);
     set_c_array(matc.data.pong.diffuse_color, std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f});
-    engineSceneUpdateMaterialComponent(scene, go_, &matc);
+    engineUpdateMaterialComponent(go_, &matc);
 
     // physcis
-    auto cc = engineSceneAddColliderComponent(scene, go_);
+    auto cc = engineAddColliderComponent(go_);
     cc.bounciness = 0.35f;
     cc.friction_static = 0.9f;
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
@@ -47,7 +45,7 @@ project_c::Weapon::Weapon(engine::IScene* my_scene)
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
     // ToDo: box sie could be smaller and only increase box size when item dropped on the ground, so it do not fly trhoguh ground
     set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.05f, 0.20f, 0.04f});
-    engineSceneUpdateColliderComponent(scene, go_, &cc);
+    engineUpdateColliderComponent(go_, &cc);
 }
 
 project_c::Weapon::~Weapon()
@@ -56,18 +54,17 @@ project_c::Weapon::~Weapon()
 
 void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::optional<glm::vec3> position = std::nullopt, std::optional<glm::quat> rotation = std::nullopt)
 {
-    const auto scene = my_scene_->get_handle();
     // parent to hand
     if (parent != ENGINE_INVALID_GAME_OBJECT_ID)
     {
-        auto pc = engineSceneAddParentComponent(scene, go_);
+        auto pc = engineAddParentComponent(go_);
         pc.parent = parent;
-        engineSceneUpdateParentComponent(scene, go_, &pc);
+        engineUpdateParentComponent(go_, &pc);
     }
 
     if (position.has_value() || rotation.has_value())
     {
-        auto tc = engineSceneGetTransformComponent(scene, go_);
+        auto tc = engineGetTransformComponent(go_);
 
         if (position.has_value())
         {
@@ -77,36 +74,35 @@ void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::
         {
             std::memcpy(tc.rotation, glm::value_ptr(rotation.value()), sizeof(tc.rotation));
         }     
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
+        engineUpdateTransformComponent(go_, &tc);
     }
 }
 
 void project_c::Weapon::drop_on_ground(glm::vec3 position)
 {
-    const auto scene = my_scene_->get_handle();
 
     // set posion
-    auto tc = engineSceneGetTransformComponent(scene, go_);
+    auto tc = engineGetTransformComponent(go_);
     tc.position[0] = position.x;
     tc.position[1] = position.y + 2.0f;
     tc.position[2] = position.z;
-    engineSceneUpdateTransformComponent(scene, go_, &tc);
+    engineUpdateTransformComponent(go_, &tc);
 
     // remove parent
-    if (engineSceneHasParentComponent(scene, go_))
+    if (engineHasParentComponent(go_))
     {
-        engineSceneRemoveParentComponent(scene, go_);
+        engineRemoveParentComponent(go_);
     }
 
     // add rigid body component
-    auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+    auto rbc = engineAddRigidBodyComponent(go_);
     rbc.mass = 1000.0f;
-    engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+    engineUpdateRigidBodyComponent(go_, &rbc);
 
     // update collider to not be trigger, so it will stop on collision
-    auto cc = engineSceneGetColliderComponent(scene, go_);
+    auto cc = engineGetColliderComponent(go_);
     cc.is_trigger = false;
-    engineSceneUpdateColliderComponent(scene, go_, &cc);
+    engineUpdateColliderComponent(go_, &cc);
 
 
         //if (engineApplicationIsMouseButtonDown(my_scene_->get_app_handle(), ENGINE_MOUSE_BUTTON_LEFT))
@@ -123,12 +119,12 @@ void project_c::Weapon::on_collision(const collision_t& info)
     {
         // remove rigid body and enalbe is trigger
         // check if has rigidbody (remove once), beacuse there can be multiple collision calls in single frame
-        if (engineSceneHasRigidBodyComponent(my_scene_->get_handle(), go_))
+        if (engineHasRigidBodyComponent(go_))
         {
-            engineSceneRemoveRigidBodyComponent(my_scene_->get_handle(), go_);
-            auto cc = engineSceneGetColliderComponent(my_scene_->get_handle(), go_);
+            engineRemoveRigidBodyComponent(go_);
+            auto cc = engineGetColliderComponent(go_);
             cc.is_trigger = true;
-            engineSceneUpdateColliderComponent(my_scene_->get_handle(), go_, &cc);
+            engineUpdateColliderComponent(go_, &cc);
         }
     }
 }
@@ -138,7 +134,7 @@ void project_c::Weapon::update(float dt)
     auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
     const auto scene = typed_scene->get_handle();
 
-    if (!engineSceneHasParentComponent(scene, go_))
+    if (!engineHasParentComponent(go_))
     {
         typed_scene->ui_update_item_on_ground(this);
     }
@@ -156,7 +152,7 @@ project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go, con
     const auto scene = my_scene->get_handle();
     const auto app = my_scene->get_app_handle();
 
-    auto tc = engineSceneGetTransformComponent(scene, go);
+    auto tc = engineGetTransformComponent(go);
     tc.position[0] = config.start_position[0];
     tc.position[1] = config.start_position[1];
     tc.position[2] = config.start_position[2];
@@ -169,21 +165,21 @@ project_c::Dagger::Dagger(engine::IScene* my_scene, engine_game_object_t go, con
     rotation *= glm::angleAxis(glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     rotation *= config.direction;
     std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
-    engineSceneUpdateTransformComponent(scene, go, &tc);
+    engineUpdateTransformComponent(go, &tc);
 
     // collider
-    auto cc = engineSceneAddColliderComponent(scene, go);
+    auto cc = engineAddColliderComponent(go);
     cc.type = ENGINE_COLLIDER_TYPE_BOX;
     cc.is_trigger = true;
     cc.collider.box.size[0] = 0.05f;
     cc.collider.box.size[1] = 0.05f;
     cc.collider.box.size[2] = 0.05f;
-    engineSceneUpdateColliderComponent(scene, go, &cc);
+    engineUpdateColliderComponent(go, &cc);
 
     // material
-    auto mc = engineSceneAddMaterialComponent(scene, go);
+    auto mc = engineAddMaterialComponent(go);
     set_c_array(mc.data.pong.diffuse_color, std::array<float, 4>{0.9f, 0.9f, 0.9f, 1.0f});
-    engineSceneUpdateMaterialComponent(scene, go, &mc);
+    engineUpdateMaterialComponent(go, &mc);
 }
 
 
@@ -194,16 +190,14 @@ void project_c::Dagger::update(float dt)
         my_scene_->unregister_script(this);
         return;
     }
-    const auto scene = my_scene_->get_handle();
-    const auto app = my_scene_->get_app_handle();
-    auto tc = engineSceneGetTransformComponent(scene, go_);
+    auto tc = engineGetTransformComponent(go_);
 
     const float speed_cooef = 0.008f;
     const float speed = speed_cooef * dt;
     const glm::vec3 forward = glm::normalize(config_.direction * glm::vec3(0.0f, 0.0f, 1.0f));
     tc.position[0] += forward.x * speed;
     tc.position[2] += forward.z * speed;
-    engineSceneUpdateTransformComponent(scene, go_, &tc);
+    engineUpdateTransformComponent(go_, &tc);
 
     const auto distance = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(config_.start_position[0], config_.start_position[2]));
     if(distance > 3.5f)
@@ -241,8 +235,8 @@ void project_c::Dagger::on_collision(const collision_t& info)
                         }
                         else
                         {
-                            const auto tc = engineSceneGetTransformComponent(my_scene_->get_handle(), go);
-                            const auto tc_closest = engineSceneGetTransformComponent(my_scene_->get_handle(), go_closest);
+                            const auto tc = engineGetTransformComponent(go);
+                            const auto tc_closest = engineGetTransformComponent(go_closest);
                             const auto distance_closest = glm::distance(glm::vec2(tc_closest.position[0], tc_closest.position[2]), glm::vec2(tc.position[0], tc.position[2]));
                             if (distance_closest < distance)
                             {
@@ -257,8 +251,8 @@ void project_c::Dagger::on_collision(const collision_t& info)
                 {
                     auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
 
-                    const auto etc = engineSceneGetTransformComponent(my_scene_->get_handle(), info.other);
-                    const auto gctc = engineSceneGetTransformComponent(my_scene_->get_handle(), go_closest);
+                    const auto etc = engineGetTransformComponent(info.other);
+                    const auto gctc = engineGetTransformComponent(go_closest);
                     Config ricochet_config{};
                     ricochet_config.ricochet_count = config_.ricochet_count;
                     ricochet_config.start_position = { info.contact_points[0].point[0], info.contact_points[0].point[1], info.contact_points[0].point[2] };
@@ -280,18 +274,16 @@ void project_c::Dagger::on_collision(const collision_t& info)
 project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_object_t go)
     : BaseNode(my_scene, go, "attack-trigger")
 {
-    const auto scene = my_scene_->get_handle();
-    const auto app = my_scene_->get_app_handle();
 
     // transform
-    auto tc = engineSceneAddTransformComponent(scene, go_);
+    auto tc = engineAddTransformComponent(go_);
     tc.position[0] = 0.0f;
     tc.position[1] = 0.0f;
     tc.position[2] = 0.0f;
-    engineSceneUpdateTransformComponent(scene, go_, &tc);
+    engineUpdateTransformComponent(go_, &tc);
 
     // physcis
-    auto cc = engineSceneAddColliderComponent(scene, go_);
+    auto cc = engineAddColliderComponent(go_);
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
     cc.is_trigger = true;
     auto& cc_child = cc.collider.compound.children[0];
@@ -300,17 +292,17 @@ project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_ob
     cc_child.transform[2] = 0.6f;
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
     set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.3f, 0.05f, 0.3f});
-    engineSceneUpdateColliderComponent(scene, go_, &cc);
+    engineUpdateColliderComponent(go_, &cc);
 
     // parent to root
-    const auto gos_with_root_name = utils::get_game_objects_with_name(scene, "solider");
+    const auto gos_with_root_name = utils::get_game_objects_with_name("solider");
     for (auto& parent : gos_with_root_name)
     {
         if (parent != ENGINE_INVALID_GAME_OBJECT_ID)
         {
-            auto pc = engineSceneAddParentComponent(scene, go_);
+            auto pc = engineAddParentComponent(go_);
             pc.parent = parent;
-            engineSceneUpdateParentComponent(scene, go_, &pc);
+            engineUpdateParentComponent(go_, &pc);
             break;
         }
     }
@@ -347,18 +339,16 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     , state_(States::IDLE)
     , attack_trigger_(nullptr)
 {
-    const auto scene = my_scene_->get_handle();
-    const auto app = my_scene_->get_app_handle();
 
-    auto tc = engineSceneGetTransformComponent(scene, go_);
+    auto tc = engineGetTransformComponent(go_);
     tc.position[1] = -0.25f;
     tc.scale[0] = 0.5f;
     tc.scale[1] = 0.5f;
     tc.scale[2] = 0.5f;
-    engineSceneUpdateTransformComponent(scene, go_, &tc);
+    engineUpdateTransformComponent(go_, &tc);
 
     // physcis
-    auto cc = engineSceneAddColliderComponent(scene, go_);
+    auto cc = engineAddColliderComponent(go_);
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
     cc.is_trigger = false;
     auto& cc_child = cc.collider.compound.children[0];
@@ -366,31 +356,31 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     cc_child.rotation_quaternion[3] = 1.0f;
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
     set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.3f, 0.35f, 0.2f});
-    engineSceneUpdateColliderComponent(scene, go_, &cc);
+    engineUpdateColliderComponent(go_, &cc);
 
     //rb
-    auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+    auto rbc = engineAddRigidBodyComponent(go_);
     rbc.mass = 100000.0f;
-    engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+    engineUpdateRigidBodyComponent(go_, &rbc);
 
     // add handle to right arm
-    right_arm_go_ = utils::get_game_objects_with_name(scene, "handslot.r")[0];
+    right_arm_go_ = utils::get_game_objects_with_name("handslot.r")[0];
     assert(right_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
     // cleanup any childer of handslot (as model could be prebuilt with attached geomteries)
-    if (engineSceneHasChildrenComponent(scene, right_arm_go_))
+    if (engineHasChildrenComponent(right_arm_go_))
     {
-        utils::delete_game_objects_hierarchy(scene, right_arm_go_);
+        utils::delete_game_objects_hierarchy(right_arm_go_);
     }
-    left_arm_go_ = utils::get_game_objects_with_name(scene, "handslot.l")[0];
+    left_arm_go_ = utils::get_game_objects_with_name("handslot.l")[0];
     assert(left_arm_go_ != ENGINE_INVALID_GAME_OBJECT_ID);
     // cleanup any childer of handslot (as model could be prebuilt with attached geomteries)
-    if (engineSceneHasChildrenComponent(scene, left_arm_go_))
+    if (engineHasChildrenComponent(left_arm_go_))
     {
-        utils::delete_game_objects_hierarchy(scene, left_arm_go_);
+        utils::delete_game_objects_hierarchy(left_arm_go_);
     }
 
     // add attack trigger
-    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(scene));
+    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineCreateGameObject());
     //auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
     //assert(my_app != nullptr);
     //// add sword
@@ -415,25 +405,23 @@ void project_c::Player::update(float dt)
 
     anim_controller_.update(dt);
     dodge_data_.update(dt);
-    const auto scene = my_scene_->get_handle();
-    const auto app = my_scene_->get_app_handle();
 
     const std::array<engine_game_object_t, 1> raycast_ignore_list = { attack_trigger_->get_game_object() };
-    const auto active_camera_go = utils::get_active_camera_game_objects(scene)[0];
-    const auto ray = utils::get_ray_from_mouse_position(app, scene, active_camera_go);
-    const auto hit_info = engineScenePhysicsRayCast(scene, raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000000.0f);
+    const auto active_camera_go = utils::get_active_camera_game_objects()[0];
+    const auto ray = utils::get_ray_from_mouse_position(active_camera_go);
+    const auto hit_info = enginePhysicsRayCast(raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000000.0f);
 
     auto rotate_towards_global_target = [&]()
         {
-            auto tc = engineSceneGetTransformComponent(scene, go_);
+            auto tc = engineGetTransformComponent(go_);
             auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(hit_info.position[0], hit_info.position[1], hit_info.position[2]));
             std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
-            engineSceneUpdateTransformComponent(scene, go_, &tc);
+            engineUpdateTransformComponent(go_, &tc);
         };
     rotate_towards_global_target();// rotate towards target
 
-    const auto lmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_LEFT);
-    const auto rmb = engineApplicationIsMouseButtonDown(app, ENGINE_MOUSE_BUTTON_RIGHT);
+    const auto lmb = engineIsMouseButtonDown(ENGINE_MOUSE_BUTTON_LEFT);
+    const auto rmb = engineIsMouseButtonDown(ENGINE_MOUSE_BUTTON_RIGHT);
     if (weapon_ && rmb)
     {
         enable_state_bit(States::ATTACK);
@@ -448,35 +436,35 @@ void project_c::Player::update(float dt)
     //    }
     //}
 
-    const auto button_A = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_A);
-    const auto button_W = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_W);
-    const auto button_D = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_D);
-    const auto button_S = engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_S);
+    const auto button_A = engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_A);
+    const auto button_W = engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_W);
+    const auto button_D = engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_D);
+    const auto button_S = engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_S);
     if (button_A || button_W || button_D || button_S)
     {
         enable_state_bit(States::MOVE);
     }
 
-    if (weapon_ && engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_F))
+    if (weapon_ && engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_F))
     {
         // drop weapnon
-        const auto tc = engineSceneGetTransformComponent(scene, go_);
+        const auto tc = engineGetTransformComponent(go_);
         weapon_->drop_on_ground({ tc.position[0], tc.position[1], tc.position[2] });
         weapon_ = nullptr;
     }
 
-    if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_SPACE) && dodge_data_.can_dodge())
+    if (engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_SPACE) && dodge_data_.can_dodge())
     {
         enable_state_bit(States::DODGE);
         dodge_data_.activate();
     }
 
-    if (engineApplicationIsKeyboardButtonDown(app, ENGINE_KEYBOARD_KEY_Q))
+    if (engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_Q))
     {
         enable_state_bit(States::SKILL_1);
     }
 
-    const auto tc = engineSceneGetTransformComponent(scene, go_);
+    const auto tc = engineGetTransformComponent(go_);
     const glm::quat rotation = glm::make_quat(tc.rotation);
     const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
     const glm::vec3 right = rotation * glm::vec3(1.0f, 0.0f, 0.0f);
@@ -496,17 +484,17 @@ void project_c::Player::update(float dt)
             anim_controller_.set_active_animation("Dodge_Forward");
             const float speed_cooef = 0.015f;
             const float speed = speed_cooef * dt;
-            auto tc_dodge = engineSceneGetTransformComponent(scene, go_);
+            auto tc_dodge = engineGetTransformComponent(go_);
             // move forward // ToDo add doge in other directions
             tc_dodge.position[0] += forward.x * speed;
             //tc.position[1] += forward.y * speed;  // dont go up!
             tc_dodge.position[2] += forward.z * speed;
-            engineSceneUpdateTransformComponent(scene, go_, &tc_dodge);
+            engineUpdateTransformComponent(go_, &tc_dodge);
         }
     }
     if (check_state_bit(States::MOVE))
     {
-        auto tc_move = engineSceneGetTransformComponent(scene, go_);
+        auto tc_move = engineGetTransformComponent(go_);
         const float speed_cooef = 0.0025f;
         const float speed = speed_cooef * dt; // ToDo: implement diagonal movement speed coef (use pitagoras(?))
 
@@ -527,7 +515,7 @@ void project_c::Player::update(float dt)
             tc_move.position[0] += speed;
         }
 
-        engineSceneUpdateTransformComponent(scene, go_, &tc_move);
+        engineUpdateTransformComponent(go_, &tc_move);
 
         // compute forard/left/right/backward direction based on mouse position
         const glm::vec3 direction = glm::normalize(glm::vec3(hit_info.position[0], hit_info.position[1], hit_info.position[2]) - glm::vec3(tc_move.position[0], tc_move.position[1], tc_move.position[2]));
@@ -598,7 +586,7 @@ void project_c::Player::update(float dt)
             skill_1_data_.animation_started = true;
             auto my_app = dynamic_cast<project_c::AppProjectC*>(my_scene_->get_app());
 
-            auto tc = engineSceneGetTransformComponent(scene, go_);
+            auto tc = engineGetTransformComponent(go_);
             Dagger::Config config{};
             config.start_position = { tc.position[0], 0.5f, tc.position[2] };
             config.direction = glm::make_quat(tc.rotation);

@@ -424,10 +424,10 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     register_ui_item_bindings(bindings, ui_data_, this);
     register_ui_enemy_bindings(bindings, ui_data_);
 
-    engineApplicationCreateUiDocumentDataHandle(app_handle, "DataModel_Main_UI", bindings.data(), bindings.size(), &ui_data_.handle_main_ui);
+    engineCreateUiDocumentDataHandle("DataModel_Main_UI", bindings.data(), bindings.size(), &ui_data_.handle_main_ui);
 
     // load ui doc
-    engineApplicationCreateUiDocumentFromFile(app_handle, "project_c_gameplay_ui.rml", &ui_data_.doc);
+    engineCreateUiDocumentFromFile("project_c_gameplay_ui.rml", &ui_data_.doc);
     if (ui_data_.doc)
     {
         engineUiDocumentShow(ui_data_.doc);
@@ -470,7 +470,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
 project_c::TestScene::~TestScene()
 {
     engineUiDataHandleDestroy(ui_data_.handle_main_ui);
-    engineApplicationUiDocumentDestroy(ui_data_.doc);
+    engineUiDocumentDestroy(ui_data_.doc);
 }
 
 void project_c::TestScene::update_hook_begin()
@@ -484,8 +484,8 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Weapon* sw)
     engine::ScopedProfiler prof("project_c::TestScene::ui_update_item_on_ground");
     const auto active_camera_go = utils::get_active_camera_game_objects(scene_)[0];
     const auto item_go = sw->get_game_object();
-    const auto item_tc = engineSceneGetTransformComponent(scene_, item_go);
-    const auto item_screen_coords = engineSceneCameraComponentConvertWorldPositionToScreenPosition(scene_, active_camera_go, item_tc.position);
+    const auto item_tc = engineGetTransformComponent(item_go);
+    const auto item_screen_coords = engineCameraComponentConvertWorldPositionToScreenPosition(active_camera_go, item_tc.position);
     
     const auto x_str = std::to_string(item_screen_coords.x * 100) + "%";
     const auto y_str = std::to_string(item_screen_coords.y * 100) + "%";
@@ -554,11 +554,11 @@ void project_c::TestScene::ui_update_enemy(const Enemy* en)
     engine::ScopedProfiler prof("project_c::TestScene::ui_update_enemy");
     const auto active_camera_go = utils::get_active_camera_game_objects(scene_)[0];
     const auto enemy_go = en->get_game_object();
-    auto enemy_tc = engineSceneGetTransformComponent(scene_, enemy_go);
+    auto enemy_tc = engineGetTransformComponent(enemy_go);
     auto healthbar_position = enemy_tc.position;
     const auto height_offset = 1.0f; // healthbar need to be on top of the enemy
     healthbar_position[1] += height_offset;
-    const auto enemy_screen_coords = engineSceneCameraComponentConvertWorldPositionToScreenPosition(scene_, active_camera_go, healthbar_position);
+    const auto enemy_screen_coords = engineCameraComponentConvertWorldPositionToScreenPosition(active_camera_go, healthbar_position);
 
     const auto box_width = 10; // percent, ToDo: get propery from UiElement
     const auto box_height = 1; // percent, ToDo: get propery from UiElement

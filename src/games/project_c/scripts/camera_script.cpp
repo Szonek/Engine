@@ -29,11 +29,10 @@ project_c::CameraScript::CameraScript(engine::IScene* my_scene)
 void project_c::CameraScript::late_update(float dt)
 {
     engine::ScopedProfiler profiler("project_c::CameraScript::late_update");
-    const auto scene = my_scene_->get_handle();
     const auto mouse_coords = engineGetMouseCoords();
 
     const float move_speed = 1.0f * dt;
-    const auto all_players = utils::get_game_objects_with_name(scene, "player");
+    const auto all_players = utils::get_game_objects_with_name("player");
     const auto character_go = all_players.size() > 0 ? all_players[0] : ENGINE_INVALID_GAME_OBJECT_ID;
     // follow character go
     if (character_go != ENGINE_INVALID_GAME_OBJECT_ID)

@@ -21,10 +21,8 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     , state_(States::DECISION_MAKE)
     , nav_mesh_(nav_mesh)
 {
-    const auto scene = my_scene_->get_handle();
-    const auto app = my_scene_->get_app_handle();
 
-    auto tc = engineSceneGetTransformComponent(scene, go_);
+    auto tc = engineGetTransformComponent(go_);
 
     tc.position[0] = offset_x;
     tc.position[1] += 0.25f;
@@ -34,10 +32,10 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     tc.scale[1] = 0.35f;
     tc.scale[2] = 0.35f;
 
-    engineSceneUpdateTransformComponent(scene, go_, &tc);
+    engineUpdateTransformComponent(go_, &tc);
 
     // physcis
-    auto cc = engineSceneAddColliderComponent(scene, go_);
+    auto cc = engineAddColliderComponent(go_);
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
     auto& child_c = cc.collider.compound.children[0];
     {
@@ -48,32 +46,29 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
         child_c.rotation_quaternion[3] = 1.0f;
         set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.7f, 1.0f, 0.5f});
     }
-    engineSceneUpdateColliderComponent(scene, go_, &cc);
+    engineUpdateColliderComponent(go_, &cc);
 
     //rb
-    auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+    auto rbc = engineAddRigidBodyComponent(go_);
     rbc.mass = 100000.0f;
-    engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+    engineUpdateRigidBodyComponent(go_, &rbc);
 }
 
 project_c::Enemy::~Enemy()
 {
-    auto scene = my_scene_->get_handle();
-    utils::delete_game_objects_hierarchy(scene, go_);
+    utils::delete_game_objects_hierarchy(go_);
 }
 
 void project_c::Enemy::update(float dt)
 {
     engine::ScopedProfiler prof("project_c::Enemy::update");
-    const auto scene = my_scene_->get_handle();
-    const auto app = my_scene_->get_app_handle();
 
     if (player_go_ == ENGINE_INVALID_GAME_OBJECT_ID)
     {
-        player_go_ = utils::get_game_objects_with_name(scene, "player")[0];
+        player_go_ = utils::get_game_objects_with_name("player")[0];
     }
 
-    auto animation_controller = engineSceneGetAnimationControllerComponent(scene, go_).controller;
+    auto animation_controller = engineGetAnimationControllerComponent(go_).controller;
 
     for (auto& s : debug_scripts_)
     {
@@ -81,8 +76,8 @@ void project_c::Enemy::update(float dt)
     }
     debug_scripts_.clear();
 
-    auto tc = engineSceneGetTransformComponent(scene, go_);
-    auto ec = engineSceneGetTransformComponent(scene, player_go_);
+    auto tc = engineGetTransformComponent(go_);
+    auto ec = engineGetTransformComponent(player_go_);
     const auto distance_to_player = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
 
     const auto my_node_idx =  nav_mesh_->get_node_idx({ tc.position[0], tc.position[1], tc.position[2] });
@@ -101,7 +96,7 @@ void project_c::Enemy::update(float dt)
         state_ = States::DIE;
         engineAnimationControllerAnimationPlay(animation_controller, "Death_A");
         // remove collider so enemy will not be hit by players attacks
-        engineSceneRemoveColliderComponent(scene, go_);
+        engineRemoveColliderComponent(go_);
         if (reinterpret_cast<AppProjectC*>(my_scene_->get_app())->is_prefab_available(project_c::PrefabType::PREFAB_TYPE_COIN_GOLD))
         {
             auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD, my_scene_).go);
@@ -145,7 +140,7 @@ void project_c::Enemy::update(float dt)
         auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
         quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
         std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
+        engineUpdateTransformComponent(go_, &tc);
         break;
     }
     case States::DIE:
@@ -182,7 +177,7 @@ void project_c::Enemy::update(float dt)
         tc.position[0] += forward.x * speed;
         //tc.position[1] += forward.y * speed;
         tc.position[2] += forward.z * speed;
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
+        engineUpdateTransformComponent(go_, &tc);
         //state_ = States::DECISION_MAKE;
         break;
     }
