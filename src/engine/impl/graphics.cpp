@@ -19,12 +19,7 @@
 
 #include <SDL3/SDL.h>
 
-// Suppress warnings for fmt library
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
 #include <fmt/format.h>
-#pragma GCC diagnostic pop
 
 #include <cassert>
 #include <array>
@@ -121,8 +116,10 @@ inline std::uint32_t to_ogl_host_format(engine::DataLayout layout)
         return GL_RED_INTEGER;
     default:
         assert(false && "Unknown OGL data type!");
-        return GL_NONE; // or some default value
+        break;
     }
+
+
 }
 inline std::uint8_t data_layout_bytes_width(engine::DataLayout layout)
 {
@@ -361,7 +358,7 @@ void engine::ShaderBase::set_uniform_ui(std::string_view name, const std::uint32
 void engine::ShaderBase::set_uniform_block(std::string_view name, const UniformBuffer* buffer, std::uint32_t bind_index) const
 {
     const auto block_index = glGetUniformBlockIndex(program_, name.data());
-    if (block_index != GL_INVALID_INDEX)
+    if (block_index != -1)
     {
         //assert(block_index != -1 && "[ERROR] Cant find uniform block index in the shader.");
         glUniformBlockBinding(program_, block_index, bind_index);
@@ -530,7 +527,7 @@ engine::Texture2D engine::Texture2D::create_and_attach_to_frame_buffer(std::uint
     glBindTexture(GL_TEXTURE_2D, ret.texture_);
     glFramebufferTexture2D(GL_FRAMEBUFFER, attachment_idx, GL_TEXTURE_2D, ret.texture_, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
-    return ret;
+    return std::move(ret);
 }
 
 engine::Texture2D::Texture2D(Texture2D&& rhs) noexcept
@@ -624,8 +621,8 @@ void engine::Texture2D::copy_from_active_fbo(std::uint32_t x, std::uint32_t y, s
 
 engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const std::byte> vertex_data, std::int32_t vertex_count, std::span<const std::uint32_t> index_data)
 	: vbo_(0)
-	, ibo_(0)
 	, vao_(0)
+	, ibo_(0)
 	, vertex_count_(vertex_count)
 	, index_count_(0)
 {
@@ -1228,9 +1225,9 @@ void engine::RenderContext::end_frame_ui_rendering()
 
 engine::Framebuffer::Framebuffer(std::uint32_t width, std::uint32_t height, std::vector<DataLayout> color_attachment_layouts, bool has_depth_attachment)
     : fbo_(0)
-    , color_attachment_layouts_(color_attachment_layouts)
-    , color_attachments_()
     , depth_attachment_()
+    , color_attachments_()
+    , color_attachment_layouts_(color_attachment_layouts)
     , width_(width)
     , height_(height)
 {
@@ -1256,11 +1253,10 @@ engine::Framebuffer::Framebuffer(std::uint32_t width, std::uint32_t height, std:
 
 engine::Framebuffer::Framebuffer(Framebuffer&& rhs) noexcept
     : fbo_(rhs.fbo_)
-    , color_attachment_layouts_(std::move(rhs.color_attachment_layouts_))
-    , color_attachments_(std::move(rhs.color_attachments_))
     , depth_attachment_(std::move(rhs.depth_attachment_))
-    , width_(rhs.width_)
+    , color_attachments_(std::move(rhs.color_attachments_))
     , height_(rhs.height_)
+    , width_(rhs.width_)
 {
     rhs.fbo_ = 0;
     rhs.width_ = 0;
@@ -1311,7 +1307,7 @@ void engine::Framebuffer::bind(AccessType type)
 
     std::vector<GLenum> attachments;
     attachments.reserve(color_attachments_.size());
-    for (std::size_t i = 0; i < color_attachments_.size(); i++)
+    for (auto i = 0; i < color_attachments_.size(); i++)
     {
         attachments.push_back(GL_COLOR_ATTACHMENT0 + i);
     }

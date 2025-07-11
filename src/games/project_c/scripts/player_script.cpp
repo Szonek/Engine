@@ -15,31 +15,28 @@
 project_c::Weapon::Weapon(engine::IScene* my_scene)
     : BaseNode(my_scene, "weapon-sword")
 {
-    const auto scene = my_scene_->get_handle();
-    const auto app = my_scene_->get_app_handle();
-
     // transform
-    auto tc = engineSceneAddTransformComponent(scene, go_);
+    auto tc = engineAddTransformComponent(go_);
     tc.position[0] = 0.0f;
     tc.position[1] = 0.0f;
     tc.position[2] = 0.0f;
-    engineSceneUpdateTransformComponent(scene, go_, &tc);
+    engineUpdateTransformComponent(go_, &tc);
 
     // mesh
-    auto mc = engineSceneAddMeshComponent(scene, go_);
-    mc.geometry = engineApplicationGetGeometryByName(app, "Cube.12900");
+    auto mc = engineAddMeshComponent(go_);
+    mc.geometry = engineGetGeometryByName("Cube.12900");
     assert(mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
-    engineSceneUpdateMeshComponent(scene, go_, &mc);
+    engineUpdateMeshComponent(go_, &mc);
 
     // material
-    auto matc = engineSceneAddMaterialComponent(scene, go_);
+    auto matc = engineAddMaterialComponent(go_);
     set_c_array(matc.data.pong.diffuse_color, std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f});
     matc.data.pong.shininess = 32.0f;
-    matc.data.pong.diffuse_texture = engineApplicationGetTextured2DByName(app, "barbarian_texture");
-    engineSceneUpdateMaterialComponent(scene, go_, &matc);
+    matc.data.pong.diffuse_texture = engineGetTextured2DByName("barbarian_texture");
+    engineUpdateMaterialComponent(go_, &matc);
 
     // physcis
-    auto cc = engineSceneAddColliderComponent(scene, go_);
+    auto cc = engineAddColliderComponent(go_);
     cc.bounciness = 0.35f;
     cc.friction_static = 0.9f;
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
@@ -52,7 +49,7 @@ project_c::Weapon::Weapon(engine::IScene* my_scene)
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
     // ToDo: box sie could be smaller and only increase box size when item dropped on the ground, so it do not fly trhoguh ground
     set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.1f, 0.10f, 0.04f});
-    engineSceneUpdateColliderComponent(scene, go_, &cc);
+    engineUpdateColliderComponent(go_, &cc);
 
 }
 
@@ -62,24 +59,22 @@ project_c::Weapon::~Weapon()
 
 void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::string_view joint_name, std::optional<glm::vec3> position = std::nullopt, std::optional<glm::quat> rotation = std::nullopt)
 {
-    const auto scene = my_scene_->get_handle();
-
     // parent to hand
     if (parent != ENGINE_INVALID_GAME_OBJECT_ID)
     {
-        auto pc = engineSceneAddParentComponent(scene, go_);
+        auto pc = engineAddParentComponent(go_);
         pc.parent = parent;
-        engineSceneUpdateParentComponent(scene, go_, &pc);
+        engineUpdateParentComponent(go_, &pc);
     }
 
-    auto jac = engineSceneAddJointAttachmentComponent(scene, go_);
-    jac.skin = engineSceneGetSkinComponent(scene, parent).skin;
+    auto jac = engineAddJointAttachmentComponent(go_);
+    jac.skin = engineGetSkinComponent(parent).skin;
     engineStringSet(jac.joint_name, joint_name.data());
-    engineSceneUpdateJointAttachmentComponent(scene, go_, &jac);
+    engineUpdateJointAttachmentComponent(go_, &jac);
 
     if (position.has_value() || rotation.has_value())
     {
-        auto tc = engineSceneGetTransformComponent(scene, go_);
+        auto tc = engineGetTransformComponent(go_);
 
         if (position.has_value())
         {
@@ -93,48 +88,46 @@ void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::
         tc.scale[0] = 1.0f;
         tc.scale[1] = 1.0f;
         tc.scale[2] = 1.0f;
-        engineSceneUpdateTransformComponent(scene, go_, &tc);
+        engineUpdateTransformComponent(go_, &tc);
     }
 }
 
 void project_c::Weapon::drop_on_ground(glm::vec3 position)
 {
-    const auto scene = my_scene_->get_handle();
-
     // remove joint attachment
-    if (engineSceneHasJointAttachmentComponent(scene, go_))
+    if (engineHasJointAttachmentComponent(go_))
     {
-        engineSceneRemoveJointAttachmentComponent(scene, go_);
+        engineRemoveJointAttachmentComponent(go_);
     }
 
     // add rigid body component
-    auto rbc = engineSceneAddRigidBodyComponent(scene, go_);
+    auto rbc = engineAddRigidBodyComponent(go_);
     rbc.mass = 1000.0f;
-    engineSceneUpdateRigidBodyComponent(scene, go_, &rbc);
+    engineUpdateRigidBodyComponent(go_, &rbc);
 
     // update collider to not be trigger, so it will stop on collision
-    auto cc = engineSceneGetColliderComponent(scene, go_);
+    auto cc = engineGetColliderComponent(go_);
     cc.is_trigger = false;
-    engineSceneUpdateColliderComponent(scene, go_, &cc);
+    engineUpdateColliderComponent(go_, &cc);
 
     // set posion
-    auto tc = engineSceneGetTransformComponent(scene, go_);
+    auto tc = engineGetTransformComponent(go_);
     tc.position[0] = position.x;
     tc.position[1] = position.y + 2.0f;
     tc.position[2] = position.z;
-    if (engineSceneHasParentComponent(scene, go_))
+    if (engineHasParentComponent(go_))
     {
-        const auto parent_tc = engineSceneGetTransformComponent(scene, engineSceneGetParentComponent(scene, go_).parent);
+        const auto parent_tc = engineGetTransformComponent(engineGetParentComponent(go_).parent);
         tc.scale[0] = parent_tc.scale[0];
         tc.scale[1] = parent_tc.scale[1];
         tc.scale[2] = parent_tc.scale[2];
     }
-    engineSceneUpdateTransformComponent(scene, go_, &tc);
+    engineUpdateTransformComponent(go_, &tc);
 
     // remove parent
-    if (engineSceneHasParentComponent(scene, go_))
+    if (engineHasParentComponent(go_))
     {
-        engineSceneRemoveParentComponent(scene, go_);
+        engineRemoveParentComponent(go_);
     }
 }
 
@@ -144,12 +137,12 @@ void project_c::Weapon::on_collision(const collision_t& info)
     {
         // remove rigid body and enalbe is trigger
         // check if has rigidbody (remove once), beacuse there can be multiple collision calls in single frame
-        if (engineSceneHasRigidBodyComponent(my_scene_->get_handle(), go_))
+        if (engineHasRigidBodyComponent(go_))
         {
-            engineSceneRemoveRigidBodyComponent(my_scene_->get_handle(), go_);
-            auto cc = engineSceneGetColliderComponent(my_scene_->get_handle(), go_);
+            engineRemoveRigidBodyComponent(go_);
+            auto cc = engineGetColliderComponent(go_);
             cc.is_trigger = true;
-            engineSceneUpdateColliderComponent(my_scene_->get_handle(), go_, &cc);
+            engineUpdateColliderComponent(go_, &cc);
         }
     }
 }

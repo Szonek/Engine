@@ -121,7 +121,7 @@ target_compile_definitions(${ENGINE} PUBLIC GLM_FORCE_QUAT_DATA_XYZW GLM_ENABLE_
 
 target_compile_options(${ENGINE} PRIVATE
   #$<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
-  $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic>
+  $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Werror>
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_ALL_SOURCES})

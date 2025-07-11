@@ -7,12 +7,7 @@
 #include <string>
 #include <deque>
 
-// Suppress warnings for fmt library
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
 #include <fmt/format.h>
-#pragma GCC diagnostic pop
 
 namespace engine
 {
