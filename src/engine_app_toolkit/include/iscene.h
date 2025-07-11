@@ -88,6 +88,7 @@ public:
     virtual void activate();
     virtual void deactivate();
     virtual bool is_active() const;
+    virtual void set_active(bool active);
     virtual engine_result_code_t update(float dt);
     
     UserEventSystem* get_user_event_sysmte() { return &user_event_system_; }

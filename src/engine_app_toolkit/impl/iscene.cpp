@@ -10,12 +10,9 @@
 
 namespace
 {
-engine_result_code_t update_scene(engine_scene_t scene, float dt)
+engine_result_code_t update_scene(engine_application_t app, engine_scene_t scene, float dt)
 {
-    // Set the scene as active for the new non-context API
-    engineSetActiveScene(scene);
-    
-    auto engine_error_code = engineFrameSceneUpdate(dt);
+    auto engine_error_code = engineApplicationFrameSceneUpdate(app, scene, dt);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
         log(fmt::format("Scene update failed. Exiting.\n"));
@@ -23,17 +20,13 @@ engine_result_code_t update_scene(engine_scene_t scene, float dt)
     return engine_error_code;
 }
 
-engine_result_code_t propagate_collisions_events(engine_scene_t scene, engine::IScene::ScriptsMap& scripts)
+engine_result_code_t propagate_collisions_events(engine_application_t app, engine_scene_t scene, engine::IScene::ScriptsMap& scripts)
 {
     engine::ScopedProfiler prof("propagate_collisions_events");
-    
-    // Set the scene as active for the new non-context API
-    engineSetActiveScene(scene);
-    
-    const auto num_collisions = enginePhysicsGetNumCollisions();
+    const auto num_collisions = engineScenePhysicsGetNumCollisions(scene);
     for (std::size_t i = 0; i < num_collisions; i++)
     {
-        const auto col_desc = enginePhysicsGetCollisionDesc(i);
+        const auto col_desc = engineScenePhysicsGetCollisionDesc(scene, i);
         const auto obj_a = engineCollisionDescGetObjectA(col_desc);
         const auto obj_b = engineCollisionDescGetObjectB(col_desc);
 
@@ -98,10 +91,10 @@ inline engine_scene_t create_scene(engine_application_t app_handle)
 
     engine_scene_create_desc_t desc{};
 
-    auto engine_error_code = engineSceneCreate(desc, &scene);
+    auto engine_error_code = engineApplicationSceneCreate(app_handle, desc, &scene);
     if (engine_error_code != ENGINE_RESULT_CODE_OK)
     {
-        engineSceneDestroy(scene);
+        engineApplicationSceneDestroy(app_handle, scene);
         scene = nullptr;
     }
     return scene;
@@ -128,7 +121,7 @@ engine::IScene::~IScene()
     // delete scene
     if (scene_)
     {
-        engineSceneDestroy(scene_);
+        engineApplicationSceneDestroy(get_app_handle(), scene_);
     }
 }
 
@@ -152,6 +145,14 @@ bool engine::IScene::is_active() const
     return is_activate_;
 }
 
+void engine::IScene::set_active(bool active)
+{
+    if (active)
+    {
+        engineSetActiveScene(scene_);
+    }
+}
+
 engine_result_code_t engine::IScene::update(float dt)
 {
     engine::ScopedProfiler prof("engine::IScene::update");
@@ -168,11 +169,11 @@ engine_result_code_t engine::IScene::update(float dt)
 
     update_hook_begin();
 
-    propagate_collisions_events(scene_, scripts_);
+    propagate_collisions_events(get_app_handle(), scene_, scripts_);
 
     update_scripts(scripts_, dt);
     late_update_scripts(scripts_, dt);
-    update_scene(scene_, dt);
+    update_scene(get_app_handle(), scene_, dt);
 
     update_hook_end();
 
