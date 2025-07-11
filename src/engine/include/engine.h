@@ -661,6 +661,13 @@ ENGINE_API void engineSceneUpdateMeshComponent(engine_scene_t scene, engine_game
 ENGINE_API void engineSceneRemoveMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 
+// Context-based mesh component functions (use current scene)
+ENGINE_API engine_mesh_component_t engineAddMeshComponent(engine_game_object_t game_object);
+ENGINE_API engine_mesh_component_t engineGetMeshComponent(engine_game_object_t game_object);
+ENGINE_API void engineUpdateMeshComponent(engine_game_object_t game_object, const engine_mesh_component_t* comp);
+ENGINE_API void engineRemoveMeshComponent(engine_game_object_t game_object);
+ENGINE_API bool engineHasMeshComponent(engine_game_object_t game_object);
+
 // skinned mesh component
 ENGINE_API engine_skinned_mesh_component_t engineSceneAddSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_skinned_mesh_component_t engineSceneGetSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
@@ -696,6 +703,13 @@ ENGINE_API engine_material_component_t engineSceneGetMaterialComponent(engine_sc
 ENGINE_API void engineSceneUpdateMaterialComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_material_component_t* comp);
 ENGINE_API void engineSceneRemoveMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+// Context-based material component functions (use current scene)
+ENGINE_API engine_material_component_t engineAddMaterialComponent(engine_game_object_t game_object);
+ENGINE_API engine_material_component_t engineGetMaterialComponent(engine_game_object_t game_object);
+ENGINE_API void engineUpdateMaterialComponent(engine_game_object_t game_object, const engine_material_component_t* comp);
+ENGINE_API void engineRemoveMaterialComponent(engine_game_object_t game_object);
+ENGINE_API bool engineHasMaterialComponent(engine_game_object_t game_object);
 
 // light component
 ENGINE_API engine_light_component_t engineSceneAddLightComponent(engine_scene_t scene, engine_game_object_t game_object);

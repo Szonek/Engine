@@ -78,6 +78,13 @@ TEST(Basic, ContextSystem)
     ASSERT_TRUE(engineHasNameComponent(go1));
     ASSERT_TRUE(engineSceneHasNameComponent(scene, go2));
 
+    // Test mesh and material components with context
+    engine_mesh_component_t mesh_comp = engineAddMeshComponent(go1);
+    engine_material_component_t mat_comp = engineAddMaterialComponent(go1);
+    
+    ASSERT_TRUE(engineHasMeshComponent(go1));
+    ASSERT_TRUE(engineHasMaterialComponent(go1));
+
     // Cleanup
     engineDestroyGameObject(go1);
     engineSceneDestroyGameObject(scene, go2);

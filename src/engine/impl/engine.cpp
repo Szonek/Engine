@@ -998,6 +998,32 @@ bool engineSceneHasMeshComponent(engine_scene_t scene, engine_game_object_t game
     return has_component<engine_mesh_component_t>(scene, game_object);
 }
 
+// Context-based mesh component functions
+engine_mesh_component_t engineAddMeshComponent(engine_game_object_t game_object)
+{
+    return engineSceneAddMeshComponent(g_current_scene, game_object);
+}
+
+engine_mesh_component_t engineGetMeshComponent(engine_game_object_t game_object)
+{
+    return engineSceneGetMeshComponent(g_current_scene, game_object);
+}
+
+void engineUpdateMeshComponent(engine_game_object_t game_object, const engine_mesh_component_t* comp)
+{
+    engineSceneUpdateMeshComponent(g_current_scene, game_object, comp);
+}
+
+void engineRemoveMeshComponent(engine_game_object_t game_object)
+{
+    engineSceneRemoveMeshComponent(g_current_scene, game_object);
+}
+
+bool engineHasMeshComponent(engine_game_object_t game_object)
+{
+    return engineSceneHasMeshComponent(g_current_scene, game_object);
+}
+
 engine_skinned_mesh_component_t engineSceneAddSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return add_component<engine_skinned_mesh_component_t>(scene, game_object);
@@ -1123,6 +1149,32 @@ void engineSceneRemoveMaterialComponent(engine_scene_t scene, engine_game_object
 bool engineSceneHasMaterialComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return has_component<engine_material_component_t>(scene, game_object);
+}
+
+// Context-based material component functions
+engine_material_component_t engineAddMaterialComponent(engine_game_object_t game_object)
+{
+    return engineSceneAddMaterialComponent(g_current_scene, game_object);
+}
+
+engine_material_component_t engineGetMaterialComponent(engine_game_object_t game_object)
+{
+    return engineSceneGetMaterialComponent(g_current_scene, game_object);
+}
+
+void engineUpdateMaterialComponent(engine_game_object_t game_object, const engine_material_component_t* comp)
+{
+    engineSceneUpdateMaterialComponent(g_current_scene, game_object, comp);
+}
+
+void engineRemoveMaterialComponent(engine_game_object_t game_object)
+{
+    engineSceneRemoveMaterialComponent(g_current_scene, game_object);
+}
+
+bool engineHasMaterialComponent(engine_game_object_t game_object)
+{
+    return engineSceneHasMaterialComponent(g_current_scene, game_object);
 }
 
 engine_light_component_t engineSceneAddLightComponent(engine_scene_t scene, engine_game_object_t game_object)
