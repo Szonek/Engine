@@ -11,6 +11,8 @@
 
 namespace engine
 {
+class Skin; // Forward declaration
+
 class PlayBackJob
 {
 public:

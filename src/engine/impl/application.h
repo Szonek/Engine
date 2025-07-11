@@ -67,12 +67,12 @@ public:
 
 protected:
     virtual void on_frame_begine(const engine_application_frame_begine_info_t&) {}
-    virtual void on_sdl_event(SDL_Event e) {}
+    virtual void on_sdl_event(SDL_Event /*e*/) {}
     virtual void on_frame_end() {}
-    virtual void on_scene_create(class Scene* scene) {}
-    virtual void on_scene_release(class Scene* scene) {}
-    virtual void on_scene_update_pre(class Scene* scene, float delta_time) {}
-    virtual void on_scene_update_post(class Scene* scene, float delta_time) {}
+    virtual void on_scene_create(class Scene* /*scene*/) {}
+    virtual void on_scene_release(class Scene* /*scene*/) {}
+    virtual void on_scene_update_pre(class Scene* /*scene*/, float /*delta_time*/) {}
+    virtual void on_scene_update_post(class Scene* /*scene*/, float /*delta_time*/) {}
 
 protected:
     RenderContext rdx_;

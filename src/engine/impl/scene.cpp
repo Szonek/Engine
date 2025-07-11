@@ -344,7 +344,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     // sync physcis to graphics world
     // ToDo: this could be seperate function or called at the beggning of the graphics update function?
     auto transform_physcis_view_post_update = entity_registry_.view<engine_tranform_component_t, const physcic_internal_component_t, engine_rigid_body_component_t>();
-    transform_physcis_view_post_update.each([this](auto entity, engine_tranform_component_t& transform, const physcic_internal_component_t& physcics, engine_rigid_body_component_t& rigidbody)
+    transform_physcis_view_post_update.each([this](auto entity, engine_tranform_component_t& transform, const physcic_internal_component_t& physcics, engine_rigid_body_component_t& /*rigidbody*/)
         {
             //assert(physcics.rigid_body);
             if (!physcics.rigid_body)
@@ -661,7 +661,7 @@ engine_result_code_t engine::Scene::update(float dt)
                         const auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
 
                         const auto tex2d_diffuse_ptr = get_application()->get_texture(texture_diffuse_idx);
-                        const auto tex2d_specular_ptr = get_application()->get_texture(texture_diffuse_idx);
+                        const auto tex2d_specular_ptr = get_application()->get_texture(texture_specular_idx);
 
                         const auto ctx = MaterialStaticGeometryLit::DrawContext{
                             .entity_id = static_cast<std::uint32_t>(entity),
@@ -703,19 +703,20 @@ engine_result_code_t engine::Scene::update(float dt)
                         const auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
 
                         const auto tex2d_diffuse_ptr = get_application()->get_texture(texture_diffuse_idx);
-                        const auto tex2d_specular_ptr = get_application()->get_texture(texture_diffuse_idx);
+                        const auto tex2d_specular_ptr = get_application()->get_texture(texture_specular_idx);
+                        
+                        const auto typed_skin = reinterpret_cast<engine::Skin*>(skinned_mesh_component.skin);
 
                         auto ctx = MaterialSkinnedGeometryLit::DrawContext{
                             .entity_id = static_cast<std::uint32_t>(entity),
                             .camera = camera_internal.camera_ubo,
                             .scene = scene_ubo_,
                             .model_matrix = transform_component.local_to_world,
+                            .bone_transforms = typed_skin->get_skinning_matrices(),
                             .color_diffuse = material_component.data.pong.diffuse_color,
                             .shininess = material_component.data.pong.shininess,
                             .texture_diffuse = *tex2d_diffuse_ptr,
                             .texture_specular = *tex2d_specular_ptr };
-                        const auto typed_skin = reinterpret_cast<engine::Skin*>(skinned_mesh_component.skin);
-                        ctx.bone_transforms = typed_skin->get_skinning_matrices();
 
                         const auto geo_ptr = get_application()->get_geometry(skinned_mesh_component.geometry);
                         material_skinned_geometry_lit_.draw(*geo_ptr, ctx);
