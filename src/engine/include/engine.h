@@ -725,9 +725,54 @@ ENGINE_API void engineSceneUpdateParentComponent(engine_scene_t scene, engine_ga
 ENGINE_API void engineSceneRemoveParentComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasParentComponent(engine_scene_t scene, engine_game_object_t game_object);
 
-// children component - only getters - it's managed internally by engine and user can't update it's state 
-ENGINE_API engine_children_component_t engineSceneGetChildrenComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasChildrenComponent(engine_scene_t scene, engine_game_object_t game_object);
+// skin component
+ENGINE_API engine_skin_component_t engineAddSkinComponent(engine_game_object_t game_object);
+ENGINE_API engine_skin_component_t engineGetSkinComponent(engine_game_object_t game_object);
+ENGINE_API void engineUpdateSkinComponent(engine_game_object_t game_object, const engine_skin_component_t* comp);
+ENGINE_API void engineRemoveSkinComponent(engine_game_object_t game_object);
+ENGINE_API bool engineHasSkinComponent(engine_game_object_t game_object);
+
+// mesh component  
+ENGINE_API engine_mesh_component_t engineAddMeshComponent(engine_game_object_t game_object);
+ENGINE_API engine_mesh_component_t engineGetMeshComponent(engine_game_object_t game_object);
+ENGINE_API void engineUpdateMeshComponent(engine_game_object_t game_object, const engine_mesh_component_t* comp);
+ENGINE_API void engineRemoveMeshComponent(engine_game_object_t game_object);
+ENGINE_API bool engineHasMeshComponent(engine_game_object_t game_object);
+
+// skinned mesh component
+ENGINE_API engine_skinned_mesh_component_t engineAddSkinnedMeshComponent(engine_game_object_t game_object);
+ENGINE_API engine_skinned_mesh_component_t engineGetSkinnedMeshComponent(engine_game_object_t game_object);
+ENGINE_API void engineUpdateSkinnedMeshComponent(engine_game_object_t game_object, const engine_skinned_mesh_component_t* comp);
+ENGINE_API void engineRemoveSkinnedMeshComponent(engine_game_object_t game_object);
+ENGINE_API bool engineHasSkinnedMeshComponent(engine_game_object_t game_object);
+
+// material component
+ENGINE_API engine_material_component_t engineAddMaterialComponent(engine_game_object_t game_object);
+ENGINE_API engine_material_component_t engineGetMaterialComponent(engine_game_object_t game_object);
+ENGINE_API void engineUpdateMaterialComponent(engine_game_object_t game_object, const engine_material_component_t* comp);
+ENGINE_API void engineRemoveMaterialComponent(engine_game_object_t game_object);
+ENGINE_API bool engineHasMaterialComponent(engine_game_object_t game_object);
+
+// animation controller component
+ENGINE_API engine_animation_controller_component_t engineAddAnimationControllerComponent(engine_game_object_t game_object);
+ENGINE_API engine_animation_controller_component_t engineGetAnimationControllerComponent(engine_game_object_t game_object);
+ENGINE_API void engineUpdateAnimationControllerComponent(engine_game_object_t game_object, const engine_animation_controller_component_t* comp);
+ENGINE_API void engineRemoveAnimationControllerComponent(engine_game_object_t game_object);
+ENGINE_API bool engineHasAnimationControllerComponent(engine_game_object_t game_object);
+
+// joint attachment component
+ENGINE_API engine_joint_attachment_component_t engineAddJointAttachmentComponent(engine_game_object_t game_object);
+ENGINE_API engine_joint_attachment_component_t engineGetJointAttachmentComponent(engine_game_object_t game_object);
+ENGINE_API void engineUpdateJointAttachmentComponent(engine_game_object_t game_object, const engine_joint_attachment_component_t* comp);
+ENGINE_API void engineRemoveJointAttachmentComponent(engine_game_object_t game_object);
+ENGINE_API bool engineHasJointAttachmentComponent(engine_game_object_t game_object);
+
+// parent component
+ENGINE_API engine_parent_component_t engineAddParentComponent(engine_game_object_t game_object);
+ENGINE_API engine_parent_component_t engineGetParentComponent(engine_game_object_t game_object);
+ENGINE_API void engineUpdateParentComponent(engine_game_object_t game_object, const engine_parent_component_t* comp);
+ENGINE_API void engineRemoveParentComponent(engine_game_object_t game_object);
+ENGINE_API bool engineHasParentComponent(engine_game_object_t game_object);
 #ifdef __cplusplus
 }
 #endif  // #ifndef __cplusplus

@@ -20,7 +20,7 @@ struct PrefabResult
 
 struct Prefab
 {
-    Prefab(engine_result_code_t& engine_error_code, engine_application_t& app, std::string_view model_file_name, std::string_view base_dir = "");
+    Prefab(engine_result_code_t& engine_error_code, std::string_view model_file_name, std::string_view base_dir = "");
     Prefab() = default;
     // delete copy constructor and default move constructor
     Prefab(const Prefab&) = delete;
@@ -41,7 +41,6 @@ private:
     };
 
 private:
-    engine_application_t app_ = nullptr;
     engine_model_desc_t* model_desc_ = {};
     std::vector<engine_geometry_t> geometries_ = {};
     std::vector<engine_material_component_t> materials_;

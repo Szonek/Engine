@@ -11,6 +11,9 @@ engine::IApplication::IApplication(engine_application_create_desc_t create_desc)
     {
         throw std::runtime_error("Failed to create application");
     }
+    
+    // Set this as the active application for the new non-context API
+    engineSetActiveApplication(app_handle_);
 }
 
 engine::IApplication::~IApplication()
