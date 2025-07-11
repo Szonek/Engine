@@ -189,42 +189,47 @@ inline auto api_cast(const engine::AnimationController& contact)
 }
 
 template<typename T>
-inline T add_component(engine_scene_t scene, engine_game_object_t engine_game_object_t)
+inline T add_component(engine_game_object_t engine_game_object_t)
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     auto entity = api_cast(engine_game_object_t);
     auto ret = sc->add_component<T>(entity);
     return *ret;
 }
 
 template<typename T>
-inline T get_component(engine_scene_t scene, engine_game_object_t game_object)
+inline T get_component(engine_game_object_t game_object)
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     auto entity = api_cast(game_object);
     return *sc->get_component<T>(entity);
 }
 
 template<typename T>
-inline void update_component(engine_scene_t scene, engine_game_object_t game_object, const T* comp)
+inline void update_component(engine_game_object_t game_object, const T* comp)
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     auto entity = api_cast(game_object);
     sc->update_component<T>(entity, *comp);
 }
 
 template<typename T>
-inline void remove_component(engine_scene_t scene, engine_game_object_t game_object)
+inline void remove_component(engine_game_object_t game_object)
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     auto entity = api_cast(game_object);
     sc->remove_component<T>(entity);
 }
 
 template<typename T>
-inline bool has_component(engine_scene_t scene, engine_game_object_t game_object)
+inline bool has_component(engine_game_object_t game_object)
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     auto entity = api_cast(game_object);
     return sc->has_component<T>(entity);
 }
@@ -456,9 +461,13 @@ engine_result_code_t engineCreateFontFromFile(const char* file_name, const char*
     return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
-engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_desc_t* desc, engine_geometry_t* out)
+engine_result_code_t engineCreateGeometryFromDesc(const engine_geometry_desc_t* desc, engine_geometry_t* out)
 {
-    auto* app = api_cast(handle);
+    auto* app = api_cast(g_active_application);
+    if (!app)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
     const auto geo_desc = api_cast(desc);
     const auto ret = app->add_geometry(geo_desc->vertex_laytout, geo_desc->vertex_count, geo_desc->vertex_data, geo_desc->indicies, geo_desc->name);
     if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
@@ -470,21 +479,25 @@ engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name)
+engine_geometry_t engineGetGeometryByName(const char* name)
 {
-    const auto* app = api_cast(handle);
+    const auto* app = api_cast(g_active_application);
+    if (!app)
+    {
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
     return app->get_geometry(name);
 }
 
-engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_application_t handle, engine_geometry_t geometry, engine_vertex_attribute_type_t type)
+engine_geometry_attribute_limit_t engineGeometryGetAttributeLimits(engine_geometry_t geometry, engine_vertex_attribute_type_t type)
 {
     engine_geometry_attribute_limit_t ret{};
     ret.elements_count = 0;
-    if (!handle || geometry == ENGINE_INVALID_OBJECT_HANDLE || type == ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT)
+    if (!g_active_application || geometry == ENGINE_INVALID_OBJECT_HANDLE || type == ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT)
     {
         return ret;
     }
-    const auto* app = api_cast(handle);
+    const auto* app = api_cast(g_active_application);
     const auto geometry_obj = app->get_geometry(geometry);
     const auto attrib = geometry_obj->get_vertex_attribute(type);
     ret.elements_count = attrib.range_max.size();
@@ -496,15 +509,19 @@ engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(en
     return ret;
 }
 
-void engineApplicationDestroyGeometry(engine_application_t handle, engine_geometry_t geometry)
+void engineDestroyGeometry(engine_geometry_t geometry)
 {
-    assert(handle);
-    api_cast(handle)->destroy_geometry(geometry);
+    assert(g_active_application);
+    api_cast(g_active_application)->destroy_geometry(geometry);
 }
 
-engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_desc_t* desc, engine_texture2d_t* out)
+engine_result_code_t engineCreateTexture2DFromDesc(const engine_texture_2d_desc_t* desc, engine_texture2d_t* out)
 {
-    auto* app = api_cast(handle);
+    auto* app = api_cast(g_active_application);
+    if (!app)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
     const auto typed_desc = api_cast(desc);
     const auto ret = app->add_texture(*typed_desc);
 
@@ -517,9 +534,13 @@ engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_result_code_t engineApplicationCreateTexture2DFromFile(engine_application_t handle, const char* file_name, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out)
+engine_result_code_t engineCreateTexture2DFromFile(const char* file_name, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out)
 {
-    auto* app = api_cast(handle);
+    auto* app = api_cast(g_active_application);
+    if (!app)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
     const auto ret = app->add_texture_from_file(file_name, name, color_space);
     if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
     {
@@ -530,28 +551,32 @@ engine_result_code_t engineApplicationCreateTexture2DFromFile(engine_application
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_texture2d_t engineApplicationGetTextured2DByName(engine_application_t handle, const char* name)
+engine_texture2d_t engineGetTextured2DByName(const char* name)
 {
-    const auto* app = api_cast(handle);
+    const auto* app = api_cast(g_active_application);
+    if (!app)
+    {
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
     return app->get_texture(name);
 }
 
-void engineApplicationDestroyTexture2D(engine_application_t handle, engine_texture2d_t tex2d)
+void engineDestroyTexture2D(engine_texture2d_t tex2d)
 {
-    assert(handle);
-    api_cast(handle)->destroy_texture(tex2d);
+    assert(g_active_application);
+    api_cast(g_active_application)->destroy_texture(tex2d);
 }
 
-bool engineApplicationDoTexture2DNameExists(engine_application_t handle, const char* name)
+bool engineDoTexture2DNameExists(const char* name)
 {
-    assert(handle);
-    const auto* app = api_cast(handle);
+    assert(g_active_application);
+    const auto* app = api_cast(g_active_application);
     return app->get_texture(name) != ENGINE_INVALID_OBJECT_HANDLE;
 }
 
-engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t** out)
+engine_result_code_t engineAllocateModelDescAndLoadDataFromFile(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t** out)
 {
-    if (!handle || !out || !file_name || !base_dir)
+    if (!g_active_application || !out || !file_name || !base_dir)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
@@ -568,20 +593,20 @@ engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engin
     return ENGINE_RESULT_CODE_OK;
 }
 
-void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info)
+void engineReleaseModelDesc(engine_model_desc_t* model_info)
 {
-    auto* app = api_cast(handle);
+    auto* app = api_cast(g_active_application);
     auto typed_desc = api_cast(model_info);
     delete typed_desc;
 }
 
-engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, engine_scene_create_desc_t desc, engine_scene_t* out)
+engine_result_code_t engineSceneCreate(engine_scene_create_desc_t desc, engine_scene_t* out)
 {
-    if (!handle)
+    if (!g_active_application)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    auto* app = api_cast(handle);
+    auto* app = api_cast(g_active_application);
     *out = reinterpret_cast<engine_scene_t>(app->allocate_scene(desc));
     if (!out)
     {
@@ -590,76 +615,83 @@ engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, e
     return ENGINE_RESULT_CODE_OK;
 }
 
-void engineApplicationSceneDestroy(engine_application_t handle, engine_scene_t scene)
+void engineSceneDestroy(engine_scene_t scene)
 {
-    if (!handle || !scene)
+    if (!g_active_application || !scene)
     {
         return;
     }
     if (scene)
     {
-        auto* app = api_cast(handle);
+        auto* app = api_cast(g_active_application);
         app->release_scene(api_cast(scene));
     }
 }
 
 
-engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene)
+engine_game_object_t engineCreateGameObject()
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     auto new_entity = sc->create_new_entity();
     return static_cast<engine_game_object_t>(new_entity);
 }
 
-void engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object)
+void engineDestroyGameObject(engine_game_object_t game_object)
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     sc->destroy_entity(api_cast(game_object));
 }
 
-void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3])
+void enginePhysicsSetGravityVector(const float gravity[3])
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     sc->set_physcis_gravity(std::array<float, 3>{gravity[0], gravity[1], gravity[2]});
 }
 
-size_t engineScenePhysicsGetNumCollisions(engine_scene_t scene)
+size_t enginePhysicsGetNumCollisions()
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     return sc->get_physcis_collisions().size();
 }
 
-const engine_collision_desc_t* engineScenePhysicsGetCollisionDesc(engine_scene_t scene, size_t idx)
+const engine_collision_desc_t* enginePhysicsGetCollisionDesc(size_t idx)
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     return api_cast(sc->get_physcis_collisions().at(idx));
 }
 
-engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance)
+engine_ray_hit_info_t enginePhysicsRayCast(const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance)
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     return sc->raycast_into_physics_world(*ray, { ignore_list, ignore_list_count }, max_distance);
 }
 
-bool engineScenePhysicsAddForce(engine_scene_t scene, engine_game_object_t go, const float force[3], engine_force_type_t type)
+bool enginePhysicsAddForce(engine_game_object_t go, const float force[3], engine_force_type_t type)
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     auto entity = api_cast(go);
     const auto result = sc->add_force_to_physics_entity(entity, std::array<float, 3>{force[0], force[1], force[2]}, type);
     assert(result && "Failed to add force to physics entity!");
     return result;
 }
 
-engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)
+engine_result_code_t engineCreateUiDocumentDataHandle(const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)
 {
     if (bindings_count == 0 && !bindings)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
 
-    if (app && name && out)
+    if (g_active_application && name && out)
     {
-        auto* app_handle = api_cast(app);
+        auto* app_handle = api_cast(g_active_application);
         auto ret = new engine::UiDataHandle(app_handle->create_ui_document_data_handle(name, { bindings, bindings_count}));
         if (ret)
         {
@@ -697,11 +729,11 @@ void engineUiDataHandleDirtyVariable(engine_ui_data_handle_t handle, const char*
     }
 }
 
-engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out)
+engine_result_code_t engineCreateUiDocumentFromFile(const char* file_path, engine_ui_document_t* out)
 {
-    if (app && file_path && out)
+    if (g_active_application && file_path && out)
     {
-        auto* app_handle = api_cast(app);
+        auto* app_handle = api_cast(g_active_application);
         auto* ret = new engine::UiDocument(app_handle->load_ui_document(file_path));
         if (ret)
         {
@@ -712,7 +744,7 @@ engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_applicatio
     return ENGINE_RESULT_CODE_FAIL;
 }
 
-void engineApplicationUiDocumentDestroy(engine_ui_document_t doc)
+void engineUiDocumentDestroy(engine_ui_document_t doc)
 {
     if (doc)
     {
@@ -869,60 +901,61 @@ void engineDeleteComponentIterator(engine_component_iterator_t iterator)
     }
 }
 
-engine_name_component_t engineSceneAddNameComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_name_component_t engineAddNameComponent(engine_game_object_t game_object)
 {
-    return add_component<engine_name_component_t>(scene, game_object);
+    return add_component<engine_name_component_t>(game_object);
 }
 
-engine_name_component_t engineSceneGetNameComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_name_component_t engineGetNameComponent(engine_game_object_t game_object)
 {
-    return get_component<engine_name_component_t>(scene, game_object);
+    return get_component<engine_name_component_t>(game_object);
 }
 
-void engineSceneUpdateNameComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_name_component_t* comp)
+void engineUpdateNameComponent(engine_game_object_t game_object, const engine_name_component_t* comp)
 {
-    update_component(scene, game_object, comp);
+    update_component(game_object, comp);
 }
 
-void engineSceneRemoveNameComponent(engine_scene_t scene, engine_game_object_t game_object)
+void engineRemoveNameComponent(engine_game_object_t game_object)
 {
-    remove_component<engine_name_component_t>(scene, game_object);
+    remove_component<engine_name_component_t>(game_object);
 }
 
-bool engineSceneHasNameComponent(engine_scene_t scene, engine_game_object_t game_object)
+bool engineHasNameComponent(engine_game_object_t game_object)
 {
-    return has_component<engine_name_component_t>(scene, game_object);
+    return has_component<engine_name_component_t>(game_object);
 }
-void engineSceneComponentViewAttachNameComponent(engine_scene_t scene, engine_component_view_t view)
+void engineComponentViewAttachNameComponent(engine_component_view_t view)
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     auto rv = api_cast(view);
     sc->attach_component_to_runtime_view<engine_name_component_t>(*rv);
 }
 
-engine_tranform_component_t engineSceneAddTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_tranform_component_t engineAddTransformComponent(engine_game_object_t game_object)
 {
-    return add_component<engine_tranform_component_t>(scene, game_object);
+    return add_component<engine_tranform_component_t>(game_object);
 }
 
-engine_tranform_component_t engineSceneGetTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_tranform_component_t engineGetTransformComponent(engine_game_object_t game_object)
 {
-    return get_component<engine_tranform_component_t>(scene, game_object);
+    return get_component<engine_tranform_component_t>(game_object);
 }
 
-void engineSceneUpdateTransformComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_tranform_component_t* comp)
+void engineUpdateTransformComponent(engine_game_object_t game_object, const engine_tranform_component_t* comp)
 {
-    update_component(scene, game_object, comp);
+    update_component(game_object, comp);
 }
 
-void engineSceneRemoveTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
+void engineRemoveTransformComponent(engine_game_object_t game_object)
 {
-    remove_component<engine_tranform_component_t>(scene, game_object);
+    remove_component<engine_tranform_component_t>(game_object);
 }
 
-bool engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
+bool engineHasTransformComponent(engine_game_object_t game_object)
 {
-    return has_component<engine_tranform_component_t>(scene, game_object);
+    return has_component<engine_tranform_component_t>(game_object);
 }
 
 engine_mesh_component_t engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object)
@@ -1127,42 +1160,44 @@ bool engineSceneHasSpriteComponent(engine_scene_t scene, engine_game_object_t ga
     return has_component<engine_sprite_component_t>(scene, game_object);
 }
 
-engine_camera_component_t engineSceneAddCameraComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_camera_component_t engineAddCameraComponent(engine_game_object_t game_object)
 {
-    return add_component<engine_camera_component_t>(scene, game_object);
+    return add_component<engine_camera_component_t>(game_object);
 }
 
-engine_camera_component_t engineSceneGetCameraComponent(engine_scene_t scene, engine_game_object_t game_object)
+engine_camera_component_t engineGetCameraComponent(engine_game_object_t game_object)
 {
-    return get_component<engine_camera_component_t>(scene, game_object);
+    return get_component<engine_camera_component_t>(game_object);
 }
 
-void engineSceneUpdateCameraComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_camera_component_t* comp)
+void engineUpdateCameraComponent(engine_game_object_t game_object, const engine_camera_component_t* comp)
 {
-    update_component(scene, game_object, comp);
+    update_component(game_object, comp);
 }
 
-void engineSceneRemoveCameraComponent(engine_scene_t scene, engine_game_object_t game_object)
+void engineRemoveCameraComponent(engine_game_object_t game_object)
 {
-    remove_component<engine_camera_component_t>(scene, game_object);
+    remove_component<engine_camera_component_t>(game_object);
 }
 
-bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t game_object)
+bool engineHasCameraComponent(engine_game_object_t game_object)
 {
-    return has_component<engine_camera_component_t>(scene, game_object);
+    return has_component<engine_camera_component_t>(game_object);
 }
 
-void engineSceneComponentViewAttachCameraComponent(engine_scene_t scene, engine_component_view_t view)
+void engineComponentViewAttachCameraComponent(engine_component_view_t view)
 {
-    auto sc = api_cast(scene);
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     auto rv = api_cast(view);
     sc->attach_component_to_runtime_view<engine_camera_component_t>(*rv);
 }
 
-engine_fvec3_t engineSceneCameraComponentConvertWorldPositionToScreenPosition(engine_scene_t scene, engine_game_object_t game_object, const float world_pos[3])
+engine_fvec3_t engineCameraComponentConvertWorldPositionToScreenPosition(engine_game_object_t game_object, const float world_pos[3])
 {
-    assert(has_component<engine_camera_component_t>(scene, game_object));
-    auto sc = api_cast(scene);
+    assert(has_component<engine_camera_component_t>(game_object));
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     const auto coords = sc->convert_world_point_to_screen_point({ world_pos[0], world_pos[1], world_pos[2] }, game_object);
     engine_fvec3_t ret{};
     ret.x = coords.x;
@@ -1171,10 +1206,11 @@ engine_fvec3_t engineSceneCameraComponentConvertWorldPositionToScreenPosition(en
     return ret;
 }
 
-engine_fvec3_t engineSceneCameraComponentConvertSpacePositionToWorldPosition(engine_scene_t scene, engine_game_object_t game_object, const engine_fvec3_t screen_position)
+engine_fvec3_t engineCameraComponentConvertSpacePositionToWorldPosition(engine_game_object_t game_object, const engine_fvec3_t screen_position)
 {
-    assert(has_component<engine_camera_component_t>(scene, game_object));
-    auto sc = api_cast(scene);
+    assert(has_component<engine_camera_component_t>(game_object));
+    auto sc = api_cast(g_active_scene);
+    assert(sc && "No active scene set! Call engineSetActiveScene() first.");
     engine_fvec3_t ret{};
     const auto coords = sc->convert_screen_point_to_world_point({ screen_position.x, screen_position.y, screen_position.z }, game_object);
     ret.x = coords.x;
@@ -1662,25 +1698,25 @@ uint32_t engineModelDescGetAnimationsDescCount(const engine_model_desc_t* desc)
     return static_cast<uint32_t>(typed_desc->animations.size());
 }
 
-engine_skin_t* engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t* root)
+engine_skin_t* engineCreateSkinFromDesc(const engine_skin_desc_t* desc, const engine_model_node_desc_t* root)
 {
-    if (!handle || !desc || !root)
+    if (!g_active_application || !desc || !root)
     {
         return nullptr;
     }
-    auto* app = api_cast(handle);
+    auto* app = api_cast(g_active_application);
     const auto typed_desc = api_cast(desc);
     const auto typed_root = api_cast(root);
     return reinterpret_cast<engine_skin_t*>(new engine::Skin(*typed_desc, *typed_root));
 }
 
-void engineApplicationDestroySkin(engine_application_t handle, engine_skin_t* skin)
+void engineDestroySkin(engine_skin_t* skin)
 {
-    if (!handle || !skin)
+    if (!g_active_application || !skin)
     {
         return;
     }
-    auto* app = api_cast(handle);
+    auto* app = api_cast(g_active_application);
     auto typed_skin = api_cast(skin);
     delete typed_skin;
 }
@@ -1694,25 +1730,25 @@ const char* engineSkinGetName(const engine_skin_t* skin)
     return api_cast(skin)->get_name().c_str();
 }
 
-engine_animation_controller_t* engineApplicationCreateAnimationControllerWithSkin(engine_application_t handle, engine_skin_t* skin)
+engine_animation_controller_t* engineCreateAnimationControllerWithSkin(engine_skin_t* skin)
 {
-    if (!handle || !skin)
+    if (!g_active_application || !skin)
     {
         return nullptr;
     }
-    auto* app = api_cast(handle);
+    auto* app = api_cast(g_active_application);
     auto typed_skin = api_cast(skin);
     auto controller = new engine::AnimationController(typed_skin);
     return api_cast(*controller);
 }
 
-void engineApplicationDestroyAnimationController(engine_application_t handle, engine_animation_controller_t* controller)
+void engineDestroyAnimationController(engine_animation_controller_t* controller)
 {
-    if (!handle || !controller)
+    if (!g_active_application || !controller)
     {
         return;
     }
-    auto* app = api_cast(handle);
+    auto* app = api_cast(g_active_application);
     auto typed_controller = api_cast(controller);
     delete typed_controller;
 }
