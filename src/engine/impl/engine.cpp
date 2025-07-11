@@ -231,6 +231,10 @@ inline bool has_component(engine_scene_t scene, engine_game_object_t game_object
 
 } // namespace annonymous
 
+// Context storage - global state for current application and scene
+static engine_application_t g_current_application = nullptr;
+static engine_scene_t g_current_scene = nullptr;
+
 
 void engineLog(const char* str)
 {
@@ -251,6 +255,27 @@ void engineProfileZoneEnd(engine_profiler_ctx_t* ctx)
     auto tracy_ctx = reinterpret_cast<TracyCZoneCtx*>(ctx);
     ENGINE_PROFILE_ZONE_CONTEXT_END(*tracy_ctx);
     delete tracy_ctx;
+}
+
+// Context management functions
+void engineSetCurrentApplication(engine_application_t handle)
+{
+    g_current_application = handle;
+}
+
+engine_application_t engineGetCurrentApplication()
+{
+    return g_current_application;
+}
+
+void engineSetCurrentScene(engine_scene_t scene)
+{
+    g_current_scene = scene;
+}
+
+engine_scene_t engineGetCurrentScene()
+{
+    return g_current_scene;
 }
 
 engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc)
@@ -577,6 +602,17 @@ void engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t gam
     sc->destroy_entity(api_cast(game_object));
 }
 
+// Context-based game object functions
+engine_game_object_t engineCreateGameObject()
+{
+    return engineSceneCreateGameObject(g_current_scene);
+}
+
+void engineDestroyGameObject(engine_game_object_t game_object)
+{
+    engineSceneDestroyGameObject(g_current_scene, game_object);
+}
+
 void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3])
 {
     auto sc = api_cast(scene);
@@ -883,6 +919,58 @@ void engineSceneRemoveTransformComponent(engine_scene_t scene, engine_game_objec
 bool engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t game_object)
 {
     return has_component<engine_tranform_component_t>(scene, game_object);
+}
+
+// Context-based name component functions
+engine_name_component_t engineAddNameComponent(engine_game_object_t game_object)
+{
+    return engineSceneAddNameComponent(g_current_scene, game_object);
+}
+
+engine_name_component_t engineGetNameComponent(engine_game_object_t game_object)
+{
+    return engineSceneGetNameComponent(g_current_scene, game_object);
+}
+
+void engineUpdateNameComponent(engine_game_object_t game_object, const engine_name_component_t* comp)
+{
+    engineSceneUpdateNameComponent(g_current_scene, game_object, comp);
+}
+
+void engineRemoveNameComponent(engine_game_object_t game_object)
+{
+    engineSceneRemoveNameComponent(g_current_scene, game_object);
+}
+
+bool engineHasNameComponent(engine_game_object_t game_object)
+{
+    return engineSceneHasNameComponent(g_current_scene, game_object);
+}
+
+// Context-based transform component functions
+engine_tranform_component_t engineAddTransformComponent(engine_game_object_t game_object)
+{
+    return engineSceneAddTransformComponent(g_current_scene, game_object);
+}
+
+engine_tranform_component_t engineGetTransformComponent(engine_game_object_t game_object)
+{
+    return engineSceneGetTransformComponent(g_current_scene, game_object);
+}
+
+void engineUpdateTransformComponent(engine_game_object_t game_object, const engine_tranform_component_t* comp)
+{
+    engineSceneUpdateTransformComponent(g_current_scene, game_object, comp);
+}
+
+void engineRemoveTransformComponent(engine_game_object_t game_object)
+{
+    engineSceneRemoveTransformComponent(g_current_scene, game_object);
+}
+
+bool engineHasTransformComponent(engine_game_object_t game_object)
+{
+    return engineSceneHasTransformComponent(g_current_scene, game_object);
 }
 
 engine_mesh_component_t engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object)

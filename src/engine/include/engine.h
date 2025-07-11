@@ -518,6 +518,12 @@ typedef struct _engine_profiler_ctx_t engine_profiler_ctx_t;
 ENGINE_API engine_profiler_ctx_t* engineProfileZoneStart(const char* name, bool capture_call_stack);
 ENGINE_API void engineProfileZoneEnd(engine_profiler_ctx_t* ctx);
 
+// Context management
+ENGINE_API void engineSetCurrentApplication(engine_application_t handle);
+ENGINE_API engine_application_t engineGetCurrentApplication();
+ENGINE_API void engineSetCurrentScene(engine_scene_t scene);
+ENGINE_API engine_scene_t engineGetCurrentScene();
+
 // app
 ENGINE_API engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc);
 ENGINE_API bool engineApplicationIsEditorEnabled(engine_application_t handle);
@@ -530,6 +536,10 @@ ENGINE_API void engineApplicationSceneDestroy(engine_application_t handle, engin
 // game objects in scene
 ENGINE_API engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene);
 ENGINE_API void                 engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object);
+
+// Context-based game object functions (use current scene)
+ENGINE_API engine_game_object_t engineCreateGameObject();
+ENGINE_API void                 engineDestroyGameObject(engine_game_object_t game_object);
 
 // user input hangling
 ENGINE_API bool engineApplicationIsKeyboardButtonDown(engine_application_t handle, engine_keyboard_keys_t key);
@@ -616,12 +626,26 @@ ENGINE_API void engineSceneRemoveNameComponent(engine_scene_t scene, engine_game
 ENGINE_API bool engineSceneHasNameComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void engineSceneComponentViewAttachNameComponent(engine_scene_t scene, engine_component_view_t view);
 
+// Context-based name component functions (use current scene)
+ENGINE_API engine_name_component_t engineAddNameComponent(engine_game_object_t game_object);
+ENGINE_API engine_name_component_t engineGetNameComponent(engine_game_object_t game_object);
+ENGINE_API void engineUpdateNameComponent(engine_game_object_t game_object, const engine_name_component_t* comp);
+ENGINE_API void engineRemoveNameComponent(engine_game_object_t game_object);
+ENGINE_API bool engineHasNameComponent(engine_game_object_t game_object);
+
 // transform component
 ENGINE_API engine_tranform_component_t engineSceneAddTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API engine_tranform_component_t engineSceneGetTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API void engineSceneUpdateTransformComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_tranform_component_t* comp);
 ENGINE_API void engineSceneRemoveTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
 ENGINE_API bool engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+
+// Context-based transform component functions (use current scene)
+ENGINE_API engine_tranform_component_t engineAddTransformComponent(engine_game_object_t game_object);
+ENGINE_API engine_tranform_component_t engineGetTransformComponent(engine_game_object_t game_object);
+ENGINE_API void engineUpdateTransformComponent(engine_game_object_t game_object, const engine_tranform_component_t* comp);
+ENGINE_API void engineRemoveTransformComponent(engine_game_object_t game_object);
+ENGINE_API bool engineHasTransformComponent(engine_game_object_t game_object);
 
 // light component
 ENGINE_API engine_light_component_t engineSceneAddLightComponent(engine_scene_t scene, engine_game_object_t game_object);
