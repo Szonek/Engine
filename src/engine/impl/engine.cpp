@@ -231,6 +231,12 @@ inline bool has_component(engine_scene_t scene, engine_game_object_t game_object
 
 } // namespace annonymous
 
+// Global state for active application and scene
+namespace
+{
+    engine_application_t g_active_application = nullptr;
+    engine_scene_t g_active_scene = nullptr;
+}
 
 void engineLog(const char* str)
 {
@@ -251,6 +257,26 @@ void engineProfileZoneEnd(engine_profiler_ctx_t* ctx)
     auto tracy_ctx = reinterpret_cast<TracyCZoneCtx*>(ctx);
     ENGINE_PROFILE_ZONE_CONTEXT_END(*tracy_ctx);
     delete tracy_ctx;
+}
+
+void engineSetActiveApplication(engine_application_t handle)
+{
+    g_active_application = handle;
+}
+
+void engineSetActiveScene(engine_scene_t scene)
+{
+    g_active_scene = scene;
+}
+
+engine_application_t engineGetActiveApplication()
+{
+    return g_active_application;
+}
+
+engine_scene_t engineGetActiveScene()
+{
+    return g_active_scene;
 }
 
 engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc)
@@ -285,53 +311,57 @@ void engineApplicationDestroy(engine_application_t handle)
 	delete app;
 }
 
-bool engineApplicationIsKeyboardButtonDown(engine_application_t handle, engine_keyboard_keys_t key)
+bool engineIsKeyboardButtonDown(engine_keyboard_keys_t key)
 {
-	auto* app = api_cast(handle);
-    if (!app->is_keyboard_enabled())
+	auto* app = api_cast(g_active_application);
+    if (!app || !app->is_keyboard_enabled())
     {
         return false;
     }
 	return app->keyboard_is_key_down(key);
 }
 
-bool engineApplicationIsKeyboardButtonUp(engine_application_t handle, engine_keyboard_keys_t key)
+bool engineIsKeyboardButtonUp(engine_keyboard_keys_t key)
 {
-	return !engineApplicationIsKeyboardButtonDown(handle, key);
+	return !engineIsKeyboardButtonDown(key);
 }
 
-engine_fvec2_t engineApplicationGetMouseCoords(engine_application_t handle)
+engine_fvec2_t engineGetMouseCoords()
 {
-	auto* app = api_cast(handle);
-    if (!app->is_mouse_enabled())
+	auto* app = api_cast(g_active_application);
+    if (!app || !app->is_mouse_enabled())
     {
         return {};
     }
 	return app->mouse_get_coords();
 }
 
-bool engineApplicationIsMouseButtonDown(engine_application_t handle, engine_mouse_button_t button)
+bool engineIsMouseButtonDown(engine_mouse_button_t button)
 {
-	auto* app = api_cast(handle);
-    if (!app->is_mouse_enabled())
+	auto* app = api_cast(g_active_application);
+    if (!app || !app->is_mouse_enabled())
     {
         return false;
     }
 	return app->mouse_is_button_down(button);
 }
 
-bool engineApplicationIsMouseButtonUp(engine_application_t handle, engine_mouse_button_t button)
+bool engineIsMouseButtonUp(engine_mouse_button_t button)
 {
-	return !engineApplicationIsMouseButtonDown(handle, button);
+	return !engineIsMouseButtonDown(button);
 }
 
-bool engineApplicationGetFingerInfo(engine_application_t handle, engine_fingers_infos_list_t* infos_list)
+bool engineGetFingerInfo(engine_fingers_infos_list_t* infos_list)
 {
     if (!infos_list)
     {
         return false;
     }
-    auto* app = api_cast(handle);
+    auto* app = api_cast(g_active_application);
+    if (!app)
+    {
+        return false;
+    }
     const auto finger_list = app->get_finger_info_events();
     if(finger_list.empty())
     {
@@ -342,36 +372,38 @@ bool engineApplicationGetFingerInfo(engine_application_t handle, engine_fingers_
     return true;
 }
 
-engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_application_t handle)
+engine_application_frame_begine_info_t engineFrameBegine()
 {
-	auto* app = api_cast(handle);
+	auto* app = api_cast(g_active_application);
+    assert(app && "No active application set! Call engineSetActiveApplication() first.");
 	return app->begine_frame();
 }
 
-engine_result_code_t engineApplicationFrameSceneUpdate(engine_application_t handle, engine_scene_t scene, float delta_time)
+engine_result_code_t engineFrameSceneUpdate(float delta_time)
 {
-    if (!handle && !scene)
+    if (!g_active_application || !g_active_scene)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-	auto* app = api_cast(handle);
-	auto* scene_typed = api_cast(scene);
+	auto* app = api_cast(g_active_application);
+	auto* scene_typed = api_cast(g_active_scene);
 	return app->update_scene(scene_typed, delta_time);
 }
 
-engine_application_frame_end_info_t engineApplicationFrameEnd(engine_application_t handle)
+engine_application_frame_end_info_t engineFrameEnd()
 {
-	auto* app = api_cast(handle);
+	auto* app = api_cast(g_active_application);
+    assert(app && "No active application set! Call engineSetActiveApplication() first.");
 	return app->end_frame();
 }
 
-engine_result_code_t engineApplicationCreateShader(engine_application_t handle, const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out)
+engine_result_code_t engineCreateShader(const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out)
 {
-    if (!handle || !desc || !name || !out)
+    if (!g_active_application || !desc || !name || !out)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    auto* app = api_cast(handle);
+    auto* app = api_cast(g_active_application);
 
     std::vector<std::string> vertex_shaders;
     auto ptr = desc->vertex_shader_filenames;
@@ -394,24 +426,32 @@ engine_result_code_t engineApplicationCreateShader(engine_application_t handle, 
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_shader_t engineApplicationGetShaderByName(engine_application_t handle, const char* name)
+engine_shader_t engineGetShaderByName(const char* name)
 {
-    const auto* app = api_cast(handle);
+    const auto* app = api_cast(g_active_application);
+    if (!app)
+    {
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
     return app->get_shader(name);
 }
 
-void engineApplicationDestroyShader(engine_application_t handle, engine_shader_t shader)
+void engineDestroyShader(engine_shader_t shader)
 {
-    if (handle)
+    if (g_active_application)
     {       
-        auto* app = api_cast(handle);
+        auto* app = api_cast(g_active_application);
         app->destroy_shader(shader);  
     }
 }
 
-engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name)
+engine_result_code_t engineCreateFontFromFile(const char* file_name, const char* handle_name)
 {
-    auto* app = api_cast(handle);
+    auto* app = api_cast(g_active_application);
+    if (!app)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
     const auto result = app->add_font_from_file(file_name, handle_name);
     return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
