@@ -6,6 +6,7 @@ extern "C" {
 #endif
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
     // Macro to define a vector for a specific type
 #define ENGINE_DECLARE_VECTOR_TYPE(FUNC_AFFIX, STRUCT_AFFIX, ELEMENT_TYPE) \

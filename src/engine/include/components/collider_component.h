@@ -5,6 +5,7 @@ extern "C"
 {
 #endif // cpp
 #include <stdint.h>
+#include <stdbool.h>
 
 #define ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS 1
 

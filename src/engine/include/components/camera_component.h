@@ -6,6 +6,7 @@ extern "C"
 #endif // cpp
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef enum _engine_camera_projection_type_t
 {

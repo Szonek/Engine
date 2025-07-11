@@ -6,6 +6,7 @@ extern "C"
 #endif // cpp
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef uint32_t engine_geometry_t;
 typedef struct _engine_skin_t engine_skin_t;
