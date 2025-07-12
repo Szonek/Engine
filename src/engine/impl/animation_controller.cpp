@@ -111,41 +111,43 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
 void engine::AnimationController::update(float dt)
 {
     ENGINE_PROFILE_SECTION;
+    std::vector<ozz::span<ozz::math::SoaTransform>> outputs;
+    outputs.reserve(layers_.size());
+    for (auto& [_, layer] : layers_)
+    {
+        const bool has_played_a = layer.animation_a.update(dt);
+        const bool has_played_b = layer.animation_b.update(dt);
+        assert(has_played_b == false); // not supported yer
+        if (has_played_a)
+        {
+            outputs.push_back(layer.animation_a.get_output());
+        }
+    }
+    if (outputs.empty())
+    {
+        return;
+    }
 
-    //for (auto& [layer_id, jobs] : jobs_)
-    //{
-    //    for (auto it = jobs.begin(); it != jobs.end(); )
-    //    {
-    //        (*it)->update(dt);
-    //        if ((*it)->is_finished())
-    //        {
-    //            it = jobs.erase(it);
-    //        }
-    //        else
-    //        {
-    //            ++it;
-    //        }
-    //    }
-    //}
+    // ToDo: cross-layer blending
+    ozz::span<ozz::math::SoaTransform> ltm_input = outputs.back();
+    if (!ltm_input.empty())
+    {
+        ozz::animation::LocalToModelJob ltm_job{};
+        ltm_job.skeleton = skin_->skeleton_.get();
+        ltm_job.input = ltm_input;
+        ltm_job.output = ozz::make_span(skin_->models_);
 
-    //if (jobs_.empty())
-    //{
-    //    ozz::animation::LocalToModelJob ltm_job{};
-    //    ltm_job.skeleton = skin_->skeleton_.get();
-    //    ltm_job.input = ozz::make_span(skin_->locals_);
-    //    ltm_job.output = ozz::make_span(skin_->models_);
-
-    //    if (!ltm_job.Run())
-    //    {
-    //        log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", skin_->get_name()).c_str());
-    //        throw std::runtime_error("Failed to convert local to model space for skin.");
-    //    }
-    //}
+        if (!ltm_job.Run())
+        {
+            log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", skin_->get_name()).c_str());
+            throw std::runtime_error("Failed to convert local to model space for skin.");
+        }
+    }
 }
 
 bool engine::AnimationController::add_layer(std::size_t id, float weight)
 {
-    if (layers_.contains(id))
+    if (has_layer(id))
     {
         return false;
     }
@@ -159,9 +161,14 @@ bool engine::AnimationController::remove_layer(std::size_t id)
     return layers_.erase(id) != 0;
 }
 
+bool engine::AnimationController::has_layer(std::size_t id) const
+{
+    return layers_.contains(id);
+}
+
 bool engine::AnimationController::set_layer_weight(std::size_t id, float weight)
 {
-    if (!layers_.contains(id))
+    if (!has_layer(id))
     {
         return false;
     }
@@ -248,17 +255,14 @@ bool engine::AnimationController::is_playing(const std::string& animation_name) 
 
 engine::SamplingJob::SamplingJob(std::size_t num_joints)
     : context_(ozz::make_unique<ozz::animation::SamplingJob::Context>(num_joints))
+    , output_((num_joints + 3)/4)  // ToDo: just call get_num_soa_joints from skeeleton?
 {
 }
 
 
 bool engine::SamplingJob::is_playing() const
 {
-    if (animation_ && time_ < animation_->duration())
-    {
-        return true;
-    }
-    return false;
+    return animation_ != nullptr;
 }
 
 void engine::SamplingJob::start(ozz::animation::Animation* anim, float weight)
@@ -266,6 +270,7 @@ void engine::SamplingJob::start(ozz::animation::Animation* anim, float weight)
     assert(anim != nullptr);
     animation_ = anim;
     weight = weight;
+    time_ = 0.0f;
 }
 
 std::string engine::SamplingJob::get_name() const
@@ -274,9 +279,13 @@ std::string engine::SamplingJob::get_name() const
     return animation_->name();
 }
 
-void engine::SamplingJob::update(float dt)
+bool engine::SamplingJob::update(float dt)
 {
     ENGINE_PROFILE_SECTION;
+    if (!is_playing())
+    {
+        return false;
+    }
     assert(animation_ != nullptr);
     assert(dt != 0.0f);
     time_ += (dt / 1000.0f); // time is in seconds
@@ -289,5 +298,18 @@ void engine::SamplingJob::update(float dt)
     if (!sampling_job.Run()) 
     {
         log::log(log::LogLevel::eError, std::format("Animation playback '{}' has failed sampling jobl.\n", animation_->name()).c_str());
+        return false;
     }
+    // reset animation
+    if (time_ratio == 1.0f)
+    {
+        animation_ = nullptr;
+        time_ = 0.0f;
+    }
+    return true;
+}
+
+ozz::span<ozz::math::SoaTransform> engine::SamplingJob::get_output()
+{
+    return ozz::make_span(output_);
 }

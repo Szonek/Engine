@@ -279,6 +279,10 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     // add attack trigger
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineSceneCreateGameObject(scene));
 
+    // set animation layers
+    auto animation_controller = engineSceneGetAnimationControllerComponent(scene, go_).controller;
+    engineAnimationControllerLayerSetWeight(animation_controller, 0, 0.5f); // default layer (lower body layer)
+    engineAnimationControllerAddLayer(animation_controller, 123, 0.5f);     // upper body layer
 }
 
 void project_c::Player::update(float dt)

@@ -20,8 +20,10 @@ public:
     SamplingJob(std::size_t num_joints);
     
     void start(ozz::animation::Animation* anim, float weight);
-    void update(float dt);
+    bool update(float dt);
     
+    ozz::span<ozz::math::SoaTransform> get_output();
+
     std::string get_name() const;
     bool is_playing() const;
 
@@ -43,6 +45,7 @@ public:
 
     bool add_layer(std::size_t id, float weight);
     bool remove_layer(std::size_t id);
+    bool has_layer(std::size_t id) const;
     bool set_layer_weight(std::size_t id, float weight);
 
     bool add_animation(const AnimationClipDesc& animation_clip);
