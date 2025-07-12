@@ -21,7 +21,8 @@ public:
     
     void start(ozz::animation::Animation* anim);
     bool update(float dt);
-    
+    void reset();
+
     ozz::span<ozz::math::SoaTransform> get_output();
 
     std::string get_name() const;

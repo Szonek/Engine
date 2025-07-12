@@ -377,11 +377,11 @@ void project_c::Player::update(float dt)
             // blend if was walking
             if (engineAnimationControllerIsAnimationPlaying(animation_controller, move_data_.get_animation_name(MoveStateData::Direction::eForward)))
             {
-                engineAnimationControllerAnimationBlendTo(animation_controller, "Idle", 0, 1.0f);
+                engineAnimationControllerAnimationBlendTo(animation_controller, "Idle", 0, 0.2f);
             }
             else
             {
-                //engineAnimationControllerAnimationPlay(animation_controller, "Idle", 0, 1.0f);
+                engineAnimationControllerAnimationPlay(animation_controller, "Idle", 0);
             }
 
         }

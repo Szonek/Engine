@@ -115,53 +115,53 @@ void engine::AnimationController::update(float dt)
     outputs.reserve(layers_.size());
     for (auto& [_, layer] : layers_)
     {
-        ozz::vector<ozz::animation::BlendingJob::Layer> layers;
-        layers.reserve(2);
         const bool has_played_a = layer.animation_a.update(dt);
-        const bool has_played_b = layer.animation_b.update(dt);
-        if (has_played_a)
+        if (!has_played_a)
         {
-            ozz::animation::BlendingJob::Layer ozz_layer{};
-            ozz_layer.transform = ozz::make_span(layer.animation_a.get_output());
-            if (has_played_b)
-            {
-                ozz_layer.weight = 1.0f - 0.0f;// layer.animation_b.get_weight();
-            }
-            else
-            {
-                ozz_layer.weight = 1.0f;// layer.animation_a.get_weight();
-            }
-
-            layers.push_back(ozz_layer);
+            continue;
         }
-        if (has_played_b)
+        bool has_player_b = false;
+        float anim_a_weight = has_played_a ? 1.0f : 0.0f;
+        float anim_b_weight = 0.0f;
+        if (layer.blend_to)
         {
-            ozz::animation::BlendingJob::Layer ozz_layer{};
-            ozz_layer.transform = ozz::make_span(layer.animation_b.get_output());
-            ozz_layer.weight = 1.0f;// layer.animation_b.get_weight();
-            layers.push_back(ozz_layer);
-            if (!has_played_a)
+            layer.blend_to->time += dt/1000.0f;
+            anim_b_weight = std::clamp(layer.blend_to->time / layer.blend_to->duration, 0.0f, 1.0f);
+            const bool has_played_b = layer.animation_b.update(dt);
+            assert(has_played_b == true);
+
+            // swap and reset
+            if (anim_b_weight >= 1.0f)
             {
                 std::swap(layer.animation_a, layer.animation_b);
+                layer.animation_b.reset();
+                layer.blend_to = std::nullopt;
             }
         }
-        if (!layers.empty())
+
+        ozz::vector<ozz::animation::BlendingJob::Layer> layers(2);
         {
-            outputs.push_back(ozz::vector<ozz::math::SoaTransform>(skin_->skeleton_->num_soa_joints()));
-            // Setups blending job.
-            ozz::animation::BlendingJob blend_job;
-            blend_job.threshold = ozz::animation::BlendingJob().threshold;
-            blend_job.layers = ozz::make_span(layers);
-            blend_job.rest_pose = skin_->skeleton_->joint_rest_poses();
-            blend_job.output = ozz::make_span(outputs.back());
-
-            // Blends.
-            if (!blend_job.Run()) 
-            {
-                log::log(log::LogLevel::eError, std::format("Failed to update animation controller for {}.\n", skin_->get_name()).c_str());
-            }
+            layers[0].transform = ozz::make_span(layer.animation_a.get_output());
+            layers[0].weight = anim_a_weight - anim_b_weight;
+        }
+        {
+            layers[1].transform = ozz::make_span(layer.animation_b.get_output());
+            layers[1].weight = anim_b_weight;
         }
 
+        outputs.push_back(ozz::vector<ozz::math::SoaTransform>(skin_->skeleton_->num_soa_joints()));
+        // Setups blending job.
+        ozz::animation::BlendingJob blend_job;
+        blend_job.threshold = ozz::animation::BlendingJob().threshold;
+        blend_job.layers = ozz::make_span(layers);
+        blend_job.rest_pose = skin_->skeleton_->joint_rest_poses();
+        blend_job.output = ozz::make_span(outputs.back());
+
+        // Blends.
+        if (!blend_job.Run()) 
+        {
+            log::log(log::LogLevel::eError, std::format("Failed to update animation controller for {}.\n", skin_->get_name()).c_str());
+        }
     }
     if (outputs.empty())
     {
@@ -342,10 +342,15 @@ bool engine::SamplingJob::update(float dt)
     // reset animation
     if (time_ratio == 1.0f)
     {
-        animation_ = nullptr;
-        time_ = 0.0f;
+        reset();
     }
     return true;
+}
+
+void engine::SamplingJob::reset()
+{
+    animation_ = nullptr;
+    time_ = 0.0f;
 }
 
 ozz::span<ozz::math::SoaTransform> engine::SamplingJob::get_output()
