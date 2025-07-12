@@ -129,20 +129,12 @@ void engine::AnimationController::update(float dt)
             anim_b_weight = std::clamp(layer.blend_to->time / layer.blend_to->duration, 0.0f, 1.0f);
             const bool has_played_b = layer.animation_b.update(dt);
             assert(has_played_b == true);
-
-            // swap and reset
-            if (anim_b_weight >= 1.0f)
-            {
-                std::swap(layer.animation_a, layer.animation_b);
-                layer.animation_b.reset();
-                layer.blend_to = std::nullopt;
-            }
         }
 
         ozz::vector<ozz::animation::BlendingJob::Layer> layers(2);
         {
             layers[0].transform = ozz::make_span(layer.animation_a.get_output());
-            layers[0].weight = anim_a_weight - anim_b_weight;
+            layers[0].weight = std::max(0.0f, anim_a_weight - anim_b_weight);
         }
         {
             layers[1].transform = ozz::make_span(layer.animation_b.get_output());
@@ -161,6 +153,14 @@ void engine::AnimationController::update(float dt)
         if (!blend_job.Run()) 
         {
             log::log(log::LogLevel::eError, std::format("Failed to update animation controller for {}.\n", skin_->get_name()).c_str());
+        }
+
+        // swap and reset
+        if (anim_b_weight >= 1.0f || !layer.animation_a.is_playing())
+        {
+            std::swap(layer.animation_a, layer.animation_b);
+            layer.animation_b.reset();
+            layer.blend_to = std::nullopt;
         }
     }
     if (outputs.empty())
