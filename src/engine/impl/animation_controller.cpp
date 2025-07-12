@@ -7,6 +7,7 @@
 #include "ozz/animation/offline/raw_animation.h"
 #include "ozz/animation/runtime/skeleton_utils.h"
 #include "ozz/animation/runtime/local_to_model_job.h"
+#include "ozz/animation/runtime/blending_job.h"
 
 #include <stdexcept>
 #include <format>
@@ -101,38 +102,71 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
     log::log(log::LogLevel::eTrace, std::format("Adding animation '{}' with {} tracks to controller.\n", raw_animation.name, num_tracks).c_str());
     ozz::animation::offline::AnimationBuilder builder;
     animations_.emplace(raw_animation.name, builder(raw_animation));
+
+    // add default layer
+    assert(add_layer(0, 1.0f));
     return true;
 }
 
 void engine::AnimationController::update(float dt)
 {
     ENGINE_PROFILE_SECTION;
-    const auto run_ltm_job = !jobs_.empty();
-    for (auto it = jobs_.begin(); it != jobs_.end(); )
-    {
-        const auto should_erase = it->second.update(dt, ozz::make_span(skin_->locals_));
-        if (should_erase)
-        {
-            it = jobs_.erase(it);
-        }
-        else 
-        {
-            ++it;
-        }
-    }
-    if (run_ltm_job)
-    {
-        ozz::animation::LocalToModelJob ltm_job{};
-        ltm_job.skeleton = skin_->skeleton_.get();
-        ltm_job.input = ozz::make_span(skin_->locals_);
-        ltm_job.output = ozz::make_span(skin_->models_);
 
-        if (!ltm_job.Run())
-        {
-            log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", skin_->get_name()).c_str());
-            throw std::runtime_error("Failed to convert local to model space for skin.");
-        }
+    //for (auto& [layer_id, jobs] : jobs_)
+    //{
+    //    for (auto it = jobs.begin(); it != jobs.end(); )
+    //    {
+    //        (*it)->update(dt);
+    //        if ((*it)->is_finished())
+    //        {
+    //            it = jobs.erase(it);
+    //        }
+    //        else
+    //        {
+    //            ++it;
+    //        }
+    //    }
+    //}
+
+    //if (jobs_.empty())
+    //{
+    //    ozz::animation::LocalToModelJob ltm_job{};
+    //    ltm_job.skeleton = skin_->skeleton_.get();
+    //    ltm_job.input = ozz::make_span(skin_->locals_);
+    //    ltm_job.output = ozz::make_span(skin_->models_);
+
+    //    if (!ltm_job.Run())
+    //    {
+    //        log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", skin_->get_name()).c_str());
+    //        throw std::runtime_error("Failed to convert local to model space for skin.");
+    //    }
+    //}
+}
+
+bool engine::AnimationController::add_layer(std::size_t id, float weight)
+{
+    if (!layers_.contains(id))
+    {
+        return false;
     }
+
+    layers_[id] = AnimationLayer(id, weight, skin_->skeleton_->num_joints());
+    return true;
+}
+
+bool engine::AnimationController::remove_layer(std::size_t id)
+{
+    return layers_.erase(id) != 0;
+}
+
+bool engine::AnimationController::set_layer_weight(std::size_t id, float weight)
+{
+    if (!layers_.contains(id))
+    {
+        return false;
+    }
+    layers_.at(id).weight = weight;
+    return true;
 }
 
 bool engine::AnimationController::play(const std::string& animation_name, std::size_t layer_id, float weight)
@@ -150,7 +184,14 @@ bool engine::AnimationController::play(const std::string& animation_name, std::s
         log::log(log::LogLevel::eError, std::format("Animation '{}' is null.\n", animation_name).c_str());
         return false;
     }
-    jobs_.insert_or_assign(layer_id, PlayBackJob(animation.get(), skin_->skeleton_->num_joints(), weight));
+
+    if (layers_.contains(layer_id))
+    {
+        log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", layer_id).c_str());
+        return false;
+    }
+
+    layers_.at(layer_id).animation_a.start(animation.get(), weight);
     return true;
 }
 
@@ -169,31 +210,79 @@ bool engine::AnimationController::blend_to(const std::string& animation_name, st
         log::log(log::LogLevel::eError, std::format("Animation '{}' is null.\n", animation_name).c_str());
         return false;
     }
+
+    if (layers_.contains(layer_id))
+    {
+        log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", layer_id).c_str());
+        return false;
+    }
+
+    layers_.at(layer_id).animation_b.start(animation.get(), weight);
+    layers_.at(layer_id).blend_to = BlendInfo{ duration };
     return false;
 }
 
 bool engine::AnimationController::is_playing(const std::string& animation_name) const
 {
     ENGINE_PROFILE_SECTION;
-    auto it = std::find_if(jobs_.begin(), jobs_.end(), [&animation_name](const auto& it)
+    for (const auto& [layer_id, layer] : layers_)
+    {
+        if (!layer.animation_a.is_finished())
         {
-            return it.second.get_animation_name() == animation_name;
+            if (layer.animation_a.get_name() == animation_name)
+            {
+                return true;
+            }
         }
-    );
-    return it != jobs_.end();
+        if (!layer.animation_b.is_finished())
+        {
+            if (layer.animation_b.get_name() == animation_name)
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
-engine::PlayBackJob::PlayBackJob(ozz::animation::Animation* anim, std::size_t num_joints, float weight)
-    : animation_(anim)
-    , context_(ozz::make_unique<ozz::animation::SamplingJob::Context>(num_joints))
-    , weight(weight)
+engine::SamplingJob::SamplingJob(std::size_t num_joints)
+    : context_(ozz::make_unique<ozz::animation::SamplingJob::Context>(num_joints))
 {
-    ENGINE_PROFILE_SECTION;
-    assert(animation_ != nullptr);
 }
 
 
-bool engine::PlayBackJob::update(float dt, ozz::span<ozz::math::SoaTransform> output)
+bool engine::SamplingJob::is_finished() const
+{
+    if (!animation_)
+    {
+        return 0.0f;
+    }
+    return time_ >= animation_->duration();
+}
+
+void engine::SamplingJob::start(ozz::animation::Animation* anim, float weight)
+{
+    assert(anim != nullptr);
+    animation_ = anim;
+    weight = weight;
+}
+
+void engine::SamplingJob::reset()
+{
+    time_ = 0.0f;
+    weight_ = 0.0f;
+    animation_ = nullptr;
+    // Don't reset context, it will be reused for further animations.
+}
+
+std::string engine::SamplingJob::get_name() const
+{
+    assert(animation_ != nullptr);
+    return animation_->name();
+}
+
+void engine::SamplingJob::update(float dt)
 {
     ENGINE_PROFILE_SECTION;
     assert(animation_ != nullptr);
@@ -204,11 +293,9 @@ bool engine::PlayBackJob::update(float dt, ozz::span<ozz::math::SoaTransform> ou
     sampling_job.animation = animation_;
     sampling_job.context = context_.get();
     sampling_job.ratio = time_ratio;
-    sampling_job.output = output;
+    sampling_job.output = ozz::make_span(output_);
     if (!sampling_job.Run()) 
     {
         log::log(log::LogLevel::eError, std::format("Animation playback '{}' has failed sampling jobl.\n", animation_->name()).c_str());
     }
-    // scale delta time to seconds
-    return time_ >= animation_->duration();
 }

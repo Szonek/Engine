@@ -8,6 +8,7 @@
 #include "ozz/base/maths/soa_transform.h"
 #include "ozz/animation/runtime/sampling_job.h"
 
+
 #include <span>
 
 namespace engine
