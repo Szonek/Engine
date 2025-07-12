@@ -116,25 +116,25 @@ void engine::AnimationController::update(float dt)
     for (auto& [_, layer] : layers_)
     {
         const bool has_played_a = layer.animation_a.update(dt);
-        if (!has_played_a)
+        const bool has_played_b = layer.animation_b.update(dt);
+        // if both animation has not played then skip current layer
+        if (!has_played_a && !has_played_b)
         {
             continue;
         }
-        bool has_player_b = false;
-        float anim_a_weight = has_played_a ? 1.0f : 0.0f;
+
         float anim_b_weight = 0.0f;
         if (layer.blend_to)
         {
+            assert(has_played_b == true);
             layer.blend_to->time += dt/1000.0f;
             anim_b_weight = std::clamp(layer.blend_to->time / layer.blend_to->duration, 0.0f, 1.0f);
-            const bool has_played_b = layer.animation_b.update(dt);
-            assert(has_played_b == true);
         }
 
         ozz::vector<ozz::animation::BlendingJob::Layer> layers(2);
         {
             layers[0].transform = ozz::make_span(layer.animation_a.get_output());
-            layers[0].weight = std::max(0.0f, anim_a_weight - anim_b_weight);
+            layers[0].weight = 1.0f - anim_b_weight;
         }
         {
             layers[1].transform = ozz::make_span(layer.animation_b.get_output());
