@@ -156,7 +156,7 @@ void engine::AnimationController::update(float dt)
         }
 
         // swap and reset
-        if (anim_b_weight >= 1.0f || !layer.animation_a.is_playing())
+        if (anim_b_weight >= 1.0f)
         {
             std::swap(layer.animation_a, layer.animation_b);
             layer.animation_b.reset();

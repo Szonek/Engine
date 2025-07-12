@@ -102,6 +102,9 @@ public:
     void add_coin(std::uint64_t amount);
 
 private:
+    inline static const std::size_t LOCOMOTION_LAYER_ID = 0;
+    inline static const std::size_t COMBAT_LAYER_ID = 0;
+
     std::uint32_t state_;
     MoveStateData move_data_;
     AttackStateData attack_data_;
