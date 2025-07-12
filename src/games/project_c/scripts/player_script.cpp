@@ -374,7 +374,16 @@ void project_c::Player::update(float dt)
     {
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Idle"))
         {
-            engineAnimationControllerAnimationPlay(animation_controller, "Idle", 0, 0.5f);
+            // blend if was walking
+            if (engineAnimationControllerIsAnimationPlaying(animation_controller, move_data_.get_animation_name(MoveStateData::Direction::eForward)))
+            {
+                engineAnimationControllerAnimationBlendTo(animation_controller, "Idle", 0, 0.5f, 0.2f);
+            }
+            else
+            {
+                engineAnimationControllerAnimationPlay(animation_controller, "Idle", 0, 0.5f);
+            }
+
         }
     }
     if (check_state_bit(States::MOVE))

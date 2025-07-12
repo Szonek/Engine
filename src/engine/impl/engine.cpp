@@ -1698,7 +1698,7 @@ bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* contr
     return typed_controller->play(name, layer_id, weight);
 }
 
-bool engineAnimationControllerBlendTo(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float weight, float duration)
+bool engineAnimationControllerAnimationBlendTo(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float weight, float duration)
 {
     if (!controller || !new_animation_name)
     {
