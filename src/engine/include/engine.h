@@ -470,9 +470,9 @@ ENGINE_API engine_animation_controller_t* engineApplicationCreateAnimationContro
 ENGINE_API void engineApplicationDestroyAnimationController(engine_application_t handle, engine_animation_controller_t* controller);
 ENGINE_API bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc);
 ENGINE_API bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name);
-ENGINE_API bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name, size_t layer_id, float weight);
+ENGINE_API bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name, size_t layer_id);
 // Start blending from current animation to 'new_animation' over 'duration' seconds
-ENGINE_API bool engineAnimationControllerAnimationBlendTo(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float weight, float duration);
+ENGINE_API bool engineAnimationControllerAnimationBlendTo(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float duration);
 // layers
 ENGINE_API bool engineAnimationControllerAddLayer(engine_animation_controller_t* controller, size_t id, float default_weight);
 ENGINE_API bool engineAnimationControllerRemoveLayer(engine_animation_controller_t* controller, size_t id);

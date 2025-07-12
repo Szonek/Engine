@@ -377,11 +377,11 @@ void project_c::Player::update(float dt)
             // blend if was walking
             if (engineAnimationControllerIsAnimationPlaying(animation_controller, move_data_.get_animation_name(MoveStateData::Direction::eForward)))
             {
-                engineAnimationControllerAnimationBlendTo(animation_controller, "Idle", 0, 0.5f, 0.2f);
+                engineAnimationControllerAnimationBlendTo(animation_controller, "Idle", 0, 1.0f);
             }
             else
             {
-                engineAnimationControllerAnimationPlay(animation_controller, "Idle", 0, 0.5f);
+                //engineAnimationControllerAnimationPlay(animation_controller, "Idle", 0, 1.0f);
             }
 
         }
@@ -438,13 +438,13 @@ void project_c::Player::update(float dt)
 
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, move_data_.get_animation_name(anim_move_dir)))
         {
-            engineAnimationControllerAnimationPlay(animation_controller, move_data_.get_animation_name(anim_move_dir), 0, 0.5f);
+            engineAnimationControllerAnimationPlay(animation_controller, move_data_.get_animation_name(anim_move_dir), 0);
         }
         clear_state_bit(States::MOVE);
     }
     if (check_state_bit(States::TRIGGER_ATTACK))
     {
-        engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name(), 0, 0.5f);
+        engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name(), 0);
         attack_trigger_->activate();
         clear_state_bit(States::TRIGGER_ATTACK);
         enable_state_bit(States::ATTACK);

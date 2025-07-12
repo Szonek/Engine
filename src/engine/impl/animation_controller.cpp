@@ -111,17 +111,57 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
 void engine::AnimationController::update(float dt)
 {
     ENGINE_PROFILE_SECTION;
-    std::vector<ozz::span<ozz::math::SoaTransform>> outputs;
+    std::vector<ozz::vector<ozz::math::SoaTransform>> outputs;
     outputs.reserve(layers_.size());
     for (auto& [_, layer] : layers_)
     {
+        ozz::vector<ozz::animation::BlendingJob::Layer> layers;
+        layers.reserve(2);
         const bool has_played_a = layer.animation_a.update(dt);
         const bool has_played_b = layer.animation_b.update(dt);
-        assert(has_played_b == false); // not supported yer
         if (has_played_a)
         {
-            outputs.push_back(layer.animation_a.get_output());
+            ozz::animation::BlendingJob::Layer ozz_layer{};
+            ozz_layer.transform = ozz::make_span(layer.animation_a.get_output());
+            if (has_played_b)
+            {
+                ozz_layer.weight = 1.0f - 0.0f;// layer.animation_b.get_weight();
+            }
+            else
+            {
+                ozz_layer.weight = 1.0f;// layer.animation_a.get_weight();
+            }
+
+            layers.push_back(ozz_layer);
         }
+        if (has_played_b)
+        {
+            ozz::animation::BlendingJob::Layer ozz_layer{};
+            ozz_layer.transform = ozz::make_span(layer.animation_b.get_output());
+            ozz_layer.weight = 1.0f;// layer.animation_b.get_weight();
+            layers.push_back(ozz_layer);
+            if (!has_played_a)
+            {
+                std::swap(layer.animation_a, layer.animation_b);
+            }
+        }
+        if (!layers.empty())
+        {
+            outputs.push_back(ozz::vector<ozz::math::SoaTransform>(skin_->skeleton_->num_soa_joints()));
+            // Setups blending job.
+            ozz::animation::BlendingJob blend_job;
+            blend_job.threshold = ozz::animation::BlendingJob().threshold;
+            blend_job.layers = ozz::make_span(layers);
+            blend_job.rest_pose = skin_->skeleton_->joint_rest_poses();
+            blend_job.output = ozz::make_span(outputs.back());
+
+            // Blends.
+            if (!blend_job.Run()) 
+            {
+                log::log(log::LogLevel::eError, std::format("Failed to update animation controller for {}.\n", skin_->get_name()).c_str());
+            }
+        }
+
     }
     if (outputs.empty())
     {
@@ -129,7 +169,7 @@ void engine::AnimationController::update(float dt)
     }
 
     // ToDo: cross-layer blending
-    ozz::span<ozz::math::SoaTransform> ltm_input = outputs.back();
+    ozz::span<ozz::math::SoaTransform> ltm_input = ozz::make_span(outputs.back());
     if (!ltm_input.empty())
     {
         ozz::animation::LocalToModelJob ltm_job{};
@@ -176,7 +216,7 @@ bool engine::AnimationController::set_layer_weight(std::size_t id, float weight)
     return true;
 }
 
-bool engine::AnimationController::play(const std::string& animation_name, std::size_t layer_id, float weight)
+bool engine::AnimationController::play(const std::string& animation_name, std::size_t layer_id)
 {
     ENGINE_PROFILE_SECTION;
     auto it = animations_.find(animation_name);
@@ -198,11 +238,11 @@ bool engine::AnimationController::play(const std::string& animation_name, std::s
         return false;
     }
 
-    layers_.at(layer_id).animation_a.start(animation.get(), weight);
+    layers_.at(layer_id).animation_a.start(animation.get());
     return true;
 }
 
-bool engine::AnimationController::blend_to(const std::string& animation_name, std::size_t layer_id, float weight, float duration)
+bool engine::AnimationController::blend_to(const std::string& animation_name, std::size_t layer_id, float duration)
 {
     ENGINE_PROFILE_SECTION;
     auto it = animations_.find(animation_name);
@@ -224,7 +264,7 @@ bool engine::AnimationController::blend_to(const std::string& animation_name, st
         return false;
     }
 
-    layers_.at(layer_id).animation_b.start(animation.get(), weight);
+    layers_.at(layer_id).animation_b.start(animation.get());
     layers_.at(layer_id).blend_to = BlendInfo{ duration };
     return false;
 }
@@ -265,11 +305,10 @@ bool engine::SamplingJob::is_playing() const
     return animation_ != nullptr;
 }
 
-void engine::SamplingJob::start(ozz::animation::Animation* anim, float weight)
+void engine::SamplingJob::start(ozz::animation::Animation* anim)
 {
     assert(anim != nullptr);
     animation_ = anim;
-    weight = weight;
     time_ = 0.0f;
 }
 
