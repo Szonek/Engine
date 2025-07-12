@@ -117,7 +117,7 @@ void engine::AnimationController::update(float dt)
     {
         const bool has_played_a = layer.animation_a.update(dt);
         const bool has_played_b = layer.animation_b.update(dt);
-        // if both animation has not played then skip current layer
+        // if both animation have not played then skip current layer
         if (!has_played_a && !has_played_b)
         {
             continue;
