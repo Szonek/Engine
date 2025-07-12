@@ -20,13 +20,11 @@ public:
     SamplingJob(std::size_t num_joints);
     
     void start(ozz::animation::Animation* anim, float weight);
-    void reset();
-
     void update(float dt);
     
     std::string get_name() const;
-    bool is_finished() const;
-    
+    bool is_playing() const;
+
 private:
     float time_ = 0.0f;
     float weight_ = 0.0f;

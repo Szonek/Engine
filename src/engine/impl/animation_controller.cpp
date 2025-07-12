@@ -20,6 +20,8 @@ engine::AnimationController::AnimationController(Skin* skin)
     {
         throw std::invalid_argument("Skin pointer cannot be null!");
     }
+    // add default layer
+    assert(add_layer(0, 1.0f));
 }
 
 bool engine::AnimationController::add_animation(const AnimationClipDesc& animation_clip)
@@ -103,8 +105,6 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
     ozz::animation::offline::AnimationBuilder builder;
     animations_.emplace(raw_animation.name, builder(raw_animation));
 
-    // add default layer
-    assert(add_layer(0, 1.0f));
     return true;
 }
 
@@ -145,7 +145,7 @@ void engine::AnimationController::update(float dt)
 
 bool engine::AnimationController::add_layer(std::size_t id, float weight)
 {
-    if (!layers_.contains(id))
+    if (layers_.contains(id))
     {
         return false;
     }
@@ -185,7 +185,7 @@ bool engine::AnimationController::play(const std::string& animation_name, std::s
         return false;
     }
 
-    if (layers_.contains(layer_id))
+    if (!layers_.contains(layer_id))
     {
         log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", layer_id).c_str());
         return false;
@@ -211,7 +211,7 @@ bool engine::AnimationController::blend_to(const std::string& animation_name, st
         return false;
     }
 
-    if (layers_.contains(layer_id))
+    if (!layers_.contains(layer_id))
     {
         log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", layer_id).c_str());
         return false;
@@ -227,14 +227,14 @@ bool engine::AnimationController::is_playing(const std::string& animation_name) 
     ENGINE_PROFILE_SECTION;
     for (const auto& [layer_id, layer] : layers_)
     {
-        if (!layer.animation_a.is_finished())
+        if (layer.animation_a.is_playing())
         {
             if (layer.animation_a.get_name() == animation_name)
             {
                 return true;
             }
         }
-        if (!layer.animation_b.is_finished())
+        if (layer.animation_b.is_playing())
         {
             if (layer.animation_b.get_name() == animation_name)
             {
@@ -252,13 +252,13 @@ engine::SamplingJob::SamplingJob(std::size_t num_joints)
 }
 
 
-bool engine::SamplingJob::is_finished() const
+bool engine::SamplingJob::is_playing() const
 {
-    if (!animation_)
+    if (animation_ && time_ < animation_->duration())
     {
-        return 0.0f;
+        return true;
     }
-    return time_ >= animation_->duration();
+    return false;
 }
 
 void engine::SamplingJob::start(ozz::animation::Animation* anim, float weight)
@@ -266,14 +266,6 @@ void engine::SamplingJob::start(ozz::animation::Animation* anim, float weight)
     assert(anim != nullptr);
     animation_ = anim;
     weight = weight;
-}
-
-void engine::SamplingJob::reset()
-{
-    time_ = 0.0f;
-    weight_ = 0.0f;
-    animation_ = nullptr;
-    // Don't reset context, it will be reused for further animations.
 }
 
 std::string engine::SamplingJob::get_name() const

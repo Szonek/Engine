@@ -1716,5 +1716,36 @@ bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* 
         return false;
     }
     auto typed_controller = api_cast(controller);
+
     return typed_controller->is_playing(name);
+}
+
+bool engineAnimationControllerAddLayer(engine_animation_controller_t* controller, size_t id, float default_weight)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->add_layer(id, default_weight);
+}
+
+bool engineAnimationControllerRemoveLayer(engine_animation_controller_t* controller, size_t id)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->remove_layer(id);
+}
+
+bool engineAnimationControllerLayerSetWeight(engine_animation_controller_t* controller, size_t id, float new_weight)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->set_layer_weight(id, new_weight);
 }
