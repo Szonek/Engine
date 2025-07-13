@@ -374,15 +374,7 @@ void project_c::Player::update(float dt)
     {
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Idle"))
         {
-            // blend if was walking
-            if (engineAnimationControllerIsAnimationPlaying(animation_controller, move_data_.get_animation_name(MoveStateData::Direction::eForward)))
-            {
-                engineAnimationControllerAnimationCrossFade(animation_controller, "Idle", LOCOMOTION_LAYER_ID, 0.15f);
-            }
-            else
-            {
-                engineAnimationControllerAnimationPlay(animation_controller, "Idle", LOCOMOTION_LAYER_ID);
-            }
+            engineAnimationControllerAnimationCrossFade(animation_controller, "Idle", LOCOMOTION_LAYER_ID, 0.15f);
         }
     }
     if (check_state_bit(States::MOVE))
@@ -437,15 +429,7 @@ void project_c::Player::update(float dt)
 
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, move_data_.get_animation_name(anim_move_dir)))
         {
-            // blend if was walking
-            if (engineAnimationControllerIsAnimationPlaying(animation_controller, "Idle"))
-            {
-                engineAnimationControllerAnimationCrossFade(animation_controller, move_data_.get_animation_name(anim_move_dir), LOCOMOTION_LAYER_ID, 0.2f);
-            }
-            else
-            {
-                engineAnimationControllerAnimationPlay(animation_controller, move_data_.get_animation_name(anim_move_dir), LOCOMOTION_LAYER_ID);
-            }
+            engineAnimationControllerAnimationCrossFade(animation_controller, move_data_.get_animation_name(anim_move_dir), LOCOMOTION_LAYER_ID, 0.2f);
         }
 
         clear_state_bit(States::MOVE);
