@@ -103,7 +103,7 @@ public:
 
 private:
     inline static const std::size_t LOCOMOTION_LAYER_ID = 0;
-    inline static const std::size_t COMBAT_LAYER_ID = 0;
+    inline static const std::size_t COMBAT_LAYER_ID = 123;
 
     std::uint32_t state_;
     MoveStateData move_data_;

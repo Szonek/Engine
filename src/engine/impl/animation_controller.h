@@ -74,6 +74,7 @@ private:
         SamplingJob animation_a; // base animation
         SamplingJob animation_b; // cross_fade_to
         std::optional<CrossFadeInfo> cross_fade_to;
+        ozz::vector<ozz::math::SoaTransform> output;
 
         AnimationLayer(std::size_t id, float weight, std::size_t num_joints, LayerBlendMode mode)
             : id(id)
@@ -81,6 +82,7 @@ private:
             , mode(mode)
             , animation_a(num_joints)
             , animation_b(num_joints)
+            , output((num_joints + 3) / 4)
         { }
         AnimationLayer()
             : AnimationLayer(0, 0.0f, 0, LayerBlendMode::eOverride)

@@ -282,7 +282,7 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     // set animation layers
     auto animation_controller = engineSceneGetAnimationControllerComponent(scene, go_).controller;
     engineAnimationControllerLayerSetWeight(animation_controller, LOCOMOTION_LAYER_ID, 0.5f); // default layer (lower body layer)
-    engineAnimationControllerAddLayer(animation_controller, COMBAT_LAYER_ID, 0.5f);     // upper body layer
+    engineAnimationControllerAddLayer(animation_controller, COMBAT_LAYER_ID, 1.0f);     // upper body layer
 }
 
 void project_c::Player::update(float dt)
@@ -374,7 +374,7 @@ void project_c::Player::update(float dt)
     {
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Idle"))
         {
-            engineAnimationControllerAnimationCrossFade(animation_controller, "Idle", LOCOMOTION_LAYER_ID, 0.15f);
+            //engineAnimationControllerAnimationCrossFade(animation_controller, "Idle", LOCOMOTION_LAYER_ID, 0.15f);
         }
     }
     if (check_state_bit(States::MOVE))
@@ -436,7 +436,7 @@ void project_c::Player::update(float dt)
     }
     if (check_state_bit(States::TRIGGER_ATTACK))
     {
-        engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name(), COMBAT_LAYER_ID);
+        engineAnimationControllerAnimationCrossFade(animation_controller, attack_data_.get_animation_name(), LOCOMOTION_LAYER_ID, 0.2f);
         attack_trigger_->activate();
         clear_state_bit(States::TRIGGER_ATTACK);
         enable_state_bit(States::ATTACK);
@@ -445,6 +445,7 @@ void project_c::Player::update(float dt)
     {
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name()))
         {
+            engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name());
             clear_state_bit(States::ATTACK);
             attack_data_ = {};
         }

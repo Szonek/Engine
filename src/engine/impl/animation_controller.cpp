@@ -111,8 +111,10 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
 void engine::AnimationController::update(float dt)
 {
     ENGINE_PROFILE_SECTION;
-    std::vector<ozz::vector<ozz::math::SoaTransform>> outputs;
-    outputs.reserve(layers_.size());
+
+    ozz::vector<ozz::animation::BlendingJob::Layer> executed_layers;
+    executed_layers.reserve(layers_.size());
+
     for (auto& [_, layer] : layers_)
     {
         const bool has_played_a = layer.animation_a.update(dt);
@@ -131,29 +133,34 @@ void engine::AnimationController::update(float dt)
             anim_b_weight = std::clamp(layer.cross_fade_to->time / layer.cross_fade_to->duration, 0.0f, 1.0f);
         }
 
-        ozz::vector<ozz::animation::BlendingJob::Layer> layers(2);
+        ozz::vector<ozz::animation::BlendingJob::Layer> anim_layers(2);
         {
-            layers[0].transform = ozz::make_span(layer.animation_a.get_output());
-            layers[0].weight = 1.0f - anim_b_weight;
+            anim_layers[0].transform = ozz::make_span(layer.animation_a.get_output());
+            anim_layers[0].weight = 1.0f - anim_b_weight;
         }
         {
-            layers[1].transform = ozz::make_span(layer.animation_b.get_output());
-            layers[1].weight = anim_b_weight;
+            anim_layers[1].transform = ozz::make_span(layer.animation_b.get_output());
+            anim_layers[1].weight = anim_b_weight;
         }
 
-        outputs.push_back(ozz::vector<ozz::math::SoaTransform>(skin_->skeleton_->num_soa_joints()));
         // Setups blending job.
         ozz::animation::BlendingJob blend_job;
         blend_job.threshold = ozz::animation::BlendingJob().threshold;
-        blend_job.layers = ozz::make_span(layers);
+        blend_job.layers = ozz::make_span(anim_layers);
         blend_job.rest_pose = skin_->skeleton_->joint_rest_poses();
-        blend_job.output = ozz::make_span(outputs.back());
+        blend_job.output = ozz::make_span(layer.output);
 
         // Blends.
         if (!blend_job.Run()) 
         {
             log::log(log::LogLevel::eError, std::format("Failed to update animation controller for {}.\n", skin_->get_name()).c_str());
         }
+
+        // add to executed layer result
+        ozz::animation::BlendingJob::Layer layer_result{};
+        layer_result.weight = layer.weight;
+        layer_result.transform = ozz::make_span(layer.output);
+        executed_layers.push_back(layer_result);
 
         // swap and reset
         if (anim_b_weight >= 1.0f)
@@ -163,25 +170,37 @@ void engine::AnimationController::update(float dt)
             layer.cross_fade_to = std::nullopt;
         }
     }
-    if (outputs.empty())
+    // early exit, no work to do
+    if (executed_layers.empty())
     {
         return;
     }
 
-    // ToDo: cross-layer blending
-    ozz::span<ozz::math::SoaTransform> ltm_input = ozz::make_span(outputs.back());
-    if (!ltm_input.empty())
-    {
-        ozz::animation::LocalToModelJob ltm_job{};
-        ltm_job.skeleton = skin_->skeleton_.get();
-        ltm_job.input = ltm_input;
-        ltm_job.output = ozz::make_span(skin_->models_);
+    // cross-layer blend
+    ozz::vector<ozz::math::SoaTransform> final_output(skin_->skeleton_->num_soa_joints());
+    ozz::animation::BlendingJob blend_job;
+    blend_job.threshold = ozz::animation::BlendingJob().threshold;
+    blend_job.layers = ozz::make_span(executed_layers);
+    blend_job.rest_pose = skin_->skeleton_->joint_rest_poses();
+    blend_job.output = ozz::make_span(final_output);
 
-        if (!ltm_job.Run())
-        {
-            log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", skin_->get_name()).c_str());
-            throw std::runtime_error("Failed to convert local to model space for skin.");
-        }
+    // Blends.
+    if (!blend_job.Run())
+    {
+        log::log(log::LogLevel::eError, std::format("Failed blend cross-layer result for skin: {}.\n", skin_->get_name()).c_str());
+        throw std::runtime_error("Failed blend cross-layer result.");
+    }
+
+    // compute model matrices which will be used during skinning
+    ozz::animation::LocalToModelJob ltm_job{};
+    ltm_job.skeleton = skin_->skeleton_.get();
+    ltm_job.input = ozz::make_span(final_output);
+    ltm_job.output = ozz::make_span(skin_->models_);
+
+    if (!ltm_job.Run())
+    {
+        log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", skin_->get_name()).c_str());
+        throw std::runtime_error("Failed to convert local to model space for skin.");
     }
 }
 
@@ -274,8 +293,14 @@ bool engine::AnimationController::cross_fade_to(const std::string& animation_nam
         return false;
     }
 
-    layers_.at(layer_id).animation_b.start(animation.get());
-    layers_.at(layer_id).cross_fade_to = CrossFadeInfo{ duration };
+    auto& layer = layers_.at(layer_id);
+
+    if (layer.animation_b.is_playing())
+    {
+        std::swap(layer.animation_a, layer.animation_b);
+    }
+    layer.animation_b.start(animation.get());
+    layer.cross_fade_to = CrossFadeInfo{ duration };
     return false;
 }
 
