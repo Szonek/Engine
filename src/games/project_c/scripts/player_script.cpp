@@ -282,7 +282,8 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     // set animation layers
     auto animation_controller = engineSceneGetAnimationControllerComponent(scene, go_).controller;
     engineAnimationControllerLayerSetWeight(animation_controller, LOCOMOTION_LAYER_ID, 0.5f); // default layer (lower body layer)
-    engineAnimationControllerAddLayer(animation_controller, COMBAT_LAYER_ID, 1.0f);     // upper body layer
+    engineAnimationControllerAddLayer(animation_controller, COMBAT_LAYER_ID, 0.5f);     // upper body layer
+    engineAnimationControllerSetMode(animation_controller, COMBAT_LAYER_ID, ENGINE_ANIMATION_LAYER_MODE_ADDITIVE);
 }
 
 void project_c::Player::update(float dt)

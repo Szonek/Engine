@@ -5,6 +5,8 @@
 
 #include "ozz/animation/offline/animation_builder.h"
 #include "ozz/animation/offline/raw_animation.h"
+#include "ozz/animation/offline/additive_animation_builder.h"
+
 #include "ozz/animation/runtime/skeleton_utils.h"
 #include "ozz/animation/runtime/local_to_model_job.h"
 #include "ozz/animation/runtime/blending_job.h"
@@ -100,11 +102,20 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
     {
         throw std::runtime_error("Invalid raw animation data.");
     }
+
+
     const auto num_tracks = raw_animation.tracks.size();
     log::log(log::LogLevel::eTrace, std::format("Adding animation '{}' with {} tracks to controller.\n", raw_animation.name, num_tracks).c_str());
+    
+    ozz::animation::offline::RawAnimation raw_animation_additive;
+    ozz::animation::offline::AdditiveAnimationBuilder additive_builder{};
+    const auto res = additive_builder(raw_animation, &raw_animation_additive);
+    assert(res);
+    AnimationData ad{};
     ozz::animation::offline::AnimationBuilder builder;
-    animations_.emplace(raw_animation.name, builder(raw_animation));
-
+    ad.override = builder(raw_animation);
+    ad.additive = builder(raw_animation_additive);
+    animations_.emplace(raw_animation.name, std::move(ad));
     return true;
 }
 
@@ -114,6 +125,9 @@ void engine::AnimationController::update(float dt)
 
     ozz::vector<ozz::animation::BlendingJob::Layer> executed_layers;
     executed_layers.reserve(layers_.size());
+
+    ozz::vector<ozz::animation::BlendingJob::Layer> executed_additive_layers;
+    executed_additive_layers.reserve(layers_.size());
 
     for (auto& [_, layer] : layers_)
     {
@@ -160,7 +174,18 @@ void engine::AnimationController::update(float dt)
         ozz::animation::BlendingJob::Layer layer_result{};
         layer_result.weight = layer.weight;
         layer_result.transform = ozz::make_span(layer.output);
-        executed_layers.push_back(layer_result);
+        if (layer.mode == LayerBlendMode::eOverride)
+        {
+            executed_layers.push_back(layer_result);
+        }
+        else if (layer.mode == LayerBlendMode::eAdditive)
+        {
+            executed_additive_layers.push_back(layer_result);
+        }
+        else
+        {
+            assert(!"Should never hit here");
+        }
 
         // swap and reset
         if (anim_b_weight >= 1.0f)
@@ -171,7 +196,7 @@ void engine::AnimationController::update(float dt)
         }
     }
     // early exit, no work to do
-    if (executed_layers.empty())
+    if (executed_layers.empty() && executed_additive_layers.empty())
     {
         return;
     }
@@ -181,6 +206,7 @@ void engine::AnimationController::update(float dt)
     ozz::animation::BlendingJob blend_job;
     blend_job.threshold = ozz::animation::BlendingJob().threshold;
     blend_job.layers = ozz::make_span(executed_layers);
+    blend_job.additive_layers = ozz::make_span(executed_additive_layers);
     blend_job.rest_pose = skin_->skeleton_->joint_rest_poses();
     blend_job.output = ozz::make_span(final_output);
 
@@ -248,22 +274,23 @@ bool engine::AnimationController::set_layer_mode(std::size_t id, LayerBlendMode 
 bool engine::AnimationController::play(const std::string& animation_name, std::size_t layer_id)
 {
     ENGINE_PROFILE_SECTION;
+    if (!layers_.contains(layer_id))
+    {
+        log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", layer_id).c_str());
+        return false;
+    }
+
     auto it = animations_.find(animation_name);
     if (it == animations_.end())
     {
         log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
         return false;
     }
-    const auto& animation = it->second;
+    
+    const auto& animation = layers_.at(layer_id).mode == LayerBlendMode::eAdditive ? it->second.additive : it->second.override;
     if (!animation)
     {
         log::log(log::LogLevel::eError, std::format("Animation '{}' is null.\n", animation_name).c_str());
-        return false;
-    }
-
-    if (!layers_.contains(layer_id))
-    {
-        log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", layer_id).c_str());
         return false;
     }
 
@@ -274,27 +301,27 @@ bool engine::AnimationController::play(const std::string& animation_name, std::s
 bool engine::AnimationController::cross_fade_to(const std::string& animation_name, std::size_t layer_id, float duration)
 {
     ENGINE_PROFILE_SECTION;
-    auto it = animations_.find(animation_name);
-    if (it == animations_.end())
-    {
-        log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
-        return false;
-    }
-    const auto& animation = it->second;
-    if (!animation)
-    {
-        log::log(log::LogLevel::eError, std::format("Animation '{}' is null.\n", animation_name).c_str());
-        return false;
-    }
-
     if (!layers_.contains(layer_id))
     {
         log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", layer_id).c_str());
         return false;
     }
 
-    auto& layer = layers_.at(layer_id);
+    auto it = animations_.find(animation_name);
+    if (it == animations_.end())
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
+        return false;
+    }
 
+    const auto& animation = layers_.at(layer_id).mode == LayerBlendMode::eAdditive ? it->second.additive : it->second.override;
+    if (!animation)
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' is null.\n", animation_name).c_str());
+        return false;
+    }
+
+    auto& layer = layers_.at(layer_id);
     if (layer.animation_b.is_playing())
     {
         std::swap(layer.animation_a, layer.animation_b);

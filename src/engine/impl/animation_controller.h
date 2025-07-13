@@ -61,6 +61,12 @@ public:
     bool is_playing(const std::string& animation_name) const;
 
 private:
+    struct AnimationData
+    {
+        ozz::unique_ptr<ozz::animation::Animation> override;
+        ozz::unique_ptr<ozz::animation::Animation> additive;
+    };
+
     struct CrossFadeInfo
     {
         float duration = 0.0f; // set by user 
@@ -90,7 +96,7 @@ private:
     };
 private:
     Skin* skin_ = nullptr;
-    std::unordered_map<std::string, ozz::unique_ptr<ozz::animation::Animation>> animations_;
+    std::unordered_map<std::string, AnimationData> animations_;
 
     std::unordered_map<std::size_t, AnimationLayer> layers_;
 };
