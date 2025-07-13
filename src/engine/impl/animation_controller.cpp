@@ -192,7 +192,7 @@ bool engine::AnimationController::add_layer(std::size_t id, float weight)
         return false;
     }
 
-    layers_[id] = AnimationLayer(id, weight, skin_->skeleton_->num_joints());
+    layers_[id] = AnimationLayer(id, weight, skin_->skeleton_->num_joints(), LayerBlendMode::eOverride);
     return true;
 }
 
@@ -213,6 +213,16 @@ bool engine::AnimationController::set_layer_weight(std::size_t id, float weight)
         return false;
     }
     layers_.at(id).weight = weight;
+    return true;
+}
+
+bool engine::AnimationController::set_layer_mode(std::size_t id, LayerBlendMode mode)
+{
+    if (!has_layer(id))
+    {
+        return false;
+    }
+    layers_.at(id).mode = mode;
     return true;
 }
 

@@ -474,10 +474,15 @@ ENGINE_API bool engineAnimationControllerAnimationPlay(engine_animation_controll
 // Start fading in from current animation to 'new_animation' over 'duration' seconds
 ENGINE_API bool engineAnimationControllerAnimationCrossFade(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float duration);
 // layers
+typedef enum _engine_animation_layer_mode_t
+{
+    ENGINE_ANIMATION_LAYER_MODE_OVERRIDE,
+    ENGINE_ANIMATION_LAYER_MODE_ADDITIVE
+} engine_animation_layer_mode_t;
 ENGINE_API bool engineAnimationControllerAddLayer(engine_animation_controller_t* controller, size_t id, float default_weight);
 ENGINE_API bool engineAnimationControllerRemoveLayer(engine_animation_controller_t* controller, size_t id);
 ENGINE_API bool engineAnimationControllerLayerSetWeight(engine_animation_controller_t* controller, size_t id, float new_weight);
-
+ENGINE_API bool engineAnimationControllerSetMode(engine_animation_controller_t* controller, size_t id, engine_animation_layer_mode_t mode);
 /**
  * @struct engine_geometry_attribute_limit_t
  * @brief A structure representing the limits of a geometry attribute in the engine.

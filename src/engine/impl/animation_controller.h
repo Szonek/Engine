@@ -35,6 +35,12 @@ private:
     ozz::vector<ozz::math::SoaTransform> output_;
 };
 
+enum class LayerBlendMode
+{
+    eOverride,
+    eAdditive
+};
+
 class AnimationController
 {
     friend class Skin;
@@ -47,6 +53,7 @@ public:
     bool remove_layer(std::size_t id);
     bool has_layer(std::size_t id) const;
     bool set_layer_weight(std::size_t id, float weight);
+    bool set_layer_mode(std::size_t id, LayerBlendMode mode);
 
     bool add_animation(const AnimationClipDesc& animation_clip);
     bool play(const std::string& animation_name, std::size_t layer_id);
@@ -63,18 +70,20 @@ private:
     {
         std::size_t id;
         float weight;
+        LayerBlendMode mode;
         SamplingJob animation_a; // base animation
         SamplingJob animation_b; // cross_fade_to
         std::optional<CrossFadeInfo> cross_fade_to;
 
-        AnimationLayer(std::size_t id, float weight, std::size_t num_joints)
+        AnimationLayer(std::size_t id, float weight, std::size_t num_joints, LayerBlendMode mode)
             : id(id)
             , weight(weight)
+            , mode(mode)
             , animation_a(num_joints)
             , animation_b(num_joints)
         { }
         AnimationLayer()
-            : AnimationLayer(0, 0.0f, 0)
+            : AnimationLayer(0, 0.0f, 0, LayerBlendMode::eOverride)
         { }
     };
 private:

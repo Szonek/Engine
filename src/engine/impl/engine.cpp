@@ -15,7 +15,7 @@
 
 #include <utility>
 
-#include <fmt/format.h>
+#include <format>
 
 namespace
 {
@@ -1748,4 +1748,32 @@ bool engineAnimationControllerLayerSetWeight(engine_animation_controller_t* cont
     }
     auto typed_controller = api_cast(controller);
     return typed_controller->set_layer_weight(id, new_weight);
+}
+
+bool engineAnimationControllerSetMode(engine_animation_controller_t* controller, size_t id, engine_animation_layer_mode_t mode)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    engine::LayerBlendMode blend_mode = engine::LayerBlendMode::eOverride;
+    switch (mode)
+    {
+    case ENGINE_ANIMATION_LAYER_MODE_OVERRIDE:
+    {
+        blend_mode = engine::LayerBlendMode::eOverride;
+        break;
+    }
+    case ENGINE_ANIMATION_LAYER_MODE_ADDITIVE:
+    {
+        blend_mode = engine::LayerBlendMode::eAdditive;
+        break;
+    }
+    default:
+    {
+        engine::log::log(engine::log::LogLevel::eError, std::format("Unrecognized blend mode: {} for layer id: {}", (std::int32_t)mode, id));
+    }
+    }
+    return typed_controller->set_layer_mode(id, blend_mode);
 }
