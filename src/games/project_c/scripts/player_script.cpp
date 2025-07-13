@@ -377,7 +377,7 @@ void project_c::Player::update(float dt)
             // blend if was walking
             if (engineAnimationControllerIsAnimationPlaying(animation_controller, move_data_.get_animation_name(MoveStateData::Direction::eForward)))
             {
-                engineAnimationControllerAnimationBlendTo(animation_controller, "Idle", LOCOMOTION_LAYER_ID, 0.15f);
+                engineAnimationControllerAnimationCrossFade(animation_controller, "Idle", LOCOMOTION_LAYER_ID, 0.15f);
             }
             else
             {
@@ -440,7 +440,7 @@ void project_c::Player::update(float dt)
             // blend if was walking
             if (engineAnimationControllerIsAnimationPlaying(animation_controller, "Idle"))
             {
-                engineAnimationControllerAnimationBlendTo(animation_controller, move_data_.get_animation_name(anim_move_dir), LOCOMOTION_LAYER_ID, 0.2f);
+                engineAnimationControllerAnimationCrossFade(animation_controller, move_data_.get_animation_name(anim_move_dir), LOCOMOTION_LAYER_ID, 0.2f);
             }
             else
             {

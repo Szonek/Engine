@@ -1698,14 +1698,14 @@ bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* contr
     return typed_controller->play(name, layer_id);
 }
 
-bool engineAnimationControllerAnimationBlendTo(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float duration)
+bool engineAnimationControllerAnimationCrossFade(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float duration)
 {
     if (!controller || !new_animation_name)
     {
         return false;
     }
     auto typed_controller = api_cast(controller);
-    return typed_controller->blend_to(new_animation_name, layer_id, duration);
+    return typed_controller->cross_fade_to(new_animation_name, layer_id, std::max(0.0f, duration));
 }
 
 

@@ -50,11 +50,11 @@ public:
 
     bool add_animation(const AnimationClipDesc& animation_clip);
     bool play(const std::string& animation_name, std::size_t layer_id);
-    bool blend_to(const std::string& animation_name, std::size_t layer_id, float duration);
+    bool cross_fade_to(const std::string& animation_name, std::size_t layer_id, float duration);
     bool is_playing(const std::string& animation_name) const;
 
 private:
-    struct BlendInfo
+    struct CrossFadeInfo
     {
         float duration = 0.0f; // set by user 
         float time = 0.0f; // track current time
@@ -64,8 +64,8 @@ private:
         std::size_t id;
         float weight;
         SamplingJob animation_a; // base animation
-        SamplingJob animation_b; // blend_to
-        std::optional<BlendInfo> blend_to;
+        SamplingJob animation_b; // cross_fade_to
+        std::optional<CrossFadeInfo> cross_fade_to;
 
         AnimationLayer(std::size_t id, float weight, std::size_t num_joints)
             : id(id)

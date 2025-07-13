@@ -124,11 +124,11 @@ void engine::AnimationController::update(float dt)
         }
 
         float anim_b_weight = 0.0f;
-        if (layer.blend_to)
+        if (layer.cross_fade_to)
         {
             assert(has_played_b == true);
-            layer.blend_to->time += dt/1000.0f;
-            anim_b_weight = std::clamp(layer.blend_to->time / layer.blend_to->duration, 0.0f, 1.0f);
+            layer.cross_fade_to->time += dt/1000.0f;
+            anim_b_weight = std::clamp(layer.cross_fade_to->time / layer.cross_fade_to->duration, 0.0f, 1.0f);
         }
 
         ozz::vector<ozz::animation::BlendingJob::Layer> layers(2);
@@ -160,7 +160,7 @@ void engine::AnimationController::update(float dt)
         {
             std::swap(layer.animation_a, layer.animation_b);
             layer.animation_b.reset();
-            layer.blend_to = std::nullopt;
+            layer.cross_fade_to = std::nullopt;
         }
     }
     if (outputs.empty())
@@ -242,7 +242,7 @@ bool engine::AnimationController::play(const std::string& animation_name, std::s
     return true;
 }
 
-bool engine::AnimationController::blend_to(const std::string& animation_name, std::size_t layer_id, float duration)
+bool engine::AnimationController::cross_fade_to(const std::string& animation_name, std::size_t layer_id, float duration)
 {
     ENGINE_PROFILE_SECTION;
     auto it = animations_.find(animation_name);
@@ -265,7 +265,7 @@ bool engine::AnimationController::blend_to(const std::string& animation_name, st
     }
 
     layers_.at(layer_id).animation_b.start(animation.get());
-    layers_.at(layer_id).blend_to = BlendInfo{ duration };
+    layers_.at(layer_id).cross_fade_to = CrossFadeInfo{ duration };
     return false;
 }
 
