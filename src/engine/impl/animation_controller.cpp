@@ -3,16 +3,39 @@
 #include "logger.h"
 #include "profiler.h"
 
-#include "ozz/animation/offline/animation_builder.h"
-#include "ozz/animation/offline/raw_animation.h"
-#include "ozz/animation/offline/additive_animation_builder.h"
+#include <ozz/animation/offline/animation_builder.h>
+#include <ozz/animation/offline/raw_animation.h>
+#include <ozz/animation/offline/additive_animation_builder.h>
 
-#include "ozz/animation/runtime/skeleton_utils.h"
-#include "ozz/animation/runtime/local_to_model_job.h"
-#include "ozz/animation/runtime/blending_job.h"
+#include <ozz/animation/runtime/skeleton_utils.h>
+#include <ozz/animation/runtime/local_to_model_job.h>
+#include <ozz/animation/runtime/blending_job.h>
+
+#include <ozz/animation/runtime/skeleton_utils.h>
 
 #include <stdexcept>
 #include <format>
+
+namespace
+{
+// Helper functor used to set weights while traversing joints hierarchy.
+struct WeightSetupIterator 
+{
+    WeightSetupIterator(ozz::vector<ozz::math::SimdFloat4>& _weights, float _weight_setting)
+        : weights(_weights), weight_setting(_weight_setting)
+    {
+    }
+    void operator()(std::int32_t _joint, int)
+    {
+        ozz::math::SimdFloat4& soa_weight = weights.at(_joint / 4);
+        soa_weight = ozz::math::SetI(
+            soa_weight, ozz::math::simd_float4::Load1(weight_setting),
+            _joint % 4);
+    }
+    ozz::vector<ozz::math::SimdFloat4>& weights;
+    float weight_setting;
+};
+}
 
 engine::AnimationController::AnimationController(Skin* skin)
     : skin_(skin)
@@ -187,6 +210,11 @@ void engine::AnimationController::update(float dt)
             assert(!"Should never hit here");
         }
 
+        if (layer.joint_weights)
+        {
+            layer_result.joint_weights = ozz::make_span(*layer.joint_weights);
+        }
+
         // swap and reset
         if (anim_b_weight >= 1.0f)
         {
@@ -238,6 +266,24 @@ bool engine::AnimationController::add_layer(std::size_t id, float weight)
     }
 
     layers_[id] = AnimationLayer(id, weight, skin_->skeleton_->num_joints(), LayerBlendMode::eOverride);
+    
+    const auto upper_body_root_ = ozz::animation::FindJoint(*skin_->skeleton_.get(), "root");
+    if (upper_body_root_ < 0)
+    {
+        assert(!"temp!!");
+    }
+
+    ozz::vector<ozz::math::SimdFloat4> joint_weights;
+    joint_weights.reserve(skin_->skeleton_->num_soa_joints());
+    for (int i = 0; i < skin_->skeleton_->num_soa_joints(); ++i)
+    {
+        joint_weights.push_back(ozz::math::simd_float4::one());
+    }
+    layers_[id].joint_weights.emplace(std::move(joint_weights));
+
+    WeightSetupIterator wht_it(layers_[id].joint_weights.value(), 1.0f);
+    ozz::animation::IterateJointsDF(*skin_->skeleton_.get(), wht_it, upper_body_root_);
+    
     return true;
 }
 

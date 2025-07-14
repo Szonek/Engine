@@ -1,11 +1,12 @@
 #pragma once
 #include "mesh_defs.h"
 
-#include "ozz/animation/runtime/skeleton.h"
-#include "ozz/animation/runtime/animation.h"
-#include "ozz/animation/runtime/sampling_job.h"
-#include "ozz/base/memory/unique_ptr.h"
-#include "ozz/base/containers/vector.h"
+#include <ozz/animation/runtime/skeleton.h>
+#include <ozz/animation/runtime/animation.h>
+#include <ozz/animation/runtime/sampling_job.h>
+#include <ozz/base/memory/unique_ptr.h>
+#include <ozz/base/containers/vector.h>
+#include <ozz/base/maths/simd_math.h>
 
 #include <optional>
 #include <deque>
@@ -80,6 +81,7 @@ private:
         SamplingJob animation_a; // base animation
         SamplingJob animation_b; // cross_fade_to
         std::optional<CrossFadeInfo> cross_fade_to;
+        std::optional<ozz::vector<ozz::math::SimdFloat4>> joint_weights;  // used for mask
         ozz::vector<ozz::math::SoaTransform> output;
 
         AnimationLayer(std::size_t id, float weight, std::size_t num_joints, LayerBlendMode mode)
