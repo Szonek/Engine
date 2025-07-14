@@ -197,6 +197,10 @@ void engine::AnimationController::update(float dt)
         ozz::animation::BlendingJob::Layer layer_result{};
         layer_result.weight = layer.weight;
         layer_result.transform = ozz::make_span(layer.output);
+        if (layer.joint_weights)
+        {
+            layer_result.joint_weights = ozz::make_span(*layer.joint_weights);
+        }
         if (layer.mode == LayerBlendMode::eOverride)
         {
             executed_layers.push_back(layer_result);
@@ -208,11 +212,6 @@ void engine::AnimationController::update(float dt)
         else
         {
             assert(!"Should never hit here");
-        }
-
-        if (layer.joint_weights)
-        {
-            layer_result.joint_weights = ozz::make_span(*layer.joint_weights);
         }
 
         // swap and reset
@@ -277,11 +276,12 @@ bool engine::AnimationController::add_layer(std::size_t id, float weight)
     joint_weights.reserve(skin_->skeleton_->num_soa_joints());
     for (int i = 0; i < skin_->skeleton_->num_soa_joints(); ++i)
     {
+        // set 1.0 for all joints (all joint enabled)
         joint_weights.push_back(ozz::math::simd_float4::one());
     }
     layers_[id].joint_weights.emplace(std::move(joint_weights));
 
-    WeightSetupIterator wht_it(layers_[id].joint_weights.value(), 1.0f);
+    WeightSetupIterator wht_it(*layers_[id].joint_weights, 1.0f);
     ozz::animation::IterateJointsDF(*skin_->skeleton_.get(), wht_it, upper_body_root_);
     
     return true;
