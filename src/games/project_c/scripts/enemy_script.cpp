@@ -99,7 +99,7 @@ void project_c::Enemy::update(float dt)
     if (hp <= 0 && state_ != States::DIE)
     {
         state_ = States::DIE;
-        engineAnimationControllerAnimationPlay(animation_controller, "Death_A");
+        engineAnimationControllerAnimationPlay(animation_controller, "Death_A", 0);
         // remove collider so enemy will not be hit by players attacks
         engineSceneRemoveColliderComponent(scene, go_);
         if (reinterpret_cast<AppProjectC*>(my_scene_->get_app())->is_prefab_available(project_c::PrefabType::PREFAB_TYPE_COIN_GOLD))
@@ -116,7 +116,10 @@ void project_c::Enemy::update(float dt)
         if (path.nodes.size() == 0 && distance_to_player < 0.8f)
         {
             state_ = States::ATTACK;
-            engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name());
+            if (!engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name()))
+            {
+                engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name(), 0);
+            }
         }
         else if (path.nodes.size() >= 1 && path.nodes.size() < 3)
         {
@@ -130,7 +133,10 @@ void project_c::Enemy::update(float dt)
     }
     case States::IDLE:
     {
-        engineAnimationControllerAnimationPlay(animation_controller, "Idle");
+        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Idle"))
+        {
+            engineAnimationControllerAnimationPlay(animation_controller, "Idle", 0);
+        }
         state_ = States::DECISION_MAKE;
         break;
     }
@@ -165,7 +171,10 @@ void project_c::Enemy::update(float dt)
             state_ = States::DECISION_MAKE;
             break;
         }
-        engineAnimationControllerAnimationPlay(animation_controller, "Running_A");
+        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Running_A"))
+        {
+            engineAnimationControllerAnimationPlay(animation_controller, "Running_A", 0);
+        }
         for (auto& node : path.nodes)
         {
             const auto n_pos = nav_mesh_->get_node(node).get_center();

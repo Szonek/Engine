@@ -1,29 +1,45 @@
 #pragma once
 #include "mesh_defs.h"
 
-#include "ozz/animation/runtime/skeleton.h"
-#include "ozz/animation/runtime/animation.h"
-#include "ozz/animation/runtime/sampling_job.h"
-#include "ozz/base/memory/unique_ptr.h"
+#include <ozz/animation/runtime/skeleton.h>
+#include <ozz/animation/runtime/animation.h>
+#include <ozz/animation/runtime/sampling_job.h>
+#include <ozz/base/memory/unique_ptr.h>
+#include <ozz/base/containers/vector.h>
+#include <ozz/base/maths/simd_math.h>
 
+#include <optional>
 #include <deque>
 #include <unordered_map>
 
 namespace engine
 {
-class PlayBackJob
+
+class SamplingJob
 {
 public:
-    PlayBackJob(ozz::animation::Animation* anim, ozz::animation::SamplingJob::Context& ctx, std::size_t num_joints);
+    SamplingJob(std::size_t num_joints);
+    
+    void start(ozz::animation::Animation* anim);
+    bool update(float dt);
+    void reset();
 
-    bool update(float dt, ozz::span<ozz::math::SoaTransform> output);
+    ozz::span<ozz::math::SoaTransform> get_output();
 
-    std::string get_animation_name() const { return animation_->name(); }
+    std::string get_name() const;
+    bool is_playing() const;
 
 private:
-    const ozz::animation::Animation* animation_ = nullptr;
-    ozz::animation::SamplingJob::Context* context_;
     float time_ = 0.0f;
+    const ozz::animation::Animation* animation_ = nullptr;
+    ozz::unique_ptr<ozz::animation::SamplingJob::Context> context_; // ToDo: cache it and reuse?
+    ozz::vector<ozz::math::SoaTransform> output_;
+};
+
+enum class LayerBlendMode
+{
+    eOverride,
+    eAdditive
 };
 
 class AnimationController
@@ -34,24 +50,57 @@ public:
 
     void update(float dt);
 
+    bool add_layer(std::size_t id, float weight);
+    bool remove_layer(std::size_t id);
+    bool has_layer(std::size_t id) const;
+    bool set_layer_weight(std::size_t id, float weight);
+    bool set_layer_mode(std::size_t id, LayerBlendMode mode);
+
     bool add_animation(const AnimationClipDesc& animation_clip);
-    bool set_layer_id(const std::string& animation_name, std::size_t layer_id);
-    bool play(const std::string& animation_name);
+    bool play(const std::string& animation_name, std::size_t layer_id);
+    bool cross_fade_to(const std::string& animation_name, std::size_t layer_id, float duration);
     bool is_playing(const std::string& animation_name) const;
 
 private:
-    struct animation_desc
+    struct AnimationData
     {
-        ozz::unique_ptr<ozz::animation::Animation> animation = nullptr;
-        std::size_t layer_id = 0;
+        ozz::unique_ptr<ozz::animation::Animation> override;
+        ozz::unique_ptr<ozz::animation::Animation> additive;
     };
 
+    struct CrossFadeInfo
+    {
+        float duration = 0.0f; // set by user 
+        float time = 0.0f; // track current time
+    };
+    struct AnimationLayer
+    {
+        std::size_t id;
+        float weight;
+        LayerBlendMode mode;
+        SamplingJob animation_a; // base animation
+        SamplingJob animation_b; // cross_fade_to
+        std::optional<CrossFadeInfo> cross_fade_to;
+        std::optional<ozz::vector<ozz::math::SimdFloat4>> joint_weights;  // used for mask
+        ozz::vector<ozz::math::SoaTransform> output;
+
+        AnimationLayer(std::size_t id, float weight, std::size_t num_joints, LayerBlendMode mode)
+            : id(id)
+            , weight(weight)
+            , mode(mode)
+            , animation_a(num_joints)
+            , animation_b(num_joints)
+            , output((num_joints + 3) / 4)
+        { }
+        AnimationLayer()
+            : AnimationLayer(0, 0.0f, 0, LayerBlendMode::eOverride)
+        { }
+    };
 private:
     Skin* skin_ = nullptr;
-    ozz::animation::SamplingJob::Context context_;
-    std::unordered_map<std::string, animation_desc> animations_;
+    std::unordered_map<std::string, AnimationData> animations_;
 
-    std::unordered_map<std::size_t, PlayBackJob> jobs_;
+    std::unordered_map<std::size_t, AnimationLayer> layers_;
 };
 
 } // namespace engine

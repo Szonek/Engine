@@ -62,34 +62,13 @@ private:
             eRight
         };
 
-        inline const char* get_animation_name(Direction dir) const
-        {
-            return "Running_A";
-/*            switch (dir)
-            {
-            case Direction::eForward:
-                return "Running_A";
-            case Direction::eBackward:
-                return "Running_A";
-            case Direction::eLeft:
-                return "Running_Strafe_Left";
-            case Direction::eRight:
-                return "Running_Strafe_Right";
-            default:
-                assert(!"Unknown move direction for player!");
-            }
-            return ""*/;
-        }
+        const char* direction_to_string(Direction dir) const;
+        const char* get_animation_name(Direction dir) const;
     };
 
     struct AttackStateData
     {
-        inline const char* get_animation_name() const
-        {
-            //return "1H_Melee_Attack_Chop";
-            //return "1H_Melee_Attack_Slice_Horizontal";
-            return "1H_Melee_Attack_Slice_Diagonal";
-        }
+        const char* get_animation_name() const;
     };
 
 public:
@@ -102,6 +81,12 @@ public:
     void add_coin(std::uint64_t amount);
 
 private:
+    enum LayerIDs : std::size_t
+    {
+        LOCOMOTION_LAYER_ID = 0,
+        COMBAT_LAYER_ID = 1
+    };
+
     std::uint32_t state_;
     MoveStateData move_data_;
     AttackStateData attack_data_;
