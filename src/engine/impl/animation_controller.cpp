@@ -11,8 +11,6 @@
 #include <ozz/animation/runtime/local_to_model_job.h>
 #include <ozz/animation/runtime/blending_job.h>
 
-#include <ozz/animation/runtime/skeleton_utils.h>
-
 #include <stdexcept>
 #include <format>
 
@@ -356,7 +354,7 @@ bool engine::AnimationController::cross_fade_to(const std::string& animation_nam
     }
     layer.animation_b.start(animation.get());
     layer.cross_fade_to = CrossFadeInfo{ duration };
-    return false;
+    return true;
 }
 
 bool engine::AnimationController::is_playing(const std::string& animation_name) const

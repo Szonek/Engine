@@ -442,7 +442,6 @@ void project_c::Player::update(float dt)
     {
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name()))
         {
-            engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name());
             clear_state_bit(States::ATTACK);
             attack_data_ = {};
         }
