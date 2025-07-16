@@ -9,8 +9,8 @@
 #include <ozz/base/maths/simd_math.h>
 
 #include <optional>
-#include <deque>
 #include <unordered_map>
+#include <functional>
 
 namespace engine
 {
@@ -42,6 +42,12 @@ enum class LayerBlendMode
     eAdditive
 };
 
+struct AnimationEvent
+{
+    std::uint32_t id = 0;
+    engine_animation_event_t ev;
+};
+
 class AnimationController
 {
     friend class Skin;
@@ -61,11 +67,15 @@ public:
     bool cross_fade_to(const std::string& animation_name, std::size_t layer_id, float duration);
     bool is_playing(const std::string& animation_name) const;
 
+    std::pair<bool, std::uint32_t> add_event(const std::string& animation_name, const engine_animation_event_t& ev);
+    bool remove_event(const std::string& animation_name, std::uint32_t id);
+
 private:
     struct AnimationData
     {
         ozz::unique_ptr<ozz::animation::Animation> override;
         ozz::unique_ptr<ozz::animation::Animation> additive;
+        std::vector<AnimationEvent> timeline;
     };
 
     struct CrossFadeInfo

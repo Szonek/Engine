@@ -43,12 +43,13 @@ typedef uint32_t engine_geometry_t;
 typedef struct _engine_skin_t engine_skin_t;
 typedef struct _engine_animation_controller_t engine_animation_controller_t;
 typedef uint32_t engine_shader_t;
-
+typedef uint32_t engine_animation_event_id_t;
 
 typedef enum _engine_result_code_t
 {
     ENGINE_RESULT_CODE_OK = 0,
-    ENGINE_RESULT_CODE_FAIL = -1
+    ENGINE_RESULT_CODE_FAIL = -1,
+    ENGINE_RESULT_CODE_INVALID_ARG = -2
 } engine_result_code_t;
 
 typedef struct _engine_fvec2_t
@@ -483,6 +484,20 @@ ENGINE_API bool engineAnimationControllerAddLayer(engine_animation_controller_t*
 ENGINE_API bool engineAnimationControllerRemoveLayer(engine_animation_controller_t* controller, size_t id);
 ENGINE_API bool engineAnimationControllerLayerSetWeight(engine_animation_controller_t* controller, size_t id, float new_weight);
 ENGINE_API bool engineAnimationControllerSetMode(engine_animation_controller_t* controller, size_t id, engine_animation_layer_mode_t mode);
+// events
+typedef struct _engine_animation_event_info_t {
+    float current_time;
+} engine_animation_event_info_t;
+
+typedef struct _engine_animation_event_t {
+    float trigger_time;    // Time in seconds when the event should fire
+    void (*fn_ptr)(const engine_animation_event_info_t* info, void *user_data);      // Function to call
+    void* user_data;       // Optional user data
+} engine_animation_event_t;
+
+
+ENGINE_API engine_result_code_t engineAnimationControllerAnimationAddEvent(engine_animation_controller_t* controller, const char* anim_name, engine_animation_event_t event, engine_animation_event_id_t* out_id);
+ENGINE_API engine_result_code_t engineAnimationControllerAnimationRemoveEvent(engine_animation_controller_t* controller, const char* anim_name, engine_animation_event_id_t id);
 /**
  * @struct engine_geometry_attribute_limit_t
  * @brief A structure representing the limits of a geometry attribute in the engine.

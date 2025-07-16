@@ -381,6 +381,40 @@ bool engine::AnimationController::is_playing(const std::string& animation_name) 
     return false;
 }
 
+std::pair<bool, std::uint32_t> engine::AnimationController::add_event(const std::string& animation_name, const engine_animation_event_t& ev)
+{
+    auto it = animations_.find(animation_name);
+    if (it == animations_.end())
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
+        return { false, -1 };
+    }
+    static std::uint32_t uuid = 0; // ToDo: this id mechanism is not ideal, improve it
+    AnimationEvent new_ev{};
+    new_ev.id = uuid;
+    new_ev.ev = ev;
+
+    it->second.timeline.push_back(new_ev);
+    // bump id so each event has unique value
+    uuid++;
+    return { true, new_ev.id };
+}
+
+bool engine::AnimationController::remove_event(const std::string& animation_name, std::uint32_t id)
+{
+    auto it = animations_.find(animation_name);
+    if (it == animations_.end())
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
+        return false;
+    }
+    const auto erased_count = std::erase_if(it->second.timeline, [id](const auto& ev)
+        {
+            return ev.id == id;
+        });
+    return erased_count > 0;
+}
+
 engine::SamplingJob::SamplingJob(std::size_t num_joints)
     : context_(ozz::make_unique<ozz::animation::SamplingJob::Context>(num_joints))
     , output_((num_joints + 3)/4)  // ToDo: just call get_num_soa_joints from skeeleton?
