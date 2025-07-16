@@ -53,6 +53,7 @@ private:
     float time_ = 0.0f;
     const ozz::animation::Animation* animation_ = nullptr;
     const AnimationTimeline* animation_timeline_ = nullptr;
+    std::size_t timeline_next_event_id_ = 0;
     ozz::unique_ptr<ozz::animation::SamplingJob::Context> context_; // ToDo: cache it and reuse?
     ozz::vector<ozz::math::SoaTransform> output_;
 };

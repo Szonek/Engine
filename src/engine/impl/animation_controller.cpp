@@ -452,10 +452,25 @@ bool engine::SamplingJob::update(float dt)
         return false;
     }
     assert(animation_ != nullptr);
+    assert(animation_timeline_ != nullptr);
     assert(dt != 0.0f);
-    time_ += (dt / 1000.0f); // time is in seconds
-    const auto time_ratio = std::min(1.0f, time_ / animation_->duration());
 
+    time_ += (dt / 1000.0f); // time is in seconds
+
+    if (!animation_timeline_->empty())
+    {
+        // ToDo: support multiple events firing at the same execution time
+        const auto& current_ev = animation_timeline_->at(timeline_next_event_id_);
+        if (time_ >= current_ev.ev.trigger_time)
+        {
+            timeline_next_event_id_++;
+            engine_animation_event_info_t info{};
+            info.current_time = time_;
+            current_ev.ev.fn_ptr(&info, current_ev.ev.user_data);
+        }
+    }
+
+    const auto time_ratio = std::min(1.0f, time_ / animation_->duration());
     ozz::animation::SamplingJob sampling_job;
     sampling_job.animation = animation_;
     sampling_job.context = context_.get();
@@ -476,9 +491,10 @@ bool engine::SamplingJob::update(float dt)
 
 void engine::SamplingJob::reset()
 {
+    time_ = 0.0f;
     animation_ = nullptr;
     animation_timeline_ = nullptr;
-    time_ = 0.0f;
+    timeline_next_event_id_ = 0;
 }
 
 ozz::span<ozz::math::SoaTransform> engine::SamplingJob::get_output()
