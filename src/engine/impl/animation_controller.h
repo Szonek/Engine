@@ -9,18 +9,38 @@
 #include <ozz/base/maths/simd_math.h>
 
 #include <optional>
-#include <deque>
 #include <unordered_map>
+#include <functional>
 
 namespace engine
 {
+
+enum class LayerBlendMode
+{
+    eOverride,
+    eAdditive
+};
+
+struct AnimationEvent
+{
+    std::uint32_t id = 0;
+    engine_animation_event_t ev;
+
+    // require for std::sort
+    bool operator<(const AnimationEvent& other) const
+    {
+        return ev.trigger_time < other.ev.trigger_time;
+    }
+};
+
+using AnimationTimeline = std::vector<AnimationEvent>;
 
 class SamplingJob
 {
 public:
     SamplingJob(std::size_t num_joints);
     
-    void start(ozz::animation::Animation* anim);
+    void start(const ozz::animation::Animation* anim, const AnimationTimeline* timeline);
     bool update(float dt);
     void reset();
 
@@ -32,14 +52,10 @@ public:
 private:
     float time_ = 0.0f;
     const ozz::animation::Animation* animation_ = nullptr;
+    const AnimationTimeline* animation_timeline_ = nullptr;
+    std::size_t timeline_next_event_id_ = 0;
     ozz::unique_ptr<ozz::animation::SamplingJob::Context> context_; // ToDo: cache it and reuse?
     ozz::vector<ozz::math::SoaTransform> output_;
-};
-
-enum class LayerBlendMode
-{
-    eOverride,
-    eAdditive
 };
 
 class AnimationController
@@ -60,12 +76,17 @@ public:
     bool play(const std::string& animation_name, std::size_t layer_id);
     bool cross_fade_to(const std::string& animation_name, std::size_t layer_id, float duration);
     bool is_playing(const std::string& animation_name) const;
+    float get_duration(const std::string& animation_name) const;
+
+    std::pair<bool, std::uint32_t> add_event(const std::string& animation_name, const engine_animation_event_t& ev);
+    bool remove_event(const std::string& animation_name, std::uint32_t id);
 
 private:
     struct AnimationData
     {
         ozz::unique_ptr<ozz::animation::Animation> override;
         ozz::unique_ptr<ozz::animation::Animation> additive;
+        std::vector<AnimationEvent> timeline;
     };
 
     struct CrossFadeInfo

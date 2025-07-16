@@ -1688,6 +1688,21 @@ bool engineAnimationControllerAddAnimation(engine_animation_controller_t* contro
     return typed_controller->add_animation(*typed_desc);
 }
 
+engine_result_code_t enegineAnimationControllerAnimationGetDuration(engine_animation_controller_t* controller, const char* name, float* out)
+{
+    if (!controller || !name || !out)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    auto typed_controller = api_cast(controller);
+    *out = typed_controller->get_duration(name);
+    if (*out == 0.0f)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    return ENGINE_RESULT_CODE_OK;
+}
+
 bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name, size_t layer_id)
 {
     if (!controller || !name)
@@ -1776,4 +1791,34 @@ bool engineAnimationControllerSetMode(engine_animation_controller_t* controller,
     }
     }
     return typed_controller->set_layer_mode(id, blend_mode);
+}
+
+engine_result_code_t engineAnimationControllerAnimationAddEvent(engine_animation_controller_t* controller, const char* anim_name, engine_animation_event_t event, engine_animation_event_id_t* out_id)
+{
+    if (!controller || !anim_name || !out_id)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+
+    auto typed_controller = api_cast(controller);
+
+    const auto [res, ev_id] = typed_controller->add_event(anim_name, event);
+    if (!res)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    *out_id = ev_id;
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t engineAnimationControllerAnimationRemoveEvent(engine_animation_controller_t* controller, const char* anim_name, engine_animation_event_id_t id)
+{
+    if (!controller || !anim_name || !id)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+
+    auto typed_controller = api_cast(controller);
+    const auto res = typed_controller->remove_event(anim_name, id);
+    return res ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }

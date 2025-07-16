@@ -12,6 +12,21 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <format>
+
+namespace
+{
+void attack_event_callback(const engine_animation_event_info_t* info, void* user_data)
+{
+    assert(info);
+    assert(user_data);
+    engineLog(std::format("Attack trigger - animation event callback example at time: {}!\n", info->current_time).c_str());
+    // i.e. enable trigger:
+    //auto* attack_trigger = reinterpret_cast<project_c::AttackTrigger*>(user_data);
+    //attack_trigger->activate();
+}
+} // namespace anonymous
+
 project_c::Weapon::Weapon(engine::IScene* my_scene)
     : BaseNode(my_scene, "weapon-sword")
 {
@@ -284,6 +299,21 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     engineAnimationControllerLayerSetWeight(animation_controller, LOCOMOTION_LAYER_ID, 0.1f); // default layer (lower body layer)
     engineAnimationControllerAddLayer(animation_controller, COMBAT_LAYER_ID, 1.0f);     // upper body layer
     engineAnimationControllerSetMode(animation_controller, COMBAT_LAYER_ID, ENGINE_ANIMATION_LAYER_MODE_ADDITIVE);
+
+    // set event for attack trigger - just an example to test feature (2 animation events trigerring at the same time)
+    float attack_duration = 0.0f;
+    enegineAnimationControllerAnimationGetDuration(animation_controller, attack_data_.get_animation_name(), &attack_duration);
+    engine_animation_event_t ev{};
+    ev.trigger_time = 0.5f * attack_duration;  // activate in middle of animation
+    ev.user_data = &attack_trigger_;
+    ev.fn_ptr = attack_event_callback;
+    engine_animation_event_id_t ev_id = ENGINE_INVALID_OBJECT_HANDLE;
+    engineAnimationControllerAnimationAddEvent(animation_controller, attack_data_.get_animation_name(), ev, &ev_id);
+    assert(ev_id != ENGINE_INVALID_OBJECT_HANDLE);
+    engine_animation_event_id_t ev2_id = ENGINE_INVALID_OBJECT_HANDLE;
+    engineAnimationControllerAnimationAddEvent(animation_controller, attack_data_.get_animation_name(), ev, &ev2_id);
+    assert(ev2_id != ENGINE_INVALID_OBJECT_HANDLE);
+    assert(ev_id != ev2_id);
 }
 
 void project_c::Player::update(float dt)
