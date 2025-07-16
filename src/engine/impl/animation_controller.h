@@ -15,12 +15,32 @@
 namespace engine
 {
 
+enum class LayerBlendMode
+{
+    eOverride,
+    eAdditive
+};
+
+struct AnimationEvent
+{
+    std::uint32_t id = 0;
+    engine_animation_event_t ev;
+
+    // require for std::sort
+    bool operator<(const AnimationEvent& other) const
+    {
+        return ev.trigger_time < other.ev.trigger_time;
+    }
+};
+
+using AnimationTimeline = std::vector<AnimationEvent>;
+
 class SamplingJob
 {
 public:
     SamplingJob(std::size_t num_joints);
     
-    void start(ozz::animation::Animation* anim);
+    void start(const ozz::animation::Animation* anim, const AnimationTimeline* timeline);
     bool update(float dt);
     void reset();
 
@@ -32,20 +52,9 @@ public:
 private:
     float time_ = 0.0f;
     const ozz::animation::Animation* animation_ = nullptr;
+    const AnimationTimeline* animation_timeline_ = nullptr;
     ozz::unique_ptr<ozz::animation::SamplingJob::Context> context_; // ToDo: cache it and reuse?
     ozz::vector<ozz::math::SoaTransform> output_;
-};
-
-enum class LayerBlendMode
-{
-    eOverride,
-    eAdditive
-};
-
-struct AnimationEvent
-{
-    std::uint32_t id = 0;
-    engine_animation_event_t ev;
 };
 
 class AnimationController

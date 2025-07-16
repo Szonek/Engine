@@ -320,7 +320,7 @@ bool engine::AnimationController::play(const std::string& animation_name, std::s
         return false;
     }
 
-    layers_.at(layer_id).animation_a.start(animation.get());
+    layers_.at(layer_id).animation_a.start(animation.get(), &it->second.timeline);
     return true;
 }
 
@@ -352,7 +352,7 @@ bool engine::AnimationController::cross_fade_to(const std::string& animation_nam
     {
         std::swap(layer.animation_a, layer.animation_b);
     }
-    layer.animation_b.start(animation.get());
+    layer.animation_b.start(animation.get(), &it->second.timeline);
     layer.cross_fade_to = CrossFadeInfo{ duration };
     return true;
 }
@@ -394,7 +394,10 @@ std::pair<bool, std::uint32_t> engine::AnimationController::add_event(const std:
     new_ev.id = uuid;
     new_ev.ev = ev;
 
-    it->second.timeline.push_back(new_ev);
+    //ToDo: just use std map/multimap? we could avoid sorting
+    auto& timeline = it->second.timeline;
+    timeline.push_back(new_ev);
+    std::sort(timeline.begin(), timeline.end());
     // bump id so each event has unique value
     uuid++;
     return { true, new_ev.id };
@@ -427,10 +430,11 @@ bool engine::SamplingJob::is_playing() const
     return animation_ != nullptr;
 }
 
-void engine::SamplingJob::start(ozz::animation::Animation* anim)
+void engine::SamplingJob::start(const ozz::animation::Animation* anim, const AnimationTimeline* timeline)
 {
     assert(anim != nullptr);
     animation_ = anim;
+    animation_timeline_ = timeline;
     time_ = 0.0f;
 }
 
@@ -473,6 +477,7 @@ bool engine::SamplingJob::update(float dt)
 void engine::SamplingJob::reset()
 {
     animation_ = nullptr;
+    animation_timeline_ = nullptr;
     time_ = 0.0f;
 }
 
