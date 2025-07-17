@@ -130,8 +130,8 @@ project_c::MainLight::MainLight(engine::IScene* my_scene)
 
     // position in world
     auto tc = engineSceneAddTransformComponent(scene, go_);
-    tc.position[0] = 0.0f;
-    tc.position[1] = 10.0f;
+    tc.position[0] = -2.0f;
+    tc.position[1] = 2.0f;
     tc.position[2] = 0.0f;
 
     tc.scale[0] = 0.1f;
@@ -162,7 +162,7 @@ project_c::MainLight::MainLight(engine::IScene* my_scene)
     set_c_array(lc.intensity.ambient, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
     set_c_array(lc.intensity.diffuse, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
     set_c_array(lc.intensity.specular, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
-    set_c_array(lc.directional.direction, std::array<float, 3>{ 0.0f, 1.0f, 0.0f });
+    set_c_array(lc.directional.direction, std::array<float, 3>{ (0.0f - tc.position[0]), (0.0f - tc.position[1]), (0.0f - tc.position[2]) });
     engineSceneUpdateLightComponent(scene, go_, &lc);
 }
 
