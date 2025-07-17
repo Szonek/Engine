@@ -121,7 +121,7 @@ inline bool is_entity_parent_of(entt::entity parent, entt::entity child, engine:
 
 inline void display_node(entity_node_t* node, engine::Scene* scene, engine::SceneHierarchyContext& ctx)
 {
-    ENGINE_PROFILE_SECTION_N("editor-display_node");
+    ENGINE_PROFILE_SECTION;
     node->displayed = true;
     uint32_t dispaly_flags = ctx.get_selected_entity() == node->entity ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None;
     //dispaly_flags |= ImGuiTreeNodeFlags_DefaultOpen;
@@ -611,6 +611,8 @@ engine::ApplicationEditor::~ApplicationEditor()
 
 void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_begine_info_t & frame_begin_info)
 {
+    ENGINE_PROFILE_SECTION;
+    active_scene_ = nullptr;
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
@@ -628,6 +630,22 @@ void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_b
 
 void engine::ApplicationEditor::on_frame_end()
 {
+    ENGINE_PROFILE_SECTION;
+    if (active_scene_)
+    {
+        render_editor_controls(active_scene_);
+        render_scene_hierarchy_panel(active_scene_);
+        render_entity_properties_panel(active_scene_);
+        render_debug_panel(active_scene_);
+
+        if (editor_view_ == EditorView::eEditor)
+        {
+            render_guizmo(active_scene_);
+            render_outline(active_scene_);
+            handle_mouse_picking(active_scene_);
+        }
+    }
+
     ImGui::Render();
     static bool render_im_gui = true;
     if(ImGui::IsKeyPressed(ImGuiKey_F1))
@@ -642,41 +660,33 @@ void engine::ApplicationEditor::on_frame_end()
 
 void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
 {
+    ENGINE_PROFILE_SECTION;
     ImGui_ImplSDL3_ProcessEvent(&e);
 }
 
 
 void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_time)
 {
-    ENGINE_PROFILE_SECTION_N("editor-on_scene_update_pre");
+    ENGINE_PROFILE_SECTION;
+    assert(active_scene_ == nullptr); // ToDo: add support multi-scene updates within single frame
+    assert(scene != nullptr);
+    active_scene_ = scene;
     if (editor_view_ == EditorView::eEditor)
     {
-        camera_context_.on_scene_update_pre(scene, delta_time);
+        camera_context_.on_scene_update_pre(active_scene_, delta_time);
     }
 }
 
 void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_time)
 {
-    ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
-    const auto viewport = rdx_.get_window_size_in_pixels();
-
-    render_editor_controls(scene, delta_time);
-    render_scene_hierarchy_panel(scene, delta_time);
-    render_entity_properties_panel(scene, delta_time);
-    render_debug_panel(scene, delta_time);
-
-    if (editor_view_ == EditorView::eEditor)
-    {
-        render_guizmo(scene);
-        render_outline(scene);
-        handle_mouse_picking(scene);
-    }
-
-    camera_context_.on_scene_update_post(scene, delta_time);
+    ENGINE_PROFILE_SECTION;
+    assert(active_scene_ == scene);
+    camera_context_.on_scene_update_post(active_scene_, delta_time);
 }
 
-void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float dt)
+void engine::ApplicationEditor::render_editor_controls(class Scene* scene)
 {
+    ENGINE_PROFILE_SECTION;
     ImGui::Begin(editor_windows_context_.get_window_up());
 
     const auto ww = ImGui::GetWindowWidth();
@@ -696,9 +706,9 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float
     ImGui::End();
 }
 
-void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float dt)
+void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene)
 {
-    ENGINE_PROFILE_SECTION_N("editor-render_scene_hierarchy_panel");
+    ENGINE_PROFILE_SECTION;
     // build memory with all the entites
     std::map<entt::entity, entity_node_t> entity_map;
     for (auto e : scene->get_all_entities())
@@ -770,8 +780,9 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
     ImGui::End(); // scene panel
 }
 
-void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scene, float dt)
+void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scene)
 {
+    ENGINE_PROFILE_SECTION;
     /*
     here all components should be visible
         - the one which are not avaialbe in the entitiy (Grayd out) and a "+" button to add them
@@ -801,8 +812,9 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
     ImGui::End();
 }
 
-void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
+void engine::ApplicationEditor::render_debug_panel(class Scene* scene)
 {
+    ENGINE_PROFILE_SECTION;
     ImGui::Begin(editor_windows_context_.get_window_down_right());
     ImGui::SeparatorText("Debug options");
 
@@ -820,11 +832,11 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
     {
         ui_manager_.enable_ui_document_debugger(!is_rml_ui_debugger_enabled);
     }
-    assert(dt > 0.0f);
+
     static float avg_fps = 0;
     static std::vector<float> fps_values(60);
     static std::size_t fps_idx = 0;
-    fps_values[fps_idx % fps_values.size()] = 1000.0f / dt;
+    fps_values[fps_idx % fps_values.size()] = 1000000.0f / static_cast<float>(timer_.delta_time().count());
     fps_idx++;
     ImGui::Text("FPS: %d", static_cast<std::uint32_t>(std::accumulate(fps_values.begin(), fps_values.end(), 0) / (fps_idx < fps_values.size() ? fps_idx : fps_values.size())));
     ImGui::End();
@@ -832,6 +844,7 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
 
 void engine::ApplicationEditor::render_guizmo(Scene* scene)
 {
+    ENGINE_PROFILE_SECTION;
     if (!draw_guizmo_)
     {
         return;
@@ -887,6 +900,7 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
 
 void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
 {
+    ENGINE_PROFILE_SECTION;
     if (ImGui::GetIO().WantCaptureMouse)
     {
         return;
@@ -915,6 +929,7 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
 
 void engine::ApplicationEditor::render_outline(Scene* scene)
 {
+    ENGINE_PROFILE_SECTION;
     const auto window_size = rdx_.get_window_size_in_pixels();
     outline_effect_.fbo_outline.bind(AccessType::eWriteOnly);
 
@@ -1052,6 +1067,7 @@ void engine::CameraScript::disable()
 
 void engine::CameraScript::update(float dt)
 {
+    ENGINE_PROFILE_SECTION;
     const auto mouse_coords = app_->mouse_get_coords();
     const auto dx = mouse_coords.x - mouse_coords_prev_.x;
     const auto dy = mouse_coords.y - mouse_coords_prev_.y;
@@ -1193,6 +1209,7 @@ void engine::ApplicationEditor::CameraContext::detach_scene(Scene* scene)
 
 void engine::ApplicationEditor::CameraContext::on_scene_update_pre(Scene* scene, float dt)
 {
+    ENGINE_PROFILE_SECTION;
     auto& camera_data = cameras_[scene];
     if (camera_data.is_enabled)
     {
@@ -1277,6 +1294,7 @@ bool engine::SceneHierarchyContext::is_forced_open_selected_parents() const
 
 void engine::ApplicationEditor::EditorWindowsContext::initialize(std::uint32_t dockspace_id)
 {
+    ENGINE_PROFILE_SECTION;
     // Dock builder
     const auto viewport = ImGui::GetMainViewport();
     ImGui::DockBuilderRemoveNode(dockspace_id); // Clear previous layout

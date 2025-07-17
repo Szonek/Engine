@@ -87,10 +87,10 @@ protected:
     void on_scene_release(class Scene* scene) override;
 
 private:
-    void render_editor_controls(class Scene* scene, float dt);
-    void render_scene_hierarchy_panel(class Scene* scene, float dt);
-    void render_entity_properties_panel(class Scene* scene, float dt);
-    void render_debug_panel(class Scene* scene, float dt);
+    void render_editor_controls(class Scene* scene);
+    void render_scene_hierarchy_panel(class Scene* scene);
+    void render_entity_properties_panel(class Scene* scene);
+    void render_debug_panel(class Scene* scene);
     void render_outline(class Scene* scene);
     void render_guizmo(class Scene* scene);
     void handle_mouse_picking(class Scene* scene);
@@ -152,6 +152,7 @@ private:
     };
 
 private:
+    Scene* active_scene_ = nullptr;
     CameraContext camera_context_;
     EditorView editor_view_ = EditorView::eGame;
     EditorWindowsContext editor_windows_context_;
