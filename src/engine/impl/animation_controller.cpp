@@ -320,7 +320,7 @@ bool engine::AnimationController::play(const std::string& animation_name, std::s
         return false;
     }
 
-    layers_.at(layer_id).animation_a.start(animation.get());
+    layers_.at(layer_id).animation_a.start(animation.get(), &it->second.timeline);
     return true;
 }
 
@@ -352,7 +352,7 @@ bool engine::AnimationController::cross_fade_to(const std::string& animation_nam
     {
         std::swap(layer.animation_a, layer.animation_b);
     }
-    layer.animation_b.start(animation.get());
+    layer.animation_b.start(animation.get(), &it->second.timeline);
     layer.cross_fade_to = CrossFadeInfo{ duration };
     return true;
 }
@@ -381,6 +381,54 @@ bool engine::AnimationController::is_playing(const std::string& animation_name) 
     return false;
 }
 
+float engine::AnimationController::get_duration(const std::string& animation_name) const
+{
+    auto it = animations_.find(animation_name);
+    if (it == animations_.end())
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
+        return 0.0f;
+    }
+    return it->second.override->duration();
+}
+
+std::pair<bool, std::uint32_t> engine::AnimationController::add_event(const std::string& animation_name, const engine_animation_event_t& ev)
+{
+    auto it = animations_.find(animation_name);
+    if (it == animations_.end())
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
+        return { false, -1 };
+    }
+    static std::uint32_t uuid = 0; // ToDo: this id mechanism is not ideal, improve it
+    AnimationEvent new_ev{};
+    new_ev.id = uuid;
+    new_ev.ev = ev;
+
+    //ToDo: just use std map/multimap? we could avoid sorting
+    auto& timeline = it->second.timeline;
+    timeline.push_back(new_ev);
+    std::sort(timeline.begin(), timeline.end());
+    // bump id so each event has unique value
+    uuid++;
+    return { true, new_ev.id };
+}
+
+bool engine::AnimationController::remove_event(const std::string& animation_name, std::uint32_t id)
+{
+    auto it = animations_.find(animation_name);
+    if (it == animations_.end())
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
+        return false;
+    }
+    const auto erased_count = std::erase_if(it->second.timeline, [id](const auto& ev)
+        {
+            return ev.id == id;
+        });
+    return erased_count > 0;
+}
+
 engine::SamplingJob::SamplingJob(std::size_t num_joints)
     : context_(ozz::make_unique<ozz::animation::SamplingJob::Context>(num_joints))
     , output_((num_joints + 3)/4)  // ToDo: just call get_num_soa_joints from skeeleton?
@@ -393,10 +441,11 @@ bool engine::SamplingJob::is_playing() const
     return animation_ != nullptr;
 }
 
-void engine::SamplingJob::start(ozz::animation::Animation* anim)
+void engine::SamplingJob::start(const ozz::animation::Animation* anim, const AnimationTimeline* timeline)
 {
     assert(anim != nullptr);
     animation_ = anim;
+    animation_timeline_ = timeline;
     time_ = 0.0f;
 }
 
@@ -414,10 +463,28 @@ bool engine::SamplingJob::update(float dt)
         return false;
     }
     assert(animation_ != nullptr);
+    assert(animation_timeline_ != nullptr);
     assert(dt != 0.0f);
-    time_ += (dt / 1000.0f); // time is in seconds
-    const auto time_ratio = std::min(1.0f, time_ / animation_->duration());
 
+    time_ += (dt / 1000.0f); // time is in seconds
+
+    // 1. Loop over events, because we can have multiple events triggering at the same time
+    // 2. Vector of events has to be sorted!
+    for(int i = timeline_next_event_id_; i < animation_timeline_->size(); i++)
+    {
+        const auto& current_ev = animation_timeline_->at(timeline_next_event_id_);
+        if (time_ >= current_ev.ev.trigger_time)
+        {
+            timeline_next_event_id_++;
+            engine_animation_event_info_t info{};
+            info.current_time = time_;
+            current_ev.ev.fn_ptr(&info, current_ev.ev.user_data);
+        }
+        // else - early break?
+    }
+
+
+    const auto time_ratio = std::min(1.0f, time_ / animation_->duration());
     ozz::animation::SamplingJob sampling_job;
     sampling_job.animation = animation_;
     sampling_job.context = context_.get();
@@ -438,8 +505,10 @@ bool engine::SamplingJob::update(float dt)
 
 void engine::SamplingJob::reset()
 {
-    animation_ = nullptr;
     time_ = 0.0f;
+    animation_ = nullptr;
+    animation_timeline_ = nullptr;
+    timeline_next_event_id_ = 0;
 }
 
 ozz::span<ozz::math::SoaTransform> engine::SamplingJob::get_output()
