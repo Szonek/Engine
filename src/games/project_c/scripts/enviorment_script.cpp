@@ -151,6 +151,9 @@ project_c::MainLight::MainLight(engine::IScene* my_scene)
 
     // and basic material
     auto mat = engineSceneAddMaterialComponent(scene, go_);
+    // ToDo: add simple, custom shader without light support for light sources
+    mat.type = ENGINE_MATERIAL_TYPE_PONG;
+    set_c_array(mat.data.pong.diffuse_color, engine_fvec4_t{ 1.0f, 1.0f, 1.0f, 1.0f });
     engineSceneUpdateMaterialComponent(scene, go_, &mat);
 
     // light component
