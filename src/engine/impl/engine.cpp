@@ -1688,7 +1688,7 @@ bool engineAnimationControllerAddAnimation(engine_animation_controller_t* contro
     return typed_controller->add_animation(*typed_desc);
 }
 
-engine_result_code_t enegineAnimationControllerAnimationGetDuration(engine_animation_controller_t* controller, const char* name, float* out)
+engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_animation_controller_t* controller, const char* name, float* out)
 {
     if (!controller || !name || !out)
     {
@@ -1813,7 +1813,7 @@ engine_result_code_t engineAnimationControllerAnimationAddEvent(engine_animation
 
 engine_result_code_t engineAnimationControllerAnimationRemoveEvent(engine_animation_controller_t* controller, const char* anim_name, engine_animation_event_id_t id)
 {
-    if (!controller || !anim_name || !id)
+    if (!controller || !anim_name || (id == ENGINE_INVALID_OBJECT_HANDLE))
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }

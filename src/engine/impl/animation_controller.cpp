@@ -468,7 +468,7 @@ bool engine::SamplingJob::update(float dt)
 
     time_ += (dt / 1000.0f); // time is in seconds
 
-    // 1. Loop over events, beacuse we can have multiple events triggering at the same time
+    // 1. Loop over events, because we can have multiple events triggering at the same time
     // 2. Vector of events has to be sorted!
     for(int i = timeline_next_event_id_; i < animation_timeline_->size(); i++)
     {
@@ -480,6 +480,7 @@ bool engine::SamplingJob::update(float dt)
             info.current_time = time_;
             current_ev.ev.fn_ptr(&info, current_ev.ev.user_data);
         }
+        // else - early break?
     }
 
 

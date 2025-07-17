@@ -300,9 +300,9 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     engineAnimationControllerAddLayer(animation_controller, COMBAT_LAYER_ID, 1.0f);     // upper body layer
     engineAnimationControllerSetMode(animation_controller, COMBAT_LAYER_ID, ENGINE_ANIMATION_LAYER_MODE_ADDITIVE);
 
-    // set event for attack trigger - just an example to test feature (2 animation events trigerring at the same time)
+    // set event for attack trigger - just an example to test feature (2 animation events triggering at the same time)
     float attack_duration = 0.0f;
-    enegineAnimationControllerAnimationGetDuration(animation_controller, attack_data_.get_animation_name(), &attack_duration);
+    engineAnimationControllerAnimationGetDuration(animation_controller, attack_data_.get_animation_name(), &attack_duration);
     engine_animation_event_t ev{};
     ev.trigger_time = 0.5f * attack_duration;  // activate in middle of animation
     ev.user_data = &attack_trigger_;

@@ -470,7 +470,7 @@ ENGINE_API const char* engineSkinGetName(const engine_skin_t* skin);
 ENGINE_API engine_animation_controller_t* engineApplicationCreateAnimationControllerWithSkin(engine_application_t handle, engine_skin_t* skin);
 ENGINE_API void engineApplicationDestroyAnimationController(engine_application_t handle, engine_animation_controller_t* controller);
 ENGINE_API bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc);
-ENGINE_API engine_result_code_t enegineAnimationControllerAnimationGetDuration(engine_animation_controller_t* controller, const char* name, float* out);
+ENGINE_API engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_animation_controller_t* controller, const char* name, float* out);
 ENGINE_API bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name);
 ENGINE_API bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name, size_t layer_id);
 // Start fading in from current animation to 'new_animation' over 'duration' seconds
