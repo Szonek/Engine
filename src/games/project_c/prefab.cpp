@@ -69,11 +69,13 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
     : app_(app)
 {
     engine_error_code = engineApplicationAllocateModelDescAndLoadDataFromFile(app, ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_desc_);
+    engineLog(std::format("Creating prefab, model_file_name: {}, base_dir: {}. Error code: {}\n", model_file_name.data(), base_dir.data(), (int)engine_error_code).c_str());
 
     geometries_ = std::vector(engineModelDescGetGeometriesDescCount(model_desc_), ENGINE_INVALID_OBJECT_HANDLE);
     for (std::uint32_t i = 0; i < geometries_.size(); i++)
     {
         const auto& geo_desc = engineModelDescGetGeometryDesc(model_desc_, i);
+        engineLog(std::format("Creating geometry with name: {}\n", engineGeometryDescGetName(geo_desc)).c_str());
         engine_error_code = engineApplicationCreateGeometryFromDesc(app, geo_desc, &geometries_[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
@@ -89,7 +91,8 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, engine_applic
         const auto name_generic = std::string(model_file_name) + "_texture_" + std::to_string(i);
         const auto name_real = engineTexture2dDescGetName(texture_desc);
         const std::string name = name_real ? name_real : name_generic;
-        if (engineApplicationDoTexture2DNameExists(app, name.c_str()))
+        engineLog(std::format("Creating texture with name : {} \n", name).c_str());
+        if (engineApplicationGetTextured2DByName(app, name.c_str()) != ENGINE_INVALID_OBJECT_HANDLE)
         {
             engineLog(std::format("Texture with name: {} already exists, reusing it.\n", name).c_str());
             textures_[i].obj = engineApplicationGetTextured2DByName(app, name.c_str());

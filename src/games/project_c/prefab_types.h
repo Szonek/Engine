@@ -4,6 +4,8 @@ namespace project_c
 {
 enum PrefabType
 {
+    PREFAB_TYPE_DEFAULT_CUBE,
+
     PREFAB_TYPE_BARBARIAN,
 
     PREFAB_TYPE_SKELETON_WARRIOR,

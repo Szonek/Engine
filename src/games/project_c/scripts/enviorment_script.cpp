@@ -141,7 +141,7 @@ project_c::MainLight::MainLight(engine::IScene* my_scene)
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // for visulastuion add mesh component
-    const auto cube_geo = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
+    const auto cube_geo = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "default_cube");
     if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
     {
         auto mc = engineSceneAddMeshComponent(scene, go_);
@@ -182,7 +182,7 @@ project_c::PointLight::PointLight(engine::IScene* my_scene)
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // for visulastuion add mesh component
-    const auto cube_geo = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
+    const auto cube_geo = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "default_cube");
     if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
     {
         auto mc = engineSceneAddMeshComponent(scene, go_);
@@ -225,7 +225,7 @@ project_c::SpotLight::SpotLight(engine::IScene* my_scene)
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // for visulastuion add mesh component
-    const auto cube_geo = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
+    const auto cube_geo = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "default_cube");
     if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
     {
         auto mc = engineSceneAddMeshComponent(scene, go_);
@@ -272,7 +272,7 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
     engineSceneUpdateTransformComponent(scene, go_, &tc);
 
     // for visulastuion add mesh component
-    const auto cube_geo = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "cube.glb");
+    const auto cube_geo = engineApplicationGetGeometryByName(my_scene_->get_app_handle(), "default_cube");
     if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
     {
         auto mc = engineSceneAddMeshComponent(scene, go_);

@@ -595,7 +595,6 @@ ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_
 ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
 ENGINE_API void engineApplicationDestroyTexture2D(engine_application_t handle, engine_texture2d_t tex2d);
-ENGINE_API bool engineApplicationDoTexture2DNameExists(engine_application_t handle, const char* name);
 
 // physics 
 ENGINE_API void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3]);

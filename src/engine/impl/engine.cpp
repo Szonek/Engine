@@ -502,13 +502,6 @@ void engineApplicationDestroyTexture2D(engine_application_t handle, engine_textu
     api_cast(handle)->destroy_texture(tex2d);
 }
 
-bool engineApplicationDoTexture2DNameExists(engine_application_t handle, const char* name)
-{
-    assert(handle);
-    const auto* app = api_cast(handle);
-    return app->get_texture(name) != ENGINE_INVALID_OBJECT_HANDLE;
-}
-
 engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t** out)
 {
     if (!handle || !out || !file_name || !base_dir)

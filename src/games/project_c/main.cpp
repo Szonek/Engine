@@ -8,6 +8,8 @@ int main(int argc, char** argv)
     {
         const std::unordered_map<project_c::PrefabType, std::pair<std::string, std::string>> prefabs_data =
         {
+            //utils
+            { project_c::PREFAB_TYPE_DEFAULT_CUBE,     { "default_cube.glb", "" }},
             // player
             { project_c::PREFAB_TYPE_BARBARIAN,     { "Barbarian.glb", "KayKit_Adventurers_1.0_FREE/Characters/gltf" }},
 
