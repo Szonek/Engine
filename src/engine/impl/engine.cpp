@@ -936,27 +936,27 @@ void engineDeleteComponentIterator(engine_component_iterator_t iterator)
     }
 }
 
-engine_name_component_t engineAddNameComponent(engine_game_object_t game_object)
+engine_name_component_t engineGameObjectAddNameComponent(engine_game_object_t game_object)
 {
     return add_component<engine_name_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_name_component_t engineGetNameComponent(engine_game_object_t game_object)
+engine_name_component_t engineGameObjectGetNameComponent(engine_game_object_t game_object)
 {
     return get_component<engine_name_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateNameComponent(engine_game_object_t game_object, const engine_name_component_t* comp)
+void engineGameObjectUpdateNameComponent(engine_game_object_t game_object, const engine_name_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveNameComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveNameComponent(engine_game_object_t game_object)
 {
     remove_component<engine_name_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasNameComponent(engine_game_object_t game_object)
+bool engineGameObjectHasNameComponent(engine_game_object_t game_object)
 {
     return has_component<engine_name_component_t>(G_ACTIVE_SCENE, game_object);
 }
@@ -968,252 +968,252 @@ void engineComponentViewAttachNameComponent(engine_component_view_t view)
     sc->attach_component_to_runtime_view<engine_name_component_t>(*rv);
 }
 
-engine_tranform_component_t engineAddTransformComponent(engine_game_object_t game_object)
+engine_tranform_component_t engineGameObjectAddTransformComponent(engine_game_object_t game_object)
 {
     return add_component<engine_tranform_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_tranform_component_t engineGetTransformComponent(engine_game_object_t game_object)
+engine_tranform_component_t engineGameObjectGetTransformComponent(engine_game_object_t game_object)
 {
     return get_component<engine_tranform_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateTransformComponent(engine_game_object_t game_object, const engine_tranform_component_t* comp)
+void engineGameObjectUpdateTransformComponent(engine_game_object_t game_object, const engine_tranform_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveTransformComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveTransformComponent(engine_game_object_t game_object)
 {
     remove_component<engine_tranform_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasTransformComponent(engine_game_object_t game_object)
+bool engineGameObjectHasTransformComponent(engine_game_object_t game_object)
 {
     return has_component<engine_tranform_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_mesh_component_t engineAddMeshComponent(engine_game_object_t game_object)
+engine_mesh_component_t engineGameObjectAddMeshComponent(engine_game_object_t game_object)
 {
     return add_component<engine_mesh_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_mesh_component_t engineGetMeshComponent(engine_game_object_t game_object)
+engine_mesh_component_t engineGameObjectGetMeshComponent(engine_game_object_t game_object)
 {
     return get_component<engine_mesh_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateMeshComponent(engine_game_object_t game_object, const engine_mesh_component_t* comp)
+void engineGameObjectUpdateMeshComponent(engine_game_object_t game_object, const engine_mesh_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveMeshComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveMeshComponent(engine_game_object_t game_object)
 {
     remove_component<engine_mesh_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasMeshComponent(engine_game_object_t game_object)
+bool engineGameObjectHasMeshComponent(engine_game_object_t game_object)
 {
     return has_component<engine_mesh_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_skinned_mesh_component_t engineAddSkinnedMeshComponent(engine_game_object_t game_object)
+engine_skinned_mesh_component_t engineGameObjectAddSkinnedMeshComponent(engine_game_object_t game_object)
 {
     return add_component<engine_skinned_mesh_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_skinned_mesh_component_t engineGetSkinnedMeshComponent(engine_game_object_t game_object)
+engine_skinned_mesh_component_t engineGameObjectGetSkinnedMeshComponent(engine_game_object_t game_object)
 {
     return get_component<engine_skinned_mesh_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateSkinnedMeshComponent(engine_game_object_t game_object, const engine_skinned_mesh_component_t* comp)
+void engineGameObjectUpdateSkinnedMeshComponent(engine_game_object_t game_object, const engine_skinned_mesh_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveSkinnedMeshComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveSkinnedMeshComponent(engine_game_object_t game_object)
 {
     remove_component<engine_skinned_mesh_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasSkinnedMeshComponent(engine_game_object_t game_object)
+bool engineGameObjectHasSkinnedMeshComponent(engine_game_object_t game_object)
 {
     return has_component<engine_skinned_mesh_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_skin_component_t engineAddSkinComponent(engine_game_object_t game_object)
+engine_skin_component_t engineGameObjectAddSkinComponent(engine_game_object_t game_object)
 {
     return add_component<engine_skin_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_skin_component_t engineGetSkinComponent(engine_game_object_t game_object)
+engine_skin_component_t engineGameObjectGetSkinComponent(engine_game_object_t game_object)
 {
     return get_component<engine_skin_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateSkinComponent(engine_game_object_t game_object, const engine_skin_component_t* comp)
+void engineGameObjectUpdateSkinComponent(engine_game_object_t game_object, const engine_skin_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveSkinComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveSkinComponent(engine_game_object_t game_object)
 {
     remove_component<engine_skin_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasSkinComponent(engine_game_object_t game_object)
+bool engineGameObjectHasSkinComponent(engine_game_object_t game_object)
 {
     return has_component<engine_skin_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_joint_attachment_component_t engineAddJointAttachmentComponent(engine_game_object_t game_object)
+engine_joint_attachment_component_t engineGameObjectAddJointAttachmentComponent(engine_game_object_t game_object)
 {
     return add_component<engine_joint_attachment_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_joint_attachment_component_t engineGetJointAttachmentComponent(engine_game_object_t game_object)
+engine_joint_attachment_component_t engineGameObjectGetJointAttachmentComponent(engine_game_object_t game_object)
 {
     return get_component<engine_joint_attachment_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateJointAttachmentComponent(engine_game_object_t game_object, const engine_joint_attachment_component_t* comp)
+void engineGameObjectUpdateJointAttachmentComponent(engine_game_object_t game_object, const engine_joint_attachment_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveJointAttachmentComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveJointAttachmentComponent(engine_game_object_t game_object)
 {
     remove_component<engine_joint_attachment_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasJointAttachmentComponent(engine_game_object_t game_object)
+bool engineGameObjectHasJointAttachmentComponent(engine_game_object_t game_object)
 {
     return has_component<engine_joint_attachment_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_animation_controller_component_t engineAddAnimationControllerComponent(engine_game_object_t game_object)
+engine_animation_controller_component_t engineGameObjectAddAnimationControllerComponent(engine_game_object_t game_object)
 {
     return add_component<engine_animation_controller_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_animation_controller_component_t engineGetAnimationControllerComponent(engine_game_object_t game_object)
+engine_animation_controller_component_t engineGameObjectGetAnimationControllerComponent(engine_game_object_t game_object)
 {
     return get_component<engine_animation_controller_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateAnimationControllerComponent(engine_game_object_t game_object, const engine_animation_controller_component_t* comp)
+void engineGameObjectUpdateAnimationControllerComponent(engine_game_object_t game_object, const engine_animation_controller_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveAnimationControllerComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveAnimationControllerComponent(engine_game_object_t game_object)
 {
     remove_component<engine_animation_controller_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasAnimationControllerComponent(engine_game_object_t game_object)
+bool engineGameObjectHasAnimationControllerComponent(engine_game_object_t game_object)
 {
     return has_component<engine_animation_controller_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_material_component_t engineAddMaterialComponent(engine_game_object_t game_object)
+engine_material_component_t engineGameObjectAddMaterialComponent(engine_game_object_t game_object)
 {
     return add_component<engine_material_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_material_component_t engineGetMaterialComponent(engine_game_object_t game_object)
+engine_material_component_t engineGameObjectGetMaterialComponent(engine_game_object_t game_object)
 {
     return get_component<engine_material_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateMaterialComponent(engine_game_object_t game_object, const engine_material_component_t* comp)
+void engineGameObjectUpdateMaterialComponent(engine_game_object_t game_object, const engine_material_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveMaterialComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveMaterialComponent(engine_game_object_t game_object)
 {
     remove_component<engine_material_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasMaterialComponent(engine_game_object_t game_object)
+bool engineGameObjectHasMaterialComponent(engine_game_object_t game_object)
 {
     return has_component<engine_material_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_light_component_t engineAddLightComponent(engine_game_object_t game_object)
+engine_light_component_t engineGameObjectAddLightComponent(engine_game_object_t game_object)
 {
     return add_component<engine_light_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_light_component_t engineGetLightComponent(engine_game_object_t game_object)
+engine_light_component_t engineGameObjectGetLightComponent(engine_game_object_t game_object)
 {
     return get_component<engine_light_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateLightComponent(engine_game_object_t game_object, const engine_light_component_t* comp)
+void engineGameObjectUpdateLightComponent(engine_game_object_t game_object, const engine_light_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveLightComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveLightComponent(engine_game_object_t game_object)
 {
     remove_component<engine_light_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasLightComponent(engine_game_object_t game_object)
+bool engineGameObjectHasLightComponent(engine_game_object_t game_object)
 {
     return has_component<engine_light_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_sprite_component_t engineAddSpriteComponent(engine_game_object_t game_object)
+engine_sprite_component_t engineGameObjectAddSpriteComponent(engine_game_object_t game_object)
 {
     return add_component<engine_sprite_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_sprite_component_t engineGetSpriteComponent(engine_game_object_t game_object)
+engine_sprite_component_t engineGameObjectGetSpriteComponent(engine_game_object_t game_object)
 {
     return get_component<engine_sprite_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateSpriteComponent(engine_game_object_t game_object, const engine_sprite_component_t* comp)
+void engineGameObjectUpdateSpriteComponent(engine_game_object_t game_object, const engine_sprite_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveSpriteComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveSpriteComponent(engine_game_object_t game_object)
 {
     remove_component<engine_sprite_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasSpriteComponent(engine_game_object_t game_object)
+bool engineGameObjectHasSpriteComponent(engine_game_object_t game_object)
 {
     return has_component<engine_sprite_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_camera_component_t engineAddCameraComponent(engine_game_object_t game_object)
+engine_camera_component_t engineGameObjectAddCameraComponent(engine_game_object_t game_object)
 {
     return add_component<engine_camera_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_camera_component_t engineGetCameraComponent(engine_game_object_t game_object)
+engine_camera_component_t engineGameObjectGetCameraComponent(engine_game_object_t game_object)
 {
     return get_component<engine_camera_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateCameraComponent(engine_game_object_t game_object, const engine_camera_component_t* comp)
+void engineGameObjectUpdateCameraComponent(engine_game_object_t game_object, const engine_camera_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveCameraComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveCameraComponent(engine_game_object_t game_object)
 {
     remove_component<engine_camera_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasCameraComponent(engine_game_object_t game_object)
+bool engineGameObjectHasCameraComponent(engine_game_object_t game_object)
 {
     return has_component<engine_camera_component_t>(G_ACTIVE_SCENE, game_object);
 }
@@ -1249,87 +1249,87 @@ engine_fvec3_t engineCameraComponentConvertSpacePositionToWorldPosition(engine_g
     return ret;
 }
 
-engine_rigid_body_component_t engineAddRigidBodyComponent(engine_game_object_t game_object)
+engine_rigid_body_component_t engineGameObjectAddRigidBodyComponent(engine_game_object_t game_object)
 {
     return add_component<engine_rigid_body_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_rigid_body_component_t engineGetRigidBodyComponent(engine_game_object_t game_object)
+engine_rigid_body_component_t engineGameObjectGetRigidBodyComponent(engine_game_object_t game_object)
 {
     return get_component<engine_rigid_body_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateRigidBodyComponent(engine_game_object_t game_object, const engine_rigid_body_component_t* comp)
+void engineGameObjectUpdateRigidBodyComponent(engine_game_object_t game_object, const engine_rigid_body_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveRigidBodyComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveRigidBodyComponent(engine_game_object_t game_object)
 {
     remove_component<engine_rigid_body_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasRigidBodyComponent(engine_game_object_t game_object)
+bool engineGameObjectHasRigidBodyComponent(engine_game_object_t game_object)
 {
     return has_component<engine_rigid_body_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_collider_component_t engineAddColliderComponent(engine_game_object_t game_object)
+engine_collider_component_t engineGameObjectAddColliderComponent(engine_game_object_t game_object)
 {
     return add_component<engine_collider_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_collider_component_t engineGetColliderComponent(engine_game_object_t game_object)
+engine_collider_component_t engineGameObjectGetColliderComponent(engine_game_object_t game_object)
 {
     return get_component<engine_collider_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateColliderComponent(engine_game_object_t game_object, const engine_collider_component_t* comp)
+void engineGameObjectUpdateColliderComponent(engine_game_object_t game_object, const engine_collider_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveColliderComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveColliderComponent(engine_game_object_t game_object)
 {
     remove_component<engine_collider_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasColliderComponent(engine_game_object_t game_object)
+bool engineGameObjectHasColliderComponent(engine_game_object_t game_object)
 {
     return has_component<engine_collider_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_parent_component_t engineAddParentComponent(engine_game_object_t game_object)
+engine_parent_component_t engineGameObjectAddParentComponent(engine_game_object_t game_object)
 {
     return add_component<engine_parent_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_parent_component_t engineGetParentComponent(engine_game_object_t game_object)
+engine_parent_component_t engineGameObjectGetParentComponent(engine_game_object_t game_object)
 {
     return get_component<engine_parent_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineUpdateParentComponent(engine_game_object_t game_object, const engine_parent_component_t* comp)
+void engineGameObjectUpdateParentComponent(engine_game_object_t game_object, const engine_parent_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
-void engineRemoveParentComponent(engine_game_object_t game_object)
+void engineGameObjectRemoveParentComponent(engine_game_object_t game_object)
 {
     remove_component<engine_parent_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasParentComponent(engine_game_object_t game_object)
+bool engineGameObjectHasParentComponent(engine_game_object_t game_object)
 {
     return has_component<engine_parent_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_children_component_t engineGetChildrenComponent(engine_game_object_t game_object)
+engine_children_component_t engineGameObjectGetChildrenComponent(engine_game_object_t game_object)
 {
     return get_component<engine_children_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool engineHasChildrenComponent(engine_game_object_t game_object)
+bool engineGameObjectHasChildrenComponent(engine_game_object_t game_object)
 {
     return has_component<engine_children_component_t>(G_ACTIVE_SCENE, game_object);
 }
