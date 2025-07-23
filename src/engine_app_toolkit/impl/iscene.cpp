@@ -106,6 +106,7 @@ engine::IScene::IScene(IApplication* app)
     {
         throw std::runtime_error("Couldn't create scene!\n");
     }
+    activate();
     scripts_.reserve(1024);
 }
 

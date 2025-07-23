@@ -325,7 +325,7 @@ static void equip_weapon_callback(engine_ui_data_handle_t data_handle, const eng
     const auto item_go = arg_0.arg.u32;
 
     auto scene = reinterpret_cast<project_c::TestScene*>(user_data);
-    auto player_go = project_c::utils::get_game_objects_with_name(scene->get_handle(), "player");
+    auto player_go = project_c::utils::get_game_objects_with_name("player");
     assert(player_go.size() == 1);
     auto player_script = scene->get_script<project_c::Player>(player_go[0]);
     const auto item_equipped = player_script->equip_waepon(scene->get_script<project_c::Weapon>(item_go));

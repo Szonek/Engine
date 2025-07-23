@@ -88,7 +88,7 @@ glm::quat project_c::utils::rotate_toward(glm::vec3 origin, glm::vec3 target)
     return glm::angleAxis(glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
-engine_ray_t project_c::utils::get_ray_from_mouse_position(engine_application_t app, engine_game_object_t go_camera)
+engine_ray_t project_c::utils::get_ray_from_mouse_position(engine_game_object_t go_camera)
 {
     engine_ray_t ray{};
     // ray origin
