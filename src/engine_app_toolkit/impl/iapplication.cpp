@@ -23,7 +23,7 @@ engine::IApplication::~IApplication()
 
 bool engine::IApplication::is_editor_enabled() const
 {
-    return engineIsEditorEnabled();
+    return engineEditorIsEnabled();
 }
 
 void engine::IApplication::update_scenes(float dt)

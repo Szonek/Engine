@@ -39,7 +39,7 @@ project_c::Weapon::Weapon(engine::IScene* my_scene)
 
     // mesh
     auto mc = engineGameObjectAddMeshComponent(go_);
-    mc.geometry = engineGetGeometryByName("Cube.12900");
+    mc.geometry = engineGeometryGetByName("Cube.12900");
     assert(mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
     engineGameObjectUpdateMeshComponent(go_, &mc);
 
@@ -47,7 +47,7 @@ project_c::Weapon::Weapon(engine::IScene* my_scene)
     auto matc = engineGameObjectAddMaterialComponent(go_);
     set_c_array(matc.data.pong.diffuse_color, std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f});
     matc.data.pong.shininess = 32.0f;
-    matc.data.pong.diffuse_texture = engineGetTextured2DByName("barbarian_texture");
+    matc.data.pong.diffuse_texture = engineTextured2DGetByName("barbarian_texture");
     engineGameObjectUpdateMaterialComponent(go_, &matc);
 
     // physics
@@ -269,14 +269,14 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     engineGameObjectUpdateRigidBodyComponent(go_, &rbc);
 
     // delete objects not needed at creation time
-    engineDestroyGameObject(utils::get_game_objects_with_name("1H_Axe")[0]);
-    engineDestroyGameObject(utils::get_game_objects_with_name("2H_Axe")[0]);
-    engineDestroyGameObject(utils::get_game_objects_with_name("Mug")[0]);
-    engineDestroyGameObject(utils::get_game_objects_with_name("Barbarian_Round_Shield")[0]);
-    engineDestroyGameObject(utils::get_game_objects_with_name("1H_Axe_Offhand")[0]);
+    engineGameObjectDestroy(utils::get_game_objects_with_name("1H_Axe")[0]);
+    engineGameObjectDestroy(utils::get_game_objects_with_name("2H_Axe")[0]);
+    engineGameObjectDestroy(utils::get_game_objects_with_name("Mug")[0]);
+    engineGameObjectDestroy(utils::get_game_objects_with_name("Barbarian_Round_Shield")[0]);
+    engineGameObjectDestroy(utils::get_game_objects_with_name("1H_Axe_Offhand")[0]);
 
     // add attack trigger
-    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineCreateGameObject());
+    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreate());
 
     // set animation layers
     auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
@@ -338,8 +338,8 @@ void project_c::Player::update(float dt)
         };
     rotate_towards_global_target();// rotate towards target
 
-    const auto lmb = engineIsMouseButtonDown(ENGINE_MOUSE_BUTTON_LEFT);
-    const auto rmb = engineIsMouseButtonDown(ENGINE_MOUSE_BUTTON_RIGHT);
+    const auto lmb = engineMouseIsButtonDown(ENGINE_MOUSE_BUTTON_LEFT);
+    const auto rmb = engineMouseIsButtonDown(ENGINE_MOUSE_BUTTON_RIGHT);
     if (weapon_ && rmb && !check_state_bit(States::ATTACK))
     {
         enable_state_bit(States::TRIGGER_ATTACK);

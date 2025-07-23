@@ -35,13 +35,13 @@ project_c::Prefab::~Prefab()
     {
         for (const auto& g : geometries_)
         {
-            engineDestroyGeometry(g);
+            engineGeometryDestroy(g);
         }
         for (const auto& t : textures_)
         {
             if (t.owner)
             {
-                engineDestroyTexture2D(t.obj);
+                engineTexture2DDestroy(t.obj);
             }
         }
         for (const auto& skin : skins_)
@@ -59,19 +59,19 @@ project_c::Prefab::~Prefab()
             }
         }
         materials_.clear();
-        engineReleaseModelDesc(model_desc_);
+        engineModelDescRelease(model_desc_);
     }
 }
 
 project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, std::string_view model_file_name, std::string_view base_dir)
 {
-    engine_error_code = engineAllocateModelDescAndLoadDataFromFile(ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_desc_);
+    engine_error_code = engineModelDescAllocateAndLoadDataFromFile(ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_desc_);
 
     geometries_ = std::vector(engineModelDescGetGeometriesDescCount(model_desc_), ENGINE_INVALID_OBJECT_HANDLE);
     for (std::uint32_t i = 0; i < geometries_.size(); i++)
     {
         const auto& geo_desc = engineModelDescGetGeometryDesc(model_desc_, i);
-        engine_error_code = engineCreateGeometryFromDesc(geo_desc, &geometries_[i]);
+        engine_error_code = engineGeometryCreateFromDesc(geo_desc, &geometries_[i]);
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             engineLog("Failed creating geometry for loaded model. Exiting!\n");
@@ -86,16 +86,16 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, std::string_v
         const auto name_generic = std::string(model_file_name) + "_texture_" + std::to_string(i);
         const auto name_real = engineTexture2dDescGetName(texture_desc);
         const std::string name = name_real ? name_real : name_generic;
-        if (engineGetTextured2DByName(name.c_str()) != ENGINE_INVALID_OBJECT_HANDLE)
+        if (engineTextured2DGetByName(name.c_str()) != ENGINE_INVALID_OBJECT_HANDLE)
         {
             engineLog(std::format("Texture with name: {} already exists, reusing it.\n", name).c_str());
-            textures_[i].obj = engineGetTextured2DByName(name.c_str());
+            textures_[i].obj = engineTextured2DGetByName(name.c_str());
             textures_[i].owner = false;
             engine_error_code = textures_[i].obj == ENGINE_INVALID_OBJECT_HANDLE ? ENGINE_RESULT_CODE_FAIL : ENGINE_RESULT_CODE_OK;
         }
         else
         {
-            engine_error_code = engineCreateTexture2DFromDesc(texture_desc, &textures_[i].obj);
+            engine_error_code = engineTexture2DCreateFromDesc(texture_desc, &textures_[i].obj);
             textures_[i].owner = true;
         }
 
@@ -193,7 +193,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     for (auto i = 0; i < nodes_count; i++)
     {
         const auto node_desc = engineModelDescGetNodeDesc(model_desc_, i);
-        const auto& go = engineCreateGameObject();
+        const auto& go = engineGameObjectCreate();
         node_id_to_game_object[engineModelNodeDescGetIndex(node_desc)] = go;
         const auto name = engineModelNodeDescGetName(node_desc);
         if (name)
@@ -289,7 +289,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         {
             const auto joint_name = engineSkinDescGetJointName(skin_desc, j);
             const auto go = utils::get_game_objects_with_name(joint_name).at(0);
-            engineDestroyGameObject(go);
+            engineGameObjectDestroy(go);
 
             const auto model_node_desc = engineModelDescGetNodeDescByName(model_desc_, joint_name);
             node_id_to_game_object.erase(engineModelNodeDescGetIndex(model_node_desc));

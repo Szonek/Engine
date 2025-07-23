@@ -24,7 +24,7 @@ project_c::BaseNode::BaseNode(engine::IScene* my_scene, engine_game_object_t go,
 }
 
 project_c::BaseNode::BaseNode(engine::IScene* my_scene, std::string_view name)
-    : BaseNode(my_scene, engineCreateGameObject(), name)
+    : BaseNode(my_scene, engineGameObjectCreate(), name)
 {
 }
 

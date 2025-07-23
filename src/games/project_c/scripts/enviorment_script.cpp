@@ -14,7 +14,7 @@ void add_parent_component_for_editor(engine::IScene& my_scene, engine_game_objec
     auto parent_go = project_c::utils::get_game_objects_with_name(parent_name);
     if (parent_go.empty())
     {
-        const auto env_parent = engineCreateGameObject();
+        const auto env_parent = engineGameObjectCreate();
         auto nc = engineGameObjectAddNameComponent(env_parent);
         std::strncpy(nc.name, parent_name.data(), ENGINE_ENTITY_NAME_MAX_LENGTH);
         engineGameObjectUpdateNameComponent(env_parent, &nc);
@@ -125,7 +125,7 @@ project_c::MainLight::MainLight(engine::IScene* my_scene)
     engineGameObjectUpdateTransformComponent(go_, &tc);
 
     // for visulastuion add mesh component
-    const auto cube_geo = engineGetGeometryByName("cube.glb");
+    const auto cube_geo = engineGeometryGetByName("cube.glb");
     if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
     {
         auto mc = engineGameObjectAddMeshComponent(go_);
@@ -163,7 +163,7 @@ project_c::PointLight::PointLight(engine::IScene* my_scene)
     engineGameObjectUpdateTransformComponent(go_, &tc);
 
     // for visulastuion add mesh component
-    const auto cube_geo = engineGetGeometryByName("cube.glb");
+    const auto cube_geo = engineGeometryGetByName("cube.glb");
     if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
     {
         auto mc = engineGameObjectAddMeshComponent(go_);
@@ -203,7 +203,7 @@ project_c::SpotLight::SpotLight(engine::IScene* my_scene)
     engineGameObjectUpdateTransformComponent(go_, &tc);
 
     // for visulastuion add mesh component
-    const auto cube_geo = engineGetGeometryByName( "cube.glb");
+    const auto cube_geo = engineGeometryGetByName( "cube.glb");
     if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
     {
         auto mc = engineGameObjectAddMeshComponent(go_);
@@ -247,7 +247,7 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
     engineGameObjectUpdateTransformComponent(go_, &tc);
 
     // for visulastuion add mesh component
-    const auto cube_geo = engineGetGeometryByName("cube.glb");
+    const auto cube_geo = engineGeometryGetByName("cube.glb");
     if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
     {
         auto mc = engineGameObjectAddMeshComponent(go_);

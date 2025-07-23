@@ -17,7 +17,7 @@ void project_c::utils::delete_game_objects_hierarchy(engine_game_object_t go)
             if (cc.child[i] != ENGINE_INVALID_GAME_OBJECT_ID)
             {
                 delete_game_objects_hierarchy(cc.child[i]);
-                engineDestroyGameObject(cc.child[i]);
+                engineGameObjectDestroy(cc.child[i]);
             }
         }
     }
@@ -97,7 +97,7 @@ engine_ray_t project_c::utils::get_ray_from_mouse_position(engine_game_object_t 
     ray.origin.y = camera_transform.position[1];
     ray.origin.z = camera_transform.position[2];
 
-    const auto mouse_coords = engineGetMouseCoords();
+    const auto mouse_coords = engineMouseCoordsGet();
     ray.direction = engineCameraComponentConvertSpacePositionToWorldPosition(go_camera, engine_fvec3_t{mouse_coords.x, mouse_coords.y, 1.0f});
     return ray;
 }

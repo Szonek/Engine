@@ -280,7 +280,7 @@ engine_result_code_t engineApplicationCreate(engine_application_t* handle, engin
 	return ret;
 }
 
-bool engineIsEditorEnabled()
+bool engineEditorIsEnabled()
 {
     if (!G_ACTIVE_APP)
     {
@@ -320,7 +320,7 @@ bool engineIsKeyboardButtonUp(engine_keyboard_keys_t key)
 	return !engineIsKeyboardButtonDown(key);
 }
 
-engine_fvec2_t engineGetMouseCoords()
+engine_fvec2_t engineMouseCoordsGet()
 {
     if (!G_ACTIVE_APP)
     {
@@ -334,7 +334,7 @@ engine_fvec2_t engineGetMouseCoords()
 	return app->mouse_get_coords();
 }
 
-bool engineIsMouseButtonDown(engine_mouse_button_t button)
+bool engineMouseIsButtonDown(engine_mouse_button_t button)
 {
     if (!G_ACTIVE_APP)
     {
@@ -348,9 +348,9 @@ bool engineIsMouseButtonDown(engine_mouse_button_t button)
 	return app->mouse_is_button_down(button);
 }
 
-bool engineIsMouseButtonUp(engine_mouse_button_t button)
+bool engineMouseIsButtonUp(engine_mouse_button_t button)
 {
-	return !engineIsMouseButtonDown(button);
+	return !engineMouseIsButtonDown(button);
 }
 
 //bool engineApplicationGetFingerInfo(engine_application_t handle, engine_fingers_infos_list_t* infos_list)
@@ -370,7 +370,7 @@ bool engineIsMouseButtonUp(engine_mouse_button_t button)
 //    return true;
 //}
 
-engine_application_frame_begine_info_t engineFrameBegine()
+engine_application_frame_begine_info_t engineFrameBegin()
 {
     if (!G_ACTIVE_APP)
     {
@@ -401,7 +401,7 @@ engine_application_frame_end_info_t engineFrameEnd()
 	return app->end_frame();
 }
 
-engine_result_code_t engineCreateShader(const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out)
+engine_result_code_t engineShaderCreate(const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out)
 {
     if (!G_ACTIVE_APP || !desc || !name || !out)
     {
@@ -430,7 +430,7 @@ engine_result_code_t engineCreateShader(const engine_shader_create_desc_t* desc,
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_shader_t engineGetShaderByName(const char* name)
+engine_shader_t engineShaderGetByName(const char* name)
 {
     if (!G_ACTIVE_APP)
     {
@@ -440,7 +440,7 @@ engine_shader_t engineGetShaderByName(const char* name)
     return app->get_shader(name);
 }
 
-void engineDestroyShader(engine_shader_t shader)
+void engineShaderDestroy(engine_shader_t shader)
 {
     if (!G_ACTIVE_APP)
     {
@@ -461,7 +461,7 @@ engine_result_code_t engineCreateFontFromFile(const char* file_name, const char*
     return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
-engine_result_code_t engineCreateGeometryFromDesc(const engine_geometry_desc_t* desc, engine_geometry_t* out)
+engine_result_code_t engineGeometryCreateFromDesc(const engine_geometry_desc_t* desc, engine_geometry_t* out)
 {
     if (!G_ACTIVE_APP)
     {
@@ -479,7 +479,7 @@ engine_result_code_t engineCreateGeometryFromDesc(const engine_geometry_desc_t* 
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_geometry_t engineGetGeometryByName(const char* name)
+engine_geometry_t engineGeometryGetByName(const char* name)
 {
     if (!G_ACTIVE_APP)
     {
@@ -509,7 +509,7 @@ engine_geometry_attribute_limit_t engineGeometryGetAttributeLimits(engine_geomet
     return ret;
 }
 
-void engineDestroyGeometry(engine_geometry_t geometry)
+void engineGeometryDestroy(engine_geometry_t geometry)
 {
     if (!G_ACTIVE_APP)
     {
@@ -518,7 +518,7 @@ void engineDestroyGeometry(engine_geometry_t geometry)
     api_cast(G_ACTIVE_APP)->destroy_geometry(geometry);
 }
 
-engine_result_code_t engineCreateTexture2DFromDesc(const engine_texture_2d_desc_t* desc, engine_texture2d_t* out)
+engine_result_code_t engineTexture2DCreateFromDesc(const engine_texture_2d_desc_t* desc, engine_texture2d_t* out)
 {
     if (!G_ACTIVE_APP)
     {
@@ -537,7 +537,7 @@ engine_result_code_t engineCreateTexture2DFromDesc(const engine_texture_2d_desc_
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_result_code_t engineCreateTexture2DFromFile(const char* file_name, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out)
+engine_result_code_t engineTexture2DCreateFromFile(const char* file_name, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out)
 {
     if (!G_ACTIVE_APP)
     {
@@ -554,7 +554,7 @@ engine_result_code_t engineCreateTexture2DFromFile(const char* file_name, engine
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_texture2d_t engineGetTextured2DByName(const char* name)
+engine_texture2d_t engineTextured2DGetByName(const char* name)
 {
     if (!G_ACTIVE_APP)
     {
@@ -564,7 +564,7 @@ engine_texture2d_t engineGetTextured2DByName(const char* name)
     return app->get_texture(name);
 }
 
-void engineDestroyTexture2D(engine_texture2d_t tex2d)
+void engineTexture2DDestroy(engine_texture2d_t tex2d)
 {
     if (!G_ACTIVE_APP)
     {
@@ -573,7 +573,7 @@ void engineDestroyTexture2D(engine_texture2d_t tex2d)
     api_cast(G_ACTIVE_APP)->destroy_texture(tex2d);
 }
 
-engine_result_code_t engineAllocateModelDescAndLoadDataFromFile(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t** out)
+engine_result_code_t engineModelDescAllocateAndLoadDataFromFile(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t** out)
 {
     if (!G_ACTIVE_APP || !out || !file_name || !base_dir)
     {
@@ -592,7 +592,7 @@ engine_result_code_t engineAllocateModelDescAndLoadDataFromFile(engine_model_spe
     return ENGINE_RESULT_CODE_OK;
 }
 
-void engineReleaseModelDesc(engine_model_desc_t* model_info)
+void engineModelDescRelease(engine_model_desc_t* model_info)
 {
     if (!G_ACTIVE_APP)
     {
@@ -642,7 +642,7 @@ engine_result_code_t engineSceneSetActive(engine_scene_t handle)
 }
 
 
-engine_game_object_t engineCreateGameObject()
+engine_game_object_t engineGameObjectCreate()
 {
     if (!G_ACTIVE_SCENE)
     {
@@ -653,7 +653,7 @@ engine_game_object_t engineCreateGameObject()
     return static_cast<engine_game_object_t>(new_entity);
 }
 
-void engineDestroyGameObject(engine_game_object_t game_object)
+void engineGameObjectDestroy(engine_game_object_t game_object)
 {
     if (!G_ACTIVE_SCENE)
     {

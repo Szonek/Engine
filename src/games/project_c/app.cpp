@@ -91,7 +91,7 @@ void project_c::AppProjectC::run()
 
     while (true)
     {
-        const auto frame_begin = engineFrameBegine();
+        const auto frame_begin = engineFrameBegin();
 
         if (frame_begin.events & ENGINE_EVENT_QUIT)
         {

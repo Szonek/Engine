@@ -29,7 +29,7 @@ project_c::CameraScript::CameraScript(engine::IScene* my_scene)
 void project_c::CameraScript::late_update(float dt)
 {
     engine::ScopedProfiler profiler("project_c::CameraScript::late_update");
-    const auto mouse_coords = engineGetMouseCoords();
+    const auto mouse_coords = engineMouseCoordsGet();
 
     const float move_speed = 1.0f * dt;
     const auto all_players = utils::get_game_objects_with_name("player");

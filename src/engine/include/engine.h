@@ -549,7 +549,7 @@ ENGINE_API void engineApplicationDestroy(engine_application_t handle);
 ENGINE_API engine_result_code_t engineApplicationSetActive(engine_application_t handle);
 
 // editor
-ENGINE_API bool engineIsEditorEnabled();
+ENGINE_API bool engineEditorIsEnabled();
 
 // scene
 ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_create_desc_t desc, engine_scene_t* out);
@@ -557,45 +557,45 @@ ENGINE_API void engineSceneDestroy(engine_scene_t scene);
 ENGINE_API engine_result_code_t engineSceneSetActive(engine_scene_t handle);
 
 // game objects in scene
-ENGINE_API engine_game_object_t engineCreateGameObject();
-ENGINE_API void                 engineDestroyGameObject(engine_game_object_t game_object);
+ENGINE_API engine_game_object_t engineGameObjectCreate();
+ENGINE_API void                 engineGameObjectDestroy(engine_game_object_t game_object);
 
 // user input hangling
 ENGINE_API bool engineIsKeyboardButtonDown(engine_keyboard_keys_t key);
 ENGINE_API bool engineIsKeyboardButtonUp(engine_keyboard_keys_t key);
 
-ENGINE_API engine_fvec2_t engineGetMouseCoords();
-ENGINE_API bool engineIsMouseButtonDown(engine_mouse_button_t mb);
-ENGINE_API bool engineIsMouseButtonUp(engine_mouse_button_t mb);
+ENGINE_API engine_fvec2_t engineMouseCoordsGet();
+ENGINE_API bool engineMouseIsButtonDown(engine_mouse_button_t mb);
+ENGINE_API bool engineMouseIsButtonUp(engine_mouse_button_t mb);
 
 //frame handling
-ENGINE_API engine_application_frame_begine_info_t engineFrameBegine();
+ENGINE_API engine_application_frame_begine_info_t engineFrameBegin();
 ENGINE_API engine_result_code_t                   engineFrameSceneUpdate(float delta_time);
 ENGINE_API engine_application_frame_end_info_t    engineFrameEnd();
 
 // pipeline state objects and GPU buffers
-ENGINE_API engine_result_code_t engineCreateShader(const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out);
-ENGINE_API engine_shader_t engineGetShaderByName(const char* name);
-ENGINE_API void engineDestroyShader(engine_shader_t pso);
+ENGINE_API engine_result_code_t engineShaderCreate(const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out);
+ENGINE_API engine_shader_t engineShaderGetByName(const char* name);
+ENGINE_API void engineShaderDestroy(engine_shader_t pso);
 
 // fonts
 ENGINE_API engine_result_code_t engineCreateFontFromFile(const char* file_name, const char* handle_name);
 
 // model loading
-ENGINE_API engine_result_code_t engineAllocateModelDescAndLoadDataFromFile(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t** out);
-ENGINE_API void engineReleaseModelDesc(engine_model_desc_t* model_info);
+ENGINE_API engine_result_code_t engineModelDescAllocateAndLoadDataFromFile(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t** out);
+ENGINE_API void engineModelDescRelease(engine_model_desc_t* model_info);
 
 // geometry
-ENGINE_API engine_result_code_t engineCreateGeometryFromDesc(const engine_geometry_desc_t* desc, engine_geometry_t* out);
-ENGINE_API engine_geometry_t engineGetGeometryByName(const char* name);
+ENGINE_API engine_result_code_t engineGeometryCreateFromDesc(const engine_geometry_desc_t* desc, engine_geometry_t* out);
+ENGINE_API engine_geometry_t engineGeometryGetByName(const char* name);
 ENGINE_API engine_geometry_attribute_limit_t engineGeometryGetAttributeLimits(engine_geometry_t geometry, engine_vertex_attribute_type_t type);
-ENGINE_API void engineDestroyGeometry(engine_geometry_t geometry);
+ENGINE_API void engineGeometryDestroy(engine_geometry_t geometry);
 
 // textures 
-ENGINE_API engine_result_code_t engineCreateTexture2DFromDesc(const engine_texture_2d_desc_t* desc, engine_texture2d_t* out);
-ENGINE_API engine_result_code_t engineCreateTexture2DFromFile(const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
-ENGINE_API engine_texture2d_t   engineGetTextured2DByName(const char* name);
-ENGINE_API void engineDestroyTexture2D(engine_texture2d_t tex2d);
+ENGINE_API engine_result_code_t engineTexture2DCreateFromDesc(const engine_texture_2d_desc_t* desc, engine_texture2d_t* out);
+ENGINE_API engine_result_code_t engineTexture2DCreateFromFile(const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
+ENGINE_API engine_texture2d_t   engineTextured2DGetByName(const char* name);
+ENGINE_API void engineTexture2DDestroy(engine_texture2d_t tex2d);
 
 // physics 
 ENGINE_API void enginePhysicsSetGravityVector(const float gravity[3]);
