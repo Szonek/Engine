@@ -26,7 +26,7 @@ public:
     Weapon(engine::IScene* my_scene);
     ~Weapon();
 
-    void attach_to_game_object(engine_game_object_t parent, std::string_view joint_name, std::optional<glm::vec3> position = std::nullopt, std::optional<glm::quat> rotation = std::nullopt);
+    void attach_to_game_object(engine_game_object_t parent, std::string_view joint_name, std::optional<glm::vec3> position, std::optional<glm::quat> rotation);
     void drop_on_ground(glm::vec3 position);
 
     void on_collision(const collision_t& info) override;
