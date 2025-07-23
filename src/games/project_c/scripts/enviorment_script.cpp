@@ -203,7 +203,7 @@ project_c::SpotLight::SpotLight(engine::IScene* my_scene)
     engineGameObjectUpdateTransformComponent(go_, &tc);
 
     // for visulastuion add mesh component
-    const auto cube_geo = engineGeometryGetByName( "cube.glb");
+    const auto cube_geo = engineGeometryGetByName("cube.glb");
     if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
     {
         auto mc = engineGameObjectAddMeshComponent(go_);

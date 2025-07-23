@@ -150,7 +150,7 @@ void project_c::Weapon::on_collision(const collision_t& info)
 {
     if (auto* floor = my_scene_->get_script<Floor>(info.other))
     {
-        // remove rigid body and enable is trigger
+        // remove rigid body and enable the trigger
         // check if has rigidbody (remove once), because there can be multiple collision calls in single frame
         if (engineGameObjectHasRigidBodyComponent(go_))
         {

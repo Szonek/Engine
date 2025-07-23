@@ -124,7 +124,7 @@ engine::IScene::~IScene()
 void engine::IScene::activate()
 {
     engineSceneSetActive(scene_);
-    is_activate_ = true;;
+    is_activate_ = true;
 }
 
 void engine::IScene::deactivate()
