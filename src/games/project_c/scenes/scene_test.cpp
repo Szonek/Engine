@@ -325,7 +325,7 @@ static void equip_weapon_callback(engine_ui_data_handle_t data_handle, const eng
     const auto item_go = arg_0.arg.u32;
 
     auto scene = reinterpret_cast<project_c::TestScene*>(user_data);
-    auto player_go = project_c::utils::get_game_objects_with_name(scene->get_handle(), "player");
+    auto player_go = project_c::utils::get_game_objects_with_name("player");
     assert(player_go.size() == 1);
     auto player_script = scene->get_script<project_c::Player>(player_go[0]);
     const auto item_equipped = player_script->equip_waepon(scene->get_script<project_c::Weapon>(item_go));
@@ -417,17 +417,16 @@ static void register_ui_enemy_bindings(std::vector<engine_ui_document_data_bindi
 project_c::TestScene::TestScene(engine::IApplication* app)
     : IScene(app)
 {
-    auto app_handle = app->get_handle();
     auto camera_script = register_script<CameraScript>();
 
     std::vector<engine_ui_document_data_binding_t> bindings {};
     register_ui_item_bindings(bindings, ui_data_, this);
     register_ui_enemy_bindings(bindings, ui_data_);
 
-    engineApplicationCreateUiDocumentDataHandle(app_handle, "DataModel_Main_UI", bindings.data(), bindings.size(), &ui_data_.handle_main_ui);
+    engineUiDocumentCreateDataHandle("DataModel_Main_UI", bindings.data(), bindings.size(), &ui_data_.handle_main_ui);
 
     // load ui doc
-    engineApplicationCreateUiDocumentFromFile(app_handle, "project_c_gameplay_ui.rml", &ui_data_.doc);
+    engineUiDocumentCreateFromFile("project_c_gameplay_ui.rml", &ui_data_.doc);
     if (ui_data_.doc)
     {
         engineUiDocumentShow(ui_data_.doc);
@@ -470,7 +469,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
 project_c::TestScene::~TestScene()
 {
     engineUiDataHandleDestroy(ui_data_.handle_main_ui);
-    engineApplicationUiDocumentDestroy(ui_data_.doc);
+    engineUiDocumentDestroy(ui_data_.doc);
 }
 
 void project_c::TestScene::update_hook_begin()
@@ -482,10 +481,10 @@ void project_c::TestScene::update_hook_begin()
 void project_c::TestScene::ui_update_item_on_ground(const project_c::Weapon* sw)
 {
     engine::ScopedProfiler prof("project_c::TestScene::ui_update_item_on_ground");
-    const auto active_camera_go = utils::get_active_camera_game_objects(scene_)[0];
+    const auto active_camera_go = utils::get_active_camera_game_objects()[0];
     const auto item_go = sw->get_game_object();
-    const auto item_tc = engineSceneGetTransformComponent(scene_, item_go);
-    const auto item_screen_coords = engineSceneCameraComponentConvertWorldPositionToScreenPosition(scene_, active_camera_go, item_tc.position);
+    const auto item_tc = engineGameObjectGetTransformComponent(item_go);
+    const auto item_screen_coords = engineCameraComponentConvertWorldPositionToScreenPosition(active_camera_go, item_tc.position);
     
     const auto x_str = std::to_string(item_screen_coords.x * 100) + "%";
     const auto y_str = std::to_string(item_screen_coords.y * 100) + "%";
@@ -552,13 +551,13 @@ void project_c::TestScene::ui_remove_item_from_ground(const project_c::Weapon* s
 void project_c::TestScene::ui_update_enemy(const Enemy* en)
 {
     engine::ScopedProfiler prof("project_c::TestScene::ui_update_enemy");
-    const auto active_camera_go = utils::get_active_camera_game_objects(scene_)[0];
+    const auto active_camera_go = utils::get_active_camera_game_objects()[0];
     const auto enemy_go = en->get_game_object();
-    auto enemy_tc = engineSceneGetTransformComponent(scene_, enemy_go);
+    auto enemy_tc = engineGameObjectGetTransformComponent(enemy_go);
     auto healthbar_position = enemy_tc.position;
     const auto height_offset = 1.0f; // healthbar need to be on top of the enemy
     healthbar_position[1] += height_offset;
-    const auto enemy_screen_coords = engineSceneCameraComponentConvertWorldPositionToScreenPosition(scene_, active_camera_go, healthbar_position);
+    const auto enemy_screen_coords = engineCameraComponentConvertWorldPositionToScreenPosition(active_camera_go, healthbar_position);
 
     const auto box_width = 10; // percent, ToDo: get propery from UiElement
     const auto box_height = 1; // percent, ToDo: get propery from UiElement

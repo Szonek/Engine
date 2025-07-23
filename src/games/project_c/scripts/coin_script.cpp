@@ -5,17 +5,14 @@
 project_c::Coin::Coin(engine::IScene* my_scene, engine_game_object_t go)
     : BaseNode(my_scene, go, "coin")
 {
-    const auto scene = my_scene_->get_handle();
-    const auto app = my_scene_->get_app_handle();
-
-    auto tc = engineSceneGetTransformComponent(scene, go_);
+    auto tc = engineGameObjectGetTransformComponent(go_);
     tc.scale[0] *= 0.35f;
     tc.scale[1] *= 0.35f;
     tc.scale[2] *= 0.35f;
-    engineSceneUpdateTransformComponent(scene, go_, &tc);
+    engineGameObjectUpdateTransformComponent(go_, &tc);
 
     // physcis
-    auto cc = engineSceneAddColliderComponent(scene, go_);
+    auto cc = engineGameObjectAddColliderComponent(go_);
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
     auto& child_c = cc.collider.compound.children[0];
     {
@@ -24,11 +21,11 @@ project_c::Coin::Coin(engine::IScene* my_scene, engine_game_object_t go)
         child_c.rotation_quaternion[3] = 1.0f;
         set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.35f, 0.35f, 0.15f});
     }
-    engineSceneUpdateColliderComponent(scene, go_, &cc);
+    engineGameObjectUpdateColliderComponent(go_, &cc);
 
-    auto rc = engineSceneAddRigidBodyComponent(scene, go_);
+    auto rc = engineGameObjectAddRigidBodyComponent(go_);
     rc.mass = 100.0f; // Set a small mass for the coin
-    engineSceneUpdateRigidBodyComponent(scene, go_, &rc);
+    engineGameObjectUpdateRigidBodyComponent(go_, &rc);
 }
 
 void project_c::Coin::update(float dt)
@@ -50,6 +47,5 @@ void project_c::Coin::on_collision(const collision_t& info)
 
 void project_c::Coin::push_force(float x, float y, float z, engine_force_type_t type)
 {
-    const auto scene = my_scene_->get_handle();
-    engineScenePhysicsAddForce(scene, go_, std::array<float, 3>{x, y, z}.data(), type);
+    enginePhysicsAddForce(go_, std::array<float, 3>{x, y, z}.data(), type);
 }

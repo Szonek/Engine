@@ -82,8 +82,6 @@ public:
     }
 
     IApplication* get_app() { return app_; }
-    engine_scene_t& get_handle() { return scene_; }
-    engine_application_t get_app_handle();
 
     virtual void activate();
     virtual void deactivate();

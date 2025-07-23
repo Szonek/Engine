@@ -462,13 +462,13 @@ ENGINE_API const engine_animation_desc_t* engineModelDescGetAnimationDesc(const 
 ENGINE_API uint32_t engineModelDescGetAnimationsDescCount(const engine_model_desc_t* desc);
 
 // Skin
-ENGINE_API engine_skin_t* engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t* root);
-ENGINE_API void engineApplicationDestroySkin(engine_application_t handle, engine_skin_t* skin);
+ENGINE_API engine_skin_t* engineCreateSkinFromDesc(const engine_skin_desc_t* desc, const engine_model_node_desc_t* root);
+ENGINE_API void engineDestroySkin(engine_skin_t* skin);
 ENGINE_API const char* engineSkinGetName(const engine_skin_t* skin);
 
 // Animation - by default layer with 0 and weight 1.0 is created.
-ENGINE_API engine_animation_controller_t* engineApplicationCreateAnimationControllerWithSkin(engine_application_t handle, engine_skin_t* skin);
-ENGINE_API void engineApplicationDestroyAnimationController(engine_application_t handle, engine_animation_controller_t* controller);
+ENGINE_API engine_animation_controller_t* engineCreateAnimationControllerWithSkin(engine_skin_t* skin);
+ENGINE_API void engineDestroyAnimationController(engine_animation_controller_t* controller);
 ENGINE_API bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc);
 ENGINE_API engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_animation_controller_t* controller, const char* name, float* out);
 ENGINE_API bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name);
@@ -495,7 +495,6 @@ typedef struct _engine_animation_event_t {
     void (*fn_ptr)(const engine_animation_event_info_t* info, void *user_data);      // Function to call
     void* user_data;       // Optional user data
 } engine_animation_event_t;
-
 
 ENGINE_API engine_result_code_t engineAnimationControllerAnimationAddEvent(engine_animation_controller_t* controller, const char* anim_name, engine_animation_event_t event, engine_animation_event_id_t* out_id);
 ENGINE_API engine_result_code_t engineAnimationControllerAnimationRemoveEvent(engine_animation_controller_t* controller, const char* anim_name, engine_animation_event_id_t id);
@@ -546,74 +545,75 @@ ENGINE_API void engineProfileZoneEnd(engine_profiler_ctx_t* ctx);
 
 // app
 ENGINE_API engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc);
-ENGINE_API bool engineApplicationIsEditorEnabled(engine_application_t handle);
 ENGINE_API void engineApplicationDestroy(engine_application_t handle);
+ENGINE_API engine_result_code_t engineApplicationSetActive(engine_application_t handle);
+
+// editor
+ENGINE_API bool engineEditorIsEnabled();
 
 // scene
-ENGINE_API engine_result_code_t engineApplicationSceneCreate(engine_application_t handle, engine_scene_create_desc_t desc, engine_scene_t* out);
-ENGINE_API void engineApplicationSceneDestroy(engine_application_t handle, engine_scene_t scene);
+ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_create_desc_t desc, engine_scene_t* out);
+ENGINE_API void engineSceneDestroy(engine_scene_t scene);
+ENGINE_API engine_result_code_t engineSceneSetActive(engine_scene_t handle);
 
 // game objects in scene
-ENGINE_API engine_game_object_t engineSceneCreateGameObject(engine_scene_t scene);
-ENGINE_API void                 engineSceneDestroyGameObject(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_game_object_t engineGameObjectCreate();
+ENGINE_API void                 engineGameObjectDestroy(engine_game_object_t game_object);
 
 // user input hangling
-ENGINE_API bool engineApplicationIsKeyboardButtonDown(engine_application_t handle, engine_keyboard_keys_t key);
-ENGINE_API bool engineApplicationIsKeyboardButtonUp(engine_application_t handle, engine_keyboard_keys_t key);
+ENGINE_API bool engineKeyboardIsButtonDown(engine_keyboard_keys_t key);
+ENGINE_API bool engineKeyboardIsButtonUp(engine_keyboard_keys_t key);
 
-ENGINE_API engine_fvec2_t engineApplicationGetMouseCoords(engine_application_t handle);
-ENGINE_API bool engineApplicationIsMouseButtonDown(engine_application_t handle, engine_mouse_button_t);
-ENGINE_API bool engineApplicationIsMouseButtonUp(engine_application_t handle, engine_mouse_button_t);
-
-ENGINE_API bool engineApplicationGetFingerInfo(engine_application_t handle, engine_fingers_infos_list_t* infos_list);
+ENGINE_API engine_fvec2_t engineMouseCoordsGet();
+ENGINE_API bool engineMouseIsButtonDown(engine_mouse_button_t mb);
+ENGINE_API bool engineMouseIsButtonUp(engine_mouse_button_t mb);
 
 //frame handling
-ENGINE_API engine_application_frame_begine_info_t engineApplicationFrameBegine(engine_application_t handle);
-ENGINE_API engine_result_code_t                   engineApplicationFrameSceneUpdate(engine_application_t handle, engine_scene_t scene, float delta_time);
-ENGINE_API engine_application_frame_end_info_t    engineApplicationFrameEnd(engine_application_t handle);
+ENGINE_API engine_application_frame_begine_info_t engineFrameBegin();
+ENGINE_API engine_result_code_t                   engineFrameSceneUpdate(float delta_time);
+ENGINE_API engine_application_frame_end_info_t    engineFrameEnd();
 
 // pipeline state objects and GPU buffers
-ENGINE_API engine_result_code_t engineApplicationCreateShader(engine_application_t handle, const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out);
-ENGINE_API engine_shader_t engineApplicationGetShaderByName(engine_application_t handle, const char* name);
-ENGINE_API void engineApplicationDestroyShader(engine_application_t handle, engine_shader_t pso);
+ENGINE_API engine_result_code_t engineShaderCreate(const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out);
+ENGINE_API engine_shader_t engineShaderGetByName(const char* name);
+ENGINE_API void engineShaderDestroy(engine_shader_t pso);
 
 // fonts
-ENGINE_API engine_result_code_t engineApplicationCreateFontFromFile(engine_application_t handle, const char* file_name, const char* handle_name);
+ENGINE_API engine_result_code_t engineFontCreateFromFile(const char* file_name, const char* handle_name);
 
 // model loading
-ENGINE_API engine_result_code_t engineApplicationAllocateModelDescAndLoadDataFromFile(engine_application_t handle, engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t** out);
-ENGINE_API void engineApplicationReleaseModelDesc(engine_application_t handle, engine_model_desc_t* model_info);
+ENGINE_API engine_result_code_t engineModelDescAllocateAndLoadDataFromFile(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t** out);
+ENGINE_API void engineModelDescRelease(engine_model_desc_t* model_info);
 
 // geometry
-ENGINE_API engine_result_code_t engineApplicationCreateGeometryFromDesc(engine_application_t handle, const engine_geometry_desc_t* desc, engine_geometry_t* out);
-ENGINE_API engine_geometry_t engineApplicationGetGeometryByName(engine_application_t handle, const char* name);
-ENGINE_API engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_application_t handle, engine_geometry_t geometry, engine_vertex_attribute_type_t type);
-ENGINE_API void engineApplicationDestroyGeometry(engine_application_t handle, engine_geometry_t geometry);
+ENGINE_API engine_result_code_t engineGeometryCreateFromDesc(const engine_geometry_desc_t* desc, engine_geometry_t* out);
+ENGINE_API engine_geometry_t engineGeometryGetByName(const char* name);
+ENGINE_API engine_geometry_attribute_limit_t engineGeometryGetAttributeLimits(engine_geometry_t geometry, engine_vertex_attribute_type_t type);
+ENGINE_API void engineGeometryDestroy(engine_geometry_t geometry);
 
 // textures 
-ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromDesc(engine_application_t handle, const engine_texture_2d_desc_t* desc, engine_texture2d_t* out);
-ENGINE_API engine_result_code_t engineApplicationCreateTexture2DFromFile(engine_application_t handle, const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
-ENGINE_API engine_texture2d_t   engineApplicationGetTextured2DByName(engine_application_t handle, const char* name);
-ENGINE_API void engineApplicationDestroyTexture2D(engine_application_t handle, engine_texture2d_t tex2d);
-ENGINE_API bool engineApplicationDoTexture2DNameExists(engine_application_t handle, const char* name);
+ENGINE_API engine_result_code_t engineTexture2DCreateFromDesc(const engine_texture_2d_desc_t* desc, engine_texture2d_t* out);
+ENGINE_API engine_result_code_t engineTexture2DCreateFromFile(const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
+ENGINE_API engine_texture2d_t   engineTextured2DGetByName(const char* name);
+ENGINE_API void engineTexture2DDestroy(engine_texture2d_t tex2d);
 
 // physics 
-ENGINE_API void engineScenePhysicsSetGravityVector(engine_scene_t scene, const float gravity[3]);
-ENGINE_API size_t engineScenePhysicsGetNumCollisions(engine_scene_t scene);
-ENGINE_API const engine_collision_desc_t* engineScenePhysicsGetCollisionDesc(engine_scene_t scene, size_t idx);
-ENGINE_API engine_ray_hit_info_t engineScenePhysicsRayCast(engine_scene_t scene, const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance);
-ENGINE_API bool engineScenePhysicsAddForce(engine_scene_t scene, engine_game_object_t go, const float force[3], engine_force_type_t type);
+ENGINE_API void enginePhysicsSetGravityVector(const float gravity[3]);
+ENGINE_API size_t enginePhysicsGetNumCollisions();
+ENGINE_API const engine_collision_desc_t* enginePhysicsGetCollisionDesc(size_t idx);
+ENGINE_API engine_ray_hit_info_t enginePhysicsRayCast(const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance);
+ENGINE_API bool enginePhysicsAddForce(engine_game_object_t go, const float force[3], engine_force_type_t type);
 
 // ui
 // create data handel first, before loading document!
-ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out);
+ENGINE_API engine_result_code_t engineUiDocumentCreateDataHandle(const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out);
 ENGINE_API void engineUiDataHandleDestroy(engine_ui_data_handle_t handle);
 ENGINE_API void engineUiDataHandleDirtyAllVariables(engine_ui_data_handle_t handle);
 ENGINE_API void engineUiDataHandleDirtyVariable(engine_ui_data_handle_t handle, const char* name);
 
 // if document uses data model than creata data model first with function: engineApplicationCreateUiDataHandle(...)
-ENGINE_API engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out);
-ENGINE_API void engineApplicationUiDocumentDestroy(engine_ui_document_t doc);
+ENGINE_API engine_result_code_t engineUiDocumentCreateFromFile(const char* file_path, engine_ui_document_t* out);
+ENGINE_API void engineUiDocumentDestroy(engine_ui_document_t doc);
 ENGINE_API void engineUiDocumentShow(engine_ui_document_t ui_doc);
 ENGINE_API void engineUiDocumentHide(engine_ui_document_t ui_doc);
 
@@ -625,129 +625,120 @@ ENGINE_API engine_result_code_t engineUiElementSetProperty(engine_ui_element_t e
 ENGINE_API void engineUiElementRemoveProperty(engine_ui_element_t element, const char* property);
 
 // ECS 
-ENGINE_API engine_result_code_t engineCreateComponentView(engine_component_view_t* out);
-ENGINE_API void engineDestroyComponentView(engine_component_view_t view);
+ENGINE_API engine_result_code_t engineComponentViewCreate(engine_component_view_t* out);
+ENGINE_API void engineComponentViewDestroy(engine_component_view_t view);
 ENGINE_API engine_result_code_t engineComponentViewCreateBeginComponentIterator(engine_component_view_t view, engine_component_iterator_t* out);
 ENGINE_API engine_result_code_t engineComponentViewCreateEndComponentIterator(engine_component_view_t view, engine_component_iterator_t* out);
 ENGINE_API bool engineComponentIteratorCheckEqual(engine_component_iterator_t lhs, engine_component_iterator_t rhs);
 ENGINE_API void engineComponentIteratorNext(engine_component_iterator_t iterator);
 ENGINE_API engine_game_object_t engineComponentIteratorGetGameObject(engine_component_iterator_t iterator);
-ENGINE_API void engineDeleteComponentIterator(engine_component_iterator_t iterator);
+ENGINE_API void engineComponentIteratorDelete(engine_component_iterator_t iterator);
 
 // name component
-ENGINE_API engine_name_component_t engineSceneAddNameComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_name_component_t engineSceneGetNameComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateNameComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_name_component_t* comp);
-ENGINE_API void engineSceneRemoveNameComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasNameComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneComponentViewAttachNameComponent(engine_scene_t scene, engine_component_view_t view);
+ENGINE_API engine_name_component_t engineGameObjectAddNameComponent(engine_game_object_t game_object);
+ENGINE_API engine_name_component_t engineGameObjectGetNameComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateNameComponent(engine_game_object_t game_object, const engine_name_component_t* comp);
+ENGINE_API void engineGameObjectRemoveNameComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasNameComponent(engine_game_object_t game_object);
+ENGINE_API void engineComponentViewAttachNameComponent(engine_component_view_t view);
 
 // transform component
-ENGINE_API engine_tranform_component_t engineSceneAddTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_tranform_component_t engineSceneGetTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateTransformComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_tranform_component_t* comp);
-ENGINE_API void engineSceneRemoveTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasTransformComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_tranform_component_t engineGameObjectAddTransformComponent(engine_game_object_t game_object);
+ENGINE_API engine_tranform_component_t engineGameObjectGetTransformComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateTransformComponent(engine_game_object_t game_object, const engine_tranform_component_t* comp);
+ENGINE_API void engineGameObjectRemoveTransformComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasTransformComponent(engine_game_object_t game_object);
 
 // light component
-ENGINE_API engine_light_component_t engineSceneAddLightComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_light_component_t engineSceneGetLightComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateLightComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_light_component_t* comp);
-ENGINE_API void engineSceneRemoveLightComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasLightComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_light_component_t engineGameObjectAddLightComponent(engine_game_object_t game_object);
+ENGINE_API engine_light_component_t engineGameObjectGetLightComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateLightComponent(engine_game_object_t game_object, const engine_light_component_t* comp);
+ENGINE_API void engineGameObjectRemoveLightComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasLightComponent(engine_game_object_t game_object);
 
 // mesh component
-ENGINE_API engine_mesh_component_t engineSceneAddMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_mesh_component_t engineSceneGetMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateMeshComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_mesh_component_t* comp);
-ENGINE_API void engineSceneRemoveMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_mesh_component_t engineGameObjectAddMeshComponent(engine_game_object_t game_object);
+ENGINE_API engine_mesh_component_t engineGameObjectGetMeshComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateMeshComponent(engine_game_object_t game_object, const engine_mesh_component_t* comp);
+ENGINE_API void engineGameObjectRemoveMeshComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasMeshComponent(engine_game_object_t game_object);
 
 // skinned mesh component
-ENGINE_API engine_skinned_mesh_component_t engineSceneAddSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_skinned_mesh_component_t engineSceneGetSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_skinned_mesh_component_t* comp);
-ENGINE_API void engineSceneRemoveSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasSkinnedMeshComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_skinned_mesh_component_t engineGameObjectAddSkinnedMeshComponent(engine_game_object_t game_object);
+ENGINE_API engine_skinned_mesh_component_t engineGameObjectGetSkinnedMeshComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateSkinnedMeshComponent(engine_game_object_t game_object, const engine_skinned_mesh_component_t* comp);
+ENGINE_API void engineGameObjectRemoveSkinnedMeshComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasSkinnedMeshComponent(engine_game_object_t game_object);
 
 // skin component
-ENGINE_API engine_skin_component_t engineSceneAddSkinComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_skin_component_t engineSceneGetSkinComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateSkinComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_skin_component_t* comp);
-ENGINE_API void engineSceneRemoveSkinComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasSkinComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_skin_component_t engineGameObjectAddSkinComponent(engine_game_object_t game_object);
+ENGINE_API engine_skin_component_t engineGameObjectGetSkinComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateSkinComponent(engine_game_object_t game_object, const engine_skin_component_t* comp);
+ENGINE_API void engineGameObjectRemoveSkinComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasSkinComponent(engine_game_object_t game_object);
 
-// joint attchment component
-ENGINE_API engine_joint_attachment_component_t engineSceneAddJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_joint_attachment_component_t engineSceneGetJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_joint_attachment_component_t* comp);
-ENGINE_API void engineSceneRemoveJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasJointAttachmentComponent(engine_scene_t scene, engine_game_object_t game_object);
+// joint attachment component
+ENGINE_API engine_joint_attachment_component_t engineGameObjectAddJointAttachmentComponent(engine_game_object_t game_object);
+ENGINE_API engine_joint_attachment_component_t engineGameObjectGetJointAttachmentComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateJointAttachmentComponent(engine_game_object_t game_object, const engine_joint_attachment_component_t* comp);
+ENGINE_API void engineGameObjectRemoveJointAttachmentComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasJointAttachmentComponent(engine_game_object_t game_object);
 
 // animation controller component
-ENGINE_API engine_animation_controller_component_t engineSceneAddAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_animation_controller_component_t engineSceneGetAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_animation_controller_component_t* comp);
-ENGINE_API void engineSceneRemoveAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasAnimationControllerComponent(engine_scene_t scene, engine_game_object_t game_object);
-
+ENGINE_API engine_animation_controller_component_t engineGameObjectAddAnimationControllerComponent(engine_game_object_t game_object);
+ENGINE_API engine_animation_controller_component_t engineGameObjectGetAnimationControllerComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateAnimationControllerComponent(engine_game_object_t game_object, const engine_animation_controller_component_t* comp);
+ENGINE_API void engineGameObjectRemoveAnimationControllerComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasAnimationControllerComponent(engine_game_object_t game_object);
 
 // material component
-ENGINE_API engine_material_component_t engineSceneAddMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_material_component_t engineSceneGetMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateMaterialComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_material_component_t* comp);
-ENGINE_API void engineSceneRemoveMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasMaterialComponent(engine_scene_t scene, engine_game_object_t game_object);
-
-// light component
-ENGINE_API engine_light_component_t engineSceneAddLightComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_light_component_t engineSceneGetLightComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateLightComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_light_component_t* comp);
-ENGINE_API void engineSceneRemoveLightComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasLightComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_material_component_t engineGameObjectAddMaterialComponent(engine_game_object_t game_object);
+ENGINE_API engine_material_component_t engineGameObjectGetMaterialComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateMaterialComponent(engine_game_object_t game_object, const engine_material_component_t* comp);
+ENGINE_API void engineGameObjectRemoveMaterialComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasMaterialComponent(engine_game_object_t game_object);
 
 // sprite component
-ENGINE_API engine_sprite_component_t engineSceneAddSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_sprite_component_t engineSceneGetSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateSpriteComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_sprite_component_t* comp);
-ENGINE_API void engineSceneRemoveSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasSpriteComponent(engine_scene_t scene, engine_game_object_t game_object);
-
+ENGINE_API engine_sprite_component_t engineGameObjectAddSpriteComponent(engine_game_object_t game_object);
+ENGINE_API engine_sprite_component_t engineGameObjectGetSpriteComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateSpriteComponent(engine_game_object_t game_object, const engine_sprite_component_t* comp);
+ENGINE_API void engineGameObjectRemoveSpriteComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasSpriteComponent(engine_game_object_t game_object);
 
 // camera component
-ENGINE_API engine_camera_component_t engineSceneAddCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_camera_component_t engineSceneGetCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateCameraComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_camera_component_t* comp);
-ENGINE_API void engineSceneRemoveCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasCameraComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneComponentViewAttachCameraComponent(engine_scene_t scene, engine_component_view_t view);
-ENGINE_API engine_fvec3_t engineSceneCameraComponentConvertWorldPositionToScreenPosition(engine_scene_t scene, engine_game_object_t game_object, const float world_pos[3]);
-ENGINE_API engine_fvec3_t engineSceneCameraComponentConvertSpacePositionToWorldPosition(engine_scene_t scene, engine_game_object_t game_object, const engine_fvec3_t screen_position);
+ENGINE_API engine_camera_component_t engineGameObjectAddCameraComponent(engine_game_object_t game_object);
+ENGINE_API engine_camera_component_t engineGameObjectGetCameraComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateCameraComponent(engine_game_object_t game_object, const engine_camera_component_t* comp);
+ENGINE_API void engineGameObjectRemoveCameraComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasCameraComponent(engine_game_object_t game_object);
+ENGINE_API void engineComponentViewAttachCameraComponent(engine_component_view_t view);
+ENGINE_API engine_fvec3_t engineCameraComponentConvertWorldPositionToScreenPosition(engine_game_object_t game_object, const float world_pos[3]);
+ENGINE_API engine_fvec3_t engineCameraComponentConvertSpacePositionToWorldPosition(engine_game_object_t game_object, const engine_fvec3_t screen_position);
 
 // rigid body component
-ENGINE_API engine_rigid_body_component_t engineSceneAddRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_rigid_body_component_t engineSceneGetRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_rigid_body_component_t* comp);
-ENGINE_API void engineSceneRemoveRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasRigidBodyComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_rigid_body_component_t engineGameObjectAddRigidBodyComponent(engine_game_object_t game_object);
+ENGINE_API engine_rigid_body_component_t engineGameObjectGetRigidBodyComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateRigidBodyComponent(engine_game_object_t game_object, const engine_rigid_body_component_t* comp);
+ENGINE_API void engineGameObjectRemoveRigidBodyComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasRigidBodyComponent(engine_game_object_t game_object);
 
 // collider component
-ENGINE_API engine_collider_component_t engineSceneAddColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_collider_component_t engineSceneGetColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateColliderComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_collider_component_t* comp);
-ENGINE_API void engineSceneRemoveColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasColliderComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_collider_component_t engineGameObjectAddColliderComponent(engine_game_object_t game_object);
+ENGINE_API engine_collider_component_t engineGameObjectGetColliderComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateColliderComponent(engine_game_object_t game_object, const engine_collider_component_t* comp);
+ENGINE_API void engineGameObjectRemoveColliderComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasColliderComponent(engine_game_object_t game_object);
 
 // parent component
-ENGINE_API engine_parent_component_t engineSceneAddParentComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API engine_parent_component_t engineSceneGetParentComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API void engineSceneUpdateParentComponent(engine_scene_t scene, engine_game_object_t game_object, const engine_parent_component_t* comp);
-ENGINE_API void engineSceneRemoveParentComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasParentComponent(engine_scene_t scene, engine_game_object_t game_object);
+ENGINE_API engine_parent_component_t engineGameObjectAddParentComponent(engine_game_object_t game_object);
+ENGINE_API engine_parent_component_t engineGameObjectGetParentComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateParentComponent(engine_game_object_t game_object, const engine_parent_component_t* comp);
+ENGINE_API void engineGameObjectRemoveParentComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasParentComponent(engine_game_object_t game_object);
 
-// children component - only getters - it's managed internally by engine and user can't update it's state 
-ENGINE_API engine_children_component_t engineSceneGetChildrenComponent(engine_scene_t scene, engine_game_object_t game_object);
-ENGINE_API bool engineSceneHasChildrenComponent(engine_scene_t scene, engine_game_object_t game_object);
+// children component - only getters - it's managed internally by engine and user can't update its state 
+ENGINE_API engine_children_component_t engineGameObjectGetChildrenComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasChildrenComponent(engine_game_object_t game_object);
 #ifdef __cplusplus
 }
 #endif  // #ifndef __cplusplus
