@@ -69,7 +69,7 @@ std::vector<engine_game_object_t> project_c::utils::get_game_objects_with_name(e
         auto go_it = engineComponentIteratorGetGameObject(begin);
         if (engineSceneHasNameComponent(scene, go_it))
         {
-            if (0 == std::strcmp(engineSceneGetNameComponent(scene, go_it).name, name.data()))
+            if (0 == std::strcmp(engineGetNameComponent(scene, go_it).name, name.data()))
             {
                 ret.push_back(go_it);
             }

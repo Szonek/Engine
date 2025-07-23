@@ -204,7 +204,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         const auto name = engineModelNodeDescGetName(node_desc);
         if (name)
         {
-            auto nc = engineSceneAddNameComponent(scene, go);
+            auto nc = engineAddNameComponent(scene, go);
             std::strncpy(nc.name, name, std::size(nc.name));
             engineSceneUpdateNameComponent(scene, go, &nc);
 

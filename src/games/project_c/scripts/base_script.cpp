@@ -9,7 +9,7 @@ inline void set_name(engine_scene_t scene, engine_game_object_t go, const char* 
     engine_name_component_t nc{};
     if (!engineSceneHasNameComponent(scene, go))
     {
-        engineSceneAddNameComponent(scene, go);
+        engineAddNameComponent(scene, go);
     }
     std::strncpy(nc.name, name, strlen(name));
     engineSceneUpdateNameComponent(scene, go, &nc);

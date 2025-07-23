@@ -16,7 +16,7 @@ void add_parent_component_for_editor(engine::IScene& my_scene, engine_game_objec
     if (parent_go.empty())
     {
         const auto env_parent = engineSceneCreateGameObject(scene);
-        auto nc = engineSceneAddNameComponent(scene, env_parent);
+        auto nc = engineAddNameComponent(scene, env_parent);
         std::strncpy(nc.name, parent_name.data(), ENGINE_ENTITY_NAME_MAX_LENGTH);
         engineSceneUpdateNameComponent(scene, env_parent, &nc);
         parent_go.push_back(env_parent);
