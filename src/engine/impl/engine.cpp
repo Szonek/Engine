@@ -301,7 +301,7 @@ engine_result_code_t engineApplicationSetActive(engine_application_t handle)
     return ENGINE_RESULT_CODE_OK;
 }
 
-bool engineApplicationIsKeyboardButtonDown(engine_keyboard_keys_t key)
+bool engineIsKeyboardButtonDown(engine_keyboard_keys_t key)
 {
     if (!G_ACTIVE_APP)
     {
@@ -317,7 +317,7 @@ bool engineApplicationIsKeyboardButtonDown(engine_keyboard_keys_t key)
 
 bool engineIsKeyboardButtonUp(engine_keyboard_keys_t key)
 {
-	return !engineApplicationIsKeyboardButtonDown(key);
+	return !engineIsKeyboardButtonDown(key);
 }
 
 engine_fvec2_t engineGetMouseCoords()
@@ -489,7 +489,7 @@ engine_geometry_t engineGetGeometryByName(const char* name)
     return app->get_geometry(name);
 }
 
-engine_geometry_attribute_limit_t engineApplicationGeometryGetAttributeLimits(engine_geometry_t geometry, engine_vertex_attribute_type_t type)
+engine_geometry_attribute_limit_t engineGeometryGetAttributeLimits(engine_geometry_t geometry, engine_vertex_attribute_type_t type)
 {
     engine_geometry_attribute_limit_t ret{};
     ret.elements_count = 0;
@@ -717,16 +717,16 @@ bool enginePhysicsAddForce(engine_game_object_t go, const float force[3], engine
     return result;
 }
 
-engine_result_code_t engineApplicationCreateUiDocumentDataHandle(engine_application_t app, const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)
+engine_result_code_t engineCreateUiDocumentDataHandle(const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)
 {
-    if (bindings_count == 0 && !bindings)
+    if (!G_ACTIVE_APP || (bindings_count == 0 && !bindings))
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
 
-    if (app && name && out)
+    if (name && out)
     {
-        auto* app_handle = api_cast(app);
+        auto* app_handle = api_cast(G_ACTIVE_APP);
         auto ret = new engine::UiDataHandle(app_handle->create_ui_document_data_handle(name, { bindings, bindings_count}));
         if (ret)
         {
@@ -764,11 +764,11 @@ void engineUiDataHandleDirtyVariable(engine_ui_data_handle_t handle, const char*
     }
 }
 
-engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_application_t app, const char* file_path, engine_ui_document_t* out)
+engine_result_code_t engineCreateUiDocumentFromFile(const char* file_path, engine_ui_document_t* out)
 {
-    if (app && file_path && out)
+    if (G_ACTIVE_APP && file_path && out)
     {
-        auto* app_handle = api_cast(app);
+        auto* app_handle = api_cast(G_ACTIVE_APP);
         auto* ret = new engine::UiDocument(app_handle->load_ui_document(file_path));
         if (ret)
         {
@@ -779,7 +779,7 @@ engine_result_code_t engineApplicationCreateUiDocumentFromFile(engine_applicatio
     return ENGINE_RESULT_CODE_FAIL;
 }
 
-void engineApplicationUiDocumentDestroy(engine_ui_document_t doc)
+void engineUiDocumentDestroy(engine_ui_document_t doc)
 {
     if (doc)
     {
@@ -1728,25 +1728,25 @@ uint32_t engineModelDescGetAnimationsDescCount(const engine_model_desc_t* desc)
     return static_cast<uint32_t>(typed_desc->animations.size());
 }
 
-engine_skin_t* engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t* root)
+engine_skin_t* engineCreateSkinFromDesc(const engine_skin_desc_t* desc, const engine_model_node_desc_t* root)
 {
-    if (!handle || !desc || !root)
+    if (!G_ACTIVE_APP || !desc || !root)
     {
         return nullptr;
     }
-    auto* app = api_cast(handle);
+    auto* app = api_cast(G_ACTIVE_APP);
     const auto typed_desc = api_cast(desc);
     const auto typed_root = api_cast(root);
     return reinterpret_cast<engine_skin_t*>(new engine::Skin(*typed_desc, *typed_root));
 }
 
-void engineApplicationDestroySkin(engine_application_t handle, engine_skin_t* skin)
+void engineDestroySkin(engine_skin_t* skin)
 {
-    if (!handle || !skin)
+    if (!G_ACTIVE_APP || !skin)
     {
         return;
     }
-    auto* app = api_cast(handle);
+    auto* app = api_cast(G_ACTIVE_APP);
     auto typed_skin = api_cast(skin);
     delete typed_skin;
 }
@@ -1760,25 +1760,25 @@ const char* engineSkinGetName(const engine_skin_t* skin)
     return api_cast(skin)->get_name().c_str();
 }
 
-engine_animation_controller_t* engineApplicationCreateAnimationControllerWithSkin(engine_application_t handle, engine_skin_t* skin)
+engine_animation_controller_t* engineCreateAnimationControllerWithSkin(engine_skin_t* skin)
 {
-    if (!handle || !skin)
+    if (!G_ACTIVE_APP || !skin)
     {
         return nullptr;
     }
-    auto* app = api_cast(handle);
+    auto* app = api_cast(G_ACTIVE_APP);
     auto typed_skin = api_cast(skin);
     auto controller = new engine::AnimationController(typed_skin);
     return api_cast(*controller);
 }
 
-void engineApplicationDestroyAnimationController(engine_application_t handle, engine_animation_controller_t* controller)
+void engineDestroyAnimationController(engine_animation_controller_t* controller)
 {
-    if (!handle || !controller)
+    if (!G_ACTIVE_APP || !controller)
     {
         return;
     }
-    auto* app = api_cast(handle);
+    auto* app = api_cast(G_ACTIVE_APP);
     auto typed_controller = api_cast(controller);
     delete typed_controller;
 }

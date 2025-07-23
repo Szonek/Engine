@@ -462,13 +462,13 @@ ENGINE_API const engine_animation_desc_t* engineModelDescGetAnimationDesc(const 
 ENGINE_API uint32_t engineModelDescGetAnimationsDescCount(const engine_model_desc_t* desc);
 
 // Skin
-ENGINE_API engine_skin_t* engineApplicationCreateSkinFromDesc(engine_application_t handle, const engine_skin_desc_t* desc, const engine_model_node_desc_t* root);
-ENGINE_API void engineApplicationDestroySkin(engine_application_t handle, engine_skin_t* skin);
+ENGINE_API engine_skin_t* engineCreateSkinFromDesc(const engine_skin_desc_t* desc, const engine_model_node_desc_t* root);
+ENGINE_API void engineDestroySkin(engine_skin_t* skin);
 ENGINE_API const char* engineSkinGetName(const engine_skin_t* skin);
 
 // Animation - by default layer with 0 and weight 1.0 is created.
-ENGINE_API engine_animation_controller_t* engineApplicationCreateAnimationControllerWithSkin(engine_application_t handle, engine_skin_t* skin);
-ENGINE_API void engineApplicationDestroyAnimationController(engine_application_t handle, engine_animation_controller_t* controller);
+ENGINE_API engine_animation_controller_t* engineCreateAnimationControllerWithSkin(engine_skin_t* skin);
+ENGINE_API void engineDestroyAnimationController(engine_animation_controller_t* controller);
 ENGINE_API bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc);
 ENGINE_API engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_animation_controller_t* controller, const char* name, float* out);
 ENGINE_API bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name);

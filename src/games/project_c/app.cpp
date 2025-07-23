@@ -29,7 +29,7 @@ project_c::AppProjectC::AppProjectC(const std::unordered_map<PrefabType, std::pa
 {
     const auto load_start = std::chrono::high_resolution_clock::now();
 
-    if (engineApplicationCreateFontFromFile(get_handle(), "tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
+    if (engineCreateFontFromFile("tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
     {
         log(fmt::format("Couldnt load font!\n"));
         return;
@@ -39,7 +39,7 @@ project_c::AppProjectC::AppProjectC(const std::unordered_map<PrefabType, std::pa
     {
         const auto& [model_file_name, base_dir] = file_and_basedir;
         engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
-        prefabs_[type] = std::move(Prefab(engine_error_code, get_handle(), model_file_name, base_dir));
+        prefabs_[type] = std::move(Prefab(engine_error_code, model_file_name, base_dir));
         if (engine_error_code != ENGINE_RESULT_CODE_OK)
         {
             log(fmt::format("Failed loading prefab: {}\n", type));
@@ -90,7 +90,7 @@ void project_c::AppProjectC::run()
 
     while (true)
     {
-        const auto frame_begin = engineApplicationFrameBegine(get_handle());
+        const auto frame_begin = engineFrameBegine();
 
         if (frame_begin.events & ENGINE_EVENT_QUIT)
         {
@@ -98,7 +98,7 @@ void project_c::AppProjectC::run()
             break;
         }
 
-        if (engineApplicationIsKeyboardButtonDown(get_handle(), ENGINE_KEYBOARD_KEY_ESCAPE))
+        if (engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_ESCAPE))
         {
             log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
             break;
@@ -116,7 +116,7 @@ void project_c::AppProjectC::run()
         auto scene = get_scene(TestScene::get_name());
         update_scenes(frame_begin.delta_time);
 
-        const auto frame_end = engineApplicationFrameEnd(get_handle());
+        const auto frame_end = engineFrameEnd();
         if (!frame_end.success)
         {
             log(fmt::format("Frame not finished sucesfully. Exiting.\n"));
