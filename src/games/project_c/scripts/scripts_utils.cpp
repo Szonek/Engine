@@ -9,9 +9,9 @@
 
 void project_c::utils::delete_game_objects_hierarchy(engine_game_object_t go)
 {
-    if (engineHasChildrenComponent(go))
+    if (engineGameObjectHasChildrenComponent(go))
     {
-        auto cc = engineGetChildrenComponent(go);
+        auto cc = engineGameObjectGetChildrenComponent(go);
         for (auto i = 0; i < std::size(cc.child); i++)
         {
             if (cc.child[i] != ENGINE_INVALID_GAME_OBJECT_ID)
@@ -39,9 +39,9 @@ std::vector<engine_game_object_t> project_c::utils::get_active_camera_game_objec
     while (!engineComponentIteratorCheckEqual(begin, end))
     {
         auto go_it = engineComponentIteratorGetGameObject(begin);
-        if (engineHasCameraComponent(go_it))
+        if (engineGameObjectHasCameraComponent(go_it))
         {
-            if (engineGetCameraComponent(go_it).enabled)
+            if (engineGameObjectGetCameraComponent(go_it).enabled)
             {
                 ret.push_back(go_it);
             }
@@ -68,9 +68,9 @@ std::vector<engine_game_object_t> project_c::utils::get_game_objects_with_name(s
     while (!engineComponentIteratorCheckEqual(begin, end))
     {
         auto go_it = engineComponentIteratorGetGameObject(begin);
-        if (engineHasNameComponent(go_it))
+        if (engineGameObjectHasNameComponent(go_it))
         {
-            if (0 == std::strcmp(engineGetNameComponent(go_it).name, name.data()))
+            if (0 == std::strcmp(engineGameObjectGetNameComponent(go_it).name, name.data()))
             {
                 ret.push_back(go_it);
             }
@@ -92,7 +92,7 @@ engine_ray_t project_c::utils::get_ray_from_mouse_position(engine_game_object_t 
 {
     engine_ray_t ray{};
     // ray origin
-    const auto camera_transform = engineGetTransformComponent(go_camera);
+    const auto camera_transform = engineGameObjectGetTransformComponent(go_camera);
     ray.origin.x = camera_transform.position[0];
     ray.origin.y = camera_transform.position[1];
     ray.origin.z = camera_transform.position[2];

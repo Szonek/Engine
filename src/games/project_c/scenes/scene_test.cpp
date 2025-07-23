@@ -483,7 +483,7 @@ void project_c::TestScene::ui_update_item_on_ground(const project_c::Weapon* sw)
     engine::ScopedProfiler prof("project_c::TestScene::ui_update_item_on_ground");
     const auto active_camera_go = utils::get_active_camera_game_objects()[0];
     const auto item_go = sw->get_game_object();
-    const auto item_tc = engineGetTransformComponent(item_go);
+    const auto item_tc = engineGameObjectGetTransformComponent(item_go);
     const auto item_screen_coords = engineCameraComponentConvertWorldPositionToScreenPosition(active_camera_go, item_tc.position);
     
     const auto x_str = std::to_string(item_screen_coords.x * 100) + "%";
@@ -553,7 +553,7 @@ void project_c::TestScene::ui_update_enemy(const Enemy* en)
     engine::ScopedProfiler prof("project_c::TestScene::ui_update_enemy");
     const auto active_camera_go = utils::get_active_camera_game_objects()[0];
     const auto enemy_go = en->get_game_object();
-    auto enemy_tc = engineGetTransformComponent(enemy_go);
+    auto enemy_tc = engineGameObjectGetTransformComponent(enemy_go);
     auto healthbar_position = enemy_tc.position;
     const auto height_offset = 1.0f; // healthbar need to be on top of the enemy
     healthbar_position[1] += height_offset;
