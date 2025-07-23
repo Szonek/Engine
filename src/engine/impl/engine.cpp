@@ -301,7 +301,7 @@ engine_result_code_t engineApplicationSetActive(engine_application_t handle)
     return ENGINE_RESULT_CODE_OK;
 }
 
-bool engineIsKeyboardButtonDown(engine_keyboard_keys_t key)
+bool engineKeyboardIsButtonDown(engine_keyboard_keys_t key)
 {
     if (!G_ACTIVE_APP)
     {
@@ -315,9 +315,9 @@ bool engineIsKeyboardButtonDown(engine_keyboard_keys_t key)
 	return app->keyboard_is_key_down(key);
 }
 
-bool engineIsKeyboardButtonUp(engine_keyboard_keys_t key)
+bool engineKeyboardIsButtonUp(engine_keyboard_keys_t key)
 {
-	return !engineIsKeyboardButtonDown(key);
+	return !engineKeyboardIsButtonDown(key);
 }
 
 engine_fvec2_t engineMouseCoordsGet()
@@ -450,7 +450,7 @@ void engineShaderDestroy(engine_shader_t shader)
     app->destroy_shader(shader);  
 }
 
-engine_result_code_t engineCreateFontFromFile(const char* file_name, const char* handle_name)
+engine_result_code_t engineFontCreateFromFile(const char* file_name, const char* handle_name)
 {
     if (!G_ACTIVE_APP)
     {
@@ -717,7 +717,7 @@ bool enginePhysicsAddForce(engine_game_object_t go, const float force[3], engine
     return result;
 }
 
-engine_result_code_t engineCreateUiDocumentDataHandle(const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)
+engine_result_code_t engineUiDocumentCreateDataHandle(const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)
 {
     if (!G_ACTIVE_APP || (bindings_count == 0 && !bindings))
     {
@@ -764,7 +764,7 @@ void engineUiDataHandleDirtyVariable(engine_ui_data_handle_t handle, const char*
     }
 }
 
-engine_result_code_t engineCreateUiDocumentFromFile(const char* file_path, engine_ui_document_t* out)
+engine_result_code_t engineUiDocumentCreateFromFile(const char* file_path, engine_ui_document_t* out)
 {
     if (G_ACTIVE_APP && file_path && out)
     {
@@ -854,7 +854,7 @@ void engineUiElementRemoveProperty(engine_ui_element_t element, const char* prop
     }
 }
 
-engine_result_code_t engineCreateComponentView(engine_component_view_t* out)
+engine_result_code_t engineComponentViewCreate(engine_component_view_t* out)
 {
     if (out)
     {
@@ -865,7 +865,7 @@ engine_result_code_t engineCreateComponentView(engine_component_view_t* out)
     return ENGINE_RESULT_CODE_FAIL;
 }
 
-void engineDestroyComponentView(engine_component_view_t view)
+void engineComponentViewDestroy(engine_component_view_t view)
 {
     if (view)
     {
@@ -927,7 +927,7 @@ bool engineComponentIteratorCheckEqual(engine_component_iterator_t lhs, engine_c
     return ret;
 }
 
-void engineDeleteComponentIterator(engine_component_iterator_t iterator)
+void engineComponentIteratorDelete(engine_component_iterator_t iterator)
 {
     if (iterator)
     {

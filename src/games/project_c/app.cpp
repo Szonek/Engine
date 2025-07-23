@@ -29,7 +29,7 @@ project_c::AppProjectC::AppProjectC(const std::unordered_map<PrefabType, std::pa
 {
     const auto load_start = std::chrono::high_resolution_clock::now();
 
-    if (engineCreateFontFromFile("tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
+    if (engineFontCreateFromFile("tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
     {
         log(fmt::format("Couldnt load font!\n"));
         return;
@@ -99,7 +99,7 @@ void project_c::AppProjectC::run()
             break;
         }
 
-        if (engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_ESCAPE))
+        if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_ESCAPE))
         {
             log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
             break;

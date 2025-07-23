@@ -423,10 +423,10 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     register_ui_item_bindings(bindings, ui_data_, this);
     register_ui_enemy_bindings(bindings, ui_data_);
 
-    engineCreateUiDocumentDataHandle("DataModel_Main_UI", bindings.data(), bindings.size(), &ui_data_.handle_main_ui);
+    engineUiDocumentCreateDataHandle("DataModel_Main_UI", bindings.data(), bindings.size(), &ui_data_.handle_main_ui);
 
     // load ui doc
-    engineCreateUiDocumentFromFile("project_c_gameplay_ui.rml", &ui_data_.doc);
+    engineUiDocumentCreateFromFile("project_c_gameplay_ui.rml", &ui_data_.doc);
     if (ui_data_.doc)
     {
         engineUiDocumentShow(ui_data_.doc);

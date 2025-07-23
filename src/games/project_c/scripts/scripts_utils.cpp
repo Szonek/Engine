@@ -27,7 +27,7 @@ std::vector<engine_game_object_t> project_c::utils::get_active_camera_game_objec
 {
     engine::ScopedProfiler prof("project_c::utils::get_active_camera_game_objects");
     engine_component_view_t cv{};
-    engineCreateComponentView(&cv);
+    engineComponentViewCreate(&cv);
     engineComponentViewAttachCameraComponent(cv);
 
     engine_component_iterator_t begin{};
@@ -48,7 +48,7 @@ std::vector<engine_game_object_t> project_c::utils::get_active_camera_game_objec
         }
         engineComponentIteratorNext(begin);
     }
-    engineDestroyComponentView(cv);
+    engineComponentViewDestroy(cv);
     return ret;
 }
 
@@ -56,7 +56,7 @@ std::vector<engine_game_object_t> project_c::utils::get_game_objects_with_name(s
 {
     engine::ScopedProfiler prof("project_c::utils::get_game_objects_with_name");
     engine_component_view_t cv{};
-    engineCreateComponentView(&cv);
+    engineComponentViewCreate(&cv);
     engineComponentViewAttachNameComponent(cv);
 
     engine_component_iterator_t begin{};
@@ -77,7 +77,7 @@ std::vector<engine_game_object_t> project_c::utils::get_game_objects_with_name(s
         }
         engineComponentIteratorNext(begin);
     }
-    engineDestroyComponentView(cv);
+    engineComponentViewDestroy(cv);
     return ret;
 }
 

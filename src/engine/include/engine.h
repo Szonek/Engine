@@ -561,8 +561,8 @@ ENGINE_API engine_game_object_t engineGameObjectCreate();
 ENGINE_API void                 engineGameObjectDestroy(engine_game_object_t game_object);
 
 // user input hangling
-ENGINE_API bool engineIsKeyboardButtonDown(engine_keyboard_keys_t key);
-ENGINE_API bool engineIsKeyboardButtonUp(engine_keyboard_keys_t key);
+ENGINE_API bool engineKeyboardIsButtonDown(engine_keyboard_keys_t key);
+ENGINE_API bool engineKeyboardIsButtonUp(engine_keyboard_keys_t key);
 
 ENGINE_API engine_fvec2_t engineMouseCoordsGet();
 ENGINE_API bool engineMouseIsButtonDown(engine_mouse_button_t mb);
@@ -579,7 +579,7 @@ ENGINE_API engine_shader_t engineShaderGetByName(const char* name);
 ENGINE_API void engineShaderDestroy(engine_shader_t pso);
 
 // fonts
-ENGINE_API engine_result_code_t engineCreateFontFromFile(const char* file_name, const char* handle_name);
+ENGINE_API engine_result_code_t engineFontCreateFromFile(const char* file_name, const char* handle_name);
 
 // model loading
 ENGINE_API engine_result_code_t engineModelDescAllocateAndLoadDataFromFile(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t** out);
@@ -606,13 +606,13 @@ ENGINE_API bool enginePhysicsAddForce(engine_game_object_t go, const float force
 
 // ui
 // create data handel first, before loading document!
-ENGINE_API engine_result_code_t engineCreateUiDocumentDataHandle(const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out);
+ENGINE_API engine_result_code_t engineUiDocumentCreateDataHandle(const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out);
 ENGINE_API void engineUiDataHandleDestroy(engine_ui_data_handle_t handle);
 ENGINE_API void engineUiDataHandleDirtyAllVariables(engine_ui_data_handle_t handle);
 ENGINE_API void engineUiDataHandleDirtyVariable(engine_ui_data_handle_t handle, const char* name);
 
 // if document uses data model than creata data model first with function: engineApplicationCreateUiDataHandle(...)
-ENGINE_API engine_result_code_t engineCreateUiDocumentFromFile(const char* file_path, engine_ui_document_t* out);
+ENGINE_API engine_result_code_t engineUiDocumentCreateFromFile(const char* file_path, engine_ui_document_t* out);
 ENGINE_API void engineUiDocumentDestroy(engine_ui_document_t doc);
 ENGINE_API void engineUiDocumentShow(engine_ui_document_t ui_doc);
 ENGINE_API void engineUiDocumentHide(engine_ui_document_t ui_doc);
@@ -625,14 +625,14 @@ ENGINE_API engine_result_code_t engineUiElementSetProperty(engine_ui_element_t e
 ENGINE_API void engineUiElementRemoveProperty(engine_ui_element_t element, const char* property);
 
 // ECS 
-ENGINE_API engine_result_code_t engineCreateComponentView(engine_component_view_t* out);
-ENGINE_API void engineDestroyComponentView(engine_component_view_t view);
+ENGINE_API engine_result_code_t engineComponentViewCreate(engine_component_view_t* out);
+ENGINE_API void engineComponentViewDestroy(engine_component_view_t view);
 ENGINE_API engine_result_code_t engineComponentViewCreateBeginComponentIterator(engine_component_view_t view, engine_component_iterator_t* out);
 ENGINE_API engine_result_code_t engineComponentViewCreateEndComponentIterator(engine_component_view_t view, engine_component_iterator_t* out);
 ENGINE_API bool engineComponentIteratorCheckEqual(engine_component_iterator_t lhs, engine_component_iterator_t rhs);
 ENGINE_API void engineComponentIteratorNext(engine_component_iterator_t iterator);
 ENGINE_API engine_game_object_t engineComponentIteratorGetGameObject(engine_component_iterator_t iterator);
-ENGINE_API void engineDeleteComponentIterator(engine_component_iterator_t iterator);
+ENGINE_API void engineComponentIteratorDelete(engine_component_iterator_t iterator);
 
 // name component
 ENGINE_API engine_name_component_t engineGameObjectAddNameComponent(engine_game_object_t game_object);

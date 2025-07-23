@@ -319,7 +319,7 @@ void project_c::Player::update(float dt)
     auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
 
     // [DEBUG] reset position  ToDo: remove it later
-    if (engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_0))
+    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_0))
     {
         set_world_position( 0.0f, 1.0f, 0.0f );
     }
@@ -359,16 +359,16 @@ void project_c::Player::update(float dt)
         }
     }
 
-    const auto button_A = engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_A);
-    const auto button_W = engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_W);
-    const auto button_D = engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_D);
-    const auto button_S = engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_S);
+    const auto button_A = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_A);
+    const auto button_W = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_W);
+    const auto button_D = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_D);
+    const auto button_S = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_S);
     if (button_A || button_W || button_D || button_S)
     {
         enable_state_bit(States::MOVE);
     }
 
-    if (weapon_ && engineIsKeyboardButtonDown(ENGINE_KEYBOARD_KEY_F))
+    if (weapon_ && engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_F))
     {
         // drop weapon
         const auto tc = engineGameObjectGetTransformComponent(go_);
