@@ -11,17 +11,19 @@ engine::IApplication::IApplication(engine_application_create_desc_t create_desc)
     {
         throw std::runtime_error("Failed to create application");
     }
+    engineApplicationSetActive(app_handle_);
 }
 
 engine::IApplication::~IApplication()
 {
     scene_manager_.unregister_all_scenes();
+    engineApplicationSetActive(nullptr);
     engineApplicationDestroy(app_handle_);
 }
 
 bool engine::IApplication::is_editor_enabled() const
 {
-    return engineApplicationIsEditorEnabled(app_handle_);
+    return engineIsEditorEnabled();
 }
 
 void engine::IApplication::update_scenes(float dt)

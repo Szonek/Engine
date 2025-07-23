@@ -7,10 +7,10 @@ engine::IScript::IScript(engine::IScene* my_scene, engine_game_object_t go)
 {}
 
 engine::IScript::IScript(engine::IScene *my_scene)
-    : IScript(my_scene, engineSceneCreateGameObject(my_scene->get_handle()))
+    : IScript(my_scene, engineCreateGameObject())
 {}
 
 engine::IScript::~IScript()
 {
-    engineSceneDestroyGameObject(my_scene_->get_handle(), go_);
+    engineDestroyGameObject(go_);
 }

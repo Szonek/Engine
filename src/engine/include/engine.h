@@ -545,9 +545,11 @@ ENGINE_API void engineProfileZoneEnd(engine_profiler_ctx_t* ctx);
 
 // app
 ENGINE_API engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc);
-ENGINE_API bool engineApplicationIsEditorEnabled(engine_application_t handle);
 ENGINE_API void engineApplicationDestroy(engine_application_t handle);
-ENGINE_API engine_result_code_t engineSetActiveApplication(engine_application_t handle);
+ENGINE_API engine_result_code_t engineApplicationSetActive(engine_application_t handle);
+
+// editor
+ENGINE_API bool engineIsEditorEnabled();
 
 // scene
 ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_create_desc_t desc, engine_scene_t* out);

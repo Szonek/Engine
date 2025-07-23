@@ -295,7 +295,7 @@ void engineApplicationDestroy(engine_application_t handle)
 	delete app;
 }
 
-engine_result_code_t engineSetActiveApplication(engine_application_t handle)
+engine_result_code_t engineApplicationSetActive(engine_application_t handle)
 {
     G_ACTIVE_APP = handle;
     return ENGINE_RESULT_CODE_OK;
@@ -1324,12 +1324,12 @@ bool engineHasParentComponent(engine_game_object_t game_object)
     return has_component<engine_parent_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_children_component_t getChildrenComponent(engine_game_object_t game_object)
+engine_children_component_t engineGetChildrenComponent(engine_game_object_t game_object)
 {
     return get_component<engine_children_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-bool hasChildrenComponent(engine_game_object_t game_object)
+bool engineHasChildrenComponent(engine_game_object_t game_object)
 {
     return has_component<engine_children_component_t>(G_ACTIVE_SCENE, game_object);
 }

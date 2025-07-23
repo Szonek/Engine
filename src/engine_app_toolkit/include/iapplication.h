@@ -36,11 +36,7 @@ public:
     }
 
     bool is_editor_enabled() const;
-
     void update_scenes(float dt);
-
-    const engine_application_t& get_handle() const { return app_handle_; }
-    engine_application_t& get_handle() { return app_handle_; }
 
 private:
     engine_application_t app_handle_;
