@@ -348,7 +348,7 @@ bool engineIsMouseButtonDown(engine_mouse_button_t button)
 	return app->mouse_is_button_down(button);
 }
 
-bool enginenIsMouseButtonUp(engine_mouse_button_t button)
+bool engineIsMouseButtonUp(engine_mouse_button_t button)
 {
 	return !engineIsMouseButtonDown(button);
 }
@@ -518,7 +518,7 @@ void engineDestroyGeometry(engine_geometry_t geometry)
     api_cast(G_ACTIVE_APP)->destroy_geometry(geometry);
 }
 
-engine_result_code_t enginenCreateTexture2DFromDesc(const engine_texture_2d_desc_t* desc, engine_texture2d_t* out)
+engine_result_code_t engineCreateTexture2DFromDesc(const engine_texture_2d_desc_t* desc, engine_texture2d_t* out)
 {
     if (!G_ACTIVE_APP)
     {
@@ -1218,14 +1218,14 @@ bool engineHasCameraComponent(engine_game_object_t game_object)
     return has_component<engine_camera_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void componentViewAttachCameraComponent(engine_component_view_t view)
+void engineComponentViewAttachCameraComponent(engine_component_view_t view)
 {
     auto sc = api_cast(G_ACTIVE_SCENE);
     auto rv = api_cast(view);
     sc->attach_component_to_runtime_view<engine_camera_component_t>(*rv);
 }
 
-engine_fvec3_t cameraComponentConvertWorldPositionToScreenPosition(engine_game_object_t game_object, const float world_pos[3])
+engine_fvec3_t engineCameraComponentConvertWorldPositionToScreenPosition(engine_game_object_t game_object, const float world_pos[3])
 {
     assert(has_component<engine_camera_component_t>(G_ACTIVE_SCENE, game_object));
     auto sc = api_cast(G_ACTIVE_SCENE);
@@ -1237,7 +1237,7 @@ engine_fvec3_t cameraComponentConvertWorldPositionToScreenPosition(engine_game_o
     return ret;
 }
 
-engine_fvec3_t cameraComponentConvertSpacePositionToWorldPosition(engine_game_object_t game_object, const engine_fvec3_t screen_position)
+engine_fvec3_t engineCameraComponentConvertSpacePositionToWorldPosition(engine_game_object_t game_object, const engine_fvec3_t screen_position)
 {
     assert(has_component<engine_camera_component_t>(G_ACTIVE_SCENE, game_object));
     auto sc = api_cast(G_ACTIVE_SCENE);

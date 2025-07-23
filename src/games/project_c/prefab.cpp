@@ -8,7 +8,6 @@
 
 project_c::Prefab::Prefab(Prefab&& rhs) noexcept
 {
-    std::swap(app_, rhs.app_);
     std::swap(model_desc_, rhs.model_desc_);
     std::swap(geometries_, rhs.geometries_);
     std::swap(textures_, rhs.textures_);
@@ -20,7 +19,6 @@ project_c::Prefab& project_c::Prefab::operator=(Prefab&& rhs) noexcept
 {
     if (this != &rhs)
     {
-        std::swap(app_, rhs.app_);
         std::swap(model_desc_, rhs.model_desc_);
         std::swap(geometries_, rhs.geometries_);
         std::swap(textures_, rhs.textures_);
@@ -37,27 +35,27 @@ project_c::Prefab::~Prefab()
     {
         for (const auto& g : geometries_)
         {
-            engineApplicationDestroyGeometry(app_, g);
+            engineDestroyGeometry(g);
         }
         for (const auto& t : textures_)
         {
             if (t.owner)
             {
-                engineApplicationDestroyTexture2D(app_, t.obj);
+                engineDestroyTexture2D(t.obj);
             }
         }
         for (const auto& skin : skins_)
         {
             if (skin)
             {
-                engineApplicationDestroySkin(skin);
+                engineDestroySkin(skin);
             }
         }
         for (const auto& anim_controller : animation_controllers_)
         {
             if (anim_controller)
             {
-                engineApplicationDestroyAnimationController(anim_controller);
+                engineDestroyAnimationController(anim_controller);
             }
         }
         materials_.clear();
@@ -66,7 +64,6 @@ project_c::Prefab::~Prefab()
 }
 
 project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, std::string_view model_file_name, std::string_view base_dir)
-    : app_(app)
 {
     engine_error_code = engineAllocateModelDescAndLoadDataFromFile(ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.data(), base_dir.data(), &model_desc_);
 
@@ -170,7 +167,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     if (animations_count > 0)
     {
         // create animation controller
-        anim_controller = engineApplicationCreateAnimationControllerWithSkin(app, skin_handle);
+        anim_controller = engineCreateAnimationControllerWithSkin(skin_handle);
         if (!anim_controller)
         {
             engineLog("Failed creating animation controller for loaded model. Exiting!\n");
@@ -184,7 +181,7 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             if (!engineAnimationControllerAddAnimation(anim_controller, anim_desc))
             {
                 engineLog(std::format("Failed adding animation: {} to the controller. Exiting!\n", anim_name).c_str());
-                engineApplicationDestroyAnimationController(app, anim_controller);
+                engineDestroyAnimationController(anim_controller);
                 return ret;
             }
         }
@@ -196,14 +193,14 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     for (auto i = 0; i < nodes_count; i++)
     {
         const auto node_desc = engineModelDescGetNodeDesc(model_desc_, i);
-        const auto& go = engineSceneCreateGameObject(scene);
+        const auto& go = engineCreateGameObject();
         node_id_to_game_object[engineModelNodeDescGetIndex(node_desc)] = go;
         const auto name = engineModelNodeDescGetName(node_desc);
         if (name)
         {
-            auto nc = engineAddNameComponent(scene, go);
+            auto nc = engineAddNameComponent(go);
             std::strncpy(nc.name, name, std::size(nc.name));
-            engineSceneUpdateNameComponent(scene, go, &nc);
+            engineUpdateNameComponent(go, &nc);
 
         }
         log(std::format("Created entity [id: {}] with name: {}\n", go, name));
@@ -214,9 +211,9 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             // node with the same name as skin will be owner of the skin
             if (skin_handle)
             {
-                auto sc = engineSceneAddSkinComponent(scene, go);
+                auto sc = engineAddSkinComponent(go);
                 sc.skin = skin_handle;
-                engineSceneUpdateSkinComponent(scene, go, &sc);
+                engineUpdateSkinComponent(go, &sc);
                 log(std::format("\t[{}] has added skin component with name: {}\n", go, skin_name));
                 skins_.push_back(skin_handle);
             }
@@ -224,20 +221,20 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             // and owner of the animation controller
             if (anim_controller)
             {
-                auto ac = engineSceneAddAnimationControllerComponent(scene, go);
+                auto ac = engineAddAnimationControllerComponent(go);
                 ac.controller = anim_controller;
-                engineSceneUpdateAnimationControllerComponent(scene, go, &ac);
+                engineUpdateAnimationControllerComponent(go, &ac);
                 log(std::format("\t[{}] has added animation controller component with name: {}\n", go, skin_name));
             }
         }
 
         // transform
         {
-            auto tc = engineSceneAddTransformComponent(scene, go);
+            auto tc = engineAddTransformComponent(go);
             set_c_array(tc.position, engineModelNodeDescGetTranslation(node_desc));
             set_c_array(tc.rotation, engineModelNodeDescGetRotationQuaternion(node_desc));
             set_c_array(tc.scale, engineModelNodeDescGetScale(node_desc));
-            engineSceneUpdateTransformComponent(scene, go, &tc);
+            engineUpdateTransformComponent(go, &tc);
             log(std::format("\t[{}] has added transform component\n", go));
         }
 
@@ -252,17 +249,17 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
                     engineLog("Failed creating skin for loaded model. Exiting!\n");
                     assert(false);
                 }
-                auto smc = engineSceneAddSkinnedMeshComponent(scene, go);
+                auto smc = engineAddSkinnedMeshComponent(go);
                 smc.geometry = geometries_.at(geo_index);
                 smc.skin = skin_handle;
-                engineSceneUpdateSkinnedMeshComponent(scene, go, &smc);
+                engineUpdateSkinnedMeshComponent(go, &smc);
                 log(std::format("\t[{}] has added skinned mesh component with geometry index: {} and skin index: {}\n", go, geo_index, skin_index));
             }
             else
             {
-                auto mc = engineSceneAddMeshComponent(scene, go);
+                auto mc = engineAddMeshComponent(go);
                 mc.geometry = geometries_.at(geo_index);
-                engineSceneUpdateMeshComponent(scene, go, &mc);
+                engineUpdateMeshComponent(go, &mc);
                 log(std::format("\t[{}] has added mesh component with geometry index: {}\n", go, geo_index));
             }
 
@@ -271,9 +268,9 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         const auto mat_index = engineModelNodeDescGetMaterialIndex(node_desc);
         if (mat_index != -1)
         {
-            auto material = engineSceneAddMaterialComponent(scene, go);
+            auto material = engineAddMaterialComponent(go);
             material = materials_.at(mat_index);
-            engineSceneUpdateMaterialComponent(scene, go, &material);
+            engineUpdateMaterialComponent(go, &material);
             log(std::format("\t[{}] added material component with material idx: {}\n", go, mat_index));
         }
 
@@ -291,8 +288,8 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         for (auto j = 0; j < engineSkinDescGetJointsCount(skin_desc); j++)
         {
             const auto joint_name = engineSkinDescGetJointName(skin_desc, j);
-            const auto go = utils::get_game_objects_with_name(scene, joint_name).at(0);
-            engineSceneDestroyGameObject(scene, go);
+            const auto go = utils::get_game_objects_with_name(joint_name).at(0);
+            engineDestroyGameObject(go);
 
             const auto model_node_desc = engineModelDescGetNodeDescByName(model_desc_, joint_name);
             node_id_to_game_object.erase(engineModelNodeDescGetIndex(model_node_desc));
@@ -305,11 +302,11 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
                 if (child_has_geometry)
                 {
                     const auto child_go = node_id_to_game_object.at(engineModelNodeDescGetIndex(child));
-                    auto jac = engineSceneAddJointAttachmentComponent(scene, child_go);
+                    auto jac = engineAddJointAttachmentComponent(child_go);
                     assert(skin_handle != nullptr);
                     jac.skin = skin_handle;
                     engineStringSet(jac.joint_name, joint_name);
-                    engineSceneUpdateJointAttachmentComponent(scene, child_go, &jac);
+                    engineUpdateJointAttachmentComponent(child_go, &jac);
                 }
             }
         }
@@ -323,9 +320,9 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         {
             continue;
         }
-        auto pc = engineSceneAddParentComponent(scene, go);
+        auto pc = engineAddParentComponent(go);
         pc.parent = ret.go;
-        engineSceneUpdateParentComponent(scene, go, &pc);
+        engineUpdateParentComponent(go, &pc);
     }
 
     return ret;

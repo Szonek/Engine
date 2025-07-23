@@ -612,7 +612,7 @@ ENGINE_API void engineUiDataHandleDirtyAllVariables(engine_ui_data_handle_t hand
 ENGINE_API void engineUiDataHandleDirtyVariable(engine_ui_data_handle_t handle, const char* name);
 
 // if document uses data model than creata data model first with function: engineApplicationCreateUiDataHandle(...)
-ENGINE_API engine_result_code_t enginenCreateUiDocumentFromFile(const char* file_path, engine_ui_document_t* out);
+ENGINE_API engine_result_code_t engineCreateUiDocumentFromFile(const char* file_path, engine_ui_document_t* out);
 ENGINE_API void engineUiDocumentDestroy(engine_ui_document_t doc);
 ENGINE_API void engineUiDocumentShow(engine_ui_document_t ui_doc);
 ENGINE_API void engineUiDocumentHide(engine_ui_document_t ui_doc);

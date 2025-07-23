@@ -94,9 +94,14 @@ inline engine_scene_t create_scene()
 }  // namespace
 
 
-engine::IScene::IScene()
-    :  scene_(create_scene())
+engine::IScene::IScene(IApplication* app)
+    : app_(app)
+    , scene_(create_scene())
 {
+    if (!app)
+    {
+        throw std::runtime_error("Invalid app handle!\n");
+    }
     if (!scene_)
     {
         throw std::runtime_error("Couldn't create scene!\n");

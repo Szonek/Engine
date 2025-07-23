@@ -41,7 +41,7 @@ public:
     using ScriptsQueue = std::deque<IScript*>;
 
 public:
-    IScene();
+    IScene(IApplication* app);
     IScene(const IScene& rhs) = delete;
     IScene(IScene&& rhs) noexcept = default;
     IScene& operator=(const IScene& rhs) = delete;
@@ -81,6 +81,9 @@ public:
         return dynamic_cast<const T*>(scripts_.at(go).get());
     }
 
+    IApplication* get_app() { return app_; }
+    engine_scene_t& get_handle() { return scene_; }
+
     virtual void activate();
     virtual void deactivate();
     virtual bool is_active() const;
@@ -98,6 +101,7 @@ protected:
     virtual void update_hook_end() {}
 
 protected:
+    IApplication* app_ = nullptr;
     engine_scene_t scene_{};
 
     ScriptsMap scripts_{};

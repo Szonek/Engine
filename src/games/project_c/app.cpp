@@ -50,7 +50,8 @@ project_c::AppProjectC::AppProjectC(const std::unordered_map<PrefabType, std::pa
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
     log(fmt::format("Model loading took: {}\n", ms_load_time));
 
-    register_scene<project_c::TestScene>();
+    auto scene = register_scene<project_c::TestScene>();
+    scene->activate();
 }
 
 project_c::AppProjectC::~AppProjectC()
