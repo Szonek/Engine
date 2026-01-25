@@ -1,5 +1,3 @@
-#version 430
-
 // This wastes memory and can be tighly packed for better performance
 // ToDo: get rid of padding areas
 struct LightPacket

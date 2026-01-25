@@ -1,5 +1,3 @@
-#version 430
-
 layout (location = 0) in mediump vec3 in_vertex_position;
 layout (location = 1) in mediump vec2 in_vertex_tex_coord;
 layout (location = 2) in mediump vec3 in_normals;
@@ -13,7 +11,7 @@ out VS_OUT
 	vec3 world_pos;
 } vs_out;
 
-layout (binding = 0, std140) uniform CameraData
+layout (binding = ENGINE_BINDING_SLOT_CAMERA_DATA, std140) uniform CameraData
 {
 	mat4 view;
     mat4 projection;

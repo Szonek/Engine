@@ -1,5 +1,3 @@
-#version 430 core
-
 out vec2 texture_uv;
 
 void main()
