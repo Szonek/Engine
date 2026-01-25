@@ -67,7 +67,7 @@ protected:
     std::int32_t get_resource_location(std::string_view name, std::int32_t resource_interface) const;
     std::int32_t get_uniform_location(std::string_view name) const;
     void mark_for_recompilation();
-    bool compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::string> sources);
+    bool compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::filesystem::path> sources);
 
 private:
     void compile();

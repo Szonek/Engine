@@ -2,6 +2,7 @@
 #include "graphics.h"
 #include "asset_store.h"
 #include "logger.h"
+#include "shaders_binding_slots.h"
 
 #if __ANDROID__
 #define GLAD_GLES2_IMPLEMENTATION
@@ -196,18 +197,8 @@ bool engine::Shader::compile_shaders(std::uint32_t program)
 
     // compile shaders and link to program
     bool shader_compiled_succesffuly = true;
-    {
-        std::vector<std::string> sources;
-        sources.reserve(vertex_sources_.size());
-        std::for_each(vertex_sources_.begin(), vertex_sources_.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_text_file_content(s)); });
-        shader_compiled_succesffuly &= compile_and_attach_to_program(program, vertex_shader, sources);
-    }
-    {
-        std::vector<std::string> sources;
-        sources.reserve(fragment_sources_.size());
-        std::for_each(fragment_sources_.begin(), fragment_sources_.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_text_file_content(s)); });
-        shader_compiled_succesffuly &= compile_and_attach_to_program(program, fragment_shader, sources);
-    }
+    shader_compiled_succesffuly &= compile_and_attach_to_program(program, vertex_shader, vertex_sources_);
+    shader_compiled_succesffuly &= compile_and_attach_to_program(program, fragment_shader, fragment_sources_);
 
     // first compilation
     if (program == 0 && !shader_compiled_succesffuly)
@@ -407,8 +398,24 @@ std::int32_t engine::ShaderBase::get_uniform_location(std::string_view name) con
     return location;
 }
 
-bool engine::ShaderBase::compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::string> sources)
+inline std::string get_fake_source_for_bindings()
 {
+    std::string ret = "#version 430\r\n";
+    for (auto s : kAllShaderBindingSlots)
+    {
+        const auto bind_str = shader_binding_slot_to_str(s);
+        ret += "#define " +  bind_str + " " + std::to_string(static_cast<std::uint32_t>(s)) + "\r\n";
+    }
+    return ret;
+}
+
+bool engine::ShaderBase::compile_and_attach_to_program(std::uint32_t program, std::uint32_t shader, std::span<const std::filesystem::path> paths)
+{
+    std::vector<std::string> sources;
+    sources.reserve(paths.size() + 1);
+    sources.push_back(get_fake_source_for_bindings());
+    std::for_each(paths.begin(), paths.end(), [&sources](const auto& p) { sources.push_back(AssetStore::get_instance().get_text_file_content(p)); });
+
 	// set source
     std::vector<const char*> sources_ptrs;
     sources_ptrs.reserve(sources.size());
@@ -424,10 +431,11 @@ bool engine::ShaderBase::compile_and_attach_to_program(std::uint32_t program, st
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
 	if (!success)
 	{
-        std::string info_log(2048, ' ');
+        std::string info_log(4096, ' ');
 		glGetShaderInfoLog(shader, static_cast<std::int32_t>(info_log.size()), nullptr, info_log.data());
         std::string err_msg = "Failed compilation:";
         err_msg += " \n\t" + info_log;
+        std::for_each(paths.begin(), paths.end(), [&err_msg](const std::filesystem::path& p) { err_msg += " \n\t" + p.string(); });
         log::log(log::LogLevel::eError, err_msg);
         return false;
 	}
@@ -1606,13 +1614,7 @@ bool engine::ComputeShader::compile_shaders(std::uint32_t program)
     auto compute_shader = glCreateShader(GL_COMPUTE_SHADER);
 
     // compile shaders and link to program
-    bool shader_compiled_succesffuly = true;
-    {
-        std::vector<std::string> sources;
-        sources.reserve(compute_sources_.size());
-        std::for_each(compute_sources_.begin(), compute_sources_.end(), [&sources](const auto& s) { sources.push_back(AssetStore::get_instance().get_text_file_content(s)); });
-        shader_compiled_succesffuly &= compile_and_attach_to_program(program, compute_shader, sources);
-    }
+    const auto shader_compiled_succesffuly = compile_and_attach_to_program(program, compute_shader, compute_sources_);
 
     // first compilation
     if (program == 0 && !shader_compiled_succesffuly)

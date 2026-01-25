@@ -12,6 +12,7 @@
 #include "engine_vector_impl_def.h"
 #include "skin.h"
 #include "animation_controller.h"
+#include "shaders_binding_slots.h"
 
 #include <fmt/format.h>
 
@@ -188,7 +189,7 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, const engine_scene_cr
     if (light_data_ssbo_.is_valid())
     {
         light_data_ssbo_ptr_ = light_data_ssbo_.map(false, true);
-        light_data_ssbo_.bind(2);
+        light_data_ssbo_.bind(static_cast<std::uint32_t>(ShaderBindingSlot::LIGHTS));
     }
 
     out_code = ENGINE_RESULT_CODE_OK;
@@ -549,7 +550,7 @@ engine_result_code_t engine::Scene::update(float dt)
                 log::log(log::LogLevel::eTrace, fmt::format("Light data SSBO is too small. Increasing the size of the buffer. Current size: {}. Required size: {}\n", light_data_ssbo_.get_size(), total_lights));
                 light_data_ssbo_ = ShaderStorageBuffer(total_lights * sizeof(LightGpuData));
                 light_data_ssbo_ptr_ = light_data_ssbo_.map(false, true);
-                light_data_ssbo_.bind(2);
+                light_data_ssbo_.bind(static_cast<std::uint32_t>(ShaderBindingSlot::LIGHTS));
             }
             assert(light_data_ssbo_ptr_ != nullptr);
             auto* light_gpu_data_ptr = reinterpret_cast<LightGpuData*>(light_data_ssbo_ptr_);
