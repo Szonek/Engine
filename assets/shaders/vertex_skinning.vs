@@ -1,5 +1,5 @@
 uniform uint ssbo_base_offset;
-layout (binding = 3, std430) readonly buffer SkinningPacket
+layout (binding = ENGINE_BINDING_SLOT_SKINNING_DATA, std430) readonly buffer SkinningPacket
 {
 	mat4 global_bone_transform[];
 };

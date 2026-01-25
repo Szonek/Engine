@@ -3,6 +3,7 @@
 #include "logger.h"
 #include "graphics.h"
 #include "profiler.h"
+#include "shaders_binding_slots.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -403,7 +404,7 @@ void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
     shader_ssbo.set_uniform_mat_f4("view", { glm::value_ptr(view_), sizeof(view_) / sizeof(float) });
     shader_ssbo.set_uniform_mat_f4("projection", { glm::value_ptr(projection_), sizeof(projection_) / sizeof(float) });
 
-    ssbo_.bind(9);
+    ssbo_.bind(static_cast<std::uint32_t>(ShaderBindingSlot::DEBUG_PHYSICS));
     line_geo_simple.bind();
     line_geo_simple.draw_instances(Geometry::Mode::eLines, lines_.size());
 

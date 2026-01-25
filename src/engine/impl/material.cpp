@@ -1,5 +1,6 @@
 #include "material.h"
 #include "math_helpers.h"
+#include "shaders_binding_slots.h"
 
 #include "profiler.h"
 
@@ -37,7 +38,7 @@ engine::MaterialSkinnedGeometryLit::MaterialSkinnedGeometryLit()
     , skinning_matrices_ssbo_(MAX_BONES_PER_FRAME * sizeof(BonePacket))
 {
     skinning_mtx_gpu_ptr_ = (BonePacket*)skinning_matrices_ssbo_.map(false, true);
-    skinning_matrices_ssbo_.bind(3);
+    skinning_matrices_ssbo_.bind(static_cast<std::uint32_t>(ShaderBindingSlot::SKINNING));
 }
 
 engine::MaterialSkinnedGeometryLit::~MaterialSkinnedGeometryLit()
