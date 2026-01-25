@@ -10,7 +10,7 @@ struct DrawLinePacket
 	float pad2_;
 };
 
-layout (binding = 2, std430) readonly buffer LinePacketSSBO
+layout (binding = 9, std430) readonly buffer LinePacketSSBO
 {
 	DrawLinePacket data[];
 };

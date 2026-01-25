@@ -310,7 +310,7 @@ engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, std
 engine::PhysicsWorld::DebugDrawer::DebugDrawer(RenderContext* renderer)
     : renderer_(renderer)
 {
-    const auto projected_max_lines_count = 2048;  // ToDo: make it configurable? 
+    const auto projected_max_lines_count = 8 * 1024;  // ToDo: make it configurable? 
     const auto ssbo_size = sizeof(LineDrawPacket) * projected_max_lines_count;
     if (renderer_->get_limits().ssbo_max_size < ssbo_size)
     {
@@ -403,7 +403,7 @@ void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
     shader_ssbo.set_uniform_mat_f4("view", { glm::value_ptr(view_), sizeof(view_) / sizeof(float) });
     shader_ssbo.set_uniform_mat_f4("projection", { glm::value_ptr(projection_), sizeof(projection_) / sizeof(float) });
 
-    ssbo_.bind(2);
+    ssbo_.bind(9);
     line_geo_simple.bind();
     line_geo_simple.draw_instances(Geometry::Mode::eLines, lines_.size());
 
