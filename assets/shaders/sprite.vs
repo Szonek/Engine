@@ -1,4 +1,3 @@
-#version 430 core
 #define FIXED_SIZE 1   // with this sprite will try to maintain it's size, if this is 0 it will be scaled (i.e. camera zoom out so the sprite will be smaller)
 
 

@@ -1,5 +1,3 @@
-#version 430
-
 in VS_OUT
 {
     vec2 uv;

@@ -1,4 +1,3 @@
-#version 430 core
 #define SIMD_SIZE 32
 
 layout(rgba8ui, binding = 0) uniform readonly uimage2D img_in;
