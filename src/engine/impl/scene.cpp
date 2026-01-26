@@ -211,6 +211,11 @@ void engine::Scene::enable_physics_debug_draw(bool enable)
     physics_world_.enable_debug_draw(enable);
 }
 
+bool engine::Scene::is_physics_debug_draw_enabled() const
+{
+    return physics_world_.is_debug_drawer_enabled();
+}
+
 engine_result_code_t engine::Scene::physics_update(float dt)
 {
     ENGINE_PROFILE_SECTION_N("physics_update");

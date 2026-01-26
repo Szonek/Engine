@@ -2,8 +2,9 @@
 #include "asset_store.h"
 #include "file_watcher.h"
 #include "material.h"
-#include <entt/entt.hpp>
+#include "editor_commands.h"
 
+#include <entt/entt.hpp>
 #include <map>
 #include <string_view>
 
@@ -156,6 +157,7 @@ private:
     EditorView editor_view_ = EditorView::eGame;
     EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;
+    CommandManager commands_;
     OutlinePostProccessEffect outline_effect_;
     SceneHierarchyContext scene_hierarchy_context_;
 };

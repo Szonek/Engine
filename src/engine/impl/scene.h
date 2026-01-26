@@ -24,6 +24,7 @@ public:
     Application* get_application() const;
 
     void enable_physics_debug_draw(bool enable);
+    bool is_physics_debug_draw_enabled() const;
     engine_result_code_t update(float dt);
 
     entt::entity create_new_entity();

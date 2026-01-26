@@ -671,7 +671,13 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_t
         render_outline(scene);
         handle_mouse_picking(scene);
     }
-
+    static bool ctrl_z_prev = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL) && keyboard_is_key_down(ENGINE_KEYBOARD_KEY_Z);
+    const auto contr_z_curr = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL) && keyboard_is_key_down(ENGINE_KEYBOARD_KEY_Z);
+    if (contr_z_curr && !ctrl_z_prev)
+    {
+        commands_.undo();
+    }
+    ctrl_z_prev = contr_z_curr;
     camera_context_.on_scene_update_post(scene, delta_time);
 }
 
@@ -735,9 +741,15 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
         std::memcpy(nc->name, new_name.c_str(), new_name.size());
     }
 
-    static bool phys_debug_draw_check = false;
-    ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check);
-    scene->enable_physics_debug_draw(phys_debug_draw_check);
+
+
+    bool phys_debug_draw_check = scene->is_physics_debug_draw_enabled();
+    if (ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check))
+    {
+        commands_.execute_command(std::make_unique<CommandSetPhysicsDebugDraw>(*scene, phys_debug_draw_check));
+    }
+
+    //scene->enable_physics_debug_draw(phys_debug_draw_check);
 
     ImGui::SeparatorText("Scene hierarchy");
     if (ImGui::TreeNodeEx("Scene Collection", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth))
