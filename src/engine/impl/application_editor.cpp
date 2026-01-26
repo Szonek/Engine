@@ -671,13 +671,27 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_t
         render_outline(scene);
         handle_mouse_picking(scene);
     }
-    static bool ctrl_z_prev = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL) && keyboard_is_key_down(ENGINE_KEYBOARD_KEY_Z);
-    const auto contr_z_curr = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL) && keyboard_is_key_down(ENGINE_KEYBOARD_KEY_Z);
-    if (contr_z_curr && !ctrl_z_prev)
+    const auto lctrl = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL);
+    const auto lshift = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LSHIFT);
+    const auto z = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_Z);
+    static bool ctrl_shift_z_prev = lctrl && lshift && z;
+    const auto ctrl_shift_z_curr = lctrl && lshift && z;
+    if (ctrl_shift_z_prev && !ctrl_shift_z_curr)
+    {
+        commands_.redo();
+    }
+    ctrl_shift_z_prev = ctrl_shift_z_curr;
+
+    static bool ctrl_z_prev = lctrl && !lshift && z;
+    const auto ctrl_z_curr = lctrl && !lshift && z;
+    if (ctrl_z_curr && !ctrl_z_prev)
     {
         commands_.undo();
     }
-    ctrl_z_prev = contr_z_curr;
+    ctrl_z_prev = ctrl_z_curr;
+
+
+
     camera_context_.on_scene_update_post(scene, delta_time);
 }
 
@@ -735,13 +749,8 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
     ImGui::SeparatorText("Scene options");
     if (ImGui::Button("Add entity"))
     {
-        auto e = scene->create_new_entity();
-        auto nc = scene->add_component<engine_name_component_t>(e);
-        const auto new_name = "Entity " + std::to_string(static_cast<std::uint32_t>(e));
-        std::memcpy(nc->name, new_name.c_str(), new_name.size());
+        commands_.execute_command(std::make_unique<CommandAddEntity>(*scene));
     }
-
-
 
     bool phys_debug_draw_check = scene->is_physics_debug_draw_enabled();
     if (ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check))

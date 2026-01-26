@@ -62,7 +62,7 @@ public:
         }
         auto cmd = std::move(redo_stack_.back());
         redo_stack_.pop_back();
-        cmd->undo();
+        cmd->execute();
         undo_stack_.push_back(std::move(cmd));
     }
 
@@ -72,6 +72,34 @@ private:
     const std::size_t max_history_ = 100;
 };
 
+class CommandAddEntity : public ICommand
+{
+public:
+    CommandAddEntity(Scene& sc)
+        : scene_(sc)
+    {
+    }
+
+    void execute() override
+    {
+        assert(e_ == entt::null);
+        e_ = scene_.create_new_entity();
+        auto nc = scene_.add_component<engine_name_component_t>(e_);
+        const auto new_name = "Entity " + std::to_string(static_cast<std::uint32_t>(e_));
+        std::memcpy(nc->name, new_name.c_str(), new_name.size());
+    }
+
+    void undo() override
+    {
+        assert(e_ != entt::null);
+        scene_.destroy_entity(e_);
+        e_ = entt::null;
+    }
+
+private:
+    Scene& scene_;
+    entt::entity e_ = entt::null;
+};
 
 class CommandSetPhysicsDebugDraw: public ICommand
 {
@@ -94,7 +122,6 @@ public:
 
 private:
     Scene& scene_;
-    bool before_;
     bool flag_;
 };
 
