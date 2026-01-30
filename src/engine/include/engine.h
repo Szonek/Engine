@@ -559,6 +559,7 @@ ENGINE_API engine_result_code_t engineSceneSetActive(engine_scene_t handle);
 // game objects in scene
 ENGINE_API engine_game_object_t engineGameObjectCreate();
 ENGINE_API void                 engineGameObjectDestroy(engine_game_object_t game_object);
+ENGINE_API bool                 engineGameObjectIsValid(engine_game_object_t game_object);
 
 // user input hangling
 ENGINE_API bool engineKeyboardIsButtonDown(engine_keyboard_keys_t key);

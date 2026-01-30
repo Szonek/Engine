@@ -72,6 +72,8 @@ private:
     const std::size_t max_history_ = 100;
 };
 
+
+
 class CommandAddEntity : public ICommand
 {
 public:

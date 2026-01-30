@@ -164,6 +164,15 @@ engine_result_code_t engine::IScene::update(float dt)
         log(fmt::format("Scene update failed. Exiting.\n"));
         return ENGINE_RESULT_CODE_FAIL;
     }
+    
+    // editor could destroy game object (engine shouldn't do it), clean up scripts
+    for (auto& [go, script] : scripts_)
+    {
+        if (!engineGameObjectIsValid(go))
+        {
+            unregister_script(script.get());
+        }
+    }
 
     update_hook_end();
 

@@ -29,6 +29,7 @@ public:
 
     entt::entity create_new_entity();
     void destroy_entity(entt::entity entity);
+    bool is_valid_entity(entt::entity entity);
 
     entt::runtime_view create_runtime_view();
 

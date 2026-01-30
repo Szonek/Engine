@@ -786,6 +786,12 @@ void engine::Scene::destroy_entity(entt::entity entity)
     entity_registry_.destroy(entity);
 }
 
+bool engine::Scene::is_valid_entity(entt::entity entity)
+{
+    ENGINE_PROFILE_SECTION;
+    return entity_registry_.valid(entity);
+}
+
 entt::runtime_view engine::Scene::create_runtime_view()
 {
     ENGINE_PROFILE_SECTION;

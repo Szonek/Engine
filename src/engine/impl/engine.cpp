@@ -663,6 +663,16 @@ void engineGameObjectDestroy(engine_game_object_t game_object)
     sc->destroy_entity(api_cast(game_object));
 }
 
+bool engineGameObjectIsValid(engine_game_object_t game_object)
+{
+    if (!G_ACTIVE_SCENE)
+    {
+        return false;
+    }
+    auto sc = api_cast(G_ACTIVE_SCENE);
+    return sc->is_valid_entity(api_cast(game_object));
+}
+
 void enginePhysicsSetGravityVector(const float gravity[3])
 {
     if (!G_ACTIVE_SCENE)

@@ -167,9 +167,9 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Scen
             // delete entity
             if (ImGui::MenuItem("Delete"))
             {
-                traverse_hierarchy(node, [&scene](entity_node_t* n) { scene->destroy_entity(n->entity); });                
+                traverse_hierarchy(node, [&scene](entity_node_t* n) { scene->destroy_entity(n->entity); });             
             }
-            
+
             //rename entity
             static decltype(engine_name_component_t::name) new_name = "New name";
             if(ImGui::Button("Rename"))
