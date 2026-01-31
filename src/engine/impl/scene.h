@@ -28,6 +28,7 @@ public:
     engine_result_code_t update(float dt);
 
     entt::entity create_new_entity();
+    entt::entity create_new_entity(entt::entity hint);
     void destroy_entity(entt::entity entity);
     bool is_valid_entity(entt::entity entity);
 

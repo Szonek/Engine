@@ -780,6 +780,12 @@ entt::entity engine::Scene::create_new_entity()
     return entity_registry_.create();
 }
 
+entt::entity engine::Scene::create_new_entity(entt::entity hint)
+{
+    ENGINE_PROFILE_SECTION;
+    return entity_registry_.create(hint);
+}
+
 void engine::Scene::destroy_entity(entt::entity entity)
 {
     ENGINE_PROFILE_SECTION;

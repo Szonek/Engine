@@ -98,11 +98,11 @@ struct entity_node_t
 
 inline void traverse_hierarchy(entity_node_t* node, std::function<void(entity_node_t*)> fn)
 {
-    fn(node);
     for (auto& child : node->children)
     {
         traverse_hierarchy(child, fn);
     }
+    fn(node);
 }
 
 inline bool is_entity_parent_of(entt::entity parent, entt::entity child, engine::Scene* scene)
@@ -119,7 +119,7 @@ inline bool is_entity_parent_of(entt::entity parent, entt::entity child, engine:
     return false;
 }
 
-inline void display_node(entity_node_t* node, engine::Scene* scene, engine::SceneHierarchyContext& ctx)
+inline void display_node(entity_node_t* node, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_node");
     node->displayed = true;
@@ -167,18 +167,15 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Scen
             // delete entity
             if (ImGui::MenuItem("Delete"))
             {
-                traverse_hierarchy(node, [&scene](entity_node_t* n) { scene->destroy_entity(n->entity); });             
+                ctx.set_selected_entity(scene, entt::null);
+                commands.execute_command(std::make_unique<engine::CommandDestroyEntity>(*scene, node->entity));
             }
 
             //rename entity
             static decltype(engine_name_component_t::name) new_name = "New name";
             if(ImGui::Button("Rename"))
-            {   
-                // update component
-                auto nc = *scene->get_component<engine_name_component_t>(node->entity);
-                std::strcpy(nc.name, new_name);
-                scene->update_component<engine_name_component_t>(node->entity, nc);
-
+            {
+                commands.execute_command(std::make_unique<engine::CommandRenameEntity>(*scene, node->entity, new_name));
                 // reset static new name
                 std::strcpy(new_name, "New name");
             }
@@ -224,7 +221,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Scen
         {
             for (auto& child : node->children)
             {
-                display_node(child, scene, ctx);
+                display_node(child, scene, commands, ctx);
             }
         }
         ImGui::TreePop();
@@ -783,7 +780,7 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
         {
             if (!f.displayed && !f.parent)
             {
-                display_node(&f, scene, scene_hierarchy_context_);
+                display_node(&f, scene, commands_, scene_hierarchy_context_);
             }
         }
         ImGui::TreePop();
