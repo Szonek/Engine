@@ -468,6 +468,8 @@ project_c::TestScene::TestScene(engine::IApplication* app)
 
 project_c::TestScene::~TestScene()
 {
+    // clear scripts first, so any UI dependence is handled correctly
+    scripts_.clear();
     engineUiDataHandleDestroy(ui_data_.handle_main_ui);
     engineUiDocumentDestroy(ui_data_.doc);
 }
