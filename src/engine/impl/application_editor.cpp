@@ -894,13 +894,20 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
                 glm::vec3 rotation{};
                 ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
 
-                scene->patch_component<engine_tranform_component_t>(entity, [&](engine_tranform_component_t& c)
-                    {
-                        std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
-                        const glm::quat rot = glm::quat(glm::radians(rotation));
-                        std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
-                        std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
-                    });
+                engine_tranform_component_t c{};
+                std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
+                const glm::quat rot = glm::quat(glm::radians(rotation));
+                std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
+                std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
+                commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_tranform_component_t>>(*scene, entity, c));
+
+                //scene->patch_component<engine_tranform_component_t>(entity, [&](engine_tranform_component_t& c)
+                //    {
+                //        std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
+                //        const glm::quat rot = glm::quat(glm::radians(rotation));
+                //        std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
+                //        std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
+                //    });
             }
         }
     }
