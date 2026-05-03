@@ -229,7 +229,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
 }
 
 template<typename T>
-inline void display_component(std::string_view name, engine::Scene* scene, entt::entity entity, std::function<bool(const engine::Scene* scene, T& comp)> fn)
+inline void display_component(std::string_view name, engine::Scene* scene, engine::CommandManager& commands, entt::entity entity, std::function<bool(const engine::Scene* scene, T& comp)> fn)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_component");
     const bool has_component = scene->has_component<T>(entity);
@@ -244,7 +244,8 @@ inline void display_component(std::string_view name, engine::Scene* scene, entt:
             auto comp = *scene->get_component<T>(entity);
             if (fn(scene, comp))
             {
-                scene->update_component<T>(entity, comp);
+                //scene->update_component<T>(entity, comp);
+                commands.execute_command(std::make_unique<engine::CommandUpdateComponent<T>>(*scene, entity, comp));
             }
 
         }
@@ -540,42 +541,44 @@ bool display_rigidbody_component(const engine::Scene* scene, engine_rigid_body_c
 
 bool display_camera_component(const engine::Scene* scene, engine_camera_component_t& c)
 {
+    bool update_required = false;
     // is it enabled?
-    ImGui::Checkbox("Enabled", &c.enabled);
+    update_required |= ImGui::Checkbox("Enabled", &c.enabled);
 
     // type
     const char* items[] = { "Orthographic",  "Perspective" };
     std::int32_t selected_type = c.type;
     if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
     {
+        update_required = true;
         c.type = static_cast<engine_camera_projection_type_t>(selected_type);
     }
 
     // fov or scale, based on type
     if (c.type == ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE)
     {
-        ImGui::DragFloat("FOV", &c.type_union.perspective_fov, 0.1f);
+        update_required |= ImGui::DragFloat("FOV", &c.type_union.perspective_fov, 0.1f);
     }
     else
     {
-        ImGui::DragFloat("Scale", &c.type_union.orthographics_scale, 0.1f);
+        update_required |= ImGui::DragFloat("Scale", &c.type_union.orthographics_scale, 0.1f);
     }
 
     // target
-    ImGui::DragFloat3("Target", c.target, 0.1f);
+    update_required |= ImGui::DragFloat3("Target", c.target, 0.1f);
 
     //viewport rect
-    ImGui::DragFloat4("Viewport", &c.viewport_rect.x, 0.1f);
+    update_required |= ImGui::DragFloat4("Viewport", &c.viewport_rect.x, 0.1f);
 
     // pitch, yaw, roll
-    ImGui::DragFloat("Pitch", &c.pitch, 0.1f);
-    ImGui::DragFloat("Yaw", &c.yaw, 0.1f);
-    ImGui::DragFloat("Roll", &c.roll, 0.1f);
+    update_required |= ImGui::DragFloat("Pitch", &c.pitch, 0.1f);
+    update_required |= ImGui::DragFloat("Yaw", &c.yaw, 0.1f);
+    update_required |= ImGui::DragFloat("Roll", &c.roll, 0.1f);
 
     // clip planes
-    ImGui::DragFloat("Near Clip Plane", &c.clip_plane_near, 0.1f);
-    ImGui::DragFloat("Far Clip Plane", &c.clip_plane_far, 0.1f);
-    return true;
+    update_required |= ImGui::DragFloat("Near Clip Plane", &c.clip_plane_near, 0.1f);
+    update_required |= ImGui::DragFloat("Far Clip Plane", &c.clip_plane_far, 0.1f);
+    return update_required;
 }
 
 } // namespace anonymous
@@ -800,17 +803,17 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
     if (scene_hierarchy_context_.has_selected_entity())
     {
         const auto selected = scene_hierarchy_context_.get_selected_entity();
-        display_component<engine_tranform_component_t>("Transform", scene, selected, display_transform_component);
-        display_component<engine_light_component_t>("Light", scene, selected, display_light_component);
-        display_component<engine_camera_component_t>("Camera", scene, selected, display_camera_component);
-        display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
-        display_component<engine_skinned_mesh_component_t>("Skinned Mesh", scene, selected, display_skinned_mesh_component);
-        display_component<engine_skin_component_t>("Skin", scene, selected, display_skin_component);
-        display_component<engine_joint_attachment_component_t>("Joint Attachment", scene, selected, display_joint_attachment_component);
-        display_component<engine_animation_controller_component_t>("Animation controller", scene, selected, display_animation_controller_component);
-        display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
-        display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);
-        display_component<engine_rigid_body_component_t>("Rigid Body", scene, selected, display_rigidbody_component);
+        display_component<engine_tranform_component_t>("Transform", scene, commands_, selected, display_transform_component);
+        display_component<engine_light_component_t>("Light", scene, commands_, selected, display_light_component);
+        display_component<engine_camera_component_t>("Camera", scene, commands_, selected, display_camera_component);
+        display_component<engine_mesh_component_t>("Mesh", scene, commands_, selected, display_mesh_component);
+        display_component<engine_skinned_mesh_component_t>("Skinned Mesh", scene, commands_, selected, display_skinned_mesh_component);
+        display_component<engine_skin_component_t>("Skin", scene, commands_, selected, display_skin_component);
+        display_component<engine_joint_attachment_component_t>("Joint Attachment", scene, commands_, selected, display_joint_attachment_component);
+        display_component<engine_animation_controller_component_t>("Animation controller", scene, commands_, selected, display_animation_controller_component);
+        display_component<engine_material_component_t>("Material", scene, commands_, selected, display_material_component);
+        display_component<engine_collider_component_t>("Collider", scene, commands_, selected, display_collider_component);
+        display_component<engine_rigid_body_component_t>("Rigid Body", scene, commands_, selected, display_rigidbody_component);
     }
     else
     {

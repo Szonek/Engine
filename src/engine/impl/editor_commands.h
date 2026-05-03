@@ -72,6 +72,60 @@ private:
     const std::size_t max_history_ = 100;
 };
 
+template<typename TComp>
+class CommandUpdateComponent : public ICommand
+{
+public:
+    CommandUpdateComponent(Scene& sc, entt::entity e, TComp& new_comp)
+        : sc_(sc)
+        , e_(e)
+        , new_(new_comp)
+        , prev_(*sc.get_component<TComp>(e_))
+    {
+    }
+
+    void execute() override
+    {
+        sc_.update_component<TComp>(e_, new_);
+    }
+
+    void undo() override
+    {
+        sc_.update_component<TComp>(e_, prev_);
+    }
+
+private:
+    Scene& sc_;
+    entt::entity e_;
+    const TComp prev_;
+    const TComp new_;
+};
+
+template<typename TComp>
+class CommandSetSelectedEntity : public ICommand
+{
+public:
+    CommandSetSelectedEntity(Scene& sc, entt::entity prev_selected, entt::entity new_selected)
+        : sc_(sc)
+        , e_prev_(prev_selected)
+        , e_new_(new_selected)
+    {
+    }
+
+    void execute() override
+    {
+    }
+
+    void undo() override
+    {
+    }
+
+private:
+    Scene& sc_;
+    entt::entity e_prev_;
+    entt::entity e_new_;
+};
+
 class CommandRenameEntity : public ICommand
 {
 public:
