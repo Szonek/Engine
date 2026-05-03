@@ -54,7 +54,7 @@ struct OutlinePostProccessEffect
 class SceneHierarchyContext
 {
 public:
-    void set_selected_entity(engine::Scene* scene, entt::entity e);
+    void set_selected_entity(engine::Scene* scene, entt::entity e, CommandManager& commands);
     entt::entity get_selected_entity() const;
     bool has_selected_entity() const;
 

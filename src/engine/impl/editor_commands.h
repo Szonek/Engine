@@ -4,6 +4,9 @@
 #include <vector>
 #include <memory>
 
+#include "components_internals/guizmo_component.h"
+#include "components_internals/outline_component.h"
+
 namespace engine
 {
 
@@ -101,24 +104,13 @@ private:
     const TComp new_;
 };
 
-template<typename TComp>
 class CommandSetSelectedEntity : public ICommand
 {
 public:
-    CommandSetSelectedEntity(Scene& sc, entt::entity prev_selected, entt::entity new_selected)
-        : sc_(sc)
-        , e_prev_(prev_selected)
-        , e_new_(new_selected)
-    {
-    }
+    CommandSetSelectedEntity(Scene& sc, entt::entity prev_selected, entt::entity new_selected);
 
-    void execute() override
-    {
-    }
-
-    void undo() override
-    {
-    }
+    void execute() override;
+    void undo() override;
 
 private:
     Scene& sc_;
@@ -129,30 +121,10 @@ private:
 class CommandRenameEntity : public ICommand
 {
 public:
-    CommandRenameEntity(Scene& sc, entt::entity e, std::string_view new_name)
-        : scene_(sc)
-        , e_(e)
-    {
-        new_name_.resize(ENGINE_ENTITY_NAME_MAX_LENGTH);
-        new_name_ = new_name;
-        auto nc = scene_.get_component<engine_name_component_t>(e_);
-        prev_name_ = nc->name;
-    }
+    CommandRenameEntity(Scene& sc, entt::entity e, std::string_view new_name);
 
-    void execute() override
-    {
-        auto nc = scene_.get_component<engine_name_component_t>(e_);
-        std::strcpy(nc->name, new_name_.c_str());
-        scene_.update_component<engine_name_component_t>(e_, *nc);
-
-    }
-
-    void undo() override
-    {
-        auto nc = scene_.get_component<engine_name_component_t>(e_);
-        std::strcpy(nc->name, prev_name_.c_str());
-        scene_.update_component<engine_name_component_t>(e_, *nc);
-    }
+    void execute() override;
+    void undo() override;
 
 private:
     Scene& scene_;
@@ -164,74 +136,23 @@ private:
 class CommandAddEntity : public ICommand
 {
 public:
-    CommandAddEntity(Scene& sc)
-        : scene_(sc)
-    {
-    }
+    CommandAddEntity(Scene& sc);
 
-    void execute() override
-    {
-        assert(e_ == entt::null);
-        e_ = scene_.create_new_entity();
-        auto nc = scene_.add_component<engine_name_component_t>(e_);
-        const auto new_name = "Entity " + std::to_string(static_cast<std::uint32_t>(e_));
-        std::memcpy(nc->name, new_name.c_str(), new_name.size());
-    }
-
-    void undo() override
-    {
-        assert(e_ != entt::null);
-        scene_.destroy_entity(e_);
-        e_ = entt::null;
-    }
+    void execute() override;
+    void undo() override;
 
 private:
     Scene& scene_;
     entt::entity e_ = entt::null;
 };
 
-namespace
-{
-inline void delete_entity_hierarchy(Scene& sc, entt::entity entity)
-{
-    if (sc.has_component<engine_children_component_t>(entity))
-    {
-        const auto children = sc.get_component<engine_children_component_t>(entity);
-        for (int c = 0; c < ENGINE_MAX_CHILDREN; c++)
-        {
-            const auto child = static_cast<entt::entity>(children->child[c]);
-            if (sc.is_valid_entity(child))
-            {
-                delete_entity_hierarchy(sc, child);
-            }
-        }
-    }
-    sc.destroy_entity(entity);
-
-}
-}
-
-
 class CommandDestroyEntity : public ICommand
 {
 public:
-    CommandDestroyEntity(Scene& sc, entt::entity e)
-        : scene_(sc)
-        , e_(e)
-    {
-        assert(e_ != entt::null);
-    }
+    CommandDestroyEntity(Scene& sc, entt::entity e);
 
-    void execute() override
-    {
-        delete_entity_hierarchy(scene_, e_);
-    }
-
-    void undo() override
-    {
-        const auto new_entt  = scene_.create_new_entity(e_);
-        assert(new_entt == e_);
-    }
+    void execute() override;
+    void undo() override;
 
 private:
     Scene& scene_;
@@ -241,21 +162,10 @@ private:
 class CommandSetPhysicsDebugDraw: public ICommand
 {
 public:
-    CommandSetPhysicsDebugDraw(Scene& sc, bool flag)
-        : scene_(sc)
-        , flag_(flag)
-    {
-    }
+    CommandSetPhysicsDebugDraw(Scene& sc, bool flag);
 
-    void execute() override
-    {
-        scene_.enable_physics_debug_draw(flag_);
-    }
-
-    void undo() override
-    {
-        scene_.enable_physics_debug_draw(!flag_);
-    }
+    void execute() override;
+    void undo() override;
 
 private:
     Scene& scene_;
@@ -263,3 +173,4 @@ private:
 };
 
 }  // namespace engine
+

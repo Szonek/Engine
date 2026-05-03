@@ -8,8 +8,6 @@
 #include "animation_controller.h"
 #include "engine_string_impl_def.h"
 
-#include "components_internals/guizmo_component.h"
-#include "components_internals/outline_component.h"
 #include "components_internals/camera_internal_component.h"
 
 #include "imgui/imgui.h"
@@ -157,7 +155,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
             // but if tree was expanded (i.e. by pressing arrow) it does not count as selection of entity
             if (!ImGui::IsItemToggledOpen())
             {
-                ctx.set_selected_entity(scene, node->entity);
+                ctx.set_selected_entity(scene, node->entity, commands);
             }
         }
         
@@ -167,7 +165,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
             // delete entity
             if (ImGui::MenuItem("Delete"))
             {
-                ctx.set_selected_entity(scene, entt::null);
+                ctx.set_selected_entity(scene, entt::null, commands);
                 commands.execute_command(std::make_unique<engine::CommandDestroyEntity>(*scene, node->entity));
             }
 
@@ -929,7 +927,7 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
         {
             entity_id = static_cast<entt::entity>(pixels_u32[0]);
         }
-        scene_hierarchy_context_.set_selected_entity(scene, entity_id);
+        scene_hierarchy_context_.set_selected_entity(scene, entity_id, commands_);
         scene_hierarchy_context_.set_forced_open_selected_parents(true);
     }
 }
@@ -1255,25 +1253,14 @@ bool engine::ApplicationEditor::CameraContext::is_enabled(engine::Scene* scene) 
     return cameras_.at(scene).is_enabled;
 }
 
-void engine::SceneHierarchyContext::set_selected_entity(engine::Scene* scene, entt::entity e)
+void engine::SceneHierarchyContext::set_selected_entity(engine::Scene* scene, entt::entity e, CommandManager& commands)
 {
     if (selected_ == e)
     {
         return;
     }
-    if (selected_ != entt::null)
-    {
-        scene->remove_component<engine::guizmo_component_t>(selected_);
-        scene->remove_component<engine::outline_component_t>(selected_);
-    }
-
+    commands.execute_command(std::make_unique<engine::CommandSetSelectedEntity>(*scene, selected_, e));
     selected_ = e;
-    if (selected_ != entt::null)
-    {
-        scene->add_component<engine::guizmo_component_t>(selected_);
-        scene->add_component<engine::outline_component_t>(selected_);
-    }
-
 }
 
 entt::entity engine::SceneHierarchyContext::get_selected_entity() const
