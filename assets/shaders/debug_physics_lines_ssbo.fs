@@ -1,5 +1,3 @@
-#version 430
-
 in vec3 line_color;
 layout (location = 0) out vec4 out_fragment_color;
 void main()

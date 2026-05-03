@@ -2,8 +2,9 @@
 #include "asset_store.h"
 #include "file_watcher.h"
 #include "material.h"
-#include <entt/entt.hpp>
+#include "editor_commands.h"
 
+#include <entt/entt.hpp>
 #include <map>
 #include <string_view>
 
@@ -53,13 +54,14 @@ struct OutlinePostProccessEffect
 class SceneHierarchyContext
 {
 public:
-    void set_selected_entity(engine::Scene* scene, entt::entity e);
+    void set_selected_entity(engine::Scene* scene, entt::entity e, CommandManager& commands);
     entt::entity get_selected_entity() const;
     bool has_selected_entity() const;
 
     void set_forced_open_selected_parents(bool value);
     bool is_forced_open_selected_parents() const;
-
+    void sync_selected_from_scene(engine::Scene* scene);
+    
 private:
     entt::entity selected_ = entt::null;
     bool force_open_selected_parents_ = false;
@@ -156,6 +158,7 @@ private:
     EditorView editor_view_ = EditorView::eGame;
     EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;
+    CommandManager commands_;
     OutlinePostProccessEffect outline_effect_;
     SceneHierarchyContext scene_hierarchy_context_;
 };

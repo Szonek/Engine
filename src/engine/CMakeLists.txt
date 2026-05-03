@@ -14,6 +14,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/application.h
 	${ENGINE_SOURCES_DIR}/application_editor.cpp
 	${ENGINE_SOURCES_DIR}/application_editor.h
+	${ENGINE_SOURCES_DIR}/editor_commands.cpp
+	${ENGINE_SOURCES_DIR}/editor_commands.h
 	${ENGINE_SOURCES_DIR}/engine.cpp
 	${ENGINE_SOURCES_DIR}/engine_string_impl_def.h
 	${ENGINE_SOURCES_DIR}/engine_string.cpp

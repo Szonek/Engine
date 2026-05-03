@@ -211,6 +211,11 @@ void engine::Scene::enable_physics_debug_draw(bool enable)
     physics_world_.enable_debug_draw(enable);
 }
 
+bool engine::Scene::is_physics_debug_draw_enabled() const
+{
+    return physics_world_.is_debug_drawer_enabled();
+}
+
 engine_result_code_t engine::Scene::physics_update(float dt)
 {
     ENGINE_PROFILE_SECTION_N("physics_update");
@@ -775,10 +780,22 @@ entt::entity engine::Scene::create_new_entity()
     return entity_registry_.create();
 }
 
+entt::entity engine::Scene::create_new_entity(entt::entity hint)
+{
+    ENGINE_PROFILE_SECTION;
+    return entity_registry_.create(hint);
+}
+
 void engine::Scene::destroy_entity(entt::entity entity)
 {
     ENGINE_PROFILE_SECTION;
     entity_registry_.destroy(entity);
+}
+
+bool engine::Scene::is_valid_entity(entt::entity entity)
+{
+    ENGINE_PROFILE_SECTION;
+    return entity_registry_.valid(entity);
 }
 
 entt::runtime_view engine::Scene::create_runtime_view()

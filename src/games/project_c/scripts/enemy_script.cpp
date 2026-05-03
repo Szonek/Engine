@@ -55,6 +55,10 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
 
 project_c::Enemy::~Enemy()
 {
+    auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
+    assert(typed_scene);
+    typed_scene->ui_remove_enemy(this);
+    //assert(engineGameObjectIsValid(go_));
     utils::delete_game_objects_hierarchy(go_);
 }
 
@@ -195,14 +199,6 @@ void project_c::Enemy::update(float dt)
         break;
     }
     }
-
     auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
-    if (hp == 0)
-    {
-        typed_scene->ui_remove_enemy(this);
-    }
-    else
-    {
-        typed_scene->ui_update_enemy(this);
-    }
+    typed_scene->ui_update_enemy(this);
 }

@@ -8,8 +8,6 @@
 #include "animation_controller.h"
 #include "engine_string_impl_def.h"
 
-#include "components_internals/guizmo_component.h"
-#include "components_internals/outline_component.h"
 #include "components_internals/camera_internal_component.h"
 
 #include "imgui/imgui.h"
@@ -98,11 +96,11 @@ struct entity_node_t
 
 inline void traverse_hierarchy(entity_node_t* node, std::function<void(entity_node_t*)> fn)
 {
-    fn(node);
     for (auto& child : node->children)
     {
         traverse_hierarchy(child, fn);
     }
+    fn(node);
 }
 
 inline bool is_entity_parent_of(entt::entity parent, entt::entity child, engine::Scene* scene)
@@ -119,7 +117,7 @@ inline bool is_entity_parent_of(entt::entity parent, entt::entity child, engine:
     return false;
 }
 
-inline void display_node(entity_node_t* node, engine::Scene* scene, engine::SceneHierarchyContext& ctx)
+inline void display_node(entity_node_t* node, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_node");
     node->displayed = true;
@@ -157,7 +155,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Scen
             // but if tree was expanded (i.e. by pressing arrow) it does not count as selection of entity
             if (!ImGui::IsItemToggledOpen())
             {
-                ctx.set_selected_entity(scene, node->entity);
+                ctx.set_selected_entity(scene, node->entity, commands);
             }
         }
         
@@ -167,18 +165,15 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Scen
             // delete entity
             if (ImGui::MenuItem("Delete"))
             {
-                traverse_hierarchy(node, [&scene](entity_node_t* n) { scene->destroy_entity(n->entity); });                
+                ctx.set_selected_entity(scene, entt::null, commands);
+                commands.execute_command(std::make_unique<engine::CommandDestroyEntity>(*scene, node->entity));
             }
-            
+
             //rename entity
             static decltype(engine_name_component_t::name) new_name = "New name";
             if(ImGui::Button("Rename"))
-            {   
-                // update component
-                auto nc = *scene->get_component<engine_name_component_t>(node->entity);
-                std::strcpy(nc.name, new_name);
-                scene->update_component<engine_name_component_t>(node->entity, nc);
-
+            {
+                commands.execute_command(std::make_unique<engine::CommandRenameEntity>(*scene, node->entity, new_name));
                 // reset static new name
                 std::strcpy(new_name, "New name");
             }
@@ -224,7 +219,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Scen
         {
             for (auto& child : node->children)
             {
-                display_node(child, scene, ctx);
+                display_node(child, scene, commands, ctx);
             }
         }
         ImGui::TreePop();
@@ -232,7 +227,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Scen
 }
 
 template<typename T>
-inline void display_component(std::string_view name, engine::Scene* scene, entt::entity entity, std::function<bool(const engine::Scene* scene, T& comp)> fn)
+inline void display_component(std::string_view name, engine::Scene* scene, engine::CommandManager& commands, entt::entity entity, std::function<bool(const engine::Scene* scene, T& comp)> fn)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_component");
     const bool has_component = scene->has_component<T>(entity);
@@ -247,7 +242,8 @@ inline void display_component(std::string_view name, engine::Scene* scene, entt:
             auto comp = *scene->get_component<T>(entity);
             if (fn(scene, comp))
             {
-                scene->update_component<T>(entity, comp);
+                //scene->update_component<T>(entity, comp);
+                commands.execute_command(std::make_unique<engine::CommandUpdateComponent<T>>(*scene, entity, comp));
             }
 
         }
@@ -543,42 +539,44 @@ bool display_rigidbody_component(const engine::Scene* scene, engine_rigid_body_c
 
 bool display_camera_component(const engine::Scene* scene, engine_camera_component_t& c)
 {
+    bool update_required = false;
     // is it enabled?
-    ImGui::Checkbox("Enabled", &c.enabled);
+    update_required |= ImGui::Checkbox("Enabled", &c.enabled);
 
     // type
     const char* items[] = { "Orthographic",  "Perspective" };
     std::int32_t selected_type = c.type;
     if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
     {
+        update_required = true;
         c.type = static_cast<engine_camera_projection_type_t>(selected_type);
     }
 
     // fov or scale, based on type
     if (c.type == ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE)
     {
-        ImGui::DragFloat("FOV", &c.type_union.perspective_fov, 0.1f);
+        update_required |= ImGui::DragFloat("FOV", &c.type_union.perspective_fov, 0.1f);
     }
     else
     {
-        ImGui::DragFloat("Scale", &c.type_union.orthographics_scale, 0.1f);
+        update_required |= ImGui::DragFloat("Scale", &c.type_union.orthographics_scale, 0.1f);
     }
 
     // target
-    ImGui::DragFloat3("Target", c.target, 0.1f);
+    update_required |= ImGui::DragFloat3("Target", c.target, 0.1f);
 
     //viewport rect
-    ImGui::DragFloat4("Viewport", &c.viewport_rect.x, 0.1f);
+    update_required |= ImGui::DragFloat4("Viewport", &c.viewport_rect.x, 0.1f);
 
     // pitch, yaw, roll
-    ImGui::DragFloat("Pitch", &c.pitch, 0.1f);
-    ImGui::DragFloat("Yaw", &c.yaw, 0.1f);
-    ImGui::DragFloat("Roll", &c.roll, 0.1f);
+    update_required |= ImGui::DragFloat("Pitch", &c.pitch, 0.1f);
+    update_required |= ImGui::DragFloat("Yaw", &c.yaw, 0.1f);
+    update_required |= ImGui::DragFloat("Roll", &c.roll, 0.1f);
 
     // clip planes
-    ImGui::DragFloat("Near Clip Plane", &c.clip_plane_near, 0.1f);
-    ImGui::DragFloat("Far Clip Plane", &c.clip_plane_far, 0.1f);
-    return true;
+    update_required |= ImGui::DragFloat("Near Clip Plane", &c.clip_plane_near, 0.1f);
+    update_required |= ImGui::DragFloat("Far Clip Plane", &c.clip_plane_far, 0.1f);
+    return update_required;
 }
 
 } // namespace anonymous
@@ -671,6 +669,28 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_t
         render_outline(scene);
         handle_mouse_picking(scene);
     }
+    const auto lctrl = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL);
+    const auto lshift = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LSHIFT);
+    const auto z = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_Z);
+    static bool ctrl_shift_z_prev = lctrl && lshift && z;
+    const auto ctrl_shift_z_curr = lctrl && lshift && z;
+    if (ctrl_shift_z_prev && !ctrl_shift_z_curr)
+    {
+        commands_.redo();
+        scene_hierarchy_context_.sync_selected_from_scene(scene);
+    }
+    ctrl_shift_z_prev = ctrl_shift_z_curr;
+
+    static bool ctrl_z_prev = lctrl && !lshift && z;
+    const auto ctrl_z_curr = lctrl && !lshift && z;
+    if (ctrl_z_curr && !ctrl_z_prev)
+    {
+        commands_.undo();
+        scene_hierarchy_context_.sync_selected_from_scene(scene);
+    }
+    ctrl_z_prev = ctrl_z_curr;
+
+
 
     camera_context_.on_scene_update_post(scene, delta_time);
 }
@@ -729,15 +749,16 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
     ImGui::SeparatorText("Scene options");
     if (ImGui::Button("Add entity"))
     {
-        auto e = scene->create_new_entity();
-        auto nc = scene->add_component<engine_name_component_t>(e);
-        const auto new_name = "Entity " + std::to_string(static_cast<std::uint32_t>(e));
-        std::memcpy(nc->name, new_name.c_str(), new_name.size());
+        commands_.execute_command(std::make_unique<CommandAddEntity>(*scene));
     }
 
-    static bool phys_debug_draw_check = false;
-    ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check);
-    scene->enable_physics_debug_draw(phys_debug_draw_check);
+    bool phys_debug_draw_check = scene->is_physics_debug_draw_enabled();
+    if (ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check))
+    {
+        commands_.execute_command(std::make_unique<CommandSetPhysicsDebugDraw>(*scene, phys_debug_draw_check));
+    }
+
+    //scene->enable_physics_debug_draw(phys_debug_draw_check);
 
     ImGui::SeparatorText("Scene hierarchy");
     if (ImGui::TreeNodeEx("Scene Collection", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth))
@@ -762,7 +783,7 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
         {
             if (!f.displayed && !f.parent)
             {
-                display_node(&f, scene, scene_hierarchy_context_);
+                display_node(&f, scene, commands_, scene_hierarchy_context_);
             }
         }
         ImGui::TreePop();
@@ -782,17 +803,17 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
     if (scene_hierarchy_context_.has_selected_entity())
     {
         const auto selected = scene_hierarchy_context_.get_selected_entity();
-        display_component<engine_tranform_component_t>("Transform", scene, selected, display_transform_component);
-        display_component<engine_light_component_t>("Light", scene, selected, display_light_component);
-        display_component<engine_camera_component_t>("Camera", scene, selected, display_camera_component);
-        display_component<engine_mesh_component_t>("Mesh", scene, selected, display_mesh_component);
-        display_component<engine_skinned_mesh_component_t>("Skinned Mesh", scene, selected, display_skinned_mesh_component);
-        display_component<engine_skin_component_t>("Skin", scene, selected, display_skin_component);
-        display_component<engine_joint_attachment_component_t>("Joint Attachment", scene, selected, display_joint_attachment_component);
-        display_component<engine_animation_controller_component_t>("Animation controller", scene, selected, display_animation_controller_component);
-        display_component<engine_material_component_t>("Material", scene, selected, display_material_component);
-        display_component<engine_collider_component_t>("Collider", scene, selected, display_collider_component);
-        display_component<engine_rigid_body_component_t>("Rigid Body", scene, selected, display_rigidbody_component);
+        display_component<engine_tranform_component_t>("Transform", scene, commands_, selected, display_transform_component);
+        display_component<engine_light_component_t>("Light", scene, commands_, selected, display_light_component);
+        display_component<engine_camera_component_t>("Camera", scene, commands_, selected, display_camera_component);
+        display_component<engine_mesh_component_t>("Mesh", scene, commands_, selected, display_mesh_component);
+        display_component<engine_skinned_mesh_component_t>("Skinned Mesh", scene, commands_, selected, display_skinned_mesh_component);
+        display_component<engine_skin_component_t>("Skin", scene, commands_, selected, display_skin_component);
+        display_component<engine_joint_attachment_component_t>("Joint Attachment", scene, commands_, selected, display_joint_attachment_component);
+        display_component<engine_animation_controller_component_t>("Animation controller", scene, commands_, selected, display_animation_controller_component);
+        display_component<engine_material_component_t>("Material", scene, commands_, selected, display_material_component);
+        display_component<engine_collider_component_t>("Collider", scene, commands_, selected, display_collider_component);
+        display_component<engine_rigid_body_component_t>("Rigid Body", scene, commands_, selected, display_rigidbody_component);
     }
     else
     {
@@ -873,13 +894,20 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
                 glm::vec3 rotation{};
                 ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
 
-                scene->patch_component<engine_tranform_component_t>(entity, [&](engine_tranform_component_t& c)
-                    {
-                        std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
-                        const glm::quat rot = glm::quat(glm::radians(rotation));
-                        std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
-                        std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
-                    });
+                engine_tranform_component_t c{};
+                std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
+                const glm::quat rot = glm::quat(glm::radians(rotation));
+                std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
+                std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
+                commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_tranform_component_t>>(*scene, entity, c));
+
+                //scene->patch_component<engine_tranform_component_t>(entity, [&](engine_tranform_component_t& c)
+                //    {
+                //        std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
+                //        const glm::quat rot = glm::quat(glm::radians(rotation));
+                //        std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
+                //        std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
+                //    });
             }
         }
     }
@@ -908,7 +936,7 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
         {
             entity_id = static_cast<entt::entity>(pixels_u32[0]);
         }
-        scene_hierarchy_context_.set_selected_entity(scene, entity_id);
+        scene_hierarchy_context_.set_selected_entity(scene, entity_id, commands_);
         scene_hierarchy_context_.set_forced_open_selected_parents(true);
     }
 }
@@ -1234,25 +1262,14 @@ bool engine::ApplicationEditor::CameraContext::is_enabled(engine::Scene* scene) 
     return cameras_.at(scene).is_enabled;
 }
 
-void engine::SceneHierarchyContext::set_selected_entity(engine::Scene* scene, entt::entity e)
+void engine::SceneHierarchyContext::set_selected_entity(engine::Scene* scene, entt::entity e, CommandManager& commands)
 {
     if (selected_ == e)
     {
         return;
     }
-    if (selected_ != entt::null)
-    {
-        scene->remove_component<engine::guizmo_component_t>(selected_);
-        scene->remove_component<engine::outline_component_t>(selected_);
-    }
-
+    commands.execute_command(std::make_unique<engine::CommandSetSelectedEntity>(*scene, selected_, e));
     selected_ = e;
-    if (selected_ != entt::null)
-    {
-        scene->add_component<engine::guizmo_component_t>(selected_);
-        scene->add_component<engine::outline_component_t>(selected_);
-    }
-
 }
 
 entt::entity engine::SceneHierarchyContext::get_selected_entity() const
@@ -1273,6 +1290,21 @@ void engine::SceneHierarchyContext::set_forced_open_selected_parents(bool value)
 bool engine::SceneHierarchyContext::is_forced_open_selected_parents() const
 {
     return force_open_selected_parents_;
+}
+
+void engine::SceneHierarchyContext::sync_selected_from_scene(engine::Scene* scene)
+{
+    // Find an entity that currently has the guizmo component (the editor selection marker)
+    entt::entity found = entt::null;
+    auto view = scene->create_runtime_view();
+    scene->attach_component_to_runtime_view<engine::guizmo_component_t>(view);
+    for (const auto& e : view)
+    {
+        // If multiple, take the first (there should normally be at most one)
+        found = e;
+        break;
+    }
+    selected_ = found;
 }
 
 void engine::ApplicationEditor::EditorWindowsContext::initialize(std::uint32_t dockspace_id)
