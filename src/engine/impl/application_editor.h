@@ -60,7 +60,8 @@ public:
 
     void set_forced_open_selected_parents(bool value);
     bool is_forced_open_selected_parents() const;
-
+    void sync_selected_from_scene(engine::Scene* scene);
+    
 private:
     entt::entity selected_ = entt::null;
     bool force_open_selected_parents_ = false;

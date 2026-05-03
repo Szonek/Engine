@@ -677,6 +677,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_t
     if (ctrl_shift_z_prev && !ctrl_shift_z_curr)
     {
         commands_.redo();
+        scene_hierarchy_context_.sync_selected_from_scene(scene);
     }
     ctrl_shift_z_prev = ctrl_shift_z_curr;
 
@@ -685,6 +686,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_t
     if (ctrl_z_curr && !ctrl_z_prev)
     {
         commands_.undo();
+        scene_hierarchy_context_.sync_selected_from_scene(scene);
     }
     ctrl_z_prev = ctrl_z_curr;
 
@@ -1281,6 +1283,21 @@ void engine::SceneHierarchyContext::set_forced_open_selected_parents(bool value)
 bool engine::SceneHierarchyContext::is_forced_open_selected_parents() const
 {
     return force_open_selected_parents_;
+}
+
+void engine::SceneHierarchyContext::sync_selected_from_scene(engine::Scene* scene)
+{
+    // Find an entity that currently has the guizmo component (the editor selection marker)
+    entt::entity found = entt::null;
+    auto view = scene->create_runtime_view();
+    scene->attach_component_to_runtime_view<engine::guizmo_component_t>(view);
+    for (const auto& e : view)
+    {
+        // If multiple, take the first (there should normally be at most one)
+        found = e;
+        break;
+    }
+    selected_ = found;
 }
 
 void engine::ApplicationEditor::EditorWindowsContext::initialize(std::uint32_t dockspace_id)
