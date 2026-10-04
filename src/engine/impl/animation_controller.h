@@ -41,7 +41,7 @@ public:
     SamplingJob(std::size_t num_joints);
     
     void start(const ozz::animation::Animation* anim, const AnimationTimeline* timeline);
-    bool update(float dt);
+    bool update(float dt, bool looping);
     void reset();
 
     ozz::span<ozz::math::SoaTransform> get_output();
@@ -70,12 +70,16 @@ public:
     bool remove_layer(std::size_t id);
     bool has_layer(std::size_t id) const;
     bool set_layer_weight(std::size_t id, float weight);
+    bool set_layer_playback_rate(std::size_t id, float playback_rate);
+    bool set_layer_looping(std::size_t id, bool looping);
+    bool set_layer_joint_weight(std::size_t id, const std::string& joint_name, float weight);
     bool set_layer_mode(std::size_t id, LayerBlendMode mode);
 
     bool add_animation(const AnimationClipDesc& animation_clip);
     bool play(const std::string& animation_name, std::size_t layer_id);
     bool cross_fade_to(const std::string& animation_name, std::size_t layer_id, float duration);
     bool is_playing(const std::string& animation_name) const;
+    bool is_playing(const std::string& animation_name, std::size_t layer_id) const;
     float get_duration(const std::string& animation_name) const;
 
     std::pair<bool, std::uint32_t> add_event(const std::string& animation_name, const engine_animation_event_t& ev);
@@ -98,7 +102,9 @@ private:
     {
         std::size_t id;
         float weight;
+        float playback_rate = 1.0f;
         LayerBlendMode mode;
+        bool looping = false;
         SamplingJob animation_a; // base animation
         SamplingJob animation_b; // cross_fade_to
         std::optional<CrossFadeInfo> cross_fade_to;

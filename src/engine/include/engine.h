@@ -472,6 +472,7 @@ ENGINE_API void engineDestroyAnimationController(engine_animation_controller_t* 
 ENGINE_API bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc);
 ENGINE_API engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_animation_controller_t* controller, const char* name, float* out);
 ENGINE_API bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name);
+ENGINE_API bool engineAnimationControllerIsAnimationPlayingOnLayer(engine_animation_controller_t* controller, const char* name, size_t layer_id);
 ENGINE_API bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name, size_t layer_id);
 // Start fading in from current animation to 'new_animation' over 'duration' seconds
 ENGINE_API bool engineAnimationControllerAnimationCrossFade(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float duration);
@@ -484,6 +485,12 @@ typedef enum _engine_animation_layer_mode_t
 ENGINE_API bool engineAnimationControllerAddLayer(engine_animation_controller_t* controller, size_t id, float default_weight);
 ENGINE_API bool engineAnimationControllerRemoveLayer(engine_animation_controller_t* controller, size_t id);
 ENGINE_API bool engineAnimationControllerLayerSetWeight(engine_animation_controller_t* controller, size_t id, float new_weight);
+// Multiplies the playback speed of animations on this layer. Must be finite and greater than zero.
+ENGINE_API bool engineAnimationControllerLayerSetPlaybackRate(engine_animation_controller_t* controller, size_t id, float playback_rate);
+// Restarts animations on this layer when they reach their end; disabled by default.
+ENGINE_API bool engineAnimationControllerLayerSetLooping(engine_animation_controller_t* controller, size_t id, bool looping);
+// Sets a layer's weight for the named joint and all its descendants.
+ENGINE_API bool engineAnimationControllerLayerSetJointWeight(engine_animation_controller_t* controller, size_t id, const char* joint_name, float weight);
 ENGINE_API bool engineAnimationControllerSetMode(engine_animation_controller_t* controller, size_t id, engine_animation_layer_mode_t mode);
 // events
 typedef struct _engine_animation_event_info_t {

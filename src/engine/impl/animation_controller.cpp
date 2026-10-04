@@ -13,6 +13,7 @@
 
 #include <stdexcept>
 #include <format>
+#include <cmath>
 
 namespace
 {
@@ -152,8 +153,8 @@ void engine::AnimationController::update(float dt)
 
     for (auto& [_, layer] : layers_)
     {
-        const bool has_played_a = layer.animation_a.update(dt);
-        const bool has_played_b = layer.animation_b.update(dt);
+        const bool has_played_a = layer.animation_a.update(dt * layer.playback_rate, layer.looping);
+        const bool has_played_b = layer.animation_b.update(dt * layer.playback_rate, layer.looping);
         // if both animation have not played then skip current layer
         if (!has_played_a && !has_played_b)
         {
@@ -287,6 +288,70 @@ bool engine::AnimationController::set_layer_weight(std::size_t id, float weight)
     return true;
 }
 
+bool engine::AnimationController::set_layer_playback_rate(std::size_t id, float playback_rate)
+{
+    if (!has_layer(id))
+    {
+        log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", id).c_str());
+        return false;
+    }
+    if (!std::isfinite(playback_rate) || playback_rate <= 0.0f)
+    {
+        log::log(log::LogLevel::eError, std::format("Animation playback rate must be finite and greater than zero, got: {}\n", playback_rate).c_str());
+        return false;
+    }
+
+    layers_.at(id).playback_rate = playback_rate;
+    return true;
+}
+
+bool engine::AnimationController::set_layer_looping(std::size_t id, bool looping)
+{
+    if (!has_layer(id))
+    {
+        log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", id).c_str());
+        return false;
+    }
+
+    layers_.at(id).looping = looping;
+    return true;
+}
+
+bool engine::AnimationController::set_layer_joint_weight(std::size_t id, const std::string& joint_name, float weight)
+{
+    if (!has_layer(id))
+    {
+        log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", id).c_str());
+        return false;
+    }
+    if (weight < 0.0f || weight > 1.0f)
+    {
+        log::log(log::LogLevel::eError, std::format("Joint weight must be between 0 and 1, got: {}\n", weight).c_str());
+        return false;
+    }
+
+    const auto joint_index = ozz::animation::FindJoint(*skin_->skeleton_, joint_name.c_str());
+    if (joint_index < 0)
+    {
+        log::log(log::LogLevel::eError, std::format("Joint '{}' not found in skin '{}'.\n", joint_name, skin_->get_name()).c_str());
+        return false;
+    }
+
+    auto& layer = layers_.at(id);
+    if (!layer.joint_weights)
+    {
+        ozz::vector<ozz::math::SimdFloat4> weights(
+            (skin_->skeleton_->num_joints() + 3) / 4,
+            ozz::math::simd_float4::Load1(0.0f));
+        layer.joint_weights = std::move(weights);
+    }
+    ozz::animation::IterateJointsDF(
+        *skin_->skeleton_,
+        WeightSetupIterator(*layer.joint_weights, weight),
+        joint_index);
+    return true;
+}
+
 bool engine::AnimationController::set_layer_mode(std::size_t id, LayerBlendMode mode)
 {
     if (!has_layer(id))
@@ -381,6 +446,20 @@ bool engine::AnimationController::is_playing(const std::string& animation_name) 
     return false;
 }
 
+bool engine::AnimationController::is_playing(const std::string& animation_name, std::size_t layer_id) const
+{
+    const auto layer_it = layers_.find(layer_id);
+    if (layer_it == layers_.end())
+    {
+        log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", layer_id).c_str());
+        return false;
+    }
+
+    const auto& layer = layer_it->second;
+    return (layer.animation_a.is_playing() && layer.animation_a.get_name() == animation_name)
+        || (layer.animation_b.is_playing() && layer.animation_b.get_name() == animation_name);
+}
+
 float engine::AnimationController::get_duration(const std::string& animation_name) const
 {
     auto it = animations_.find(animation_name);
@@ -447,6 +526,7 @@ void engine::SamplingJob::start(const ozz::animation::Animation* anim, const Ani
     animation_ = anim;
     animation_timeline_ = timeline;
     time_ = 0.0f;
+    timeline_next_event_id_ = 0;
 }
 
 std::string engine::SamplingJob::get_name() const
@@ -455,7 +535,7 @@ std::string engine::SamplingJob::get_name() const
     return animation_->name();
 }
 
-bool engine::SamplingJob::update(float dt)
+bool engine::SamplingJob::update(float dt, bool looping)
 {
     ENGINE_PROFILE_SECTION;
     if (!is_playing())
@@ -466,25 +546,48 @@ bool engine::SamplingJob::update(float dt)
     assert(animation_timeline_ != nullptr);
     assert(dt != 0.0f);
 
-    time_ += (dt / 1000.0f); // time is in seconds
-
-    // 1. Loop over events, because we can have multiple events triggering at the same time
-    // 2. Vector of events has to be sorted!
-    for(int i = timeline_next_event_id_; i < animation_timeline_->size(); i++)
+    const float duration = animation_->duration();
+    auto fire_events = [&]()
     {
-        const auto& current_ev = animation_timeline_->at(timeline_next_event_id_);
-        if (time_ >= current_ev.ev.trigger_time)
+        while (timeline_next_event_id_ < animation_timeline_->size())
         {
-            timeline_next_event_id_++;
+            const auto& current_ev = animation_timeline_->at(timeline_next_event_id_);
+            if (time_ < current_ev.ev.trigger_time)
+            {
+                break;
+            }
+
+            ++timeline_next_event_id_;
             engine_animation_event_info_t info{};
             info.current_time = time_;
             current_ev.ev.fn_ptr(&info, current_ev.ev.user_data);
         }
-        // else - early break?
+    };
+
+    float remaining_time = dt / 1000.0f; // time is in seconds
+    if (looping)
+    {
+        while (remaining_time > 0.0f)
+        {
+            const float segment_time = std::min(remaining_time, duration - time_);
+            time_ += segment_time;
+            remaining_time -= segment_time;
+            fire_events();
+
+            if (time_ >= duration)
+            {
+                time_ = 0.0f;
+                timeline_next_event_id_ = 0;
+            }
+        }
+    }
+    else
+    {
+        time_ += remaining_time;
+        fire_events();
     }
 
-
-    const auto time_ratio = std::min(1.0f, time_ / animation_->duration());
+    const auto time_ratio = std::min(1.0f, time_ / duration);
     ozz::animation::SamplingJob sampling_job;
     sampling_job.animation = animation_;
     sampling_job.context = context_.get();

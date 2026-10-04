@@ -1851,6 +1851,16 @@ bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* 
     return typed_controller->is_playing(name);
 }
 
+bool engineAnimationControllerIsAnimationPlayingOnLayer(engine_animation_controller_t* controller, const char* name, size_t layer_id)
+{
+    if (!controller || !name)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->is_playing(name, layer_id);
+}
+
 bool engineAnimationControllerAddLayer(engine_animation_controller_t* controller, size_t id, float default_weight)
 {
     if (!controller)
@@ -1879,6 +1889,36 @@ bool engineAnimationControllerLayerSetWeight(engine_animation_controller_t* cont
     }
     auto typed_controller = api_cast(controller);
     return typed_controller->set_layer_weight(id, new_weight);
+}
+
+bool engineAnimationControllerLayerSetPlaybackRate(engine_animation_controller_t* controller, size_t id, float playback_rate)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->set_layer_playback_rate(id, playback_rate);
+}
+
+bool engineAnimationControllerLayerSetLooping(engine_animation_controller_t* controller, size_t id, bool looping)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->set_layer_looping(id, looping);
+}
+
+bool engineAnimationControllerLayerSetJointWeight(engine_animation_controller_t* controller, size_t id, const char* joint_name, float weight)
+{
+    if (!controller || !joint_name)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->set_layer_joint_weight(id, joint_name, weight);
 }
 
 bool engineAnimationControllerSetMode(engine_animation_controller_t* controller, size_t id, engine_animation_layer_mode_t mode)
