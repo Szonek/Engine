@@ -62,6 +62,8 @@ public:
     ApplicationEditor(ApplicationEditor&&) = delete;
     ApplicationEditor& operator=(ApplicationEditor&&) = delete;
     ~ApplicationEditor();
+    bool is_playing() const { return is_playing_; }
+    bool is_game_view() const;
 
 protected:
     void on_frame_begine(const engine_application_frame_begine_info_t& frame_begin_info) override;
@@ -143,6 +145,8 @@ private:
     EditorView editor_view_ = EditorView::eGame;
     EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;
+    bool is_playing_ = false;
+    float frame_delta_time_ = 0.0f;
     CommandManager commands_;
     std::shared_ptr<OutlineFeature> outline_feature_;
     bool render_imgui_ = true;

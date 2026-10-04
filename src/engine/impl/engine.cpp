@@ -289,6 +289,26 @@ bool engineEditorIsEnabled()
     return dynamic_cast<engine::ApplicationEditor*>(api_cast(G_ACTIVE_APP)) != nullptr;
 }
 
+bool engineEditorIsPlaying()
+{
+    if (!G_ACTIVE_APP)
+    {
+        return true;
+    }
+    const auto editor = dynamic_cast<engine::ApplicationEditor*>(api_cast(G_ACTIVE_APP));
+    return editor ? editor->is_playing() : true;
+}
+
+bool engineEditorIsGameView()
+{
+    if (!G_ACTIVE_APP)
+    {
+        return true;
+    }
+    const auto editor = dynamic_cast<engine::ApplicationEditor*>(api_cast(G_ACTIVE_APP));
+    return editor ? editor->is_game_view() : true;
+}
+
 void engineApplicationDestroy(engine_application_t handle)
 {
 	auto* app = api_cast(handle);

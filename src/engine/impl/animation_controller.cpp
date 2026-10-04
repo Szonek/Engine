@@ -144,6 +144,11 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
 void engine::AnimationController::update(float dt)
 {
     ENGINE_PROFILE_SECTION;
+    if (dt == 0.0f)
+    {
+        return;
+    }
+    assert(dt > 0.0f);
     if (paused_)
     {
         return;

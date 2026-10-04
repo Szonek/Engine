@@ -5,7 +5,14 @@
 	<link type="text/rcss" href="project_c_gameplay_ui.rcss"/>
 </head>
 <body>
-	<div data-model="DataModel_Main_UI">	
+	<div data-model="DataModel_Main_UI">
+		<div id="player_hud" class="player_hud">
+			<div>Health</div>
+			<progress class="player_healthbar" data-attr-max="player_max_health" data-attr-value="player_health"></progress>
+			<div class="controls">WASD move | RMB attack | SPACE dodge</div>
+		</div>
+		<div id="encounter_status" class="encounter_status">{{encounter_status}}</div>
+
 		<div data-for="itm_go, idx : items_go">
 			<div class="item_on_ground" 
 				data-event-click="equip(itm_go)"

@@ -152,14 +152,16 @@ engine_result_code_t engine::IScene::update(float dt)
     }
     scripts_register_queue_.clear();
 
-    update_hook_begin();
+    const bool gameplay_paused = !engineEditorIsPlaying();
+    if (!gameplay_paused)
+    {
+        update_hook_begin();
+        propagate_collisions_events(scripts_);
+        update_scripts(scripts_, dt);
+        late_update_scripts(scripts_, dt);
+    }
 
-    propagate_collisions_events(scripts_);
-
-    update_scripts(scripts_, dt);
-    late_update_scripts(scripts_, dt);
-
-    if (engineFrameSceneUpdate(dt) != ENGINE_RESULT_CODE_OK)
+    if (engineFrameSceneUpdate(gameplay_paused ? 0.0f : dt) != ENGINE_RESULT_CODE_OK)
     {
         log(fmt::format("Scene update failed. Exiting.\n"));
         return ENGINE_RESULT_CODE_FAIL;
@@ -174,7 +176,10 @@ engine_result_code_t engine::IScene::update(float dt)
         }
     }
 
-    update_hook_end();
+    if (!gameplay_paused)
+    {
+        update_hook_end();
+    }
 
     for (auto& srq : scripts_unregister_queue_)
     {
@@ -184,4 +189,3 @@ engine_result_code_t engine::IScene::update(float dt)
 
     return ENGINE_RESULT_CODE_OK;
 }
-

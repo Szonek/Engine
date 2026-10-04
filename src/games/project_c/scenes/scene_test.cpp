@@ -57,6 +57,7 @@ public:
             const auto offset_x = std::uniform_real_distribution<float>(area.x_min, area.x_max)(rng_);
             const auto offset_y = std::uniform_real_distribution<float>(area.x_min, area.x_max)(rng_);
             scene.register_script<project_c::Enemy>(app.instantiate_prefab(pack.types[enemy_idx], &scene), &nav_mesh, world_pos.x + offset_x, world_pos.z + offset_y);
+            static_cast<project_c::TestScene&>(scene).on_enemy_spawned();
         }
     }
 
@@ -118,6 +119,7 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
                             x_offset_snap -= 0.5f;
                         }
                     }
+
                     else if (c == '-')
                     {
                         // add offset to snap to the grid
@@ -418,10 +420,36 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     : IScene(app)
 {
     auto camera_script = register_script<CameraScript>();
+    gameplay_started_ = !app->is_editor_enabled();
+    gameplay_ui_visible_ = engineEditorIsGameView();
+    ui_data_.encounter_status = engineStringCreate(
+        gameplay_started_ ? "Defeat all enemies. WASD move, RMB attack, SPACE dodge." : "Paused. Click Play in the editor toolbar to start.");
+    assert(ui_data_.encounter_status);
 
     std::vector<engine_ui_document_data_binding_t> bindings {};
     register_ui_item_bindings(bindings, ui_data_, this);
     register_ui_enemy_bindings(bindings, ui_data_);
+    {
+        engine_ui_document_data_binding_t binding{};
+        binding.name = "player_health";
+        binding.data_uint32_t = &ui_data_.player_health;
+        binding.type = ENGINE_UI_DATA_TYPE_UINT32;
+        bindings.push_back(binding);
+    }
+    {
+        engine_ui_document_data_binding_t binding{};
+        binding.name = "player_max_health";
+        binding.data_uint32_t = &ui_data_.player_max_health;
+        binding.type = ENGINE_UI_DATA_TYPE_UINT32;
+        bindings.push_back(binding);
+    }
+    {
+        engine_ui_document_data_binding_t binding{};
+        binding.name = "encounter_status";
+        binding.data_string = ui_data_.encounter_status;
+        binding.type = ENGINE_UI_DATA_TYPE_STRING;
+        bindings.push_back(binding);
+    }
 
     engineUiDocumentCreateDataHandle("DataModel_Main_UI", bindings.data(), bindings.size(), &ui_data_.handle_main_ui);
 
@@ -429,7 +457,26 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     engineUiDocumentCreateFromFile("project_c_gameplay_ui.rml", &ui_data_.doc);
     if (ui_data_.doc)
     {
-        engineUiDocumentShow(ui_data_.doc);
+        gameplay_ui_visible_ ? engineUiDocumentShow(ui_data_.doc) : engineUiDocumentHide(ui_data_.doc);
+        if (app->is_editor_enabled())
+        {
+            engine_ui_element_t player_hud{};
+            const auto player_hud_found = engineUiDocumentGetElementById(ui_data_.doc, "player_hud", &player_hud);
+            const auto player_hud_left_set = player_hud_found == ENGINE_RESULT_CODE_OK
+                && engineUiElementSetProperty(player_hud, "left", "22%") == ENGINE_RESULT_CODE_OK;
+            const auto player_hud_top_set = player_hud_found == ENGINE_RESULT_CODE_OK
+                && engineUiElementSetProperty(player_hud, "top", "65%") == ENGINE_RESULT_CODE_OK;
+
+            engine_ui_element_t encounter_status{};
+            const auto encounter_status_found = engineUiDocumentGetElementById(ui_data_.doc, "encounter_status", &encounter_status);
+            const auto encounter_status_top_set = encounter_status_found == ENGINE_RESULT_CODE_OK
+                && engineUiElementSetProperty(encounter_status, "top", "18%") == ENGINE_RESULT_CODE_OK;
+
+            if (!player_hud_left_set || !player_hud_top_set || !encounter_status_top_set)
+            {
+                engineLog("Failed to position gameplay UI inside the editor scene viewport.\n");
+            }
+        }
     }
 
     //const std::string scene_str =
@@ -463,6 +510,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     register_script<MainLight>();
     auto typed_app = static_cast<AppProjectC*>(app);
     generate_scene(scene_str, nav_mesh_, *typed_app, *this);
+    camera_script->snap_to_player();
 
 }
 
@@ -472,12 +520,17 @@ project_c::TestScene::~TestScene()
     scripts_.clear();
     engineUiDataHandleDestroy(ui_data_.handle_main_ui);
     engineUiDocumentDestroy(ui_data_.doc);
+    engineStringDestroy(ui_data_.encounter_status);
 }
 
 void project_c::TestScene::update_hook_begin()
 {
-    //engineUiDataHandleDirtyVariable(ui_data_.handle_test, "character_health");
-    //engineUiDataHandleDirtyVariable(ui_data_.handle_test, "enemy_health");
+    if (!gameplay_started_ && engineEditorIsPlaying())
+    {
+        gameplay_started_ = true;
+        engineStringSet(ui_data_.encounter_status, "Defeat all enemies. WASD move, RMB attack, SPACE dodge.");
+        engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "encounter_status");
+    }
 }
 
 void project_c::TestScene::ui_update_item_on_ground(const project_c::Weapon* sw)
@@ -624,5 +677,59 @@ void project_c::TestScene::ui_remove_enemy(const Enemy* en)
 
             return;
         }
+    }
+}
+
+void project_c::TestScene::ui_update_player_health(std::uint32_t health)
+{
+    ui_data_.player_health = health;
+    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "player_health");
+}
+
+void project_c::TestScene::on_enemy_spawned()
+{
+    ++remaining_enemies_;
+}
+
+void project_c::TestScene::on_enemy_defeated()
+{
+    if (remaining_enemies_ > 0)
+    {
+        --remaining_enemies_;
+    }
+    if (remaining_enemies_ == 0 && !encounter_over_)
+    {
+        encounter_over_ = true;
+        engineStringSet(ui_data_.encounter_status, "Encounter clear! Press R to restart.");
+        engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "encounter_status");
+    }
+}
+
+void project_c::TestScene::on_player_died()
+{
+    if (encounter_over_)
+    {
+        return;
+    }
+    encounter_over_ = true;
+    engineStringSet(ui_data_.encounter_status, "You were defeated. Press R to restart.");
+    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "encounter_status");
+}
+
+void project_c::TestScene::set_gameplay_ui_visible(bool visible)
+{
+    if (gameplay_ui_visible_ == visible || !ui_data_.doc)
+    {
+        return;
+    }
+
+    gameplay_ui_visible_ = visible;
+    if (visible)
+    {
+        engineUiDocumentShow(ui_data_.doc);
+    }
+    else
+    {
+        engineUiDocumentHide(ui_data_.doc);
     }
 }

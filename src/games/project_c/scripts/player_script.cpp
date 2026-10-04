@@ -36,6 +36,11 @@ constexpr float PLAYER_IDLE_SPEED_THRESHOLD = 0.05f;
 constexpr float HIT_STOP_DURATION_SECONDS = 0.06f;
 constexpr float HIT_CAMERA_SHAKE_INTENSITY = 0.035f;
 constexpr float HIT_CAMERA_SHAKE_DURATION_SECONDS = 0.08f;
+constexpr float DODGE_INVULNERABILITY_SECONDS = 0.20f;
+constexpr float DODGE_COOLDOWN_SECONDS = 0.65f;
+constexpr float DODGE_SPEED = 4.0f;
+constexpr float PLAYER_HIT_STUN_SECONDS = 0.32f;
+constexpr float PLAYER_KNOCKBACK_SPEED = 2.5f;
 
 void attack_window_open_callback(const engine_animation_event_info_t* info, void* user_data)
 {
@@ -358,6 +363,12 @@ void project_c::Player::update(float dt)
         {
             state_ &= ~state;
         };
+    if (check_state_bit(States::DEAD))
+    {
+        return;
+    }
+    dodge_cooldown_remaining_seconds_ = std::max(0.0f, dodge_cooldown_remaining_seconds_ - dt / 1000.0f);
+
     auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
     if (hit_stop_remaining_seconds_ > 0.0f)
     {
@@ -395,7 +406,10 @@ void project_c::Player::update(float dt)
     const auto rmb = engineMouseIsButtonDown(ENGINE_MOUSE_BUTTON_RIGHT);
     const bool attack_pressed = rmb && !attack_input_was_down_;
     attack_input_was_down_ = rmb;
-    if (weapon_ && attack_pressed)
+    const auto space_down = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_SPACE);
+    const bool dodge_pressed = space_down && !dodge_input_was_down_;
+    dodge_input_was_down_ = space_down;
+    if (weapon_ && attack_pressed && !dodge_pressed && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
     {
         if (!check_state_bit(States::ATTACK))
         {
@@ -449,33 +463,68 @@ void project_c::Player::update(float dt)
         move_input = glm::normalize(move_input);
     }
 
-    const float target_speed = PLAYER_RUN_SPEED;
-    const glm::vec2 target_velocity = move_input * target_speed;
-    const glm::vec2 velocity_delta = target_velocity - movement_velocity_;
-    const float max_velocity_change = (glm::length(move_input) > 0.0f ? PLAYER_MOVEMENT_ACCELERATION : PLAYER_MOVEMENT_BRAKING) * (dt / 1000.0f);
-    const float velocity_delta_length = glm::length(velocity_delta);
-    if (velocity_delta_length > max_velocity_change && velocity_delta_length > 0.0f)
+    if (dodge_pressed
+        && dodge_cooldown_remaining_seconds_ <= 0.0f
+        && hit_stun_remaining_seconds_ <= 0.0f
+        && !check_state_bit(States::ATTACK))
     {
-        movement_velocity_ += velocity_delta * (max_velocity_change / velocity_delta_length);
-    }
-    else
-    {
-        movement_velocity_ = target_velocity;
-    }
-
-    float movement_speed = glm::length(movement_velocity_);
-    if (movement_speed < PLAYER_IDLE_SPEED_THRESHOLD && glm::length(move_input) == 0.0f)
-    {
-        movement_velocity_ = glm::vec2(0.0f);
-        movement_speed = 0.0f;
+        start_dodge(animation_controller, move_input, rotation);
     }
 
     auto movement_transform = engineGameObjectGetTransformComponent(go_);
-    movement_transform.position[0] += movement_velocity_.x * (dt / 1000.0f);
-    movement_transform.position[2] += movement_velocity_.y * (dt / 1000.0f);
+    const float delta_seconds = dt / 1000.0f;
+    bool dodging_this_frame = dodge_remaining_seconds_ > 0.0f;
+    float movement_speed = 0.0f;
+    if (dodging_this_frame)
+    {
+        movement_velocity_ = glm::vec2(0.0f);
+        movement_transform.position[0] += dodge_direction_.x * DODGE_SPEED * delta_seconds;
+        movement_transform.position[2] += dodge_direction_.z * DODGE_SPEED * delta_seconds;
+        dodge_remaining_seconds_ = std::max(0.0f, dodge_remaining_seconds_ - delta_seconds);
+        dodge_invulnerability_remaining_seconds_ = std::max(0.0f, dodge_invulnerability_remaining_seconds_ - delta_seconds);
+        if (dodge_remaining_seconds_ <= 0.0f)
+        {
+            const bool locomotion_loops = engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, true);
+            const bool combat_layer_restored = engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 1.0f);
+            assert(locomotion_loops && combat_layer_restored);
+        }
+    }
+    else if (hit_stun_remaining_seconds_ > 0.0f)
+    {
+        movement_velocity_ = glm::vec2(0.0f);
+        movement_transform.position[0] += knockback_velocity_.x * delta_seconds;
+        movement_transform.position[2] += knockback_velocity_.z * delta_seconds;
+        knockback_velocity_ *= std::exp(-10.0f * delta_seconds);
+        hit_stun_remaining_seconds_ = std::max(0.0f, hit_stun_remaining_seconds_ - delta_seconds);
+    }
+    else
+    {
+        const float target_speed = PLAYER_RUN_SPEED;
+        const glm::vec2 target_velocity = move_input * target_speed;
+        const glm::vec2 velocity_delta = target_velocity - movement_velocity_;
+        const float max_velocity_change = (glm::length(move_input) > 0.0f ? PLAYER_MOVEMENT_ACCELERATION : PLAYER_MOVEMENT_BRAKING) * delta_seconds;
+        const float velocity_delta_length = glm::length(velocity_delta);
+        if (velocity_delta_length > max_velocity_change && velocity_delta_length > 0.0f)
+        {
+            movement_velocity_ += velocity_delta * (max_velocity_change / velocity_delta_length);
+        }
+        else
+        {
+            movement_velocity_ = target_velocity;
+        }
+
+        movement_speed = glm::length(movement_velocity_);
+        if (movement_speed < PLAYER_IDLE_SPEED_THRESHOLD && glm::length(move_input) == 0.0f)
+        {
+            movement_velocity_ = glm::vec2(0.0f);
+            movement_speed = 0.0f;
+        }
+        movement_transform.position[0] += movement_velocity_.x * delta_seconds;
+        movement_transform.position[2] += movement_velocity_.y * delta_seconds;
+    }
     engineGameObjectUpdateTransformComponent(go_, &movement_transform);
 
-    if (movement_speed > PLAYER_IDLE_SPEED_THRESHOLD)
+    if (!dodging_this_frame && movement_speed > PLAYER_IDLE_SPEED_THRESHOLD)
     {
         const glm::vec3 move_direction(movement_velocity_.x / movement_speed, 0.0f, movement_velocity_.y / movement_speed);
         const glm::vec3 character_forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
@@ -488,7 +537,7 @@ void project_c::Player::update(float dt)
         {
             animation_direction = forward_dot > 0.0f ? MoveStateData::Direction::eForward : MoveStateData::Direction::eBackward;
         }
-        else
+        else if (!dodging_this_frame)
         {
             animation_direction = right_dot > 0.0f ? MoveStateData::Direction::eRight : MoveStateData::Direction::eLeft;
         }
@@ -569,7 +618,7 @@ void project_c::Player::update(float dt)
         }
     }
 
-    if (attack_phase_ != AttackPhase::eActive)
+    if (attack_phase_ != AttackPhase::eActive && !dodging_this_frame && hit_stun_remaining_seconds_ <= 0.0f)
     {
         auto facing_transform = engineGameObjectGetTransformComponent(go_);
         const glm::vec3 origin(facing_transform.position[0], facing_transform.position[1], facing_transform.position[2]);
@@ -604,6 +653,10 @@ bool project_c::Player::equip_waepon(Weapon* sword)
 
 void project_c::Player::on_confirmed_attack_hit(float hit_stop_seconds)
 {
+    if ((state_ & States::DEAD) != 0)
+    {
+        return;
+    }
     hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, hit_stop_seconds);
     hit_stop_just_started_ = true;
     const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
@@ -619,6 +672,79 @@ void project_c::Player::on_confirmed_attack_hit(float hit_stop_seconds)
             HIT_CAMERA_SHAKE_INTENSITY,
             HIT_CAMERA_SHAKE_DURATION_SECONDS);
     }
+}
+
+bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& source_position)
+{
+    if (hp_ == 0 || dodge_invulnerability_remaining_seconds_ > 0.0f)
+    {
+        return false;
+    }
+
+    hp_ = damage >= hp_ ? 0 : hp_ - damage;
+    auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
+    typed_scene->ui_update_player_health(hp_);
+
+    auto player_transform = engineGameObjectGetTransformComponent(go_);
+    glm::vec3 knockback_direction(
+        player_transform.position[0] - source_position.x,
+        0.0f,
+        player_transform.position[2] - source_position.z);
+    if (glm::dot(knockback_direction, knockback_direction) <= 0.0001f)
+    {
+        knockback_direction = glm::make_quat(player_transform.rotation) * glm::vec3(0.0f, 0.0f, 1.0f);
+    }
+    knockback_velocity_ = glm::normalize(knockback_direction) * PLAYER_KNOCKBACK_SPEED;
+
+    const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    if (hp_ == 0)
+    {
+        state_ |= States::DEAD;
+        movement_velocity_ = glm::vec2(0.0f);
+        knockback_velocity_ = glm::vec3(0.0f);
+        attack_trigger_->deactivate();
+        if (!engineAnimationControllerSetPaused(animation_controller, false))
+        {
+            engineLog("Failed to resume player animation before death.\n");
+        }
+        const bool combat_layer_hidden = engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 0.0f);
+        const bool locomotion_stopped_looping = engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, false);
+        assert(combat_layer_hidden && locomotion_stopped_looping);
+        if (!engineAnimationControllerAnimationPlay(animation_controller, "Death_A", LOCOMOTION_LAYER_ID))
+        {
+            engineLog("Failed to play player death animation.\n");
+        }
+        typed_scene->on_player_died();
+    }
+    else
+    {
+        if ((state_ & States::ATTACK) != 0)
+        {
+            state_ &= ~States::ATTACK;
+            attack_phase_ = AttackPhase::eIdle;
+            attack_buffered_ = false;
+            attack_trigger_->deactivate();
+            if (!engineAnimationControllerAnimationCrossFade(animation_controller, "Unarmed_Idle", COMBAT_LAYER_ID, 0.08f))
+            {
+                engineLog("Failed to interrupt player attack after taking damage.\n");
+            }
+        }
+
+        hit_stun_remaining_seconds_ = PLAYER_HIT_STUN_SECONDS;
+        hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, 0.04f);
+        hit_stop_just_started_ = true;
+        if (!engineAnimationControllerSetPaused(animation_controller, true))
+        {
+            engineLog("Failed to pause player animation after taking damage.\n");
+        }
+    }
+
+    const auto cameras = utils::get_active_camera_game_objects();
+    if (!cameras.empty())
+    {
+        my_scene_->get_script<CameraScript>(cameras.front())->shake(0.05f, 0.12f);
+    }
+    return true;
 }
 
 void project_c::Player::add_coin(std::uint64_t amount)
@@ -716,5 +842,53 @@ bool project_c::Player::start_attack(engine_animation_controller_t* animation_co
     attack_buffered_ = false;
     state_ |= States::ATTACK;
     combat_layer_has_pose_ = true;
+    return true;
+}
+
+bool project_c::Player::start_dodge(engine_animation_controller_t* animation_controller, const glm::vec2& move_input, const glm::quat& rotation)
+{
+    glm::vec3 world_direction(move_input.x, 0.0f, move_input.y);
+    if (glm::dot(world_direction, world_direction) <= 0.0001f)
+    {
+        world_direction = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
+    }
+    world_direction = glm::normalize(world_direction);
+
+    const glm::vec3 local_direction = glm::inverse(rotation) * world_direction;
+    const char* animation_name = "Dodge_Forward";
+    if (std::abs(local_direction.z) >= std::abs(local_direction.x))
+    {
+        animation_name = local_direction.z >= 0.0f ? "Dodge_Forward" : "Dodge_Backward";
+    }
+    else
+    {
+        animation_name = local_direction.x >= 0.0f ? "Dodge_Right" : "Dodge_Left";
+    }
+
+    float duration = 0.0f;
+    engineAnimationControllerAnimationGetDuration(animation_controller, animation_name, &duration);
+    if (duration <= 0.0f)
+    {
+        engineLog(std::format("Dodge animation '{}' has no valid duration.\n", animation_name).c_str());
+        return false;
+    }
+
+    const bool locomotion_stopped_looping = engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, false);
+    const bool locomotion_rate_reset = engineAnimationControllerLayerSetPlaybackRate(animation_controller, LOCOMOTION_LAYER_ID, 1.0f);
+    const bool combat_layer_hidden = engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 0.0f);
+    if (!locomotion_stopped_looping || !locomotion_rate_reset || !combat_layer_hidden
+        || !engineAnimationControllerAnimationCrossFade(animation_controller, animation_name, LOCOMOTION_LAYER_ID, 0.05f))
+    {
+        engineLog("Failed to start player dodge.\n");
+        engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, true);
+        engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 1.0f);
+        return false;
+    }
+
+    dodge_direction_ = world_direction;
+    dodge_remaining_seconds_ = duration;
+    dodge_invulnerability_remaining_seconds_ = std::min(DODGE_INVULNERABILITY_SECONDS, duration);
+    dodge_cooldown_remaining_seconds_ = DODGE_COOLDOWN_SECONDS;
+    movement_velocity_ = glm::vec2(0.0f);
     return true;
 }

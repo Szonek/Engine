@@ -17,6 +17,27 @@
 
 #include <algorithm>
 
+namespace
+{
+constexpr float ENEMY_ATTACK_ACTIVE_START = 0.30f;
+constexpr float ENEMY_ATTACK_ACTIVE_END = 0.62f;
+constexpr float ENEMY_ATTACK_RANGE = 1.15f;
+constexpr float ENEMY_ATTACK_COOLDOWN_SECONDS = 0.8f;
+constexpr std::uint32_t ENEMY_ATTACK_DAMAGE = 12;
+
+void enemy_attack_window_open_callback(const engine_animation_event_info_t* info, void* user_data)
+{
+    assert(info && user_data);
+    static_cast<project_c::Enemy*>(user_data)->set_attack_window_active(true);
+}
+
+void enemy_attack_window_close_callback(const engine_animation_event_info_t* info, void* user_data)
+{
+    assert(info && user_data);
+    static_cast<project_c::Enemy*>(user_data)->set_attack_window_active(false);
+}
+} // namespace
+
 project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const NavMesh* nav_mesh, float offset_x, float offset_z)
     : BaseNode(my_scene, pr, "enemy")
     , state_(States::DECISION_MAKE)
@@ -53,6 +74,40 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     auto rbc = engineGameObjectAddRigidBodyComponent(go_);
     rbc.mass = 100000.0f;
     engineGameObjectUpdateRigidBodyComponent(go_, &rbc);
+
+    const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    for (const auto* animation_name : { "1H_Melee_Attack_Slice_Diagonal", "1H_Melee_Attack_Slice_Horizontal" })
+    {
+        float duration = 0.0f;
+        engineAnimationControllerAnimationGetDuration(animation_controller, animation_name, &duration);
+        if (duration <= 0.0f)
+        {
+            engineLog("Enemy attack animation has no valid duration.\n");
+            continue;
+        }
+
+        engine_animation_event_t open_event{};
+        open_event.trigger_time = ENEMY_ATTACK_ACTIVE_START * duration;
+        open_event.user_data = this;
+        open_event.fn_ptr = enemy_attack_window_open_callback;
+        engine_animation_event_id_t event_id = ENGINE_INVALID_OBJECT_HANDLE;
+        if (engineAnimationControllerAnimationAddEvent(animation_controller, animation_name, open_event, &event_id) != ENGINE_RESULT_CODE_OK
+            || event_id == ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            engineLog("Failed to add enemy attack opening event.\n");
+        }
+
+        engine_animation_event_t close_event{};
+        close_event.trigger_time = ENEMY_ATTACK_ACTIVE_END * duration;
+        close_event.user_data = this;
+        close_event.fn_ptr = enemy_attack_window_close_callback;
+        event_id = ENGINE_INVALID_OBJECT_HANDLE;
+        if (engineAnimationControllerAnimationAddEvent(animation_controller, animation_name, close_event, &event_id) != ENGINE_RESULT_CODE_OK
+            || event_id == ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            engineLog("Failed to add enemy attack closing event.\n");
+        }
+    }
 }
 
 project_c::Enemy::~Enemy()
@@ -96,9 +151,16 @@ void project_c::Enemy::update(float dt)
         update_hit_flash(hit_flash_remaining_seconds_ / 0.12f);
     }
 
+    attack_cooldown_remaining_seconds_ = std::max(0.0f, attack_cooldown_remaining_seconds_ - dt / 1000.0f);
+
     if (player_go_ == ENGINE_INVALID_GAME_OBJECT_ID)
     {
-        player_go_ = utils::get_game_objects_with_name("player")[0];
+        const auto player_game_objects = utils::get_game_objects_with_name("player");
+        if (player_game_objects.empty())
+        {
+            return;
+        }
+        player_go_ = player_game_objects.front();
     }
 
     for (auto& s : debug_scripts_)
@@ -122,12 +184,26 @@ void project_c::Enemy::update(float dt)
             return NavMeshPathFinder::find_path(*nav_mesh_, my_node_idx, player_node_idx);
         }();
 
+    auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
     if (hp <= 0 && state_ != States::DIE)
     {
         state_ = States::DIE;
-        engineAnimationControllerAnimationPlay(animation_controller, "Death_A", 0);
+        attack_window_active_ = false;
+        if (!engineAnimationControllerLayerSetLooping(animation_controller, 0, false))
+        {
+            engineLog("Failed to disable looping for enemy death.\n");
+        }
+        if (!engineAnimationControllerAnimationPlay(animation_controller, "Death_A", 0))
+        {
+            engineLog("Failed to play enemy death animation.\n");
+        }
         // remove collider so enemy will not be hit by players attacks
         engineGameObjectRemoveColliderComponent(go_);
+        if (!defeat_reported_)
+        {
+            typed_scene->on_enemy_defeated();
+            defeat_reported_ = true;
+        }
         if (reinterpret_cast<AppProjectC*>(my_scene_->get_app())->is_prefab_available(project_c::PrefabType::PREFAB_TYPE_COIN_GOLD))
         {
             auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD, my_scene_).go);
@@ -135,17 +211,37 @@ void project_c::Enemy::update(float dt)
         }
     }
 
+    if (typed_scene->is_encounter_over() && state_ != States::DIE)
+    {
+        return;
+    }
+
     switch (state_)
     {
     case States::DECISION_MAKE:
     {
-        if (path.nodes.size() == 0 && distance_to_player < 0.8f)
+        if (distance_to_player <= ENEMY_ATTACK_RANGE && attack_cooldown_remaining_seconds_ <= 0.0f)
         {
             state_ = States::ATTACK;
+            attack_has_hit_player_ = false;
+            attack_window_active_ = false;
+            if (!engineAnimationControllerLayerSetLooping(animation_controller, 0, false))
+            {
+                engineLog("Failed to disable looping for enemy attack.\n");
+            }
             if (!engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name()))
             {
-                engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name(), 0);
+                if (!engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name(), 0))
+                {
+                    engineLog("Failed to start enemy attack animation.\n");
+                    state_ = States::DECISION_MAKE;
+                    attack_cooldown_remaining_seconds_ = ENEMY_ATTACK_COOLDOWN_SECONDS;
+                }
             }
+        }
+        else if (distance_to_player <= ENEMY_ATTACK_RANGE)
+        {
+            state_ = States::IDLE;
         }
         else if (path.nodes.size() >= 1 && path.nodes.size() < 3)
         {
@@ -159,6 +255,10 @@ void project_c::Enemy::update(float dt)
     }
     case States::IDLE:
     {
+        if (!engineAnimationControllerLayerSetLooping(animation_controller, 0, true))
+        {
+            engineLog("Failed to enable looping for enemy idle.\n");
+        }
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Idle"))
         {
             engineAnimationControllerAnimationPlay(animation_controller, "Idle", 0);
@@ -171,6 +271,8 @@ void project_c::Enemy::update(float dt)
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name()))
         {
             state_ = States::DECISION_MAKE;
+            attack_window_active_ = false;
+            attack_cooldown_remaining_seconds_ = ENEMY_ATTACK_COOLDOWN_SECONDS;
             attack_data_.attack_with_right = !attack_data_.attack_with_right;
         }
 
@@ -178,6 +280,26 @@ void project_c::Enemy::update(float dt)
         quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
         std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
         engineGameObjectUpdateTransformComponent(go_, &tc);
+
+        if (attack_window_active_ && !attack_has_hit_player_)
+        {
+            const glm::vec3 enemy_position(tc.position[0], tc.position[1], tc.position[2]);
+            const glm::vec3 player_position(ec.position[0], ec.position[1], ec.position[2]);
+            glm::vec3 direction_to_player = player_position - enemy_position;
+            direction_to_player.y = 0.0f;
+            const float distance_squared = glm::dot(direction_to_player, direction_to_player);
+            const glm::vec3 forward = glm::normalize(glm::make_quat(tc.rotation) * glm::vec3(0.0f, 0.0f, 1.0f));
+            if (distance_squared <= ENEMY_ATTACK_RANGE * ENEMY_ATTACK_RANGE
+                && distance_squared > 0.0001f
+                && glm::dot(forward, glm::normalize(direction_to_player)) > 0.15f)
+            {
+                attack_has_hit_player_ = true;
+                if (auto* player = my_scene_->get_script<project_c::Player>(player_go_))
+                {
+                    player->receive_damage(ENEMY_ATTACK_DAMAGE, enemy_position);
+                }
+            }
+        }
         break;
     }
     case States::DIE:
@@ -196,6 +318,10 @@ void project_c::Enemy::update(float dt)
         {
             state_ = States::DECISION_MAKE;
             break;
+        }
+        if (!engineAnimationControllerLayerSetLooping(animation_controller, 0, true))
+        {
+            engineLog("Failed to enable looping for enemy movement.\n");
         }
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Running_A"))
         {
@@ -227,7 +353,6 @@ void project_c::Enemy::update(float dt)
         break;
     }
     }
-    auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
     typed_scene->ui_update_enemy(this);
 }
 

@@ -88,6 +88,7 @@ void project_c::AppProjectC::run()
         std::uint32_t frames_count = 0;
     };
     fps_counter_t fps_counter{};
+    bool restart_was_down = false;
 
     while (true)
     {
@@ -114,8 +115,20 @@ void project_c::AppProjectC::run()
             fps_counter = {};
         }
 
-        auto scene = get_scene(TestScene::get_name());
+        auto* scene = static_cast<TestScene*>(get_scene(TestScene::get_name()));
         update_scenes(frame_begin.delta_time);
+        if (scene)
+        {
+            scene->set_gameplay_ui_visible(engineEditorIsGameView());
+        }
+        const bool restart_is_down = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_R);
+        if (scene && scene->is_encounter_over() && restart_is_down && !restart_was_down)
+        {
+            unregister_scene(TestScene::get_name());
+            auto* restarted_scene = register_scene<TestScene>();
+            restarted_scene->activate();
+        }
+        restart_was_down = restart_is_down;
 
         const auto frame_end = engineFrameEnd();
         if (!frame_end.success)

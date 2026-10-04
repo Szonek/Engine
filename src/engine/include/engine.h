@@ -558,6 +558,8 @@ ENGINE_API engine_result_code_t engineApplicationSetActive(engine_application_t 
 
 // editor
 ENGINE_API bool engineEditorIsEnabled();
+ENGINE_API bool engineEditorIsPlaying();
+ENGINE_API bool engineEditorIsGameView();
 
 // scene
 ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_create_desc_t desc, engine_scene_t* out);

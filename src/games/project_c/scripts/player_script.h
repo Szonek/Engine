@@ -47,7 +47,7 @@ private:
     {
         IDLE   = 0x0000,
         ATTACK = 0x0002,
-
+        DEAD   = 0x0004
     };
 
     struct GlobalStateData
@@ -91,6 +91,7 @@ public:
 
     void update(float dt);
     void on_confirmed_attack_hit(float hit_stop_seconds);
+    bool receive_damage(std::uint32_t damage, const glm::vec3& source_position);
 
     bool equip_waepon(Weapon* sword);
 
@@ -118,6 +119,14 @@ private:
     bool combat_layer_has_pose_ = false;
     float hit_stop_remaining_seconds_ = 0.0f;
     bool hit_stop_just_started_ = false;
+    std::uint32_t hp_ = 100;
+    bool dodge_input_was_down_ = false;
+    float dodge_remaining_seconds_ = 0.0f;
+    float dodge_invulnerability_remaining_seconds_ = 0.0f;
+    float dodge_cooldown_remaining_seconds_ = 0.0f;
+    float hit_stun_remaining_seconds_ = 0.0f;
+    glm::vec3 dodge_direction_{ 0.0f, 0.0f, 1.0f };
+    glm::vec3 knockback_velocity_{ 0.0f };
 
     AttackTrigger* attack_trigger_;
 
@@ -126,5 +135,6 @@ private:
     std::uint64_t coins_ = 0;
 
     bool start_attack(engine_animation_controller_t* animation_controller, std::size_t combo_index);
+    bool start_dodge(engine_animation_controller_t* animation_controller, const glm::vec2& move_input, const glm::quat& rotation);
 };
 } //namespace project_c

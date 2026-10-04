@@ -35,35 +35,51 @@ void project_c::CameraScript::late_update(float dt)
     const auto mouse_coords = engineMouseCoordsGet();
 
     const float move_speed = 1.0f * dt;
-    const auto all_players = utils::get_game_objects_with_name("player");
-    const auto character_go = all_players.size() > 0 ? all_players[0] : ENGINE_INVALID_GAME_OBJECT_ID;
-    // follow character go
-    if (character_go != ENGINE_INVALID_GAME_OBJECT_ID)
+    if (!update_follow_target())
     {
-        //first update position
-        const auto character_tc = engineGameObjectGetTransformComponent(character_go);
-        auto tc = engineGameObjectGetTransformComponent(go_);
-        tc.position[0] = character_tc.position[0];
-        tc.position[1] = character_tc.position[1] + 6.5f;
-        tc.position[2] = character_tc.position[2] + 4.5f;
-        // update target to point to character go position
-        auto camera_comp = engineGameObjectGetCameraComponent(go_);
-        camera_comp.target[0] = character_tc.position[0];
-        camera_comp.target[1] = character_tc.position[1];
-        camera_comp.target[2] = character_tc.position[2];
-        engineGameObjectUpdateCameraComponent(go_, &camera_comp);
+        return;
+    }
 
-        if (shake_remaining_seconds_ > 0.0f)
-        {
-            const float dt_seconds = dt / 1000.0f;
-            shake_elapsed_seconds_ += dt_seconds;
-            shake_remaining_seconds_ = std::max(0.0f, shake_remaining_seconds_ - dt_seconds);
-            const float fade = shake_remaining_seconds_ / shake_duration_seconds_;
-            tc.position[0] += std::sin(shake_elapsed_seconds_ * 83.0f) * shake_intensity_ * fade;
-            tc.position[1] += std::sin(shake_elapsed_seconds_ * 117.0f) * shake_intensity_ * 0.55f * fade;
-        }
+    if (shake_remaining_seconds_ > 0.0f)
+    {
+        const float dt_seconds = dt / 1000.0f;
+        shake_elapsed_seconds_ += dt_seconds;
+        shake_remaining_seconds_ = std::max(0.0f, shake_remaining_seconds_ - dt_seconds);
+        const float fade = shake_remaining_seconds_ / shake_duration_seconds_;
+        auto tc = engineGameObjectGetTransformComponent(go_);
+        tc.position[0] += std::sin(shake_elapsed_seconds_ * 83.0f) * shake_intensity_ * fade;
+        tc.position[1] += std::sin(shake_elapsed_seconds_ * 117.0f) * shake_intensity_ * 0.55f * fade;
         engineGameObjectUpdateTransformComponent(go_, &tc);
     }
+}
+
+void project_c::CameraScript::snap_to_player()
+{
+    update_follow_target();
+}
+
+bool project_c::CameraScript::update_follow_target()
+{
+    const auto all_players = utils::get_game_objects_with_name("player");
+    const auto character_go = all_players.size() > 0 ? all_players[0] : ENGINE_INVALID_GAME_OBJECT_ID;
+    if (character_go == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        return false;
+    }
+
+    const auto character_tc = engineGameObjectGetTransformComponent(character_go);
+    auto camera_tc = engineGameObjectGetTransformComponent(go_);
+    camera_tc.position[0] = character_tc.position[0];
+    camera_tc.position[1] = character_tc.position[1] + 6.5f;
+    camera_tc.position[2] = character_tc.position[2] + 4.5f;
+
+    auto camera_comp = engineGameObjectGetCameraComponent(go_);
+    camera_comp.target[0] = character_tc.position[0];
+    camera_comp.target[1] = character_tc.position[1];
+    camera_comp.target[2] = character_tc.position[2];
+    engineGameObjectUpdateCameraComponent(go_, &camera_comp);
+    engineGameObjectUpdateTransformComponent(go_, &camera_tc);
+    return true;
 }
 
 void project_c::CameraScript::shake(float intensity, float duration_seconds)
