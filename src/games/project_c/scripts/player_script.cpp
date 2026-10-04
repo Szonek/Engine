@@ -3,6 +3,7 @@
 #include "enemy_script.h"
 #include "enviorment_script.h"
 #include "interactable_script.h"
+#include "camera_script.h"
 #include "../scenes/scene_test.h"
 
 #include "../app.h"
@@ -32,6 +33,9 @@ constexpr float PLAYER_RUN_SPEED = 2.5f;
 constexpr float PLAYER_MOVEMENT_ACCELERATION = 24.0f;
 constexpr float PLAYER_MOVEMENT_BRAKING = 30.0f;
 constexpr float PLAYER_IDLE_SPEED_THRESHOLD = 0.05f;
+constexpr float HIT_STOP_DURATION_SECONDS = 0.06f;
+constexpr float HIT_CAMERA_SHAKE_INTENSITY = 0.035f;
+constexpr float HIT_CAMERA_SHAKE_DURATION_SECONDS = 0.08f;
 
 void attack_window_open_callback(const engine_animation_event_info_t* info, void* user_data)
 {
@@ -197,9 +201,11 @@ void project_c::Weapon::update(float dt)
     }
 }
 
-project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_object_t go)
+project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_object_t go, Player* player)
     : BaseNode(my_scene, go, "attack-trigger")
+    , player_(player)
 {
+    assert(player_);
     // transform
     auto tc = engineGameObjectAddTransformComponent(go_);
     tc.position[0] = 0.0f;
@@ -240,7 +246,8 @@ void project_c::AttackTrigger::on_collision(const collision_t& info)
         if (auto* enemy = my_scene_->get_script<Enemy>(info.other))
         {
             hit_enemies_.insert(info.other);
-            enemy->hp -= 10;
+            enemy->receive_attack_hit(10, HIT_STOP_DURATION_SECONDS);
+            player_->on_confirmed_attack_hit(HIT_STOP_DURATION_SECONDS);
         }
     }
 }
@@ -300,7 +307,7 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     engineGameObjectDestroy(utils::get_game_objects_with_name("1H_Axe_Offhand")[0]);
 
     // add attack trigger
-    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreate());
+    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreate(), this);
 
     // set animation layers
     auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
@@ -352,6 +359,26 @@ void project_c::Player::update(float dt)
             state_ &= ~state;
         };
     auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    if (hit_stop_remaining_seconds_ > 0.0f)
+    {
+        if (hit_stop_just_started_)
+        {
+            hit_stop_just_started_ = false;
+        }
+        else
+        {
+            hit_stop_remaining_seconds_ = std::max(0.0f, hit_stop_remaining_seconds_ - dt / 1000.0f);
+        }
+
+        if (hit_stop_remaining_seconds_ > 0.0f)
+        {
+            return;
+        }
+        if (!engineAnimationControllerSetPaused(animation_controller, false))
+        {
+            engineLog("Failed to resume player animation after hit-stop.\n");
+        }
+    }
 
     // [DEBUG] reset position  ToDo: remove it later
     if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_0))
@@ -573,6 +600,25 @@ bool project_c::Player::equip_waepon(Weapon* sword)
         return true;
     }
     return false;
+}
+
+void project_c::Player::on_confirmed_attack_hit(float hit_stop_seconds)
+{
+    hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, hit_stop_seconds);
+    hit_stop_just_started_ = true;
+    const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    if (!engineAnimationControllerSetPaused(animation_controller, true))
+    {
+        engineLog("Failed to pause player animation for hit-stop.\n");
+    }
+
+    const auto cameras = utils::get_active_camera_game_objects();
+    if (!cameras.empty())
+    {
+        my_scene_->get_script<CameraScript>(cameras.front())->shake(
+            HIT_CAMERA_SHAKE_INTENSITY,
+            HIT_CAMERA_SHAKE_DURATION_SECONDS);
+    }
 }
 
 void project_c::Player::add_coin(std::uint64_t amount)

@@ -469,6 +469,7 @@ ENGINE_API const char* engineSkinGetName(const engine_skin_t* skin);
 // Animation - by default layer with 0 and weight 1.0 is created.
 ENGINE_API engine_animation_controller_t* engineCreateAnimationControllerWithSkin(engine_skin_t* skin);
 ENGINE_API void engineDestroyAnimationController(engine_animation_controller_t* controller);
+ENGINE_API bool engineAnimationControllerSetPaused(engine_animation_controller_t* controller, bool paused);
 ENGINE_API bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc);
 ENGINE_API engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_animation_controller_t* controller, const char* name, float* out);
 ENGINE_API bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name);

@@ -1793,6 +1793,15 @@ void engineDestroyAnimationController(engine_animation_controller_t* controller)
     delete typed_controller;
 }
 
+bool engineAnimationControllerSetPaused(engine_animation_controller_t* controller, bool paused)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    return api_cast(controller)->set_paused(paused);
+}
+
 bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc)
 {
     if (!controller || !desc)

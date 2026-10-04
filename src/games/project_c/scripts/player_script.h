@@ -8,10 +8,12 @@
 
 namespace project_c
 {
+class Player;
+
 class AttackTrigger : public BaseNode
 {
 public:
-    AttackTrigger(engine::IScene* my_scene, engine_game_object_t go);
+    AttackTrigger(engine::IScene* my_scene, engine_game_object_t go, Player* player);
 
     void begin_swing();
     void activate();
@@ -20,6 +22,7 @@ public:
 
 private:
     bool is_active_ = false;
+    Player* player_ = nullptr;
     std::unordered_set<engine_game_object_t> hit_enemies_;
 };
 
@@ -87,6 +90,7 @@ public:
     Player(engine::IScene* my_scene, const PrefabResult& pr);
 
     void update(float dt);
+    void on_confirmed_attack_hit(float hit_stop_seconds);
 
     bool equip_waepon(Weapon* sword);
 
@@ -112,6 +116,8 @@ private:
     bool attack_input_was_down_ = false;
     AttackPhase attack_phase_ = AttackPhase::eIdle;
     bool combat_layer_has_pose_ = false;
+    float hit_stop_remaining_seconds_ = 0.0f;
+    bool hit_stop_just_started_ = false;
 
     AttackTrigger* attack_trigger_;
 

@@ -3,6 +3,9 @@
 
 #include "iscene.h"
 
+#include <algorithm>
+#include <cmath>
+
 project_c::CameraScript::CameraScript(engine::IScene* my_scene)
     : BaseNode(my_scene, "camera")
 {
@@ -43,12 +46,38 @@ void project_c::CameraScript::late_update(float dt)
         tc.position[0] = character_tc.position[0];
         tc.position[1] = character_tc.position[1] + 6.5f;
         tc.position[2] = character_tc.position[2] + 4.5f;
-        engineGameObjectUpdateTransformComponent(go_, &tc);
         // update target to point to character go position
         auto camera_comp = engineGameObjectGetCameraComponent(go_);
         camera_comp.target[0] = character_tc.position[0];
         camera_comp.target[1] = character_tc.position[1];
         camera_comp.target[2] = character_tc.position[2];
         engineGameObjectUpdateCameraComponent(go_, &camera_comp);
+
+        if (shake_remaining_seconds_ > 0.0f)
+        {
+            const float dt_seconds = dt / 1000.0f;
+            shake_elapsed_seconds_ += dt_seconds;
+            shake_remaining_seconds_ = std::max(0.0f, shake_remaining_seconds_ - dt_seconds);
+            const float fade = shake_remaining_seconds_ / shake_duration_seconds_;
+            tc.position[0] += std::sin(shake_elapsed_seconds_ * 83.0f) * shake_intensity_ * fade;
+            tc.position[1] += std::sin(shake_elapsed_seconds_ * 117.0f) * shake_intensity_ * 0.55f * fade;
+        }
+        engineGameObjectUpdateTransformComponent(go_, &tc);
     }
+}
+
+void project_c::CameraScript::shake(float intensity, float duration_seconds)
+{
+    if (intensity <= 0.0f || duration_seconds <= 0.0f)
+    {
+        return;
+    }
+
+    if (shake_remaining_seconds_ <= 0.0f)
+    {
+        shake_elapsed_seconds_ = 0.0f;
+    }
+    shake_duration_seconds_ = std::max(shake_duration_seconds_, duration_seconds);
+    shake_remaining_seconds_ = std::max(shake_remaining_seconds_, duration_seconds);
+    shake_intensity_ = std::max(shake_intensity_, intensity);
 }

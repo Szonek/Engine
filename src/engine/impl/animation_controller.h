@@ -65,6 +65,7 @@ public:
     AnimationController(Skin* skin);
 
     void update(float dt);
+    bool set_paused(bool paused);
 
     bool add_layer(std::size_t id, float weight);
     bool remove_layer(std::size_t id);
@@ -125,6 +126,7 @@ private:
     };
 private:
     Skin* skin_ = nullptr;
+    bool paused_ = false;
     std::unordered_map<std::string, AnimationData> animations_;
 
     std::unordered_map<std::size_t, AnimationLayer> layers_;

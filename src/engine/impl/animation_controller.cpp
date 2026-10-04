@@ -144,6 +144,10 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
 void engine::AnimationController::update(float dt)
 {
     ENGINE_PROFILE_SECTION;
+    if (paused_)
+    {
+        return;
+    }
 
     ozz::vector<ozz::animation::BlendingJob::Layer> executed_layers;
     executed_layers.reserve(layers_.size());
@@ -254,6 +258,12 @@ void engine::AnimationController::update(float dt)
         log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", skin_->get_name()).c_str());
         throw std::runtime_error("Failed to convert local to model space for skin.");
     }
+}
+
+bool engine::AnimationController::set_paused(bool paused)
+{
+    paused_ = paused;
+    return true;
 }
 
 bool engine::AnimationController::add_layer(std::size_t id, float weight)

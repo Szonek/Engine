@@ -15,6 +15,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <algorithm>
 
 project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const NavMesh* nav_mesh, float offset_x, float offset_z)
     : BaseNode(my_scene, pr, "enemy")
@@ -32,6 +33,7 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     tc.scale[2] = 0.35f;
 
     engineGameObjectUpdateTransformComponent(go_, &tc);
+    collect_hit_flash_materials(go_);
 
     // physics
     auto cc = engineGameObjectAddColliderComponent(go_);
@@ -66,12 +68,38 @@ void project_c::Enemy::update(float dt)
 {
     engine::ScopedProfiler prof("project_c::Enemy::update");
 
+    auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    if (hit_stop_remaining_seconds_ > 0.0f)
+    {
+        if (hit_stop_just_started_)
+        {
+            hit_stop_just_started_ = false;
+        }
+        else
+        {
+            hit_stop_remaining_seconds_ = std::max(0.0f, hit_stop_remaining_seconds_ - dt / 1000.0f);
+        }
+
+        if (hit_stop_remaining_seconds_ > 0.0f)
+        {
+            return;
+        }
+        if (!engineAnimationControllerSetPaused(animation_controller, false))
+        {
+            engineLog("Failed to resume enemy animation after hit-stop.\n");
+        }
+    }
+
+    if (hit_flash_remaining_seconds_ > 0.0f)
+    {
+        hit_flash_remaining_seconds_ = std::max(0.0f, hit_flash_remaining_seconds_ - dt / 1000.0f);
+        update_hit_flash(hit_flash_remaining_seconds_ / 0.12f);
+    }
+
     if (player_go_ == ENGINE_INVALID_GAME_OBJECT_ID)
     {
         player_go_ = utils::get_game_objects_with_name("player")[0];
     }
-
-    auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
 
     for (auto& s : debug_scripts_)
     {
@@ -201,4 +229,81 @@ void project_c::Enemy::update(float dt)
     }
     auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
     typed_scene->ui_update_enemy(this);
+}
+
+void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_seconds)
+{
+    hp = damage >= hp ? 0 : hp - damage;
+    hit_flash_remaining_seconds_ = 0.12f;
+    update_hit_flash(1.0f);
+
+    hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, hit_stop_seconds);
+    hit_stop_just_started_ = true;
+    const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    if (!engineAnimationControllerSetPaused(animation_controller, true))
+    {
+        engineLog("Failed to pause enemy animation for hit-stop.\n");
+    }
+}
+
+void project_c::Enemy::collect_hit_flash_materials(engine_game_object_t game_object)
+{
+    if (!engineGameObjectIsValid(game_object))
+    {
+        return;
+    }
+
+    if (engineGameObjectHasMaterialComponent(game_object))
+    {
+        const auto material = engineGameObjectGetMaterialComponent(game_object);
+        if (material.type == ENGINE_MATERIAL_TYPE_PONG)
+        {
+            HitFlashMaterial entry{};
+            entry.game_object = game_object;
+            std::copy(
+                std::begin(material.data.pong.diffuse_color),
+                std::end(material.data.pong.diffuse_color),
+                entry.original_diffuse_color.begin());
+            hit_flash_materials_.push_back(entry);
+        }
+    }
+
+    if (engineGameObjectHasChildrenComponent(game_object))
+    {
+        const auto children = engineGameObjectGetChildrenComponent(game_object);
+        for (const auto child : children.child)
+        {
+            if (child != ENGINE_INVALID_GAME_OBJECT_ID)
+            {
+                collect_hit_flash_materials(child);
+            }
+        }
+    }
+}
+
+void project_c::Enemy::update_hit_flash(float strength)
+{
+    constexpr std::array<float, 3> hit_color = { 1.0f, 0.32f, 0.22f };
+    strength = std::clamp(strength, 0.0f, 1.0f);
+
+    for (const auto& entry : hit_flash_materials_)
+    {
+        if (!engineGameObjectIsValid(entry.game_object) || !engineGameObjectHasMaterialComponent(entry.game_object))
+        {
+            continue;
+        }
+
+        auto material = engineGameObjectGetMaterialComponent(entry.game_object);
+        if (material.type != ENGINE_MATERIAL_TYPE_PONG)
+        {
+            continue;
+        }
+
+        for (std::size_t channel = 0; channel < hit_color.size(); ++channel)
+        {
+            const float original = entry.original_diffuse_color[channel];
+            material.data.pong.diffuse_color[channel] = original + (hit_color[channel] - original) * strength;
+        }
+        engineGameObjectUpdateMaterialComponent(entry.game_object, &material);
+    }
 }
