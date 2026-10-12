@@ -29,6 +29,7 @@ public:
 
 private:
     friend class AnimationController;
+    friend class AnimationLibrary;
     std::string name_;
     ozz::unique_ptr<ozz::animation::Skeleton> skeleton_;
 

@@ -11,9 +11,13 @@
 #include <optional>
 #include <unordered_map>
 #include <functional>
+#include <memory>
+#include <utility>
 
 namespace engine
 {
+
+class Skin;
 
 enum class LayerBlendMode
 {
@@ -34,6 +38,36 @@ struct AnimationEvent
 };
 
 using AnimationTimeline = std::vector<AnimationEvent>;
+
+struct CompiledAnimationData
+{
+    ozz::unique_ptr<ozz::animation::Animation> override_animation;
+    ozz::unique_ptr<ozz::animation::Animation> additive_animation;
+};
+
+class AnimationLibrary
+{
+public:
+    explicit AnimationLibrary(const Skin& skin);
+
+    bool add_animation(const AnimationClipDesc& animation_clip, const Skin& skin);
+    bool is_compatible_with(const Skin& skin) const;
+    const std::unordered_map<std::string, std::shared_ptr<const CompiledAnimationData>>& animations() const;
+
+private:
+    std::vector<std::string> joint_names_;
+    std::unordered_map<std::string, std::shared_ptr<const CompiledAnimationData>> animations_;
+};
+
+struct AnimationLibraryHandle
+{
+    explicit AnimationLibraryHandle(std::shared_ptr<const AnimationLibrary> library)
+        : library(std::move(library))
+    {
+    }
+
+    std::shared_ptr<const AnimationLibrary> library;
+};
 
 class SamplingJob
 {
@@ -62,7 +96,7 @@ class AnimationController
 {
     friend class Skin;
 public:
-    AnimationController(Skin* skin);
+    AnimationController(Skin* skin, std::shared_ptr<const AnimationLibrary> animation_library = {});
 
     void update(float dt);
     bool set_paused(bool paused);
@@ -89,8 +123,7 @@ public:
 private:
     struct AnimationData
     {
-        ozz::unique_ptr<ozz::animation::Animation> override;
-        ozz::unique_ptr<ozz::animation::Animation> additive;
+        std::shared_ptr<const CompiledAnimationData> compiled;
         std::vector<AnimationEvent> timeline;
     };
 
