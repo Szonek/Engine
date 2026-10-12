@@ -23,7 +23,7 @@ constexpr float ENEMY_ATTACK_ACTIVE_START = 0.30f;
 constexpr float ENEMY_ATTACK_ACTIVE_END = 0.62f;
 constexpr float ENEMY_ATTACK_RANGE = 1.15f;
 constexpr float ENEMY_ATTACK_COOLDOWN_SECONDS = 0.8f;
-constexpr std::uint32_t ENEMY_ATTACK_DAMAGE = 12;
+constexpr std::uint32_t ENEMY_ATTACK_DAMAGE = 2;
 
 void enemy_attack_window_open_callback(const engine_animation_event_info_t* info, void* user_data)
 {

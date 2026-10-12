@@ -39,7 +39,7 @@ constexpr float HIT_CAMERA_SHAKE_DURATION_SECONDS = 0.08f;
 constexpr float DODGE_INVULNERABILITY_SECONDS = 0.20f;
 constexpr float DODGE_COOLDOWN_SECONDS = 0.65f;
 constexpr float DODGE_SPEED = 4.0f;
-constexpr float PLAYER_HIT_STUN_SECONDS = 0.32f;
+constexpr float PLAYER_HIT_STUN_SECONDS = 0.0f;
 constexpr float PLAYER_KNOCKBACK_SPEED = 2.5f;
 
 void attack_window_open_callback(const engine_animation_event_info_t* info, void* user_data)
@@ -718,15 +718,19 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
     }
     else
     {
-        if ((state_ & States::ATTACK) != 0)
+        const bool disable_attack_interrupt = true;
+        if(!disable_attack_interrupt)
         {
-            state_ &= ~States::ATTACK;
-            attack_phase_ = AttackPhase::eIdle;
-            attack_buffered_ = false;
-            attack_trigger_->deactivate();
-            if (!engineAnimationControllerAnimationCrossFade(animation_controller, "Unarmed_Idle", COMBAT_LAYER_ID, 0.08f))
+            if ((state_ & States::ATTACK) != 0)
             {
-                engineLog("Failed to interrupt player attack after taking damage.\n");
+                state_ &= ~States::ATTACK;
+                attack_phase_ = AttackPhase::eIdle;
+                attack_buffered_ = false;
+                attack_trigger_->deactivate();
+                if (!engineAnimationControllerAnimationCrossFade(animation_controller, "Unarmed_Idle", COMBAT_LAYER_ID, 0.08f))
+                {
+                    engineLog("Failed to interrupt player attack after taking damage.\n");
+                }
             }
         }
 
