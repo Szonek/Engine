@@ -131,10 +131,16 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     : rdx_(std::move(RenderContext(desc.name, { 0, 0, desc.width, desc.height }, desc.fullscreen)))
     , ui_manager_(rdx_)
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
-    , fbo_scene_(rdx_.get_window_size_in_pixels().width, rdx_.get_window_size_in_pixels().height, { DataLayout::eRGBA_U8, DataLayout::eR_U32 }, true)
-    , empty_vao_for_full_screen_quad_draw_(6)
-    , shader_full_screen_quad_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
+    , renderer_(rdx_)
 {
+    renderer_.add_feature(std::make_shared<CallbackRenderFeature>("UI", [this](FrameContext& frame)
+        {
+            add_backbuffer_overlay_pass(frame, "UI", [this](rg::PassContext&)
+                {
+                    ui_manager_.update_state_and_render();
+                });
+        }), RenderStage::eOverlay, OVERLAY_ORDER_UI);
+
 	{
 		const std::vector<std::byte> default_texture_color = { static_cast<std::byte>(255), static_cast<std::byte>(255), static_cast<std::byte>(255) };
 		TextureDesc tex2d_desc{};
@@ -162,7 +168,7 @@ engine::Application::~Application()
 engine::Scene* engine::Application::allocate_scene(const engine_scene_create_desc_t& desc)
 {
     engine_result_code_t ret_code = ENGINE_RESULT_CODE_FAIL;
-    auto ret = new Scene(this, rdx_, desc, ret_code);
+    auto ret = new Scene(this, rdx_, renderer_, desc, ret_code);
     if (ret_code == ENGINE_RESULT_CODE_FAIL)
     {
         delete ret;
@@ -291,21 +297,9 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
         f.dy = -1.0f * f.dy;
     }
 
-	rdx_.begin_frame();
-    
-    // clear framebuffer at beginning of the frame, scene (camera) will have to call set_viewport(..)!
-    const auto& [win_w, win_h] = rdx_.get_window_size_in_pixels();
-    {
-        fbo_scene_.bind();
-        const auto& [fbo_w, fbo_h] = fbo_scene_.get_size();
-        if (fbo_w != win_w || fbo_h != win_h)
-        {
-            fbo_scene_.resize(win_w, win_h);
-        }
-        rdx_.set_clear_color(0.00f, 0.0f, 0.0f, 1.0f);
-        fbo_scene_.clear();
-    }
-    
+    // scene (camera) will submit what to draw, graph is executed in end_frame
+    renderer_.begin_frame();
+
     on_frame_begine(ret);
 	return ret;
 }
@@ -314,14 +308,7 @@ engine_application_frame_end_info_t engine::Application::end_frame()
 {
     ENGINE_PROFILE_SECTION;
     on_frame_end();
-    // copy fbo_scene color attachment to the default framebuffer
-    fbo_scene_.unbind();
-    shader_full_screen_quad_.bind();
-    shader_full_screen_quad_.set_texture_with_sampler("screen_texture", fbo_scene_.get_color_attachment(0));
-    empty_vao_for_full_screen_quad_draw_.bind();
-    empty_vao_for_full_screen_quad_draw_.draw(Geometry::Mode::eTriangles);
-
-    ui_manager_.update_state_and_render();
+    renderer_.render_frame();
     rdx_.end_frame();
     ENGINE_PROFILE_FRAME;
 	engine_application_frame_end_info_t ret{};

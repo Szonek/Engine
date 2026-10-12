@@ -1,6 +1,7 @@
 #pragma once
 #include "data_layout.h"
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -128,6 +129,7 @@ private:
 class Texture2D
 {
     friend class Framebuffer;
+    friend class RenderTargetSet;
 public:
 	Texture2D() = default;
 	Texture2D(std::uint32_t width, std::uint32_t height, bool generate_mipmaps, const void* data, DataLayout layout, TextureAddressClampMode clamp_mode);
@@ -187,6 +189,44 @@ private:
     std::uint32_t height_;
 
     std::uint32_t last_bind_access_type_ = 0;
+};
+
+// Framebuffer object which does NOT own its attachments (unlike Framebuffer).
+// Used by the render graph, which owns the textures and only needs to (re)attach them for each pass.
+class RenderTargetSet
+{
+public:
+    static constexpr std::uint32_t MAX_COLOR_ATTACHMENTS = 8;
+
+    RenderTargetSet();
+    RenderTargetSet(const RenderTargetSet& rhs) = delete;
+    RenderTargetSet(RenderTargetSet&& rhs) noexcept;
+    RenderTargetSet& operator=(const RenderTargetSet& rhs) = delete;
+    RenderTargetSet& operator=(RenderTargetSet&& rhs) noexcept;
+    ~RenderTargetSet();
+
+    // Binds this FBO. Attachments are applied to the bound FBO.
+    void bind();
+    static void bind_default();
+
+    // nullptr detaches given slot
+    void set_color_attachment(std::uint32_t slot, const Texture2D* texture);
+    void set_depth_stencil_attachment(const Texture2D* texture);
+    // Enables draw buffers for the attached color slots. Call after all attachments were set.
+    void apply_draw_buffers();
+    bool is_complete() const;
+
+    // clears are applied to the currently bound framebuffer (this one or default)
+    static void clear_color_float(std::uint32_t slot, const std::array<float, 4>& value);
+    static void clear_color_uint(std::uint32_t slot, std::uint32_t value);
+    static void clear_depth_stencil(float depth, std::uint8_t stencil);
+
+    std::vector<std::byte> read_pixels(std::uint32_t slot, viewport_t region, DataLayout layout);
+
+private:
+    std::uint32_t fbo_{ 0 };
+    std::uint32_t color_slots_mask_{ 0 };
+    bool has_depth_stencil_{ false };
 };
 
 class Geometry
@@ -377,6 +417,8 @@ public:
         MEMORY_BARRIER_IMAGE_ACCESS_BIT = 0x0001,
         MEMORY_BARRIER_STORAGE_BIT = 0x0002,
         MEMORY_BARRIER_UNIFORM_BIT = 0x0004,
+        MEMORY_BARRIER_TEXTURE_FETCH_BIT = 0x0008,
+        MEMORY_BARRIER_FRAMEBUFFER_BIT = 0x0010,
         MEMORY_BARRIER_ALL_BIT     = 0xFFFF,
 
         // ToDo: add more
@@ -410,6 +452,15 @@ public:
 	void set_clear_color(float r, float g, float b, float a);
 	void set_polygon_mode(PolygonFaceType face, PolygonMode mode);
     void set_depth_test(bool flag);
+    void set_depth_write(bool flag);
+    void set_cull_face(bool flag);
+
+    // Restores the pipeline state which scene passes rely on: depth test/write on, back face culling on, blending off, fill polygons, no scissor.
+    void reset_pipeline_state();
+
+    // Named groups are visible in graphics debuggers (RenderDoc, Nsight)
+    void begin_debug_group(std::string_view name);
+    void end_debug_group();
 
     void set_blend_mode(bool enable, BlendFactor src_rgb = BlendFactor::eOne, BlendFactor dst_rgb = BlendFactor::eZero, BlendFactor src_a = BlendFactor::eOne, BlendFactor dst_a = BlendFactor::eZero);
 

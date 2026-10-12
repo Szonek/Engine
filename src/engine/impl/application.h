@@ -8,6 +8,7 @@
 #include "named_atlas.h"
 #include "nav_mesh.h"
 #include "mesh_defs.h"
+#include "render/renderer.h"
 
 
 namespace engine
@@ -15,6 +16,10 @@ namespace engine
 class Application
 {
 public:
+    // Order of overlay features which are drawn on top of the presented scene (lower is drawn first).
+    static constexpr int OVERLAY_ORDER_EDITOR = 0;
+    static constexpr int OVERLAY_ORDER_UI = 100;
+
     Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code);
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
@@ -88,9 +93,7 @@ protected:
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;
 
-    Framebuffer fbo_scene_;
-    Shader shader_full_screen_quad_;
-    Geometry empty_vao_for_full_screen_quad_draw_;
+    Renderer renderer_;
 };
 
 }  // namespace engine

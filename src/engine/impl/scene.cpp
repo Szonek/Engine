@@ -13,6 +13,7 @@
 #include "skin.h"
 #include "animation_controller.h"
 #include "shaders_binding_slots.h"
+#include "render/renderer.h"
 
 #include <fmt/format.h>
 
@@ -30,31 +31,6 @@
 
 #include <cmath>
 
-struct SceneGpuData
-{
-    std::uint32_t direction_light_count = 0;
-    std::uint32_t point_light_count = 0;
-    std::uint32_t spot_light_count = 0;
-    float pad3_;
-};
-
-struct LightGpuData
-{
-    glm::vec3 position;
-    float cutoff;
-    glm::vec3 direction;
-    float outer_cutoff;
-    float constant;
-    float linear;
-    float quadratic;
-    float pad0_;
-    glm::vec3 ambient;
-    float pad1_;
-    glm::vec3 diffuse;
-    float pad2_;
-    glm::vec3 specular;
-    float pad3_;
-};
 
 static inline void update_parent_component(entt::registry& registry, entt::entity entity)
 {
@@ -144,13 +120,10 @@ static inline void calculate_camera_view_and_projection(std::size_t window_width
     }
 }
 
-engine::Scene::Scene(Application* app, RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
+engine::Scene::Scene(Application* app, RenderContext& rdx, Renderer& renderer, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : app_(app)
     , rdx_(rdx)
-    , physics_world_(&rdx_)
-    //, fbo_draw_scene_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, true)
-    //, fbo_draw_outline_(rdx.get_window_size_in_pixels().width, rdx.get_window_size_in_pixels().height, 1, false)
-    //, empty_vao_for_full_screen_quad_draw_(6)
+    , renderer_(renderer)
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
     , collider_update_observer(entity_registry_, entt::collector.update<engine_collider_component_t>().where<engine_tranform_component_t>())
     , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<physcic_internal_component_t>())
@@ -158,9 +131,6 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, const engine_scene_cr
     , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
     , rigid_body_create_observer(entity_registry_, entt::collector.group<engine_rigid_body_component_t, engine_tranform_component_t, engine_collider_component_t>())
     , rigid_body_update_observer(entity_registry_, entt::collector.update<engine_rigid_body_component_t>().where<engine_tranform_component_t, engine_collider_component_t>())
-    , scene_ubo_(sizeof(SceneGpuData))
-    , light_data_ssbo_(1'000 * sizeof(LightGpuData))
-    //, full_screen_shader_(Shader({ "full_screen_quad.vs" }, { "full_screen_quad.fs" }))
 {
     // basic initalizers
     entity_registry_.on_construct<engine_tranform_component_t>().connect<&initialize_transform_component>();
@@ -184,17 +154,8 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, const engine_scene_cr
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<physcic_internal_component_t>>();
     entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<physcic_internal_component_t>>();
     entity_registry_.on_destroy<physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
-    
-    // if buffer is valid: map and bind
-    if (light_data_ssbo_.is_valid())
-    {
-        light_data_ssbo_ptr_ = light_data_ssbo_.map(false, true);
-        light_data_ssbo_.bind(static_cast<std::uint32_t>(ShaderBindingSlot::LIGHTS));
-    }
 
     out_code = ENGINE_RESULT_CODE_OK;
-
-    
 }
 
 engine::Scene::~Scene()
@@ -397,7 +358,6 @@ engine_result_code_t engine::Scene::physics_update(float dt)
 engine_result_code_t engine::Scene::update(float dt)
 {
     ENGINE_PROFILE_SECTION;
-    material_skinned_geometry_lit_.new_frame();
     physics_update(dt);
 
     {
@@ -521,10 +481,11 @@ engine_result_code_t engine::Scene::update(float dt)
 
     }
 
+    SceneRenderData render_data;
     std::uint32_t directional_light_count = 0;
     std::uint32_t point_light_count = 0;
     std::uint32_t spot_light_count = 0;
-    // copy lights data to the GPU
+    // gather lights for the renderer
     {
         ENGINE_PROFILE_SECTION_N("lights update");
         auto lights_view = entity_registry_.view<const engine_tranform_component_t, const engine_light_component_t>();
@@ -548,17 +509,10 @@ engine_result_code_t engine::Scene::update(float dt)
         }
 
         {
-            ENGINE_PROFILE_SECTION_N("lights_ssbo update");
+            ENGINE_PROFILE_SECTION_N("lights data");
             const auto total_lights = directional_light_count + point_light_count + spot_light_count;
-            if (total_lights > light_data_ssbo_.get_size())
-            {
-                log::log(log::LogLevel::eTrace, fmt::format("Light data SSBO is too small. Increasing the size of the buffer. Current size: {}. Required size: {}\n", light_data_ssbo_.get_size(), total_lights));
-                light_data_ssbo_ = ShaderStorageBuffer(total_lights * sizeof(LightGpuData));
-                light_data_ssbo_ptr_ = light_data_ssbo_.map(false, true);
-                light_data_ssbo_.bind(static_cast<std::uint32_t>(ShaderBindingSlot::LIGHTS));
-            }
-            assert(light_data_ssbo_ptr_ != nullptr);
-            auto* light_gpu_data_ptr = reinterpret_cast<LightGpuData*>(light_data_ssbo_ptr_);
+            render_data.lights.assign(total_lights, LightGpuData{});
+            auto* light_gpu_data_ptr = render_data.lights.data();
             std::int32_t dir_idx = 0;
             std::int32_t point_idx = directional_light_count;
             std::int32_t spot_idx = directional_light_count + point_light_count;
@@ -602,176 +556,138 @@ engine_result_code_t engine::Scene::update(float dt)
 
     }
 
-    {
-        ENGINE_PROFILE_SECTION_N("scene_ubo update");
-        BufferMapContext<SceneGpuData, UniformBuffer> scene_ubo(scene_ubo_, false, true);
-        scene_ubo.data->direction_light_count = directional_light_count;
-        scene_ubo.data->point_light_count = point_light_count;
-        scene_ubo.data->spot_light_count = spot_light_count;
-        scene_ubo.unmap();
-    }
+    render_data.scene_gpu.direction_light_count = directional_light_count;
+    render_data.scene_gpu.point_light_count = point_light_count;
+    render_data.scene_gpu.spot_light_count = spot_light_count;
 
-    {
-        ENGINE_PROFILE_SECTION_N("camera_loop");
+    submit_render_data(std::move(render_data));
+    return ENGINE_RESULT_CODE_OK;
+}
 
+void engine::Scene::submit_render_data(SceneRenderData&& render_data)
+{
+    ENGINE_PROFILE_SECTION;
+    {
+        ENGINE_PROFILE_SECTION_N("meshes");
         auto mesh_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
         auto skinned_mesh_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_skinned_mesh_component_t, const engine_material_component_t>();
-        auto geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>(entt::exclude<engine_skin_component_t>);
-        auto skinned_geometry_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_mesh_component_t, engine_skin_component_t, const engine_material_component_t>();
         auto sprite_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_material_component_t, const engine_sprite_component_t>();
         auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, camera_internal_component_t>();
+        const auto window_size_pixels = rdx_.get_window_size_in_pixels();
 
-        for (auto [entity, camera, camera_transform, camera_internal] : camera_view.each()) 
+        camera_view.each([&](auto, const engine_camera_component_t& camera, const engine_tranform_component_t& camera_transform, camera_internal_component_t& camera_internal)
         {
             if (!camera.enabled)
             {
-                continue;
+                return;
             }
-
-            // bind default framebuffer
-            const auto window_size_pixels = rdx_.get_window_size_in_pixels();
-            viewport_t vp{};
-            vp.x = 0;
-            vp.y = 0;
-            vp.width = window_size_pixels.width;
-            vp.height = window_size_pixels.height;
-            rdx_.set_viewport(vp);
 
             calculate_camera_view_and_projection(window_size_pixels.width, window_size_pixels.height,
                 glm::make_vec3(camera_transform.position), camera, camera_internal);
-            // copy camera view and projection to the GPU
+            render_data.views.push_back(camera_internal.data);
+            // data was taken, so the next frame has to compute it again
+            camera_internal.computed_this_frame = false;
+        });
+
+        // Fills data shared by all mesh draws. Returns false if the draw has to be skipped.
+        const auto fill_mesh_draw_item = [this](entt::entity entity, const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, engine_geometry_t geometry, StaticMeshDrawItem& item)
             {
-                ENGINE_PROFILE_SECTION_N("camera_ubo_update");
-                BufferMapContext<CameraGpuData, UniformBuffer> camera_ubo(camera_internal.camera_ubo, false, true);
-                std::memcpy(camera_ubo.data, &camera_internal.data, sizeof(CameraGpuData));
-                // already updated GPU buffer to mark this camera as not computed
-                camera_internal.computed_this_frame = false; 
-            }
+                if (geometry == ENGINE_INVALID_OBJECT_HANDLE)
+                {
+                    log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n", (std::uint32_t)entity));
+                    return false;
+                }
 
+                const auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
+                // ToDo: specular texture is not used here yet, diffuse one is used for both (that's how it was always working)
+                item.entity_id = static_cast<std::uint32_t>(entity);
+                item.geometry = get_application()->get_geometry(geometry);
+                item.model = glm::make_mat4(transform_component.local_to_world);
+                item.diffuse_color = glm::make_vec4(material_component.data.pong.diffuse_color);
+                item.shininess = static_cast<float>(material_component.data.pong.shininess);
+                item.texture_diffuse = get_application()->get_texture(texture_diffuse_idx);
+                item.texture_specular = get_application()->get_texture(texture_diffuse_idx);
+                return true;
+            };
+
+        mesh_renderer.each([&](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
             {
-                ENGINE_PROFILE_SECTION_N("geometry_renderer");
-
-                mesh_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t& material_component)
-                    {
-                        if (mesh_component.disable)
-                        {
-                            return;
-                        }
-                        if (mesh_component.geometry == ENGINE_INVALID_OBJECT_HANDLE)
-                        {
-                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n", (std::uint32_t)entity));
-                            return;
-                        }
-
-                        const auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
-                        const auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
-
-                        const auto tex2d_diffuse_ptr = get_application()->get_texture(texture_diffuse_idx);
-                        const auto tex2d_specular_ptr = get_application()->get_texture(texture_diffuse_idx);
-
-                        const auto ctx = MaterialStaticGeometryLit::DrawContext{
-                            .entity_id = static_cast<std::uint32_t>(entity),
-                            .camera = camera_internal.camera_ubo,
-                            .scene = scene_ubo_,
-                            .model_matrix = transform_component.local_to_world,
-                            .color_diffuse = material_component.data.pong.diffuse_color,
-                            .shininess = static_cast<float>(material_component.data.pong.shininess),     
-                            .texture_diffuse = *tex2d_diffuse_ptr,
-                            .texture_specular = *tex2d_specular_ptr };
-
-                        const auto geo_ptr = get_application()->get_geometry(mesh_component.geometry);
-                        material_static_geometry_lit_.draw(*geo_ptr, ctx);
-                    }
-                );
+                if (mesh_component.disable)
+                {
+                    return;
+                }
+                StaticMeshDrawItem item;
+                if (fill_mesh_draw_item(entity, transform_component, material_component, mesh_component.geometry, item))
+                {
+                    render_data.static_meshes.push_back(item);
+                }
             }
+        );
 
+        skinned_mesh_renderer.each([&](auto entity, const engine_tranform_component_t& transform_component, const engine_skinned_mesh_component_t& skinned_mesh_component, const engine_material_component_t& material_component)
             {
-                ENGINE_PROFILE_SECTION_N("skinned_mesh_renderer");
-                skinned_mesh_renderer.each([this, &camera_internal](auto entity, const engine_tranform_component_t& transform_component, const engine_skinned_mesh_component_t& skinned_mesh_component, const engine_material_component_t& material_component)
-                    {
-                        if (skinned_mesh_component.disable)
-                        {
-                            return;
-                        }
-                        if (skinned_mesh_component.geometry == ENGINE_INVALID_OBJECT_HANDLE)
-                        {
-                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Mesh component has invalid geometry handle. Are you sure you are doing valid thing?\n", (std::uint32_t)entity));
-                            return;
-                        }
-
-                        if (!skinned_mesh_component.skin)
-                        {
-                            log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Skinned mesh component has no skin assigned. Are you sure you are doing valid thing?\n", (std::uint32_t)entity));
-                            return;
-                        }
-
-                        const auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
-                        const auto texture_specular_idx = material_component.data.pong.specular_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.specular_texture;
-
-                        const auto tex2d_diffuse_ptr = get_application()->get_texture(texture_diffuse_idx);
-                        const auto tex2d_specular_ptr = get_application()->get_texture(texture_diffuse_idx);
-
-                        auto ctx = MaterialSkinnedGeometryLit::DrawContext{
-                            .entity_id = static_cast<std::uint32_t>(entity),
-                            .camera = camera_internal.camera_ubo,
-                            .scene = scene_ubo_,
-                            .model_matrix = transform_component.local_to_world,
-                            .color_diffuse = material_component.data.pong.diffuse_color,
-                            .shininess = material_component.data.pong.shininess,
-                            .texture_diffuse = *tex2d_diffuse_ptr,
-                            .texture_specular = *tex2d_specular_ptr };
-                        const auto typed_skin = reinterpret_cast<engine::Skin*>(skinned_mesh_component.skin);
-                        ctx.bone_transforms = typed_skin->get_skinning_matrices();
-
-                        const auto geo_ptr = get_application()->get_geometry(skinned_mesh_component.geometry);
-                        material_skinned_geometry_lit_.draw(*geo_ptr, ctx);
-                    }
-                );
+                if (skinned_mesh_component.disable)
+                {
+                    return;
+                }
+                if (!skinned_mesh_component.skin)
+                {
+                    log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Skinned mesh component has no skin assigned. Are you sure you are doing valid thing?\n", (std::uint32_t)entity));
+                    return;
+                }
+                SkinnedMeshDrawItem item;
+                if (!fill_mesh_draw_item(entity, transform_component, material_component, skinned_mesh_component.geometry, item))
+                {
+                    return;
+                }
+                const auto typed_skin = reinterpret_cast<engine::Skin*>(skinned_mesh_component.skin);
+                const auto bones = typed_skin->get_skinning_matrices();
+                item.skinning_matrices_offset = static_cast<std::uint32_t>(render_data.skinning_matrices.size());
+                item.skinning_matrices_count = static_cast<std::uint32_t>(bones.size());
+                render_data.skinning_matrices.insert(render_data.skinning_matrices.end(), bones.begin(), bones.end());
+                render_data.skinned_meshes.push_back(item);
             }
+        );
 
+        sprite_renderer.each([&](const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, const engine_sprite_component_t& /*sprite_component*/)
             {
-                ENGINE_PROFILE_SECTION_N("sprite_renderer");
-
-                sprite_renderer.each([this, &camera_internal](const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, const engine_sprite_component_t& sprite_component)
-                    {
-
-                        auto model_mat = glm::make_mat4(transform_component.local_to_world);
-                        glm::vec3 scale;
-                        glm::quat rotation;
-                        glm::vec3 translation;
-                        glm::vec3 skew;
-                        glm::vec4 perspective;
-                        const auto res = glm::decompose(model_mat, scale, rotation, translation, skew, perspective);
-                        assert(res);
-
-                        if (material_component.type == ENGINE_MATERIAL_TYPE_PONG)
-                        {
-                            const auto ctx = MaterialSprite::DrawContext{
-                                .camera = camera_internal.camera_ubo,
-                                .scene = scene_ubo_,
-                                .world_position = translation,
-                                .scale = scale };
-                            material_sprite_.draw(ctx);
-                        }
-                        else
-                        {
-                            assert(false);
-                        }
-                    }
-                );
+                if (material_component.type != ENGINE_MATERIAL_TYPE_PONG)
+                {
+                    assert(false);
+                    return;
+                }
+                auto model_mat = glm::make_mat4(transform_component.local_to_world);
+                glm::vec3 scale;
+                glm::quat rotation;
+                glm::vec3 translation;
+                glm::vec3 skew;
+                glm::vec4 perspective;
+                const auto res = glm::decompose(model_mat, scale, rotation, translation, skew, perspective);
+                assert(res);
+                render_data.sprites.push_back(SpriteDrawItem{ .world_position = translation, .scale = scale });
             }
+        );
 
-            if (physics_world_.is_debug_drawer_enabled())
+        auto outline_view = entity_registry_.view<const outline_component_t, const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>();
+        outline_view.each([&](const outline_component_t&, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t&)
             {
-                physics_world_.debug_draw(camera_internal.data.view, camera_internal.data.projection);
+                if (mesh_component.geometry == ENGINE_INVALID_OBJECT_HANDLE)
+                {
+                    return;
+                }
+                render_data.outline_items.push_back(OutlineDrawItem{
+                    .geometry = get_application()->get_geometry(mesh_component.geometry),
+                    .model = glm::make_mat4(transform_component.local_to_world) });
             }
-        }
-
+        );
     }
 
+    if (physics_world_.is_debug_drawer_enabled())
+    {
+        physics_world_.collect_debug_lines(render_data.debug_lines);
+    }
 
-
-    return ENGINE_RESULT_CODE_OK;
+    renderer_.submit_scene(std::move(render_data));
 }
 
 entt::entity engine::Scene::create_new_entity()
@@ -934,4 +850,3 @@ glm::mat4 engine::Scene::get_camera_projection(entt::entity camera_go)
     }
     return glm::mat4();
 }
-

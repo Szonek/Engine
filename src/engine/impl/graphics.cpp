@@ -25,6 +25,7 @@
 #include <cassert>
 #include <array>
 #include <iostream>
+#include <utility>
 
 class SystemInterface_SDL;
 class RenderInterface_GL3;
@@ -1105,6 +1106,44 @@ void engine::RenderContext::set_depth_test(bool flag)
     }
 }
 
+void engine::RenderContext::set_depth_write(bool flag)
+{
+    glDepthMask(flag ? GL_TRUE : GL_FALSE);
+}
+
+void engine::RenderContext::set_cull_face(bool flag)
+{
+    if (flag)
+    {
+        glEnable(GL_CULL_FACE);
+    }
+    else
+    {
+        glDisable(GL_CULL_FACE);
+    }
+}
+
+void engine::RenderContext::reset_pipeline_state()
+{
+    set_depth_test(true);
+    set_depth_write(true);
+    set_cull_face(true);
+    set_blend_mode(false);
+    set_polygon_mode(PolygonFaceType::eFrontAndBack, PolygonMode::eFill);
+    glDisable(GL_SCISSOR_TEST);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+}
+
+void engine::RenderContext::begin_debug_group(std::string_view name)
+{
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, static_cast<GLsizei>(name.size()), name.data());
+}
+
+void engine::RenderContext::end_debug_group()
+{
+    glPopDebugGroup();
+}
+
 void engine::RenderContext::set_polygon_mode(PolygonFaceType face, PolygonMode mode)
 {
 #if defined(GLAD_GL_IMPLEMENTATION)
@@ -1168,7 +1207,7 @@ void engine::RenderContext::set_blend_mode(bool enable, BlendFactor src_rgb, Ble
 void engine::RenderContext::dispatch_barrier(MemoryBarrierBitMask bit_mask)
 {
     std::uint32_t gl_mask = 0;
-    if (bit_mask & MemoryBarrierBitMask::MEMORY_BARRIER_ALL_BIT)
+    if ((bit_mask & MemoryBarrierBitMask::MEMORY_BARRIER_ALL_BIT) == MemoryBarrierBitMask::MEMORY_BARRIER_ALL_BIT)
     {
         gl_mask = GL_ALL_BARRIER_BITS;
     }
@@ -1185,6 +1224,14 @@ void engine::RenderContext::dispatch_barrier(MemoryBarrierBitMask bit_mask)
         if (bit_mask & MEMORY_BARRIER_UNIFORM_BIT)
         {
             gl_mask |= GL_UNIFORM_BARRIER_BIT;
+        }
+        if (bit_mask & MEMORY_BARRIER_TEXTURE_FETCH_BIT)
+        {
+            gl_mask |= GL_TEXTURE_FETCH_BARRIER_BIT;
+        }
+        if (bit_mask & MEMORY_BARRIER_FRAMEBUFFER_BIT)
+        {
+            gl_mask |= GL_FRAMEBUFFER_BARRIER_BIT;
         }
     }
 
@@ -1393,6 +1440,125 @@ void engine::Framebuffer::copy_color_attachment_to_texture2d(std::size_t attachm
 {
     glReadBuffer(GL_COLOR_ATTACHMENT0 + attachment_idx);
     texture.copy_from_active_fbo(0, 0, width_, height_);
+}
+
+engine::RenderTargetSet::RenderTargetSet()
+{
+    glGenFramebuffers(1, &fbo_);
+}
+
+engine::RenderTargetSet::RenderTargetSet(RenderTargetSet&& rhs) noexcept
+    : fbo_(std::exchange(rhs.fbo_, 0))
+    , color_slots_mask_(std::exchange(rhs.color_slots_mask_, 0))
+    , has_depth_stencil_(std::exchange(rhs.has_depth_stencil_, false))
+{
+}
+
+engine::RenderTargetSet& engine::RenderTargetSet::operator=(RenderTargetSet&& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        std::swap(fbo_, rhs.fbo_);
+        std::swap(color_slots_mask_, rhs.color_slots_mask_);
+        std::swap(has_depth_stencil_, rhs.has_depth_stencil_);
+    }
+    return *this;
+}
+
+engine::RenderTargetSet::~RenderTargetSet()
+{
+    if (fbo_)
+    {
+        glDeleteFramebuffers(1, &fbo_);
+    }
+}
+
+void engine::RenderTargetSet::bind()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
+}
+
+void engine::RenderTargetSet::bind_default()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void engine::RenderTargetSet::set_color_attachment(std::uint32_t slot, const Texture2D* texture)
+{
+    assert(slot < MAX_COLOR_ATTACHMENTS);
+    bind();
+    // Attachments are re-applied every time: GL may recycle ids of deleted textures, so caching them is unsafe.
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + slot, GL_TEXTURE_2D, texture ? texture->texture_ : 0, 0);
+    if (texture)
+    {
+        color_slots_mask_ |= (1u << slot);
+    }
+    else
+    {
+        color_slots_mask_ &= ~(1u << slot);
+    }
+}
+
+void engine::RenderTargetSet::set_depth_stencil_attachment(const Texture2D* texture)
+{
+    bind();
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, texture ? texture->texture_ : 0, 0);
+    has_depth_stencil_ = texture != nullptr;
+}
+
+void engine::RenderTargetSet::apply_draw_buffers()
+{
+    bind();
+    std::array<GLenum, MAX_COLOR_ATTACHMENTS> buffers{};
+    std::uint32_t count = 0;
+    for (std::uint32_t i = 0; i < MAX_COLOR_ATTACHMENTS; i++)
+    {
+        const bool attached = (color_slots_mask_ & (1u << i)) != 0;
+        buffers[i] = attached ? GL_COLOR_ATTACHMENT0 + i : GL_NONE;
+        if (attached)
+        {
+            count = i + 1;
+        }
+    }
+    if (count == 0)
+    {
+        const GLenum none = GL_NONE;
+        glDrawBuffers(1, &none);
+        glReadBuffer(GL_NONE);
+        return;
+    }
+    glDrawBuffers(static_cast<GLsizei>(count), buffers.data());
+}
+
+bool engine::RenderTargetSet::is_complete() const
+{
+    return glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+}
+
+void engine::RenderTargetSet::clear_color_float(std::uint32_t slot, const std::array<float, 4>& value)
+{
+    glClearBufferfv(GL_COLOR, static_cast<GLint>(slot), value.data());
+}
+
+void engine::RenderTargetSet::clear_color_uint(std::uint32_t slot, std::uint32_t value)
+{
+    const std::array<GLuint, 4> v = { value, value, value, value };
+    glClearBufferuiv(GL_COLOR, static_cast<GLint>(slot), v.data());
+}
+
+void engine::RenderTargetSet::clear_depth_stencil(float depth, std::uint8_t stencil)
+{
+    glClearBufferfi(GL_DEPTH_STENCIL, 0, depth, stencil);
+}
+
+std::vector<std::byte> engine::RenderTargetSet::read_pixels(std::uint32_t slot, viewport_t region, DataLayout layout)
+{
+    std::vector<std::byte> ret;
+    ret.resize(static_cast<std::size_t>(region.width) * region.height * data_layout_bytes_width(layout));
+    bind();
+    glReadBuffer(GL_COLOR_ATTACHMENT0 + slot);
+    glReadPixels(region.x, region.y, region.width, region.height, to_ogl_host_format(layout), to_ogl_datatype(layout), ret.data());
+    return ret;
 }
 
 engine::UniformBuffer::UniformBuffer(std::size_t size)

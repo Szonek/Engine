@@ -4,7 +4,8 @@
 
 #include <vector>
 
-TEST(Basic, App_CreateAndDestroy) 
+// ToDo: this test should only run when embedded shaders is implemented, now it depends on loading shader from disk
+TEST(Basic, DISABLED_App_CreateAndDestroy) 
 {
     engine_application_create_desc_t desc{};
     desc.name = "Test-App";

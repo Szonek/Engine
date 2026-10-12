@@ -26,9 +26,13 @@ jobs:
       with:
         submodules: "recursive"
 
+    - name: Setup MSVC environment
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/buildtree -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      run: cmake -G "NMake Makefiles" -B ${{github.workspace}}/buildtree -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
     - name: Build
       run: cmake --build ${{github.workspace}}/buildtree --config ${{env.BUILD_TYPE}}
-
