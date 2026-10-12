@@ -11,14 +11,6 @@
 
 namespace engine
 {
-struct SceneGpuData
-{
-    std::uint32_t direction_light_count = 0;
-    std::uint32_t point_light_count = 0;
-    std::uint32_t spot_light_count = 0;
-    float pad3_;
-};
-
 class MaterialStaticGeometryLit
 {
 public:

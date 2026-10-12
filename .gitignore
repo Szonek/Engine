@@ -3,3 +3,4 @@ build
 android-project/.gradle/
 android-project/.idea/
 android-project/app/.cxx/
+.vs

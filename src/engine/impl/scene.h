@@ -4,17 +4,22 @@
 
 #include "physics_world.h"
 
-#include "material.h"
+#include "render/render_scene_data.h"
 
 #include <entt/entt.hpp>
+
+#include <array>
+#include <deque>
+#include <tuple>
 
 namespace engine
 {
 class Application;
+class Renderer;
 class Scene
 {
 public:
-    Scene(Application* app, RenderContext& rdx, const engine_scene_create_desc_t& config, engine_result_code_t& out_code);
+    Scene(Application* app, RenderContext& rdx, Renderer& renderer, const engine_scene_create_desc_t& config, engine_result_code_t& out_code);
     Scene(const Scene&) = delete;
     Scene(Scene&& rhs) = delete;
     Scene& operator=(const Scene&) = delete;
@@ -105,10 +110,13 @@ public:
 
 private:
     engine_result_code_t physics_update(float dt);
+    // Collects cameras and everything visible in this scene into render_data and submits it to the renderer. No rendering API calls happen here.
+    void submit_render_data(SceneRenderData&& render_data);
 
 private:
     Application* app_;
     RenderContext& rdx_;
+    Renderer& renderer_;
     entt::registry entity_registry_;
     entt::observer transform_model_matrix_update_observer;
     entt::observer mesh_update_observer;
@@ -120,12 +128,5 @@ private:
 
     PhysicsWorld physics_world_;
     std::deque<std::tuple<entt::entity, std::array<float, 3>, engine_force_type_t>> forces_to_apply_;
-    UniformBuffer scene_ubo_;
-    ShaderStorageBuffer light_data_ssbo_;
-    void* light_data_ssbo_ptr_ = nullptr;
-    MaterialStaticGeometryLit material_static_geometry_lit_;
-    MaterialSkinnedGeometryLit material_skinned_geometry_lit_;
-
-    MaterialSprite material_sprite_;
 };
 }  // namespace engine

@@ -50,6 +50,17 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/material.h
 	${ENGINE_SOURCES_DIR}/material.cpp
 
+	${ENGINE_SOURCES_DIR}/render/render_graph.h
+	${ENGINE_SOURCES_DIR}/render/render_graph.cpp
+	${ENGINE_SOURCES_DIR}/render/render_graph_gl_backend.h
+	${ENGINE_SOURCES_DIR}/render/render_graph_gl_backend.cpp
+	${ENGINE_SOURCES_DIR}/render/render_scene_data.h
+	${ENGINE_SOURCES_DIR}/render/render_feature.h
+	${ENGINE_SOURCES_DIR}/render/renderer.h
+	${ENGINE_SOURCES_DIR}/render/renderer.cpp
+	${ENGINE_SOURCES_DIR}/render/outline_feature.h
+	${ENGINE_SOURCES_DIR}/render/outline_feature.cpp
+
 	${ENGINE_SOURCES_DIR}/nav_mesh.h
 	${ENGINE_SOURCES_DIR}/nav_mesh.cpp
 	

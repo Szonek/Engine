@@ -1,11 +1,12 @@
 #include "application.h"
 #include "asset_store.h"
 #include "file_watcher.h"
-#include "material.h"
 #include "editor_commands.h"
+#include "render/outline_feature.h"
 
 #include <entt/entt.hpp>
 #include <map>
+#include <memory>
 #include <string_view>
 
 namespace engine
@@ -34,21 +35,6 @@ private:
     entt::entity go_ = entt::null;
     std::array<float, 3> sc_;  // {radius, phi, theta}
     engine_fvec2_t mouse_coords_prev_{};
-};
-
-struct OutlinePostProccessEffect
-{
-    MaterialStaticGeometryUnlit material_static_geometry_unlit;
-    MaterialSkinnedGeometryUnlit material_skinned_geometry_unlit;
-    ComputeShader compute_shader_edge_detection;
-    Framebuffer fbo_outline;
-
-    OutlinePostProccessEffect(std::size_t init_width, std::uint32_t init_height)
-        : compute_shader_edge_detection({ "sobel_edge_detection.cs" })
-        , fbo_outline(init_width, init_height, { DataLayout::eRGBA_U8 }, false)
-    {
-    }
-
 };
 
 class SceneHierarchyContext
@@ -93,7 +79,6 @@ private:
     void render_scene_hierarchy_panel(class Scene* scene, float dt);
     void render_entity_properties_panel(class Scene* scene, float dt);
     void render_debug_panel(class Scene* scene, float dt);
-    void render_outline(class Scene* scene);
     void render_guizmo(class Scene* scene);
     void handle_mouse_picking(class Scene* scene);
 
@@ -159,7 +144,8 @@ private:
     EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;
     CommandManager commands_;
-    OutlinePostProccessEffect outline_effect_;
+    std::shared_ptr<OutlineFeature> outline_feature_;
+    bool render_imgui_ = true;
     SceneHierarchyContext scene_hierarchy_context_;
 };
 

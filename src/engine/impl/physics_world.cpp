@@ -18,8 +18,8 @@
 
 
 
-engine::PhysicsWorld::PhysicsWorld(RenderContext* renderer)
-    : debug_drawer_(std::make_unique<DebugDrawer>(renderer))
+engine::PhysicsWorld::PhysicsWorld()
+    : debug_drawer_(std::make_unique<DebugDrawer>())
 {
     collision_config_ = std::make_unique<btDefaultCollisionConfiguration>();
     dispatcher_ = std::make_unique<btCollisionDispatcher>(collision_config_.get());
@@ -62,13 +62,12 @@ bool engine::PhysicsWorld::is_debug_drawer_enabled() const
     return dynamics_world_->getDebugDrawer() != nullptr;
 }
 
-void engine::PhysicsWorld::debug_draw(const glm::mat4& view, const glm::mat4& projection)
+void engine::PhysicsWorld::collect_debug_lines(std::vector<DebugLineGpuData>& out_lines)
 {
     if (is_debug_drawer_enabled())
     {
-        debug_drawer_->begin_frame(view, projection);
         dynamics_world_->debugDrawWorld();
-        debug_drawer_->end_frame();
+        debug_drawer_->take_lines(out_lines);
     }
     else
     {
@@ -308,21 +307,8 @@ engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, std
     return ret;
 }
 
-engine::PhysicsWorld::DebugDrawer::DebugDrawer(RenderContext* renderer)
-    : renderer_(renderer)
-{
-    const auto projected_max_lines_count = 8 * 1024;  // ToDo: make it configurable? 
-    const auto ssbo_size = sizeof(LineDrawPacket) * projected_max_lines_count;
-    if (renderer_->get_limits().ssbo_max_size < ssbo_size)
-    {
-        ssbo_ = ShaderStorageBuffer(ssbo_size);
-    }
-    lines_.reserve(projected_max_lines_count);
-}
-
 void engine::PhysicsWorld::DebugDrawer::drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
 {
-    assert(renderer_ && "Renderer is not set in physics debug drawer!");
     const auto from_v = glm::vec3(from.getX(), from.getY(), from.getZ());
     const auto to_v = glm::vec3(to.getX(), to.getY(), to.getZ());
     const auto color_v = glm::vec3(color.getX(), color.getY(), color.getZ());
@@ -356,58 +342,10 @@ void engine::PhysicsWorld::DebugDrawer::draw3dText(const btVector3& /*location*/
     engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw 3d text {}\n", text_ttring));
 }
 
-void engine::PhysicsWorld::DebugDrawer::begin_frame(const glm::mat4& view, const glm::mat4& projection)
+void engine::PhysicsWorld::DebugDrawer::take_lines(std::vector<DebugLineGpuData>& out_lines)
 {
-    set_view(view);
-    set_projection(projection);
-}
-
-void engine::PhysicsWorld::DebugDrawer::end_frame()
-{
-    process_lines_buffer();
-    set_view({});
-    set_projection({});
-}
-
-void engine::PhysicsWorld::DebugDrawer::process_lines_buffer()
-{
-    ENGINE_PROFILE_SECTION_N("physics_process_lines_buffer");
-    if (lines_.empty())
-    {
-        return;
-    }
-
-
-    //ToDo: Lifetime of lines is not taken into account. It should be removed after some time (lifeteam decreased with each update), but curretnly all lines are removed at the end of this function.
+    //ToDo: Lifetime of lines is not taken into account. It should be removed after some time (lifeteam decreased with each update), but curretnly all lines are removed when they are taken.
     //ToDo: limit the renderable lines for only visisble? or use some kind of frustrum culling?
-
-    static Shader shader_ssbo({ "debug_physics_lines_ssbo.vs" }, { "debug_physics_lines_ssbo.fs" });
-    static Geometry line_geo_simple(2);
-
-    {
-        const auto lines_count = lines_.size();
-        const auto ssbo_limit = ssbo_.get_size() / sizeof(LineDrawPacket);
-
-        if (lines_count > ssbo_limit)
-        {
-            engine::log::log(engine::log::LogLevel::eTrace, fmt::format("Resizeing SSBO for line drawer in physics visual debugger. Limit is: {}. Current lines count: {}\n", ssbo_limit, lines_count));
-            ssbo_ = ShaderStorageBuffer(sizeof(LineDrawPacket) * lines_count);
-        }
-    }
-
-
-    BufferMapContext<LineDrawPacket, ShaderStorageBuffer> mapping_context(ssbo_, false, true);
-    std::memcpy(mapping_context.data, lines_.data(), lines_.size() * sizeof(LineDrawPacket));
-    mapping_context.unmap();
-        
-    shader_ssbo.bind();
-    shader_ssbo.set_uniform_mat_f4("view", { glm::value_ptr(view_), sizeof(view_) / sizeof(float) });
-    shader_ssbo.set_uniform_mat_f4("projection", { glm::value_ptr(projection_), sizeof(projection_) / sizeof(float) });
-
-    ssbo_.bind(static_cast<std::uint32_t>(ShaderBindingSlot::DEBUG_PHYSICS));
-    line_geo_simple.bind();
-    line_geo_simple.draw_instances(Geometry::Mode::eLines, lines_.size());
-
+    out_lines.insert(out_lines.end(), lines_.begin(), lines_.end());
     lines_.clear();
-
 }

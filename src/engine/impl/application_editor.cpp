@@ -584,7 +584,6 @@ bool display_camera_component(const engine::Scene* scene, engine_camera_componen
 
 engine::ApplicationEditor::ApplicationEditor(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
     : Application(desc, out_code)
-    , outline_effect_(desc.width, desc.height)
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -598,6 +597,21 @@ engine::ApplicationEditor::ApplicationEditor(const engine_application_create_des
     assert(init_sdl3);
     const auto init_ogl = ImGui_ImplOpenGL3_Init();
     assert(init_ogl);
+
+    outline_feature_ = std::make_shared<OutlineFeature>();
+    renderer_.add_feature(outline_feature_, RenderStage::ePostProcess);
+
+    renderer_.add_feature(std::make_shared<CallbackRenderFeature>("Editor ImGui", [this](FrameContext& frame)
+        {
+            if (!render_imgui_)
+            {
+                return;
+            }
+            add_backbuffer_overlay_pass(frame, "ImGui", [](rg::PassContext&)
+                {
+                    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+                });
+        }), RenderStage::eOverlay, OVERLAY_ORDER_EDITOR);
 }
 
 engine::ApplicationEditor::~ApplicationEditor()
@@ -627,15 +641,11 @@ void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_b
 void engine::ApplicationEditor::on_frame_end()
 {
     ImGui::Render();
-    static bool render_im_gui = true;
     if(ImGui::IsKeyPressed(ImGuiKey_F1))
     {
-        render_im_gui = !render_im_gui;
+        render_imgui_ = !render_imgui_;
     }
-    if (render_im_gui)
-    {
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    }
+    outline_feature_->set_enabled(editor_view_ == EditorView::eEditor);
 }
 
 void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
@@ -666,7 +676,6 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_t
     if (editor_view_ == EditorView::eEditor)
     {
         render_guizmo(scene);
-        render_outline(scene);
         handle_mouse_picking(scene);
     }
     const auto lctrl = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL);
@@ -848,6 +857,33 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
     fps_values[fps_idx % fps_values.size()] = 1000.0f / dt;
     fps_idx++;
     ImGui::Text("FPS: %d", static_cast<std::uint32_t>(std::accumulate(fps_values.begin(), fps_values.end(), 0) / (fps_idx < fps_values.size() ? fps_idx : fps_values.size())));
+
+    ImGui::SeparatorText("Render graph (last frame)");
+    const auto& render_graph = renderer_.get_last_frame_graph();
+    for (const auto& pass : render_graph.get_pass_infos())
+    {
+        if (pass.culled)
+        {
+            ImGui::TextDisabled("%s (culled)", pass.name.c_str());
+        }
+        else
+        {
+            ImGui::BulletText("%s", pass.name.c_str());
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            for (const auto& name : pass.reads)
+            {
+                ImGui::Text("reads: %s", name.c_str());
+            }
+            for (const auto& name : pass.writes)
+            {
+                ImGui::Text("writes: %s", name.c_str());
+            }
+            ImGui::EndTooltip();
+        }
+    }
     ImGui::End();
 }
 
@@ -923,85 +959,22 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
     {
         const auto window_size = rdx_.get_window_size_in_pixels();
         const auto mouse_coords = mouse_get_coords();
-        viewport_t vp{};
-        vp.x = mouse_coords.x * window_size.width;
-        vp.y = mouse_coords.y * window_size.height;
-        vp.width = 1;
-        vp.height = 1;
-        const auto pixels = fbo_scene_.download_pixels(1, vp, DataLayout::eR_U32);
-        assert(pixels.size() == 4);
-        const auto pixels_u32 = reinterpret_cast<const std::uint32_t*>(pixels.data());
-        entt::entity entity_id = entt::null;
-        if (pixels_u32[0] != ENGINE_INVALID_GAME_OBJECT_ID)
+        // entity ids come from the previous frame, which is what was visible on the screen when the user clicked
+        std::uint32_t picked_id = ENGINE_INVALID_GAME_OBJECT_ID;
+        const auto x = static_cast<std::uint32_t>(mouse_coords.x * window_size.width);
+        const auto y = static_cast<std::uint32_t>(mouse_coords.y * window_size.height);
+        if (!renderer_.read_entity_id(x, y, picked_id))
         {
-            entity_id = static_cast<entt::entity>(pixels_u32[0]);
+            return;
+        }
+        entt::entity entity_id = entt::null;
+        if (picked_id != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            entity_id = static_cast<entt::entity>(picked_id);
         }
         scene_hierarchy_context_.set_selected_entity(scene, entity_id, commands_);
         scene_hierarchy_context_.set_forced_open_selected_parents(true);
     }
-}
-
-void engine::ApplicationEditor::render_outline(Scene* scene)
-{
-    const auto window_size = rdx_.get_window_size_in_pixels();
-    outline_effect_.fbo_outline.bind(AccessType::eWriteOnly);
-
-    const auto& [fbo_w, fbo_h] = outline_effect_.fbo_outline.get_size();
-    if (fbo_w != window_size.width || fbo_h != window_size.height)
-    {
-        outline_effect_.fbo_outline.resize(window_size.width, window_size.height);
-    }
-    rdx_.set_clear_color(0.0f, 0.0f, 0.0, 1.0f);
-    outline_effect_.fbo_outline.clear();
-
-    auto camera_view = scene->create_runtime_view();
-    scene->attach_component_to_runtime_view<engine_camera_component_t>(camera_view);
-    for (const auto& camera_entity : camera_view)
-    {
-        const auto camera = *scene->get_component<engine_camera_component_t>(camera_entity);
-        if (!camera.enabled)
-        {
-            continue;
-        }
-        const auto camera_internal = scene->get_component<engine::camera_internal_component_t>(camera_entity);
-        const auto camera_view = scene->get_camera_view(camera_entity);
-        const auto camera_projection = scene->get_camera_projection(camera_entity);
-
-        auto outline_view = scene->create_runtime_view();
-        scene->attach_component_to_runtime_view<engine::outline_component_t>(outline_view);
-        scene->attach_component_to_runtime_view<engine_tranform_component_t>(outline_view);
-        scene->attach_component_to_runtime_view<engine_mesh_component_t>(outline_view);
-        scene->attach_component_to_runtime_view<engine_material_component_t>(outline_view);
-
-        for (const auto& entity : outline_view)
-        {
-            const auto transform_component = scene->get_component<engine_tranform_component_t>(entity);
-            const auto mesh_component = scene->get_component<engine_mesh_component_t>(entity);
-            float color_white[3] = { 1.0f, 1.0f, 1.0f };
-
-            const auto& white_texture = *textures_atlas_.get_object(0);
-            const auto& geometry = *geometries_atlas_.get_object(mesh_component->geometry);
-     
-            engine::MaterialStaticGeometryUnlit::DrawContext ctx
-            {
-                .camera = camera_internal->camera_ubo,
-                .model_matrix = transform_component->local_to_world,
-                .color_diffuse = color_white,
-                .texture_diffuse = white_texture
-            };
-            outline_effect_.material_static_geometry_unlit.draw(geometry, ctx);
-        }
-    }
-
-    outline_effect_.fbo_outline.unbind();
-    //ToDO: optimize memory barriers here, no need to wait for all the stages
-    rdx_.dispatch_barrier(engine::RenderContext::MemoryBarrierBitMask::MEMORY_BARRIER_ALL_BIT);
-    outline_effect_.compute_shader_edge_detection.bind();
-    outline_effect_.compute_shader_edge_detection.set_texture("img_in", outline_effect_.fbo_outline.get_color_attachment(0), engine::AccessType::eReadOnly, engine::DataLayout::eRGBA_U8);
-    outline_effect_.compute_shader_edge_detection.set_texture("img_out", fbo_scene_.get_color_attachment(0), engine::AccessType::eReadWrite, engine::DataLayout::eRGBA_U8);
-    outline_effect_.compute_shader_edge_detection.dispatch(window_size.width / 32, window_size.height / 4, 1);
-    rdx_.dispatch_barrier(engine::RenderContext::MemoryBarrierBitMask::MEMORY_BARRIER_ALL_BIT);
-    fbo_scene_.bind();
 }
 
 bool engine::ApplicationEditor::is_mouse_enabled()
