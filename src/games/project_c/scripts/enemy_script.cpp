@@ -16,6 +16,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
+#include <cstring>
 
 namespace
 {
@@ -37,6 +38,71 @@ void enemy_attack_window_close_callback(const engine_animation_event_info_t* inf
     static_cast<project_c::Enemy*>(user_data)->set_attack_window_active(false);
 }
 } // namespace
+
+project_c::EnemyWeapon::EnemyWeapon(engine::IScene* my_scene, engine_game_object_t go, Enemy* enemy)
+    : BaseNode(my_scene, go, "enemy-weapon")
+    , enemy_(enemy)
+{
+    assert(enemy_);
+
+    auto tc = engineGameObjectGetTransformComponent(go_);
+    tc.position[0] = 0.0f;
+    tc.position[1] = 0.0f;
+    tc.position[2] = 0.0f;
+    tc.scale[0] = 1.0f;
+    tc.scale[1] = 1.0f;
+    tc.scale[2] = 1.0f;
+    engineGameObjectUpdateTransformComponent(go_, &tc);
+
+    auto pc = engineGameObjectAddParentComponent(go_);
+    pc.parent = enemy_->get_game_object();
+    engineGameObjectUpdateParentComponent(go_, &pc);
+
+    auto jac = engineGameObjectAddJointAttachmentComponent(go_);
+    jac.skin = engineGameObjectGetSkinComponent(pc.parent).skin;
+    engineStringSet(jac.joint_name, "handslot.r");
+    engineGameObjectUpdateJointAttachmentComponent(go_, &jac);
+
+    auto cc = engineGameObjectAddColliderComponent(go_);
+    cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
+    cc.is_trigger = true;
+    auto& hitbox = cc.collider.compound.children[0];
+    hitbox.type = ENGINE_COLLIDER_TYPE_BOX;
+    hitbox.transform[0] = 0.0f;
+    hitbox.transform[1] = 0.15f;
+    hitbox.transform[2] = 0.0f;
+    hitbox.rotation_quaternion[3] = 1.0f;
+    set_c_array(hitbox.collider.box.size, std::array<float, 3>{ 0.10f, 0.26f, 0.045f });
+    engineGameObjectUpdateColliderComponent(go_, &cc);
+}
+
+void project_c::EnemyWeapon::begin_swing()
+{
+    attack_window_active_ = false;
+    hit_player_this_swing_ = false;
+}
+
+void project_c::EnemyWeapon::set_attack_window_active(bool active)
+{
+    attack_window_active_ = active;
+}
+
+void project_c::EnemyWeapon::on_collision(const collision_t& info)
+{
+    if (!attack_window_active_ || hit_player_this_swing_)
+    {
+        return;
+    }
+
+    if (!engineGameObjectHasNameComponent(info.other)
+        || std::strcmp(engineGameObjectGetNameComponent(info.other).name, "player") != 0)
+    {
+        return;
+    }
+
+    hit_player_this_swing_ = true;
+    enemy_->on_weapon_hit_player(info.other);
+}
 
 project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const NavMesh* nav_mesh, float offset_x, float offset_z)
     : BaseNode(my_scene, pr, "enemy")
@@ -74,6 +140,20 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     auto rbc = engineGameObjectAddRigidBodyComponent(go_);
     rbc.mass = 100000.0f;
     engineGameObjectUpdateRigidBodyComponent(go_, &rbc);
+
+    auto* app = reinterpret_cast<AppProjectC*>(my_scene_->get_app());
+    if (app->is_prefab_available(PREFAB_TYPE_SKELETON_BLADE))
+    {
+        const auto blade = app->instantiate_prefab(PREFAB_TYPE_SKELETON_BLADE, my_scene_);
+        if (blade.go != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            weapon_ = my_scene_->register_script<EnemyWeapon>(blade.go, this);
+        }
+    }
+    else
+    {
+        engineLog("Skeleton blade prefab is unavailable; enemy weapon visuals and hitbox are disabled.\n");
+    }
 
     const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
     for (const auto* animation_name : { "1H_Melee_Attack_Slice_Diagonal", "1H_Melee_Attack_Slice_Horizontal" })
@@ -188,7 +268,7 @@ void project_c::Enemy::update(float dt)
     if (hp <= 0 && state_ != States::DIE)
     {
         state_ = States::DIE;
-        attack_window_active_ = false;
+        set_attack_window_active(false);
         if (!engineAnimationControllerLayerSetLooping(animation_controller, 0, false))
         {
             engineLog("Failed to disable looping for enemy death.\n");
@@ -223,8 +303,10 @@ void project_c::Enemy::update(float dt)
         if (distance_to_player <= ENEMY_ATTACK_RANGE && attack_cooldown_remaining_seconds_ <= 0.0f)
         {
             state_ = States::ATTACK;
-            attack_has_hit_player_ = false;
-            attack_window_active_ = false;
+            if (weapon_)
+            {
+                weapon_->begin_swing();
+            }
             if (!engineAnimationControllerLayerSetLooping(animation_controller, 0, false))
             {
                 engineLog("Failed to disable looping for enemy attack.\n");
@@ -271,7 +353,7 @@ void project_c::Enemy::update(float dt)
         if (!engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name()))
         {
             state_ = States::DECISION_MAKE;
-            attack_window_active_ = false;
+            set_attack_window_active(false);
             attack_cooldown_remaining_seconds_ = ENEMY_ATTACK_COOLDOWN_SECONDS;
             attack_data_.attack_with_right = !attack_data_.attack_with_right;
         }
@@ -281,25 +363,6 @@ void project_c::Enemy::update(float dt)
         std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
         engineGameObjectUpdateTransformComponent(go_, &tc);
 
-        if (attack_window_active_ && !attack_has_hit_player_)
-        {
-            const glm::vec3 enemy_position(tc.position[0], tc.position[1], tc.position[2]);
-            const glm::vec3 player_position(ec.position[0], ec.position[1], ec.position[2]);
-            glm::vec3 direction_to_player = player_position - enemy_position;
-            direction_to_player.y = 0.0f;
-            const float distance_squared = glm::dot(direction_to_player, direction_to_player);
-            const glm::vec3 forward = glm::normalize(glm::make_quat(tc.rotation) * glm::vec3(0.0f, 0.0f, 1.0f));
-            if (distance_squared <= ENEMY_ATTACK_RANGE * ENEMY_ATTACK_RANGE
-                && distance_squared > 0.0001f
-                && glm::dot(forward, glm::normalize(direction_to_player)) > 0.15f)
-            {
-                attack_has_hit_player_ = true;
-                if (auto* player = my_scene_->get_script<project_c::Player>(player_go_))
-                {
-                    player->receive_damage(ENEMY_ATTACK_DAMAGE, enemy_position);
-                }
-            }
-        }
         break;
     }
     case States::DIE:
@@ -356,8 +419,31 @@ void project_c::Enemy::update(float dt)
     typed_scene->ui_update_enemy(this);
 }
 
+void project_c::Enemy::set_attack_window_active(bool active)
+{
+    if (weapon_)
+    {
+        weapon_->set_attack_window_active(active);
+    }
+}
+
+void project_c::Enemy::on_weapon_hit_player(engine_game_object_t player_go)
+{
+    if (state_ != States::ATTACK || hp == 0)
+    {
+        return;
+    }
+
+    if (auto* player = my_scene_->get_script<project_c::Player>(player_go))
+    {
+        const auto tc = engineGameObjectGetTransformComponent(go_);
+        player->receive_damage(ENEMY_ATTACK_DAMAGE, glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
+    }
+}
+
 void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_seconds)
 {
+    set_attack_window_active(false);
     hp = damage >= hp ? 0 : hp - damage;
     hit_flash_remaining_seconds_ = 0.12f;
     update_hit_flash(1.0f);

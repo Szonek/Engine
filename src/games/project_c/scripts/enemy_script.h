@@ -6,6 +6,23 @@
 
 namespace project_c
 {
+class Enemy;
+
+class EnemyWeapon : public BaseNode
+{
+public:
+    EnemyWeapon(engine::IScene* my_scene, engine_game_object_t go, Enemy* enemy);
+
+    void begin_swing();
+    void set_attack_window_active(bool active);
+    void on_collision(const collision_t& info) override;
+
+private:
+    Enemy* enemy_ = nullptr;
+    bool attack_window_active_ = false;
+    bool hit_player_this_swing_ = false;
+};
+
 class Enemy : public BaseNode
 {
 private:
@@ -39,7 +56,8 @@ public:
 
     void update(float dt);
     void receive_attack_hit(std::uint32_t damage, float hit_stop_seconds);
-    void set_attack_window_active(bool active) { attack_window_active_ = active; }
+    void set_attack_window_active(bool active);
+    void on_weapon_hit_player(engine_game_object_t player_go);
 
 private:
     struct HitFlashMaterial
@@ -58,13 +76,12 @@ private:
     AttackStateData attack_data_;
     std::vector<IScript*> debug_scripts_;
     std::vector<HitFlashMaterial> hit_flash_materials_;
+    EnemyWeapon* weapon_ = nullptr;
     engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;  // cache the result, because  it's performance expensive to find player go with each frame
     float hit_flash_remaining_seconds_ = 0.0f;
     float hit_stop_remaining_seconds_ = 0.0f;
     float attack_cooldown_remaining_seconds_ = 0.0f;
     bool hit_stop_just_started_ = false;
-    bool attack_window_active_ = false;
-    bool attack_has_hit_player_ = false;
     bool defeat_reported_ = false;
 };
 } //namespace project_c

@@ -13,6 +13,7 @@ int main(int argc, char** argv)
 
             // enemies
             { project_c::PREFAB_TYPE_SKELETON_WARRIOR, { "Skeleton_Warrior.glb", "KayKit_Skeletons_1.0_FREE/characters/gltf" }},
+            { project_c::PREFAB_TYPE_SKELETON_BLADE, { "Skeleton_Blade.gltf", "KayKit_Skeletons_1.0_FREE/assets/gltf" }},
 
             // scene assets
             { project_c::PREFAB_TYPE_FLOOR,          { "Floor_Prototype.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
