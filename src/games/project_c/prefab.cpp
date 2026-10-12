@@ -161,7 +161,6 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             return ret;
         }
     }
-
     engine_animation_controller_t* anim_controller = nullptr;
     const auto animations_count = engineModelDescGetAnimationsDescCount(model_desc_);
     if (animations_count > 0)
@@ -227,7 +226,6 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
                 log(std::format("\t[{}] has added animation controller component with name: {}\n", go, skin_name));
             }
         }
-
         // transform
         {
             auto tc = engineGameObjectAddTransformComponent(go);
@@ -288,11 +286,12 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         for (auto j = 0; j < engineSkinDescGetJointsCount(skin_desc); j++)
         {
             const auto joint_name = engineSkinDescGetJointName(skin_desc, j);
-            const auto go = utils::get_game_objects_with_name(joint_name).at(0);
+            const auto model_node_desc = engineModelDescGetNodeDescByName(model_desc_, joint_name);
+            const auto node_idx = engineModelNodeDescGetIndex(model_node_desc);
+            const auto go = node_id_to_game_object.at(node_idx);
             engineGameObjectDestroy(go);
 
-            const auto model_node_desc = engineModelDescGetNodeDescByName(model_desc_, joint_name);
-            node_id_to_game_object.erase(engineModelNodeDescGetIndex(model_node_desc));
+            node_id_to_game_object.erase(node_idx);
 
             // but objects which parent was joint have to have added joint attachment
             for (auto c = 0; c < engineModelNodeDescGetChildrenCount(model_node_desc); c++)
@@ -312,7 +311,6 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         }
     }
 
-
     // all objects are children of the return object
     for (const auto& [node_id, go] : node_id_to_game_object)
     {
@@ -324,7 +322,6 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         pc.parent = ret.go;
         engineGameObjectUpdateParentComponent(go, &pc);
     }
-
     return ret;
 }
 

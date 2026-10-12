@@ -181,7 +181,6 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             }
         }
     }
-
     // construct edges based on vector if ids
     for (auto x = 0; x < scene_width; x++)
     {
@@ -267,7 +266,6 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             }
         }
     }
-
     // at this point nav mesh has to be completed!
     if (app.is_prefab_available(project_c::PREFAB_TYPE_BARBARIAN))
     {
@@ -279,7 +277,6 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             const auto item_equipped = s->equip_waepon(w);
         }
     }
-
     if (app.is_prefab_available(project_c::PREFAB_TYPE_SKELETON_WARRIOR))
     {
         for (const auto& point : scene_spawn_points.enemy_packs)
@@ -314,6 +311,7 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             w->drop_on_ground(glm::vec3(wpn.x, 0.5f, wpn.y));
         }
     }
+
 }
 }
 
@@ -423,7 +421,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     gameplay_started_ = !app->is_editor_enabled();
     gameplay_ui_visible_ = engineEditorIsGameView();
     ui_data_.encounter_status = engineStringCreate(
-        gameplay_started_ ? "Defeat all enemies. WASD move, RMB attack, SPACE dodge." : "Paused. Click Play in the editor toolbar to start.");
+        gameplay_started_ ? "Maze test: 40 enemies. WASD move, RMB attack, SPACE dodge." : "Paused. Click Play in the editor toolbar to start.");
     assert(ui_data_.encounter_status);
 
     std::vector<engine_ui_document_data_binding_t> bindings {};
@@ -479,39 +477,38 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         }
     }
 
-    //const std::string scene_str =
-    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-    //    "xxxxxxb                            xxxxxxxxxx\n"
-    //    "xxxxxx e        wp             e b xxxxxxxxxx\n"
-    //    "xxxxxx                           b xxxxxxxxxx\n"
-    //    "xxxxxx                             xxxxxxxxxx\n"
-    //    "xxxxxxxxxxxxxxxxx      xxxxxxxxxxxxxxxxxxxxxx\n"
-    //    "xxxxxxxxxxxxxxxxx   e  xxxxxxxxxxxxxxxxxxxxxx\n"
-    //    "xxxxxxxxxxxxxxxxx bbbb xxxxxxxxxxxxxxxxxxxxxx\n"
-    //    "xxxxxxxxxxxxxxxxx      xxxxxxxxxxxxxxxxxxxxxx\n"
-    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-    //    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
-
     const std::string scene_str =
-        "             \n"
-        "             \n"
-        "      b      \n"
-        "      p e    \n"
-        "             \n"
-        "             \n"
-        "             \n";
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+        "x                                 x\n"
+        "x       |        |        |       x\n"
+        "x       |        |        |       x\n"
+        "x   e       e    |   e    |   e   x\n"
+        "x       |        |                x\n"
+        "x       |        |        |       x\n"
+        "x -- ---|---- --- --- ----|-- --- x\n"
+        "x       |        |        |       x\n"
+        "x       |        |        |       x\n"
+        "x       |        |        |       x\n"
+        "x                |        |       x\n"
+        "x   b   |   b    p   b        b   x\n"
+        "x       |        |        |       x\n"
+        "x       |                 |       x\n"
+        "x       |        |        |       x\n"
+        "x --- --|--- ----|---- ---|--- -- x\n"
+        "x       |        |        |       x\n"
+        "x                |                x\n"
+        "x       |        |        |       x\n"
+        "x   e   |   e    w   e    |   e   x\n"
+        "x       |        |        |       x\n"
+        "x       |        |        |       x\n"
+        "x                                 x\n"
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
 
 
     register_script<MainLight>();
     auto typed_app = static_cast<AppProjectC*>(app);
     generate_scene(scene_str, nav_mesh_, *typed_app, *this);
     camera_script->snap_to_player();
-
 }
 
 project_c::TestScene::~TestScene()
@@ -528,7 +525,7 @@ void project_c::TestScene::update_hook_begin()
     if (!gameplay_started_ && engineEditorIsPlaying())
     {
         gameplay_started_ = true;
-        engineStringSet(ui_data_.encounter_status, "Defeat all enemies. WASD move, RMB attack, SPACE dodge.");
+        engineStringSet(ui_data_.encounter_status, "Maze test: 40 enemies. WASD move, RMB attack, SPACE dodge.");
         engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "encounter_status");
     }
 }
