@@ -575,11 +575,11 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
         auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, camera_internal_component_t>();
         const auto window_size_pixels = rdx_.get_window_size_in_pixels();
 
-        for (auto [entity, camera, camera_transform, camera_internal] : camera_view.each())
+        camera_view.each([&](auto, const engine_camera_component_t& camera, const engine_tranform_component_t& camera_transform, camera_internal_component_t& camera_internal)
         {
             if (!camera.enabled)
             {
-                continue;
+                return;
             }
 
             calculate_camera_view_and_projection(window_size_pixels.width, window_size_pixels.height,
@@ -587,7 +587,7 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
             render_data.views.push_back(camera_internal.data);
             // data was taken, so the next frame has to compute it again
             camera_internal.computed_this_frame = false;
-        }
+        });
 
         // Fills data shared by all mesh draws. Returns false if the draw has to be skipped.
         const auto fill_mesh_draw_item = [this](entt::entity entity, const engine_tranform_component_t& transform_component, const engine_material_component_t& material_component, engine_geometry_t geometry, StaticMeshDrawItem& item)
@@ -850,4 +850,3 @@ glm::mat4 engine::Scene::get_camera_projection(entt::entity camera_go)
     }
     return glm::mat4();
 }
-
