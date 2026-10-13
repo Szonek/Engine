@@ -12,6 +12,7 @@ project_c::Prefab::Prefab(Prefab&& rhs) noexcept
     std::swap(geometries_, rhs.geometries_);
     std::swap(textures_, rhs.textures_);
     std::swap(materials_, rhs.materials_);
+    std::swap(skins_, rhs.skins_);
     std::swap(animation_controllers_, rhs.animation_controllers_);
 }
 
@@ -161,29 +162,17 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
             return ret;
         }
     }
-
     engine_animation_controller_t* anim_controller = nullptr;
     const auto animations_count = engineModelDescGetAnimationsDescCount(model_desc_);
     if (animations_count > 0)
     {
         // create animation controller
-        anim_controller = engineCreateAnimationControllerWithSkin(skin_handle);
+        anim_controller = engineCreateAnimationControllerWithSkin(skin_handle, model_desc_);
         if (!anim_controller)
         {
             engineLog("Failed creating animation controller for loaded model. Exiting!\n");
+            engineDestroySkin(skin_handle);
             return ret;
-        }
-        // add animations to the controller
-        for (auto i = 0; i < animations_count; i++)
-        {
-            const auto& anim_desc = engineModelDescGetAnimationDesc(model_desc_, i);
-            const auto anim_name = engineAnimationDescGetName(anim_desc);
-            if (!engineAnimationControllerAddAnimation(anim_controller, anim_desc))
-            {
-                engineLog(std::format("Failed adding animation: {} to the controller. Exiting!\n", anim_name).c_str());
-                engineDestroyAnimationController(anim_controller);
-                return ret;
-            }
         }
         animation_controllers_.push_back(anim_controller);
     }
@@ -227,7 +216,6 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
                 log(std::format("\t[{}] has added animation controller component with name: {}\n", go, skin_name));
             }
         }
-
         // transform
         {
             auto tc = engineGameObjectAddTransformComponent(go);
@@ -288,11 +276,12 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         for (auto j = 0; j < engineSkinDescGetJointsCount(skin_desc); j++)
         {
             const auto joint_name = engineSkinDescGetJointName(skin_desc, j);
-            const auto go = utils::get_game_objects_with_name(joint_name).at(0);
+            const auto model_node_desc = engineModelDescGetNodeDescByName(model_desc_, joint_name);
+            const auto node_idx = engineModelNodeDescGetIndex(model_node_desc);
+            const auto go = node_id_to_game_object.at(node_idx);
             engineGameObjectDestroy(go);
 
-            const auto model_node_desc = engineModelDescGetNodeDescByName(model_desc_, joint_name);
-            node_id_to_game_object.erase(engineModelNodeDescGetIndex(model_node_desc));
+            node_id_to_game_object.erase(node_idx);
 
             // but objects which parent was joint have to have added joint attachment
             for (auto c = 0; c < engineModelNodeDescGetChildrenCount(model_node_desc); c++)
@@ -312,7 +301,6 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         }
     }
 
-
     // all objects are children of the return object
     for (const auto& [node_id, go] : node_id_to_game_object)
     {
@@ -324,7 +312,6 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
         pc.parent = ret.go;
         engineGameObjectUpdateParentComponent(go, &pc);
     }
-
     return ret;
 }
 

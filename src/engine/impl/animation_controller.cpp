@@ -13,6 +13,7 @@
 
 #include <stdexcept>
 #include <format>
+#include <cmath>
 
 namespace
 {
@@ -35,21 +36,23 @@ struct WeightSetupIterator
 };
 }
 
-engine::AnimationController::AnimationController(Skin* skin)
-    : skin_(skin)
+engine::AnimationLibrary::AnimationLibrary(const Skin& skin)
 {
-    ENGINE_PROFILE_SECTION;
-    if (!skin_)
+    joint_names_.reserve(skin.skeleton_->num_joints());
+    for (int i = 0; i < skin.skeleton_->num_joints(); ++i)
     {
-        throw std::invalid_argument("Skin pointer cannot be null!");
+        joint_names_.emplace_back(skin.skeleton_->joint_names()[i]);
     }
-    // add default layer
-    assert(add_layer(0, 1.0f));
 }
 
-bool engine::AnimationController::add_animation(const AnimationClipDesc& animation_clip)
+bool engine::AnimationLibrary::add_animation(const AnimationClipDesc& animation_clip, const Skin& skin)
 {
     ENGINE_PROFILE_SECTION;
+    if (!is_compatible_with(skin))
+    {
+        log::log(log::LogLevel::eError, "Cannot compile animation data for an incompatible skin skeleton.\n");
+        return false;
+    }
     ozz::animation::offline::RawAnimation raw_animation;
     raw_animation.name = animation_clip.name;
     raw_animation.duration = animation_clip.duration;
@@ -74,11 +77,16 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
         log::log(log::LogLevel::eError, std::format("Animation '{}' has no channels.\n", raw_animation.name).c_str());
         return false;
     }
-    raw_animation.tracks.resize(skin_->skeleton_->num_joints());
+    raw_animation.tracks.resize(skin.skeleton_->num_joints());
 
     for (const auto& channel : animation_clip.channels)
     {
-        const auto joint_idx = ozz::animation::FindJoint(*skin_->skeleton_, channel.joint_name.c_str());
+        const auto joint_idx = ozz::animation::FindJoint(*skin.skeleton_, channel.joint_name.c_str());
+        if (joint_idx < 0)
+        {
+            log::log(log::LogLevel::eError, std::format("Joint '{}' not found in skin '{}'.\n", channel.joint_name, skin.get_name()).c_str());
+            return false;
+        }
         auto& track = raw_animation.tracks[joint_idx];
         
         switch (channel.type)
@@ -131,18 +139,103 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
     ozz::animation::offline::RawAnimation raw_animation_additive;
     ozz::animation::offline::AdditiveAnimationBuilder additive_builder{};
     const auto res = additive_builder(raw_animation, &raw_animation_additive);
-    assert(res);
-    AnimationData ad{};
+    if (!res)
+    {
+        log::log(log::LogLevel::eError, std::format("Failed to build additive animation '{}'.\n", raw_animation.name).c_str());
+        return false;
+    }
+    auto compiled = std::make_shared<CompiledAnimationData>();
     ozz::animation::offline::AnimationBuilder builder;
-    ad.override = builder(raw_animation);
-    ad.additive = builder(raw_animation_additive);
-    animations_.emplace(raw_animation.name, std::move(ad));
+    compiled->override_animation = builder(raw_animation);
+    compiled->additive_animation = builder(raw_animation_additive);
+    if (!compiled->override_animation || !compiled->additive_animation)
+    {
+        log::log(log::LogLevel::eError, std::format("Failed compiling animation '{}'.\n", raw_animation.name).c_str());
+        return false;
+    }
+    animations_.emplace(raw_animation.name, std::move(compiled));
+    return true;
+}
+
+bool engine::AnimationLibrary::is_compatible_with(const Skin& skin) const
+{
+    if (joint_names_.size() != static_cast<std::size_t>(skin.skeleton_->num_joints()))
+    {
+        return false;
+    }
+    for (std::size_t i = 0; i < joint_names_.size(); ++i)
+    {
+        if (joint_names_[i] != skin.skeleton_->joint_names()[i])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+const std::unordered_map<std::string, std::shared_ptr<const engine::CompiledAnimationData>>& engine::AnimationLibrary::animations() const
+{
+    return animations_;
+}
+
+engine::AnimationController::AnimationController(Skin* skin, std::shared_ptr<const AnimationLibrary> animation_library)
+    : skin_(skin)
+{
+    ENGINE_PROFILE_SECTION;
+    if (!skin_)
+    {
+        throw std::invalid_argument("Skin pointer cannot be null!");
+    }
+    if (animation_library)
+    {
+        if (!animation_library->is_compatible_with(*skin_))
+        {
+            throw std::invalid_argument("Animation library is incompatible with the skin skeleton.");
+        }
+        for (const auto& [name, compiled] : animation_library->animations())
+        {
+            animations_.emplace(name, AnimationData{ compiled, {} });
+        }
+    }
+    // add default layer
+    assert(add_layer(0, 1.0f));
+}
+
+bool engine::AnimationController::add_animation(const AnimationClipDesc& animation_clip)
+{
+    ENGINE_PROFILE_SECTION;
+    if (animation_clip.name.empty())
+    {
+        log::log(log::LogLevel::eError, "Animation name cannot be empty.\n");
+        return false;
+    }
+    if (animations_.find(animation_clip.name) != animations_.end())
+    {
+        log::log(log::LogLevel::eError, std::format("Animation '{}' already exists in the controller.\n", animation_clip.name).c_str());
+        return false;
+    }
+    AnimationLibrary compiled_library(*skin_);
+    if (!compiled_library.add_animation(animation_clip, *skin_))
+    {
+        return false;
+    }
+    const auto& compiled = compiled_library.animations().at(animation_clip.name);
+    animations_.emplace(animation_clip.name, AnimationData{ compiled, {} });
     return true;
 }
 
 void engine::AnimationController::update(float dt)
 {
     ENGINE_PROFILE_SECTION;
+    if (dt == 0.0f)
+    {
+        return;
+    }
+    assert(dt > 0.0f);
+    if (paused_)
+    {
+        return;
+    }
 
     ozz::vector<ozz::animation::BlendingJob::Layer> executed_layers;
     executed_layers.reserve(layers_.size());
@@ -152,8 +245,8 @@ void engine::AnimationController::update(float dt)
 
     for (auto& [_, layer] : layers_)
     {
-        const bool has_played_a = layer.animation_a.update(dt);
-        const bool has_played_b = layer.animation_b.update(dt);
+        const bool has_played_a = layer.animation_a.update(dt * layer.playback_rate, layer.looping);
+        const bool has_played_b = layer.animation_b.update(dt * layer.playback_rate, layer.looping);
         // if both animation have not played then skip current layer
         if (!has_played_a && !has_played_b)
         {
@@ -255,6 +348,12 @@ void engine::AnimationController::update(float dt)
     }
 }
 
+bool engine::AnimationController::set_paused(bool paused)
+{
+    paused_ = paused;
+    return true;
+}
+
 bool engine::AnimationController::add_layer(std::size_t id, float weight)
 {
     if (has_layer(id))
@@ -287,6 +386,70 @@ bool engine::AnimationController::set_layer_weight(std::size_t id, float weight)
     return true;
 }
 
+bool engine::AnimationController::set_layer_playback_rate(std::size_t id, float playback_rate)
+{
+    if (!has_layer(id))
+    {
+        log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", id).c_str());
+        return false;
+    }
+    if (!std::isfinite(playback_rate) || playback_rate <= 0.0f)
+    {
+        log::log(log::LogLevel::eError, std::format("Animation playback rate must be finite and greater than zero, got: {}\n", playback_rate).c_str());
+        return false;
+    }
+
+    layers_.at(id).playback_rate = playback_rate;
+    return true;
+}
+
+bool engine::AnimationController::set_layer_looping(std::size_t id, bool looping)
+{
+    if (!has_layer(id))
+    {
+        log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", id).c_str());
+        return false;
+    }
+
+    layers_.at(id).looping = looping;
+    return true;
+}
+
+bool engine::AnimationController::set_layer_joint_weight(std::size_t id, const std::string& joint_name, float weight)
+{
+    if (!has_layer(id))
+    {
+        log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", id).c_str());
+        return false;
+    }
+    if (weight < 0.0f || weight > 1.0f)
+    {
+        log::log(log::LogLevel::eError, std::format("Joint weight must be between 0 and 1, got: {}\n", weight).c_str());
+        return false;
+    }
+
+    const auto joint_index = ozz::animation::FindJoint(*skin_->skeleton_, joint_name.c_str());
+    if (joint_index < 0)
+    {
+        log::log(log::LogLevel::eError, std::format("Joint '{}' not found in skin '{}'.\n", joint_name, skin_->get_name()).c_str());
+        return false;
+    }
+
+    auto& layer = layers_.at(id);
+    if (!layer.joint_weights)
+    {
+        ozz::vector<ozz::math::SimdFloat4> weights(
+            (skin_->skeleton_->num_joints() + 3) / 4,
+            ozz::math::simd_float4::Load1(0.0f));
+        layer.joint_weights = std::move(weights);
+    }
+    ozz::animation::IterateJointsDF(
+        *skin_->skeleton_,
+        WeightSetupIterator(*layer.joint_weights, weight),
+        joint_index);
+    return true;
+}
+
 bool engine::AnimationController::set_layer_mode(std::size_t id, LayerBlendMode mode)
 {
     if (!has_layer(id))
@@ -313,7 +476,9 @@ bool engine::AnimationController::play(const std::string& animation_name, std::s
         return false;
     }
     
-    const auto& animation = layers_.at(layer_id).mode == LayerBlendMode::eAdditive ? it->second.additive : it->second.override;
+    const auto& animation = layers_.at(layer_id).mode == LayerBlendMode::eAdditive
+        ? it->second.compiled->additive_animation
+        : it->second.compiled->override_animation;
     if (!animation)
     {
         log::log(log::LogLevel::eError, std::format("Animation '{}' is null.\n", animation_name).c_str());
@@ -340,7 +505,9 @@ bool engine::AnimationController::cross_fade_to(const std::string& animation_nam
         return false;
     }
 
-    const auto& animation = layers_.at(layer_id).mode == LayerBlendMode::eAdditive ? it->second.additive : it->second.override;
+    const auto& animation = layers_.at(layer_id).mode == LayerBlendMode::eAdditive
+        ? it->second.compiled->additive_animation
+        : it->second.compiled->override_animation;
     if (!animation)
     {
         log::log(log::LogLevel::eError, std::format("Animation '{}' is null.\n", animation_name).c_str());
@@ -381,6 +548,20 @@ bool engine::AnimationController::is_playing(const std::string& animation_name) 
     return false;
 }
 
+bool engine::AnimationController::is_playing(const std::string& animation_name, std::size_t layer_id) const
+{
+    const auto layer_it = layers_.find(layer_id);
+    if (layer_it == layers_.end())
+    {
+        log::log(log::LogLevel::eError, std::format("Layer with id: {} does not exist\n", layer_id).c_str());
+        return false;
+    }
+
+    const auto& layer = layer_it->second;
+    return (layer.animation_a.is_playing() && layer.animation_a.get_name() == animation_name)
+        || (layer.animation_b.is_playing() && layer.animation_b.get_name() == animation_name);
+}
+
 float engine::AnimationController::get_duration(const std::string& animation_name) const
 {
     auto it = animations_.find(animation_name);
@@ -389,7 +570,7 @@ float engine::AnimationController::get_duration(const std::string& animation_nam
         log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
         return 0.0f;
     }
-    return it->second.override->duration();
+    return it->second.compiled->override_animation->duration();
 }
 
 std::pair<bool, std::uint32_t> engine::AnimationController::add_event(const std::string& animation_name, const engine_animation_event_t& ev)
@@ -447,6 +628,7 @@ void engine::SamplingJob::start(const ozz::animation::Animation* anim, const Ani
     animation_ = anim;
     animation_timeline_ = timeline;
     time_ = 0.0f;
+    timeline_next_event_id_ = 0;
 }
 
 std::string engine::SamplingJob::get_name() const
@@ -455,7 +637,7 @@ std::string engine::SamplingJob::get_name() const
     return animation_->name();
 }
 
-bool engine::SamplingJob::update(float dt)
+bool engine::SamplingJob::update(float dt, bool looping)
 {
     ENGINE_PROFILE_SECTION;
     if (!is_playing())
@@ -466,25 +648,48 @@ bool engine::SamplingJob::update(float dt)
     assert(animation_timeline_ != nullptr);
     assert(dt != 0.0f);
 
-    time_ += (dt / 1000.0f); // time is in seconds
-
-    // 1. Loop over events, because we can have multiple events triggering at the same time
-    // 2. Vector of events has to be sorted!
-    for(int i = timeline_next_event_id_; i < animation_timeline_->size(); i++)
+    const float duration = animation_->duration();
+    auto fire_events = [&]()
     {
-        const auto& current_ev = animation_timeline_->at(timeline_next_event_id_);
-        if (time_ >= current_ev.ev.trigger_time)
+        while (timeline_next_event_id_ < animation_timeline_->size())
         {
-            timeline_next_event_id_++;
+            const auto& current_ev = animation_timeline_->at(timeline_next_event_id_);
+            if (time_ < current_ev.ev.trigger_time)
+            {
+                break;
+            }
+
+            ++timeline_next_event_id_;
             engine_animation_event_info_t info{};
             info.current_time = time_;
             current_ev.ev.fn_ptr(&info, current_ev.ev.user_data);
         }
-        // else - early break?
+    };
+
+    float remaining_time = dt / 1000.0f; // time is in seconds
+    if (looping)
+    {
+        while (remaining_time > 0.0f)
+        {
+            const float segment_time = std::min(remaining_time, duration - time_);
+            time_ += segment_time;
+            remaining_time -= segment_time;
+            fire_events();
+
+            if (time_ >= duration)
+            {
+                time_ = 0.0f;
+                timeline_next_event_id_ = 0;
+            }
+        }
+    }
+    else
+    {
+        time_ += remaining_time;
+        fire_events();
     }
 
-
-    const auto time_ratio = std::min(1.0f, time_ / animation_->duration());
+    const auto time_ratio = std::min(1.0f, time_ / duration);
     ozz::animation::SamplingJob sampling_job;
     sampling_job.animation = animation_;
     sampling_job.context = context_.get();

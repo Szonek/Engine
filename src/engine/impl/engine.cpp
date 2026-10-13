@@ -14,6 +14,7 @@
 #include "logger.h"
 
 #include <utility>
+#include <mutex>
 
 #include <format>
 
@@ -194,6 +195,43 @@ inline auto api_cast(const engine::AnimationController& contact)
     return reinterpret_cast<const engine_animation_controller_t*>(&contact);
 }
 
+std::mutex G_ANIMATION_LIBRARY_CACHE_MUTEX;
+
+std::shared_ptr<const engine::AnimationLibrary> get_or_create_animation_library(
+    const engine::ModelDesc& model_desc,
+    const engine::Skin& skin)
+{
+    std::shared_ptr<engine::AnimationLibraryCache> cache;
+    {
+        std::lock_guard lock(G_ANIMATION_LIBRARY_CACHE_MUTEX);
+        if (!model_desc.animation_library_cache)
+        {
+            model_desc.animation_library_cache = std::make_shared<engine::AnimationLibraryCache>();
+        }
+        cache = model_desc.animation_library_cache;
+    }
+
+    std::lock_guard lock(cache->mutex);
+    for (const auto& library : cache->libraries)
+    {
+        if (library->is_compatible_with(skin))
+        {
+            return library;
+        }
+    }
+
+    auto library = std::make_shared<engine::AnimationLibrary>(skin);
+    for (const auto& animation : model_desc.animations)
+    {
+        if (!library->add_animation(animation, skin))
+        {
+            return {};
+        }
+    }
+    cache->libraries.push_back(library);
+    return library;
+}
+
 template<typename T>
 inline T add_component(engine_scene_t scene, engine_game_object_t engine_game_object_t)
 {
@@ -287,6 +325,26 @@ bool engineEditorIsEnabled()
         return false;
     }
     return dynamic_cast<engine::ApplicationEditor*>(api_cast(G_ACTIVE_APP)) != nullptr;
+}
+
+bool engineEditorIsPlaying()
+{
+    if (!G_ACTIVE_APP)
+    {
+        return true;
+    }
+    const auto editor = dynamic_cast<engine::ApplicationEditor*>(api_cast(G_ACTIVE_APP));
+    return editor ? editor->is_playing() : true;
+}
+
+bool engineEditorIsGameView()
+{
+    if (!G_ACTIVE_APP)
+    {
+        return true;
+    }
+    const auto editor = dynamic_cast<engine::ApplicationEditor*>(api_cast(G_ACTIVE_APP));
+    return editor ? editor->is_game_view() : true;
 }
 
 void engineApplicationDestroy(engine_application_t handle)
@@ -1770,15 +1828,29 @@ const char* engineSkinGetName(const engine_skin_t* skin)
     return api_cast(skin)->get_name().c_str();
 }
 
-engine_animation_controller_t* engineCreateAnimationControllerWithSkin(engine_skin_t* skin)
+engine_animation_controller_t* engineCreateAnimationControllerWithSkin(engine_skin_t* skin, const engine_model_desc_t* model_desc)
 {
     if (!G_ACTIVE_APP || !skin)
     {
         return nullptr;
     }
-    auto* app = api_cast(G_ACTIVE_APP);
     auto typed_skin = api_cast(skin);
-    auto controller = new engine::AnimationController(typed_skin);
+    std::shared_ptr<const engine::AnimationLibrary> animation_library;
+    if (model_desc)
+    {
+        const auto typed_desc = api_cast(model_desc);
+        if (!typed_desc->animations.empty())
+        {
+            animation_library = get_or_create_animation_library(*typed_desc, *typed_skin);
+            if (!animation_library)
+            {
+                engineLog("Failed creating animation library for loaded model.\n");
+                return nullptr;
+            }
+        }
+    }
+
+    auto controller = new engine::AnimationController(typed_skin, std::move(animation_library));
     return api_cast(*controller);
 }
 
@@ -1791,6 +1863,15 @@ void engineDestroyAnimationController(engine_animation_controller_t* controller)
     auto* app = api_cast(G_ACTIVE_APP);
     auto typed_controller = api_cast(controller);
     delete typed_controller;
+}
+
+bool engineAnimationControllerSetPaused(engine_animation_controller_t* controller, bool paused)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    return api_cast(controller)->set_paused(paused);
 }
 
 bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc)
@@ -1851,6 +1932,16 @@ bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* 
     return typed_controller->is_playing(name);
 }
 
+bool engineAnimationControllerIsAnimationPlayingOnLayer(engine_animation_controller_t* controller, const char* name, size_t layer_id)
+{
+    if (!controller || !name)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->is_playing(name, layer_id);
+}
+
 bool engineAnimationControllerAddLayer(engine_animation_controller_t* controller, size_t id, float default_weight)
 {
     if (!controller)
@@ -1879,6 +1970,36 @@ bool engineAnimationControllerLayerSetWeight(engine_animation_controller_t* cont
     }
     auto typed_controller = api_cast(controller);
     return typed_controller->set_layer_weight(id, new_weight);
+}
+
+bool engineAnimationControllerLayerSetPlaybackRate(engine_animation_controller_t* controller, size_t id, float playback_rate)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->set_layer_playback_rate(id, playback_rate);
+}
+
+bool engineAnimationControllerLayerSetLooping(engine_animation_controller_t* controller, size_t id, bool looping)
+{
+    if (!controller)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->set_layer_looping(id, looping);
+}
+
+bool engineAnimationControllerLayerSetJointWeight(engine_animation_controller_t* controller, size_t id, const char* joint_name, float weight)
+{
+    if (!controller || !joint_name)
+    {
+        return false;
+    }
+    auto typed_controller = api_cast(controller);
+    return typed_controller->set_layer_joint_weight(id, joint_name, weight);
 }
 
 bool engineAnimationControllerSetMode(engine_animation_controller_t* controller, size_t id, engine_animation_layer_mode_t mode)

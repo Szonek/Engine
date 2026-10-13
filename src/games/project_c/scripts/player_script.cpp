@@ -3,6 +3,7 @@
 #include "enemy_script.h"
 #include "enviorment_script.h"
 #include "interactable_script.h"
+#include "camera_script.h"
 #include "../scenes/scene_test.h"
 
 #include "../app.h"
@@ -12,18 +13,47 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <array>
+#include <algorithm>
+#include <cmath>
 #include <format>
 
 namespace
 {
-void attack_event_callback(const engine_animation_event_info_t* info, void* user_data)
+constexpr float ATTACK_ACTIVE_START = 0.30f;
+constexpr float ATTACK_ACTIVE_END = 0.62f;
+constexpr float COMBO_WINDOW_START = 0.68f;
+constexpr float COMBO_WINDOW_END = 0.92f;
+constexpr float ATTACK_INPUT_BUFFER_SECONDS = 0.25f;
+constexpr float ATTACK_COMBO_CROSS_FADE_SECONDS = 0.08f;
+constexpr float ATTACK_EXIT_CROSS_FADE_SECONDS = 0.15f;
+constexpr float PLAYER_TURN_RATE_DEGREES_PER_SECOND = 540.0f;
+constexpr float PLAYER_WALK_SPEED = 1.875f;
+constexpr float PLAYER_RUN_SPEED = 2.5f;
+constexpr float PLAYER_MOVEMENT_ACCELERATION = 24.0f;
+constexpr float PLAYER_MOVEMENT_BRAKING = 30.0f;
+constexpr float PLAYER_IDLE_SPEED_THRESHOLD = 0.05f;
+constexpr float HIT_STOP_DURATION_SECONDS = 0.06f;
+constexpr float HIT_CAMERA_SHAKE_INTENSITY = 0.035f;
+constexpr float HIT_CAMERA_SHAKE_DURATION_SECONDS = 0.08f;
+constexpr float DODGE_INVULNERABILITY_SECONDS = 0.20f;
+constexpr float DODGE_COOLDOWN_SECONDS = 0.65f;
+constexpr float DODGE_SPEED = 4.0f;
+constexpr float PLAYER_HIT_STUN_SECONDS = 0.0f;
+constexpr float PLAYER_KNOCKBACK_SPEED = 2.5f;
+
+void attack_window_open_callback(const engine_animation_event_info_t* info, void* user_data)
 {
     assert(info);
     assert(user_data);
-    engineLog(std::format("Attack trigger - animation event callback example at time: {}!\n", info->current_time).c_str());
-    // i.e. enable trigger:
-    //auto* attack_trigger = reinterpret_cast<project_c::AttackTrigger*>(user_data);
-    //attack_trigger->activate();
+    static_cast<project_c::AttackTrigger*>(user_data)->activate();
+}
+
+void attack_window_close_callback(const engine_animation_event_info_t* info, void* user_data)
+{
+    assert(info);
+    assert(user_data);
+    static_cast<project_c::AttackTrigger*>(user_data)->deactivate();
 }
 } // namespace anonymous
 
@@ -176,9 +206,11 @@ void project_c::Weapon::update(float dt)
     }
 }
 
-project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_object_t go)
+project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_object_t go, Player* player)
     : BaseNode(my_scene, go, "attack-trigger")
+    , player_(player)
 {
+    assert(player_);
     // transform
     auto tc = engineGameObjectAddTransformComponent(go_);
     tc.position[0] = 0.0f;
@@ -214,27 +246,31 @@ project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_ob
 
 void project_c::AttackTrigger::on_collision(const collision_t& info)
 {
-    if (is_active_)
+    if (is_active_ && !hit_enemies_.contains(info.other))
     {
         if (auto* enemy = my_scene_->get_script<Enemy>(info.other))
         {
-            enemy->hp -= 10;
+            hit_enemies_.insert(info.other);
+            enemy->receive_attack_hit(10, HIT_STOP_DURATION_SECONDS);
+            player_->on_confirmed_attack_hit(HIT_STOP_DURATION_SECONDS);
         }
     }
 }
 
-void project_c::AttackTrigger::update(float dt)
+void project_c::AttackTrigger::begin_swing()
 {
-    // deactivate trigger after one frame?
-    if (is_active_)
-    {
-        is_active_ = false;
-    }
+    is_active_ = false;
+    hit_enemies_.clear();
 }
 
 void project_c::AttackTrigger::activate()
 {
     is_active_ = true;
+}
+
+void project_c::AttackTrigger::deactivate()
+{
+    is_active_ = false;
 }
 
 project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
@@ -276,28 +312,44 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     engineGameObjectDestroy(utils::get_game_objects_with_name("1H_Axe_Offhand")[0]);
 
     // add attack trigger
-    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreate());
+    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreate(), this);
 
     // set animation layers
     auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
-    engineAnimationControllerLayerSetWeight(animation_controller, LOCOMOTION_LAYER_ID, 0.1f); // default layer (lower body layer)
-    engineAnimationControllerAddLayer(animation_controller, COMBAT_LAYER_ID, 1.0f);     // upper body layer
-    engineAnimationControllerSetMode(animation_controller, COMBAT_LAYER_ID, ENGINE_ANIMATION_LAYER_MODE_ADDITIVE);
+    engineAnimationControllerLayerSetWeight(animation_controller, LOCOMOTION_LAYER_ID, 1.0f);
+    const bool locomotion_loops = engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, true);
+    assert(locomotion_loops);
+    engineAnimationControllerAddLayer(animation_controller, COMBAT_LAYER_ID, 9.0f);
+    engineAnimationControllerSetMode(animation_controller, COMBAT_LAYER_ID, ENGINE_ANIMATION_LAYER_MODE_OVERRIDE);
+    const bool pelvis_masked = engineAnimationControllerLayerSetJointWeight(animation_controller, COMBAT_LAYER_ID, "hips", 0.15f);
+    const bool left_leg_masked = engineAnimationControllerLayerSetJointWeight(animation_controller, COMBAT_LAYER_ID, "upperleg.l", 0.0f);
+    const bool right_leg_masked = engineAnimationControllerLayerSetJointWeight(animation_controller, COMBAT_LAYER_ID, "upperleg.r", 0.0f);
+    const bool upper_body_masked = engineAnimationControllerLayerSetJointWeight(animation_controller, COMBAT_LAYER_ID, "spine", 1.0f);
+    assert(pelvis_masked && left_leg_masked && right_leg_masked && upper_body_masked);
 
-    // set event for attack trigger - just an example to test feature (2 animation events triggering at the same time)
-    float attack_duration = 0.0f;
-    engineAnimationControllerAnimationGetDuration(animation_controller, attack_data_.get_animation_name(), &attack_duration);
-    engine_animation_event_t ev{};
-    ev.trigger_time = 0.5f * attack_duration;  // activate in middle of animation
-    ev.user_data = &attack_trigger_;
-    ev.fn_ptr = attack_event_callback;
-    engine_animation_event_id_t ev_id = ENGINE_INVALID_OBJECT_HANDLE;
-    engineAnimationControllerAnimationAddEvent(animation_controller, attack_data_.get_animation_name(), ev, &ev_id);
-    assert(ev_id != ENGINE_INVALID_OBJECT_HANDLE);
-    engine_animation_event_id_t ev2_id = ENGINE_INVALID_OBJECT_HANDLE;
-    engineAnimationControllerAnimationAddEvent(animation_controller, attack_data_.get_animation_name(), ev, &ev2_id);
-    assert(ev2_id != ENGINE_INVALID_OBJECT_HANDLE);
-    assert(ev_id != ev2_id);
+    for (std::size_t combo_index = 0; combo_index < AttackStateData::combo_length; ++combo_index)
+    {
+        const auto animation_name = attack_data_.get_animation_name(combo_index);
+        float duration = 0.0f;
+        engineAnimationControllerAnimationGetDuration(animation_controller, animation_name, &duration);
+        assert(duration > 0.0f);
+
+        engine_animation_event_t open_event{};
+        open_event.trigger_time = ATTACK_ACTIVE_START * duration;
+        open_event.user_data = attack_trigger_;
+        open_event.fn_ptr = attack_window_open_callback;
+        engine_animation_event_id_t open_event_id = ENGINE_INVALID_OBJECT_HANDLE;
+        const auto open_result = engineAnimationControllerAnimationAddEvent(animation_controller, animation_name, open_event, &open_event_id);
+        assert(open_result == ENGINE_RESULT_CODE_OK && open_event_id != ENGINE_INVALID_OBJECT_HANDLE);
+
+        engine_animation_event_t close_event{};
+        close_event.trigger_time = ATTACK_ACTIVE_END * duration;
+        close_event.user_data = attack_trigger_;
+        close_event.fn_ptr = attack_window_close_callback;
+        engine_animation_event_id_t close_event_id = ENGINE_INVALID_OBJECT_HANDLE;
+        const auto close_result = engineAnimationControllerAnimationAddEvent(animation_controller, animation_name, close_event, &close_event_id);
+        assert(close_result == ENGINE_RESULT_CODE_OK && close_event_id != ENGINE_INVALID_OBJECT_HANDLE);
+    }
 }
 
 void project_c::Player::update(float dt)
@@ -311,12 +363,33 @@ void project_c::Player::update(float dt)
         {
             state_ &= ~state;
         };
-    auto enable_state_bit = [&](States state)
-        {
-            state_ |= state;
-        };
+    if (check_state_bit(States::DEAD))
+    {
+        return;
+    }
+    dodge_cooldown_remaining_seconds_ = std::max(0.0f, dodge_cooldown_remaining_seconds_ - dt / 1000.0f);
 
     auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    if (hit_stop_remaining_seconds_ > 0.0f)
+    {
+        if (hit_stop_just_started_)
+        {
+            hit_stop_just_started_ = false;
+        }
+        else
+        {
+            hit_stop_remaining_seconds_ = std::max(0.0f, hit_stop_remaining_seconds_ - dt / 1000.0f);
+        }
+
+        if (hit_stop_remaining_seconds_ > 0.0f)
+        {
+            return;
+        }
+        if (!engineAnimationControllerSetPaused(animation_controller, false))
+        {
+            engineLog("Failed to resume player animation after hit-stop.\n");
+        }
+    }
 
     // [DEBUG] reset position  ToDo: remove it later
     if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_0))
@@ -329,20 +402,24 @@ void project_c::Player::update(float dt)
     const auto ray = utils::get_ray_from_mouse_position(active_camera_go);
     const auto hit_info = enginePhysicsRayCast(raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000000.0f);
 
-    auto rotate_towards_global_target = [&]()
-        {
-            auto tc = engineGameObjectGetTransformComponent(go_);
-            auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(hit_info.position.x, hit_info.position.y, hit_info.position.z));
-            std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
-            engineGameObjectUpdateTransformComponent(go_, &tc);
-        };
-    rotate_towards_global_target();// rotate towards target
-
     const auto lmb = engineMouseIsButtonDown(ENGINE_MOUSE_BUTTON_LEFT);
     const auto rmb = engineMouseIsButtonDown(ENGINE_MOUSE_BUTTON_RIGHT);
-    if (weapon_ && rmb && !check_state_bit(States::ATTACK))
+    const bool attack_pressed = rmb && !attack_input_was_down_;
+    attack_input_was_down_ = rmb;
+    const auto space_down = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_SPACE);
+    const bool dodge_pressed = space_down && !dodge_input_was_down_;
+    dodge_input_was_down_ = space_down;
+    if (weapon_ && attack_pressed && !dodge_pressed && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
     {
-        enable_state_bit(States::TRIGGER_ATTACK);
+        if (!check_state_bit(States::ATTACK))
+        {
+            start_attack(animation_controller, 0);
+        }
+        else if (attack_combo_index_ + 1 < AttackStateData::combo_length)
+        {
+            attack_buffered_ = true;
+            attack_buffer_remaining_ = ATTACK_INPUT_BUFFER_SECONDS;
+        }
     }
 
     if (hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID && lmb)
@@ -363,11 +440,6 @@ void project_c::Player::update(float dt)
     const auto button_W = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_W);
     const auto button_D = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_D);
     const auto button_S = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_S);
-    if (button_A || button_W || button_D || button_S)
-    {
-        enable_state_bit(States::MOVE);
-    }
-
     if (weapon_ && engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_F))
     {
         // drop weapon
@@ -381,78 +453,190 @@ void project_c::Player::update(float dt)
     const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
     const glm::vec3 right = rotation * glm::vec3(1.0f, 0.0f, 0.0f);
 
-    if (state_ == States::IDLE)
+    glm::vec2 move_input(0.0f);
+    if (button_A) move_input.x -= 1.0f;
+    if (button_D) move_input.x += 1.0f;
+    if (button_W) move_input.y -= 1.0f;
+    if (button_S) move_input.y += 1.0f;
+    if (glm::length(move_input) > 1.0f)
     {
-        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Unarmed_Idle"))
+        move_input = glm::normalize(move_input);
+    }
+
+    if (dodge_pressed
+        && dodge_cooldown_remaining_seconds_ <= 0.0f
+        && hit_stun_remaining_seconds_ <= 0.0f
+        && !check_state_bit(States::ATTACK))
+    {
+        start_dodge(animation_controller, move_input, rotation);
+    }
+
+    auto movement_transform = engineGameObjectGetTransformComponent(go_);
+    const float delta_seconds = dt / 1000.0f;
+    bool dodging_this_frame = dodge_remaining_seconds_ > 0.0f;
+    float movement_speed = 0.0f;
+    if (dodging_this_frame)
+    {
+        movement_velocity_ = glm::vec2(0.0f);
+        movement_transform.position[0] += dodge_direction_.x * DODGE_SPEED * delta_seconds;
+        movement_transform.position[2] += dodge_direction_.z * DODGE_SPEED * delta_seconds;
+        dodge_remaining_seconds_ = std::max(0.0f, dodge_remaining_seconds_ - delta_seconds);
+        dodge_invulnerability_remaining_seconds_ = std::max(0.0f, dodge_invulnerability_remaining_seconds_ - delta_seconds);
+        if (dodge_remaining_seconds_ <= 0.0f)
+        {
+            const bool locomotion_loops = engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, true);
+            const bool combat_layer_restored = engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 1.0f);
+            assert(locomotion_loops && combat_layer_restored);
+        }
+    }
+    else if (hit_stun_remaining_seconds_ > 0.0f)
+    {
+        movement_velocity_ = glm::vec2(0.0f);
+        movement_transform.position[0] += knockback_velocity_.x * delta_seconds;
+        movement_transform.position[2] += knockback_velocity_.z * delta_seconds;
+        knockback_velocity_ *= std::exp(-10.0f * delta_seconds);
+        hit_stun_remaining_seconds_ = std::max(0.0f, hit_stun_remaining_seconds_ - delta_seconds);
+    }
+    else
+    {
+        const float target_speed = PLAYER_RUN_SPEED;
+        const glm::vec2 target_velocity = move_input * target_speed;
+        const glm::vec2 velocity_delta = target_velocity - movement_velocity_;
+        const float max_velocity_change = (glm::length(move_input) > 0.0f ? PLAYER_MOVEMENT_ACCELERATION : PLAYER_MOVEMENT_BRAKING) * delta_seconds;
+        const float velocity_delta_length = glm::length(velocity_delta);
+        if (velocity_delta_length > max_velocity_change && velocity_delta_length > 0.0f)
+        {
+            movement_velocity_ += velocity_delta * (max_velocity_change / velocity_delta_length);
+        }
+        else
+        {
+            movement_velocity_ = target_velocity;
+        }
+
+        movement_speed = glm::length(movement_velocity_);
+        if (movement_speed < PLAYER_IDLE_SPEED_THRESHOLD && glm::length(move_input) == 0.0f)
+        {
+            movement_velocity_ = glm::vec2(0.0f);
+            movement_speed = 0.0f;
+        }
+        movement_transform.position[0] += movement_velocity_.x * delta_seconds;
+        movement_transform.position[2] += movement_velocity_.y * delta_seconds;
+    }
+    engineGameObjectUpdateTransformComponent(go_, &movement_transform);
+
+    if (!dodging_this_frame && movement_speed > PLAYER_IDLE_SPEED_THRESHOLD)
+    {
+        const glm::vec3 move_direction(movement_velocity_.x / movement_speed, 0.0f, movement_velocity_.y / movement_speed);
+        const glm::vec3 character_forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
+        const glm::vec3 character_right = rotation * glm::vec3(1.0f, 0.0f, 0.0f);
+        const float forward_dot = glm::dot(move_direction, glm::normalize(character_forward));
+        const float right_dot = glm::dot(move_direction, glm::normalize(character_right));
+
+        MoveStateData::Direction animation_direction = MoveStateData::Direction::eForward;
+        if (std::abs(forward_dot) > std::abs(right_dot))
+        {
+            animation_direction = forward_dot > 0.0f ? MoveStateData::Direction::eForward : MoveStateData::Direction::eBackward;
+        }
+        else if (!dodging_this_frame)
+        {
+            animation_direction = right_dot > 0.0f ? MoveStateData::Direction::eRight : MoveStateData::Direction::eLeft;
+        }
+
+        const auto animation_name = move_data_.get_animation_name(animation_direction);
+        const float reference_speed = move_data_.get_animation_reference_speed(animation_direction);
+        const float playback_rate = std::clamp(movement_speed / reference_speed, 0.05f, 1.35f);
+        const bool playback_rate_set = engineAnimationControllerLayerSetPlaybackRate(animation_controller, LOCOMOTION_LAYER_ID, playback_rate);
+        assert(playback_rate_set);
+
+        if (!engineAnimationControllerIsAnimationPlayingOnLayer(animation_controller, animation_name, LOCOMOTION_LAYER_ID))
+        {
+            engineAnimationControllerAnimationCrossFade(animation_controller, animation_name, LOCOMOTION_LAYER_ID, 0.15f);
+        }
+    }
+    else
+    {
+        const bool playback_rate_set = engineAnimationControllerLayerSetPlaybackRate(animation_controller, LOCOMOTION_LAYER_ID, 1.0f);
+        assert(playback_rate_set);
+        if (!engineAnimationControllerIsAnimationPlayingOnLayer(animation_controller, "Unarmed_Idle", LOCOMOTION_LAYER_ID))
         {
             engineAnimationControllerAnimationCrossFade(animation_controller, "Unarmed_Idle", LOCOMOTION_LAYER_ID, 0.15f);
         }
     }
-    if (check_state_bit(States::MOVE))
-    {
-        auto tc_move = engineGameObjectGetTransformComponent(go_);
-        const float speed_cooef = 0.0025f;
-        const float speed = speed_cooef * dt; // ToDo: implement diagonal movement speed coef (use pitagoras(?))
-       
-        // Compute intended movement direction based on input
-        glm::vec3 move_dir(0.0f);
-        if (button_W) move_dir.z -= 1.0f; // up
-        if (button_S) move_dir.z += 1.0f; // down
-        if (button_D) move_dir.x += 1.0f; // right
-        if (button_A) move_dir.x -= 1.0f; // left
-
-        MoveStateData::Direction anim_move_dir = MoveStateData::Direction::eForward;
-        if (glm::length(move_dir) > 0.0f)
-        {
-            move_dir = glm::normalize(move_dir);
-
-            // 2. Move in world space
-            tc_move.position[0] += move_dir.x * speed;
-            tc_move.position[2] += move_dir.z * speed;
-            engineGameObjectUpdateTransformComponent(go_, &tc_move);
-
-            // 3. Compute facing (character's forward in world space)
-            const auto tc = engineGameObjectGetTransformComponent(go_);
-            glm::quat facing = glm::make_quat(tc.rotation);
-            glm::vec3 char_forward = facing * glm::vec3(0.0f, 0.0f, 1.0f);
-            glm::vec3 char_right = facing * glm::vec3(1.0f, 0.0f, 0.0f);
-
-            // 4. Project move_dir onto character's local axes to determine anim direction
-            float forward_dot = glm::dot(move_dir, glm::normalize(char_forward));
-            float right_dot = glm::dot(move_dir, glm::normalize(char_right));
-
-            if (std::abs(forward_dot) > std::abs(right_dot))
-            {
-                anim_move_dir = (forward_dot > 0) ? MoveStateData::Direction::eForward : MoveStateData::Direction::eBackward;
-            }
-            else 
-            {
-                anim_move_dir = (right_dot > 0) ? MoveStateData::Direction::eRight : MoveStateData::Direction::eLeft;
-            }
-        }
-
-        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, move_data_.get_animation_name(anim_move_dir)))
-        {
-            engineAnimationControllerAnimationCrossFade(animation_controller, move_data_.get_animation_name(anim_move_dir), LOCOMOTION_LAYER_ID, 0.2f);
-        }
-
-        clear_state_bit(States::MOVE);
-    }
-    if (check_state_bit(States::TRIGGER_ATTACK))
-    {
-        engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name(), COMBAT_LAYER_ID);
-        attack_trigger_->activate();
-        clear_state_bit(States::TRIGGER_ATTACK);
-        enable_state_bit(States::ATTACK);
-    }
     if (check_state_bit(States::ATTACK))
     {
-        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name()))
+        attack_elapsed_ += dt / 1000.0f;
+        if (attack_buffered_)
         {
-            clear_state_bit(States::ATTACK);
-            attack_data_ = {};
+            attack_buffer_remaining_ -= dt / 1000.0f;
+            if (attack_buffer_remaining_ <= 0.0f)
+            {
+                attack_buffered_ = false;
+            }
         }
 
+        const float attack_ratio = attack_elapsed_ / attack_duration_;
+        if (attack_ratio >= ATTACK_ACTIVE_START && attack_ratio < ATTACK_ACTIVE_END)
+        {
+            attack_phase_ = AttackPhase::eActive;
+        }
+        else if (attack_ratio >= ATTACK_ACTIVE_END)
+        {
+            attack_phase_ = AttackPhase::eRecovery;
+        }
+
+        const auto current_animation = attack_data_.get_animation_name(attack_combo_index_);
+        const bool attack_is_playing = engineAnimationControllerIsAnimationPlayingOnLayer(animation_controller, current_animation, COMBAT_LAYER_ID);
+        const bool combo_window_open = attack_ratio >= COMBO_WINDOW_START && attack_ratio < COMBO_WINDOW_END;
+        if (attack_buffered_ && combo_window_open)
+        {
+            attack_buffered_ = false;
+            start_attack(animation_controller, attack_combo_index_ + 1);
+        }
+        else if (!attack_is_playing)
+        {
+            if (attack_buffered_ && attack_combo_index_ + 1 < AttackStateData::combo_length)
+            {
+                attack_buffered_ = false;
+                start_attack(animation_controller, attack_combo_index_ + 1);
+            }
+            else
+            {
+                clear_state_bit(States::ATTACK);
+                attack_phase_ = AttackPhase::eIdle;
+                attack_trigger_->deactivate();
+                attack_buffered_ = false;
+                if (engineAnimationControllerAnimationCrossFade(animation_controller, "Unarmed_Idle", COMBAT_LAYER_ID, ATTACK_EXIT_CROSS_FADE_SECONDS))
+                {
+                    const bool combat_idle_loops = engineAnimationControllerLayerSetLooping(animation_controller, COMBAT_LAYER_ID, true);
+                    assert(combat_idle_loops);
+                }
+                else
+                {
+                    engineLog("Failed to cross-fade combat layer back to idle.\n");
+                }
+            }
+        }
+    }
+
+    if (attack_phase_ != AttackPhase::eActive && !dodging_this_frame && hit_stun_remaining_seconds_ <= 0.0f)
+    {
+        auto facing_transform = engineGameObjectGetTransformComponent(go_);
+        const glm::vec3 origin(facing_transform.position[0], facing_transform.position[1], facing_transform.position[2]);
+        const glm::vec3 target(hit_info.position.x, hit_info.position.y, hit_info.position.z);
+        const glm::vec3 target_direction(target.x - origin.x, 0.0f, target.z - origin.z);
+        if (glm::dot(target_direction, target_direction) > 0.000001f)
+        {
+            const glm::quat current_rotation = glm::normalize(glm::make_quat(facing_transform.rotation));
+            const glm::vec3 current_forward = current_rotation * glm::vec3(0.0f, 0.0f, 1.0f);
+            const float current_yaw = std::atan2(current_forward.x, current_forward.z);
+            const float target_yaw = std::atan2(target_direction.x, target_direction.z);
+            const float yaw_delta = std::atan2(std::sin(target_yaw - current_yaw), std::cos(target_yaw - current_yaw));
+            const float max_turn = glm::radians(PLAYER_TURN_RATE_DEGREES_PER_SECOND) * (dt / 1000.0f);
+            const float turn_step = std::clamp(yaw_delta, -max_turn, max_turn);
+            const glm::quat rotation = glm::angleAxis(current_yaw + turn_step, glm::vec3(0.0f, 1.0f, 0.0f));
+            std::memcpy(facing_transform.rotation, glm::value_ptr(rotation), sizeof(facing_transform.rotation));
+            engineGameObjectUpdateTransformComponent(go_, &facing_transform);
+        }
     }
 }
 
@@ -465,6 +649,106 @@ bool project_c::Player::equip_waepon(Weapon* sword)
         return true;
     }
     return false;
+}
+
+void project_c::Player::on_confirmed_attack_hit(float hit_stop_seconds)
+{
+    if ((state_ & States::DEAD) != 0)
+    {
+        return;
+    }
+    hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, hit_stop_seconds);
+    hit_stop_just_started_ = true;
+    const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    if (!engineAnimationControllerSetPaused(animation_controller, true))
+    {
+        engineLog("Failed to pause player animation for hit-stop.\n");
+    }
+
+    const auto cameras = utils::get_active_camera_game_objects();
+    if (!cameras.empty())
+    {
+        my_scene_->get_script<CameraScript>(cameras.front())->shake(
+            HIT_CAMERA_SHAKE_INTENSITY,
+            HIT_CAMERA_SHAKE_DURATION_SECONDS);
+    }
+}
+
+bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& source_position)
+{
+    if (hp_ == 0 || dodge_invulnerability_remaining_seconds_ > 0.0f)
+    {
+        return false;
+    }
+
+    hp_ = damage >= hp_ ? 0 : hp_ - damage;
+    auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
+    typed_scene->ui_update_player_health(hp_);
+
+    auto player_transform = engineGameObjectGetTransformComponent(go_);
+    glm::vec3 knockback_direction(
+        player_transform.position[0] - source_position.x,
+        0.0f,
+        player_transform.position[2] - source_position.z);
+    if (glm::dot(knockback_direction, knockback_direction) <= 0.0001f)
+    {
+        knockback_direction = glm::make_quat(player_transform.rotation) * glm::vec3(0.0f, 0.0f, 1.0f);
+    }
+    knockback_velocity_ = glm::normalize(knockback_direction) * PLAYER_KNOCKBACK_SPEED;
+
+    const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    if (hp_ == 0)
+    {
+        state_ |= States::DEAD;
+        movement_velocity_ = glm::vec2(0.0f);
+        knockback_velocity_ = glm::vec3(0.0f);
+        attack_trigger_->deactivate();
+        if (!engineAnimationControllerSetPaused(animation_controller, false))
+        {
+            engineLog("Failed to resume player animation before death.\n");
+        }
+        const bool combat_layer_hidden = engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 0.0f);
+        const bool locomotion_stopped_looping = engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, false);
+        assert(combat_layer_hidden && locomotion_stopped_looping);
+        if (!engineAnimationControllerAnimationPlay(animation_controller, "Death_A", LOCOMOTION_LAYER_ID))
+        {
+            engineLog("Failed to play player death animation.\n");
+        }
+        typed_scene->on_player_died();
+    }
+    else
+    {
+        const bool disable_attack_interrupt = true;
+        if(!disable_attack_interrupt)
+        {
+            if ((state_ & States::ATTACK) != 0)
+            {
+                state_ &= ~States::ATTACK;
+                attack_phase_ = AttackPhase::eIdle;
+                attack_buffered_ = false;
+                attack_trigger_->deactivate();
+                if (!engineAnimationControllerAnimationCrossFade(animation_controller, "Unarmed_Idle", COMBAT_LAYER_ID, 0.08f))
+                {
+                    engineLog("Failed to interrupt player attack after taking damage.\n");
+                }
+            }
+        }
+
+        hit_stun_remaining_seconds_ = PLAYER_HIT_STUN_SECONDS;
+        hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, 0.04f);
+        hit_stop_just_started_ = true;
+        if (!engineAnimationControllerSetPaused(animation_controller, true))
+        {
+            engineLog("Failed to pause player animation after taking damage.\n");
+        }
+    }
+
+    const auto cameras = utils::get_active_camera_game_objects();
+    if (!cameras.empty())
+    {
+        my_scene_->get_script<CameraScript>(cameras.front())->shake(0.05f, 0.12f);
+    }
+    return true;
 }
 
 void project_c::Player::add_coin(std::uint64_t amount)
@@ -488,13 +772,12 @@ const char* project_c::Player::MoveStateData::direction_to_string(Direction dir)
 
 const char* project_c::Player::MoveStateData::get_animation_name(Direction dir) const
 {
-    //engineLog(std::format("anim_move_dir: {}\n", direction_to_string(dir)).c_str());
     switch (dir)
     {
     case Direction::eForward:
         return "Running_A";
     case Direction::eBackward:
-        return "Running_A";
+        return "Walking_Backwards";
     case Direction::eLeft:
         return "Running_Strafe_Left";
     case Direction::eRight:
@@ -505,10 +788,111 @@ const char* project_c::Player::MoveStateData::get_animation_name(Direction dir) 
     return "";
 }
 
-const char* project_c::Player::AttackStateData::get_animation_name() const
+float project_c::Player::MoveStateData::get_animation_reference_speed(Direction dir) const
 {
-    //return "1H_Melee_Attack_Chop";
-    //return "1H_Melee_Attack_Slice_Horizontal";
-    //return "1H_Melee_Attack_Stab";
-    return "1H_Melee_Attack_Slice_Diagonal";
+    if (dir == Direction::eBackward)
+    {
+        return PLAYER_WALK_SPEED;
+    }
+    if (dir == Direction::eLeft || dir == Direction::eRight)
+    {
+        return PLAYER_RUN_SPEED;
+    }
+    return PLAYER_RUN_SPEED;
+}
+
+const char* project_c::Player::AttackStateData::get_animation_name(std::size_t combo_index) const
+{
+    static constexpr std::array<const char*, combo_length> animations = {
+        "1H_Melee_Attack_Slice_Diagonal",
+        "1H_Melee_Attack_Slice_Horizontal",
+        "1H_Melee_Attack_Stab"
+    };
+    assert(combo_index < animations.size());
+    return animations[combo_index];
+}
+
+bool project_c::Player::start_attack(engine_animation_controller_t* animation_controller, std::size_t combo_index)
+{
+    if (combo_index >= AttackStateData::combo_length)
+    {
+        return false;
+    }
+
+    const auto animation_name = attack_data_.get_animation_name(combo_index);
+    float duration = 0.0f;
+    engineAnimationControllerAnimationGetDuration(animation_controller, animation_name, &duration);
+    const bool combat_layer_stopped_looping = engineAnimationControllerLayerSetLooping(animation_controller, COMBAT_LAYER_ID, false);
+    assert(combat_layer_stopped_looping);
+
+    const bool animation_started = combo_index == 0 && !combat_layer_has_pose_
+        ? engineAnimationControllerAnimationPlay(animation_controller, animation_name, COMBAT_LAYER_ID)
+        : engineAnimationControllerAnimationCrossFade(
+            animation_controller,
+            animation_name,
+            COMBAT_LAYER_ID,
+            combo_index == 0 ? ATTACK_EXIT_CROSS_FADE_SECONDS : ATTACK_COMBO_CROSS_FADE_SECONDS);
+    if (duration <= 0.0f || !animation_started)
+    {
+        engineLog(std::format("Failed to start attack animation '{}'.\n", animation_name).c_str());
+        return false;
+    }
+
+    attack_trigger_->begin_swing();
+    attack_combo_index_ = combo_index;
+    attack_elapsed_ = 0.0f;
+    attack_duration_ = duration;
+    attack_phase_ = AttackPhase::eWindup;
+    attack_buffered_ = false;
+    state_ |= States::ATTACK;
+    combat_layer_has_pose_ = true;
+    return true;
+}
+
+bool project_c::Player::start_dodge(engine_animation_controller_t* animation_controller, const glm::vec2& move_input, const glm::quat& rotation)
+{
+    glm::vec3 world_direction(move_input.x, 0.0f, move_input.y);
+    if (glm::dot(world_direction, world_direction) <= 0.0001f)
+    {
+        world_direction = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
+    }
+    world_direction = glm::normalize(world_direction);
+
+    const glm::vec3 local_direction = glm::inverse(rotation) * world_direction;
+    const char* animation_name = "Dodge_Forward";
+    if (std::abs(local_direction.z) >= std::abs(local_direction.x))
+    {
+        animation_name = local_direction.z >= 0.0f ? "Dodge_Forward" : "Dodge_Backward";
+    }
+    else
+    {
+        animation_name = local_direction.x >= 0.0f ? "Dodge_Right" : "Dodge_Left";
+    }
+
+    float duration = 0.0f;
+    engineAnimationControllerAnimationGetDuration(animation_controller, animation_name, &duration);
+    if (duration <= 0.0f)
+    {
+        engineLog(std::format("Dodge animation '{}' has no valid duration.\n", animation_name).c_str());
+        return false;
+    }
+
+    const bool locomotion_stopped_looping = engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, false);
+    const bool locomotion_rate_reset = engineAnimationControllerLayerSetPlaybackRate(animation_controller, LOCOMOTION_LAYER_ID, 1.0f);
+    const bool combat_layer_hidden = engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 0.0f);
+    if (!locomotion_stopped_looping || !locomotion_rate_reset || !combat_layer_hidden
+        || !engineAnimationControllerAnimationCrossFade(animation_controller, animation_name, LOCOMOTION_LAYER_ID, 0.05f))
+    {
+        engineLog("Failed to start player dodge.\n");
+        engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, true);
+        engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 1.0f);
+        return false;
+    }
+
+    dodge_direction_ = world_direction;
+    dodge_remaining_seconds_ = duration;
+    dodge_invulnerability_remaining_seconds_ = std::min(DODGE_INVULNERABILITY_SECONDS, duration);
+    dodge_cooldown_remaining_seconds_ = DODGE_COOLDOWN_SECONDS;
+    movement_velocity_ = glm::vec2(0.0f);
+    return true;
 }

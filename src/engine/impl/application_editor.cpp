@@ -621,8 +621,14 @@ engine::ApplicationEditor::~ApplicationEditor()
     ImGui::DestroyContext();
 }
 
+bool engine::ApplicationEditor::is_game_view() const
+{
+    return editor_view_ == EditorView::eGame;
+}
+
 void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_begine_info_t & frame_begin_info)
 {
+    frame_delta_time_ = frame_begin_info.delta_time;
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
@@ -659,19 +665,20 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_pre");
     if (editor_view_ == EditorView::eEditor)
     {
-        camera_context_.on_scene_update_pre(scene, delta_time);
+        camera_context_.on_scene_update_pre(scene, is_playing_ ? delta_time : frame_delta_time_);
     }
 }
 
-void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_time)
+void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
     const auto viewport = rdx_.get_window_size_in_pixels();
+    const float editor_delta_time = frame_delta_time_;
 
-    render_editor_controls(scene, delta_time);
-    render_scene_hierarchy_panel(scene, delta_time);
-    render_entity_properties_panel(scene, delta_time);
-    render_debug_panel(scene, delta_time);
+    render_editor_controls(scene, editor_delta_time);
+    render_scene_hierarchy_panel(scene, editor_delta_time);
+    render_entity_properties_panel(scene, editor_delta_time);
+    render_debug_panel(scene, editor_delta_time);
 
     if (editor_view_ == EditorView::eEditor)
     {
@@ -701,7 +708,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float delta_t
 
 
 
-    camera_context_.on_scene_update_post(scene, delta_time);
+    camera_context_.on_scene_update_post(scene, editor_delta_time);
 }
 
 void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float dt)
@@ -721,6 +728,11 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float
     if(ImGui::Selectable("Editor", editor_view_ == EditorView::eEditor, ImGuiSelectableFlags_None, ImVec2(50, 0)))
     {
         editor_view_ = EditorView::eEditor;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button(is_playing_ ? "Pause" : "Play"))
+    {
+        is_playing_ = !is_playing_;
     }
     ImGui::End();
 }

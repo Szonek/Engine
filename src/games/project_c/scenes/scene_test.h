@@ -2,6 +2,7 @@
 
 
 #include "engine.h"
+#include "engine_string.h"
 #include "engine_vector.h"
 #include "iscene.h"
 #include "../nav_mesh.h"
@@ -36,6 +37,9 @@ struct UI_data
     engine_ui_document_t doc;
     engine_ui_data_handle_t handle_main_ui;
 
+    std::uint32_t player_health = 100;
+    std::uint32_t player_max_health = 100;
+    engine_string_t* encounter_status = nullptr;
     UI_data_enemy enemies{};
     UI_data_items_on_ground items{};
 };
@@ -51,7 +55,7 @@ public:
         IScene::activate();
         if (ui_data_.doc)
         {
-            engineUiDocumentShow(ui_data_.doc);
+            gameplay_ui_visible_ ? engineUiDocumentShow(ui_data_.doc) : engineUiDocumentHide(ui_data_.doc);
         }
     }
 
@@ -72,9 +76,19 @@ public:
 
     void ui_update_enemy(const class Enemy* en);
     void ui_remove_enemy(const class Enemy* en);
+    void ui_update_player_health(std::uint32_t health);
+    void on_enemy_spawned();
+    void on_enemy_defeated();
+    void on_player_died();
+    void set_gameplay_ui_visible(bool visible);
+    bool is_encounter_over() const { return encounter_over_; }
 private:
     UI_data ui_data_{};
     NavMesh nav_mesh_{};
+    std::uint32_t remaining_enemies_ = 0;
+    bool encounter_over_ = false;
+    bool gameplay_started_ = false;
+    bool gameplay_ui_visible_ = true;
 };
 
 }// namespace project_c
