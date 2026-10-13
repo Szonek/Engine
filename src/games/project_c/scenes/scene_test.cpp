@@ -267,11 +267,11 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         }
     }
     // at this point nav mesh has to be completed!
-    if (app.is_prefab_available(project_c::PREFAB_TYPE_BARBARIAN))
+    if (app.is_prefab_available(project_c::PREFAB_TYPE_ROGUE))
     {
         for (const auto& point : scene_spawn_points.player)
         {
-            auto s = scene.register_script<project_c::Player>(app.instantiate_prefab(project_c::PREFAB_TYPE_BARBARIAN, &scene));
+            auto s = scene.register_script<project_c::Player>(app.instantiate_prefab(project_c::PREFAB_TYPE_ROGUE, &scene));
             s->set_world_position(point.x, 1.0f, point.y);
             auto w = scene.register_script<project_c::Weapon>();
             const auto item_equipped = s->equip_waepon(w);
@@ -302,8 +302,8 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         c->set_world_position(chest.x, 0.1f, chest.y);
     }
 
-    // barb asset comes with some predefined weapnons, so check it here
-    if (app.is_prefab_available(project_c::PREFAB_TYPE_BARBARIAN))
+    // weapons reuse geometry and texture of the rogue asset, so check it here
+    if (app.is_prefab_available(project_c::PREFAB_TYPE_ROGUE))
     {
         for (const auto& wpn : scene_spawn_points.weapons)
         {

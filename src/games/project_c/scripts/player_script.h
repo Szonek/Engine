@@ -1,6 +1,7 @@
 #pragma
 #include "base_script.h"
 
+#include <array>
 #include <chrono>
 #include <unordered_set>
 
@@ -33,11 +34,18 @@ public:
     ~Weapon();
 
     void attach_to_game_object(engine_game_object_t parent, std::string_view joint_name, std::optional<glm::vec3> position, std::optional<glm::quat> rotation);
+    void attach_offhand_to_game_object(engine_game_object_t parent, std::string_view joint_name);
     void drop_on_ground(glm::vec3 position);
 
     void on_collision(const collision_t& info) override;
 
     void update(float dt) override;
+
+private:
+    // second dagger: visual only, follows main dagger when it is not held
+    engine_game_object_t offhand_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
+
+    void attach_offhand_to_main();
 };
 
 class Player : public BaseNode
@@ -72,7 +80,25 @@ private:
 
     struct AttackStateData
     {
+        // all times are in seconds of the animation timeline
+        struct HitWindow
+        {
+            float start;
+            float end;
+        };
+
+        struct Attack
+        {
+            const char* animation_name;
+            std::array<HitWindow, 2> hit_windows;
+            std::size_t hit_windows_count;
+            float combo_window_start;
+            float combo_window_end;
+            float exit_time; // attack can be left at this point, even if animation still plays its recovery
+        };
+
         static constexpr std::size_t combo_length = 3;
+        const Attack& get_attack(std::size_t combo_index) const;
         const char* get_animation_name(std::size_t combo_index) const;
     };
 
@@ -111,7 +137,6 @@ private:
     glm::vec2 movement_velocity_{ 0.0f };
     std::size_t attack_combo_index_ = 0;
     float attack_elapsed_ = 0.0f;
-    float attack_duration_ = 0.0f;
     float attack_buffer_remaining_ = 0.0f;
     bool attack_buffered_ = false;
     bool attack_input_was_down_ = false;

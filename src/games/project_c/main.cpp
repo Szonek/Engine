@@ -9,7 +9,7 @@ int main(int argc, char** argv)
         const std::unordered_map<project_c::PrefabType, std::pair<std::string, std::string>> prefabs_data =
         {
             // player
-            { project_c::PREFAB_TYPE_BARBARIAN,     { "Barbarian.glb", "KayKit_Adventurers_1.0_FREE/Characters/gltf" }},
+            { project_c::PREFAB_TYPE_ROGUE,         { "Rogue.glb", "KayKit_Adventurers_1.0_FREE/Characters/gltf" }},
 
             // enemies
             { project_c::PREFAB_TYPE_SKELETON_WARRIOR, { "Skeleton_Warrior.glb", "KayKit_Skeletons_1.0_FREE/characters/gltf" }},
