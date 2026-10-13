@@ -198,7 +198,8 @@ engine::AnimationController::AnimationController(Skin* skin, std::shared_ptr<con
         }
     }
     // add default layer
-    assert(add_layer(0, 1.0f));
+    [[maybe_unused]] const bool default_layer_added = add_layer(0, 1.0f);
+    assert(default_layer_added);
 }
 
 bool engine::AnimationController::add_animation(const AnimationClipDesc& animation_clip)
