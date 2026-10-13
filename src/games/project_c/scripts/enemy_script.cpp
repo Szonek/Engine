@@ -16,12 +16,29 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 
 namespace
 {
-constexpr float ENEMY_ATTACK_ACTIVE_START = 0.30f;
-constexpr float ENEMY_ATTACK_ACTIVE_END = 0.62f;
+struct EnemyAttackAnimation
+{
+    const char* name;
+    float active_start;  // normalized animation time when the blade hitbox starts dealing damage
+    float active_end;    // normalized animation time when the blade hitbox stops dealing damage
+};
+
+// Damage windows must be tuned per animation, because the damage comes from the blade hitbox itself
+// (unlike the player's fixed box in front of the character). The windows were measured by sampling
+// the "handslot.r" joint of Skeleton_Warrior.glb and checking when the blade sweeps the area in front of the skeleton:
+//  - Slice_Horizontal: wind-up to the left ends at ~18%, strike crosses the front at ~20-30%,
+//    and from 30% on the blade is in follow-through at ~80 degrees to the right (a shared 30-62% window always missed).
+//  - Slice_Diagonal: wind-up held until ~32%, strike crosses the front at ~34-46%.
+// The windows are slightly padded because the blade collider follows the animated pose with a one-frame delay.
+constexpr std::array<EnemyAttackAnimation, 2> ENEMY_ATTACK_ANIMATIONS = { {
+    { "1H_Melee_Attack_Slice_Diagonal",   0.32f, 0.50f },
+    { "1H_Melee_Attack_Slice_Horizontal", 0.18f, 0.36f },
+} };
 constexpr float ENEMY_ATTACK_RANGE = 1.15f;
 constexpr float ENEMY_ATTACK_COOLDOWN_SECONDS = 0.8f;
 constexpr std::uint32_t ENEMY_ATTACK_DAMAGE = 2;
@@ -156,8 +173,9 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     }
 
     const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
-    for (const auto* animation_name : { "1H_Melee_Attack_Slice_Diagonal", "1H_Melee_Attack_Slice_Horizontal" })
+    for (const auto& attack_animation : ENEMY_ATTACK_ANIMATIONS)
     {
+        const char* animation_name = attack_animation.name;
         float duration = 0.0f;
         engineAnimationControllerAnimationGetDuration(animation_controller, animation_name, &duration);
         if (duration <= 0.0f)
@@ -167,7 +185,7 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
         }
 
         engine_animation_event_t open_event{};
-        open_event.trigger_time = ENEMY_ATTACK_ACTIVE_START * duration;
+        open_event.trigger_time = attack_animation.active_start * duration;
         open_event.user_data = this;
         open_event.fn_ptr = enemy_attack_window_open_callback;
         engine_animation_event_id_t event_id = ENGINE_INVALID_OBJECT_HANDLE;
@@ -178,7 +196,7 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
         }
 
         engine_animation_event_t close_event{};
-        close_event.trigger_time = ENEMY_ATTACK_ACTIVE_END * duration;
+        close_event.trigger_time = attack_animation.active_end * duration;
         close_event.user_data = this;
         close_event.fn_ptr = enemy_attack_window_close_callback;
         event_id = ENGINE_INVALID_OBJECT_HANDLE;
