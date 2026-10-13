@@ -421,7 +421,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     gameplay_started_ = !app->is_editor_enabled();
     gameplay_ui_visible_ = engineEditorIsGameView();
     ui_data_.encounter_status = engineStringCreate(
-        gameplay_started_ ? "Maze test: 40 enemies. WASD move, RMB attack, SPACE dodge." : "Paused. Click Play in the editor toolbar to start.");
+        gameplay_started_ ? "Defeat all enemies. WASD move, RMB attack, SPACE dodge." : "Paused. Click Play in the editor toolbar to start.");
     assert(ui_data_.encounter_status);
 
     std::vector<engine_ui_document_data_binding_t> bindings {};
@@ -478,31 +478,13 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     }
 
     const std::string scene_str =
-        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
-        "x                                 x\n"
-        "x       |        |        |       x\n"
-        "x       |        |        |       x\n"
-        "x   e       e    |   e    |   e   x\n"
-        "x       |        |                x\n"
-        "x       |        |        |       x\n"
-        "x -- ---|---- --- --- ----|-- --- x\n"
-        "x       |        |        |       x\n"
-        "x       |        |        |       x\n"
-        "x       |        |        |       x\n"
-        "x                |        |       x\n"
-        "x   b   |   b    p   b        b   x\n"
-        "x       |        |        |       x\n"
-        "x       |                 |       x\n"
-        "x       |        |        |       x\n"
-        "x --- --|--- ----|---- ---|--- -- x\n"
-        "x       |        |        |       x\n"
-        "x                |                x\n"
-        "x       |        |        |       x\n"
-        "x   e   |   e    w   e    |   e   x\n"
-        "x       |        |        |       x\n"
-        "x       |        |        |       x\n"
-        "x                                 x\n"
-        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
+        "             \n"
+        "             \n"
+        "      b      \n"
+        "      p e    \n"
+        "             \n"
+        "             \n"
+        "             \n";
 
 
     register_script<MainLight>();
