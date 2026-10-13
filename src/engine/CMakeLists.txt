@@ -65,6 +65,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/render/renderer.cpp
 	${ENGINE_SOURCES_DIR}/render/outline_feature.h
 	${ENGINE_SOURCES_DIR}/render/outline_feature.cpp
+	${ENGINE_SOURCES_DIR}/render/grid_feature.h
+	${ENGINE_SOURCES_DIR}/render/grid_feature.cpp
 
 	${ENGINE_SOURCES_DIR}/nav_mesh.h
 	${ENGINE_SOURCES_DIR}/nav_mesh.cpp

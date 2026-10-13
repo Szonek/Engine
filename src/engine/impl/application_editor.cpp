@@ -599,6 +599,10 @@ engine::ApplicationEditor::ApplicationEditor(const engine_application_create_des
     const auto init_ogl = ImGui_ImplOpenGL3_Init();
     assert(init_ogl);
 
+    // features of the same stage and order run in the order of registration: the outline is drawn on top of the grid
+    grid_feature_ = std::make_shared<GridFeature>(rdx_);
+    renderer_.add_feature(grid_feature_, RenderStage::ePostProcess);
+
     outline_feature_ = std::make_shared<OutlineFeature>();
     renderer_.add_feature(outline_feature_, RenderStage::ePostProcess);
 
@@ -653,6 +657,7 @@ void engine::ApplicationEditor::on_frame_end()
         render_imgui_ = !render_imgui_;
     }
     outline_feature_->set_enabled(editor_view_ == EditorView::eEditor);
+    grid_feature_->set_enabled(draw_grid_ && editor_view_ == EditorView::eEditor);
 }
 
 void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
@@ -855,6 +860,7 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
     {
         draw_guizmo_ = !draw_guizmo_;
     }
+    ImGui::Checkbox("Grid", &draw_grid_);
     ImGui::EndDisabled();
 
     const bool is_rml_ui_debugger_enabled = ui_manager_.is_ui_document_debugger_enabled();

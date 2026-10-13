@@ -43,6 +43,7 @@ editor's debug panel. Every pass is also a named debug group in RenderDoc/Nsight
 | `shadows.h/.cpp`                  | Fits the shadow map of the directional light to the camera frustum. **No GL.**    |
 | `ssao_pass.h/.cpp`                | Screen space ambient occlusion passes                                             |
 | `outline_feature.h/.cpp`          | Example feature: editor selection outline (raster mask pass + compute pass)       |
+| `grid_feature.h/.cpp`             | Editor feature: infinite anti-aliased grid on the XZ plane (one full screen pass) |
 
 ## Writing a pass
 

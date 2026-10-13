@@ -3,6 +3,7 @@
 #include "file_watcher.h"
 #include "editor_commands.h"
 #include "render/outline_feature.h"
+#include "render/grid_feature.h"
 
 #include <entt/entt.hpp>
 #include <map>
@@ -149,6 +150,8 @@ private:
     float frame_delta_time_ = 0.0f;
     CommandManager commands_;
     std::shared_ptr<OutlineFeature> outline_feature_;
+    std::shared_ptr<GridFeature> grid_feature_;
+    bool draw_grid_ = true;
     bool render_imgui_ = true;
     SceneHierarchyContext scene_hierarchy_context_;
 };
