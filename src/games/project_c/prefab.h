@@ -46,7 +46,6 @@ private:
     std::vector<engine_material_component_t> materials_;
     std::vector<EngineObj<engine_texture2d_t>> textures_ = {};
     std::vector<engine_skin_t*> skins_ = {};
-    engine_animation_library_t* animation_library_ = nullptr;
     std::vector<engine_animation_controller_t*> animation_controllers_ = {};
 };
 }

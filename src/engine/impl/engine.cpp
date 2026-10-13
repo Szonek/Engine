@@ -14,6 +14,7 @@
 #include "logger.h"
 
 #include <utility>
+#include <mutex>
 
 #include <format>
 
@@ -179,16 +180,6 @@ inline auto api_cast(engine_animation_controller_t* controller)
     return reinterpret_cast<engine::AnimationController*>(controller);
 }
 
-inline auto api_cast(engine_animation_library_t* library)
-{
-    return reinterpret_cast<engine::AnimationLibraryHandle*>(library);
-}
-
-inline auto api_cast(const engine_animation_library_t* library)
-{
-    return reinterpret_cast<const engine::AnimationLibraryHandle*>(library);
-}
-
 inline auto api_cast(const engine_animation_controller_t* controller)
 {
     return reinterpret_cast<const engine::AnimationController*>(controller);
@@ -202,6 +193,43 @@ inline auto api_cast(engine::AnimationController& contact)
 inline auto api_cast(const engine::AnimationController& contact)
 {
     return reinterpret_cast<const engine_animation_controller_t*>(&contact);
+}
+
+std::mutex G_ANIMATION_LIBRARY_CACHE_MUTEX;
+
+std::shared_ptr<const engine::AnimationLibrary> get_or_create_animation_library(
+    const engine::ModelDesc& model_desc,
+    const engine::Skin& skin)
+{
+    std::shared_ptr<engine::AnimationLibraryCache> cache;
+    {
+        std::lock_guard lock(G_ANIMATION_LIBRARY_CACHE_MUTEX);
+        if (!model_desc.animation_library_cache)
+        {
+            model_desc.animation_library_cache = std::make_shared<engine::AnimationLibraryCache>();
+        }
+        cache = model_desc.animation_library_cache;
+    }
+
+    std::lock_guard lock(cache->mutex);
+    for (const auto& library : cache->libraries)
+    {
+        if (library->is_compatible_with(skin))
+        {
+            return library;
+        }
+    }
+
+    auto library = std::make_shared<engine::AnimationLibrary>(skin);
+    for (const auto& animation : model_desc.animations)
+    {
+        if (!library->add_animation(animation, skin))
+        {
+            return {};
+        }
+    }
+    cache->libraries.push_back(library);
+    return library;
 }
 
 template<typename T>
@@ -1800,57 +1828,29 @@ const char* engineSkinGetName(const engine_skin_t* skin)
     return api_cast(skin)->get_name().c_str();
 }
 
-engine_animation_library_t* engineAnimationLibraryCreateFromModelDesc(const engine_model_desc_t* desc, engine_skin_t* skin)
-{
-    if (!G_ACTIVE_APP || !desc || !skin)
-    {
-        return nullptr;
-    }
-    const auto typed_desc = api_cast(desc);
-    const auto typed_skin = api_cast(skin);
-    auto library = std::make_shared<engine::AnimationLibrary>(*typed_skin);
-    for (const auto& animation : typed_desc->animations)
-    {
-        if (!library->add_animation(animation, *typed_skin))
-        {
-            return nullptr;
-        }
-    }
-    auto* handle = new engine::AnimationLibraryHandle(std::move(library));
-    return reinterpret_cast<engine_animation_library_t*>(handle);
-}
-
-void engineAnimationLibraryDestroy(engine_animation_library_t* library)
-{
-    delete api_cast(library);
-}
-
-engine_animation_controller_t* engineCreateAnimationControllerWithSkin(engine_skin_t* skin)
+engine_animation_controller_t* engineCreateAnimationControllerWithSkin(engine_skin_t* skin, const engine_model_desc_t* model_desc)
 {
     if (!G_ACTIVE_APP || !skin)
     {
         return nullptr;
     }
-    auto* app = api_cast(G_ACTIVE_APP);
     auto typed_skin = api_cast(skin);
-    auto controller = new engine::AnimationController(typed_skin);
-    return api_cast(*controller);
-}
+    std::shared_ptr<const engine::AnimationLibrary> animation_library;
+    if (model_desc)
+    {
+        const auto typed_desc = api_cast(model_desc);
+        if (!typed_desc->animations.empty())
+        {
+            animation_library = get_or_create_animation_library(*typed_desc, *typed_skin);
+            if (!animation_library)
+            {
+                engineLog("Failed creating animation library for loaded model.\n");
+                return nullptr;
+            }
+        }
+    }
 
-engine_animation_controller_t* engineCreateAnimationControllerWithSkinAndLibrary(engine_skin_t* skin, const engine_animation_library_t* library)
-{
-    if (!G_ACTIVE_APP || !skin || !library)
-    {
-        return nullptr;
-    }
-    const auto typed_skin = api_cast(skin);
-    const auto typed_library = api_cast(library);
-    if (!typed_library->library || !typed_library->library->is_compatible_with(*typed_skin))
-    {
-        engineLog("Animation library is incompatible with the supplied skin.\n");
-        return nullptr;
-    }
-    auto controller = new engine::AnimationController(typed_skin, typed_library->library);
+    auto controller = new engine::AnimationController(typed_skin, std::move(animation_library));
     return api_cast(*controller);
 }
 

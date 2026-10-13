@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <utility>
 
 namespace engine
@@ -59,14 +60,11 @@ private:
     std::unordered_map<std::string, std::shared_ptr<const CompiledAnimationData>> animations_;
 };
 
-struct AnimationLibraryHandle
+class AnimationLibraryCache
 {
-    explicit AnimationLibraryHandle(std::shared_ptr<const AnimationLibrary> library)
-        : library(std::move(library))
-    {
-    }
-
-    std::shared_ptr<const AnimationLibrary> library;
+public:
+    std::mutex mutex;
+    std::vector<std::shared_ptr<const AnimationLibrary>> libraries;
 };
 
 class SamplingJob

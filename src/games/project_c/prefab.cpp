@@ -13,7 +13,6 @@ project_c::Prefab::Prefab(Prefab&& rhs) noexcept
     std::swap(textures_, rhs.textures_);
     std::swap(materials_, rhs.materials_);
     std::swap(skins_, rhs.skins_);
-    std::swap(animation_library_, rhs.animation_library_);
     std::swap(animation_controllers_, rhs.animation_controllers_);
 }
 
@@ -26,7 +25,6 @@ project_c::Prefab& project_c::Prefab::operator=(Prefab&& rhs) noexcept
         std::swap(textures_, rhs.textures_);
         std::swap(materials_, rhs.materials_);
         std::swap(skins_, rhs.skins_);
-        std::swap(animation_library_, rhs.animation_library_);
         std::swap(animation_controllers_, rhs.animation_controllers_);
     }
     return *this;
@@ -60,10 +58,6 @@ project_c::Prefab::~Prefab()
             {
                 engineDestroyAnimationController(anim_controller);
             }
-        }
-        if (animation_library_)
-        {
-            engineAnimationLibraryDestroy(animation_library_);
         }
         materials_.clear();
         engineModelDescRelease(model_desc_);
@@ -172,18 +166,8 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     const auto animations_count = engineModelDescGetAnimationsDescCount(model_desc_);
     if (animations_count > 0)
     {
-        if (!animation_library_)
-        {
-            animation_library_ = engineAnimationLibraryCreateFromModelDesc(model_desc_, skin_handle);
-        }
-        if (!animation_library_)
-        {
-            engineLog("Failed creating animation library for loaded model. Exiting!\n");
-            engineDestroySkin(skin_handle);
-            return ret;
-        }
         // create animation controller
-        anim_controller = engineCreateAnimationControllerWithSkinAndLibrary(skin_handle, animation_library_);
+        anim_controller = engineCreateAnimationControllerWithSkin(skin_handle, model_desc_);
         if (!anim_controller)
         {
             engineLog("Failed creating animation controller for loaded model. Exiting!\n");
