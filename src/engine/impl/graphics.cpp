@@ -1111,6 +1111,11 @@ void engine::RenderContext::set_depth_write(bool flag)
     glDepthMask(flag ? GL_TRUE : GL_FALSE);
 }
 
+void engine::RenderContext::set_depth_func(DepthFunc func)
+{
+    glDepthFunc(func == DepthFunc::eLessOrEqual ? GL_LEQUAL : GL_LESS);
+}
+
 void engine::RenderContext::set_cull_face(bool flag)
 {
     if (flag)
@@ -1127,6 +1132,7 @@ void engine::RenderContext::reset_pipeline_state()
 {
     set_depth_test(true);
     set_depth_write(true);
+    set_depth_func(DepthFunc::eLess);
     set_cull_face(true);
     set_blend_mode(false);
     set_polygon_mode(PolygonFaceType::eFrontAndBack, PolygonMode::eFill);

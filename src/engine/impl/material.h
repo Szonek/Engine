@@ -65,7 +65,8 @@ public:
         const UniformBuffer& camera;
         const UniformBuffer& scene;
         const float* model_matrix;
-        std::span<const glm::mat4> bone_transforms;
+        // index of the first bone matrix of this mesh in the buffer bound to ShaderBindingSlot::SKINNING
+        std::uint32_t skinning_matrices_offset;
 
         const float* color_diffuse;
         float shininess;
@@ -75,20 +76,48 @@ public:
 
 public:
     MaterialSkinnedGeometryLit();
-    ~MaterialSkinnedGeometryLit();
     void draw(const Geometry& geometry, const DrawContext& ctx);
-
-    void new_frame();
-
-private:
-    constexpr static std::size_t MAX_BONES_PER_FRAME = 32768;
-    using BonePacket = glm::mat4;
 
 private:
     Shader shader_;
-    ShaderStorageBuffer skinning_matrices_ssbo_;
-    std::size_t offset_into_ssbo_ = 0;
-    BonePacket* skinning_mtx_gpu_ptr_ = nullptr;
+};
+
+// Depth only materials write no color. They are used to render the shadow map and the depth pre-pass.
+// Vertex shaders are the same as in the lit materials, so the depth is exactly the same as the one of the lit draw.
+class MaterialStaticGeometryDepthOnly
+{
+public:
+    struct DrawContext
+    {
+        const UniformBuffer& camera;
+        const float* model_matrix;
+    };
+public:
+    MaterialStaticGeometryDepthOnly();
+
+    void draw(const Geometry& geometry, const DrawContext& ctx);
+
+private:
+    Shader shader_;
+};
+
+class MaterialSkinnedGeometryDepthOnly
+{
+public:
+    struct DrawContext
+    {
+        const UniformBuffer& camera;
+        const float* model_matrix;
+        // index of the first bone matrix of this mesh in the buffer bound to ShaderBindingSlot::SKINNING
+        std::uint32_t skinning_matrices_offset;
+    };
+public:
+    MaterialSkinnedGeometryDepthOnly();
+
+    void draw(const Geometry& geometry, const DrawContext& ctx);
+
+private:
+    Shader shader_;
 };
 
 class MaterialSkinnedGeometryUnlit

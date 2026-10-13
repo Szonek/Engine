@@ -3,6 +3,8 @@
 #include "render_graph.h"
 #include "render_graph_gl_backend.h"
 #include "render_scene_data.h"
+#include "render_settings.h"
+#include "ssao_pass.h"
 #include "../graphics.h"
 #include "../material.h"
 
@@ -22,7 +24,10 @@ namespace engine
 //
 //       Clear Scene Targets
 //       for each submitted scene, for each enabled camera:
-//           Forward (static + skinned meshes) -> Sprites -> Physics Debug Lines
+//           Shadow Map      (depth of meshes seen from the directional light)
+//           Depth Pre-pass  (depth of meshes seen from the camera)
+//           SSAO, SSAO Blur (ambient occlusion computed from the depth)
+//           Forward (static + skinned meshes, uses the shadow map and the ambient occlusion) -> Sprites -> Physics Debug Lines
 //       RenderStage::ePostProcess features    (i.e. editor outline)
 //       Present                               (scene color -> backbuffer)
 //       RenderStage::eOverlay features        (i.e. UI, editor widgets)
@@ -48,18 +53,31 @@ public:
     bool read_entity_id(std::uint32_t x, std::uint32_t y, std::uint32_t& out_entity_id);
 
     RenderContext& get_context() { return rdx_; }
+    // Shadows, ambient occlusion... Changes are applied to the next rendered frame.
+    RenderSettings& get_settings() { return settings_; }
     // Graph of the last rendered frame, for debugging/visualization.
     const rg::Graph& get_last_frame_graph() const { return graph_; }
 
 private:
+    // GPU buffers of a single camera
+    struct ViewGpu
+    {
+        UniformBuffer camera_ubo{ sizeof(CameraGpuData) };
+        UniformBuffer lighting_ubo{ sizeof(ViewLightingGpuData) };
+        // the directional light as a camera: what the shadow map of this view is rendered with
+        UniformBuffer shadow_camera_ubo{ sizeof(CameraGpuData) };
+    };
+
     // GPU buffers of a single submitted scene
     struct SceneGpu
     {
         UniformBuffer scene_ubo{ sizeof(SceneGpuData) };
         ShaderStorageBuffer lights_ssbo;
         void* lights_ptr = nullptr;
+        ShaderStorageBuffer skinning_ssbo;
+        void* skinning_ptr = nullptr;
         ShaderStorageBuffer debug_lines_ssbo;
-        std::vector<std::unique_ptr<UniformBuffer>> view_ubos;
+        std::vector<std::unique_ptr<ViewGpu>> views;
     };
 
     struct FeatureEntry
@@ -76,6 +94,18 @@ private:
         rg::TextureHandle depth;
     };
 
+    struct ShadowPassData
+    {
+        rg::TextureHandle shadow_map;
+    };
+
+    // invalid handles: the view has no shadow / no ambient occlusion
+    struct ForwardPassData
+    {
+        rg::TextureHandle shadow_map;
+        rg::TextureHandle ambient_occlusion;
+    };
+
     struct PresentPassData
     {
         rg::TextureHandle scene_color;
@@ -88,6 +118,8 @@ private:
     void add_features_passes(FrameContext& frame, RenderStage stage);
 
     void draw_meshes(const FrameView& view);
+    // camera_ubo: camera of the view or of the light
+    void draw_meshes_depth_only(const FrameView& view, const UniformBuffer& camera_ubo);
     void draw_sprites(const FrameView& view);
     void draw_debug_lines(const FrameView& view);
 
@@ -95,6 +127,7 @@ private:
     RenderContext& rdx_;
     GlGraphBackend backend_;
     rg::Graph graph_;
+    RenderSettings settings_;
 
     std::vector<SceneRenderData> frame_scenes_;
     std::vector<std::unique_ptr<SceneGpu>> scene_gpu_;
@@ -109,12 +142,18 @@ private:
 
     MaterialStaticGeometryLit material_static_geometry_lit_;
     MaterialSkinnedGeometryLit material_skinned_geometry_lit_;
+    MaterialStaticGeometryDepthOnly material_static_geometry_depth_only_;
+    MaterialSkinnedGeometryDepthOnly material_skinned_geometry_depth_only_;
     MaterialSprite material_sprite_;
 
     Shader shader_debug_lines_;
     Geometry geometry_debug_line_;
     Shader shader_full_screen_quad_;
     Geometry geometry_full_screen_quad_;
+
+    SsaoPass ssao_pass_;
+    // bound in place of the shadow map / ambient occlusion when they are disabled
+    Texture2D white_texture_;
 };
 
 }  // namespace engine

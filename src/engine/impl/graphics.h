@@ -412,6 +412,13 @@ public:
         eCount
     };
 
+    enum class DepthFunc
+    {
+        eLess = 0,
+        eLessOrEqual,
+        eCount
+    };
+
     enum MemoryBarrierBitMask
     {
         MEMORY_BARRIER_IMAGE_ACCESS_BIT = 0x0001,
@@ -453,9 +460,10 @@ public:
 	void set_polygon_mode(PolygonFaceType face, PolygonMode mode);
     void set_depth_test(bool flag);
     void set_depth_write(bool flag);
+    void set_depth_func(DepthFunc func);
     void set_cull_face(bool flag);
 
-    // Restores the pipeline state which scene passes rely on: depth test/write on, back face culling on, blending off, fill polygons, no scissor.
+    // Restores the pipeline state which scene passes rely on: depth test/write on (func: less), back face culling on, blending off, fill polygons, no scissor.
     void reset_pipeline_state();
 
     // Named groups are visible in graphics debuggers (RenderDoc, Nsight)

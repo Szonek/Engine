@@ -23,6 +23,13 @@ struct FrameView
     const UniformBuffer* scene_ubo = nullptr;
     const ShaderStorageBuffer* lights_ssbo = nullptr;
     const ShaderStorageBuffer* debug_lines_ssbo = nullptr;
+    // bone matrices of all skinned meshes of the scene, see SkinnedMeshDrawItem::skinning_matrices_offset
+    const ShaderStorageBuffer* skinning_ssbo = nullptr;
+    // shadows and ambient occlusion parameters (ViewLightingGpuData)
+    const UniformBuffer* lighting_ubo = nullptr;
+    // camera of the directional light (CameraGpuData), valid only if has_shadow is set
+    const UniformBuffer* shadow_camera_ubo = nullptr;
+    bool has_shadow = false;
 };
 
 // Everything a feature needs to declare its passes.

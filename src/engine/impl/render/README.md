@@ -16,10 +16,16 @@ Passes declared every frame:
 | Pass                                        | Stage         | Writes                              |
 |---------------------------------------------|---------------|-------------------------------------|
 | Clear Scene Targets                         | built-in      | SceneColor, EntityId, SceneDepth    |
+| Shadow Map                                  | built-in, per scene camera | ShadowMap              |
+| Depth Pre-pass                              | built-in, per scene camera | SceneDepth             |
+| SSAO / SSAO Blur                            | built-in, per scene camera | AmbientOcclusion       |
 | Forward / Sprites / Physics Debug Lines     | built-in, per scene camera | SceneColor (+EntityId, SceneDepth) |
 | *features of stage* `ePostProcess`          | `RenderFeature` | usually SceneColor                |
 | Present                                     | built-in      | Backbuffer                          |
 | *features of stage* `eOverlay`              | `RenderFeature` | Backbuffer (UI, editor widgets)   |
+
+Shadows and ambient occlusion (the three passes before Forward) are explained in [SHADOWS_AND_SSAO.md](SHADOWS_AND_SSAO.md).
+Shadow Map and SSAO are declared only when enabled in `RenderSettings` (`Renderer::get_settings()`, editable in the editor's debug panel).
 
 The pass list of the last frame (with culled passes greyed out and resource reads/writes in a tooltip) is shown in the
 editor's debug panel. Every pass is also a named debug group in RenderDoc/Nsight.
@@ -33,6 +39,9 @@ editor's debug panel. Every pass is also a named debug group in RenderDoc/Nsight
 | `render_scene_data.h`             | Plain data the scene submits (draw items, lights, cameras) + GPU struct layouts   |
 | `renderer.h/.cpp`                 | Owns the graph, materials, per-scene GPU buffers; builds the built-in passes      |
 | `render_feature.h`                | `RenderFeature` extension point, `FrameContext`                                   |
+| `render_settings.h`               | `RenderSettings`: shadow and SSAO parameters                                      |
+| `shadows.h/.cpp`                  | Fits the shadow map of the directional light to the camera frustum. **No GL.**    |
+| `ssao_pass.h/.cpp`                | Screen space ambient occlusion passes                                             |
 | `outline_feature.h/.cpp`          | Example feature: editor selection outline (raster mask pass + compute pass)       |
 
 ## Writing a pass
@@ -93,4 +102,8 @@ A new built-in lit/unlit shader is a `Material*` class in `material.h/.cpp` plus
 
 * Entity ids for picking come from the **previous** frame: `Renderer::read_entity_id()` reads the extracted `EntityId` texture.
 * Geometry/Texture pointers in draw items are only valid until the end of the frame.
+* Meshes are drawn by three passes (Shadow Map, Depth Pre-pass, Forward). The Forward pass uses depth test "less or equal" against the
+  depth of the pre-pass, so a new mesh type has to be drawn in `draw_meshes_depth_only` too, with the same vertex shader as its lit draw.
+* Bone matrices of all skinned meshes of a scene are uploaded once per frame (`SceneGpu::skinning_ssbo`), draws only pass an offset into it.
 * `RenderGraph` is unit tested without a GL context: see `src/tests/unit_tests/render_graph_tests.cpp` (target `render_graph_tests`).
+  The same target contains tests of the shadow map math (`shadows_tests.cpp`).

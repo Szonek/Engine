@@ -29,6 +29,25 @@ struct SceneGpuData
     float pad3_;
 };
 
+// Shadow and ambient occlusion parameters of one camera. Layout has to match ViewLightingData in shadow_helpers.h.
+struct ViewLightingGpuData
+{
+    // world space -> shadow map clip space
+    glm::mat4 shadow_view_projection{ 1.0f };
+    float shadow_enabled = 0.0f;
+    float shadow_depth_bias = 0.0f;
+    float shadow_normal_offset = 0.0f;  // world units
+    float shadow_strength = 0.0f;
+    float shadow_fade_start = 0.0f;     // distance from the camera at which the shadow starts to fade out
+    float shadow_fade_end = 0.0f;
+    std::int32_t shadow_pcf_radius = 0;
+    float ssao_enabled = 0.0f;
+    float ssao_direct_light_occlusion = 0.0f;
+    std::uint32_t debug_view = 0;       // RenderDebugView
+    float pad0_ = 0.0f;
+    float pad1_ = 0.0f;
+};
+
 struct LightGpuData
 {
     glm::vec3 position;

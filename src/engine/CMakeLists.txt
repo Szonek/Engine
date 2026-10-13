@@ -56,6 +56,11 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/render/render_graph_gl_backend.cpp
 	${ENGINE_SOURCES_DIR}/render/render_scene_data.h
 	${ENGINE_SOURCES_DIR}/render/render_feature.h
+	${ENGINE_SOURCES_DIR}/render/render_settings.h
+	${ENGINE_SOURCES_DIR}/render/shadows.h
+	${ENGINE_SOURCES_DIR}/render/shadows.cpp
+	${ENGINE_SOURCES_DIR}/render/ssao_pass.h
+	${ENGINE_SOURCES_DIR}/render/ssao_pass.cpp
 	${ENGINE_SOURCES_DIR}/render/renderer.h
 	${ENGINE_SOURCES_DIR}/render/renderer.cpp
 	${ENGINE_SOURCES_DIR}/render/outline_feature.h

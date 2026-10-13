@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "shadows.h"
 #include "../logger.h"
 #include "../profiler.h"
 #include "../shaders_binding_slots.h"
@@ -9,13 +10,19 @@
 
 #include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstring>
 
 namespace
 {
 constexpr std::size_t INITIAL_LIGHTS_CAPACITY = 1'000;
+constexpr std::size_t INITIAL_SKINNING_MATRICES_CAPACITY = 4 * 1024;
 constexpr std::size_t INITIAL_DEBUG_LINES_CAPACITY = 8 * 1024;
+// shadow fades out over the last part of the shadow distance
+constexpr float SHADOW_FADE_START = 0.85f;
+constexpr std::uint32_t SHADOW_MAX_PCF_RADIUS = 4;
+constexpr std::array<std::uint8_t, 4> WHITE_PIXEL = { 255, 255, 255, 255 };
 
 // grows the buffer (never shrinks) if it can't hold required_size bytes
 template<typename BufferT>
@@ -37,6 +44,8 @@ engine::Renderer::Renderer(RenderContext& rdx)
     , geometry_debug_line_(2)
     , shader_full_screen_quad_({ "full_screen_quad.vs" }, { "full_screen_quad.fs" })
     , geometry_full_screen_quad_(6)
+    , ssao_pass_(rdx)
+    , white_texture_(1, 1, false, WHITE_PIXEL.data(), DataLayout::eRGBA_U8, TextureAddressClampMode::eClampToEdge)
 {
 }
 
@@ -45,7 +54,6 @@ engine::Renderer::~Renderer() = default;
 void engine::Renderer::begin_frame()
 {
     frame_scenes_.clear();
-    material_skinned_geometry_lit_.new_frame();
 }
 
 void engine::Renderer::submit_scene(SceneRenderData&& scene)
@@ -113,6 +121,20 @@ void engine::Renderer::prepare_gpu_data()
             }
         }
 
+        {
+            // bone matrices of all skinned meshes, draws address their part with SkinnedMeshDrawItem::skinning_matrices_offset
+            const auto required_size = std::max(scene.skinning_matrices.size(), INITIAL_SKINNING_MATRICES_CAPACITY) * sizeof(glm::mat4);
+            if (ensure_buffer_capacity(gpu.skinning_ssbo, required_size))
+            {
+                gpu.skinning_ptr = gpu.skinning_ssbo.map(false, true);
+            }
+            assert(gpu.skinning_ptr != nullptr);
+            if (!scene.skinning_matrices.empty())
+            {
+                std::memcpy(gpu.skinning_ptr, scene.skinning_matrices.data(), scene.skinning_matrices.size() * sizeof(glm::mat4));
+            }
+        }
+
         if (!scene.debug_lines.empty())
         {
             const auto required_size = std::max(scene.debug_lines.size(), INITIAL_DEBUG_LINES_CAPACITY) * sizeof(DebugLineGpuData);
@@ -121,23 +143,58 @@ void engine::Renderer::prepare_gpu_data()
             std::memcpy(lines.data, scene.debug_lines.data(), scene.debug_lines.size() * sizeof(DebugLineGpuData));
         }
 
-        while (gpu.view_ubos.size() < scene.views.size())
+        while (gpu.views.size() < scene.views.size())
         {
-            gpu.view_ubos.push_back(std::make_unique<UniformBuffer>(sizeof(CameraGpuData)));
+            gpu.views.push_back(std::make_unique<ViewGpu>());
         }
+        // the first directional light casts shadows (directional lights are at the beginning of the lights array)
+        const bool has_shadow = settings_.shadows.enabled && scene.scene_gpu.direction_light_count > 0 && !scene.lights.empty();
         for (std::size_t view_index = 0; view_index < scene.views.size(); view_index++)
         {
+            const auto& camera = scene.views[view_index];
+            auto& view_gpu = *gpu.views[view_index];
             {
-                BufferMapContext<CameraGpuData, UniformBuffer> camera_ubo(*gpu.view_ubos[view_index], false, true);
-                *camera_ubo.data = scene.views[view_index];
+                BufferMapContext<CameraGpuData, UniformBuffer> camera_ubo(view_gpu.camera_ubo, false, true);
+                *camera_ubo.data = camera;
             }
+
+            ViewLightingGpuData lighting;
+            lighting.ssao_enabled = settings_.ssao.enabled ? 1.0f : 0.0f;
+            lighting.ssao_direct_light_occlusion = std::clamp(settings_.ssao.direct_light_occlusion, 0.0f, 1.0f);
+            lighting.debug_view = static_cast<std::uint32_t>(settings_.debug_view);
+            if (has_shadow)
+            {
+                // The shadow map follows the camera, so each view has its own.
+                const auto shadow = compute_directional_shadow(camera.view, camera.projection, scene.lights.front().direction, settings_.shadows);
+                {
+                    BufferMapContext<CameraGpuData, UniformBuffer> shadow_camera_ubo(view_gpu.shadow_camera_ubo, false, true);
+                    *shadow_camera_ubo.data = CameraGpuData{ .view = shadow.view, .projection = shadow.projection, .position = glm::vec3(0.0f), .pad_ = 0.0f };
+                }
+                lighting.shadow_view_projection = shadow.projection * shadow.view;
+                lighting.shadow_enabled = 1.0f;
+                lighting.shadow_depth_bias = settings_.shadows.depth_bias;
+                lighting.shadow_normal_offset = settings_.shadows.normal_offset * shadow.world_texel_size;
+                lighting.shadow_strength = std::clamp(settings_.shadows.strength, 0.0f, 1.0f);
+                lighting.shadow_fade_start = settings_.shadows.distance * SHADOW_FADE_START;
+                lighting.shadow_fade_end = settings_.shadows.distance;
+                lighting.shadow_pcf_radius = static_cast<std::int32_t>(std::min(settings_.shadows.pcf_radius, SHADOW_MAX_PCF_RADIUS));
+            }
+            {
+                BufferMapContext<ViewLightingGpuData, UniformBuffer> lighting_ubo(view_gpu.lighting_ubo, false, true);
+                *lighting_ubo.data = lighting;
+            }
+
             frame_views_.push_back(FrameView{
                 .scene = &scene,
-                .camera = &scene.views[view_index],
-                .camera_ubo = gpu.view_ubos[view_index].get(),
+                .camera = &camera,
+                .camera_ubo = &view_gpu.camera_ubo,
                 .scene_ubo = &gpu.scene_ubo,
                 .lights_ssbo = &gpu.lights_ssbo,
-                .debug_lines_ssbo = &gpu.debug_lines_ssbo });
+                .debug_lines_ssbo = &gpu.debug_lines_ssbo,
+                .skinning_ssbo = &gpu.skinning_ssbo,
+                .lighting_ubo = &view_gpu.lighting_ubo,
+                .shadow_camera_ubo = &view_gpu.shadow_camera_ubo,
+                .has_shadow = has_shadow });
         }
     }
 }
@@ -206,15 +263,65 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
     {
         const auto suffix = fmt::format(" [View {}]", view_counter++);
 
-        frame.graph.add_pass(fmt::format("Forward{}", suffix),
+        // Depth of the scene seen from the directional light. The lit shader compares against it to find out what is in shadow.
+        rg::TextureHandle shadow_map;
+        if (view.has_shadow)
+        {
+            const auto shadow_map_size = std::max(settings_.shadows.map_size, 1u);
+            const auto desc_shadow_map = rg::TextureDesc{ shadow_map_size, shadow_map_size, DataLayout::eDEPTH24_STENCIL8_U32 };
+            shadow_map = frame.graph.add_pass<ShadowPassData>(fmt::format("Shadow Map{}", suffix),
+                [&](rg::Builder& builder, ShadowPassData& data)
+                {
+                    data.shadow_map = builder.write_depth(builder.create_texture("ShadowMap", desc_shadow_map), rg::LoadOp::eClear);
+                },
+                [this, view](const ShadowPassData&, rg::PassContext&)
+                {
+                    draw_meshes_depth_only(view, *view.shadow_camera_ubo);
+                }).shadow_map;
+        }
+
+        // Depth of the scene seen from the camera, rendered before any shading is done:
+        //  - ambient occlusion is computed from it and it's needed by the Forward pass,
+        //  - the Forward pass shades only the visible pixels (everything hidden fails the depth test).
+        frame.graph.add_pass(fmt::format("Depth Pre-pass{}", suffix),
             [&](rg::Builder& builder, rg::NoPassData&)
             {
-                builder.write_color(0, frame.scene_color, rg::LoadOp::eLoad);
-                builder.write_color(1, frame.entity_id, rg::LoadOp::eLoad);
                 builder.write_depth(frame.scene_depth, rg::LoadOp::eLoad);
             },
             [this, view](const rg::NoPassData&, rg::PassContext&)
             {
+                draw_meshes_depth_only(view, *view.camera_ubo);
+            });
+
+        rg::TextureHandle ambient_occlusion;
+        if (settings_.ssao.enabled)
+        {
+            ambient_occlusion = ssao_pass_.add_passes(frame.graph, frame.scene_depth, *view.camera, settings_.ssao, suffix);
+        }
+
+        frame.graph.add_pass<ForwardPassData>(fmt::format("Forward{}", suffix),
+            [&](rg::Builder& builder, ForwardPassData& data)
+            {
+                if (shadow_map.is_valid())
+                {
+                    data.shadow_map = builder.read(shadow_map);
+                }
+                if (ambient_occlusion.is_valid())
+                {
+                    data.ambient_occlusion = builder.read(ambient_occlusion);
+                }
+                builder.write_color(0, frame.scene_color, rg::LoadOp::eLoad);
+                builder.write_color(1, frame.entity_id, rg::LoadOp::eLoad);
+                builder.write_depth(frame.scene_depth, rg::LoadOp::eLoad);
+            },
+            [this, view](const ForwardPassData& data, rg::PassContext& ctx)
+            {
+                const auto& shadow_map_texture = data.shadow_map.is_valid() ? ctx.texture(data.shadow_map) : white_texture_;
+                const auto& ambient_occlusion_texture = data.ambient_occlusion.is_valid() ? ctx.texture(data.ambient_occlusion) : white_texture_;
+                shadow_map_texture.bind_with_sampler(static_cast<std::uint32_t>(ShaderBindingSlot::TEXTURE_SHADOW_MAP));
+                ambient_occlusion_texture.bind_with_sampler(static_cast<std::uint32_t>(ShaderBindingSlot::TEXTURE_SSAO));
+                // depth is already there (Depth Pre-pass), so the visible geometry is exactly equal to it
+                rdx_.set_depth_func(RenderContext::DepthFunc::eLessOrEqual);
                 draw_meshes(view);
             });
 
@@ -284,6 +391,8 @@ void engine::Renderer::draw_meshes(const FrameView& view)
     ENGINE_PROFILE_SECTION_N("Renderer::draw_meshes");
     const auto& scene = *view.scene;
     view.lights_ssbo->bind(static_cast<std::uint32_t>(ShaderBindingSlot::LIGHTS));
+    view.skinning_ssbo->bind(static_cast<std::uint32_t>(ShaderBindingSlot::SKINNING));
+    view.lighting_ubo->bind(static_cast<std::uint32_t>(ShaderBindingSlot::VIEW_LIGHTING));
 
     for (const auto& item : scene.static_meshes)
     {
@@ -301,17 +410,41 @@ void engine::Renderer::draw_meshes(const FrameView& view)
 
     for (const auto& item : scene.skinned_meshes)
     {
-        auto ctx = MaterialSkinnedGeometryLit::DrawContext{
+        const auto ctx = MaterialSkinnedGeometryLit::DrawContext{
             .entity_id = item.entity_id,
             .camera = *view.camera_ubo,
             .scene = *view.scene_ubo,
             .model_matrix = glm::value_ptr(item.model),
+            .skinning_matrices_offset = item.skinning_matrices_offset,
             .color_diffuse = glm::value_ptr(item.diffuse_color),
             .shininess = item.shininess,
             .texture_diffuse = *item.texture_diffuse,
             .texture_specular = *item.texture_specular };
-        ctx.bone_transforms = std::span<const glm::mat4>(scene.skinning_matrices).subspan(item.skinning_matrices_offset, item.skinning_matrices_count);
         material_skinned_geometry_lit_.draw(*item.geometry, ctx);
+    }
+}
+
+void engine::Renderer::draw_meshes_depth_only(const FrameView& view, const UniformBuffer& camera_ubo)
+{
+    ENGINE_PROFILE_SECTION_N("Renderer::draw_meshes_depth_only");
+    const auto& scene = *view.scene;
+    view.skinning_ssbo->bind(static_cast<std::uint32_t>(ShaderBindingSlot::SKINNING));
+
+    for (const auto& item : scene.static_meshes)
+    {
+        const auto ctx = MaterialStaticGeometryDepthOnly::DrawContext{
+            .camera = camera_ubo,
+            .model_matrix = glm::value_ptr(item.model) };
+        material_static_geometry_depth_only_.draw(*item.geometry, ctx);
+    }
+
+    for (const auto& item : scene.skinned_meshes)
+    {
+        const auto ctx = MaterialSkinnedGeometryDepthOnly::DrawContext{
+            .camera = camera_ubo,
+            .model_matrix = glm::value_ptr(item.model),
+            .skinning_matrices_offset = item.skinning_matrices_offset };
+        material_skinned_geometry_depth_only_.draw(*item.geometry, ctx);
     }
 }
 
