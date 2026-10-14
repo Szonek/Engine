@@ -6,17 +6,22 @@
 #include "../scripts/enemy_script.h"
 #include "../scripts/player_script.h"
 #include "../scripts/interactable_script.h"
+#include "../scripts/building_script.h"
 #include "../scripts/scripts_utils.h"
 
 #include "../nav_mesh.h"
 
 #include <engine_vector.h>
 
+#include <limits>
 #include <random>
 #include <chrono>
 
 namespace
 {
+// top of the Floor_Prototype tile collider
+constexpr float FLOOR_TOP_Y = 0.125f;
+
 struct EnemyPack
 {
     std::vector<project_c::PrefabType> types;
@@ -79,6 +84,8 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         std::vector<engine_fvec2_t> point_lights;
         std::vector<engine_fvec2_t> weapons;
         std::vector<engine_fvec2_t> chests;
+        std::vector<engine_fvec2_t> house_cells;
+        std::vector<engine_fvec2_t> house_chests;
     } scene_spawn_points;
 
     const auto scene_width = (std::int32_t)scene_str.find_first_of('\n');
@@ -147,6 +154,19 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
                 {
                     auto sc = scene.register_script<project_c::FloorOutsideRegion>(app.instantiate_prefab(project_c::PREFAB_FLOOR_OUTSIDE_REGION, &scene).go);
                     sc->set_world_position(x_offset, 0.0f, z_offset);
+                }
+            }
+            else if (c == 'h' || c == 'B')
+            {
+                // house footprint: floor without nav mesh node, enemies do not walk into (or under) the house
+                if (app.is_prefab_available(project_c::PREFAB_TYPE_FLOOR))
+                {
+                    scene.register_script<project_c::Floor>(app.instantiate_prefab(project_c::PREFAB_TYPE_FLOOR, &scene).go, x_offset, z_offset);
+                }
+                scene_spawn_points.house_cells.push_back({ x_offset, z_offset });
+                if (c == 'B')
+                {
+                    scene_spawn_points.house_chests.push_back({ x_offset, z_offset });
                 }
             }
             else
@@ -302,6 +322,33 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
         c->set_world_position(chest.x, 0.1f, chest.y);
     }
 
+    // house built over the 'h' footprint (centered on its bounding box), with a chest on the roof as a reward for climbing
+    if (!scene_spawn_points.house_cells.empty())
+    {
+        glm::vec2 min_cell(std::numeric_limits<float>::max());
+        glm::vec2 max_cell(std::numeric_limits<float>::lowest());
+        for (const auto& cell : scene_spawn_points.house_cells)
+        {
+            min_cell = glm::min(min_cell, glm::vec2(cell.x, cell.y));
+            max_cell = glm::max(max_cell, glm::vec2(cell.x, cell.y));
+        }
+        auto house = scene.register_script<project_c::House>(app, (min_cell + max_cell) * 0.5f, FLOOR_TOP_Y);
+        if (app.is_prefab_available(project_c::PREFAB_TYPE_BOX))
+        {
+            // same height offset relative to the ground as chests placed on the floor
+            const auto roof = house->get_roof_center();
+            auto c = scene.register_script<project_c::Chest>(app.instantiate_prefab(project_c::PREFAB_TYPE_BOX, &scene).go);
+            c->set_world_position(roof.x + 0.5f, roof.y - (FLOOR_TOP_Y - 0.1f), roof.z - 0.5f);
+            house->add_roof_prop(c->get_game_object());
+
+            for (const auto& chest : scene_spawn_points.house_chests)
+            {
+                auto hc = scene.register_script<project_c::Chest>(app.instantiate_prefab(project_c::PREFAB_TYPE_BOX, &scene).go);
+                hc->set_world_position(chest.x, 0.1f, chest.y);
+            }
+        }
+    }
+
     // weapons reuse geometry and texture of the rogue asset, so check it here
     if (app.is_prefab_available(project_c::PREFAB_TYPE_ROGUE))
     {
@@ -421,7 +468,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     gameplay_started_ = !app->is_editor_enabled();
     gameplay_ui_visible_ = engineEditorIsGameView();
     ui_data_.encounter_status = engineStringCreate(
-        gameplay_started_ ? "Defeat all enemies. WASD move, RMB attack, SPACE dodge." : "Paused. Click Play in the editor toolbar to start.");
+        gameplay_started_ ? "Defeat all enemies. WASD move, RMB attack, SPACE dodge. Walk into walls to climb." : "Paused. Click Play in the editor toolbar to start.");
     assert(ui_data_.encounter_status);
 
     std::vector<engine_ui_document_data_binding_t> bindings {};
@@ -477,14 +524,21 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         }
     }
 
+    // h - house footprint (house is built over it), B - chest inside the house
     const std::string scene_str =
-        "             \n"
-        "             \n"
-        "      b      \n"
-        "      p e    \n"
-        "             \n"
-        "             \n"
-        "             \n";
+        "                     \n"
+        "                     \n"
+        "                     \n"
+        "        hhhhh        \n"
+        "        hhhBh        \n"
+        "        hhhhh        \n"
+        "        hhhhh        \n"
+        "        hhhhh        \n"
+        "                     \n"
+        "                  e  \n"
+        "        p            \n"
+        "                     \n"
+        "                     \n";
 
 
     register_script<MainLight>();
@@ -507,7 +561,7 @@ void project_c::TestScene::update_hook_begin()
     if (!gameplay_started_ && engineEditorIsPlaying())
     {
         gameplay_started_ = true;
-        engineStringSet(ui_data_.encounter_status, "Maze test: 40 enemies. WASD move, RMB attack, SPACE dodge.");
+        engineStringSet(ui_data_.encounter_status, "WASD move, RMB attack, SPACE dodge. Walk into a wall / window / roof edge to climb, SPACE lets go.");
         engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "encounter_status");
     }
 }

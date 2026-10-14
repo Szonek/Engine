@@ -112,6 +112,57 @@ private:
         eRecovery
     };
 
+    // Environment traversal (climbing walls, vaulting through windows, mantling onto roofs).
+    // While traversing the player is kinematic: rigid body is removed so gravity does not fight the scripted motion.
+    enum class TraversalState
+    {
+        eNone,
+        eClimbing,      // attached to a wall, WASD moves on the wall
+        eScriptedMove   // vault / mantle / climb down transitions, follows a fixed path
+    };
+
+    struct TraversalMove
+    {
+        glm::vec3 p0{ 0.0f };
+        glm::vec3 p1{ 0.0f };
+        glm::vec3 p2{ 0.0f };
+        float duration = 0.0f;
+        float elapsed = 0.0f;
+        bool curved = false;        // quadratic curve through p1 (vault), otherwise two linear segments (mantle, climb down)
+        float split = 0.5f;         // linear segments only: fraction of the time spent on p0->p1
+        float yaw = 0.0f;
+        bool climb_after = false;   // enter climbing when done (climb down from roof), otherwise back to locomotion
+    };
+
+    struct ProbeHit
+    {
+        bool hit = false;           // anything (except player itself) was hit
+        bool building = false;      // hit object is a BuildingPart
+        bool climbable = false;     // hit object is a climbable BuildingPart
+        engine_game_object_t go = ENGINE_INVALID_GAME_OBJECT_ID;
+        glm::vec3 position{ 0.0f };
+        glm::vec3 normal{ 0.0f };
+    };
+
+    // Traversal available in the movement direction. Shown by the marker while approaching,
+    // started automatically once the player reaches the obstacle.
+    struct TraversalPlan
+    {
+        enum class Type
+        {
+            eNone,
+            eClimb,
+            eVault,
+            eClimbDown
+        };
+        Type type = Type::eNone;
+        float distance = 0.0f;              // how far the player still has to go before the traversal starts
+        glm::vec3 marker{ 0.0f };           // where the indicator is shown
+        glm::vec3 wall_normal{ 0.0f };
+        glm::vec3 climb_position{ 0.0f };   // eClimb only
+        TraversalMove move{};               // eVault and eClimbDown only
+    };
+
 public:
     Player(engine::IScene* my_scene, const PrefabResult& pr);
 
@@ -161,5 +212,30 @@ private:
 
     bool start_attack(engine_animation_controller_t* animation_controller, std::size_t combo_index);
     bool start_dodge(engine_animation_controller_t* animation_controller, const glm::vec2& move_input, const glm::quat& rotation);
+
+    // traversal
+    TraversalState traversal_state_ = TraversalState::eNone;
+    TraversalMove traversal_move_{};
+    glm::vec3 climb_wall_normal_{ 0.0f, 0.0f, 1.0f };
+    float traversal_regrab_cooldown_ = 0.0f;
+    engine_game_object_t traversal_marker_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    TraversalPlan::Type traversal_marker_type_ = TraversalPlan::Type::eNone;
+    float traversal_marker_time_ = 0.0f;
+
+    ProbeHit probe(const glm::vec3& from, const glm::vec3& to) const;
+    TraversalPlan find_traversal(const glm::vec3& position, const glm::vec3& direction) const;
+    TraversalPlan find_nearest_traversal(const glm::vec3& position) const;
+    TraversalPlan plan_vault(const glm::vec3& position, const ProbeHit& low_hit) const;
+    TraversalPlan plan_climb_down(const glm::vec3& position, const glm::vec3& direction) const;
+    void execute_traversal(engine_animation_controller_t* animation_controller, const TraversalPlan& plan);
+    bool try_start_mantle(engine_animation_controller_t* animation_controller, const glm::vec3& position);
+    void start_climbing(engine_animation_controller_t* animation_controller, const glm::vec3& wall_normal, const glm::vec3& position);
+    void start_traversal_move(engine_animation_controller_t* animation_controller, const TraversalMove& move, const char* animation_name);
+    void update_traversal(engine_animation_controller_t* animation_controller, float delta_seconds, bool drop_pressed);
+    void stop_traversal(engine_animation_controller_t* animation_controller, float regrab_cooldown);
+    void create_traversal_marker();
+    void update_traversal_marker(const TraversalPlan& plan, float delta_seconds);
+    void set_kinematic(bool kinematic);
+    void set_position_and_yaw(const glm::vec3& position, float yaw);
 };
 } //namespace project_c
