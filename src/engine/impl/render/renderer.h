@@ -132,8 +132,7 @@ private:
 
     void draw_meshes(const FrameView& view);
     // camera_ubo: camera of the view or of the light
-    // apply_fade - dithered fade of static meshes (depth pre-pass), off for the shadow map so faded meshes keep casting shadows
-    void draw_meshes_depth_only(const FrameView& view, const UniformBuffer& camera_ubo, bool apply_fade);
+    void draw_meshes_depth_only(const FrameView& view, const UniformBuffer& camera_ubo);
     void draw_sprites(const FrameView& view);
     void draw_debug_lines(const FrameView& view);
 

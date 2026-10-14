@@ -6,7 +6,9 @@
 
 #include <glm/gtc/quaternion.hpp>
 
+#include <algorithm>
 #include <array>
+#include <cassert>
 #include <cmath>
 
 namespace
@@ -28,6 +30,12 @@ constexpr std::array<project_c::BuildingPart::Box, 4> WINDOW_FRAME_BOXES = {
 };
 // Primitive_Floor: x [-2, 2], y [0, 1], z [-2, 2]
 constexpr project_c::BuildingPart::Box ROOF_BOX = { { 0.0f, 0.5f, 0.0f }, { 2.0f, 0.5f, 2.0f } };
+
+// "Walls down": an occluding wall sinks to the player's feet, but never lower than a short stub,
+// so the layout of the building stays readable.
+constexpr float LOWERED_MIN_HEIGHT_FRACTION = 0.15f;
+constexpr float LOWER_SECONDS = 0.15f;  // time to sink the full height
+constexpr float RAISE_SECONDS = 0.3f;   // time to rise back
 } // namespace anonymous
 
 project_c::BuildingPart::BuildingPart(engine::IScene* my_scene, engine_game_object_t go, std::string_view name,
@@ -36,6 +44,7 @@ project_c::BuildingPart::BuildingPart(engine::IScene* my_scene, engine_game_obje
     : BaseNode(my_scene, go, name)
     , collider_(collider)
     , position_(position)
+    , scale_(scale)
     , climbable_(climbable)
 {
     auto tc = engineGameObjectHasTransformComponent(go_) ? engineGameObjectGetTransformComponent(go_) : engineGameObjectAddTransformComponent(go_);
@@ -73,6 +82,26 @@ void project_c::BuildingPart::add_collider()
     engineGameObjectUpdateColliderComponent(go_, &cc);
 }
 
+void project_c::BuildingPart::update(float dt)
+{
+    if (occlusion_response_ != OcclusionResponse::eLower || height_fraction_ == target_height_fraction_)
+    {
+        return;
+    }
+
+    const float delta_seconds = dt / 1000.0f;
+    const bool lowering = target_height_fraction_ < height_fraction_;
+    const float step = delta_seconds / (lowering ? LOWER_SECONDS : RAISE_SECONDS);
+    height_fraction_ = lowering
+        ? std::max(height_fraction_ - step, target_height_fraction_)
+        : std::min(height_fraction_ + step, target_height_fraction_);
+
+    // only the visible piece is scaled, its collider is a separate game object and keeps the full size
+    auto tc = engineGameObjectGetTransformComponent(go_);
+    tc.scale[1] = scale_.y * height_fraction_;
+    engineGameObjectUpdateTransformComponent(go_, &tc);
+}
+
 bool project_c::BuildingPart::is_climbable(const glm::vec3& surface_normal) const
 {
     if (!climbable_)
@@ -87,21 +116,61 @@ bool project_c::BuildingPart::is_climbable(const glm::vec3& surface_normal) cons
     return true;
 }
 
-void project_c::BuildingPart::get_fade_targets(std::vector<engine_game_object_t>& out) const
+void project_c::BuildingPart::set_occlusion_response(OcclusionResponse response, float full_height)
 {
-    out.push_back(fade_target_ != ENGINE_INVALID_GAME_OBJECT_ID ? fade_target_ : go_);
-    out.insert(out.end(), extra_fade_targets_.begin(), extra_fade_targets_.end());
+    // lowering scales the game object, which would scale a collider on it too
+    assert(response != OcclusionResponse::eLower || !collider_);
+    occlusion_response_ = response;
+    full_height_ = full_height;
+}
+
+void project_c::BuildingPart::add_linked_prop(engine_game_object_t go)
+{
+    linked_props_.push_back(go);
+    apply_visibility();
+}
+
+void project_c::BuildingPart::set_occluding(bool occluding, float player_feet_y)
+{
+    occluding_ = occluding;
+    if (occlusion_response_ == OcclusionResponse::eLower && full_height_ > 0.0f)
+    {
+        // cut at the player's feet: on the ground that is the stub, while climbing the wall ends just below the player
+        target_height_fraction_ = occluding
+            ? std::clamp((player_feet_y - position_.y) / full_height_, LOWERED_MIN_HEIGHT_FRACTION, 1.0f)
+            : 1.0f;
+    }
+    apply_visibility();
+}
+
+void project_c::BuildingPart::apply_visibility()
+{
+    const bool hide = hidden_ || (occluding_ && occlusion_response_ == OcclusionResponse::eHide);
+    const auto set_mesh_disabled = [](engine_game_object_t go, bool disable)
+        {
+            if (!engineGameObjectIsValid(go) || !engineGameObjectHasMeshComponent(go))
+            {
+                return;
+            }
+            auto mc = engineGameObjectGetMeshComponent(go);
+            if (mc.disable != disable)
+            {
+                mc.disable = disable;
+                engineGameObjectUpdateMeshComponent(go, &mc);
+            }
+        };
+
+    set_mesh_disabled(go_, hide);
+    for (const auto prop : linked_props_)
+    {
+        set_mesh_disabled(prop, hide);
+    }
 }
 
 void project_c::BuildingPart::set_hidden(bool hidden, bool affect_collider)
 {
-    if (hidden_ != hidden && engineGameObjectHasMeshComponent(go_))
-    {
-        auto mc = engineGameObjectGetMeshComponent(go_);
-        mc.disable = hidden;
-        engineGameObjectUpdateMeshComponent(go_, &mc);
-    }
     hidden_ = hidden;
+    apply_visibility();
 
     if (!affect_collider || !collider_)
     {
@@ -150,12 +219,19 @@ void project_c::House::add_wall(AppProjectC& app, const glm::vec3& position, flo
     {
         return;
     }
-    auto part = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WALL, my_scene_).go,
-        "house-wall", position, y_rotation_degrees, scale, WALL_BOX, true);
-    part->set_climbable_away_from({ center_.x, ground_y_, center_.y });
+    // visible piece and its collider are separate game objects, so the piece can be lowered without touching physics
+    auto visual = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WALL, my_scene_).go,
+        "house-wall", position, y_rotation_degrees, scale, std::nullopt, false);
+    visual->set_occlusion_response(BuildingPart::OcclusionResponse::eLower, wall_height);
+
+    auto collider = my_scene_->register_script<BuildingPart>(engineGameObjectCreate(),
+        "house-wall-collider", position, y_rotation_degrees, scale, WALL_BOX, true);
+    collider->set_climbable_away_from({ center_.x, ground_y_, center_.y });
+    collider->set_occlusion_owner(visual->get_game_object());
+
     if (camera_facing)
     {
-        camera_occluders_.push_back(part);
+        camera_facing_walls_.push_back(visual);
     }
 }
 
@@ -166,11 +242,12 @@ void project_c::House::add_window_wall(AppProjectC& app, const glm::vec3& positi
         return;
     }
     // visible piece, without collider
-    auto part = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WINDOW, my_scene_).go,
+    auto visual = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WINDOW, my_scene_).go,
         "house-window", position, y_rotation_degrees, scale, std::nullopt, false);
+    visual->set_occlusion_response(BuildingPart::OcclusionResponse::eLower, wall_height);
     if (camera_facing)
     {
-        camera_occluders_.push_back(part);
+        camera_facing_walls_.push_back(visual);
     }
 
     // invisible collision frame around the opening
@@ -179,7 +256,7 @@ void project_c::House::add_window_wall(AppProjectC& app, const glm::vec3& positi
         auto frame = my_scene_->register_script<BuildingPart>(engineGameObjectCreate(), "house-window-frame", position, y_rotation_degrees, scale, box, true);
         frame->set_alignment_point(position);
         frame->set_climbable_away_from({ center_.x, ground_y_, center_.y });
-        frame->set_fade_target(part->get_game_object());
+        frame->set_occlusion_owner(visual->get_game_object());
     }
 }
 
@@ -195,14 +272,14 @@ void project_c::House::add_roof(AppProjectC& app)
     roof_ = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_ROOF, my_scene_).go,
         "house-roof", glm::vec3(center_.x, ground_y_ + wall_height, center_.y), 0.0f, glm::vec3(roof_xz_scale, roof_y_scale, roof_xz_scale),
         ROOF_BOX, false);
+    roof_->set_occlusion_response(BuildingPart::OcclusionResponse::eHide);
 }
 
 void project_c::House::add_roof_prop(engine_game_object_t go)
 {
-    roof_props_.push_back(go);
     if (roof_)
     {
-        roof_->add_extra_fade_target(go);
+        roof_->add_linked_prop(go);
     }
 }
 
@@ -239,27 +316,18 @@ void project_c::House::update(float dt)
     }
     player_inside_ = inside;
 
-    // classic ARPG "cut away": roof is hidden while the player is inside,
+    // classic ARPG "cut away": roof (with the props on it) is hidden while the player is inside,
     // its collider is removed as well, so mouse aiming/picking hits the room floor instead of the roof
     if (roof_)
     {
         roof_->set_hidden(inside, true);
     }
-    // wall facing the camera stays, but faded (camera owns fading, so it is asked to keep it faded)
+    // wall facing the camera is lowered. The camera drives occlusion, so it is asked to keep the wall occluding.
     if (camera_)
     {
-        for (auto* occluder : camera_occluders_)
+        for (auto* wall : camera_facing_walls_)
         {
-            camera_->set_forced_fade(occluder->get_game_object(), inside);
-        }
-    }
-    for (const auto prop : roof_props_)
-    {
-        if (engineGameObjectHasMeshComponent(prop))
-        {
-            auto mc = engineGameObjectGetMeshComponent(prop);
-            mc.disable = inside;
-            engineGameObjectUpdateMeshComponent(prop, &mc);
+            camera_->set_forced_occluding(wall->get_game_object(), inside);
         }
     }
 }

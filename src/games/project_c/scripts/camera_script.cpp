@@ -34,10 +34,9 @@ constexpr float LOOK_AHEAD_SMOOTH_TIME = 0.25f;
 // Long frames (loading, breakpoints) would otherwise make the camera jump.
 constexpr float MAX_DELTA_SECONDS = 0.1f;
 
-// Occluders between the camera and the player are dithered out.
-constexpr float OCCLUDER_FADE = 0.75f;              // not fully invisible, the wall shape stays readable
-constexpr float OCCLUDER_FADE_OUT_SECONDS = 0.15f;  // time to fade out an occluder
-constexpr float OCCLUDER_FADE_IN_SECONDS = 0.3f;    // time to bring it back
+// Occluders between the camera and the player get out of the way (see CameraOccluder).
+// They come back only after not hiding the player for a moment, so they don't flicker at the edges.
+constexpr float OCCLUDER_RESTORE_DELAY_SECONDS = 0.3f;
 constexpr std::size_t OCCLUDER_MAX_HITS_PER_RAY = 6;
 // Rays are cast from a few points of the player's body toward the camera.
 // All points have to stay inside the body: a climbing player is only ~0.2 away from the wall surface,
@@ -69,17 +68,6 @@ glm::vec3 smooth_damp(const glm::vec3& current, const glm::vec3& target, glm::ve
         smooth_damp(current.y, target.y, velocity.y, smooth_time.y, delta_seconds),
         smooth_damp(current.z, target.z, velocity.z, smooth_time.z, delta_seconds)
     };
-}
-
-void set_mesh_fade(engine_game_object_t go, float fade)
-{
-    if (!engineGameObjectIsValid(go) || !engineGameObjectHasMeshComponent(go))
-    {
-        return;
-    }
-    auto mc = engineGameObjectGetMeshComponent(go);
-    mc.fade = fade;
-    engineGameObjectUpdateMeshComponent(go, &mc);
 }
 } // namespace
 
@@ -144,7 +132,7 @@ void project_c::CameraScript::late_update(float dt)
     }
     apply_camera_transform(shake_offset);
 
-    update_occluders_fade(player_position, delta_seconds);
+    update_occluders(player_position, delta_seconds);
 }
 
 void project_c::CameraScript::snap_to_player()
@@ -212,13 +200,12 @@ void project_c::CameraScript::apply_camera_transform(const glm::vec3& shake_offs
     engineGameObjectUpdateCameraComponent(go_, &camera_comp);
 }
 
-void project_c::CameraScript::update_occluders_fade(const glm::vec3& player_position, float delta_seconds)
+void project_c::CameraScript::update_occluders(const glm::vec3& player_position, float delta_seconds)
 {
-    engine::ScopedProfiler profiler("project_c::CameraScript::update_occluders_fade");
+    engine::ScopedProfiler profiler("project_c::CameraScript::update_occluders");
     // everything a ray from the player toward the camera passes through. Engine ray returns only the closest hit,
     // so hits are collected by casting again with the previous hits ignored.
-    std::unordered_set<engine_game_object_t> occluding(forced_fade_.begin(), forced_fade_.end());
-    std::vector<engine_game_object_t> fade_targets;
+    std::unordered_set<engine_game_object_t> occluding(forced_occluders_.begin(), forced_occluders_.end());
     const glm::vec3 to_camera = CAMERA_OFFSET;
     for (const auto& sample_offset : OCCLUSION_SAMPLE_OFFSETS)
     {
@@ -239,51 +226,51 @@ void project_c::CameraScript::update_occluders_fade(const glm::vec3& player_posi
             ignore_list.push_back(hit.go);
             if (const auto* occluder = my_scene_->get_script<CameraOccluder>(hit.go))
             {
-                fade_targets.clear();
-                occluder->get_fade_targets(fade_targets);
-                occluding.insert(fade_targets.begin(), fade_targets.end());
+                occluding.insert(occluder->get_occlusion_owner());
             }
         }
     }
 
-    for (const auto go : occluding)
+    // scripts are looked up by game object every time, so a destroyed occluder is simply skipped
+    const auto notify = [this, &player_position](engine_game_object_t owner, bool is_occluding)
+        {
+            if (auto* occluder = my_scene_->get_script<CameraOccluder>(owner))
+            {
+                occluder->set_occluding(is_occluding, player_position.y);
+            }
+        };
+
+    for (const auto owner : occluding)
     {
-        occluders_fade_.try_emplace(go, 0.0f);
+        occluders_[owner] = 0.0f;
+        notify(owner, true);
     }
 
-    for (auto it = occluders_fade_.begin(); it != occluders_fade_.end();)
+    for (auto it = occluders_.begin(); it != occluders_.end();)
     {
-        const bool is_occluding = occluding.contains(it->first);
-        const float target = is_occluding ? OCCLUDER_FADE : 0.0f;
-        const float speed = OCCLUDER_FADE / (is_occluding ? OCCLUDER_FADE_OUT_SECONDS : OCCLUDER_FADE_IN_SECONDS);
-        const float previous = it->second;
-        const float step = speed * delta_seconds;
-        it->second = previous < target ? std::min(previous + step, target) : std::max(previous - step, target);
-        if (it->second != previous)
+        if (!occluding.contains(it->first))
         {
-            set_mesh_fade(it->first, it->second);
+            it->second += delta_seconds;
+            if (it->second >= OCCLUDER_RESTORE_DELAY_SECONDS)
+            {
+                notify(it->first, false);
+                it = occluders_.erase(it);
+                continue;
+            }
         }
-
-        if (!is_occluding && it->second <= 0.0f)
-        {
-            it = occluders_fade_.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
+        ++it;
     }
 }
 
-void project_c::CameraScript::set_forced_fade(engine_game_object_t go, bool forced)
+void project_c::CameraScript::set_forced_occluding(engine_game_object_t go, bool forced)
 {
     if (forced)
     {
-        forced_fade_.insert(go);
+        forced_occluders_.insert(go);
     }
     else
     {
-        forced_fade_.erase(go);
+        forced_occluders_.erase(go);
     }
 }
 

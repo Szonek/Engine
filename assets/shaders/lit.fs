@@ -36,7 +36,6 @@ layout(binding = ENGINE_BINDING_SLOT_TEXTURE_SPECULAR) uniform sampler2D texture
 
 void main()
 {
-	apply_dither_fade();
 	// fragment specific
 	vec3 normal = normalize(fs_in.normals);
 	// direction to the eye: from the camera position for perspective projection,

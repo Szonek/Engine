@@ -301,7 +301,6 @@ bool display_mesh_component(const engine::Scene* scene, engine_mesh_component_t&
     const auto geo_name = scene->get_application()->get_geometry_name(c.geometry);
     ImGui::Text("Geometry: %s", geo_name.c_str());
     ImGui::InputInt("Geometry ID", reinterpret_cast<std::int32_t*>(&c.geometry));
-    ImGui::SliderFloat("Fade", &c.fade, 0.0f, 1.0f);
     return true;
 }
 

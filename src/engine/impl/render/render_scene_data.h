@@ -85,8 +85,6 @@ struct StaticMeshDrawItem
     float shininess = 0.0f;
     const Texture2D* texture_diffuse = nullptr;
     const Texture2D* texture_specular = nullptr;
-    // dithered fade, 0 - opaque, 1 - invisible (static meshes only)
-    float fade = 0.0f;
 };
 
 struct SkinnedMeshDrawItem : StaticMeshDrawItem

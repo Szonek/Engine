@@ -14,9 +14,6 @@ typedef struct _engine_mesh_component_t
 {
 	engine_geometry_t geometry;
     bool disable;
-    // Screen-door (dithered) fade: 0 - opaque (default), 1 - invisible. Faded mesh still casts shadows.
-    // Used i.e. to fade walls between the camera and the player.
-    float fade;
 } engine_mesh_component_t;
 
 typedef struct _engine_skinned_mesh_component_t
