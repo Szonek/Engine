@@ -16,6 +16,11 @@ enum PrefabType
     PREFAB_TYPE_BOX,
     PREFAB_TYPE_COIN_GOLD,
 
+    // building pieces (climbable house)
+    PREFAB_TYPE_BUILDING_WALL,
+    PREFAB_TYPE_BUILDING_WINDOW,
+    PREFAB_TYPE_BUILDING_ROOF,
+
     PREFAB_TYPE_COUNT
 };
 

@@ -72,13 +72,16 @@ public:
     template<typename T>
     T* get_script(engine_game_object_t go)
     {
-        return dynamic_cast<T*>(scripts_.at(go).get());
+        // nullptr when the game object has no script (or a script of different type)
+        const auto it = scripts_.find(go);
+        return it != scripts_.end() ? dynamic_cast<T*>(it->second.get()) : nullptr;
     }
 
     template<typename T>
     const T* get_script(engine_game_object_t go) const
     {
-        return dynamic_cast<const T*>(scripts_.at(go).get());
+        const auto it = scripts_.find(go);
+        return it != scripts_.end() ? dynamic_cast<const T*>(it->second.get()) : nullptr;
     }
 
     IApplication* get_app() { return app_; }

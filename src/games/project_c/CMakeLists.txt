@@ -18,6 +18,8 @@ set(APP_SOURCES
 	
 	scripts/base_script.h
 	scripts/base_script.cpp
+	scripts/building_script.h
+	scripts/building_script.cpp
 	scripts/camera_script.h
 	scripts/camera_script.cpp
 	scripts/interactable_script.h
