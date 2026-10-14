@@ -53,4 +53,6 @@ endif()
 set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 20)
 target_link_libraries(${APP_NAME} engine fmt::fmt-header-only SDL3::SDL3-static glm engine_app_toolkit RapidJSON)
 target_compile_definitions(${APP_NAME} PUBLIC GLM_FORCE_QUAT_DATA_XYZW)
+# runtime asset directory: the assets folder of this source tree
+target_compile_definitions(${APP_NAME} PRIVATE PROJECT_C_ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${APP_ALL_SOURCES})
