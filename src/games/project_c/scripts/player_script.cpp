@@ -47,28 +47,36 @@ constexpr float PLAYER_HALF_WIDTH = 0.18f;
 constexpr float PROBE_KNEE_HEIGHT = 0.3f;
 constexpr float PROBE_CHEST_HEIGHT = 0.7f;
 constexpr float PROBE_HEAD_HEIGHT = 0.95f;
-constexpr float TRAVERSAL_REACH = 0.6f;                 // how far in front of the player obstacles are detected
+constexpr float TRAVERSAL_DETECT_RANGE = 1.3f;          // obstacles this close in the movement direction show the marker
+constexpr float TRAVERSAL_TRIGGER_DISTANCE = 0.35f;     // traversal starts automatically this close to the obstacle
+constexpr float TRAVERSAL_MIN_APPROACH_DOT = 0.6f;      // movement has to point into the wall (not just walk along it)
+constexpr float TRAVERSAL_REGRAB_COOLDOWN = 0.3f;
+constexpr float TRAVERSAL_DROP_REGRAB_COOLDOWN = 0.8f;  // after letting go with SPACE
+constexpr float CLIMB_INPUT_DEADZONE = 0.3f;
 constexpr float CLIMB_WALL_OFFSET = 0.2f;               // distance between wall surface and the player while climbing
 constexpr float CLIMB_PROBE_DEPTH = 0.25f;              // how far behind the expected wall surface probes still count as a hit
-constexpr float CLIMB_SPEED_VERTICAL = 1.1f;
-constexpr float CLIMB_SPEED_LATERAL = 0.8f;
+constexpr float CLIMB_SPEED_VERTICAL = 2.0f;
+constexpr float CLIMB_SPEED_LATERAL = 1.6f;
 constexpr float CLIMB_DROP_PUSH = 0.15f;
 constexpr float MANTLE_LEDGE_DEPTH = 0.25f;             // how far behind the wall surface ledge is looked for
 constexpr float MANTLE_MAX_LEDGE_HEIGHT = 1.4f;
-constexpr float MANTLE_DURATION = 0.55f;
+constexpr float MANTLE_DURATION = 0.4f;
 constexpr float VAULT_MAX_HEIGHT = 0.7f;
 constexpr float VAULT_MAX_DEPTH = 1.0f;
 constexpr float VAULT_CLEARANCE = 0.12f;
 constexpr float VAULT_LANDING_DISTANCE = 0.35f;
 constexpr float VAULT_MAX_ALIGNMENT = 0.6f;
-constexpr float VAULT_DURATION = 0.6f;
+constexpr float VAULT_DURATION = 0.45f;
 constexpr float CLIMB_DOWN_EDGE_DISTANCE = 0.45f;
 constexpr float CLIMB_DOWN_HANG_DEPTH = 0.95f;
-constexpr float CLIMB_DOWN_DURATION = 0.5f;
+constexpr float CLIMB_DOWN_DURATION = 0.35f;
 // No dedicated climbing clips in the KayKit pack, closest matches are used.
 constexpr const char* CLIMB_ANIMATION = "Jump_Idle";
 constexpr const char* VAULT_ANIMATION = "Jump_Full_Short";
 constexpr const char* MANTLE_ANIMATION = "Jump_Full_Short";
+constexpr float CLIMB_ANIMATION_RATE_MOVING = 1.6f;
+constexpr float CLIMB_ANIMATION_RATE_IDLE = 0.2f;
+constexpr float TRAVERSAL_MARKER_SIZE = 0.05f;           // Primitive_Cube_Small is 2 units big, pivot at the bottom
 
 const glm::vec3 WORLD_UP(0.0f, 1.0f, 0.0f);
 
@@ -421,6 +429,8 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     //rb
     set_kinematic(false);
 
+    create_traversal_marker();
+
     // delete objects not needed at creation time
     engineGameObjectDestroy(utils::get_game_objects_with_name("Knife")[0]);
     engineGameObjectDestroy(utils::get_game_objects_with_name("Knife_Offhand")[0]);
@@ -532,12 +542,11 @@ void project_c::Player::update(float dt)
     const auto space_down = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_SPACE);
     const bool dodge_pressed = space_down && !dodge_input_was_down_;
     dodge_input_was_down_ = space_down;
-    const auto traverse_down = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_E);
-    const bool traverse_pressed = traverse_down && !traverse_input_was_down_;
-    traverse_input_was_down_ = traverse_down;
+    traversal_regrab_cooldown_ = std::max(0.0f, traversal_regrab_cooldown_ - dt / 1000.0f);
 
     if (traversal_state_ != TraversalState::eNone)
     {
+        update_traversal_marker({}, dt / 1000.0f);
         // space lets go of the wall
         update_traversal(animation_controller, dt / 1000.0f, dodge_pressed);
         return;
@@ -597,18 +606,22 @@ void project_c::Player::update(float dt)
         move_input = glm::normalize(move_input);
     }
 
-    if (traverse_pressed
+    // walking into a wall / window / roof edge: show marker while approaching, start traversal on contact
+    TraversalPlan traversal_plan{};
+    if (glm::length(move_input) > 0.0f
         && !check_state_bit(States::ATTACK)
         && dodge_remaining_seconds_ <= 0.0f
         && hit_stun_remaining_seconds_ <= 0.0f)
     {
-        // probe in the direction player wants to go, fallback to facing direction
-        const glm::vec3 move_direction(move_input.x, 0.0f, move_input.y);
-        const glm::vec3 traverse_direction = glm::length(move_direction) > 0.0f ? flatten(move_direction) : flatten(forward);
-        if (try_start_traversal(animation_controller, traverse_direction))
-        {
-            return;
-        }
+        traversal_plan = find_traversal(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), flatten(glm::vec3(move_input.x, 0.0f, move_input.y)));
+    }
+    update_traversal_marker(traversal_plan, dt / 1000.0f);
+    if (traversal_plan.type != TraversalPlan::Type::eNone
+        && traversal_plan.distance <= TRAVERSAL_TRIGGER_DISTANCE
+        && traversal_regrab_cooldown_ <= 0.0f)
+    {
+        execute_traversal(animation_controller, traversal_plan);
+        return;
     }
 
     if (dodge_pressed
@@ -857,7 +870,8 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
     if (hp_ == 0)
     {
         // fall off the wall
-        stop_traversal(animation_controller);
+        stop_traversal(animation_controller, 0.0f);
+        update_traversal_marker({}, 0.0f);
         state_ |= States::DEAD;
         movement_velocity_ = glm::vec2(0.0f);
         knockback_velocity_ = glm::vec3(0.0f);
@@ -1126,38 +1140,48 @@ project_c::Player::ProbeHit project_c::Player::probe(const glm::vec3& from, cons
     return ret;
 }
 
-bool project_c::Player::try_start_traversal(engine_animation_controller_t* animation_controller, const glm::vec3& direction)
+project_c::Player::TraversalPlan project_c::Player::find_traversal(const glm::vec3& position, const glm::vec3& direction) const
 {
-    const auto tc = engineGameObjectGetTransformComponent(go_);
-    const glm::vec3 position(tc.position[0], tc.position[1], tc.position[2]);
-
     const glm::vec3 knee_from = position + WORLD_UP * PROBE_KNEE_HEIGHT;
     const glm::vec3 chest_from = position + WORLD_UP * PROBE_CHEST_HEIGHT;
-    const auto knee_hit = probe(knee_from, knee_from + direction * TRAVERSAL_REACH);
-    const auto chest_hit = probe(chest_from, chest_from + direction * TRAVERSAL_REACH);
-    const auto is_wall = [](const ProbeHit& h) { return h.building && std::abs(h.normal.y) < 0.3f; };
+    const auto knee_hit = probe(knee_from, knee_from + direction * TRAVERSAL_DETECT_RANGE);
+    const auto chest_hit = probe(chest_from, chest_from + direction * TRAVERSAL_DETECT_RANGE);
+    const auto distance_to = [&](const ProbeHit& h) { return glm::dot(h.position - position, direction); };
+    // vertical face of a building, approached head-on (walking along a wall does not trigger anything)
+    const auto is_wall_ahead = [&](const ProbeHit& h)
+        {
+            return h.building
+                && std::abs(h.normal.y) < 0.3f
+                && glm::dot(direction, -flatten(h.normal)) >= TRAVERSAL_MIN_APPROACH_DOT;
+        };
 
     // something low in front, free space above -> vault over (window sill, low wall)
-    if (is_wall(knee_hit) && !chest_hit.hit)
+    if (is_wall_ahead(knee_hit) && (!chest_hit.hit || distance_to(chest_hit) > distance_to(knee_hit) + 0.1f))
     {
-        return try_start_vault(animation_controller, position, knee_hit);
+        auto plan = plan_vault(position, knee_hit);
+        plan.distance = distance_to(knee_hit);
+        return plan;
     }
 
-    // wall in front -> start climbing
-    if (is_wall(chest_hit) && chest_hit.climbable)
+    // climbable wall in front
+    if (is_wall_ahead(chest_hit) && chest_hit.climbable)
     {
-        const glm::vec3 wall_normal = flatten(chest_hit.normal);
-        glm::vec3 attach_position = chest_hit.position + wall_normal * CLIMB_WALL_OFFSET;
-        attach_position.y = position.y + 0.05f;
-        start_climbing(animation_controller, wall_normal, attach_position);
-        return true;
+        TraversalPlan plan{};
+        plan.type = TraversalPlan::Type::eClimb;
+        plan.distance = distance_to(chest_hit);
+        plan.wall_normal = flatten(chest_hit.normal);
+        plan.climb_position = chest_hit.position + plan.wall_normal * CLIMB_WALL_OFFSET;
+        plan.climb_position.y = position.y + 0.05f;
+        // where the hands grab the wall
+        plan.marker = chest_hit.position + plan.wall_normal * TRAVERSAL_MARKER_SIZE + WORLD_UP * (PROBE_HEAD_HEIGHT - PROBE_CHEST_HEIGHT);
+        return plan;
     }
 
-    // standing at the edge of a roof -> climb down
-    return try_start_climb_down(animation_controller, position, direction);
+    // walking toward the edge of a roof
+    return plan_climb_down(position, direction);
 }
 
-bool project_c::Player::try_start_vault(engine_animation_controller_t* animation_controller, const glm::vec3& position, const ProbeHit& low_hit)
+project_c::Player::TraversalPlan project_c::Player::plan_vault(const glm::vec3& position, const ProbeHit& low_hit) const
 {
     const glm::vec3 wall_normal = flatten(low_hit.normal);
     const glm::vec3 forward = -wall_normal;
@@ -1167,7 +1191,7 @@ bool project_c::Player::try_start_vault(engine_animation_controller_t* animation
     const auto far_hit = probe(low_hit.position + forward * VAULT_MAX_DEPTH, low_hit.position);
     if (!far_hit.building)
     {
-        return false;
+        return {};
     }
     const float depth = glm::dot(far_hit.position - low_hit.position, forward);
 
@@ -1176,14 +1200,14 @@ bool project_c::Player::try_start_vault(engine_animation_controller_t* animation
     const auto top_hit = probe(glm::vec3(middle.x, position.y + VAULT_MAX_HEIGHT, middle.z), glm::vec3(middle.x, position.y, middle.z));
     if (!top_hit.hit || top_hit.normal.y < 0.7f)
     {
-        return false;
+        return {};
     }
     const float top_y = top_hit.position.y;
 
     // body has to fit above the obstacle (i.e. window opening height)
     if (probe(top_hit.position + WORLD_UP * 0.02f, top_hit.position + WORLD_UP * PLAYER_HEIGHT).hit)
     {
-        return false;
+        return {};
     }
 
     // align with the window opening
@@ -1205,18 +1229,85 @@ bool project_c::Player::try_start_vault(engine_animation_controller_t* animation
     const auto ground_hit = probe(glm::vec3(landing.x, top_y + 0.3f, landing.z), glm::vec3(landing.x, top_y - 3.0f, landing.z));
     if (!ground_hit.hit)
     {
-        return false;
+        return {};
     }
 
-    TraversalMove move{};
-    move.p0 = position;
-    move.p1 = glm::vec3(middle.x, top_y + VAULT_CLEARANCE, middle.z) + tangent * lateral_offset;
-    move.p2 = glm::vec3(landing.x, ground_hit.position.y + 0.01f, landing.z);
-    move.duration = VAULT_DURATION;
-    move.curved = true;
-    move.yaw = yaw_from_direction(forward);
-    start_traversal_move(animation_controller, move, VAULT_ANIMATION);
-    return true;
+    TraversalPlan plan{};
+    plan.type = TraversalPlan::Type::eVault;
+    plan.wall_normal = wall_normal;
+    plan.move.p0 = position;
+    plan.move.p1 = glm::vec3(middle.x, top_y + VAULT_CLEARANCE, middle.z) + tangent * lateral_offset;
+    plan.move.p2 = glm::vec3(landing.x, ground_hit.position.y + 0.01f, landing.z);
+    plan.move.duration = VAULT_DURATION;
+    plan.move.curved = true;
+    plan.move.yaw = yaw_from_direction(forward);
+    // on top of the sill
+    plan.marker = glm::vec3(middle.x, top_y + TRAVERSAL_MARKER_SIZE, middle.z) + tangent * lateral_offset;
+    return plan;
+}
+
+project_c::Player::TraversalPlan project_c::Player::plan_climb_down(const glm::vec3& position, const glm::vec3& direction) const
+{
+    // sample a few points ahead, first one without floor below is the edge
+    for (const float edge_distance : { CLIMB_DOWN_EDGE_DISTANCE, CLIMB_DOWN_EDGE_DISTANCE + 0.4f, CLIMB_DOWN_EDGE_DISTANCE + 0.8f })
+    {
+        const glm::vec3 edge_point = position + direction * edge_distance;
+        if (probe(edge_point + WORLD_UP * 0.2f, edge_point - WORLD_UP * 0.5f).hit)
+        {
+            continue;
+        }
+
+        // look back at the wall below the edge
+        const glm::vec3 below = -WORLD_UP * (PLAYER_HEIGHT * 0.7f);
+        const auto wall_hit = probe(position + direction * (edge_distance + CLIMB_DOWN_EDGE_DISTANCE) + below, position + below);
+        if (!wall_hit.climbable)
+        {
+            return {};
+        }
+        const glm::vec3 wall_normal = flatten(wall_hit.normal);
+        if (glm::dot(wall_normal, direction) < TRAVERSAL_MIN_APPROACH_DOT)
+        {
+            return {};
+        }
+
+        glm::vec3 hang_position = wall_hit.position + wall_normal * CLIMB_WALL_OFFSET;
+        hang_position.y = position.y - CLIMB_DOWN_HANG_DEPTH;
+
+        TraversalPlan plan{};
+        plan.type = TraversalPlan::Type::eClimbDown;
+        plan.distance = edge_distance - CLIMB_DOWN_EDGE_DISTANCE;
+        plan.wall_normal = wall_normal;
+        plan.move.p0 = position;
+        plan.move.p1 = glm::vec3(hang_position.x, position.y + 0.1f, hang_position.z);
+        plan.move.p2 = hang_position;
+        plan.move.duration = CLIMB_DOWN_DURATION;
+        plan.move.split = 0.4f;
+        plan.move.yaw = yaw_from_direction(-wall_normal);
+        plan.move.climb_after = true;
+        // on the edge
+        plan.marker = glm::vec3(wall_hit.position.x, position.y + TRAVERSAL_MARKER_SIZE, wall_hit.position.z) - wall_normal * TRAVERSAL_MARKER_SIZE;
+        return plan;
+    }
+    return {};
+}
+
+void project_c::Player::execute_traversal(engine_animation_controller_t* animation_controller, const TraversalPlan& plan)
+{
+    switch (plan.type)
+    {
+    case TraversalPlan::Type::eClimb:
+        start_climbing(animation_controller, plan.wall_normal, plan.climb_position);
+        break;
+    case TraversalPlan::Type::eVault:
+        start_traversal_move(animation_controller, plan.move, VAULT_ANIMATION);
+        break;
+    case TraversalPlan::Type::eClimbDown:
+        climb_wall_normal_ = plan.wall_normal;
+        start_traversal_move(animation_controller, plan.move, CLIMB_ANIMATION);
+        break;
+    default:
+        break;
+    }
 }
 
 bool project_c::Player::try_start_mantle(engine_animation_controller_t* animation_controller, const glm::vec3& position)
@@ -1256,44 +1347,6 @@ bool project_c::Player::try_start_mantle(engine_animation_controller_t* animatio
     return true;
 }
 
-bool project_c::Player::try_start_climb_down(engine_animation_controller_t* animation_controller, const glm::vec3& position, const glm::vec3& direction)
-{
-    // nothing to stand on in front?
-    const glm::vec3 edge_point = position + direction * CLIMB_DOWN_EDGE_DISTANCE;
-    if (probe(edge_point + WORLD_UP * 0.2f, edge_point - WORLD_UP * 0.5f).hit)
-    {
-        return false;
-    }
-
-    // look back at the wall below the edge
-    const glm::vec3 below = -WORLD_UP * (PLAYER_HEIGHT * 0.7f);
-    const auto wall_hit = probe(position + direction * (CLIMB_DOWN_EDGE_DISTANCE * 2.0f) + below, position + below);
-    if (!wall_hit.climbable)
-    {
-        return false;
-    }
-    const glm::vec3 wall_normal = flatten(wall_hit.normal);
-    if (glm::dot(wall_normal, direction) < 0.5f)
-    {
-        return false;
-    }
-
-    glm::vec3 hang_position = wall_hit.position + wall_normal * CLIMB_WALL_OFFSET;
-    hang_position.y = position.y - CLIMB_DOWN_HANG_DEPTH;
-
-    climb_wall_normal_ = wall_normal;
-    TraversalMove move{};
-    move.p0 = position;
-    move.p1 = glm::vec3(hang_position.x, position.y + 0.1f, hang_position.z);
-    move.p2 = hang_position;
-    move.duration = CLIMB_DOWN_DURATION;
-    move.split = 0.4f;
-    move.yaw = yaw_from_direction(-wall_normal);
-    move.climb_after = true;
-    start_traversal_move(animation_controller, move, CLIMB_ANIMATION);
-    return true;
-}
-
 void project_c::Player::start_climbing(engine_animation_controller_t* animation_controller, const glm::vec3& wall_normal, const glm::vec3& position)
 {
     if (traversal_state_ == TraversalState::eNone)
@@ -1309,7 +1362,7 @@ void project_c::Player::start_climbing(engine_animation_controller_t* animation_
     engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, true);
     if (!engineAnimationControllerIsAnimationPlayingOnLayer(animation_controller, CLIMB_ANIMATION, LOCOMOTION_LAYER_ID))
     {
-        engineAnimationControllerAnimationCrossFade(animation_controller, CLIMB_ANIMATION, LOCOMOTION_LAYER_ID, 0.1f);
+        engineAnimationControllerAnimationCrossFade(animation_controller, CLIMB_ANIMATION, LOCOMOTION_LAYER_ID, 0.08f);
     }
 }
 
@@ -1333,17 +1386,19 @@ void project_c::Player::start_traversal_move(engine_animation_controller_t* anim
     if (!engineAnimationControllerIsAnimationPlayingOnLayer(animation_controller, animation_name, LOCOMOTION_LAYER_ID))
     {
         engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, false);
-        engineAnimationControllerAnimationCrossFade(animation_controller, animation_name, LOCOMOTION_LAYER_ID, 0.08f);
+        engineAnimationControllerAnimationCrossFade(animation_controller, animation_name, LOCOMOTION_LAYER_ID, 0.06f);
     }
 }
 
-void project_c::Player::stop_traversal(engine_animation_controller_t* animation_controller)
+void project_c::Player::stop_traversal(engine_animation_controller_t* animation_controller, float regrab_cooldown)
 {
     if (traversal_state_ == TraversalState::eNone)
     {
         return;
     }
     traversal_state_ = TraversalState::eNone;
+    // player usually still holds the direction toward the wall, do not grab it again right away
+    traversal_regrab_cooldown_ = regrab_cooldown;
     set_kinematic(false);
     // locomotion code picks idle/run animation in the next update
     engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, true);
@@ -1386,7 +1441,7 @@ void project_c::Player::update_traversal(engine_animation_controller_t* animatio
             }
             else
             {
-                stop_traversal(animation_controller);
+                stop_traversal(animation_controller, TRAVERSAL_REGRAB_COOLDOWN);
             }
         }
         return;
@@ -1398,7 +1453,7 @@ void project_c::Player::update_traversal(engine_animation_controller_t* animatio
     if (drop_pressed)
     {
         set_position_and_yaw(position + wall_normal * CLIMB_DROP_PUSH, yaw_from_direction(-wall_normal));
-        stop_traversal(animation_controller);
+        stop_traversal(animation_controller, TRAVERSAL_DROP_REGRAB_COOLDOWN);
         return;
     }
 
@@ -1419,19 +1474,28 @@ void project_c::Player::update_traversal(engine_animation_controller_t* animatio
             return false;
         };
 
-    // W/S - up/down, A/D - shimmy left/right (relative to the character)
-    float vertical_input = 0.0f;
-    float lateral_input = 0.0f;
-    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_W)) vertical_input += 1.0f;
-    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_S)) vertical_input -= 1.0f;
-    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_D)) lateral_input += 1.0f;
-    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_A)) lateral_input -= 1.0f;
+    // Same WASD directions as on the ground: pushing toward the wall climbs up, away from it climbs down,
+    // along the wall shimmies sideways. I.e. wall on the right side of the screen -> holding D climbs.
+    glm::vec3 input(0.0f);
+    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_A)) input.x -= 1.0f;
+    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_D)) input.x += 1.0f;
+    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_W)) input.z -= 1.0f;
+    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_S)) input.z += 1.0f;
+    if (glm::length(input) > 1.0f)
+    {
+        input = glm::normalize(input);
+    }
+    float vertical_input = glm::dot(input, -wall_normal);
+    float lateral_input = glm::dot(input, tangent);
+    if (std::abs(vertical_input) < CLIMB_INPUT_DEADZONE) vertical_input = 0.0f;
+    if (std::abs(lateral_input) < CLIMB_INPUT_DEADZONE) lateral_input = 0.0f;
 
     if (lateral_input != 0.0f)
     {
+        const float lateral_sign = lateral_input > 0.0f ? 1.0f : -1.0f;
         const glm::vec3 candidate = position + tangent * (lateral_input * CLIMB_SPEED_LATERAL * delta_seconds);
         // leading side of the body has to stay on the wall, so the player does not hang over a corner
-        if (touches_wall(candidate + tangent * (lateral_input * PLAYER_HALF_WIDTH)))
+        if (touches_wall(candidate + tangent * (lateral_sign * PLAYER_HALF_WIDTH)))
         {
             position = candidate;
         }
@@ -1439,7 +1503,7 @@ void project_c::Player::update_traversal(engine_animation_controller_t* animatio
 
     if (vertical_input > 0.0f)
     {
-        const glm::vec3 candidate = position + WORLD_UP * (CLIMB_SPEED_VERTICAL * delta_seconds);
+        const glm::vec3 candidate = position + WORLD_UP * (vertical_input * CLIMB_SPEED_VERTICAL * delta_seconds);
         if (!wall_probe(candidate, PROBE_HEAD_HEIGHT).climbable)
         {
             // head above the wall: pull up onto the ledge if there is one
@@ -1459,13 +1523,13 @@ void project_c::Player::update_traversal(engine_animation_controller_t* animatio
     }
     else if (vertical_input < 0.0f)
     {
-        const glm::vec3 candidate = position - WORLD_UP * (CLIMB_SPEED_VERTICAL * delta_seconds);
+        const glm::vec3 candidate = position + WORLD_UP * (vertical_input * CLIMB_SPEED_VERTICAL * delta_seconds);
         const auto ground_hit = probe(position + WORLD_UP * 0.05f, candidate - WORLD_UP * 0.02f);
         if (ground_hit.hit && ground_hit.normal.y > 0.7f)
         {
             // reached the ground
             set_position_and_yaw(glm::vec3(position.x, ground_hit.position.y + 0.01f, position.z), yaw_from_direction(-wall_normal));
-            stop_traversal(animation_controller);
+            stop_traversal(animation_controller, TRAVERSAL_REGRAB_COOLDOWN);
             return;
         }
         if (touches_wall(candidate))
@@ -1490,10 +1554,94 @@ void project_c::Player::update_traversal(engine_animation_controller_t* animatio
     if (!on_wall)
     {
         // lost the wall (i.e. it was removed), fall
-        stop_traversal(animation_controller);
+        stop_traversal(animation_controller, TRAVERSAL_REGRAB_COOLDOWN);
         return;
     }
 
     const bool moving = vertical_input != 0.0f || lateral_input != 0.0f;
-    engineAnimationControllerLayerSetPlaybackRate(animation_controller, LOCOMOTION_LAYER_ID, moving ? 1.0f : 0.2f);
+    engineAnimationControllerLayerSetPlaybackRate(animation_controller, LOCOMOTION_LAYER_ID, moving ? CLIMB_ANIMATION_RATE_MOVING : CLIMB_ANIMATION_RATE_IDLE);
+}
+
+void project_c::Player::create_traversal_marker()
+{
+    auto* app = static_cast<AppProjectC*>(my_scene_->get_app());
+    if (!app->is_prefab_available(PREFAB_TYPE_TRAVERSAL_MARKER))
+    {
+        return;
+    }
+    traversal_marker_ = app->instantiate_prefab(PREFAB_TYPE_TRAVERSAL_MARKER, my_scene_).go;
+    if (traversal_marker_ == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        return;
+    }
+
+    auto tc = engineGameObjectGetTransformComponent(traversal_marker_);
+    tc.scale[0] = TRAVERSAL_MARKER_SIZE;
+    tc.scale[1] = TRAVERSAL_MARKER_SIZE;
+    tc.scale[2] = TRAVERSAL_MARKER_SIZE;
+    engineGameObjectUpdateTransformComponent(traversal_marker_, &tc);
+
+    // flat color, set per traversal type
+    auto mat = engineGameObjectHasMaterialComponent(traversal_marker_)
+        ? engineGameObjectGetMaterialComponent(traversal_marker_)
+        : engineGameObjectAddMaterialComponent(traversal_marker_);
+    mat.data.pong.diffuse_texture = ENGINE_INVALID_OBJECT_HANDLE;
+    mat.data.pong.specular_texture = ENGINE_INVALID_OBJECT_HANDLE;
+    engineGameObjectUpdateMaterialComponent(traversal_marker_, &mat);
+
+    auto mc = engineGameObjectGetMeshComponent(traversal_marker_);
+    mc.disable = true;
+    engineGameObjectUpdateMeshComponent(traversal_marker_, &mc);
+}
+
+void project_c::Player::update_traversal_marker(const TraversalPlan& plan, float delta_seconds)
+{
+    if (traversal_marker_ == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        return;
+    }
+
+    const bool visible = plan.type != TraversalPlan::Type::eNone;
+    auto mc = engineGameObjectGetMeshComponent(traversal_marker_);
+    if (mc.disable == visible)
+    {
+        mc.disable = !visible;
+        engineGameObjectUpdateMeshComponent(traversal_marker_, &mc);
+    }
+    if (!visible)
+    {
+        traversal_marker_type_ = TraversalPlan::Type::eNone;
+        traversal_marker_time_ = 0.0f;
+        return;
+    }
+
+    if (traversal_marker_type_ != plan.type)
+    {
+        traversal_marker_type_ = plan.type;
+        // climb - yellow, vault - green, climb down - cyan
+        std::array<float, 4> color = { 1.0f, 0.85f, 0.1f, 1.0f };
+        if (plan.type == TraversalPlan::Type::eVault)
+        {
+            color = { 0.2f, 1.0f, 0.3f, 1.0f };
+        }
+        else if (plan.type == TraversalPlan::Type::eClimbDown)
+        {
+            color = { 0.2f, 0.8f, 1.0f, 1.0f };
+        }
+        auto mat = engineGameObjectGetMaterialComponent(traversal_marker_);
+        set_c_array(mat.data.pong.diffuse_color, color);
+        engineGameObjectUpdateMaterialComponent(traversal_marker_, &mat);
+    }
+
+    // pulse
+    traversal_marker_time_ += delta_seconds;
+    const float scale = TRAVERSAL_MARKER_SIZE * (1.0f + 0.3f * std::sin(traversal_marker_time_ * 10.0f));
+    auto tc = engineGameObjectGetTransformComponent(traversal_marker_);
+    tc.position[0] = plan.marker.x;
+    tc.position[1] = plan.marker.y - scale;  // mesh pivot is at the bottom of the cube
+    tc.position[2] = plan.marker.z;
+    tc.scale[0] = scale;
+    tc.scale[1] = scale;
+    tc.scale[2] = scale;
+    engineGameObjectUpdateTransformComponent(traversal_marker_, &tc);
 }

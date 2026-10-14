@@ -27,6 +27,7 @@ int main(int argc, char** argv)
             { project_c::PREFAB_TYPE_BUILDING_WALL,   { "Primitive_Wall.gltf",   "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
             { project_c::PREFAB_TYPE_BUILDING_WINDOW, { "Primitive_Window.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
             { project_c::PREFAB_TYPE_BUILDING_ROOF,   { "Primitive_Floor.gltf",  "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
+            { project_c::PREFAB_TYPE_TRAVERSAL_MARKER, { "Primitive_Cube_Small.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
         };
 
         project_c::AppProjectC app_project_c(prefabs_data);

@@ -21,6 +21,9 @@ enum PrefabType
     PREFAB_TYPE_BUILDING_WINDOW,
     PREFAB_TYPE_BUILDING_ROOF,
 
+    // player traversal indicator
+    PREFAB_TYPE_TRAVERSAL_MARKER,
+
     PREFAB_TYPE_COUNT
 };
 

@@ -468,7 +468,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     gameplay_started_ = !app->is_editor_enabled();
     gameplay_ui_visible_ = engineEditorIsGameView();
     ui_data_.encounter_status = engineStringCreate(
-        gameplay_started_ ? "Defeat all enemies. WASD move, RMB attack, SPACE dodge, E climb/vault." : "Paused. Click Play in the editor toolbar to start.");
+        gameplay_started_ ? "Defeat all enemies. WASD move, RMB attack, SPACE dodge. Walk into walls to climb." : "Paused. Click Play in the editor toolbar to start.");
     assert(ui_data_.encounter_status);
 
     std::vector<engine_ui_document_data_binding_t> bindings {};
@@ -561,7 +561,7 @@ void project_c::TestScene::update_hook_begin()
     if (!gameplay_started_ && engineEditorIsPlaying())
     {
         gameplay_started_ = true;
-        engineStringSet(ui_data_.encounter_status, "WASD move, RMB attack, SPACE dodge. E at a wall: climb / vault window / climb down roof edge.");
+        engineStringSet(ui_data_.encounter_status, "WASD move, RMB attack, SPACE dodge. Walk into a wall / window / roof edge to climb, SPACE lets go.");
         engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "encounter_status");
     }
 }
