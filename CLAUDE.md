@@ -28,7 +28,7 @@ Binaries land in `build/bin/<Config>/`, libraries in `build/lib/<Config>/`.
 Things that will trip you up:
 
 - **Sources are listed explicitly** in each `CMakeLists.txt` (no globbing). A new `.cpp`/`.h` must be added to the list by hand. `src/games/project_c/scripts/solider_script.cpp` is on disk but intentionally not in the build.
-- **The asset path is hardcoded** to `C:\WORK\OpenGLPlayground\assets` in `src/games/project_c/app.cpp`. Shaders, models, fonts and UI documents are loaded from there at runtime, so asset edits need no rebuild.
+- **The asset path is baked in at configure time**: `PROJECT_C_ASSETS_DIR` (set in `src/games/project_c/CMakeLists.txt`) points at the `assets/` folder of the source tree the game was built from, so a worktree build uses its own shaders. Shaders, models, fonts and UI documents are loaded from there at runtime, so asset edits need no rebuild.
 - **The game starts paused when the editor is enabled** (`enable_editor = true` in `app.cpp`). Scripts only tick while the editor is in Play mode — see `IScene::update`.
 - `unit_tests` has almost no coverage and its app-creation test is `DISABLED_` because creating an application needs a GL context and shaders on disk. `render_graph_tests` is the meaningful suite; it compiles `render_graph.cpp` directly and needs neither GL nor the engine DLL.
 - There is no linter or formatter config. `-Werror` is only applied to the engine on non-MSVC compilers.
