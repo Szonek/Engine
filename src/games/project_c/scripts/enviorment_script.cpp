@@ -140,10 +140,12 @@ project_c::MainLight::MainLight(engine::IScene* my_scene)
     // light component
     auto lc = engineGameObjectAddLightComponent(go_);
     lc.type = ENGINE_LIGHT_TYPE_DIRECTIONAL;
-    set_c_array(lc.intensity.ambient, std::array<float, 3>{ 1.0f, 1.0f, 1.0f });
-    set_c_array(lc.intensity.diffuse, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
+    // Shadows remove only the diffuse and specular part of the light, so most of the light has to be diffuse to see them.
+    set_c_array(lc.intensity.ambient, std::array<float, 3>{ 0.45f, 0.45f, 0.45f });
+    set_c_array(lc.intensity.diffuse, std::array<float, 3>{ 0.75f, 0.75f, 0.75f });
     set_c_array(lc.intensity.specular, std::array<float, 3>{ 0.1f, 0.1f, 0.1f });
-    set_c_array(lc.directional.direction, std::array<float, 3>{ 0.0f, 1.0f, 0.0f });
+    // direction towards the light. Tilted, so shadows are not hidden right under the objects.
+    set_c_array(lc.directional.direction, std::array<float, 3>{ 0.4f, 1.0f, 0.3f });
     engineGameObjectUpdateLightComponent(go_, &lc);
 }
 

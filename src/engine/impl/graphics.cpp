@@ -1111,6 +1111,11 @@ void engine::RenderContext::set_depth_write(bool flag)
     glDepthMask(flag ? GL_TRUE : GL_FALSE);
 }
 
+void engine::RenderContext::set_depth_func(DepthFunc func)
+{
+    glDepthFunc(func == DepthFunc::eLessOrEqual ? GL_LEQUAL : GL_LESS);
+}
+
 void engine::RenderContext::set_cull_face(bool flag)
 {
     if (flag)
@@ -1127,6 +1132,7 @@ void engine::RenderContext::reset_pipeline_state()
 {
     set_depth_test(true);
     set_depth_write(true);
+    set_depth_func(DepthFunc::eLess);
     set_cull_face(true);
     set_blend_mode(false);
     set_polygon_mode(PolygonFaceType::eFrontAndBack, PolygonMode::eFill);
@@ -1735,6 +1741,58 @@ void engine::ShaderStorageBuffer::unmap()
     bind();
     glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
     unbind();
+}
+
+engine::GpuFence::GpuFence(GpuFence&& rhs) noexcept
+{
+    std::swap(sync_, rhs.sync_);
+}
+
+engine::GpuFence& engine::GpuFence::operator=(GpuFence&& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        std::swap(sync_, rhs.sync_);
+    }
+    return *this;
+}
+
+engine::GpuFence::~GpuFence()
+{
+    if (sync_)
+    {
+        glDeleteSync(static_cast<GLsync>(sync_));
+    }
+}
+
+void engine::GpuFence::signal()
+{
+    if (sync_)
+    {
+        glDeleteSync(static_cast<GLsync>(sync_));
+    }
+    sync_ = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+}
+
+void engine::GpuFence::wait()
+{
+    ENGINE_PROFILER_GPU_SECTION("engine::GpuFence::wait()");
+    if (!sync_)
+    {
+        return;
+    }
+    constexpr GLuint64 TIMEOUT_NS = 1'000'000'000;
+    GLenum result = glClientWaitSync(static_cast<GLsync>(sync_), GL_SYNC_FLUSH_COMMANDS_BIT, TIMEOUT_NS);
+    while (result == GL_TIMEOUT_EXPIRED)
+    {
+        result = glClientWaitSync(static_cast<GLsync>(sync_), 0, TIMEOUT_NS);
+    }
+    if (result == GL_WAIT_FAILED)
+    {
+        log::log(log::LogLevel::eError, "glClientWaitSync failed.\n");
+    }
+    glDeleteSync(static_cast<GLsync>(sync_));
+    sync_ = nullptr;
 }
 
 void engine::ShaderStorageBuffer::bind() const

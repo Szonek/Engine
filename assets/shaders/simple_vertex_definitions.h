@@ -18,3 +18,7 @@ layout (binding = ENGINE_BINDING_SLOT_CAMERA_DATA, std140) uniform CameraData
 	vec4 view_pos;
 };
 uniform mat4 model;
+
+// The same geometry is drawn by several passes (depth pre-pass, then the lit pass with depth test "less or equal").
+// invariant guarantees that every shader using these definitions computes exactly the same depth for it.
+invariant gl_Position;

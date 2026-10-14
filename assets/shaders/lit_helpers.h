@@ -10,7 +10,9 @@ struct LightPacket
 	vec4 specular; //xyz
 };
 
-vec3 calc_dir_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_color, vec3 specular_color, float shininess)
+// ambient_visibility: how much of the ambient light reaches the surface (ambient occlusion), 1: all of it
+// direct_visibility: how much of the light coming straight from the light source reaches the surface (shadows), 1: all of it
+vec3 calc_dir_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_color, vec3 specular_color, float shininess, float ambient_visibility, float direct_visibility)
 {
 	vec3 light_dir = normalize(light.direction.xyz); 
 	
@@ -26,10 +28,10 @@ vec3 calc_dir_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_col
 	float specular_factor = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
 	vec3 specular = light.specular.xyz * specular_factor * specular_color;
 	
-	return ambient + diffuse + specular;
+	return ambient * ambient_visibility + (diffuse + specular) * direct_visibility;
 }  
 
-vec3 calc_point_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_world_pos, vec3 frag_color, vec3 specular_color, float shininess)
+vec3 calc_point_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_world_pos, vec3 frag_color, vec3 specular_color, float shininess, float ambient_visibility, float direct_visibility)
 {
 	vec3 light_dir = normalize(light.position.xyz - frag_world_pos); 
 	float distance = length(light.position.xyz - frag_world_pos);
@@ -50,10 +52,10 @@ vec3 calc_point_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_w
 	float specular_factor = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
 	vec3 specular = light.specular.xyz * specular_factor * specular_color.xyz * attenuation;
 	
-	return ambient + diffuse + specular;
+	return ambient * ambient_visibility + (diffuse + specular) * direct_visibility;
 }  
 
-vec3 calc_spot_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_world_pos, vec3 frag_color, vec3 specular_color, float shininess)
+vec3 calc_spot_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_world_pos, vec3 frag_color, vec3 specular_color, float shininess, float ambient_visibility, float direct_visibility)
 {
 	vec3 light_dir = normalize(light.position.xyz - frag_world_pos); 
 	float distance = length(light.position.xyz - frag_world_pos);
@@ -82,5 +84,5 @@ vec3 calc_spot_light(LightPacket light, vec3 normal, vec3 view_dir, vec3 frag_wo
 	float specular_factor = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
 	vec3 specular = light.specular.xyz * specular_factor * specular_color.xyz * intensity * attenuation;
 	
-	return ambient + diffuse + specular;
+	return ambient * ambient_visibility + (diffuse + specular) * direct_visibility;
 }  

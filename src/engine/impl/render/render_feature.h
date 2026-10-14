@@ -13,6 +13,7 @@ namespace engine
 class RenderContext;
 class UniformBuffer;
 class ShaderStorageBuffer;
+class Geometry;
 
 // A camera of a scene together with GPU buffers prepared by the renderer for this frame.
 struct FrameView
@@ -23,6 +24,13 @@ struct FrameView
     const UniformBuffer* scene_ubo = nullptr;
     const ShaderStorageBuffer* lights_ssbo = nullptr;
     const ShaderStorageBuffer* debug_lines_ssbo = nullptr;
+    // bone matrices of all skinned meshes of the scene, see SkinnedMeshDrawItem::skinning_matrices_offset
+    const ShaderStorageBuffer* skinning_ssbo = nullptr;
+    // shadows and ambient occlusion parameters (ViewLightingGpuData)
+    const UniformBuffer* lighting_ubo = nullptr;
+    // camera of the directional light (CameraGpuData), valid only if has_shadow is set
+    const UniformBuffer* shadow_camera_ubo = nullptr;
+    bool has_shadow = false;
 };
 
 // Everything a feature needs to declare its passes.
@@ -40,6 +48,10 @@ struct FrameContext
     rg::TextureHandle backbuffer;   // the screen
 
     std::span<const FrameView> views;
+
+    // 6 vertices without attributes: two triangles covering the screen, positions are generated in the vertex shader
+    // from gl_VertexID (see full_screen_quad.vs)
+    const Geometry* full_screen_quad = nullptr;
 };
 
 enum class RenderStage

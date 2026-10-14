@@ -17,6 +17,7 @@
 
 #include "imguizmo/ImGuizmo.h"
 
+#include <array>
 #include <string>
 #include <map>
 #include <numeric>
@@ -598,6 +599,10 @@ engine::ApplicationEditor::ApplicationEditor(const engine_application_create_des
     const auto init_ogl = ImGui_ImplOpenGL3_Init();
     assert(init_ogl);
 
+    // features of the same stage and order run in the order of registration: the outline is drawn on top of the grid
+    grid_feature_ = std::make_shared<GridFeature>(rdx_);
+    renderer_.add_feature(grid_feature_, RenderStage::ePostProcess);
+
     outline_feature_ = std::make_shared<OutlineFeature>();
     renderer_.add_feature(outline_feature_, RenderStage::ePostProcess);
 
@@ -652,6 +657,7 @@ void engine::ApplicationEditor::on_frame_end()
         render_imgui_ = !render_imgui_;
     }
     outline_feature_->set_enabled(editor_view_ == EditorView::eEditor);
+    grid_feature_->set_enabled(draw_grid_ && editor_view_ == EditorView::eEditor);
 }
 
 void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
@@ -854,6 +860,7 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
     {
         draw_guizmo_ = !draw_guizmo_;
     }
+    ImGui::Checkbox("Grid", &draw_grid_);
     ImGui::EndDisabled();
 
     const bool is_rml_ui_debugger_enabled = ui_manager_.is_ui_document_debugger_enabled();
@@ -869,6 +876,60 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
     fps_values[fps_idx % fps_values.size()] = 1000.0f / dt;
     fps_idx++;
     ImGui::Text("FPS: %d", static_cast<std::uint32_t>(std::accumulate(fps_values.begin(), fps_values.end(), 0) / (fps_idx < fps_values.size() ? fps_idx : fps_values.size())));
+
+    auto& render_settings = renderer_.get_settings();
+    ImGui::SeparatorText("Shadows");
+    {
+        auto& shadows = render_settings.shadows;
+        ImGui::Checkbox("Enabled##shadows", &shadows.enabled);
+        static const std::array<std::uint32_t, 4> map_sizes = { 512, 1024, 2048, 4096 };
+        if (ImGui::BeginCombo("Map size", std::to_string(shadows.map_size).c_str()))
+        {
+            for (const auto size : map_sizes)
+            {
+                if (ImGui::Selectable(std::to_string(size).c_str(), size == shadows.map_size))
+                {
+                    shadows.map_size = size;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::DragFloat("Distance", &shadows.distance, 0.5f, 1.0f, 1000.0f);
+        ImGui::DragFloat("Caster distance", &shadows.caster_distance, 0.5f, 0.0f, 1000.0f);
+        ImGui::DragFloat("Depth bias", &shadows.depth_bias, 0.0001f, 0.0f, 0.05f, "%.4f");
+        ImGui::DragFloat("Normal offset (texels)", &shadows.normal_offset, 0.05f, 0.0f, 10.0f);
+        int pcf_radius = static_cast<int>(shadows.pcf_radius);
+        if (ImGui::SliderInt("PCF radius (0: hard)", &pcf_radius, 0, 4))
+        {
+            shadows.pcf_radius = static_cast<std::uint32_t>(pcf_radius);
+        }
+        ImGui::SliderFloat("Strength##shadows", &shadows.strength, 0.0f, 1.0f);
+    }
+
+    ImGui::SeparatorText("SSAO");
+    {
+        auto& ssao = render_settings.ssao;
+        ImGui::Checkbox("Enabled##ssao", &ssao.enabled);
+        ImGui::DragFloat("Radius", &ssao.radius, 0.01f, 0.01f, 10.0f);
+        ImGui::DragFloat("Bias", &ssao.bias, 0.001f, 0.0f, 1.0f);
+        ImGui::DragFloat("Power", &ssao.power, 0.05f, 0.1f, 8.0f);
+        int sample_count = static_cast<int>(ssao.sample_count);
+        if (ImGui::SliderInt("Samples", &sample_count, 1, static_cast<int>(SsaoSettings::MAX_SAMPLES)))
+        {
+            ssao.sample_count = static_cast<std::uint32_t>(sample_count);
+        }
+        ImGui::Checkbox("Blur", &ssao.blur);
+        ImGui::SliderFloat("Direct light occlusion", &ssao.direct_light_occlusion, 0.0f, 1.0f);
+    }
+
+    {
+        static const std::array<const char*, 3> debug_view_names = { "None", "Ambient occlusion", "Shadow" };
+        int debug_view = static_cast<int>(render_settings.debug_view);
+        if (ImGui::Combo("Debug view", &debug_view, debug_view_names.data(), static_cast<int>(debug_view_names.size())))
+        {
+            render_settings.debug_view = static_cast<RenderDebugView>(debug_view);
+        }
+    }
 
     ImGui::SeparatorText("Render graph (last frame)");
     const auto& render_graph = renderer_.get_last_frame_graph();

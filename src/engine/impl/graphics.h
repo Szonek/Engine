@@ -348,6 +348,27 @@ private:
     std::uint32_t ssbo_{ 0 };
 };
 
+// Marks a point in the GPU command stream, so the CPU can wait until the GPU is done with everything submitted before it
+// (e.g. before overwriting a persistently mapped buffer the GPU may still be reading).
+class GpuFence
+{
+public:
+    GpuFence() = default;
+    GpuFence(const GpuFence& rhs) = delete;
+    GpuFence(GpuFence&& rhs) noexcept;
+    GpuFence& operator=(const GpuFence& rhs) = delete;
+    GpuFence& operator=(GpuFence&& rhs) noexcept;
+    ~GpuFence();
+
+    // replaces the previous fence (if any) with one after all the commands submitted so far
+    void signal();
+    // blocks until the GPU reaches the fence, no-op if the fence was never signaled
+    void wait();
+
+private:
+    void* sync_{ nullptr };
+};
+
 
 template<typename DataT, typename BufferT>
 struct BufferMapContext
@@ -412,6 +433,13 @@ public:
         eCount
     };
 
+    enum class DepthFunc
+    {
+        eLess = 0,
+        eLessOrEqual,
+        eCount
+    };
+
     enum MemoryBarrierBitMask
     {
         MEMORY_BARRIER_IMAGE_ACCESS_BIT = 0x0001,
@@ -453,9 +481,10 @@ public:
 	void set_polygon_mode(PolygonFaceType face, PolygonMode mode);
     void set_depth_test(bool flag);
     void set_depth_write(bool flag);
+    void set_depth_func(DepthFunc func);
     void set_cull_face(bool flag);
 
-    // Restores the pipeline state which scene passes rely on: depth test/write on, back face culling on, blending off, fill polygons, no scissor.
+    // Restores the pipeline state which scene passes rely on: depth test/write on (func: less), back face culling on, blending off, fill polygons, no scissor.
     void reset_pipeline_state();
 
     // Named groups are visible in graphics debuggers (RenderDoc, Nsight)

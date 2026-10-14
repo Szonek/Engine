@@ -4,7 +4,7 @@ namespace project_c
 {
 enum PrefabType
 {
-    PREFAB_TYPE_BARBARIAN,
+    PREFAB_TYPE_ROGUE,
 
     PREFAB_TYPE_SKELETON_WARRIOR,
     PREFAB_TYPE_SKELETON_BLADE,

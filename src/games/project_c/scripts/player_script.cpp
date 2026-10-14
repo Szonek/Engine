@@ -20,10 +20,7 @@
 
 namespace
 {
-constexpr float ATTACK_ACTIVE_START = 0.30f;
-constexpr float ATTACK_ACTIVE_END = 0.62f;
-constexpr float COMBO_WINDOW_START = 0.68f;
-constexpr float COMBO_WINDOW_END = 0.92f;
+constexpr float ATTACK_PLAYBACK_RATE = 1.25f;
 constexpr float ATTACK_INPUT_BUFFER_SECONDS = 0.25f;
 constexpr float ATTACK_COMBO_CROSS_FADE_SECONDS = 0.08f;
 constexpr float ATTACK_EXIT_CROSS_FADE_SECONDS = 0.15f;
@@ -58,8 +55,10 @@ void attack_window_close_callback(const engine_animation_event_info_t* info, voi
 } // namespace anonymous
 
 project_c::Weapon::Weapon(engine::IScene* my_scene)
-    : BaseNode(my_scene, "weapon-sword")
+    : BaseNode(my_scene, "weapon-daggers")
 {
+    const auto dagger_texture = engineTextured2DGetByName("rogue_texture");
+
     // transform
     auto tc = engineGameObjectAddTransformComponent(go_);
     tc.position[0] = 0.0f;
@@ -69,7 +68,7 @@ project_c::Weapon::Weapon(engine::IScene* my_scene)
 
     // mesh
     auto mc = engineGameObjectAddMeshComponent(go_);
-    mc.geometry = engineGeometryGetByName("Cube.12900");
+    mc.geometry = engineGeometryGetByName("Cylinder.008");
     assert(mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
     engineGameObjectUpdateMeshComponent(go_, &mc);
 
@@ -77,8 +76,28 @@ project_c::Weapon::Weapon(engine::IScene* my_scene)
     auto matc = engineGameObjectAddMaterialComponent(go_);
     set_c_array(matc.data.pong.diffuse_color, std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f});
     matc.data.pong.shininess = 32.0f;
-    matc.data.pong.diffuse_texture = engineTextured2DGetByName("barbarian_texture");
+    matc.data.pong.diffuse_texture = dagger_texture;
     engineGameObjectUpdateMaterialComponent(go_, &matc);
+
+    // offhand dagger
+    offhand_go_ = engineGameObjectCreate();
+    auto offhand_nc = engineGameObjectAddNameComponent(offhand_go_);
+    std::strncpy(offhand_nc.name, "weapon-daggers-offhand", std::size(offhand_nc.name));
+    engineGameObjectUpdateNameComponent(offhand_go_, &offhand_nc);
+
+    auto offhand_tc = engineGameObjectAddTransformComponent(offhand_go_);
+    engineGameObjectUpdateTransformComponent(offhand_go_, &offhand_tc);
+
+    auto offhand_mc = engineGameObjectAddMeshComponent(offhand_go_);
+    offhand_mc.geometry = engineGeometryGetByName("Cylinder.002");
+    assert(offhand_mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
+    engineGameObjectUpdateMeshComponent(offhand_go_, &offhand_mc);
+
+    auto offhand_matc = engineGameObjectAddMaterialComponent(offhand_go_);
+    offhand_matc = matc;
+    engineGameObjectUpdateMaterialComponent(offhand_go_, &offhand_matc);
+
+    attach_offhand_to_main();
 
     // physics
     auto cc = engineGameObjectAddColliderComponent(go_);
@@ -88,8 +107,8 @@ project_c::Weapon::Weapon(engine::IScene* my_scene)
     cc.is_trigger = true;
     auto& cc_child = cc.collider.compound.children[0];
     cc_child.rotation_quaternion[3] = 1.0f;
-    cc_child.transform[0] -= 0.05f;
-    cc_child.transform[1] = 0.25f;
+    cc_child.transform[0] = 0.0f;
+    cc_child.transform[1] = 0.35f;
     cc_child.transform[2] = 0.0f;
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
     // ToDo: box sie could be smaller and only increase box size when item dropped on the ground, so it do not fly trhoguh ground
@@ -100,6 +119,11 @@ project_c::Weapon::Weapon(engine::IScene* my_scene)
 
 project_c::Weapon::~Weapon()
 {
+    // the offhand dagger is not a script and, while equipped, not a child of the weapon either, so nothing else destroys it
+    if (engineGameObjectIsValid(offhand_go_))
+    {
+        engineGameObjectDestroy(offhand_go_);
+    }
 }
 
 void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::string_view joint_name, std::optional<glm::vec3> position, std::optional<glm::quat> rotation)
@@ -137,8 +161,56 @@ void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::
     }
 }
 
+void project_c::Weapon::attach_offhand_to_game_object(engine_game_object_t parent, std::string_view joint_name)
+{
+    if (engineGameObjectHasJointAttachmentComponent(offhand_go_))
+    {
+        engineGameObjectRemoveJointAttachmentComponent(offhand_go_);
+    }
+    if (engineGameObjectHasParentComponent(offhand_go_))
+    {
+        engineGameObjectRemoveParentComponent(offhand_go_);
+    }
+    auto pc = engineGameObjectAddParentComponent(offhand_go_);
+    pc.parent = parent;
+    engineGameObjectUpdateParentComponent(offhand_go_, &pc);
+
+    auto jac = engineGameObjectAddJointAttachmentComponent(offhand_go_);
+    jac.skin = engineGameObjectGetSkinComponent(parent).skin;
+    engineStringSet(jac.joint_name, joint_name.data());
+    engineGameObjectUpdateJointAttachmentComponent(offhand_go_, &jac);
+
+    auto tc = engineGameObjectGetTransformComponent(offhand_go_);
+    set_c_array(tc.position, std::array<float, 3>{ 0.0f, 0.0f, 0.0f });
+    set_c_array(tc.rotation, std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f });
+    engineGameObjectUpdateTransformComponent(offhand_go_, &tc);
+}
+
+void project_c::Weapon::attach_offhand_to_main()
+{
+    if (engineGameObjectHasJointAttachmentComponent(offhand_go_))
+    {
+        engineGameObjectRemoveJointAttachmentComponent(offhand_go_);
+    }
+    if (engineGameObjectHasParentComponent(offhand_go_))
+    {
+        engineGameObjectRemoveParentComponent(offhand_go_);
+    }
+    auto pc = engineGameObjectAddParentComponent(offhand_go_);
+    pc.parent = go_;
+    engineGameObjectUpdateParentComponent(offhand_go_, &pc);
+
+    // lay it next to the main dagger
+    auto tc = engineGameObjectGetTransformComponent(offhand_go_);
+    set_c_array(tc.position, std::array<float, 3>{ 0.3f, 0.0f, 0.0f });
+    set_c_array(tc.rotation, std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f });
+    engineGameObjectUpdateTransformComponent(offhand_go_, &tc);
+}
+
 void project_c::Weapon::drop_on_ground(glm::vec3 position)
 {
+    attach_offhand_to_main();
+
     // remove joint attachment
     if (engineGameObjectHasJointAttachmentComponent(go_))
     {
@@ -265,6 +337,8 @@ void project_c::AttackTrigger::begin_swing()
 
 void project_c::AttackTrigger::activate()
 {
+    // every hit window of the swing can hit the same enemy again (i.e. one hit per dagger)
+    hit_enemies_.clear();
     is_active_ = true;
 }
 
@@ -305,11 +379,11 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     engineGameObjectUpdateRigidBodyComponent(go_, &rbc);
 
     // delete objects not needed at creation time
-    engineGameObjectDestroy(utils::get_game_objects_with_name("1H_Axe")[0]);
-    engineGameObjectDestroy(utils::get_game_objects_with_name("2H_Axe")[0]);
-    engineGameObjectDestroy(utils::get_game_objects_with_name("Mug")[0]);
-    engineGameObjectDestroy(utils::get_game_objects_with_name("Barbarian_Round_Shield")[0]);
-    engineGameObjectDestroy(utils::get_game_objects_with_name("1H_Axe_Offhand")[0]);
+    engineGameObjectDestroy(utils::get_game_objects_with_name("Knife")[0]);
+    engineGameObjectDestroy(utils::get_game_objects_with_name("Knife_Offhand")[0]);
+    engineGameObjectDestroy(utils::get_game_objects_with_name("1H_Crossbow")[0]);
+    engineGameObjectDestroy(utils::get_game_objects_with_name("2H_Crossbow")[0]);
+    engineGameObjectDestroy(utils::get_game_objects_with_name("Throwable")[0]);
 
     // add attack trigger
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreate(), this);
@@ -329,26 +403,32 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
 
     for (std::size_t combo_index = 0; combo_index < AttackStateData::combo_length; ++combo_index)
     {
-        const auto animation_name = attack_data_.get_animation_name(combo_index);
+        const auto& attack = attack_data_.get_attack(combo_index);
         float duration = 0.0f;
-        engineAnimationControllerAnimationGetDuration(animation_controller, animation_name, &duration);
+        engineAnimationControllerAnimationGetDuration(animation_controller, attack.animation_name, &duration);
         assert(duration > 0.0f);
 
-        engine_animation_event_t open_event{};
-        open_event.trigger_time = ATTACK_ACTIVE_START * duration;
-        open_event.user_data = attack_trigger_;
-        open_event.fn_ptr = attack_window_open_callback;
-        engine_animation_event_id_t open_event_id = ENGINE_INVALID_OBJECT_HANDLE;
-        const auto open_result = engineAnimationControllerAnimationAddEvent(animation_controller, animation_name, open_event, &open_event_id);
-        assert(open_result == ENGINE_RESULT_CODE_OK && open_event_id != ENGINE_INVALID_OBJECT_HANDLE);
+        for (std::size_t window_index = 0; window_index < attack.hit_windows_count; ++window_index)
+        {
+            const auto& window = attack.hit_windows[window_index];
+            assert(window.start < window.end && window.end < duration);
 
-        engine_animation_event_t close_event{};
-        close_event.trigger_time = ATTACK_ACTIVE_END * duration;
-        close_event.user_data = attack_trigger_;
-        close_event.fn_ptr = attack_window_close_callback;
-        engine_animation_event_id_t close_event_id = ENGINE_INVALID_OBJECT_HANDLE;
-        const auto close_result = engineAnimationControllerAnimationAddEvent(animation_controller, animation_name, close_event, &close_event_id);
-        assert(close_result == ENGINE_RESULT_CODE_OK && close_event_id != ENGINE_INVALID_OBJECT_HANDLE);
+            engine_animation_event_t open_event{};
+            open_event.trigger_time = window.start;
+            open_event.user_data = attack_trigger_;
+            open_event.fn_ptr = attack_window_open_callback;
+            engine_animation_event_id_t open_event_id = ENGINE_INVALID_OBJECT_HANDLE;
+            const auto open_result = engineAnimationControllerAnimationAddEvent(animation_controller, attack.animation_name, open_event, &open_event_id);
+            assert(open_result == ENGINE_RESULT_CODE_OK && open_event_id != ENGINE_INVALID_OBJECT_HANDLE);
+
+            engine_animation_event_t close_event{};
+            close_event.trigger_time = window.end;
+            close_event.user_data = attack_trigger_;
+            close_event.fn_ptr = attack_window_close_callback;
+            engine_animation_event_id_t close_event_id = ENGINE_INVALID_OBJECT_HANDLE;
+            const auto close_result = engineAnimationControllerAnimationAddEvent(animation_controller, attack.animation_name, close_event, &close_event_id);
+            assert(close_result == ENGINE_RESULT_CODE_OK && close_event_id != ENGINE_INVALID_OBJECT_HANDLE);
+        }
     }
 }
 
@@ -564,7 +644,7 @@ void project_c::Player::update(float dt)
     }
     if (check_state_bit(States::ATTACK))
     {
-        attack_elapsed_ += dt / 1000.0f;
+        attack_elapsed_ += ATTACK_PLAYBACK_RATE * dt / 1000.0f;
         if (attack_buffered_)
         {
             attack_buffer_remaining_ -= dt / 1000.0f;
@@ -574,25 +654,31 @@ void project_c::Player::update(float dt)
             }
         }
 
-        const float attack_ratio = attack_elapsed_ / attack_duration_;
-        if (attack_ratio >= ATTACK_ACTIVE_START && attack_ratio < ATTACK_ACTIVE_END)
+        const auto& attack = attack_data_.get_attack(attack_combo_index_);
+        const bool in_hit_window = std::any_of(attack.hit_windows.begin(), attack.hit_windows.begin() + attack.hit_windows_count,
+            [this](const AttackStateData::HitWindow& window) { return attack_elapsed_ >= window.start && attack_elapsed_ < window.end; });
+        if (in_hit_window)
         {
             attack_phase_ = AttackPhase::eActive;
         }
-        else if (attack_ratio >= ATTACK_ACTIVE_END)
+        else if (attack_elapsed_ >= attack.hit_windows[attack.hit_windows_count - 1].end)
         {
             attack_phase_ = AttackPhase::eRecovery;
         }
+        else
+        {
+            // also between the hits, so player can adjust facing before second dagger lands
+            attack_phase_ = AttackPhase::eWindup;
+        }
 
-        const auto current_animation = attack_data_.get_animation_name(attack_combo_index_);
-        const bool attack_is_playing = engineAnimationControllerIsAnimationPlayingOnLayer(animation_controller, current_animation, COMBAT_LAYER_ID);
-        const bool combo_window_open = attack_ratio >= COMBO_WINDOW_START && attack_ratio < COMBO_WINDOW_END;
+        const bool attack_is_playing = engineAnimationControllerIsAnimationPlayingOnLayer(animation_controller, attack.animation_name, COMBAT_LAYER_ID);
+        const bool combo_window_open = attack_elapsed_ >= attack.combo_window_start && attack_elapsed_ < attack.combo_window_end;
         if (attack_buffered_ && combo_window_open)
         {
             attack_buffered_ = false;
             start_attack(animation_controller, attack_combo_index_ + 1);
         }
-        else if (!attack_is_playing)
+        else if (!attack_is_playing || attack_elapsed_ >= attack.exit_time)
         {
             if (attack_buffered_ && attack_combo_index_ + 1 < AttackStateData::combo_length)
             {
@@ -605,6 +691,8 @@ void project_c::Player::update(float dt)
                 attack_phase_ = AttackPhase::eIdle;
                 attack_trigger_->deactivate();
                 attack_buffered_ = false;
+                const bool combat_rate_reset = engineAnimationControllerLayerSetPlaybackRate(animation_controller, COMBAT_LAYER_ID, 1.0f);
+                assert(combat_rate_reset);
                 if (engineAnimationControllerAnimationCrossFade(animation_controller, "Unarmed_Idle", COMBAT_LAYER_ID, ATTACK_EXIT_CROSS_FADE_SECONDS))
                 {
                     const bool combat_idle_loops = engineAnimationControllerLayerSetLooping(animation_controller, COMBAT_LAYER_ID, true);
@@ -646,6 +734,7 @@ bool project_c::Player::equip_waepon(Weapon* sword)
     {
         weapon_ = sword;
         weapon_->attach_to_game_object(go_, "handslot.r", glm::vec3(0.0f, 0.0f, 0.0f), glm::angleAxis(glm::radians(-180.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
+        weapon_->attach_offhand_to_game_object(go_, "handslot.l");
         return true;
     }
     return false;
@@ -727,6 +816,7 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
                 attack_phase_ = AttackPhase::eIdle;
                 attack_buffered_ = false;
                 attack_trigger_->deactivate();
+                engineAnimationControllerLayerSetPlaybackRate(animation_controller, COMBAT_LAYER_ID, 1.0f);
                 if (!engineAnimationControllerAnimationCrossFade(animation_controller, "Unarmed_Idle", COMBAT_LAYER_ID, 0.08f))
                 {
                     engineLog("Failed to interrupt player attack after taking damage.\n");
@@ -801,15 +891,24 @@ float project_c::Player::MoveStateData::get_animation_reference_speed(Direction 
     return PLAYER_RUN_SPEED;
 }
 
+const project_c::Player::AttackStateData::Attack& project_c::Player::AttackStateData::get_attack(std::size_t combo_index) const
+{
+    // Hit windows match the moments when daggers are actually swinging in the animations.
+    static constexpr std::array<Attack, combo_length> attacks = { {
+        // right dagger slash, then left dagger chop
+        { "Dualwield_Melee_Attack_Chop",  { { { 0.42f, 0.60f }, { 0.80f, 0.92f } } }, 2, 0.94f, 1.20f, 1.26f },
+        // both daggers: overhead cut followed by outward sweep
+        { "Dualwield_Melee_Attack_Slice", { { { 0.52f, 0.83f }, { 0.0f, 0.0f } } },   1, 0.85f, 1.10f, 1.16f },
+        // finisher: double thrust, animation holds the pose for a long time so leave it early
+        { "Dualwield_Melee_Attack_Stab",  { { { 0.35f, 0.50f }, { 0.0f, 0.0f } } },   1, 0.0f,  0.0f,  0.95f },
+    } };
+    assert(combo_index < attacks.size());
+    return attacks[combo_index];
+}
+
 const char* project_c::Player::AttackStateData::get_animation_name(std::size_t combo_index) const
 {
-    static constexpr std::array<const char*, combo_length> animations = {
-        "1H_Melee_Attack_Slice_Diagonal",
-        "1H_Melee_Attack_Slice_Horizontal",
-        "1H_Melee_Attack_Stab"
-    };
-    assert(combo_index < animations.size());
-    return animations[combo_index];
+    return get_attack(combo_index).animation_name;
 }
 
 bool project_c::Player::start_attack(engine_animation_controller_t* animation_controller, std::size_t combo_index)
@@ -822,26 +921,28 @@ bool project_c::Player::start_attack(engine_animation_controller_t* animation_co
     const auto animation_name = attack_data_.get_animation_name(combo_index);
     float duration = 0.0f;
     engineAnimationControllerAnimationGetDuration(animation_controller, animation_name, &duration);
-    const bool combat_layer_stopped_looping = engineAnimationControllerLayerSetLooping(animation_controller, COMBAT_LAYER_ID, false);
-    assert(combat_layer_stopped_looping);
-
-    const bool animation_started = combo_index == 0 && !combat_layer_has_pose_
+    // Checked before the combat layer is touched: on failure the layer stays as it was (idle, or the attack which is still playing).
+    // Play and CrossFade fail without changing the layer.
+    const bool animation_started = duration > 0.0f && (combo_index == 0 && !combat_layer_has_pose_
         ? engineAnimationControllerAnimationPlay(animation_controller, animation_name, COMBAT_LAYER_ID)
         : engineAnimationControllerAnimationCrossFade(
             animation_controller,
             animation_name,
             COMBAT_LAYER_ID,
-            combo_index == 0 ? ATTACK_EXIT_CROSS_FADE_SECONDS : ATTACK_COMBO_CROSS_FADE_SECONDS);
-    if (duration <= 0.0f || !animation_started)
+            combo_index == 0 ? ATTACK_EXIT_CROSS_FADE_SECONDS : ATTACK_COMBO_CROSS_FADE_SECONDS));
+    if (!animation_started)
     {
         engineLog(std::format("Failed to start attack animation '{}'.\n", animation_name).c_str());
         return false;
     }
 
+    const bool combat_layer_stopped_looping = engineAnimationControllerLayerSetLooping(animation_controller, COMBAT_LAYER_ID, false);
+    const bool combat_rate_set = engineAnimationControllerLayerSetPlaybackRate(animation_controller, COMBAT_LAYER_ID, ATTACK_PLAYBACK_RATE);
+    assert(combat_layer_stopped_looping && combat_rate_set);
+
     attack_trigger_->begin_swing();
     attack_combo_index_ = combo_index;
     attack_elapsed_ = 0.0f;
-    attack_duration_ = duration;
     attack_phase_ = AttackPhase::eWindup;
     attack_buffered_ = false;
     state_ |= States::ATTACK;

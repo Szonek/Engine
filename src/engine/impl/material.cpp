@@ -5,7 +5,7 @@
 #include "profiler.h"
 
 engine::MaterialStaticGeometryLit::MaterialStaticGeometryLit()
-    : shader_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "lit_helpers.h", "lit.fs" }))
+    : shader_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "lit_helpers.h", "shadow_helpers.h", "lit.fs" }))
 {
 }
 
@@ -34,14 +34,7 @@ void engine::MaterialStaticGeometryLit::draw(const Geometry& geometry, const Dra
 }
 
 engine::MaterialSkinnedGeometryLit::MaterialSkinnedGeometryLit()
-    : shader_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "lit_helpers.h", "lit.fs" }))
-    , skinning_matrices_ssbo_(MAX_BONES_PER_FRAME * sizeof(BonePacket))
-{
-    skinning_mtx_gpu_ptr_ = (BonePacket*)skinning_matrices_ssbo_.map(false, true);
-    skinning_matrices_ssbo_.bind(static_cast<std::uint32_t>(ShaderBindingSlot::SKINNING));
-}
-
-engine::MaterialSkinnedGeometryLit::~MaterialSkinnedGeometryLit()
+    : shader_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "lit_helpers.h", "shadow_helpers.h", "lit.fs" }))
 {
 }
 
@@ -66,20 +59,44 @@ void engine::MaterialSkinnedGeometryLit::draw(const Geometry& geometry, const Dr
     shader_.set_texture_with_sampler("texture_diffuse", &ctx.texture_diffuse);
     shader_.set_texture_with_sampler("texture_specular", &ctx.texture_specular);
 
-    if (((offset_into_ssbo_ + ctx.bone_transforms.size()) * sizeof(BonePacket)) > skinning_matrices_ssbo_.get_size())
-    {
-        throw std::runtime_error("Not enough space for all the characters/bones in uniform buffer.");
-    }
-    shader_.set_uniform_ui("ssbo_base_offset", offset_into_ssbo_);
-    std::memcpy(skinning_mtx_gpu_ptr_ + offset_into_ssbo_, ctx.bone_transforms.data(), ctx.bone_transforms.size_bytes());
-    offset_into_ssbo_ += ctx.bone_transforms.size();
+    shader_.set_uniform_ui("ssbo_base_offset", ctx.skinning_matrices_offset);
     geometry.bind();
     geometry.draw(Geometry::Mode::eTriangles);
 }
 
-void engine::MaterialSkinnedGeometryLit::new_frame()
+engine::MaterialStaticGeometryDepthOnly::MaterialStaticGeometryDepthOnly()
+    : shader_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "depth_only.fs" }))
 {
-    offset_into_ssbo_ = 0;
+}
+
+void engine::MaterialStaticGeometryDepthOnly::draw(const Geometry& geometry, const DrawContext& ctx)
+{
+    ENGINE_PROFILE_SECTION_N("MaterialStaticGeometryDepthOnly::draw");
+    shader_.bind();
+
+    shader_.set_uniform_block("CameraData", &ctx.camera, 0);
+    shader_.set_uniform_mat_f4("model", { ctx.model_matrix, 16 });
+
+    geometry.bind();
+    geometry.draw(Geometry::Mode::eTriangles);
+}
+
+engine::MaterialSkinnedGeometryDepthOnly::MaterialSkinnedGeometryDepthOnly()
+    : shader_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "depth_only.fs" }))
+{
+}
+
+void engine::MaterialSkinnedGeometryDepthOnly::draw(const Geometry& geometry, const DrawContext& ctx)
+{
+    ENGINE_PROFILE_SECTION_N("MaterialSkinnedGeometryDepthOnly::draw");
+    shader_.bind();
+
+    shader_.set_uniform_block("CameraData", &ctx.camera, 0);
+    shader_.set_uniform_mat_f4("model", { ctx.model_matrix, 16 });
+    shader_.set_uniform_ui("ssbo_base_offset", ctx.skinning_matrices_offset);
+
+    geometry.bind();
+    geometry.draw(Geometry::Mode::eTriangles);
 }
 
 engine::MaterialSprite::MaterialSprite()

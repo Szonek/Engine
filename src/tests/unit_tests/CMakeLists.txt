@@ -13,11 +13,15 @@ add_test(NAME ${APP_NAME} COMMAND ${APP_NAME})
 # Render graph logic doesn't need a graphics API (nor the engine library), so it's compiled directly into its own test.
 set(RENDER_GRAPH_TESTS_NAME "render_graph_tests")
 set(ENGINE_IMPL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/impl)
+# The same is true for the math of the shadow map.
 add_executable(${RENDER_GRAPH_TESTS_NAME}
 	render_graph_tests.cpp
+	shadows_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
+	${ENGINE_IMPL_DIR}/render/shadows.cpp
+	${ENGINE_IMPL_DIR}/render/shadows.h
 )
 target_include_directories(${RENDER_GRAPH_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR})
-target_link_libraries(${RENDER_GRAPH_TESTS_NAME} GTest::gtest_main)
+target_link_libraries(${RENDER_GRAPH_TESTS_NAME} GTest::gtest_main glm)
 add_test(NAME ${RENDER_GRAPH_TESTS_NAME} COMMAND ${RENDER_GRAPH_TESTS_NAME})
