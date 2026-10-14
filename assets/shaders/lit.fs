@@ -38,7 +38,14 @@ void main()
 {
 	// fragment specific
 	vec3 normal = normalize(fs_in.normals);
-	vec3 view_dir = normalize(view_pos.xyz - fs_in.world_pos);
+	// direction to the eye: from the camera position for perspective projection,
+	// orthographic camera has no single eye position, all of its rays are parallel to its forward axis
+	bool is_orthographic = projection[3][3] > 0.5f;
+	vec3 view_dir = is_orthographic
+		? normalize(vec3(view[0][2], view[1][2], view[2][2]))
+		: normalize(view_pos.xyz - fs_in.world_pos);
+	// distance along the camera forward axis, the same measure the shadow map coverage uses (shadows.cpp)
+	float view_depth = -(view * vec4(fs_in.world_pos, 1.0f)).z;
 	vec3 frag_color = texture(texture_diffuse, fs_in.uv).xyz * diffuse_color.xyz;
 	vec3 specular_color = texture(texture_specular, fs_in.uv).xyz;
 	
@@ -59,7 +66,7 @@ void main()
 		// only the first directional light casts shadows
 		if (i == 0u)
 		{
-			shadow = calc_directional_shadow(fs_in.world_pos, normal, normalize(light_data[i].direction.xyz), distance(view_pos.xyz, fs_in.world_pos));
+			shadow = calc_directional_shadow(fs_in.world_pos, normal, normalize(light_data[i].direction.xyz), view_depth);
 			direct_visibility *= shadow;
 		}
 		out_color += calc_dir_light(light_data[i], normal, view_dir, frag_color, specular_color, shininess, ambient_occlusion, direct_visibility);

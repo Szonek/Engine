@@ -348,6 +348,27 @@ private:
     std::uint32_t ssbo_{ 0 };
 };
 
+// Marks a point in the GPU command stream, so the CPU can wait until the GPU is done with everything submitted before it
+// (e.g. before overwriting a persistently mapped buffer the GPU may still be reading).
+class GpuFence
+{
+public:
+    GpuFence() = default;
+    GpuFence(const GpuFence& rhs) = delete;
+    GpuFence(GpuFence&& rhs) noexcept;
+    GpuFence& operator=(const GpuFence& rhs) = delete;
+    GpuFence& operator=(GpuFence&& rhs) noexcept;
+    ~GpuFence();
+
+    // replaces the previous fence (if any) with one after all the commands submitted so far
+    void signal();
+    // blocks until the GPU reaches the fence, no-op if the fence was never signaled
+    void wait();
+
+private:
+    void* sync_{ nullptr };
+};
+
 
 template<typename DataT, typename BufferT>
 struct BufferMapContext

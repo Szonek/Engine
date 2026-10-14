@@ -18,7 +18,6 @@ public:
 private:
     RenderContext& rdx_;
     Shader shader_;
-    Geometry geometry_full_screen_triangle_;
 };
 
 }  // namespace engine

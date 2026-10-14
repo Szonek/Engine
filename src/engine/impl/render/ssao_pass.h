@@ -18,7 +18,8 @@ namespace engine
 class SsaoPass
 {
 public:
-    explicit SsaoPass(RenderContext& rdx);
+    // full_screen_quad: 6 vertices without attributes (see FrameContext::full_screen_quad), has to outlive the pass
+    SsaoPass(RenderContext& rdx, const Geometry& full_screen_quad);
 
     // Declares the passes for one camera. scene_depth has to contain the depth of everything which occludes.
     // Returns the texture with the result (R8, size of scene_depth): 1 - not occluded, 0 - fully occluded.
@@ -57,7 +58,7 @@ private:
     RenderContext& rdx_;
     Shader shader_occlusion_;
     Shader shader_blur_;
-    Geometry geometry_full_screen_quad_;
+    const Geometry& geometry_full_screen_quad_;
     UniformBuffer gpu_data_ubo_;
     // 4x4 random rotations
     Texture2D noise_texture_;

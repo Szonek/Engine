@@ -1,4 +1,4 @@
-// Full screen triangle. Each vertex carries the world space ends of the camera ray going through it (on the near and the far plane),
+// Full screen quad (two triangles, 6 vertices). Each vertex carries the world space ends of the camera ray going through it (on the near and the far plane),
 // the fragment shader intersects the interpolated ray with the ground plane. Works for perspective and orthographic cameras.
 
 uniform mat4 inverse_view_projection;
@@ -14,11 +14,15 @@ vec3 unproject(vec3 ndc)
 
 void main()
 {
-	const vec2 positions[3] = vec2[]
+	const vec2 positions[6] = vec2[]
 	(
+		vec2(-1.0f,  1.0f),
 		vec2(-1.0f, -1.0f),
-		vec2( 3.0f, -1.0f),
-		vec2(-1.0f,  3.0f)
+		vec2( 1.0f, -1.0f),
+
+		vec2(-1.0f,  1.0f),
+		vec2( 1.0f, -1.0f),
+		vec2( 1.0f,  1.0f)
 	);
 
 	vec2 position = positions[gl_VertexID];

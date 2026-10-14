@@ -44,7 +44,7 @@ engine::Renderer::Renderer(RenderContext& rdx)
     , geometry_debug_line_(2)
     , shader_full_screen_quad_({ "full_screen_quad.vs" }, { "full_screen_quad.fs" })
     , geometry_full_screen_quad_(6)
-    , ssao_pass_(rdx)
+    , ssao_pass_(rdx, geometry_full_screen_quad_)
     , white_texture_(1, 1, false, WHITE_PIXEL.data(), DataLayout::eRGBA_U8, TextureAddressClampMode::eClampToEdge)
 {
 }
@@ -108,30 +108,34 @@ void engine::Renderer::prepare_gpu_data()
             *scene_ubo.data = scene.scene_gpu;
         }
 
+        // the GPU has to be done with the frame that used these buffers FRAMES_IN_FLIGHT frames ago before they are overwritten
+        auto& frame_ssbos = gpu.frames[frame_slot_];
+        frame_ssbos.fence.wait();
+
         {
             const auto required_size = std::max(scene.lights.size(), INITIAL_LIGHTS_CAPACITY) * sizeof(LightGpuData);
-            if (ensure_buffer_capacity(gpu.lights_ssbo, required_size))
+            if (ensure_buffer_capacity(frame_ssbos.lights.ssbo, required_size))
             {
-                gpu.lights_ptr = gpu.lights_ssbo.map(false, true);
+                frame_ssbos.lights.ptr = frame_ssbos.lights.ssbo.map(false, true);
             }
-            assert(gpu.lights_ptr != nullptr);
+            assert(frame_ssbos.lights.ptr != nullptr);
             if (!scene.lights.empty())
             {
-                std::memcpy(gpu.lights_ptr, scene.lights.data(), scene.lights.size() * sizeof(LightGpuData));
+                std::memcpy(frame_ssbos.lights.ptr, scene.lights.data(), scene.lights.size() * sizeof(LightGpuData));
             }
         }
 
         {
             // bone matrices of all skinned meshes, draws address their part with SkinnedMeshDrawItem::skinning_matrices_offset
             const auto required_size = std::max(scene.skinning_matrices.size(), INITIAL_SKINNING_MATRICES_CAPACITY) * sizeof(glm::mat4);
-            if (ensure_buffer_capacity(gpu.skinning_ssbo, required_size))
+            if (ensure_buffer_capacity(frame_ssbos.skinning.ssbo, required_size))
             {
-                gpu.skinning_ptr = gpu.skinning_ssbo.map(false, true);
+                frame_ssbos.skinning.ptr = frame_ssbos.skinning.ssbo.map(false, true);
             }
-            assert(gpu.skinning_ptr != nullptr);
+            assert(frame_ssbos.skinning.ptr != nullptr);
             if (!scene.skinning_matrices.empty())
             {
-                std::memcpy(gpu.skinning_ptr, scene.skinning_matrices.data(), scene.skinning_matrices.size() * sizeof(glm::mat4));
+                std::memcpy(frame_ssbos.skinning.ptr, scene.skinning_matrices.data(), scene.skinning_matrices.size() * sizeof(glm::mat4));
             }
         }
 
@@ -189,9 +193,9 @@ void engine::Renderer::prepare_gpu_data()
                 .camera = &camera,
                 .camera_ubo = &view_gpu.camera_ubo,
                 .scene_ubo = &gpu.scene_ubo,
-                .lights_ssbo = &gpu.lights_ssbo,
+                .lights_ssbo = &frame_ssbos.lights.ssbo,
                 .debug_lines_ssbo = &gpu.debug_lines_ssbo,
-                .skinning_ssbo = &gpu.skinning_ssbo,
+                .skinning_ssbo = &frame_ssbos.skinning.ssbo,
                 .lighting_ubo = &view_gpu.lighting_ubo,
                 .shadow_camera_ubo = &view_gpu.shadow_camera_ubo,
                 .has_shadow = has_shadow });
@@ -215,7 +219,7 @@ void engine::Renderer::render_frame()
     backend_.new_frame();
     graph_.reset();
 
-    FrameContext frame{ .graph = graph_, .rdx = rdx_, .width = width, .height = height, .views = frame_views_ };
+    FrameContext frame{ .graph = graph_, .rdx = rdx_, .width = width, .height = height, .views = frame_views_, .full_screen_quad = &geometry_full_screen_quad_ };
     frame.backbuffer = graph_.import_backbuffer("Backbuffer", width, height);
 
     add_scene_passes(frame);
@@ -236,6 +240,13 @@ void engine::Renderer::render_frame()
         }
     }
     graph_.execute(backend_);
+
+    // everything reading this frame's buffers has been submitted
+    for (std::size_t scene_index = 0; scene_index < frame_scenes_.size(); scene_index++)
+    {
+        scene_gpu_[scene_index]->frames[frame_slot_].fence.signal();
+    }
+    frame_slot_ = (frame_slot_ + 1) % FRAMES_IN_FLIGHT;
 }
 
 void engine::Renderer::add_scene_passes(FrameContext& frame)
@@ -261,6 +272,7 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
     std::size_t view_counter = 0;
     for (const auto& view : frame.views)
     {
+        const bool is_first_view = view_counter == 0;
         const auto suffix = fmt::format(" [View {}]", view_counter++);
 
         // Depth of the scene seen from the directional light. The lit shader compares against it to find out what is in shadow.
@@ -283,10 +295,12 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
         // Depth of the scene seen from the camera, rendered before any shading is done:
         //  - ambient occlusion is computed from it and it's needed by the Forward pass,
         //  - the Forward pass shades only the visible pixels (everything hidden fails the depth test).
+        // Every camera starts from cleared depth (the first one gets it from Clear Scene Targets), so ambient occlusion
+        // is never computed from depth rendered with another camera's projection.
         frame.graph.add_pass(fmt::format("Depth Pre-pass{}", suffix),
             [&](rg::Builder& builder, rg::NoPassData&)
             {
-                builder.write_depth(frame.scene_depth, rg::LoadOp::eLoad);
+                builder.write_depth(frame.scene_depth, is_first_view ? rg::LoadOp::eLoad : rg::LoadOp::eClear);
             },
             [this, view](const rg::NoPassData&, rg::PassContext&)
             {

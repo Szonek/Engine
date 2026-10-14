@@ -119,6 +119,11 @@ project_c::Weapon::Weapon(engine::IScene* my_scene)
 
 project_c::Weapon::~Weapon()
 {
+    // the offhand dagger is not a script and, while equipped, not a child of the weapon either, so nothing else destroys it
+    if (engineGameObjectIsValid(offhand_go_))
+    {
+        engineGameObjectDestroy(offhand_go_);
+    }
 }
 
 void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::string_view joint_name, std::optional<glm::vec3> position, std::optional<glm::quat> rotation)
@@ -158,6 +163,10 @@ void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::
 
 void project_c::Weapon::attach_offhand_to_game_object(engine_game_object_t parent, std::string_view joint_name)
 {
+    if (engineGameObjectHasJointAttachmentComponent(offhand_go_))
+    {
+        engineGameObjectRemoveJointAttachmentComponent(offhand_go_);
+    }
     if (engineGameObjectHasParentComponent(offhand_go_))
     {
         engineGameObjectRemoveParentComponent(offhand_go_);
@@ -912,22 +921,24 @@ bool project_c::Player::start_attack(engine_animation_controller_t* animation_co
     const auto animation_name = attack_data_.get_animation_name(combo_index);
     float duration = 0.0f;
     engineAnimationControllerAnimationGetDuration(animation_controller, animation_name, &duration);
-    const bool combat_layer_stopped_looping = engineAnimationControllerLayerSetLooping(animation_controller, COMBAT_LAYER_ID, false);
-    const bool combat_rate_set = engineAnimationControllerLayerSetPlaybackRate(animation_controller, COMBAT_LAYER_ID, ATTACK_PLAYBACK_RATE);
-    assert(combat_layer_stopped_looping && combat_rate_set);
-
-    const bool animation_started = combo_index == 0 && !combat_layer_has_pose_
+    // Checked before the combat layer is touched: on failure the layer stays as it was (idle, or the attack which is still playing).
+    // Play and CrossFade fail without changing the layer.
+    const bool animation_started = duration > 0.0f && (combo_index == 0 && !combat_layer_has_pose_
         ? engineAnimationControllerAnimationPlay(animation_controller, animation_name, COMBAT_LAYER_ID)
         : engineAnimationControllerAnimationCrossFade(
             animation_controller,
             animation_name,
             COMBAT_LAYER_ID,
-            combo_index == 0 ? ATTACK_EXIT_CROSS_FADE_SECONDS : ATTACK_COMBO_CROSS_FADE_SECONDS);
-    if (duration <= 0.0f || !animation_started)
+            combo_index == 0 ? ATTACK_EXIT_CROSS_FADE_SECONDS : ATTACK_COMBO_CROSS_FADE_SECONDS));
+    if (!animation_started)
     {
         engineLog(std::format("Failed to start attack animation '{}'.\n", animation_name).c_str());
         return false;
     }
+
+    const bool combat_layer_stopped_looping = engineAnimationControllerLayerSetLooping(animation_controller, COMBAT_LAYER_ID, false);
+    const bool combat_rate_set = engineAnimationControllerLayerSetPlaybackRate(animation_controller, COMBAT_LAYER_ID, ATTACK_PLAYBACK_RATE);
+    assert(combat_layer_stopped_looping && combat_rate_set);
 
     attack_trigger_->begin_swing();
     attack_combo_index_ = combo_index;

@@ -20,6 +20,7 @@ const vec4 COLOR_THIN = vec4(0.55f, 0.55f, 0.55f, 0.30f);
 const vec4 COLOR_THICK = vec4(0.70f, 0.70f, 0.70f, 0.55f);
 const vec3 COLOR_AXIS_X = vec3(0.90f, 0.25f, 0.30f);
 const vec3 COLOR_AXIS_Z = vec3(0.25f, 0.45f, 0.95f);
+const float DEPTH_OFFSET = 0.01f;           // world units, see the depth at the end of main()
 
 // Coverage <0; 1> of a line of given width (pixels) by the pixel.
 // distance_to_line and pixel_size are in the same units, per axis.
@@ -102,8 +103,11 @@ void main()
 	}
 
 	// Depth of the plane, so the grid is hidden by the geometry in front of it.
-	// The point is pulled slightly towards the camera: the grid wins against a floor lying exactly at y = 0 instead of flickering.
-	vec4 clip_position = view_projection * vec4(mix(world_position, ray_near, 0.002f), 1.0f);
+	// The point is pulled towards the camera as if the plane was DEPTH_OFFSET higher: the grid wins against a floor lying exactly
+	// at y = 0 instead of flickering, but anything higher than that (i.e. an item lying on the floor) still hides it at any distance.
+	// grazing > 0 here, otherwise the color would have been faded out and discarded.
+	vec3 depth_position = world_position - normalize(ray) * (DEPTH_OFFSET / grazing);
+	vec4 clip_position = view_projection * vec4(depth_position, 1.0f);
 	gl_FragDepth = clamp(clip_position.z / clip_position.w * 0.5f + 0.5f, 0.0f, 1.0f);
 
 	out_fragment_color = color;

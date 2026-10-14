@@ -1743,6 +1743,58 @@ void engine::ShaderStorageBuffer::unmap()
     unbind();
 }
 
+engine::GpuFence::GpuFence(GpuFence&& rhs) noexcept
+{
+    std::swap(sync_, rhs.sync_);
+}
+
+engine::GpuFence& engine::GpuFence::operator=(GpuFence&& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        std::swap(sync_, rhs.sync_);
+    }
+    return *this;
+}
+
+engine::GpuFence::~GpuFence()
+{
+    if (sync_)
+    {
+        glDeleteSync(static_cast<GLsync>(sync_));
+    }
+}
+
+void engine::GpuFence::signal()
+{
+    if (sync_)
+    {
+        glDeleteSync(static_cast<GLsync>(sync_));
+    }
+    sync_ = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+}
+
+void engine::GpuFence::wait()
+{
+    ENGINE_PROFILER_GPU_SECTION("engine::GpuFence::wait()");
+    if (!sync_)
+    {
+        return;
+    }
+    constexpr GLuint64 TIMEOUT_NS = 1'000'000'000;
+    GLenum result = glClientWaitSync(static_cast<GLsync>(sync_), GL_SYNC_FLUSH_COMMANDS_BIT, TIMEOUT_NS);
+    while (result == GL_TIMEOUT_EXPIRED)
+    {
+        result = glClientWaitSync(static_cast<GLsync>(sync_), 0, TIMEOUT_NS);
+    }
+    if (result == GL_WAIT_FAILED)
+    {
+        log::log(log::LogLevel::eError, "glClientWaitSync failed.\n");
+    }
+    glDeleteSync(static_cast<GLsync>(sync_));
+    sync_ = nullptr;
+}
+
 void engine::ShaderStorageBuffer::bind() const
 {
     ENGINE_PROFILER_GPU_SECTION("engine::ShaderStorageBuffer::bind()");

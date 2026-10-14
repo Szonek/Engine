@@ -30,11 +30,11 @@ std::array<std::uint8_t, NOISE_SIZE * NOISE_SIZE * 4> generate_noise(std::mt1993
 }
 }  // namespace
 
-engine::SsaoPass::SsaoPass(RenderContext& rdx)
+engine::SsaoPass::SsaoPass(RenderContext& rdx, const Geometry& full_screen_quad)
     : rdx_(rdx)
     , shader_occlusion_({ "full_screen_quad.vs" }, { "ssao_common.h", "ssao.fs" })
     , shader_blur_({ "full_screen_quad.vs" }, { "ssao_common.h", "ssao_blur.fs" })
-    , geometry_full_screen_quad_(6)
+    , geometry_full_screen_quad_(full_screen_quad)
     , gpu_data_ubo_(sizeof(GpuData))
 {
     // fixed seed: the result looks the same on every run
@@ -110,10 +110,10 @@ engine::rg::TextureHandle engine::SsaoPass::add_passes(rg::Graph& graph, rg::Tex
             const auto occlusion_desc = builder.desc(occlusion_pass.occlusion);
             data.blurred = builder.write_color(0, builder.create_texture("AmbientOcclusion", occlusion_desc), rg::LoadOp::eDontCare);
         },
-        [this, camera_ptr = &camera, settings](const BlurPassData& data, rg::PassContext& ctx)
+        [this](const BlurPassData& data, rg::PassContext& ctx)
         {
             ENGINE_PROFILE_SECTION_N("SsaoPass::blur");
-            upload_gpu_data(*camera_ptr, settings);
+            // SsaoData of this camera was uploaded by the occlusion pass, which runs right before this one
             shader_blur_.bind();
             shader_blur_.set_texture_with_sampler("texture_depth", &ctx.texture(data.depth));
             shader_blur_.set_texture_with_sampler("texture_occlusion", &ctx.texture(data.occlusion));

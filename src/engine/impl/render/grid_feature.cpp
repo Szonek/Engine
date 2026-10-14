@@ -6,7 +6,6 @@
 engine::GridFeature::GridFeature(RenderContext& rdx)
     : rdx_(rdx)
     , shader_({ "editor_grid.vs" }, { "editor_grid.fs" })
-    , geometry_full_screen_triangle_(3)
 {
 }
 
@@ -36,14 +35,14 @@ void engine::GridFeature::add_passes(FrameContext& frame)
                 RenderContext::BlendFactor::eZero, RenderContext::BlendFactor::eOne);
 
             shader_.bind();
-            geometry_full_screen_triangle_.bind();
+            frame.full_screen_quad->bind();
             for (const auto& view : frame.views)
             {
                 const auto view_projection = view.camera->projection * view.camera->view;
                 const auto inverse_view_projection = glm::inverse(view_projection);
                 shader_.set_uniform_mat_f4("view_projection", { glm::value_ptr(view_projection), 16 });
                 shader_.set_uniform_mat_f4("inverse_view_projection", { glm::value_ptr(inverse_view_projection), 16 });
-                geometry_full_screen_triangle_.draw(Geometry::Mode::eTriangles);
+                frame.full_screen_quad->draw(Geometry::Mode::eTriangles);
             }
         });
 }

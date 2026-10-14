@@ -8,6 +8,7 @@
 #include "../graphics.h"
 #include "../material.h"
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -68,14 +69,26 @@ private:
         UniformBuffer shadow_camera_ubo{ sizeof(CameraGpuData) };
     };
 
+    // Persistently mapped SSBOs written every frame. The GPU may still be reading the previous frames' data,
+    // so each frame writes its own copy and waits (fence) before reusing one, FRAMES_IN_FLIGHT frames later.
+    static constexpr std::size_t FRAMES_IN_FLIGHT = 3;
+    struct MappedSsbo
+    {
+        ShaderStorageBuffer ssbo;
+        void* ptr = nullptr;
+    };
+    struct FrameSsbos
+    {
+        MappedSsbo lights;
+        MappedSsbo skinning;
+        GpuFence fence;
+    };
+
     // GPU buffers of a single submitted scene
     struct SceneGpu
     {
         UniformBuffer scene_ubo{ sizeof(SceneGpuData) };
-        ShaderStorageBuffer lights_ssbo;
-        void* lights_ptr = nullptr;
-        ShaderStorageBuffer skinning_ssbo;
-        void* skinning_ptr = nullptr;
+        std::array<FrameSsbos, FRAMES_IN_FLIGHT> frames;
         ShaderStorageBuffer debug_lines_ssbo;
         std::vector<std::unique_ptr<ViewGpu>> views;
     };
@@ -131,6 +144,8 @@ private:
 
     std::vector<SceneRenderData> frame_scenes_;
     std::vector<std::unique_ptr<SceneGpu>> scene_gpu_;
+    // selects SceneGpu::frames used by the current frame
+    std::size_t frame_slot_ = 0;
     std::vector<FrameView> frame_views_;
     std::vector<FeatureEntry> features_;
     std::vector<std::string> last_graph_messages_;
