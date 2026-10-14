@@ -6,8 +6,8 @@ the player visible when geometry is in the way.
 | File                                   | What lives there                                                              |
 |----------------------------------------|-------------------------------------------------------------------------------|
 | `scripts/player_script.h/.cpp`         | Traversal: detection, climbing, vault / mantle / climb-down moves, marker     |
-| `scripts/building_script.h/.cpp`       | `BuildingPart` (what can be climbed, how it gets out of the camera's way) and `House` (the test building) |
-| `scripts/camera_script.h/.cpp`         | Camera follow, mouse look-ahead, occluder detection, `CameraOccluder` interface |
+| `scripts/building_script.h/.cpp`       | `BuildingPart` (what can be climbed) and `House` (the test building, roof cutaway) |
+| `scripts/camera_script.h/.cpp`         | Camera follow and mouse look-ahead                                            |
 | `scenes/scene_test.cpp`                | Map: the `h` block is the house footprint, `B` is a chest inside the house    |
 
 Everything is game code, the engine is not changed. All tuning values are `constexpr` constants at the top of
@@ -115,63 +115,38 @@ enemies don't walk into it. Enemies also ignore a player who is more than 0.6 hi
 
 * Walls are KayKit `Primitive_Wall` pieces at half size: 2 wide, 2 tall, 0.5 thick. The roof (`Primitive_Floor`) sits on
   top, flush with the outer faces, so the top of a climbed wall is the roof edge.
-* Every wall is **two game objects**: the visible piece (mesh, no collider) and an invisible `BuildingPart` with the collider.
-  The visible piece can then be scaled down when it hides the player (see below) without touching physics, climbing keeps
-  working against the full-size collider.
 * The engine's compound collider supports one child only, so the window wall's collision is four invisible blockers
   (left/right pillar, sill, lintel) sharing the transform of the visible `Primitive_Window` piece. The blockers point their
-  alignment point (vault) and occlusion owner to the visible piece.
-* While the player is inside, the roof is hidden (mesh disabled, collider removed so mouse aiming hits the floor) together
-  with the props standing on it, and the wall facing the camera is lowered (see below).
+  alignment point (vault) to the visible piece.
+* While the player is inside, the roof and the wall facing the camera are hidden - see Occlusion below.
 
 ## Camera
 
-`CameraScript` (orthographic, 45 degree pitch, no yaw) does three things every `late_update`:
+`CameraScript` (orthographic, 45 degree pitch, no yaw) does two things every `late_update`:
 
 1. **Follow**: the look-at point follows the player with a critically damped spring - `FOLLOW_SMOOTH_TIME_HORIZONTAL`
    (0.1 s) keeps combat tight, `FOLLOW_SMOOTH_TIME_VERTICAL` (0.3 s) softens climbs and drops.
 2. **Look-ahead**: shifts the view toward the mouse cursor (cursor projected on the ground plane at the player's height),
    `LOOK_AHEAD_FRACTION` of the distance, clamped to `LOOK_AHEAD_MAX_DISTANCE`, smoothed. The cursor's world position
    depends on the camera itself, the effective shift settles at `FRACTION / (1 - FRACTION)` (~25%) of the cursor offset.
-3. **Occluders**: geometry hiding the player gets out of the way, described next.
 
-## Getting out of the camera's way
+## Occlusion: roof cutaway
 
-No engine support is needed: occluders hide or shrink their meshes, which the engine already supports
-(`engine_mesh_component_t::disable`, transform scale). The camera only finds out *what* hides the player, each occluder
-decides *how* to react.
+The only occlusion handling is the classic ARPG cutaway of the house, all in `House::update`:
 
-### Detection (camera)
+* `House::is_inside` checks the player against the interior of the house (below the roof).
+* When the player enters, the roof is hidden (mesh disabled; collider removed, so mouse aiming hits the room floor instead
+  of the roof) together with the props standing on it (`House::add_roof_prop`), and the camera facing wall pieces are
+  hidden (`BuildingPart::set_hidden`; their colliders stay, so the walls still block movement and can be vaulted through).
+* When the player leaves, everything is shown again.
 
-Every frame `CameraScript::update_occluders` casts 5 rays from points of the player's body toward the camera. The engine
-raycast returns only the closest hit, so each ray is repeated with the previous hits ignored (up to 6 hits) to collect
-everything in the way. Each hit with a `CameraOccluder` script is resolved to its **owner** (`get_occlusion_owner`, usually
-itself; invisible colliders forward to their visible piece) and the owner gets `set_occluding(true, player_feet_y)` every
-frame it hides the player. Once it stops hiding the player for `OCCLUDER_RESTORE_DELAY_SECONDS` (0.3 s) it gets
-`set_occluding(false, ...)`; the delay keeps it from flickering when the player stands at its edge.
-
-The sample points must stay inside the player's body (±0.12 sideways). A climbing player is only 0.2 from the wall; a
-point further to the side starts inside the wall and makes the wall and roof look like occluders while the player is in
-plain view.
-
-`CameraScript::set_forced_occluding(go, bool)` keeps an occluder occluding regardless of the rays. `House` uses it for the
-wall facing the camera while the player is inside. The camera stays the only code driving occlusion, so nothing fights over it.
-
-### Reaction (`BuildingPart::OcclusionResponse`)
-
-| Part                  | Response | What happens                                                                                   |
-|-----------------------|----------|------------------------------------------------------------------------------------------------|
-| Wall / window piece   | `eLower` | The visible piece sinks down to the player's feet ("walls down"): on the ground it becomes a low stub (`LOWERED_MIN_HEIGHT_FRACTION`, 15%), while climbing the wall ends just below the player. Animated, sinks in 0.15 s, rises back in 0.3 s. |
-| Roof                  | `eHide`  | Mesh hidden, together with the props standing on it (`House::add_roof_prop`).                  |
-
-`eLower` scales the game object, so it is only allowed on parts without a collider (asserted). Scaling is around the mesh
-pivot, which is at the bottom of the KayKit pieces.
+Outside the house nothing reacts: a player behind the house or climbing its back wall is hidden by it. That was a
+deliberate choice for the POC - fading or lowering occluders was tried (see the PR history) and dropped for now. The
+intended future route is a per-material dithered fade once the engine has a material system, or a player silhouette
+render feature.
 
 ## Adding things
 
-* **A new occluder** (trees, pillars): implement `CameraOccluder` on its script - return its own game object from
-  `get_occlusion_owner` and react in `set_occluding` (hide, shrink, swap mesh...). It needs a collider the rays can hit;
-  if mesh and collider are separate game objects, let the collider forward to the visible one through `get_occlusion_owner`.
 * **A new climbable object**: give it a `BuildingPart` script (collider in mesh space through `BuildingPart::Box`,
   `climbable = true`). Vault/mantle need a flat top (normal up) and enough room above it for the player.
 
@@ -180,8 +155,6 @@ pivot, which is at the bottom of the KayKit pieces.
 * Walking toward a roof edge always climbs down; dropping off needs a dodge started a bit away from the edge, or letting go of the wall.
 * No climbing animations (see Animations).
 * The house is a fixed 4x4 one-room layout; the `h` block only positions it.
-* Lowering pops less than hiding, but it still changes the silhouette of the building. Fading (dithered transparency) looks
-  softer but needs engine support - see the PR discussion; the intended route is a per-material feature once the engine has
-  a material system.
-* Traversal and occlusion rays are cast every frame (a few dozen per frame), fine for this scene but not budgeted for
+* Only the house interior is handled; the player can be hidden behind the house (see Occlusion).
+* Traversal rays are cast every frame (a few dozen per frame), fine for this scene but not budgeted for
   large levels.

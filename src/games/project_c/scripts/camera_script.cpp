@@ -4,10 +4,7 @@
 #include "iscene.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
-#include <unordered_set>
-#include <vector>
 
 namespace
 {
@@ -33,21 +30,6 @@ constexpr float LOOK_AHEAD_MAX_DISTANCE = 2.0f;
 constexpr float LOOK_AHEAD_SMOOTH_TIME = 0.25f;
 // Long frames (loading, breakpoints) would otherwise make the camera jump.
 constexpr float MAX_DELTA_SECONDS = 0.1f;
-
-// Occluders between the camera and the player get out of the way (see CameraOccluder).
-// They come back only after not hiding the player for a moment, so they don't flicker at the edges.
-constexpr float OCCLUDER_RESTORE_DELAY_SECONDS = 0.3f;
-constexpr std::size_t OCCLUDER_MAX_HITS_PER_RAY = 6;
-// Rays are cast from a few points of the player's body toward the camera.
-// All points have to stay inside the body: a climbing player is only ~0.2 away from the wall surface,
-// a point further to the side starts inside the wall and the ray "sees" the wall and roof as occluders.
-const std::array<glm::vec3, 5> OCCLUSION_SAMPLE_OFFSETS = {
-    glm::vec3( 0.0f,  0.2f, 0.0f),
-    glm::vec3( 0.0f,  0.5f, 0.0f),
-    glm::vec3( 0.0f,  0.8f, 0.0f),
-    glm::vec3(-0.12f, 0.5f, 0.0f),
-    glm::vec3( 0.12f, 0.5f, 0.0f),
-};
 
 float smooth_damp(float current, float target, float& velocity, float smooth_time, float delta_seconds)
 {
@@ -131,8 +113,6 @@ void project_c::CameraScript::late_update(float dt)
         }
     }
     apply_camera_transform(shake_offset);
-
-    update_occluders(player_position, delta_seconds);
 }
 
 void project_c::CameraScript::snap_to_player()
@@ -198,80 +178,6 @@ void project_c::CameraScript::apply_camera_transform(const glm::vec3& shake_offs
     camera_comp.target[1] = target.y;
     camera_comp.target[2] = target.z;
     engineGameObjectUpdateCameraComponent(go_, &camera_comp);
-}
-
-void project_c::CameraScript::update_occluders(const glm::vec3& player_position, float delta_seconds)
-{
-    engine::ScopedProfiler profiler("project_c::CameraScript::update_occluders");
-    // everything a ray from the player toward the camera passes through. Engine ray returns only the closest hit,
-    // so hits are collected by casting again with the previous hits ignored.
-    std::unordered_set<engine_game_object_t> occluding(forced_occluders_.begin(), forced_occluders_.end());
-    const glm::vec3 to_camera = CAMERA_OFFSET;
-    for (const auto& sample_offset : OCCLUSION_SAMPLE_OFFSETS)
-    {
-        const glm::vec3 from = player_position + sample_offset;
-        engine_ray_t ray{};
-        ray.origin = { from.x, from.y, from.z };
-        // engine ray "direction" is the end point of the ray
-        ray.direction = { from.x + to_camera.x, from.y + to_camera.y, from.z + to_camera.z };
-
-        std::vector<engine_game_object_t> ignore_list = { player_go_ };
-        for (std::size_t i = 0; i < OCCLUDER_MAX_HITS_PER_RAY; i++)
-        {
-            const auto hit = enginePhysicsRayCast(ignore_list.data(), ignore_list.size(), &ray, CAMERA_DISTANCE);
-            if (hit.go == ENGINE_INVALID_GAME_OBJECT_ID)
-            {
-                break;
-            }
-            ignore_list.push_back(hit.go);
-            if (const auto* occluder = my_scene_->get_script<CameraOccluder>(hit.go))
-            {
-                occluding.insert(occluder->get_occlusion_owner());
-            }
-        }
-    }
-
-    // scripts are looked up by game object every time, so a destroyed occluder is simply skipped
-    const auto notify = [this, &player_position](engine_game_object_t owner, bool is_occluding)
-        {
-            if (auto* occluder = my_scene_->get_script<CameraOccluder>(owner))
-            {
-                occluder->set_occluding(is_occluding, player_position.y);
-            }
-        };
-
-    for (const auto owner : occluding)
-    {
-        occluders_[owner] = 0.0f;
-        notify(owner, true);
-    }
-
-    for (auto it = occluders_.begin(); it != occluders_.end();)
-    {
-        if (!occluding.contains(it->first))
-        {
-            it->second += delta_seconds;
-            if (it->second >= OCCLUDER_RESTORE_DELAY_SECONDS)
-            {
-                notify(it->first, false);
-                it = occluders_.erase(it);
-                continue;
-            }
-        }
-        ++it;
-    }
-}
-
-void project_c::CameraScript::set_forced_occluding(engine_game_object_t go, bool forced)
-{
-    if (forced)
-    {
-        forced_occluders_.insert(go);
-    }
-    else
-    {
-        forced_occluders_.erase(go);
-    }
 }
 
 void project_c::CameraScript::shake(float intensity, float duration_seconds)
