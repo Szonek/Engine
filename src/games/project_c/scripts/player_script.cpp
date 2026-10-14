@@ -11,6 +11,7 @@
 #include "iscene.h"
 
 #include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -607,15 +608,17 @@ void project_c::Player::update(float dt)
     }
 
     // walking into a wall / window / roof edge: show marker while approaching, start traversal on contact
+    const glm::vec3 player_position(tc.position[0], tc.position[1], tc.position[2]);
     TraversalPlan traversal_plan{};
     if (glm::length(move_input) > 0.0f
         && !check_state_bit(States::ATTACK)
         && dodge_remaining_seconds_ <= 0.0f
         && hit_stun_remaining_seconds_ <= 0.0f)
     {
-        traversal_plan = find_traversal(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), flatten(glm::vec3(move_input.x, 0.0f, move_input.y)));
+        traversal_plan = find_traversal(player_position, flatten(glm::vec3(move_input.x, 0.0f, move_input.y)));
     }
-    update_traversal_marker(traversal_plan, dt / 1000.0f);
+    // marker stays visible whenever player is close to something traversable, even when standing still or walking along it
+    update_traversal_marker(traversal_plan.type != TraversalPlan::Type::eNone ? traversal_plan : find_nearest_traversal(player_position), dt / 1000.0f);
     if (traversal_plan.type != TraversalPlan::Type::eNone
         && traversal_plan.distance <= TRAVERSAL_TRIGGER_DISTANCE
         && traversal_regrab_cooldown_ <= 0.0f)
@@ -1179,6 +1182,23 @@ project_c::Player::TraversalPlan project_c::Player::find_traversal(const glm::ve
 
     // walking toward the edge of a roof
     return plan_climb_down(position, direction);
+}
+
+project_c::Player::TraversalPlan project_c::Player::find_nearest_traversal(const glm::vec3& position) const
+{
+    // 8 directions, 45 degrees apart, so every wall is approached within TRAVERSAL_MIN_APPROACH_DOT by one of them
+    constexpr int directions_count = 8;
+    TraversalPlan nearest{};
+    for (int i = 0; i < directions_count; i++)
+    {
+        const float angle = glm::two_pi<float>() * static_cast<float>(i) / static_cast<float>(directions_count);
+        const auto plan = find_traversal(position, glm::vec3(std::sin(angle), 0.0f, std::cos(angle)));
+        if (plan.type != TraversalPlan::Type::eNone && (nearest.type == TraversalPlan::Type::eNone || plan.distance < nearest.distance))
+        {
+            nearest = plan;
+        }
+    }
+    return nearest;
 }
 
 project_c::Player::TraversalPlan project_c::Player::plan_vault(const glm::vec3& position, const ProbeHit& low_hit) const

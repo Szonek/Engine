@@ -224,6 +224,7 @@ private:
 
     ProbeHit probe(const glm::vec3& from, const glm::vec3& to) const;
     TraversalPlan find_traversal(const glm::vec3& position, const glm::vec3& direction) const;
+    TraversalPlan find_nearest_traversal(const glm::vec3& position) const;
     TraversalPlan plan_vault(const glm::vec3& position, const ProbeHit& low_hit) const;
     TraversalPlan plan_climb_down(const glm::vec3& position, const glm::vec3& direction) const;
     void execute_traversal(engine_animation_controller_t* animation_controller, const TraversalPlan& plan);
