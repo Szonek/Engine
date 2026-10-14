@@ -39,13 +39,15 @@ constexpr float OCCLUDER_FADE = 0.75f;              // not fully invisible, the 
 constexpr float OCCLUDER_FADE_OUT_SECONDS = 0.15f;  // time to fade out an occluder
 constexpr float OCCLUDER_FADE_IN_SECONDS = 0.3f;    // time to bring it back
 constexpr std::size_t OCCLUDER_MAX_HITS_PER_RAY = 6;
-// rays are cast from a few points of the player's body toward the camera
+// Rays are cast from a few points of the player's body toward the camera.
+// All points have to stay inside the body: a climbing player is only ~0.2 away from the wall surface,
+// a point further to the side starts inside the wall and the ray "sees" the wall and roof as occluders.
 const std::array<glm::vec3, 5> OCCLUSION_SAMPLE_OFFSETS = {
-    glm::vec3( 0.0f, 0.2f, 0.0f),
-    glm::vec3( 0.0f, 0.5f, 0.0f),
-    glm::vec3( 0.0f, 0.85f, 0.0f),
-    glm::vec3(-0.3f, 0.5f, 0.0f),
-    glm::vec3( 0.3f, 0.5f, 0.0f),
+    glm::vec3( 0.0f,  0.2f, 0.0f),
+    glm::vec3( 0.0f,  0.5f, 0.0f),
+    glm::vec3( 0.0f,  0.8f, 0.0f),
+    glm::vec3(-0.12f, 0.5f, 0.0f),
+    glm::vec3( 0.12f, 0.5f, 0.0f),
 };
 
 float smooth_damp(float current, float target, float& velocity, float smooth_time, float delta_seconds)
