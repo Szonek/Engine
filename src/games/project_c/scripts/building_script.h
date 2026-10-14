@@ -1,5 +1,6 @@
 #pragma once
 #include "base_script.h"
+#include "camera_script.h"
 
 #include <optional>
 #include <vector>
@@ -12,7 +13,8 @@ class AppProjectC;
 
 // Static piece of a building (wall, roof or an invisible collision block).
 // Player traversal (climb/vault/mantle) only reacts to colliders owned by BuildingParts.
-class BuildingPart : public BaseNode
+// Faded by the camera when it hides the player.
+class BuildingPart : public BaseNode, public CameraOccluder
 {
 public:
     struct Box
@@ -39,6 +41,10 @@ public:
     // Hides mesh, and optionally removes the collider (so mouse picking goes through hidden roofs).
     void set_hidden(bool hidden, bool affect_collider);
 
+    // Invisible blockers fade the visible piece they belong to.
+    void set_fade_target(engine_game_object_t go) { fade_target_ = go; }
+    engine_game_object_t get_fade_target() const override { return fade_target_ != ENGINE_INVALID_GAME_OBJECT_ID ? fade_target_ : go_; }
+
 private:
     void add_collider();
 
@@ -47,6 +53,7 @@ private:
     std::optional<glm::vec3> alignment_point_;
     std::optional<glm::vec3> climbable_away_from_;
     glm::vec3 position_{ 0.0f };
+    engine_game_object_t fade_target_ = ENGINE_INVALID_GAME_OBJECT_ID;
     bool climbable_ = false;
     bool hidden_ = false;
     bool collider_removed_ = false;

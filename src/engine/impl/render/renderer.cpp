@@ -288,7 +288,7 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
                 },
                 [this, view](const ShadowPassData&, rg::PassContext&)
                 {
-                    draw_meshes_depth_only(view, *view.shadow_camera_ubo);
+                    draw_meshes_depth_only(view, *view.shadow_camera_ubo, false);
                 }).shadow_map;
         }
 
@@ -304,7 +304,7 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
             },
             [this, view](const rg::NoPassData&, rg::PassContext&)
             {
-                draw_meshes_depth_only(view, *view.camera_ubo);
+                draw_meshes_depth_only(view, *view.camera_ubo, true);
             });
 
         rg::TextureHandle ambient_occlusion;
@@ -418,7 +418,8 @@ void engine::Renderer::draw_meshes(const FrameView& view)
             .color_diffuse = glm::value_ptr(item.diffuse_color),
             .shininess = item.shininess,
             .texture_diffuse = *item.texture_diffuse,
-            .texture_specular = *item.texture_specular };
+            .texture_specular = *item.texture_specular,
+            .fade = item.fade };
         material_static_geometry_lit_.draw(*item.geometry, ctx);
     }
 
@@ -438,7 +439,7 @@ void engine::Renderer::draw_meshes(const FrameView& view)
     }
 }
 
-void engine::Renderer::draw_meshes_depth_only(const FrameView& view, const UniformBuffer& camera_ubo)
+void engine::Renderer::draw_meshes_depth_only(const FrameView& view, const UniformBuffer& camera_ubo, bool apply_fade)
 {
     ENGINE_PROFILE_SECTION_N("Renderer::draw_meshes_depth_only");
     const auto& scene = *view.scene;
@@ -446,9 +447,11 @@ void engine::Renderer::draw_meshes_depth_only(const FrameView& view, const Unifo
 
     for (const auto& item : scene.static_meshes)
     {
+        // faded meshes keep casting full shadows
         const auto ctx = MaterialStaticGeometryDepthOnly::DrawContext{
             .camera = camera_ubo,
-            .model_matrix = glm::value_ptr(item.model) };
+            .model_matrix = glm::value_ptr(item.model),
+            .fade = apply_fade ? item.fade : 0.0f };
         material_static_geometry_depth_only_.draw(*item.geometry, ctx);
     }
 

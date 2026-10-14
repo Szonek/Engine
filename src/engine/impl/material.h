@@ -25,6 +25,8 @@ public:
         float shininess;
         const Texture2D& texture_diffuse;
         const Texture2D& texture_specular;
+        // dithered fade, see dither_fade.h
+        float fade = 0.0f;
     };
 public:
     MaterialStaticGeometryLit();
@@ -91,6 +93,8 @@ public:
     {
         const UniformBuffer& camera;
         const float* model_matrix;
+        // dithered fade, has to match the lit draw (depth pre-pass), 0 for the shadow map
+        float fade = 0.0f;
     };
 public:
     MaterialStaticGeometryDepthOnly();

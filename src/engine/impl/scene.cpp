@@ -29,6 +29,7 @@
 #include "imgui/imgui.h"
 #include "imguizmo/ImGuizmo.h"
 
+#include <algorithm>
 #include <cmath>
 
 
@@ -619,6 +620,7 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
                 StaticMeshDrawItem item;
                 if (fill_mesh_draw_item(entity, transform_component, material_component, mesh_component.geometry, item))
                 {
+                    item.fade = std::clamp(mesh_component.fade, 0.0f, 1.0f);
                     render_data.static_meshes.push_back(item);
                 }
             }

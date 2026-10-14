@@ -5,7 +5,7 @@
 #include "profiler.h"
 
 engine::MaterialStaticGeometryLit::MaterialStaticGeometryLit()
-    : shader_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "lit_helpers.h", "shadow_helpers.h", "lit.fs" }))
+    : shader_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "lit_helpers.h", "shadow_helpers.h", "dither_fade.h", "lit.fs" }))
 {
 }
 
@@ -25,6 +25,7 @@ void engine::MaterialStaticGeometryLit::draw(const Geometry& geometry, const Dra
 
     shader_.set_uniform_f4("diffuse_color", {ctx.color_diffuse, 4});
     shader_.set_uniform_f1("shininess", ctx.shininess);
+    shader_.set_uniform_f1("dither_fade", ctx.fade);
 
     shader_.set_texture_with_sampler("texture_diffuse", &ctx.texture_diffuse);
     shader_.set_texture_with_sampler("texture_specular", &ctx.texture_specular);
@@ -34,7 +35,7 @@ void engine::MaterialStaticGeometryLit::draw(const Geometry& geometry, const Dra
 }
 
 engine::MaterialSkinnedGeometryLit::MaterialSkinnedGeometryLit()
-    : shader_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "lit_helpers.h", "shadow_helpers.h", "lit.fs" }))
+    : shader_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "lit_helpers.h", "shadow_helpers.h", "dither_fade.h", "lit.fs" }))
 {
 }
 
@@ -65,7 +66,7 @@ void engine::MaterialSkinnedGeometryLit::draw(const Geometry& geometry, const Dr
 }
 
 engine::MaterialStaticGeometryDepthOnly::MaterialStaticGeometryDepthOnly()
-    : shader_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "depth_only.fs" }))
+    : shader_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "dither_fade.h", "depth_only.fs" }))
 {
 }
 
@@ -76,13 +77,14 @@ void engine::MaterialStaticGeometryDepthOnly::draw(const Geometry& geometry, con
 
     shader_.set_uniform_block("CameraData", &ctx.camera, 0);
     shader_.set_uniform_mat_f4("model", { ctx.model_matrix, 16 });
+    shader_.set_uniform_f1("dither_fade", ctx.fade);
 
     geometry.bind();
     geometry.draw(Geometry::Mode::eTriangles);
 }
 
 engine::MaterialSkinnedGeometryDepthOnly::MaterialSkinnedGeometryDepthOnly()
-    : shader_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "depth_only.fs" }))
+    : shader_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "dither_fade.h", "depth_only.fs" }))
 {
 }
 

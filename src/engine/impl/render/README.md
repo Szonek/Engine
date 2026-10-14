@@ -105,6 +105,9 @@ A new built-in lit/unlit shader is a `Material*` class in `material.h/.cpp` plus
 * Geometry/Texture pointers in draw items are only valid until the end of the frame.
 * Meshes are drawn by three passes (Shadow Map, Depth Pre-pass, Forward). The Forward pass uses depth test "less or equal" against the
   depth of the pre-pass, so a new mesh type has to be drawn in `draw_meshes_depth_only` too, with the same vertex shader as its lit draw.
+* Static meshes can be faded with `engine_mesh_component_t::fade` (screen-door transparency, `assets/shaders/dither_fade.h`).
+  There is no blending: the depth pre-pass and the Forward pass discard the same pixels, the shadow map ignores the fade,
+  so faded meshes keep casting shadows. Skinned meshes don't support it.
 * Bone matrices of all skinned meshes of a scene are uploaded once per frame (`SceneGpu::frames[...].skinning`, one copy per frame in flight guarded by a fence, so the CPU never overwrites matrices the GPU is still reading), draws only pass an offset into it.
 * `RenderGraph` is unit tested without a GL context: see `src/tests/unit_tests/render_graph_tests.cpp` (target `render_graph_tests`).
   The same target contains tests of the shadow map math (`shadows_tests.cpp`).

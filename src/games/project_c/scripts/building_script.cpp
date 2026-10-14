@@ -173,6 +173,7 @@ void project_c::House::add_window_wall(AppProjectC& app, const glm::vec3& positi
         auto frame = my_scene_->register_script<BuildingPart>(engineGameObjectCreate(), "house-window-frame", position, y_rotation_degrees, scale, box, true);
         frame->set_alignment_point(position);
         frame->set_climbable_away_from({ center_.x, ground_y_, center_.y });
+        frame->set_fade_target(part->get_game_object());
     }
 }
 
