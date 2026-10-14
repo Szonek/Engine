@@ -43,7 +43,9 @@ public:
 
     // Invisible blockers fade the visible piece they belong to.
     void set_fade_target(engine_game_object_t go) { fade_target_ = go; }
-    engine_game_object_t get_fade_target() const override { return fade_target_ != ENGINE_INVALID_GAME_OBJECT_ID ? fade_target_ : go_; }
+    // faded together with this part, i.e. props standing on the roof
+    void add_extra_fade_target(engine_game_object_t go) { extra_fade_targets_.push_back(go); }
+    void get_fade_targets(std::vector<engine_game_object_t>& out) const override;
 
 private:
     void add_collider();
@@ -54,6 +56,7 @@ private:
     std::optional<glm::vec3> climbable_away_from_;
     glm::vec3 position_{ 0.0f };
     engine_game_object_t fade_target_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    std::vector<engine_game_object_t> extra_fade_targets_;
     bool climbable_ = false;
     bool hidden_ = false;
     bool collider_removed_ = false;
@@ -75,8 +78,8 @@ public:
 
     float get_roof_top_y() const { return ground_y_ + wall_height + roof_thickness; }
     glm::vec3 get_roof_center() const { return { center_.x, get_roof_top_y(), center_.y }; }
-    // objects standing on the roof, hidden together with the roof
-    void add_roof_prop(engine_game_object_t go) { roof_props_.push_back(go); }
+    // objects standing on the roof, hidden and faded together with the roof
+    void add_roof_prop(engine_game_object_t go);
 
 private:
     bool is_inside(const glm::vec3& p) const;
@@ -92,6 +95,7 @@ private:
     engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
     std::vector<BuildingPart*> camera_occluders_;
     std::vector<engine_game_object_t> roof_props_;
+    CameraScript* camera_ = nullptr;
     BuildingPart* roof_ = nullptr;
 };
 

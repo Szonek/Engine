@@ -2,6 +2,8 @@
 #include "base_script.h"
 
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 #include <glm/glm.hpp>
 
@@ -13,8 +15,9 @@ class CameraOccluder
 {
 public:
     virtual ~CameraOccluder() = default;
-    // game object with the mesh to fade (collider and mesh can live on different game objects)
-    virtual engine_game_object_t get_fade_target() const = 0;
+    // game objects with the meshes to fade (collider and mesh can live on different game objects,
+    // one occluder can also take others with it, i.e. roof and the props standing on it)
+    virtual void get_fade_targets(std::vector<engine_game_object_t>& out) const = 0;
 };
 
 class CameraScript : public BaseNode
@@ -24,6 +27,8 @@ public:
     void snap_to_player();
     void late_update(float dt) override;
     void shake(float intensity, float duration_seconds);
+    // Keeps the mesh faded as if it was hiding the player, i.e. front wall of the room the player is in.
+    void set_forced_fade(engine_game_object_t go, bool forced);
 
 private:
     bool find_player();
@@ -41,6 +46,7 @@ private:
 
     // fade target -> current fade
     std::unordered_map<engine_game_object_t, float> occluders_fade_;
+    std::unordered_set<engine_game_object_t> forced_fade_;
 
     float shake_remaining_seconds_ = 0.0f;
     float shake_duration_seconds_ = 0.0f;

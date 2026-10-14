@@ -87,6 +87,12 @@ bool project_c::BuildingPart::is_climbable(const glm::vec3& surface_normal) cons
     return true;
 }
 
+void project_c::BuildingPart::get_fade_targets(std::vector<engine_game_object_t>& out) const
+{
+    out.push_back(fade_target_ != ENGINE_INVALID_GAME_OBJECT_ID ? fade_target_ : go_);
+    out.insert(out.end(), extra_fade_targets_.begin(), extra_fade_targets_.end());
+}
+
 void project_c::BuildingPart::set_hidden(bool hidden, bool affect_collider)
 {
     if (hidden_ != hidden && engineGameObjectHasMeshComponent(go_))
@@ -191,6 +197,15 @@ void project_c::House::add_roof(AppProjectC& app)
         ROOF_BOX, false);
 }
 
+void project_c::House::add_roof_prop(engine_game_object_t go)
+{
+    roof_props_.push_back(go);
+    if (roof_)
+    {
+        roof_->add_extra_fade_target(go);
+    }
+}
+
 bool project_c::House::is_inside(const glm::vec3& p) const
 {
     const float interior_half_size = half_size - wall_thickness * 0.5f;
@@ -210,6 +225,11 @@ void project_c::House::update(float dt)
         }
         player_go_ = players.front();
     }
+    if (!camera_)
+    {
+        const auto cameras = utils::get_game_objects_with_name("camera");
+        camera_ = cameras.empty() ? nullptr : my_scene_->get_script<CameraScript>(cameras.front());
+    }
 
     const auto ptc = engineGameObjectGetTransformComponent(player_go_);
     const bool inside = is_inside({ ptc.position[0], ptc.position[1], ptc.position[2] });
@@ -219,15 +239,19 @@ void project_c::House::update(float dt)
     }
     player_inside_ = inside;
 
-    // classic ARPG "cut away": hide what blocks the view of the room from the top-down camera
-    // roof collider is removed as well, so mouse aiming/picking hits the room floor instead of the roof
+    // classic ARPG "cut away": roof is hidden while the player is inside,
+    // its collider is removed as well, so mouse aiming/picking hits the room floor instead of the roof
     if (roof_)
     {
         roof_->set_hidden(inside, true);
     }
-    for (auto* occluder : camera_occluders_)
+    // wall facing the camera stays, but faded (camera owns fading, so it is asked to keep it faded)
+    if (camera_)
     {
-        occluder->set_hidden(inside, false);
+        for (auto* occluder : camera_occluders_)
+        {
+            camera_->set_forced_fade(occluder->get_game_object(), inside);
+        }
     }
     for (const auto prop : roof_props_)
     {

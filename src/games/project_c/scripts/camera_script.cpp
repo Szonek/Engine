@@ -215,7 +215,8 @@ void project_c::CameraScript::update_occluders_fade(const glm::vec3& player_posi
     engine::ScopedProfiler profiler("project_c::CameraScript::update_occluders_fade");
     // everything a ray from the player toward the camera passes through. Engine ray returns only the closest hit,
     // so hits are collected by casting again with the previous hits ignored.
-    std::unordered_set<engine_game_object_t> occluding;
+    std::unordered_set<engine_game_object_t> occluding(forced_fade_.begin(), forced_fade_.end());
+    std::vector<engine_game_object_t> fade_targets;
     const glm::vec3 to_camera = CAMERA_OFFSET;
     for (const auto& sample_offset : OCCLUSION_SAMPLE_OFFSETS)
     {
@@ -236,7 +237,9 @@ void project_c::CameraScript::update_occluders_fade(const glm::vec3& player_posi
             ignore_list.push_back(hit.go);
             if (const auto* occluder = my_scene_->get_script<CameraOccluder>(hit.go))
             {
-                occluding.insert(occluder->get_fade_target());
+                fade_targets.clear();
+                occluder->get_fade_targets(fade_targets);
+                occluding.insert(fade_targets.begin(), fade_targets.end());
             }
         }
     }
@@ -267,6 +270,18 @@ void project_c::CameraScript::update_occluders_fade(const glm::vec3& player_posi
         {
             ++it;
         }
+    }
+}
+
+void project_c::CameraScript::set_forced_fade(engine_game_object_t go, bool forced)
+{
+    if (forced)
+    {
+        forced_fade_.insert(go);
+    }
+    else
+    {
+        forced_fade_.erase(go);
     }
 }
 
