@@ -122,7 +122,7 @@ project_c::Weapon::Weapon(engine::IScene* my_scene)
 
     // mesh
     auto mc = engineGameObjectAddMeshComponent(go_);
-    mc.geometry = engineGeometryGetByName("Cylinder.008");
+    mc.geometry = engineGeometryGetByName("Rogue.glb#Cylinder.008");
     assert(mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
     engineGameObjectUpdateMeshComponent(go_, &mc);
 
@@ -143,7 +143,7 @@ project_c::Weapon::Weapon(engine::IScene* my_scene)
     engineGameObjectUpdateTransformComponent(offhand_go_, &offhand_tc);
 
     auto offhand_mc = engineGameObjectAddMeshComponent(offhand_go_);
-    offhand_mc.geometry = engineGeometryGetByName("Cylinder.002");
+    offhand_mc.geometry = engineGeometryGetByName("Rogue.glb#Cylinder.002");
     assert(offhand_mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
     engineGameObjectUpdateMeshComponent(offhand_go_, &offhand_mc);
 

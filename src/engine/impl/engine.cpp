@@ -483,6 +483,10 @@ engine_result_code_t engineShaderCreate(const engine_shader_create_desc_t* desc,
         ptr++;
     }
     const auto ret = app->add_shader(vertex_shaders, fragment_shaders, name);
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
     *out = ret;
     engineLog(fmt::format("Created shader: {}, with id: {}\n", name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
@@ -645,7 +649,7 @@ engine_result_code_t engineModelDescAllocateAndLoadDataFromFile(engine_model_spe
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    const auto model_info = new engine::ModelDesc(engine::parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string()));
+    const auto model_info = new engine::ModelDesc(engine::parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string(), file_name));
     *out = reinterpret_cast<engine_model_desc_t*>(model_info);
     return ENGINE_RESULT_CODE_OK;
 }

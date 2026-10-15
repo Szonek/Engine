@@ -36,3 +36,7 @@ jobs:
 
     - name: Build
       run: cmake --build ${{github.workspace}}/buildtree --config ${{env.BUILD_TYPE}}
+
+    - name: Test
+      # only tests labelled "ci" (no GPU on the runner); see src/tests/unit_tests/CMakeLists.txt
+      run: ctest --test-dir ${{github.workspace}}/buildtree -C ${{env.BUILD_TYPE}} -L ci --output-on-failure
