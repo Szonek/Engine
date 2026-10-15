@@ -89,6 +89,8 @@ typedef struct _engine_application_create_desc_t
     uint32_t height;
     bool fullscreen;
     bool enable_editor;
+    // create the window hidden (e.g. automated tests); frames still render but are never presented
+    bool hidden_window;
 } engine_application_create_desc_t;
 
 typedef struct _engine_scene_create_desc_t

@@ -4,21 +4,6 @@
 
 #include <vector>
 
-// ToDo: this test should only run when embedded shaders is implemented, now it depends on loading shader from disk
-TEST(Basic, DISABLED_App_CreateAndDestroy) 
-{
-    engine_application_create_desc_t desc{};
-    desc.name = "Test-App";
-    desc.width = 1280;
-    desc.height = 720;
-    desc.asset_store_path = "";
-    desc.fullscreen = false;
-    engine_application_t app = nullptr;
-    engineApplicationCreate(&app, desc);
-    ASSERT_NE(app, nullptr);
-    engineApplicationDestroy(app);
-}
-
 TEST(Basic, VectorU32)
 {
     const std::vector<std::uint32_t> test_values = {13, 0, 0, 37};

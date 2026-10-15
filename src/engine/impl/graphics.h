@@ -466,7 +466,7 @@ public:
     };
 
 public:
-	RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen);
+	RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen, bool hidden = false);
 	
 	RenderContext(const RenderContext&) = delete;
 	RenderContext(RenderContext&& rhs) noexcept;
@@ -509,6 +509,8 @@ public:
 private:
     SDL_Window* window_ = nullptr;
     SDL_GLContext context_ = nullptr;
+    // nothing is presented: frames render into the back buffer but are never swapped
+    bool hidden_ = false;
 
     // this 2 are used for UI render
     SystemInterface_SDL* ui_rml_sdl_interface_ = nullptr;

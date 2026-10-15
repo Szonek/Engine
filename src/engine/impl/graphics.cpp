@@ -869,7 +869,8 @@ message_callback(GLenum /*source*/,
 }
 #endif
 
-engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen)
+engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen, bool hidden)
+    : hidden_(hidden)
 {
     std::int32_t result_code = 0;
     result_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
@@ -930,6 +931,10 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     if (init_fullscreen)
     {
         window_init_flags |= SDL_WINDOW_FULLSCREEN;
+    }
+    if (hidden)
+    {
+        window_init_flags |= SDL_WINDOW_HIDDEN;
     }
     window_ = SDL_CreateWindow(window_name.data(),
         init_size.width, init_size.height, window_init_flags);
@@ -1032,6 +1037,7 @@ engine::RenderContext::RenderContext(RenderContext&& rhs) noexcept
 {
 	std::swap(window_, rhs.window_);
 	std::swap(context_, rhs.context_);
+	std::swap(hidden_, rhs.hidden_);
 	std::swap(ui_rml_sdl_interface_, rhs.ui_rml_sdl_interface_);
 	std::swap(ui_rml_gl3_renderer_, rhs.ui_rml_gl3_renderer_);
 }
@@ -1042,6 +1048,7 @@ engine::RenderContext& engine::RenderContext::operator=(RenderContext&& rhs) noe
 	{
 		std::swap(window_, rhs.window_);
 		std::swap(context_, rhs.context_);
+		std::swap(hidden_, rhs.hidden_);
         std::swap(ui_rml_sdl_interface_, rhs.ui_rml_sdl_interface_);
         std::swap(ui_rml_gl3_renderer_, rhs.ui_rml_gl3_renderer_);
 	}
@@ -1256,7 +1263,11 @@ void engine::RenderContext::end_frame()
 {
     //ENGINE_PROFILER_GPU_SECTION("engine::RenderContext::end_frame()");
     //ui_rml_gl3_renderer_->EndFrame();
-    SDL_GL_SwapWindow(window_);
+    // a hidden window is never presented; skipping the swap also avoids drivers throttling unfocused windows
+    if (!hidden_)
+    {
+        SDL_GL_SwapWindow(window_);
+    }
     ENGINE_PROFILER_GPU_SWAP_WINDOW;
 	// process errors
 #if _DEBUG
