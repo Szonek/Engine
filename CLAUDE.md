@@ -18,7 +18,7 @@ cmake --build build --config Debug --target project_c_game     # build the game 
 cmake --build build --config Debug                             # build everything, including all thirdparty samples (slow)
 build\bin\Debug\project_c_game.exe                             # run
 
-cmake --build build --config Debug --target engine_logic_tests unit_tests scenario_tests
+cmake --build build --config Debug --target engine_logic_tests scenario_tests
 ctest --test-dir build -C Debug                                # all tests
 ctest --test-dir build -C Debug -L ci                          # only the tests CI runs
 ctest --test-dir build -C Debug -L gpu --output-on-failure     # scenario tests (real game code, needs a GPU)
@@ -32,7 +32,7 @@ Things that will trip you up:
 - **Sources are listed explicitly** in each `CMakeLists.txt` (no globbing). A new `.cpp`/`.h` must be added to the list by hand. `src/games/project_c/scripts/solider_script.cpp` is on disk but intentionally not in the build.
 - **The asset path is baked in at configure time**: `PROJECT_C_ASSETS_DIR` (set in `src/games/project_c/CMakeLists.txt`) points at the `assets/` folder of the source tree the game was built from, so a worktree build uses its own shaders. Shaders, models, fonts and UI documents are loaded from there at runtime, so asset edits need no rebuild.
 - **The game starts paused when the editor is enabled** (`enable_editor = true` in `app.cpp`). Scripts only tick while the editor is in Play mode — see `IScene::update`.
-- `unit_tests` has almost no coverage. `engine_logic_tests` is the meaningful suite: it compiles the engine sources under test (render graph, shadow maths, the header-only resource atlas with a stub logger) directly and needs neither GL nor the engine DLL. **Add new GL-free tests to it** instead of creating another executable; tests that need a GL context belong in `scenario_tests`.
+- `engine_logic_tests` (in `src/tests/unit_tests`) compiles the engine sources under test (render graph, shadow maths, the header-only resource atlas with a stub logger) directly and needs neither GL nor the engine DLL. **Add new GL-free tests to it** instead of creating another executable; tests that need a GL context belong in `scenario_tests`.
 - **Scenario tests** (`src/tests/scenario_tests`) run real gameplay code: the game is built as the static library `project_c_lib` (everything but `main.cpp`), which the test links. One `AppProjectC` is created for the whole run (hidden window, editor off so gameplay is never paused, no default level, `AppConfig` in `app.h`). A test derives from `scenario::ScenarioTest`, loads its own `IScene` with `load_scene<T>()` and advances it with `step(frames)`: every frame simulates exactly `FIXED_DT_MS` (1/60 s) whatever the real frame time, so runs are deterministic. Delta times are in **milliseconds** throughout the engine and scripts. Frames still render (in a 320x180 window) but are never presented, so a frame costs well under 1 ms; most of the suite's time in Debug is loading the prefabs once (~7 s).
 - There is no linter or formatter config. `-Werror` is only applied to the engine on non-MSVC compilers.
 - CI (`.github/workflows/cmake-single-platform.yml`) builds Release on Windows and runs the tests labelled `ci` (`set_tests_properties(... LABELS ci)`). The runner has no GPU, so GL-dependent tests must not get the label. Release compiles out `assert`, so tests must check return values or state, not rely on an assert firing.
