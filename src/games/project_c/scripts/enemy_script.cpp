@@ -17,7 +17,9 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstring>
+#include <limits>
 
 namespace
 {
@@ -40,6 +42,8 @@ constexpr std::array<EnemyAttackAnimation, 2> ENEMY_ATTACK_ANIMATIONS = { {
     { "1H_Melee_Attack_Slice_Horizontal", 0.18f, 0.36f },
 } };
 constexpr float ENEMY_ATTACK_RANGE = 1.15f;
+// player climbing a wall or standing on a roof is out of reach
+constexpr float ENEMY_MAX_REACH_HEIGHT = 0.6f;
 constexpr float ENEMY_ATTACK_COOLDOWN_SECONDS = 0.8f;
 constexpr std::uint32_t ENEMY_ATTACK_DAMAGE = 2;
 
@@ -269,7 +273,10 @@ void project_c::Enemy::update(float dt)
 
     auto tc = engineGameObjectGetTransformComponent(go_);
     auto ec = engineGameObjectGetTransformComponent(player_go_);
-    const auto distance_to_player = glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
+    const bool player_out_of_reach = std::abs(ec.position[1] - tc.position[1]) > ENEMY_MAX_REACH_HEIGHT;
+    const auto distance_to_player = player_out_of_reach
+        ? std::numeric_limits<float>::max()
+        : glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
 
     const auto my_node_idx =  nav_mesh_->get_node_idx({ tc.position[0], tc.position[1], tc.position[2] });
     const auto player_node_idx =  nav_mesh_->get_node_idx({ ec.position[0], ec.position[1], ec.position[2] });
