@@ -12,6 +12,7 @@
 #include <fmt/chrono.h>
 
 #include <array>
+#include <functional>
 #include <unordered_map>
 
 namespace project_c
@@ -38,7 +39,7 @@ public:
 
     PrefabResult instantiate_prefab(PrefabType type, engine::IScene* scene);
     bool is_prefab_available(PrefabType type) const;
-    // One frame of the game (dt in milliseconds): updates the scenes and applies the game's per-frame rules.
+    // One frame of the game (dt in milliseconds): updates the scenes, then applies scene changes they requested.
     // The caller owns the loop and calls it between engineFrameBegin() and engineFrameEnd() (main.cpp, tests).
     void update(float dt);
 
@@ -46,9 +47,21 @@ public:
     const PlayerInput& player_input() const { return player_input_; }
     void set_player_input(const PlayerInput& input) { player_input_ = input; }
 
+    // Replaces scene T with a fresh instance at the end of this frame's update(): a scene can't destroy and
+    // re-create itself while it is being updated (e.g. a level restarting itself).
+    template<typename T>
+    void request_scene_reload()
+    {
+        pending_scene_change_ = [this]()
+        {
+            unregister_scene(T::get_name());
+            register_scene<T>()->activate();
+        };
+    }
+
 private:
     std::array<Prefab, PREFAB_TYPE_COUNT> prefabs_;
     PlayerInput player_input_{};
-    bool restart_was_down_ = false;
+    std::function<void()> pending_scene_change_;
 };
 } // namespace project_c

@@ -1,8 +1,6 @@
 #include "app.h"
 #include "iscene.h"
 
-#include "scenes/scene_test.h"
-
 #include "scripts/enemy_script.h"
 
 #include <chrono>
@@ -111,19 +109,10 @@ void project_c::AppProjectC::update(float dt)
 {
     update_scenes(dt);
 
-    auto* scene = static_cast<TestScene*>(get_scene(TestScene::get_name()));
-    if (scene)
+    if (pending_scene_change_)
     {
-        scene->set_gameplay_ui_visible(engineEditorIsGameView());
-    }
-
-    // once the encounter is over (cleared or player dead), restart starts the level again
-    const bool restart_pressed = player_input_.restart && !restart_was_down_;
-    restart_was_down_ = player_input_.restart;
-    if (scene && scene->is_encounter_over() && restart_pressed)
-    {
-        unregister_scene(TestScene::get_name());
-        auto* restarted_scene = register_scene<TestScene>();
-        restarted_scene->activate();
+        const auto change = std::move(pending_scene_change_);
+        pending_scene_change_ = nullptr;
+        change();
     }
 }
