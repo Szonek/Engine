@@ -411,38 +411,6 @@ bool engineMouseIsButtonUp(engine_mouse_button_t button)
 	return !engineMouseIsButtonDown(button);
 }
 
-void engineInputInjectionSetEnabled(bool enabled)
-{
-    if (G_ACTIVE_APP)
-    {
-        api_cast(G_ACTIVE_APP)->set_input_injection_enabled(enabled);
-    }
-}
-
-void engineInputInjectKeyboardKey(engine_keyboard_keys_t key, bool down)
-{
-    if (G_ACTIVE_APP)
-    {
-        api_cast(G_ACTIVE_APP)->inject_keyboard_key(key, down);
-    }
-}
-
-void engineInputInjectMouseButton(engine_mouse_button_t button, bool down)
-{
-    if (G_ACTIVE_APP)
-    {
-        api_cast(G_ACTIVE_APP)->inject_mouse_button(button, down);
-    }
-}
-
-void engineInputInjectMouseCoords(engine_fvec2_t coords)
-{
-    if (G_ACTIVE_APP)
-    {
-        api_cast(G_ACTIVE_APP)->inject_mouse_coords(coords);
-    }
-}
-
 //bool engineApplicationGetFingerInfo(engine_application_t handle, engine_fingers_infos_list_t* infos_list)
 //{
 //    if (!infos_list)

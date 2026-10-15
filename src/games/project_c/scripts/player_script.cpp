@@ -526,21 +526,21 @@ void project_c::Player::update(float dt)
     }
 
     // [DEBUG] reset position  ToDo: remove it later
-    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_0))
+    if (input().debug_reset_position)
     {
         set_world_position( 0.0f, 1.0f, 0.0f );
     }
 
     const std::array<engine_game_object_t, 1> raycast_ignore_list = { attack_trigger_->get_game_object() };
     const auto active_camera_go = utils::get_active_camera_game_objects()[0];
-    const auto ray = utils::get_ray_from_mouse_position(active_camera_go);
+    const auto ray = utils::get_ray_from_cursor(active_camera_go, input().cursor);
     const auto hit_info = enginePhysicsRayCast(raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000000.0f);
 
-    const auto lmb = engineMouseIsButtonDown(ENGINE_MOUSE_BUTTON_LEFT);
-    const auto rmb = engineMouseIsButtonDown(ENGINE_MOUSE_BUTTON_RIGHT);
+    const auto lmb = input().interact;
+    const auto rmb = input().attack;
     const bool attack_pressed = rmb && !attack_input_was_down_;
     attack_input_was_down_ = rmb;
-    const auto space_down = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_SPACE);
+    const auto space_down = input().dodge;
     const bool dodge_pressed = space_down && !dodge_input_was_down_;
     dodge_input_was_down_ = space_down;
     traversal_regrab_cooldown_ = std::max(0.0f, traversal_regrab_cooldown_ - dt / 1000.0f);
@@ -580,11 +580,11 @@ void project_c::Player::update(float dt)
         }
     }
 
-    const auto button_A = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_A);
-    const auto button_W = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_W);
-    const auto button_D = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_D);
-    const auto button_S = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_S);
-    if (weapon_ && engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_F))
+    const auto button_A = input().left;
+    const auto button_W = input().forward;
+    const auto button_D = input().right;
+    const auto button_S = input().back;
+    if (weapon_ && input().drop_weapon)
     {
         // drop weapon
         const auto tc = engineGameObjectGetTransformComponent(go_);
@@ -810,6 +810,11 @@ void project_c::Player::update(float dt)
             engineGameObjectUpdateTransformComponent(go_, &facing_transform);
         }
     }
+}
+
+const project_c::PlayerInput& project_c::Player::input() const
+{
+    return static_cast<const AppProjectC*>(my_scene_->get_app())->player_input();
 }
 
 bool project_c::Player::equip_waepon(Weapon* sword)
@@ -1496,11 +1501,12 @@ void project_c::Player::update_traversal(engine_animation_controller_t* animatio
 
     // Same WASD directions as on the ground: pushing toward the wall climbs up, away from it climbs down,
     // along the wall shimmies sideways. I.e. wall on the right side of the screen -> holding D climbs.
+    const PlayerInput& player_input = this->input();
     glm::vec3 input(0.0f);
-    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_A)) input.x -= 1.0f;
-    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_D)) input.x += 1.0f;
-    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_W)) input.z -= 1.0f;
-    if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_S)) input.z += 1.0f;
+    if (player_input.left) input.x -= 1.0f;
+    if (player_input.right) input.x += 1.0f;
+    if (player_input.forward) input.z -= 1.0f;
+    if (player_input.back) input.z += 1.0f;
     if (glm::length(input) > 1.0f)
     {
         input = glm::normalize(input);

@@ -422,20 +422,12 @@ engine::UiDataHandle engine::Application::create_ui_document_data_handle(std::st
 
 bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
 {
-    if (injected_input_.enabled)
-    {
-        return key < injected_input_.keys.size() && injected_input_.keys[key];
-    }
     const auto state = SDL_GetKeyboardState(nullptr);
     return static_cast<bool>(state[key]);
 }
 
 engine_fvec2_t engine::Application::mouse_get_coords()
 {
-    if (injected_input_.enabled)
-    {
-        return injected_input_.mouse_coords;
-    }
 	float coord_x = 0.;
 	float coord_y = 0.;
     SDL_GetMouseState(&coord_x, &coord_y);
@@ -451,40 +443,8 @@ engine_fvec2_t engine::Application::mouse_get_coords()
 
 bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
 {
-    if (injected_input_.enabled)
-    {
-        return button < injected_input_.mouse_buttons.size() && injected_input_.mouse_buttons[button];
-    }
     const auto state = SDL_GetMouseState(nullptr, nullptr);
     return state & SDL_BUTTON_MASK(button);
-}
-
-void engine::Application::set_input_injection_enabled(bool enabled)
-{
-    // start from "nothing pressed, cursor in the middle" every time
-    injected_input_ = {};
-    injected_input_.enabled = enabled;
-}
-
-void engine::Application::inject_keyboard_key(engine_keyboard_keys_t key, bool down)
-{
-    if (key < injected_input_.keys.size())
-    {
-        injected_input_.keys[key] = down;
-    }
-}
-
-void engine::Application::inject_mouse_button(engine_mouse_button_t button, bool down)
-{
-    if (button < injected_input_.mouse_buttons.size())
-    {
-        injected_input_.mouse_buttons[button] = down;
-    }
-}
-
-void engine::Application::inject_mouse_coords(engine_fvec2_t coords)
-{
-    injected_input_.mouse_coords = coords;
 }
 
 std::array<engine_finger_info_t, 10> engine::Application::get_finger_info_events() const

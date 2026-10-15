@@ -88,14 +88,13 @@ glm::quat project_c::utils::rotate_toward(glm::vec3 origin, glm::vec3 target)
     return glm::angleAxis(glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
-engine_ray_t project_c::utils::get_ray_from_mouse_position(engine_game_object_t go_camera)
+engine_ray_t project_c::utils::get_ray_from_cursor(engine_game_object_t go_camera, engine_fvec2_t cursor)
 {
     engine_ray_t ray{};
-    const auto mouse_coords = engineMouseCoordsGet();
     // from the point under the cursor on the near plane to the one on the far plane.
     // Works for both projections (orthographic rays are parallel, so they can't start at the camera position).
-    ray.origin = engineCameraComponentConvertSpacePositionToWorldPosition(go_camera, engine_fvec3_t{mouse_coords.x, mouse_coords.y, 0.0f});
-    ray.direction = engineCameraComponentConvertSpacePositionToWorldPosition(go_camera, engine_fvec3_t{mouse_coords.x, mouse_coords.y, 1.0f});
+    ray.origin = engineCameraComponentConvertSpacePositionToWorldPosition(go_camera, engine_fvec3_t{cursor.x, cursor.y, 0.0f});
+    ray.direction = engineCameraComponentConvertSpacePositionToWorldPosition(go_camera, engine_fvec3_t{cursor.x, cursor.y, 1.0f});
     return ray;
 }
 

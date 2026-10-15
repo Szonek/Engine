@@ -10,7 +10,6 @@
 #include "mesh_defs.h"
 #include "render/renderer.h"
 
-#include <bitset>
 
 namespace engine
 {
@@ -71,12 +70,6 @@ public:
 
     virtual std::array<engine_finger_info_t, 10> get_finger_info_events() const;
 
-    // Input injection (automated tests): while enabled, the keyboard/mouse queries above report only the injected state.
-    void set_input_injection_enabled(bool enabled);
-    void inject_keyboard_key(engine_keyboard_keys_t key, bool down);
-    void inject_mouse_button(engine_mouse_button_t button, bool down);
-    void inject_mouse_coords(engine_fvec2_t coords);
-
 protected:
     virtual void on_frame_begine(const engine_application_frame_begine_info_t&) {}
     virtual void on_sdl_event(SDL_Event e) {}
@@ -99,15 +92,6 @@ protected:
 
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;
-
-    struct InjectedInput
-    {
-        bool enabled = false;
-        std::bitset<256> keys;
-        std::bitset<ENGINE_MOUSE_BUTTON_COUNT> mouse_buttons;
-        engine_fvec2_t mouse_coords{ 0.5f, 0.5f };
-    };
-    InjectedInput injected_input_;
 
     Renderer renderer_;
 };

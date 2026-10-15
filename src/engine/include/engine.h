@@ -583,14 +583,6 @@ ENGINE_API engine_fvec2_t engineMouseCoordsGet();
 ENGINE_API bool engineMouseIsButtonDown(engine_mouse_button_t mb);
 ENGINE_API bool engineMouseIsButtonUp(engine_mouse_button_t mb);
 
-// input injection (automated tests): while enabled, the keyboard/mouse queries above report only the injected state,
-// never the real devices. Enabling or disabling resets it to nothing pressed, cursor in the middle of the window.
-ENGINE_API void engineInputInjectionSetEnabled(bool enabled);
-ENGINE_API void engineInputInjectKeyboardKey(engine_keyboard_keys_t key, bool down);
-ENGINE_API void engineInputInjectMouseButton(engine_mouse_button_t mb, bool down);
-// same space as engineMouseCoordsGet: (0, 0) is the bottom-left corner of the window, (1, 1) the top-right
-ENGINE_API void engineInputInjectMouseCoords(engine_fvec2_t coords);
-
 //frame handling
 ENGINE_API engine_application_frame_begine_info_t engineFrameBegin();
 ENGINE_API engine_result_code_t                   engineFrameSceneUpdate(float delta_time);

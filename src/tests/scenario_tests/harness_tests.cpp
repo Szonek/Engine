@@ -30,26 +30,18 @@ public:
     float total_dt_ms = 0.0f;
 };
 
-// records what a gameplay script reads from the input API in its update
+// records the player input a gameplay script sees in its update
 class InputProbe : public engine::IScript
 {
 public:
     InputProbe(engine::IScene* scene) : IScript(scene) {}
     void update(float) override
     {
-        forward = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_W);
-        dodge = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_SPACE);
-        escape = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_ESCAPE);
-        attack = engineMouseIsButtonDown(ENGINE_MOUSE_BUTTON_RIGHT);
-        cursor = engineMouseCoordsGet();
-        frames_forward_held += forward ? 1 : 0;
+        seen = static_cast<const project_c::AppProjectC*>(my_scene_->get_app())->player_input();
+        frames_forward_held += seen.forward ? 1 : 0;
     }
 
-    bool forward = false;
-    bool dodge = false;
-    bool escape = false;
-    bool attack = false;
-    engine_fvec2_t cursor{};
+    project_c::PlayerInput seen{};
     std::uint32_t frames_forward_held = 0;
 };
 
@@ -100,29 +92,27 @@ TEST_F(HarnessTest, ScriptsSeeInjectedInput)
     auto* scene = load_scene<EmptyScene>();
     auto* probe = scene->register_script<InputProbe>();
 
-    scenario::PlayerInput input{};
+    project_c::PlayerInput input{};
     input.forward = true;
     input.attack = true;
-    input.cursor_x = 0.25f;
-    input.cursor_y = 0.75f;
+    input.cursor = { 0.25f, 0.75f };
     set_input(input);
     step();
 
-    EXPECT_TRUE(probe->forward);
-    EXPECT_TRUE(probe->attack);
-    EXPECT_FALSE(probe->dodge);
-    // keys the harness doesn't drive stay up, whatever the real keyboard does
-    EXPECT_FALSE(probe->escape);
-    EXPECT_FLOAT_EQ(probe->cursor.x, 0.25f);
-    EXPECT_FLOAT_EQ(probe->cursor.y, 0.75f);
+    // what the test set, not the real keyboard/mouse: the frame update doesn't overwrite it from the devices
+    EXPECT_TRUE(probe->seen.forward);
+    EXPECT_TRUE(probe->seen.attack);
+    EXPECT_FALSE(probe->seen.dodge);
+    EXPECT_FLOAT_EQ(probe->seen.cursor.x, 0.25f);
+    EXPECT_FLOAT_EQ(probe->seen.cursor.y, 0.75f);
 
     release_all_input();
     step();
 
-    EXPECT_FALSE(probe->forward);
-    EXPECT_FALSE(probe->attack);
-    EXPECT_FLOAT_EQ(probe->cursor.x, 0.5f);
-    EXPECT_FLOAT_EQ(probe->cursor.y, 0.5f);
+    EXPECT_FALSE(probe->seen.forward);
+    EXPECT_FALSE(probe->seen.attack);
+    EXPECT_FLOAT_EQ(probe->seen.cursor.x, 0.5f);
+    EXPECT_FLOAT_EQ(probe->seen.cursor.y, 0.5f);
 }
 
 TEST_F(HarnessTest, InputIsHeldUntilChanged)
@@ -130,7 +120,7 @@ TEST_F(HarnessTest, InputIsHeldUntilChanged)
     auto* scene = load_scene<EmptyScene>();
     auto* probe = scene->register_script<InputProbe>();
 
-    scenario::PlayerInput input{};
+    project_c::PlayerInput input{};
     input.forward = true;
     set_input(input);
     step(10);

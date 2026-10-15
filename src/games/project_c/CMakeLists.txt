@@ -9,6 +9,9 @@ set(LIB_SOURCES
 	
 	app.h
 	app.cpp
+
+	player_input.h
+	player_input.cpp
 	
 	nav_mesh.h
 	nav_mesh.cpp
