@@ -34,7 +34,8 @@ protected:
         return static_cast<T*>(scene);
     }
 
-    // advances the loaded scene by `frames` frames of FIXED_DT_MS each, regardless of real time
+    // advances the game by `frames` frames of FIXED_DT_MS each, regardless of real time; runs the same
+    // AppProjectC::update as the game's main loop
     void step(std::uint32_t frames = 1);
 
     // player input seen by gameplay from the next step() on; it stays until changed

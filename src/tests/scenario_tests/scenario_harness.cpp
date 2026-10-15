@@ -36,7 +36,7 @@ void scenario::ScenarioTest::step(std::uint32_t frames)
     {
         // the measured frame time is ignored: every frame simulates exactly FIXED_DT_MS
         engineFrameBegin();
-        app().update_scenes(FIXED_DT_MS);
+        app().update(FIXED_DT_MS);
         engineFrameEnd();
         frame_++;
     }

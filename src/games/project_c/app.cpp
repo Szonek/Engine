@@ -107,62 +107,23 @@ bool project_c::AppProjectC::is_prefab_available(PrefabType type) const
     return prefabs_[type].is_valid();
 }
 
-void project_c::AppProjectC::run()
+void project_c::AppProjectC::update(float dt)
 {
-    struct fps_counter_t
+    update_scenes(dt);
+
+    auto* scene = static_cast<TestScene*>(get_scene(TestScene::get_name()));
+    if (scene)
     {
-        float frames_total_time = 0.0f;
-        std::uint32_t frames_count = 0;
-    };
-    fps_counter_t fps_counter{};
-    bool restart_was_down = false;
+        scene->set_gameplay_ui_visible(engineEditorIsGameView());
+    }
 
-    while (true)
+    // once the encounter is over (cleared or player dead), restart starts the level again
+    const bool restart_pressed = player_input_.restart && !restart_was_down_;
+    restart_was_down_ = player_input_.restart;
+    if (scene && scene->is_encounter_over() && restart_pressed)
     {
-        const auto frame_begin = engineFrameBegin();
-
-        if (frame_begin.events & ENGINE_EVENT_QUIT)
-        {
-            log(fmt::format("Engine requested app quit. Exiting.\n"));
-            break;
-        }
-
-        if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_ESCAPE))
-        {
-            log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
-            break;
-        }
-
-        fps_counter.frames_count += 1;
-        fps_counter.frames_total_time += frame_begin.delta_time;
-        if (fps_counter.frames_total_time > 1000.0f)
-        {
-            log(fmt::format("FPS: {}, latency: {} ms. \n",
-                fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count));
-            fps_counter = {};
-        }
-
-        auto* scene = static_cast<TestScene*>(get_scene(TestScene::get_name()));
-        set_player_input(read_player_input_from_devices());
-        update_scenes(frame_begin.delta_time);
-        if (scene)
-        {
-            scene->set_gameplay_ui_visible(engineEditorIsGameView());
-        }
-        const bool restart_is_down = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_R);
-        if (scene && scene->is_encounter_over() && restart_is_down && !restart_was_down)
-        {
-            unregister_scene(TestScene::get_name());
-            auto* restarted_scene = register_scene<TestScene>();
-            restarted_scene->activate();
-        }
-        restart_was_down = restart_is_down;
-
-        const auto frame_end = engineFrameEnd();
-        if (!frame_end.success)
-        {
-            log(fmt::format("Frame not finished sucesfully. Exiting.\n"));
-            break;
-        }
+        unregister_scene(TestScene::get_name());
+        auto* restarted_scene = register_scene<TestScene>();
+        restarted_scene->activate();
     }
 }

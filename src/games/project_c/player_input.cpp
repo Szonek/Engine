@@ -11,6 +11,7 @@ project_c::PlayerInput project_c::read_player_input_from_devices()
     input.dodge = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_SPACE);
     input.interact = engineMouseIsButtonDown(ENGINE_MOUSE_BUTTON_LEFT);
     input.drop_weapon = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_F);
+    input.restart = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_R);
     input.debug_reset_position = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_0);
     input.cursor = engineMouseCoordsGet();
     return input;

@@ -16,6 +16,7 @@ struct PlayerInput
     bool dodge = false;                 // space (also lets go of a wall)
     bool interact = false;              // left mouse button
     bool drop_weapon = false;           // F
+    bool restart = false;               // R (restarts the level once the encounter is over)
     bool debug_reset_position = false;  // 0
     // same space as engineMouseCoordsGet: (0, 0) bottom-left of the window, (1, 1) top-right
     engine_fvec2_t cursor{ 0.5f, 0.5f };

@@ -38,15 +38,17 @@ public:
 
     PrefabResult instantiate_prefab(PrefabType type, engine::IScene* scene);
     bool is_prefab_available(PrefabType type) const;
-    // the game's main loop: each frame reads the keyboard/mouse into player_input(), then updates the scenes
-    void run();
+    // One frame of the game (dt in milliseconds): updates the scenes and applies the game's per-frame rules.
+    // The caller owns the loop and calls it between engineFrameBegin() and engineFrameEnd() (main.cpp, tests).
+    void update(float dt);
 
-    // what gameplay scripts read as this frame's player input; whoever drives the frames sets it (run() or tests)
+    // what gameplay scripts read as this frame's player input; whoever drives the frames sets it before update()
     const PlayerInput& player_input() const { return player_input_; }
     void set_player_input(const PlayerInput& input) { player_input_ = input; }
 
 private:
     std::array<Prefab, PREFAB_TYPE_COUNT> prefabs_;
     PlayerInput player_input_{};
+    bool restart_was_down_ = false;
 };
 } // namespace project_c
