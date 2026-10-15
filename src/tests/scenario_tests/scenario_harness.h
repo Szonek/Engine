@@ -13,7 +13,8 @@ namespace scenario
 inline constexpr float FIXED_DT_MS = 1000.0f / 60.0f;
 
 // The application is created once for the whole test run (window, GL context, all prefabs) and shared by every test:
-// hidden window, editor disabled (gameplay runs immediately), no default level, keyboard and mouse never read.
+// hidden window, editor disabled (gameplay runs immediately), no level; the keyboard and mouse are never read because
+// tests step frames themselves and only set the player input with set_input().
 project_c::AppProjectC& app();
 void create_app();
 void destroy_app();

@@ -1,12 +1,14 @@
 #include <engine.h>
 
 #include "app.h"
+#include "scenes/scene_test.h"
 
 int main(int argc, char** argv)
 {
     try
     {
         project_c::AppProjectC app_project_c(project_c::default_prefabs_data());
+        app_project_c.register_scene<project_c::TestScene>()->activate();
         app_project_c.run();
 
         return 0;

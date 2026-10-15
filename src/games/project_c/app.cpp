@@ -55,7 +55,6 @@ project_c::PrefabsData project_c::default_prefabs_data()
 
 project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppConfig& config)
     : engine::IApplication(app_cd(config))
-    , read_input_devices_(config.read_input_devices)
 {
     const auto load_start = std::chrono::high_resolution_clock::now();
 
@@ -80,11 +79,6 @@ project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppCo
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
     log(fmt::format("Model loading took: {}\n", ms_load_time));
 
-    if (config.register_default_scene)
-    {
-        auto scene = register_scene<project_c::TestScene>();
-        scene->activate();
-    }
 }
 
 project_c::AppProjectC::~AppProjectC()
@@ -149,7 +143,8 @@ void project_c::AppProjectC::run()
         }
 
         auto* scene = static_cast<TestScene*>(get_scene(TestScene::get_name()));
-        update(frame_begin.delta_time);
+        set_player_input(read_player_input_from_devices());
+        update_scenes(frame_begin.delta_time);
         if (scene)
         {
             scene->set_gameplay_ui_visible(engineEditorIsGameView());
@@ -170,13 +165,4 @@ void project_c::AppProjectC::run()
             break;
         }
     }
-}
-
-void project_c::AppProjectC::update(float dt)
-{
-    if (read_input_devices_)
-    {
-        player_input_ = read_player_input_from_devices();
-    }
-    update_scenes(dt);
 }

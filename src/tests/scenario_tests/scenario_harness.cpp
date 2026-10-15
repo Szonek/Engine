@@ -19,12 +19,9 @@ void scenario::create_app()
     project_c::AppConfig config{};
     config.enable_editor = false;
     config.hidden_window = true;
-    config.register_default_scene = false;
     // small, so rendering costs little per simulated frame
     config.window_width = 320;
     config.window_height = 180;
-    // tests drive the player only through ScenarioTest::set_input
-    config.read_input_devices = false;
     G_APP = std::make_unique<project_c::AppProjectC>(project_c::default_prefabs_data(), config);
 }
 
@@ -39,7 +36,7 @@ void scenario::ScenarioTest::step(std::uint32_t frames)
     {
         // the measured frame time is ignored: every frame simulates exactly FIXED_DT_MS
         engineFrameBegin();
-        app().update(FIXED_DT_MS);
+        app().update_scenes(FIXED_DT_MS);
         engineFrameEnd();
         frame_++;
     }

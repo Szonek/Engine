@@ -28,10 +28,6 @@ struct AppConfig
     // window size in pixels; 0 = the game's default
     std::uint32_t window_width = 0;
     std::uint32_t window_height = 0;
-    // register and activate TestScene (the game's level); tests register their own scenes instead
-    bool register_default_scene = true;
-    // false: the keyboard and mouse are never read, player input only comes from set_player_input() (tests)
-    bool read_input_devices = true;
 };
 
 class AppProjectC : public engine::IApplication
@@ -42,17 +38,15 @@ public:
 
     PrefabResult instantiate_prefab(PrefabType type, engine::IScene* scene);
     bool is_prefab_available(PrefabType type) const;
+    // the game's main loop: each frame reads the keyboard/mouse into player_input(), then updates the scenes
     void run();
-    // one frame of the game: refresh player input, then update the scenes (dt in milliseconds)
-    void update(float dt);
 
+    // what gameplay scripts read as this frame's player input; whoever drives the frames sets it (run() or tests)
     const PlayerInput& player_input() const { return player_input_; }
-    // input seen by gameplay from now on; the next update() overwrites it unless read_input_devices is off
     void set_player_input(const PlayerInput& input) { player_input_ = input; }
 
 private:
     std::array<Prefab, PREFAB_TYPE_COUNT> prefabs_;
-    bool read_input_devices_ = true;
     PlayerInput player_input_{};
 };
 } // namespace project_c
