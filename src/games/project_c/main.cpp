@@ -27,9 +27,10 @@ void run(project_c::AppProjectC& app)
             break;
         }
 
-        if (engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_ESCAPE))
+        const auto input = project_c::read_player_input_from_devices();
+        if (input.quit)
         {
-            log(fmt::format("User pressed ESCAPE key. Exiting.\n"));
+            log(fmt::format("User requested quit. Exiting.\n"));
             break;
         }
 
@@ -42,7 +43,7 @@ void run(project_c::AppProjectC& app)
             fps_counter = {};
         }
 
-        app.set_player_input(project_c::read_player_input_from_devices());
+        app.set_player_input(input);
         app.update(frame_begin.delta_time);
 
         const auto frame_end = engineFrameEnd();
