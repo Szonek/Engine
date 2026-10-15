@@ -106,5 +106,5 @@ A new built-in lit/unlit shader is a `Material*` class in `material.h/.cpp` plus
 * Meshes are drawn by three passes (Shadow Map, Depth Pre-pass, Forward). The Forward pass uses depth test "less or equal" against the
   depth of the pre-pass, so a new mesh type has to be drawn in `draw_meshes_depth_only` too, with the same vertex shader as its lit draw.
 * Bone matrices of all skinned meshes of a scene are uploaded once per frame (`SceneGpu::frames[...].skinning`, one copy per frame in flight guarded by a fence, so the CPU never overwrites matrices the GPU is still reading), draws only pass an offset into it.
-* `RenderGraph` is unit tested without a GL context: see `src/tests/unit_tests/render_graph_tests.cpp` (target `render_graph_tests`).
+* `RenderGraph` is unit tested without a GL context: see `src/tests/unit_tests/render_graph_tests.cpp` (target `engine_logic_tests`).
   The same target contains tests of the shadow map math (`shadows_tests.cpp`).
