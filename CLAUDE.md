@@ -18,7 +18,7 @@ cmake --build build --config Debug --target project_c_game     # build the game 
 cmake --build build --config Debug                             # build everything, including all thirdparty samples (slow)
 build\bin\Debug\project_c_game.exe                             # run
 
-cmake --build build --config Debug --target render_graph_tests unit_tests
+cmake --build build --config Debug --target render_graph_tests atlas_tests unit_tests
 ctest --test-dir build -C Debug                                # all tests
 build\bin\Debug\render_graph_tests.exe --gtest_filter=Suite.Name   # single test
 ```
@@ -30,7 +30,7 @@ Things that will trip you up:
 - **Sources are listed explicitly** in each `CMakeLists.txt` (no globbing). A new `.cpp`/`.h` must be added to the list by hand. `src/games/project_c/scripts/solider_script.cpp` is on disk but intentionally not in the build.
 - **The asset path is baked in at configure time**: `PROJECT_C_ASSETS_DIR` (set in `src/games/project_c/CMakeLists.txt`) points at the `assets/` folder of the source tree the game was built from, so a worktree build uses its own shaders. Shaders, models, fonts and UI documents are loaded from there at runtime, so asset edits need no rebuild.
 - **The game starts paused when the editor is enabled** (`enable_editor = true` in `app.cpp`). Scripts only tick while the editor is in Play mode — see `IScene::update`.
-- `unit_tests` has almost no coverage and its app-creation test is `DISABLED_` because creating an application needs a GL context and shaders on disk. `render_graph_tests` is the meaningful suite; it compiles `render_graph.cpp` directly and needs neither GL nor the engine DLL.
+- `unit_tests` has almost no coverage and its app-creation test is `DISABLED_` because creating an application needs a GL context and shaders on disk. `render_graph_tests` is the meaningful suite; it compiles `render_graph.cpp` directly and needs neither GL nor the engine DLL. `atlas_tests` does the same for the header-only resource atlas (`named_atlas.h`), with a stub logger.
 - There is no linter or formatter config. `-Werror` is only applied to the engine on non-MSVC compilers.
 - CI (`.github/workflows/cmake-single-platform.yml`) only builds Release on Windows; it does not run tests.
 
@@ -53,7 +53,7 @@ src/engine                 shared lib  - the engine, exposed through a C API onl
 - The API is **context based**: `engineApplicationSetActive` / `engineSceneSetActive` store globals (`G_ACTIVE_APP`, `G_ACTIVE_SCENE`) and nearly every other call (`engineGameObject*`, `engineFrame*`, `enginePhysics*`, input) acts on the active app/scene without taking a handle. The API example in `README.md` predates this and is out of date — trust `engine.h`.
 - Components are value types across the boundary: `engineGameObjectGet*Component` returns a copy and changes only take effect after `engineGameObjectUpdate*Component`. Internally that is an EnTT `replace`, and `Scene` relies on `entt::observer`s on those updates to recompute model matrices and rebuild/sync Bullet bodies.
 - Adding a component type means touching: the C struct in `include/components/`, the Add/Get/Update/Remove/Has functions in `engine.h` + `engine.cpp`, any default-initialisation in `impl/components_utils/components_initializers`, the consuming system in `scene.cpp`, and (optionally) the properties panel in `application_editor.cpp`.
-- `Application` owns the window/GL context, resource atlases (textures, geometries, shaders, nav meshes — `named_atlas.h`, addressed by index or name), the `UiManager` and the `Renderer`. `ApplicationEditor` derives from it and is instantiated instead when `enable_editor` is set; it hooks the `on_*` virtuals to add the ImGui dockspace, editor camera, gizmos, entity picking, undo (`editor_commands`) and the Play/pause + game/editor view state that `engineEditorIsPlaying` / `engineEditorIsGameView` report.
+- `Application` owns the window/GL context, resource atlases (textures, geometries, shaders, nav meshes — `named_atlas.h`, addressed by index or name; names must be unique and non-empty, so creation fails otherwise, and glTF geometries are named `<model file>#<mesh name>`, e.g. `Rogue.glb#Cylinder.008`), the `UiManager` and the `Renderer`. `ApplicationEditor` derives from it and is instantiated instead when `enable_editor` is set; it hooks the `on_*` virtuals to add the ImGui dockspace, editor camera, gizmos, entity picking, undo (`editor_commands`) and the Play/pause + game/editor view state that `engineEditorIsPlaying` / `engineEditorIsGameView` report.
 - `Scene` owns the EnTT registry and a `PhysicsWorld`. `Scene::update` runs physics, transforms, animation controllers, joint attachments, skins and parent→child transforms, then gathers a `SceneRenderData` and submits it. It never calls the graphics API.
 - Rendering is a render graph; **read `src/engine/impl/render/README.md` before changing anything under `render/`**. It covers the pass list, how to write a pass, and the `RenderFeature` extension point (post-process and overlay stages). `render_graph.h/.cpp` must stay free of GL so it remains unit-testable.
 - Animation: `Skin` + `AnimationController` wrap ozz. Controllers built for the same skin share an `AnimationLibrary` through an internal cache; the library is deliberately not exposed in the C API.

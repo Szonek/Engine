@@ -25,3 +25,12 @@ add_executable(${RENDER_GRAPH_TESTS_NAME}
 target_include_directories(${RENDER_GRAPH_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR})
 target_link_libraries(${RENDER_GRAPH_TESTS_NAME} GTest::gtest_main glm)
 add_test(NAME ${RENDER_GRAPH_TESTS_NAME} COMMAND ${RENDER_GRAPH_TESTS_NAME})
+# The resource atlas is header-only; the test provides its own logger, so neither GL nor the engine library is needed.
+set(ATLAS_TESTS_NAME "atlas_tests")
+add_executable(${ATLAS_TESTS_NAME}
+	atlas_tests.cpp
+	${ENGINE_IMPL_DIR}/named_atlas.h
+)
+target_include_directories(${ATLAS_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/include)
+target_link_libraries(${ATLAS_TESTS_NAME} GTest::gtest_main fmt::fmt-header-only)
+add_test(NAME ${ATLAS_TESTS_NAME} COMMAND ${ATLAS_TESTS_NAME})

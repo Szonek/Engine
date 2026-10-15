@@ -1,8 +1,10 @@
 #pragma once
-#include "engine.h" 
+#include "engine.h"
 #include "logger.h"
 
+#include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <string>
 #include <deque>
@@ -11,6 +13,8 @@
 
 namespace engine
 {
+// Fixed-size storage of objects addressed by index or by name.
+// Names are unique and non-empty, so a name identifies exactly one object.
 template<typename T, std::size_t SIZE = 1024>
 class Atlas
 {
@@ -31,7 +35,7 @@ public:
             // print not removed objects
             for (std::size_t i = 0; i < SIZE; i++)
             {
-                if (!names_[i].empty())
+                if (occupied_[i])
                 {
                     log::log(log::LogLevel::eCritical, fmt::format("Not released object: {}\n", names_[i]));
                 }
@@ -40,41 +44,55 @@ public:
         }
     }
 
+    // Returns ENGINE_INVALID_OBJECT_HANDLE (and logs why) when the name is empty, already used or the atlas is full.
     std::uint32_t add_object(std::string_view name, T&& t)
     {
+        if (name.empty())
+        {
+            log::log(log::LogLevel::eError, "Atlas: can't add an object with an empty name.\n");
+            return ENGINE_INVALID_OBJECT_HANDLE;
+        }
+        if (get_object(name) != ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            log::log(log::LogLevel::eError, fmt::format("Atlas: an object named \"{}\" already exists. Names must be unique.\n", name));
+            return ENGINE_INVALID_OBJECT_HANDLE;
+        }
         if (free_indices_.empty())
         {
+            log::log(log::LogLevel::eCritical, fmt::format("Atlas: full, can't add \"{}\".\n", name));
             assert(false && "Atlas is full");
             return ENGINE_INVALID_OBJECT_HANDLE;
         }
         const auto current_idx_ = free_indices_.front();
         objects_[current_idx_] = std::move(t);
-        names_[current_idx_] = name.data();
+        names_[current_idx_] = std::string(name);
+        occupied_[current_idx_] = true;
         free_indices_.pop_front();
         return current_idx_;
     }
 
     void remove_object(std::uint32_t idx)
     {
-        assert(names_[idx].empty() == false && "Object not found");
-        assert(idx < SIZE && "Index out of bounds");
+        if (idx >= SIZE || !occupied_[idx])
+        {
+            assert(false && "Object not found");
+            return;
+        }
         objects_[idx] = T{};
-        names_[idx] = "";
+        names_[idx].clear();
+        occupied_[idx] = false;
         free_indices_.push_front(idx);
     }
 
     void remove_object(std::string_view name)
     {
-        for (std::uint32_t i = 0; const auto & n : names_)
+        const auto idx = get_object(name);
+        if (idx == ENGINE_INVALID_OBJECT_HANDLE)
         {
-            if (n.compare(name) == 0)
-            {
-                remove_object(i);
-                break;
-            }
-            i++;
+            assert(false && "Object not found");
+            return;
         }
-        assert(false && "Object not found");
+        remove_object(idx);
     }
 
     const T* get_object(std::uint32_t idx) const
@@ -84,7 +102,7 @@ public:
             assert(false && "Index out of bounds");
             return nullptr;
         }
-        if (names_[idx].empty())
+        if (!occupied_[idx])
         {
             // it's valid not found object - user may want to check if object exists by trying to get it
             return nullptr;
@@ -94,13 +112,16 @@ public:
 
     std::uint32_t get_object(std::string_view name) const
     {
-        for (std::uint32_t i = 0; const auto & n : names_)
+        if (name.empty())
         {
-            if (n.compare(name) == 0)
+            return ENGINE_INVALID_OBJECT_HANDLE;
+        }
+        for (std::uint32_t i = 0; i < SIZE; i++)
+        {
+            if (occupied_[i] && names_[i] == name)
             {
                 return i;
             }
-            i++;
         }
         // it's valid not found object - user may want to check if object exists by trying to get it
         return ENGINE_INVALID_OBJECT_HANDLE;
@@ -121,6 +142,7 @@ public:
 private:
     std::array<T, SIZE> objects_;
     std::array<std::string, SIZE> names_;
+    std::array<bool, SIZE> occupied_{};
     std::deque<std::uint32_t> free_indices_;
 };
 }

@@ -408,7 +408,7 @@ inline engine::AnimationClipDesc parse_animation(const tinygltf::Animation& anim
 
 }  // namespace anonymous
 
-engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8_t> data, const std::string& base_dir)
+engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8_t> data, const std::string& base_dir, const std::string& source_name)
 {
     assert(!data.empty());
 
@@ -519,6 +519,15 @@ engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8
         {
             out.textures.push_back(parse_texture(texture, model));
         });
+    // textures loaded from a file keep its uri as the name, so models referencing the same image share it;
+    // only unnamed embedded textures get a generated one
+    for (std::size_t i = 0; i < out.textures.size(); i++)
+    {
+        if (out.textures[i].name.empty())
+        {
+            out.textures[i].name = fmt::format("{}#texture_{}", source_name, i);
+        }
+    }
 
     // 
     out.materials.reserve(model.materials.size());
@@ -532,6 +541,12 @@ engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8
         {
             out.geometries.push_back(parse_mesh(mesh, model));
         });
+    // mesh names are only unique within one file (e.g. "Cube.004" exists in several models)
+    for (std::size_t i = 0; i < out.geometries.size(); i++)
+    {
+        auto& name = out.geometries[i].name;
+        name = name.empty() ? fmt::format("{}#mesh_{}", source_name, i) : fmt::format("{}#{}", source_name, name);
+    }
 
     // skins
     std::for_each(model.skins.begin(), model.skins.end(), [&out, &model, &nodes](const auto& skin)
