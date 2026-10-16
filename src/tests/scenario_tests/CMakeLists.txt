@@ -5,8 +5,12 @@ add_executable(${SCENARIO_TESTS_NAME}
 	main.cpp
 	scenario_harness.h
 	scenario_harness.cpp
+	sandbox_scene.h
+	sandbox_scene.cpp
 
+	gameplay_tests.cpp
 	harness_tests.cpp
+	level_tests.cpp
 )
 set_property(TARGET ${SCENARIO_TESTS_NAME} PROPERTY CXX_STANDARD 20)
 target_link_libraries(${SCENARIO_TESTS_NAME} GTest::gtest project_c_lib)

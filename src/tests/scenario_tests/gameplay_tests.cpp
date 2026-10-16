@@ -1,0 +1,199 @@
+#include "sandbox_scene.h"
+
+#include <scripts/encounter_script.h>
+#include <scripts/enemy_script.h>
+#include <scripts/player_script.h>
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <limits>
+
+// Gameplay scenarios on tiny sandbox scenes. They check outcomes (the enemy died, the encounter is clear, the player
+// didn't pass through the wall) with tolerances, not exact values, so tuning changes don't break them.
+namespace
+{
+using project_c::Encounter;
+using project_c::PlayerInput;
+using scenario::FIXED_DT_MS;
+
+// frames for the player, spawned 1 m above the floor, to land
+constexpr std::uint32_t LANDING_FRAMES = 30;
+// where scenarios spawn the player. Not the world origin: a player spawned exactly there trips a Bullet assert
+// (normalizing a zero vector) on its first physics step.
+constexpr float PLAYER_X = 1.0f;
+constexpr float PLAYER_Z = 1.0f;
+
+float seconds(std::uint32_t frames)
+{
+    return frames * FIXED_DT_MS / 1000.0f;
+}
+
+float horizontal_distance(const glm::vec3& a, const glm::vec3& b)
+{
+    return glm::length(glm::vec2(a.x - b.x, a.z - b.z));
+}
+
+class MovementTest : public scenario::GameplayTest
+{
+protected:
+    // average horizontal speed (m/s) while holding `input`, measured after the player has accelerated
+    float measure_speed(const PlayerInput& input)
+    {
+        auto* scene = load_sandbox_scene();
+        scene->build().floor_area(-6.0f, -6.0f, 6.0f, 6.0f);
+        auto* player = scene->build().player(PLAYER_X, PLAYER_Z);
+        scene->snap_camera_to_player();
+        step(LANDING_FRAMES);
+
+        set_input(input);
+        step(15);
+        const auto start = position_of(player->get_game_object());
+        constexpr std::uint32_t measured_frames = 30;
+        step(measured_frames);
+        const auto end = position_of(player->get_game_object());
+        release_all_input();
+        return horizontal_distance(start, end) / seconds(measured_frames);
+    }
+};
+
+// regression: diagonal movement used to be faster than straight movement
+TEST_F(MovementTest, DiagonalSpeedEqualsStraightSpeed)
+{
+    PlayerInput straight{};
+    straight.forward = true;
+    const auto straight_speed = measure_speed(straight);
+    TearDown();
+
+    PlayerInput diagonal{};
+    diagonal.forward = true;
+    diagonal.right = true;
+    const auto diagonal_speed = measure_speed(diagonal);
+
+    EXPECT_GT(straight_speed, 1.0f);
+    EXPECT_NEAR(diagonal_speed, straight_speed, straight_speed * 0.05f);
+}
+
+// known bug: the player bounces off colliders instead of sliding along them; enable once fixed
+TEST_F(MovementTest, DISABLED_WalkingDiagonallyIntoWallSlidesAlongIt)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-6.0f, -6.0f, 6.0f, 6.0f);
+    // wall along z, its surface facing the player 0.9 m to its right
+    const auto wall_surface_x = PLAYER_X + 0.9f;
+    scene->build().obstacle({ wall_surface_x + 0.1f, 1.0f, PLAYER_Z }, { 0.2f, 2.0f, 8.0f });
+    auto* player = scene->build().player(PLAYER_X, PLAYER_Z);
+    scene->snap_camera_to_player();
+    step(LANDING_FRAMES);
+
+    PlayerInput into_wall{};
+    into_wall.right = true;
+    into_wall.forward = true;
+    set_input(into_wall);
+    const auto start = position_of(player->get_game_object());
+    float max_x = std::numeric_limits<float>::lowest();
+    float min_x_after_contact = std::numeric_limits<float>::max();
+    for (int i = 0; i < 90; i++)
+    {
+        step();
+        const auto x = position_of(player->get_game_object()).x;
+        if (x >= max_x)
+        {
+            max_x = x;
+            min_x_after_contact = x;
+        }
+        min_x_after_contact = std::min(min_x_after_contact, x);
+    }
+    const auto end = position_of(player->get_game_object());
+
+    // never inside the wall: the player's box is 0.35 x 0.28 m and turns with its facing, so its center stays
+    // at least 0.1 m from the wall surface
+    EXPECT_LT(max_x, wall_surface_x - 0.1f);
+    // no bounce: it stays against the wall once it got there
+    EXPECT_LT(max_x - min_x_after_contact, 0.1f);
+    // slides along the wall (-z) instead of stopping
+    EXPECT_GT(start.z - end.z, 1.0f);
+}
+
+class CombatTest : public scenario::GameplayTest
+{
+protected:
+    // presses attack (one frame down, then released) and lets the swing play while aiming at `target`
+    void attack(const glm::vec3& target, std::uint32_t frames_after_press)
+    {
+        PlayerInput press{};
+        press.attack = true;
+        step_aiming(1, press, target);
+        step_aiming(frames_after_press, {}, target);
+    }
+};
+
+TEST_F(CombatTest, AttackComboKillsEnemyAndClearsEncounter)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
+    scene->build().player(PLAYER_X, PLAYER_Z);
+    auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + 0.5f);
+    ASSERT_NE(enemy, nullptr);
+    const auto enemy_go = enemy->get_game_object();
+    scene->snap_camera_to_player();
+    step(LANDING_FRAMES);
+    EXPECT_EQ(scene->encounter()->get_state(), Encounter::State::eInProgress);
+
+    // the 3-hit combo, one press per swing; a 20 hp enemy needs two of the 10 damage hits
+    const auto target = position_of(enemy_go) + glm::vec3(0.0f, 0.35f, 0.0f);
+    for (int press = 0; press < 3 && enemy->hp > 0; press++)
+    {
+        attack(target, 20);
+    }
+    EXPECT_EQ(enemy->hp, 0u);
+
+    step(2);
+    EXPECT_EQ(scene->encounter()->get_state(), Encounter::State::eCleared);
+    EXPECT_EQ(scene->encounter()->get_remaining_enemies(), 0u);
+}
+
+TEST_F(CombatTest, EnemyInReachDamagesIdlePlayer)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
+    auto* player = scene->build().player(PLAYER_X, PLAYER_Z);
+    // the enemy blade only reaches the player from about 0.4 m, although enemies start attacking within 1.15 m
+    scene->build().enemy(PLAYER_X, PLAYER_Z + 0.4f);
+    scene->snap_camera_to_player();
+
+    step(LANDING_FRAMES + 180);
+
+    EXPECT_LT(player->get_hp(), player->get_max_hp());
+    EXPECT_FALSE(player->is_dead());
+    EXPECT_EQ(scene->encounter()->get_state(), Encounter::State::eInProgress);
+}
+
+TEST_F(CombatTest, PlayerDeathDefeatsEncounter)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
+    auto* player = scene->build().player(PLAYER_X, PLAYER_Z);
+    // out of reach, so only the test hurts the player
+    scene->build().enemy(-2.5f, -2.5f);
+    scene->snap_camera_to_player();
+    step(LANDING_FRAMES);
+
+    player->receive_damage(player->get_max_hp(), position_of(player->get_game_object()) + glm::vec3(0.0f, 0.0f, 1.0f));
+    step(2);
+
+    EXPECT_TRUE(player->is_dead());
+    EXPECT_EQ(scene->encounter()->get_state(), Encounter::State::eDefeated);
+}
+
+TEST_F(CombatTest, EncounterWithoutEnemiesIsNeverCleared)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-2.0f, -2.0f, 2.0f, 2.0f);
+    scene->build().player(PLAYER_X, PLAYER_Z);
+    scene->snap_camera_to_player();
+    step(LANDING_FRAMES);
+
+    EXPECT_EQ(scene->encounter()->get_state(), Encounter::State::eInProgress);
+}
+}  // namespace
