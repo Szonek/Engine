@@ -29,10 +29,14 @@ set(LIB_SOURCES
 	scripts/interactable_script.cpp
 	scripts/coin_script.h
 	scripts/coin_script.cpp
+	scripts/encounter_script.h
+	scripts/encounter_script.cpp
 	scripts/enemy_script.h
 	scripts/enemy_script.cpp
 	scripts/enviorment_script.h
 	scripts/enviorment_script.cpp
+	scripts/gameplay_hud_script.h
+	scripts/gameplay_hud_script.cpp
 	scripts/player_script.h
 	scripts/player_script.cpp
 	

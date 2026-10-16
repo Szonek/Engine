@@ -40,7 +40,8 @@ public:
 
     void on_collision(const collision_t& info) override;
 
-    void update(float dt) override;
+    // lying on the ground (can be picked up), not held by anyone
+    bool is_on_ground() const;
 
 private:
     // second dagger: visual only, follows main dagger when it is not held
@@ -170,6 +171,9 @@ public:
     void update(float dt);
     void on_confirmed_attack_hit(float hit_stop_seconds);
     bool receive_damage(std::uint32_t damage, const glm::vec3& source_position);
+    std::uint32_t get_hp() const { return hp_; }
+    std::uint32_t get_max_hp() const { return max_hp_; }
+    bool is_dead() const { return hp_ == 0; }
 
     bool equip_waepon(Weapon* sword);
 
@@ -200,6 +204,7 @@ private:
     float hit_stop_remaining_seconds_ = 0.0f;
     bool hit_stop_just_started_ = false;
     std::uint32_t hp_ = 100;
+    std::uint32_t max_hp_ = 100;
     bool dodge_input_was_down_ = false;
     float dodge_remaining_seconds_ = 0.0f;
     float dodge_invulnerability_remaining_seconds_ = 0.0f;

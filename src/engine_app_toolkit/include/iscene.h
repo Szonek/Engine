@@ -84,6 +84,36 @@ public:
         return it != scripts_.end() ? dynamic_cast<const T*>(it->second.get()) : nullptr;
     }
 
+    // every script of type T (or derived from it), in no particular order; scripts still waiting in the
+    // register queue are not included
+    template<typename T>
+    std::vector<T*> get_scripts()
+    {
+        std::vector<T*> result;
+        for (auto& [go, script] : scripts_)
+        {
+            if (auto* typed = dynamic_cast<T*>(script.get()))
+            {
+                result.push_back(typed);
+            }
+        }
+        return result;
+    }
+
+    // the first script of type T, nullptr when the scene has none; for scripts that exist once per scene
+    template<typename T>
+    T* find_script()
+    {
+        for (auto& [go, script] : scripts_)
+        {
+            if (auto* typed = dynamic_cast<T*>(script.get()))
+            {
+                return typed;
+            }
+        }
+        return nullptr;
+    }
+
     IApplication* get_app() { return app_; }
 
     virtual void activate();

@@ -82,6 +82,5 @@ private:
     float hit_stop_remaining_seconds_ = 0.0f;
     float attack_cooldown_remaining_seconds_ = 0.0f;
     bool hit_stop_just_started_ = false;
-    bool defeat_reported_ = false;
 };
 } //namespace project_c

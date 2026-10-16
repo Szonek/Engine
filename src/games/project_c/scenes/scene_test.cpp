@@ -7,6 +7,8 @@
 #include "../scripts/player_script.h"
 #include "../scripts/interactable_script.h"
 #include "../scripts/building_script.h"
+#include "../scripts/encounter_script.h"
+#include "../scripts/gameplay_hud_script.h"
 #include "../scripts/scripts_utils.h"
 
 #include "../nav_mesh.h"
@@ -62,7 +64,6 @@ public:
             const auto offset_x = std::uniform_real_distribution<float>(area.x_min, area.x_max)(rng_);
             const auto offset_y = std::uniform_real_distribution<float>(area.x_min, area.x_max)(rng_);
             scene.register_script<project_c::Enemy>(app.instantiate_prefab(pack.types[enemy_idx], &scene), &nav_mesh, world_pos.x + offset_x, world_pos.z + offset_y);
-            static_cast<project_c::TestScene&>(scene).on_enemy_spawned();
         }
     }
 
@@ -363,166 +364,12 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
 }
 
 
-static void equip_weapon_callback(engine_ui_data_handle_t data_handle, const engine_ui_event_t* ev, const engine_vector_engine_ui_data_variant_t args, void* user_data)
-{
-    assert(args != nullptr);
-    assert(engineVectorSizeEngineUiDataVariant(args) == 1);
-    const auto arg_0 = engineVectorGetEngineUiDataVariant(args, 0);
-    assert(arg_0.type == ENGINE_UI_DATA_TYPE_UINT32);
-    const auto item_go = arg_0.arg.u32;
-
-    auto scene = reinterpret_cast<project_c::TestScene*>(user_data);
-    auto player_go = project_c::utils::get_game_objects_with_name("player");
-    assert(player_go.size() == 1);
-    auto player_script = scene->get_script<project_c::Player>(player_go[0]);
-    const auto item_equipped = player_script->equip_waepon(scene->get_script<project_c::Weapon>(item_go));
-    if (!item_equipped)
-    {
-        engineLog(std::format("Tried to equip item, but couldnt do so!\n").c_str());
-    }
-}
-
-inline static void register_ui_item_bindings(std::vector<engine_ui_document_data_binding_t>& registry, project_c::UI_data& ui_data, project_c::TestScene* scene)
-{
-    {
-        engine_ui_document_data_binding_t binding = {};
-        binding.name = "items_go";
-        binding.data_vector_uint32_t = ui_data.items.go;
-        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_UINT32;
-        registry.push_back(binding);
-    }
-    {
-        engine_ui_document_data_binding_t binding = {};
-        binding.name = "items_name";
-        binding.data_vector_string = ui_data.items.name;
-        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_STRING;
-        registry.push_back(binding);
-    }
-    {
-        engine_ui_document_data_binding_t binding = {};
-        binding.name = "items_pos_x";
-        binding.data_vector_string = ui_data.items.pos_x;
-        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_STRING;
-        registry.push_back(binding);
-    }
-    {
-        engine_ui_document_data_binding_t binding = {};
-        binding.name = "items_pos_y";
-        binding.data_vector_string = ui_data.items.pos_y;
-        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_STRING;
-        registry.push_back(binding);
-    }
-    {
-        engine_ui_document_data_binding_t binding = {};
-        binding.name = "items_show";
-        binding.data_vector_uint32_t = ui_data.items.show;
-        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_UINT32;
-        registry.push_back(binding);
-    }
-    {
-        engine_ui_document_data_binding_t binding = {};
-        binding.name = "equip";
-        binding.data_callback.fn_ptr = &equip_weapon_callback;
-        binding.data_callback.user_data = scene;
-        binding.type = ENGINE_UI_DATA_TYPE_EVENT_CALLBACK;
-        registry.push_back(binding);
-    }
-}
-
-static void register_ui_enemy_bindings(std::vector<engine_ui_document_data_binding_t>& registry, project_c::UI_data& ui_data)
-{
-    {
-        engine_ui_document_data_binding_t binding = {};
-        binding.name = "enemies_go";
-        binding.data_vector_uint32_t = ui_data.enemies.go;
-        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_UINT32;
-        registry.push_back(binding);
-    }
-    {
-        engine_ui_document_data_binding_t binding = {};
-        binding.name = "enemies_health";
-        binding.data_vector_uint32_t = ui_data.enemies.healhbars.progressbar_value;
-        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_UINT32;
-        registry.push_back(binding);
-    }
-    {
-        engine_ui_document_data_binding_t binding = {};
-        binding.name = "enemies_pos_x";
-        binding.data_vector_string = ui_data.enemies.healhbars.pos_x;
-        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_STRING;
-        registry.push_back(binding);
-    }
-    {
-        engine_ui_document_data_binding_t binding = {};
-        binding.name = "enemies_pos_y";
-        binding.data_vector_string = ui_data.enemies.healhbars.pos_y;
-        binding.type = ENGINE_UI_DATA_TYPE_VECTOR_STRING;
-        registry.push_back(binding);
-    }
-}
-
 project_c::TestScene::TestScene(engine::IApplication* app)
     : IScene(app)
 {
     auto camera_script = register_script<CameraScript>();
-    gameplay_started_ = !app->is_editor_enabled();
-    gameplay_ui_visible_ = engineEditorIsGameView();
-    ui_data_.encounter_status = engineStringCreate(
-        gameplay_started_ ? "Defeat all enemies. WASD move, RMB attack, SPACE dodge. Walk into walls to climb." : "Paused. Click Play in the editor toolbar to start.");
-    assert(ui_data_.encounter_status);
-
-    std::vector<engine_ui_document_data_binding_t> bindings {};
-    register_ui_item_bindings(bindings, ui_data_, this);
-    register_ui_enemy_bindings(bindings, ui_data_);
-    {
-        engine_ui_document_data_binding_t binding{};
-        binding.name = "player_health";
-        binding.data_uint32_t = &ui_data_.player_health;
-        binding.type = ENGINE_UI_DATA_TYPE_UINT32;
-        bindings.push_back(binding);
-    }
-    {
-        engine_ui_document_data_binding_t binding{};
-        binding.name = "player_max_health";
-        binding.data_uint32_t = &ui_data_.player_max_health;
-        binding.type = ENGINE_UI_DATA_TYPE_UINT32;
-        bindings.push_back(binding);
-    }
-    {
-        engine_ui_document_data_binding_t binding{};
-        binding.name = "encounter_status";
-        binding.data_string = ui_data_.encounter_status;
-        binding.type = ENGINE_UI_DATA_TYPE_STRING;
-        bindings.push_back(binding);
-    }
-
-    engineUiDocumentCreateDataHandle("DataModel_Main_UI", bindings.data(), bindings.size(), &ui_data_.handle_main_ui);
-
-    // load ui doc
-    engineUiDocumentCreateFromFile("project_c_gameplay_ui.rml", &ui_data_.doc);
-    if (ui_data_.doc)
-    {
-        gameplay_ui_visible_ ? engineUiDocumentShow(ui_data_.doc) : engineUiDocumentHide(ui_data_.doc);
-        if (app->is_editor_enabled())
-        {
-            engine_ui_element_t player_hud{};
-            const auto player_hud_found = engineUiDocumentGetElementById(ui_data_.doc, "player_hud", &player_hud);
-            const auto player_hud_left_set = player_hud_found == ENGINE_RESULT_CODE_OK
-                && engineUiElementSetProperty(player_hud, "left", "22%") == ENGINE_RESULT_CODE_OK;
-            const auto player_hud_top_set = player_hud_found == ENGINE_RESULT_CODE_OK
-                && engineUiElementSetProperty(player_hud, "top", "65%") == ENGINE_RESULT_CODE_OK;
-
-            engine_ui_element_t encounter_status{};
-            const auto encounter_status_found = engineUiDocumentGetElementById(ui_data_.doc, "encounter_status", &encounter_status);
-            const auto encounter_status_top_set = encounter_status_found == ENGINE_RESULT_CODE_OK
-                && engineUiElementSetProperty(encounter_status, "top", "18%") == ENGINE_RESULT_CODE_OK;
-
-            if (!player_hud_left_set || !player_hud_top_set || !encounter_status_top_set)
-            {
-                engineLog("Failed to position gameplay UI inside the editor scene viewport.\n");
-            }
-        }
-    }
+    register_script<Encounter>();
+    hud_ = register_script<GameplayHud>();
 
     // h - house footprint (house is built over it), B - chest inside the house
     const std::string scene_str =
@@ -547,13 +394,22 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     camera_script->snap_to_player();
 }
 
-project_c::TestScene::~TestScene()
+void project_c::TestScene::activate()
 {
-    // clear scripts first, so any UI dependence is handled correctly
-    scripts_.clear();
-    engineUiDataHandleDestroy(ui_data_.handle_main_ui);
-    engineUiDocumentDestroy(ui_data_.doc);
-    engineStringDestroy(ui_data_.encounter_status);
+    IScene::activate();
+    if (hud_)
+    {
+        hud_->set_visible(engineEditorIsGameView());
+    }
+}
+
+void project_c::TestScene::deactivate()
+{
+    IScene::deactivate();
+    if (hud_)
+    {
+        hud_->set_visible(false);
+    }
 }
 
 engine_result_code_t project_c::TestScene::update(float dt)
@@ -561,227 +417,17 @@ engine_result_code_t project_c::TestScene::update(float dt)
     const auto result = IScene::update(dt);
 
     // the gameplay UI follows the editor's game/editor view (always the game view without the editor)
-    set_gameplay_ui_visible(engineEditorIsGameView());
+    hud_->set_visible(engineEditorIsGameView());
 
     // once the encounter is over (cleared or player dead), restart starts the level again
     auto* app = static_cast<AppProjectC*>(get_app());
     const bool restart_down = app->player_input().restart;
     const bool restart_pressed = restart_down && !restart_was_down_;
     restart_was_down_ = restart_down;
-    if (encounter_over_ && restart_pressed)
+    const auto* encounter = find_script<Encounter>();
+    if (encounter && encounter->is_over() && restart_pressed)
     {
         app->request_scene_reload<TestScene>();
     }
     return result;
-}
-
-void project_c::TestScene::update_hook_begin()
-{
-    if (!gameplay_started_ && engineEditorIsPlaying())
-    {
-        gameplay_started_ = true;
-        engineStringSet(ui_data_.encounter_status, "WASD move, RMB attack, SPACE dodge. Walk into a wall / window / roof edge to climb, SPACE lets go.");
-        engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "encounter_status");
-    }
-}
-
-void project_c::TestScene::ui_update_item_on_ground(const project_c::Weapon* sw)
-{
-    engine::ScopedProfiler prof("project_c::TestScene::ui_update_item_on_ground");
-    const auto active_camera_go = utils::get_active_camera_game_objects()[0];
-    const auto item_go = sw->get_game_object();
-    const auto item_tc = engineGameObjectGetTransformComponent(item_go);
-    const auto item_screen_coords = engineCameraComponentConvertWorldPositionToScreenPosition(active_camera_go, item_tc.position);
-    
-    const auto x_str = std::to_string(item_screen_coords.x * 100) + "%";
-    const auto y_str = std::to_string(item_screen_coords.y * 100) + "%";
-
-    bool found = false;
-    for (auto i = 0; i < engineVectorSizeUint32(ui_data_.items.go); i++)
-    {
-        const auto go = engineVectorGetUint32(ui_data_.items.go, i);
-        if (go == item_go)
-        {
-            found = true;
-            engineVectorSetUint32(ui_data_.items.show, i, 1);
-
-            auto pos_x_str = engineVectorGetEngineString(ui_data_.items.pos_x, i);
-            engineStringSet(pos_x_str, x_str.c_str());
-
-            auto pos_y_str = engineVectorGetEngineString(ui_data_.items.pos_y, i);
-            engineStringSet(pos_y_str, y_str.c_str());
-            break;
-        }
-    }
-    if (!found)
-    {
-        engineVectorPushBackUint32(ui_data_.items.go, item_go);
-        engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_go");
-        engineVectorPushBackEngineString(ui_data_.items.name, engineStringCreate("item"));
-        engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_name");
-
-        engineVectorPushBackUint32(ui_data_.items.show, 1);
-        engineVectorPushBackEngineString(ui_data_.items.pos_x, engineStringCreate(x_str.c_str()));
-        engineVectorPushBackEngineString(ui_data_.items.pos_y, engineStringCreate(y_str.c_str()));
-    }
-
-    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_show");
-    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_pos_x");
-    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_pos_y");
-}
-
-void project_c::TestScene::ui_remove_item_from_ground(const project_c::Weapon* sw) const
-{
-    engine::ScopedProfiler prof("project_c::TestScene::ui_remove_item_from_ground");
-    for (auto i = 0; i < engineVectorSizeUint32(ui_data_.items.go); i++)
-    {
-        const auto go = engineVectorGetUint32(ui_data_.items.go, i);
-        if (go == sw->get_game_object())
-        {
-            engineVectorEraseUint32(ui_data_.items.go, i);
-            engineVectorEraseUint32(ui_data_.items.show, i);
-            engineVectorEraseEngineString(ui_data_.items.name, i);
-            engineVectorEraseEngineString(ui_data_.items.pos_x, i);
-            engineVectorEraseEngineString(ui_data_.items.pos_y, i);
-
-            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_go");
-            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_show");
-            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_name");
-            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_pos_x");
-            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "items_pos_y");
-
-            return;
-        }
-    }
-}
-
-void project_c::TestScene::ui_update_enemy(const Enemy* en)
-{
-    engine::ScopedProfiler prof("project_c::TestScene::ui_update_enemy");
-    const auto active_camera_go = utils::get_active_camera_game_objects()[0];
-    const auto enemy_go = en->get_game_object();
-    auto enemy_tc = engineGameObjectGetTransformComponent(enemy_go);
-    auto healthbar_position = enemy_tc.position;
-    const auto height_offset = 1.0f; // healthbar need to be on top of the enemy
-    healthbar_position[1] += height_offset;
-    const auto enemy_screen_coords = engineCameraComponentConvertWorldPositionToScreenPosition(active_camera_go, healthbar_position);
-
-    const auto box_width = 10; // percent, ToDo: get propery from UiElement
-    const auto box_height = 1; // percent, ToDo: get propery from UiElement
-
-    // calculate x and y and we need to center the box, so subtract half of the size of the box
-    const auto x_str = std::to_string(enemy_screen_coords.x * 100 - (box_width /2)) + "%";
-    const auto y_str = std::to_string(enemy_screen_coords.y * 100 - (box_height /2)) + "%";
-
-    // calculate health progress bar
-    const auto health_progress_value = static_cast<std::uint32_t>(((float)en->hp / (float)en->max_hp) * 100);
-
-    bool found = false;
-    for (auto i = 0; i < engineVectorSizeUint32(ui_data_.enemies.go); i++)
-    {
-        const auto go = engineVectorGetUint32(ui_data_.enemies.go, i);
-        if (go == enemy_go)
-        {
-            found = true;
-
-            engineVectorSetUint32(ui_data_.enemies.healhbars.progressbar_value, i, health_progress_value);
-
-            auto pos_x_str = engineVectorGetEngineString(ui_data_.enemies.healhbars.pos_x, i);
-            engineStringSet(pos_x_str, x_str.c_str());
-
-            auto pos_y_str = engineVectorGetEngineString(ui_data_.enemies.healhbars.pos_y, i);
-            engineStringSet(pos_y_str, y_str.c_str());
-            break;
-        }
-    }
-    if (!found)
-    {
-        engineVectorPushBackUint32(ui_data_.enemies.go, enemy_go);
-        engineVectorPushBackUint32(ui_data_.enemies.healhbars.progressbar_value, health_progress_value);
-        engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_go");
-
-        engineVectorPushBackEngineString(ui_data_.enemies.healhbars.pos_x, engineStringCreate(x_str.c_str()));
-        engineVectorPushBackEngineString(ui_data_.enemies.healhbars.pos_y, engineStringCreate(y_str.c_str()));
-    }
-
-    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_health");
-    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_pos_x");
-    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_pos_y");
-}
-
-void project_c::TestScene::ui_remove_enemy(const Enemy* en)
-{
-    engine::ScopedProfiler prof("project_c::TestScene::ui_remove_enemy");
-    for (auto i = 0; i < engineVectorSizeUint32(ui_data_.enemies.go); i++)
-    {
-        const auto go = engineVectorGetUint32(ui_data_.enemies.go, i);
-        if (go == en->get_game_object())
-        {
-            engineVectorEraseUint32(ui_data_.enemies.go, i);
-            engineVectorEraseUint32(ui_data_.enemies.healhbars.progressbar_value, i);
-            engineVectorEraseEngineString(ui_data_.enemies.healhbars.pos_x, i);
-            engineVectorEraseEngineString(ui_data_.enemies.healhbars.pos_y, i);
-
-            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_go");
-            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_health");
-            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_pos_x");
-            engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "enemies_pos_y");
-
-            return;
-        }
-    }
-}
-
-void project_c::TestScene::ui_update_player_health(std::uint32_t health)
-{
-    ui_data_.player_health = health;
-    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "player_health");
-}
-
-void project_c::TestScene::on_enemy_spawned()
-{
-    ++remaining_enemies_;
-}
-
-void project_c::TestScene::on_enemy_defeated()
-{
-    if (remaining_enemies_ > 0)
-    {
-        --remaining_enemies_;
-    }
-    if (remaining_enemies_ == 0 && !encounter_over_)
-    {
-        encounter_over_ = true;
-        engineStringSet(ui_data_.encounter_status, "Encounter clear! Press R to restart.");
-        engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "encounter_status");
-    }
-}
-
-void project_c::TestScene::on_player_died()
-{
-    if (encounter_over_)
-    {
-        return;
-    }
-    encounter_over_ = true;
-    engineStringSet(ui_data_.encounter_status, "You were defeated. Press R to restart.");
-    engineUiDataHandleDirtyVariable(ui_data_.handle_main_ui, "encounter_status");
-}
-
-void project_c::TestScene::set_gameplay_ui_visible(bool visible)
-{
-    if (gameplay_ui_visible_ == visible || !ui_data_.doc)
-    {
-        return;
-    }
-
-    gameplay_ui_visible_ = visible;
-    if (visible)
-    {
-        engineUiDocumentShow(ui_data_.doc);
-    }
-    else
-    {
-        engineUiDocumentHide(ui_data_.doc);
-    }
 }

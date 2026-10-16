@@ -5,7 +5,7 @@
 #include "coin_script.h"
 
 #include "../app.h"
-#include "../scenes/scene_test.h"
+#include "encounter_script.h"
 
 #include "../nav_mesh.h"
 
@@ -214,9 +214,6 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
 
 project_c::Enemy::~Enemy()
 {
-    auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
-    assert(typed_scene);
-    typed_scene->ui_remove_enemy(this);
     //assert(engineGameObjectIsValid(go_));
     utils::delete_game_objects_hierarchy(go_);
 }
@@ -289,7 +286,6 @@ void project_c::Enemy::update(float dt)
             return NavMeshPathFinder::find_path(*nav_mesh_, my_node_idx, player_node_idx);
         }();
 
-    auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
     if (hp <= 0 && state_ != States::DIE)
     {
         state_ = States::DIE;
@@ -304,11 +300,6 @@ void project_c::Enemy::update(float dt)
         }
         // remove collider so enemy will not be hit by players attacks
         engineGameObjectRemoveColliderComponent(go_);
-        if (!defeat_reported_)
-        {
-            typed_scene->on_enemy_defeated();
-            defeat_reported_ = true;
-        }
         if (reinterpret_cast<AppProjectC*>(my_scene_->get_app())->is_prefab_available(project_c::PrefabType::PREFAB_TYPE_COIN_GOLD))
         {
             auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD, my_scene_).go);
@@ -316,7 +307,8 @@ void project_c::Enemy::update(float dt)
         }
     }
 
-    if (typed_scene->is_encounter_over() && state_ != States::DIE)
+    const auto* encounter = my_scene_->find_script<Encounter>();
+    if (encounter && encounter->is_over() && state_ != States::DIE)
     {
         return;
     }
@@ -441,7 +433,6 @@ void project_c::Enemy::update(float dt)
         break;
     }
     }
-    typed_scene->ui_update_enemy(this);
 }
 
 void project_c::Enemy::set_attack_window_active(bool active)
