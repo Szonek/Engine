@@ -36,7 +36,8 @@ struct EnemyAttackAnimation
 //  - Slice_Horizontal: wind-up to the left ends at ~18%, strike crosses the front at ~20-30%,
 //    and from 30% on the blade is in follow-through at ~80 degrees to the right (a shared 30-62% window always missed).
 //  - Slice_Diagonal: wind-up held until ~32%, strike crosses the front at ~34-46%.
-// The windows are slightly padded because the blade collider follows the animated pose with a one-frame delay.
+// The windows are slightly padded: they were measured while the blade collider still lagged one frame behind the
+// animated pose (Scene::update now computes world transforms before physics, so it no longer does).
 constexpr std::array<EnemyAttackAnimation, 2> ENEMY_ATTACK_ANIMATIONS = { {
     { "1H_Melee_Attack_Slice_Diagonal",   0.32f, 0.50f },
     { "1H_Melee_Attack_Slice_Horizontal", 0.18f, 0.36f },

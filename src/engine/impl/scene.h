@@ -110,6 +110,8 @@ public:
 
 private:
     engine_result_code_t physics_update(float dt);
+    // local_to_world of every transform: TRS, then joint attachments, then the parent chain
+    void update_world_transforms();
     // Collects cameras and everything visible in this scene into render_data and submits it to the renderer. No rendering API calls happen here.
     void submit_render_data(SceneRenderData&& render_data);
 

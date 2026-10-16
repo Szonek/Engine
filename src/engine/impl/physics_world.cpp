@@ -164,6 +164,16 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
     return ret;
 }
 
+void engine::PhysicsWorld::set_world_transform(btRigidBody* rigid_body, const btTransform& world_transform)
+{
+    rigid_body->activate(true);
+    rigid_body->setWorldTransform(world_transform);
+    if (rigid_body->getBroadphaseHandle())
+    {
+        dynamics_world_->updateSingleAabb(rigid_body);
+    }
+}
+
 void engine::PhysicsWorld::update(float dt)
 {
     dynamics_world_->stepSimulation(dt, 10);

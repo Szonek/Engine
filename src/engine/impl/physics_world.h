@@ -61,6 +61,10 @@ public:
     void update(float dt);
     const std::vector<CollisionDesc>& get_collisions() const;
 
+    // moves a body by hand (kinematic/static bodies, children of other game objects). Its broadphase bounds are
+    // updated right away, so ray casts see it before the next simulation substep (a frame can have none).
+    void set_world_transform(btRigidBody* rigid_body, const btTransform& world_transform);
+
     void set_gravity(std::span<const float> g);
 
     engine_ray_hit_info_t raycast(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance);
