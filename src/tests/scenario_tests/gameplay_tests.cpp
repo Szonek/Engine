@@ -19,8 +19,7 @@ using scenario::FIXED_DT_MS;
 
 // frames for the player, spawned 1 m above the floor, to land
 constexpr std::uint32_t LANDING_FRAMES = 30;
-// where scenarios spawn the player. Not the world origin: a player spawned exactly there trips a Bullet assert
-// (normalizing a zero vector) on its first physics step.
+// where scenarios spawn the player
 constexpr float PLAYER_X = 1.0f;
 constexpr float PLAYER_Z = 1.0f;
 
@@ -72,6 +71,37 @@ TEST_F(MovementTest, DiagonalSpeedEqualsStraightSpeed)
 
     EXPECT_GT(straight_speed, 1.0f);
     EXPECT_NEAR(diagonal_speed, straight_speed, straight_speed * 0.05f);
+}
+
+// A new game object's colliders are synced to physics before its first local_to_world is computed. Children (the
+// player's attack trigger) used to get an uninitialized transform for that frame, which made Bullet assert on
+// rays near the world origin, where the debug reset key puts the player.
+TEST_F(MovementTest, PlayerAtWorldOriginLands)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-3.0f, -3.0f, 3.0f, 3.0f);
+    auto* player = scene->build().player(0.0f, 0.0f);
+    scene->snap_camera_to_player();
+    step(LANDING_FRAMES);
+    EXPECT_NEAR(position_of(player->get_game_object()).x, 0.0f, 0.05f);
+
+    // walk away, then the debug reset key puts the player back at the origin
+    PlayerInput walk{};
+    walk.right = true;
+    set_input(walk);
+    step(30);
+    PlayerInput reset{};
+    reset.debug_reset_position = true;
+    set_input(reset);
+    step();
+    release_all_input();
+    step(LANDING_FRAMES);
+
+    // near the origin: it brakes from walking speed after the reset
+    const auto position = position_of(player->get_game_object());
+    EXPECT_NEAR(position.x, 0.0f, 0.25f);
+    EXPECT_NEAR(position.z, 0.0f, 0.25f);
+    EXPECT_FALSE(player->is_dead());
 }
 
 // known bug: the player bounces off colliders instead of sliding along them; enable once fixed
