@@ -15,7 +15,8 @@ void delete_game_objects_hierarchy(engine_game_object_t go);
 std::vector<engine_game_object_t> get_active_camera_game_objects();
 std::vector<engine_game_object_t> get_game_objects_with_name(std::string_view name);
 glm::quat rotate_toward(glm::vec3 origin, glm::vec3 target);
-engine_ray_t get_ray_from_mouse_position(engine_game_object_t go_camera);
+// ray through the cursor (PlayerInput::cursor) from the near to the far plane of the camera
+engine_ray_t get_ray_from_cursor(engine_game_object_t go_camera, engine_fvec2_t cursor);
 
 } // namespace utils
 } // namespace project_c

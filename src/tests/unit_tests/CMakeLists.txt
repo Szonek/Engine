@@ -1,18 +1,5 @@
 # Tests labelled "ci" need no GPU and run in CI (.github/workflows). Tests that need a GL context must not get the label.
 
-set(APP_NAME "unit_tests")
-
-set(APP_SOURCES
-	main.cpp
-	
-	basic_tests.cpp
-)
-add_executable(${APP_NAME} ${APP_SOURCES})
-target_link_libraries(${APP_NAME} GTest::gtest_main engine engine_app_toolkit glm)
-
-add_test(NAME ${APP_NAME} COMMAND ${APP_NAME})
-set_tests_properties(${APP_NAME} PROPERTIES LABELS ci)
-
 # Engine logic that doesn't need a graphics API (nor the engine library): the sources under test are compiled directly
 # into this executable. Add new GL-free tests here rather than creating another executable.
 set(ENGINE_LOGIC_TESTS_NAME "engine_logic_tests")

@@ -1,14 +1,17 @@
 set(APP_NAME "project_c_game")
+# all gameplay code except main(), so tests (scenario_tests) can link it
+set(LIB_NAME "project_c_lib")
 
-set(APP_SOURCES
-	main.cpp
-	
+set(LIB_SOURCES
 	prefab.h
 	prefab.cpp
 	prefab_types.h
 	
 	app.h
 	app.cpp
+
+	player_input.h
+	player_input.cpp
 	
 	nav_mesh.h
 	nav_mesh.cpp
@@ -37,24 +40,31 @@ set(APP_SOURCES
 	scripts/scripts_utils.cpp
 )
 
+set(APP_SOURCES
+	main.cpp
+)
 
-set(APP_ALL_SOURCES ${APP_SOURCES})
+add_library(${LIB_NAME} STATIC ${LIB_SOURCES})
+set_target_properties(${LIB_NAME} PROPERTIES CXX_STANDARD 20 POSITION_INDEPENDENT_CODE ON)
+target_include_directories(${LIB_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(${LIB_NAME} PUBLIC engine fmt::fmt-header-only SDL3::SDL3-static glm engine_app_toolkit RapidJSON)
+target_compile_definitions(${LIB_NAME} PUBLIC GLM_FORCE_QUAT_DATA_XYZW)
+# runtime asset directory: the assets folder of this source tree
+target_compile_definitions(${LIB_NAME} PRIVATE PROJECT_C_ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets")
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${LIB_SOURCES})
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Android")
     find_library(log-lib log)
 
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
 
-    add_library(${APP_NAME} SHARED ${APP_ALL_SOURCES})
+    add_library(${APP_NAME} SHARED ${APP_SOURCES})
     target_link_libraries(${APP_NAME}
             android
             ${log-lib})
 else ()
-    add_executable(${APP_NAME} ${APP_ALL_SOURCES})
+    add_executable(${APP_NAME} ${APP_SOURCES})
 endif()
 set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 20)
-target_link_libraries(${APP_NAME} engine fmt::fmt-header-only SDL3::SDL3-static glm engine_app_toolkit RapidJSON)
-target_compile_definitions(${APP_NAME} PUBLIC GLM_FORCE_QUAT_DATA_XYZW)
-# runtime asset directory: the assets folder of this source tree
-target_compile_definitions(${APP_NAME} PRIVATE PROJECT_C_ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets")
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${APP_ALL_SOURCES})
+target_link_libraries(${APP_NAME} ${LIB_NAME})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${APP_SOURCES})

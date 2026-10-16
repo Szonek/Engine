@@ -1,37 +1,68 @@
 #include <engine.h>
 
 #include "app.h"
+#include "player_input.h"
+#include "scenes/scene_test.h"
+
+namespace
+{
+// The game's main loop: platform concerns only (frame timing, quitting, reading the devices, FPS log).
+// Game rules live in AppProjectC::update, which scenario tests drive the same way with a fixed time step.
+void run(project_c::AppProjectC& app)
+{
+    struct fps_counter_t
+    {
+        float frames_total_time = 0.0f;
+        std::uint32_t frames_count = 0;
+    };
+    fps_counter_t fps_counter{};
+
+    while (true)
+    {
+        const auto frame_begin = engineFrameBegin();
+
+        if (frame_begin.events & ENGINE_EVENT_QUIT)
+        {
+            log(fmt::format("Engine requested app quit. Exiting.\n"));
+            break;
+        }
+
+        const auto input = project_c::read_player_input_from_devices();
+        if (input.quit)
+        {
+            log(fmt::format("User requested quit. Exiting.\n"));
+            break;
+        }
+
+        fps_counter.frames_count += 1;
+        fps_counter.frames_total_time += frame_begin.delta_time;
+        if (fps_counter.frames_total_time > 1000.0f)
+        {
+            log(fmt::format("FPS: {}, latency: {} ms. \n",
+                fps_counter.frames_count, fps_counter.frames_total_time / fps_counter.frames_count));
+            fps_counter = {};
+        }
+
+        app.set_player_input(input);
+        app.update(frame_begin.delta_time);
+
+        const auto frame_end = engineFrameEnd();
+        if (!frame_end.success)
+        {
+            log(fmt::format("Frame not finished sucesfully. Exiting.\n"));
+            break;
+        }
+    }
+}
+}  // namespace
 
 int main(int argc, char** argv)
 {
     try
     {
-        const std::unordered_map<project_c::PrefabType, std::pair<std::string, std::string>> prefabs_data =
-        {
-            // player
-            { project_c::PREFAB_TYPE_ROGUE,         { "Rogue.glb", "KayKit_Adventurers_1.0_FREE/Characters/gltf" }},
-
-            // enemies
-            { project_c::PREFAB_TYPE_SKELETON_WARRIOR, { "Skeleton_Warrior.glb", "KayKit_Skeletons_1.0_FREE/characters/gltf" }},
-            { project_c::PREFAB_TYPE_SKELETON_BLADE, { "Skeleton_Blade.gltf", "KayKit_Skeletons_1.0_FREE/assets/gltf" }},
-
-            // scene assets
-            { project_c::PREFAB_TYPE_FLOOR,          { "Floor_Prototype.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-            //{ project_c::PREFAB_FLOOR_OUTSIDE_REGION, { "Floor.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-            
-            //{ project_c::PREFAB_TYPE_WALL,      { "Wall.gltf",   "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-            { project_c::PREFAB_TYPE_BOX,       { "Box_B.gltf",  "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-            { project_c::PREFAB_TYPE_COIN_GOLD, { "Coin_A.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-
-            // building pieces
-            { project_c::PREFAB_TYPE_BUILDING_WALL,   { "Primitive_Wall.gltf",   "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-            { project_c::PREFAB_TYPE_BUILDING_WINDOW, { "Primitive_Window.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-            { project_c::PREFAB_TYPE_BUILDING_ROOF,   { "Primitive_Floor.gltf",  "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-            { project_c::PREFAB_TYPE_TRAVERSAL_MARKER, { "Primitive_Cube_Small.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-        };
-
-        project_c::AppProjectC app_project_c(prefabs_data);
-        app_project_c.run();
+        project_c::AppProjectC app_project_c(project_c::default_prefabs_data());
+        app_project_c.register_scene<project_c::TestScene>()->activate();
+        run(app_project_c);
 
         return 0;
     }

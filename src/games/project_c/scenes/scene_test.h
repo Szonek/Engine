@@ -68,6 +68,8 @@ public:
         }
     }
 
+    // the level's per-frame rules on top of IScene::update; runs also while the editor is paused
+    engine_result_code_t update(float dt) override;
     void update_hook_begin() override;
     static constexpr const char* get_name() { return "TestScene"; }
 
@@ -89,6 +91,7 @@ private:
     bool encounter_over_ = false;
     bool gameplay_started_ = false;
     bool gameplay_ui_visible_ = true;
+    bool restart_was_down_ = false;
 };
 
 }// namespace project_c

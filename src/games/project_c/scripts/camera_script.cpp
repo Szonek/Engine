@@ -1,5 +1,6 @@
 #include "camera_script.h"
 #include "scripts_utils.h"
+#include "../app.h"
 
 #include "iscene.h"
 
@@ -143,7 +144,7 @@ bool project_c::CameraScript::find_player()
 glm::vec3 project_c::CameraScript::compute_look_ahead(const glm::vec3& player_position) const
 {
     // cursor on the ground plane at the player's height
-    const auto ray = utils::get_ray_from_mouse_position(go_);
+    const auto ray = utils::get_ray_from_cursor(go_, static_cast<const AppProjectC*>(my_scene_->get_app())->player_input().cursor);
     const glm::vec3 ray_from(ray.origin.x, ray.origin.y, ray.origin.z);
     const glm::vec3 ray_to(ray.direction.x, ray.direction.y, ray.direction.z);
     const glm::vec3 ray_direction = ray_to - ray_from;

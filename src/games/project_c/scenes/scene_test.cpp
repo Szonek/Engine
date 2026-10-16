@@ -556,6 +556,25 @@ project_c::TestScene::~TestScene()
     engineStringDestroy(ui_data_.encounter_status);
 }
 
+engine_result_code_t project_c::TestScene::update(float dt)
+{
+    const auto result = IScene::update(dt);
+
+    // the gameplay UI follows the editor's game/editor view (always the game view without the editor)
+    set_gameplay_ui_visible(engineEditorIsGameView());
+
+    // once the encounter is over (cleared or player dead), restart starts the level again
+    auto* app = static_cast<AppProjectC*>(get_app());
+    const bool restart_down = app->player_input().restart;
+    const bool restart_pressed = restart_down && !restart_was_down_;
+    restart_was_down_ = restart_down;
+    if (encounter_over_ && restart_pressed)
+    {
+        app->request_scene_reload<TestScene>();
+    }
+    return result;
+}
+
 void project_c::TestScene::update_hook_begin()
 {
     if (!gameplay_started_ && engineEditorIsPlaying())

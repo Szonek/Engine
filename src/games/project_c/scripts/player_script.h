@@ -1,5 +1,6 @@
 #pragma
 #include "base_script.h"
+#include "../player_input.h"
 
 #include <array>
 #include <chrono>
@@ -175,6 +176,9 @@ public:
     void add_coin(std::uint64_t amount);
 
 private:
+    // this frame's player input (AppProjectC::player_input), never the keyboard/mouse directly
+    const PlayerInput& input() const;
+
     enum LayerIDs : std::size_t
     {
         LOCOMOTION_LAYER_ID = 0,
