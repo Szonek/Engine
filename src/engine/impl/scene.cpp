@@ -254,15 +254,16 @@ engine_result_code_t engine::Scene::physics_update(float dt)
             //physcics_component->rigid_body->getMotionState()->getWorldTransform(world_transform);
             world_transform = physcics_component.rigid_body->getWorldTransform();
 
-            if (has_component<engine_parent_component_t>(entity))
+            glm::vec3 scale;
+            glm::quat rotation;
+            glm::vec3 translation;
+            glm::vec3 skew;
+            glm::vec4 perspective;
+            // local_to_world is current (update_world_transforms runs right before physics_update). decompose leaves
+            // its outputs uninitialized when it fails (e.g. a zero scale), so fall back to the local transform then.
+            if (has_component<engine_parent_component_t>(entity)
+                && glm::decompose(glm::make_mat4(transform_component.local_to_world), scale, rotation, translation, skew, perspective))
             {
-                //btTransform& world_transform = physcics_component.rigid_body->getWorldTransform();
-                glm::vec3 scale;
-                glm::quat rotation;
-                glm::vec3 translation;
-                glm::vec3 skew;
-                glm::vec4 perspective;
-                glm::decompose(glm::make_mat4(transform_component.local_to_world), scale, rotation, translation, skew, perspective);
                 world_transform.setOrigin(btVector3(translation.x, translation.y, translation.z));
                 const btQuaternion quaterninon(rotation.x, rotation.y, rotation.z, rotation.w);
                 world_transform.setRotation(quaterninon);
@@ -275,8 +276,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
             }
 
             //physcics_component->rigid_body->translate(btVector3(translation.x, translation.y, translation.z));
-            physcics_component.rigid_body->activate(true);
-            physcics_component.rigid_body->setWorldTransform(world_transform);
+            physics_world_.set_world_transform(physcics_component.rigid_body, world_transform);
         }
     //);
     transform_update_collider_observer.clear();
@@ -355,11 +355,9 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_result_code_t engine::Scene::update(float dt)
+void engine::Scene::update_world_transforms()
 {
     ENGINE_PROFILE_SECTION;
-    physics_update(dt);
-
     {
         ENGINE_PROFILE_SECTION_N("transform_view");
 #if 1
@@ -393,16 +391,6 @@ engine_result_code_t engine::Scene::update(float dt)
     }
 
     {
-        ENGINE_PROFILE_SECTION_N("animation_controller_update_view");
-        auto animation_controller_updated_view = entity_registry_.view<engine_animation_controller_component_t>();
-        animation_controller_updated_view.each([this, dt](engine_animation_controller_component_t& ac_component)
-            {
-                auto typed_ac = reinterpret_cast<engine::AnimationController*>(ac_component.controller);
-                typed_ac->update(dt);
-            });
-    }
-
-    {
         ENGINE_PROFILE_SECTION_N("join_attachment_view");
         auto joint_attachment_view = entity_registry_.view<engine_tranform_component_t, const engine_joint_attachment_component_t>();
         joint_attachment_view.each([this](engine_tranform_component_t& transform_component, const engine_joint_attachment_component_t& joint_attachment_component)
@@ -420,16 +408,6 @@ engine_result_code_t engine::Scene::update(float dt)
                     std::memcpy(transform_component.local_to_world, &attachment_model_matrix, sizeof(attachment_model_matrix));
                 }
 
-            });
-    }
-
-    {
-        ENGINE_PROFILE_SECTION_N("skin_component_view");
-        auto skin_component_view = entity_registry_.view<engine_skin_component_t>();
-        skin_component_view.each([this, dt](engine_skin_component_t& skin_component)
-            {
-                auto typed_ac = reinterpret_cast<engine::Skin*>(skin_component.skin);
-                typed_ac->compute_skinning_matrices();
             });
     }
 
@@ -479,6 +457,37 @@ engine_result_code_t engine::Scene::update(float dt)
             }
         }
 
+    }
+}
+
+engine_result_code_t engine::Scene::update(float dt)
+{
+    ENGINE_PROFILE_SECTION;
+    {
+        ENGINE_PROFILE_SECTION_N("animation_controller_update_view");
+        auto animation_controller_updated_view = entity_registry_.view<engine_animation_controller_component_t>();
+        animation_controller_updated_view.each([this, dt](engine_animation_controller_component_t& ac_component)
+            {
+                auto typed_ac = reinterpret_cast<engine::AnimationController*>(ac_component.controller);
+                typed_ac->update(dt);
+            });
+    }
+
+    // physics reads world transforms (bodies of child game objects, new bodies), so they have to be current:
+    // this frame's transforms, animation poses and parents. Afterwards again, because the step moved the dynamic
+    // bodies (and with them their children).
+    update_world_transforms();
+    physics_update(dt);
+    update_world_transforms();
+
+    {
+        ENGINE_PROFILE_SECTION_N("skin_component_view");
+        auto skin_component_view = entity_registry_.view<engine_skin_component_t>();
+        skin_component_view.each([this, dt](engine_skin_component_t& skin_component)
+            {
+                auto typed_ac = reinterpret_cast<engine::Skin*>(skin_component.skin);
+                typed_ac->compute_skinning_matrices();
+            });
     }
 
     SceneRenderData render_data;

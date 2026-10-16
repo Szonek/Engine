@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <format>
+#include <utility>
 
 namespace
 {
@@ -493,6 +494,13 @@ void project_c::Player::update(float dt)
     }
     dodge_cooldown_remaining_seconds_ = std::max(0.0f, dodge_cooldown_remaining_seconds_ - dt / 1000.0f);
 
+    // presses are detected every frame, also during hit-stop, and kept until the player can act on them;
+    // otherwise a press during a hit-stop (e.g. the next combo attack right after a confirmed hit) is lost
+    attack_press_pending_ = attack_press_pending_ || (input().attack && !attack_input_was_down_);
+    attack_input_was_down_ = input().attack;
+    dodge_press_pending_ = dodge_press_pending_ || (input().dodge && !dodge_input_was_down_);
+    dodge_input_was_down_ = input().dodge;
+
     auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
     if (hit_stop_remaining_seconds_ > 0.0f)
     {
@@ -527,12 +535,8 @@ void project_c::Player::update(float dt)
     const auto hit_info = enginePhysicsRayCast(raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000000.0f);
 
     const auto lmb = input().interact;
-    const auto rmb = input().attack;
-    const bool attack_pressed = rmb && !attack_input_was_down_;
-    attack_input_was_down_ = rmb;
-    const auto space_down = input().dodge;
-    const bool dodge_pressed = space_down && !dodge_input_was_down_;
-    dodge_input_was_down_ = space_down;
+    const bool attack_pressed = std::exchange(attack_press_pending_, false);
+    const bool dodge_pressed = std::exchange(dodge_press_pending_, false);
     traversal_regrab_cooldown_ = std::max(0.0f, traversal_regrab_cooldown_ - dt / 1000.0f);
 
     if (traversal_state_ != TraversalState::eNone)

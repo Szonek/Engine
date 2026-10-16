@@ -11,6 +11,7 @@ add_executable(${SCENARIO_TESTS_NAME}
 	gameplay_tests.cpp
 	harness_tests.cpp
 	level_tests.cpp
+	physics_tests.cpp
 )
 set_property(TARGET ${SCENARIO_TESTS_NAME} PROPERTY CXX_STANDARD 20)
 target_link_libraries(${SCENARIO_TESTS_NAME} GTest::gtest project_c_lib)

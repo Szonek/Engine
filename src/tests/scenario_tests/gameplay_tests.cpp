@@ -19,8 +19,7 @@ using scenario::FIXED_DT_MS;
 
 // frames for the player, spawned 1 m above the floor, to land
 constexpr std::uint32_t LANDING_FRAMES = 30;
-// where scenarios spawn the player. Not the world origin: a player spawned exactly there trips a Bullet assert
-// (normalizing a zero vector) on its first physics step.
+// where scenarios spawn the player
 constexpr float PLAYER_X = 1.0f;
 constexpr float PLAYER_Z = 1.0f;
 
@@ -72,6 +71,37 @@ TEST_F(MovementTest, DiagonalSpeedEqualsStraightSpeed)
 
     EXPECT_GT(straight_speed, 1.0f);
     EXPECT_NEAR(diagonal_speed, straight_speed, straight_speed * 0.05f);
+}
+
+// A new game object's colliders are synced to physics before its first local_to_world is computed. Children (the
+// player's attack trigger) used to get an uninitialized transform for that frame, which made Bullet assert on
+// rays near the world origin, where the debug reset key puts the player.
+TEST_F(MovementTest, PlayerAtWorldOriginLands)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-3.0f, -3.0f, 3.0f, 3.0f);
+    auto* player = scene->build().player(0.0f, 0.0f);
+    scene->snap_camera_to_player();
+    step(LANDING_FRAMES);
+    EXPECT_NEAR(position_of(player->get_game_object()).x, 0.0f, 0.05f);
+
+    // walk away, then the debug reset key puts the player back at the origin
+    PlayerInput walk{};
+    walk.right = true;
+    set_input(walk);
+    step(30);
+    PlayerInput reset{};
+    reset.debug_reset_position = true;
+    set_input(reset);
+    step();
+    release_all_input();
+    step(LANDING_FRAMES);
+
+    // near the origin: it brakes from walking speed after the reset
+    const auto position = position_of(player->get_game_object());
+    EXPECT_NEAR(position.x, 0.0f, 0.25f);
+    EXPECT_NEAR(position.z, 0.0f, 0.25f);
+    EXPECT_FALSE(player->is_dead());
 }
 
 // known bug: the player bounces off colliders instead of sliding along them; enable once fixed
@@ -153,20 +183,45 @@ TEST_F(CombatTest, AttackComboKillsEnemyAndClearsEncounter)
     EXPECT_EQ(scene->encounter()->get_remaining_enemies(), 0u);
 }
 
-TEST_F(CombatTest, EnemyInReachDamagesIdlePlayer)
+// enemies close in until their blade reaches the player, from right next to it up to the end of their nav path
+// range; they used to stop and swing from up to 1.15 m although the blade only hits within ~0.5 m
+TEST_F(CombatTest, EnemyNearbyDamagesIdlePlayer)
+{
+    for (const float distance : { 0.4f, 0.8f, 2.0f })
+    {
+        SCOPED_TRACE(distance);
+        auto* scene = load_sandbox_scene();
+        scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
+        auto* player = scene->build().player(PLAYER_X, PLAYER_Z);
+        scene->build().enemy(PLAYER_X, PLAYER_Z + distance);
+        scene->snap_camera_to_player();
+
+        step(LANDING_FRAMES + 240);
+
+        EXPECT_LT(player->get_hp(), player->get_max_hp());
+        EXPECT_FALSE(player->is_dead());
+        EXPECT_EQ(scene->encounter()->get_state(), Encounter::State::eInProgress);
+        TearDown();
+    }
+}
+
+// getting hit puts the player into a short hit-stop; an attack pressed during it used to be dropped
+TEST_F(CombatTest, AttackPressedDuringHitStopIsNotLost)
 {
     auto* scene = load_sandbox_scene();
     scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
     auto* player = scene->build().player(PLAYER_X, PLAYER_Z);
-    // the enemy blade only reaches the player from about 0.4 m, although enemies start attacking within 1.15 m
-    scene->build().enemy(PLAYER_X, PLAYER_Z + 0.4f);
+    auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + 0.5f);
+    ASSERT_NE(enemy, nullptr);
+    const auto target = position_of(enemy->get_game_object()) + glm::vec3(0.0f, 0.35f, 0.0f);
     scene->snap_camera_to_player();
+    step(LANDING_FRAMES);
+    ASSERT_EQ(enemy->hp, enemy->max_hp);
 
-    step(LANDING_FRAMES + 180);
+    player->receive_damage(1, position_of(enemy->get_game_object()));
+    attack(target, 40);
 
-    EXPECT_LT(player->get_hp(), player->get_max_hp());
-    EXPECT_FALSE(player->is_dead());
-    EXPECT_EQ(scene->encounter()->get_state(), Encounter::State::eInProgress);
+    EXPECT_LT(enemy->hp, enemy->max_hp);
 }
 
 TEST_F(CombatTest, PlayerDeathDefeatsEncounter)
