@@ -205,6 +205,25 @@ TEST_F(CombatTest, EnemyNearbyDamagesIdlePlayer)
     }
 }
 
+// getting hit puts the player into a short hit-stop; an attack pressed during it used to be dropped
+TEST_F(CombatTest, AttackPressedDuringHitStopIsNotLost)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
+    auto* player = scene->build().player(PLAYER_X, PLAYER_Z);
+    auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + 0.5f);
+    ASSERT_NE(enemy, nullptr);
+    const auto target = position_of(enemy->get_game_object()) + glm::vec3(0.0f, 0.35f, 0.0f);
+    scene->snap_camera_to_player();
+    step(LANDING_FRAMES);
+    ASSERT_EQ(enemy->hp, enemy->max_hp);
+
+    player->receive_damage(1, position_of(enemy->get_game_object()));
+    attack(target, 40);
+
+    EXPECT_LT(enemy->hp, enemy->max_hp);
+}
+
 TEST_F(CombatTest, PlayerDeathDefeatsEncounter)
 {
     auto* scene = load_sandbox_scene();
