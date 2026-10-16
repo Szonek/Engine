@@ -16,6 +16,8 @@ set(LIB_SOURCES
 	nav_mesh.h
 	nav_mesh.cpp
 	
+	scenes/level_builder.h
+	scenes/level_builder.cpp
 	scenes/scene_test.h
 	scenes/scene_test.cpp
 	
