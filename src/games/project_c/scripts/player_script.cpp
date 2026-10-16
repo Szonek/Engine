@@ -5,7 +5,6 @@
 #include "interactable_script.h"
 #include "camera_script.h"
 #include "building_script.h"
-#include "../scenes/scene_test.h"
 
 #include "../app.h"
 #include "iscene.h"
@@ -318,18 +317,9 @@ void project_c::Weapon::on_collision(const collision_t& info)
     }
 }
 
-void project_c::Weapon::update(float dt)
+bool project_c::Weapon::is_on_ground() const
 {
-    auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
-
-    if (!engineGameObjectHasParentComponent(go_))
-    {
-        typed_scene->ui_update_item_on_ground(this);
-    }
-    else
-    {
-        typed_scene->ui_remove_item_from_ground(this);
-    }
+    return !engineGameObjectHasParentComponent(go_);
 }
 
 project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_object_t go, Player* player)
@@ -860,8 +850,6 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
     }
 
     hp_ = damage >= hp_ ? 0 : hp_ - damage;
-    auto typed_scene = static_cast<project_c::TestScene*>(my_scene_);
-    typed_scene->ui_update_player_health(hp_);
 
     auto player_transform = engineGameObjectGetTransformComponent(go_);
     glm::vec3 knockback_direction(
@@ -895,7 +883,6 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
         {
             engineLog("Failed to play player death animation.\n");
         }
-        typed_scene->on_player_died();
     }
     else
     {
