@@ -41,7 +41,11 @@ constexpr std::array<EnemyAttackAnimation, 2> ENEMY_ATTACK_ANIMATIONS = { {
     { "1H_Melee_Attack_Slice_Diagonal",   0.32f, 0.50f },
     { "1H_Melee_Attack_Slice_Horizontal", 0.18f, 0.36f },
 } };
-constexpr float ENEMY_ATTACK_RANGE = 1.15f;
+// the blade only reaches ~0.3 m in front of the skeleton, so the player is hit up to ~0.5 m between centers;
+// swinging from further away always misses
+constexpr float ENEMY_ATTACK_RANGE = 0.5f;
+// closer than this there is no nav mesh path to follow: the enemy walks straight at the player
+constexpr float ENEMY_DIRECT_APPROACH_RANGE = 0.8f;
 // player climbing a wall or standing on a roof is out of reach
 constexpr float ENEMY_MAX_REACH_HEIGHT = 0.6f;
 constexpr float ENEMY_ATTACK_COOLDOWN_SECONDS = 0.8f;
@@ -279,7 +283,7 @@ void project_c::Enemy::update(float dt)
     const auto player_node_idx =  nav_mesh_->get_node_idx({ ec.position[0], ec.position[1], ec.position[2] });
     auto path = [&]()
         {
-            if (distance_to_player < 0.8f || my_node_idx == -1 || player_node_idx == -1)
+            if (distance_to_player < ENEMY_DIRECT_APPROACH_RANGE || my_node_idx == -1 || player_node_idx == -1)
             {
                 return NavMeshPathFinder::PathFromStartToEnd{};
             }
@@ -346,6 +350,10 @@ void project_c::Enemy::update(float dt)
         {
             state_ = States::MOVE;
         }
+        else if (distance_to_player < ENEMY_DIRECT_APPROACH_RANGE)
+        {
+            state_ = States::MOVE;
+        }
         else
         {
             state_ = States::IDLE;
@@ -394,7 +402,8 @@ void project_c::Enemy::update(float dt)
     {
         // path is computed per_frame, but decision was made frame before
         // so it can happen that target has moved and new position is not reachable or close to current position
-        if (path.nodes.empty())
+        const bool direct_approach = path.nodes.empty() && distance_to_player < ENEMY_DIRECT_APPROACH_RANGE;
+        if (distance_to_player <= ENEMY_ATTACK_RANGE || (path.nodes.empty() && !direct_approach))
         {
             state_ = States::DECISION_MAKE;
             break;
@@ -412,8 +421,10 @@ void project_c::Enemy::update(float dt)
             const auto n_pos = nav_mesh_->get_node(node).get_center();
             debug_scripts_.push_back(my_scene_->register_script<project_c::DebugPathNode>(n_pos.x, n_pos.z));
         }
-        const auto& target_node = nav_mesh_->get_node(path.nodes[0]);
-        auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), target_node.get_center());
+        const glm::vec3 target = direct_approach
+            ? glm::vec3(ec.position[0], tc.position[1], ec.position[2])
+            : nav_mesh_->get_node(path.nodes[0]).get_center();
+        auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), target);
         //auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
         quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
         std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));

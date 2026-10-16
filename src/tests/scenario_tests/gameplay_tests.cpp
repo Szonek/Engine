@@ -183,20 +183,26 @@ TEST_F(CombatTest, AttackComboKillsEnemyAndClearsEncounter)
     EXPECT_EQ(scene->encounter()->get_remaining_enemies(), 0u);
 }
 
-TEST_F(CombatTest, EnemyInReachDamagesIdlePlayer)
+// enemies close in until their blade reaches the player, from right next to it up to the end of their nav path
+// range; they used to stop and swing from up to 1.15 m although the blade only hits within ~0.5 m
+TEST_F(CombatTest, EnemyNearbyDamagesIdlePlayer)
 {
-    auto* scene = load_sandbox_scene();
-    scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
-    auto* player = scene->build().player(PLAYER_X, PLAYER_Z);
-    // the enemy blade only reaches the player from about 0.4 m, although enemies start attacking within 1.15 m
-    scene->build().enemy(PLAYER_X, PLAYER_Z + 0.4f);
-    scene->snap_camera_to_player();
+    for (const float distance : { 0.4f, 0.8f, 2.0f })
+    {
+        SCOPED_TRACE(distance);
+        auto* scene = load_sandbox_scene();
+        scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
+        auto* player = scene->build().player(PLAYER_X, PLAYER_Z);
+        scene->build().enemy(PLAYER_X, PLAYER_Z + distance);
+        scene->snap_camera_to_player();
 
-    step(LANDING_FRAMES + 180);
+        step(LANDING_FRAMES + 240);
 
-    EXPECT_LT(player->get_hp(), player->get_max_hp());
-    EXPECT_FALSE(player->is_dead());
-    EXPECT_EQ(scene->encounter()->get_state(), Encounter::State::eInProgress);
+        EXPECT_LT(player->get_hp(), player->get_max_hp());
+        EXPECT_FALSE(player->is_dead());
+        EXPECT_EQ(scene->encounter()->get_state(), Encounter::State::eInProgress);
+        TearDown();
+    }
 }
 
 TEST_F(CombatTest, PlayerDeathDefeatsEncounter)
