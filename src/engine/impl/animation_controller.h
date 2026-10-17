@@ -65,6 +65,11 @@ private:
 class AnimationLibraryCache
 {
 public:
+    // The library built for this skin handle, or nullptr. Skin handles are atlas slots and get reused once a skin is
+    // destroyed, so an entry whose skeleton doesn't match `skin` is stale: it is dropped and nullptr returned.
+    // Callers hold `mutex`.
+    std::shared_ptr<const AnimationLibrary> find(std::uint32_t skin_handle, const Skin& skin);
+
     std::mutex mutex;
     std::unordered_map<std::uint32_t, std::shared_ptr<const AnimationLibrary>> libraries;
 };

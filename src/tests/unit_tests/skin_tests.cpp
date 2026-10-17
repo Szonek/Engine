@@ -110,4 +110,31 @@ TEST_F(SkinTest, UnknownJointGivesIdentityInsteadOfReadingOutOfBounds)
     const auto pose = skin.make_rest_pose();
     EXPECT_EQ(skin.get_model_matrix_for_joint(pose, "missing"), glm::mat4(1.0f));
 }
+TEST_F(SkinTest, CachedLibraryForAReusedSkinHandleWithAnotherSkeletonIsDropped)
+{
+    const engine::Skin skin(desc_, root_);
+
+    // another skeleton: a "finger" below the hand
+    engine::ModelNodeDesc finger;
+    finger.name = "finger";
+    finger.index = 2;
+    finger.parent = &hand_;
+    finger.translation = glm::vec3(0.0f, 0.5f, 0.0f);
+    hand_.children = { &finger };
+    auto other_desc = desc_;
+    other_desc.asset_id = "Other.glb#Rig";
+    other_desc.joint_index_map["finger"] = 2;
+    other_desc.inverse_bind_matrix_map["finger"] = glm::mat4(1.0f);
+    const engine::Skin other_skin(other_desc, root_);
+
+    // skin handles are atlas slots: after `skin` is destroyed, `other_skin` can get the same handle
+    constexpr std::uint32_t handle = 0;
+    engine::AnimationLibraryCache cache;
+    const auto library = std::make_shared<const engine::AnimationLibrary>(skin);
+    cache.libraries[handle] = library;
+
+    EXPECT_EQ(cache.find(handle, skin), library);
+    EXPECT_EQ(cache.find(handle, other_skin), nullptr);
+    EXPECT_TRUE(cache.libraries.empty());
+}
 }  // namespace

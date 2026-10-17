@@ -145,7 +145,8 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, Renderer& renderer, c
     entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
     entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
-    entity_registry_.on_construct<engine_skin_component_t>().connect<&Scene::on_skin_component_changed>(*this);
+    // only on update: EnTT calls construction listeners last-connected first, so on construction this would run before
+    // initialize_skin_component and read a zeroed handle (a valid atlas slot). A new component has no skin yet anyway.
     entity_registry_.on_update<engine_skin_component_t>().connect<&Scene::on_skin_component_changed>(*this);
     entity_registry_.on_destroy<engine_skin_component_t>().connect<&entt::registry::remove<skin_pose_internal_component_t>>();
     entity_registry_.on_construct<engine_joint_attachment_component_t>().connect<&initialize_joint_attachment_component>();
@@ -726,11 +727,14 @@ std::pair<const engine::SkinPose*, const engine::Skin*> engine::Scene::get_skin_
         return { nullptr, nullptr };
     }
     const auto* pose_component = entity_registry_.try_get<skin_pose_internal_component_t>(entity);
-    if (!pose_component)
+    const auto* skin_component = entity_registry_.try_get<engine_skin_component_t>(entity);
+    const auto* skin = skin_component ? app_->get_skin(skin_component->skin) : nullptr;
+    // never a pose without the skin it belongs to
+    if (!pose_component || !skin)
     {
         return { nullptr, nullptr };
     }
-    return { &pose_component->pose, app_->get_skin(entity_registry_.get<engine_skin_component_t>(entity).skin) };
+    return { &pose_component->pose, skin };
 }
 
 entt::entity engine::Scene::create_new_entity()

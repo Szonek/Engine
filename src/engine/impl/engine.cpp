@@ -193,9 +193,9 @@ std::shared_ptr<const engine::AnimationLibrary> get_or_create_animation_library(
     }
 
     std::lock_guard lock(cache->mutex);
-    if (const auto it = cache->libraries.find(skin_handle); it != cache->libraries.end())
+    if (auto library = cache->find(skin_handle, skin))
     {
-        return it->second;
+        return library;
     }
 
     auto library = std::make_shared<engine::AnimationLibrary>(skin);
@@ -206,7 +206,7 @@ std::shared_ptr<const engine::AnimationLibrary> get_or_create_animation_library(
             return {};
         }
     }
-    cache->libraries.emplace(skin_handle, library);
+    cache->libraries[skin_handle] = library;
     return library;
 }
 

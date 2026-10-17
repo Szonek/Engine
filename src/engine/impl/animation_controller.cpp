@@ -179,6 +179,21 @@ const std::unordered_map<std::string, std::shared_ptr<const engine::CompiledAnim
     return animations_;
 }
 
+std::shared_ptr<const engine::AnimationLibrary> engine::AnimationLibraryCache::find(std::uint32_t skin_handle, const Skin& skin)
+{
+    const auto it = libraries.find(skin_handle);
+    if (it == libraries.end())
+    {
+        return nullptr;
+    }
+    if (!it->second->is_compatible_with(skin))
+    {
+        libraries.erase(it);
+        return nullptr;
+    }
+    return it->second;
+}
+
 engine::AnimationController::AnimationController(const Skin* skin, std::shared_ptr<const AnimationLibrary> animation_library)
     : skin_(skin)
 {

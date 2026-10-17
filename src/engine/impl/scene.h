@@ -125,7 +125,7 @@ private:
     void update_world_transforms();
     // (re)creates the pose of a skin instance when its skin component gets a skin, removes it when it loses one
     void on_skin_component_changed(entt::registry& registry, entt::entity entity);
-    // the pose and skin asset of the skin instance owned by `skin_owner`, or {nullptr, nullptr}
+    // the pose and skin asset of the skin instance owned by `skin_owner`, or {nullptr, nullptr} (both or neither)
     std::pair<const SkinPose*, const Skin*> get_skin_instance(engine_game_object_t skin_owner) const;
     // Collects cameras and everything visible in this scene into render_data and submits it to the renderer. No rendering API calls happen here.
     void submit_render_data(SceneRenderData&& render_data);

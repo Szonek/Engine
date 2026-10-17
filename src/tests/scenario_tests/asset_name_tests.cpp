@@ -45,6 +45,7 @@ TEST_F(AssetNameTest, PlayerWeaponUsesTheRogueTexture)
     EXPECT_EQ(material.data.pong.diffuse_texture, engineTextured2DGetByName("Rogue.glb#rogue_texture"));
     EXPECT_NE(material.data.pong.diffuse_texture, ENGINE_INVALID_OBJECT_HANDLE);
 }
+
 TEST_F(AssetNameTest, SkinnedInstancesShareOneSkinAsset)
 {
     auto* scene = load_sandbox_scene();
@@ -62,5 +63,36 @@ TEST_F(AssetNameTest, SkinnedInstancesShareOneSkinAsset)
     ASSERT_TRUE(engineGameObjectHasSkinComponent(second->get_game_object()));
     EXPECT_EQ(engineGameObjectGetSkinComponent(first->get_game_object()).skin, skin);
     EXPECT_EQ(engineGameObjectGetSkinComponent(second->get_game_object()).skin, skin);
+}
+
+TEST_F(AssetNameTest, SkinComponentWithoutASkinHasNoPose)
+{
+    load_sandbox_scene();
+    // a skin component added but never given a skin (e.g. "add component" in the editor)
+    const auto owner = engineGameObjectCreate();
+    engineGameObjectAddTransformComponent(owner);
+    engineGameObjectAddSkinComponent(owner);
+    ASSERT_EQ(engineGameObjectGetSkinComponent(owner).skin, ENGINE_INVALID_OBJECT_HANDLE);
+
+    // something attached to it: it must not read a pose of some other skin
+    const auto attached = engineGameObjectCreate();
+    engineGameObjectAddTransformComponent(attached);
+    auto jac = engineGameObjectAddJointAttachmentComponent(attached);
+    jac.skin = owner;
+    engineStringSet(jac.joint_name, "handslot.r");
+    engineGameObjectUpdateJointAttachmentComponent(attached, &jac);
+    step(2);
+
+    // giving it a skin later works, and taking it away again removes the pose
+    auto sc = engineGameObjectGetSkinComponent(owner);
+    sc.skin = engineSkinGetByName("Rogue.glb#Rig");
+    ASSERT_NE(sc.skin, ENGINE_INVALID_OBJECT_HANDLE);
+    engineGameObjectUpdateSkinComponent(owner, &sc);
+    step(2);
+    sc.skin = ENGINE_INVALID_OBJECT_HANDLE;
+    engineGameObjectUpdateSkinComponent(owner, &sc);
+    step(2);
+
+    EXPECT_TRUE(engineGameObjectIsValid(attached));
 }
 }  // namespace
