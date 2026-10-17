@@ -45,7 +45,7 @@ private:
     std::vector<engine_geometry_t> geometries_ = {};
     std::vector<engine_material_component_t> materials_;
     std::vector<EngineObj<engine_texture2d_t>> textures_ = {};
-    std::vector<engine_skin_t*> skins_ = {};
+    std::vector<engine_skin_t> skins_ = {};
     std::vector<engine_animation_controller_t*> animation_controllers_ = {};
 };
 }

@@ -11,6 +11,7 @@
 #include <ozz/animation/runtime/local_to_model_job.h>
 #include <ozz/animation/runtime/blending_job.h>
 
+#include <algorithm>
 #include <stdexcept>
 #include <format>
 #include <cmath>
@@ -38,10 +39,10 @@ struct WeightSetupIterator
 
 engine::AnimationLibrary::AnimationLibrary(const Skin& skin)
 {
-    joint_names_.reserve(skin.skeleton_->num_joints());
-    for (int i = 0; i < skin.skeleton_->num_joints(); ++i)
+    joint_names_.reserve(skin.get_skeleton().num_joints());
+    for (int i = 0; i < skin.get_skeleton().num_joints(); ++i)
     {
-        joint_names_.emplace_back(skin.skeleton_->joint_names()[i]);
+        joint_names_.emplace_back(skin.get_skeleton().joint_names()[i]);
     }
 }
 
@@ -77,14 +78,14 @@ bool engine::AnimationLibrary::add_animation(const AnimationClipDesc& animation_
         log::log(log::LogLevel::eError, std::format("Animation '{}' has no channels.\n", raw_animation.name).c_str());
         return false;
     }
-    raw_animation.tracks.resize(skin.skeleton_->num_joints());
+    raw_animation.tracks.resize(skin.get_skeleton().num_joints());
 
     for (const auto& channel : animation_clip.channels)
     {
-        const auto joint_idx = ozz::animation::FindJoint(*skin.skeleton_, channel.joint_name.c_str());
+        const auto joint_idx = ozz::animation::FindJoint(skin.get_skeleton(), channel.joint_name.c_str());
         if (joint_idx < 0)
         {
-            log::log(log::LogLevel::eError, std::format("Joint '{}' not found in skin '{}'.\n", channel.joint_name, skin.get_name()).c_str());
+            log::log(log::LogLevel::eError, std::format("Joint '{}' of animation '{}' not found in the skin.\n", channel.joint_name, animation_clip.name).c_str());
             return false;
         }
         auto& track = raw_animation.tracks[joint_idx];
@@ -159,13 +160,13 @@ bool engine::AnimationLibrary::add_animation(const AnimationClipDesc& animation_
 
 bool engine::AnimationLibrary::is_compatible_with(const Skin& skin) const
 {
-    if (joint_names_.size() != static_cast<std::size_t>(skin.skeleton_->num_joints()))
+    if (joint_names_.size() != static_cast<std::size_t>(skin.get_skeleton().num_joints()))
     {
         return false;
     }
     for (std::size_t i = 0; i < joint_names_.size(); ++i)
     {
-        if (joint_names_[i] != skin.skeleton_->joint_names()[i])
+        if (joint_names_[i] != skin.get_skeleton().joint_names()[i])
         {
             return false;
         }
@@ -178,7 +179,7 @@ const std::unordered_map<std::string, std::shared_ptr<const engine::CompiledAnim
     return animations_;
 }
 
-engine::AnimationController::AnimationController(Skin* skin, std::shared_ptr<const AnimationLibrary> animation_library)
+engine::AnimationController::AnimationController(const Skin* skin, std::shared_ptr<const AnimationLibrary> animation_library)
     : skin_(skin)
 {
     ENGINE_PROFILE_SECTION;
@@ -225,7 +226,7 @@ bool engine::AnimationController::add_animation(const AnimationClipDesc& animati
     return true;
 }
 
-void engine::AnimationController::update(float dt)
+void engine::AnimationController::update(float dt, SkinPose& pose)
 {
     ENGINE_PROFILE_SECTION;
     if (dt == 0.0f)
@@ -276,13 +277,13 @@ void engine::AnimationController::update(float dt)
         ozz::animation::BlendingJob blend_job;
         blend_job.threshold = ozz::animation::BlendingJob().threshold;
         blend_job.layers = ozz::make_span(anim_layers);
-        blend_job.rest_pose = skin_->skeleton_->joint_rest_poses();
+        blend_job.rest_pose = skin_->get_skeleton().joint_rest_poses();
         blend_job.output = ozz::make_span(layer.output);
 
         // Blends.
         if (!blend_job.Run()) 
         {
-            log::log(log::LogLevel::eError, std::format("Failed to update animation controller for {}.\n", skin_->get_name()).c_str());
+            log::log(log::LogLevel::eError, "Failed to blend an animation layer.\n");
         }
 
         // add to executed layer result
@@ -321,30 +322,30 @@ void engine::AnimationController::update(float dt)
     }
 
     // cross-layer blend
-    ozz::vector<ozz::math::SoaTransform> final_output(skin_->skeleton_->num_soa_joints());
+    ozz::vector<ozz::math::SoaTransform> final_output(skin_->get_skeleton().num_soa_joints());
     ozz::animation::BlendingJob blend_job;
     blend_job.threshold = ozz::animation::BlendingJob().threshold;
     blend_job.layers = ozz::make_span(executed_layers);
     blend_job.additive_layers = ozz::make_span(executed_additive_layers);
-    blend_job.rest_pose = skin_->skeleton_->joint_rest_poses();
+    blend_job.rest_pose = skin_->get_skeleton().joint_rest_poses();
     blend_job.output = ozz::make_span(final_output);
 
     // Blends.
     if (!blend_job.Run())
     {
-        log::log(log::LogLevel::eError, std::format("Failed blend cross-layer result for skin: {}.\n", skin_->get_name()).c_str());
+        log::log(log::LogLevel::eError, "Failed blend cross-layer result.\n");
         throw std::runtime_error("Failed blend cross-layer result.");
     }
 
     // compute model matrices which will be used during skinning
     ozz::animation::LocalToModelJob ltm_job{};
-    ltm_job.skeleton = skin_->skeleton_.get();
+    ltm_job.skeleton = &skin_->get_skeleton();
     ltm_job.input = ozz::make_span(final_output);
-    ltm_job.output = ozz::make_span(skin_->models_);
+    ltm_job.output = ozz::make_span(pose.models);
 
     if (!ltm_job.Run())
     {
-        log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", skin_->get_name()).c_str());
+        log::log(log::LogLevel::eError, "Failed to convert local to model space for skin.\n");
         throw std::runtime_error("Failed to convert local to model space for skin.");
     }
 }
@@ -362,7 +363,7 @@ bool engine::AnimationController::add_layer(std::size_t id, float weight)
         return false;
     }
 
-    layers_[id] = AnimationLayer(id, weight, skin_->skeleton_->num_joints(), LayerBlendMode::eOverride);
+    layers_[id] = AnimationLayer(id, weight, skin_->get_skeleton().num_joints(), LayerBlendMode::eOverride);
     
     return true;
 }
@@ -429,10 +430,10 @@ bool engine::AnimationController::set_layer_joint_weight(std::size_t id, const s
         return false;
     }
 
-    const auto joint_index = ozz::animation::FindJoint(*skin_->skeleton_, joint_name.c_str());
+    const auto joint_index = ozz::animation::FindJoint(skin_->get_skeleton(), joint_name.c_str());
     if (joint_index < 0)
     {
-        log::log(log::LogLevel::eError, std::format("Joint '{}' not found in skin '{}'.\n", joint_name, skin_->get_name()).c_str());
+        log::log(log::LogLevel::eError, std::format("Joint '{}' not found in the skin.\n", joint_name).c_str());
         return false;
     }
 
@@ -440,12 +441,12 @@ bool engine::AnimationController::set_layer_joint_weight(std::size_t id, const s
     if (!layer.joint_weights)
     {
         ozz::vector<ozz::math::SimdFloat4> weights(
-            (skin_->skeleton_->num_joints() + 3) / 4,
+            (skin_->get_skeleton().num_joints() + 3) / 4,
             ozz::math::simd_float4::Load1(0.0f));
         layer.joint_weights = std::move(weights);
     }
     ozz::animation::IterateJointsDF(
-        *skin_->skeleton_,
+        skin_->get_skeleton(),
         WeightSetupIterator(*layer.joint_weights, weight),
         joint_index);
     return true;

@@ -348,32 +348,41 @@ bool display_mesh_component(const engine::Scene* scene, engine_mesh_component_t&
     return true;
 }
 
+// "<name> (ID <persistent id>)" of the game object owning a skin instance, or "None"
+std::string skin_owner_label(const engine::Scene* scene, engine_game_object_t skin_owner)
+{
+    const auto entity = static_cast<entt::entity>(skin_owner);
+    if (skin_owner == ENGINE_INVALID_GAME_OBJECT_ID || !scene->is_valid_entity(entity))
+    {
+        return "None";
+    }
+    const auto* name = scene->has_component<engine_name_component_t>(entity) ? scene->get_component<engine_name_component_t>(entity)->name : "<unnamed>";
+    return fmt::format("{} (ID {})", name, scene->get_persistent_id(entity));
+}
+
 bool display_skinned_mesh_component(const engine::Scene* scene, engine_skinned_mesh_component_t& c)
 {
-    const auto typed_skin = reinterpret_cast<engine::Skin*>(c.skin);
     bool enabled = !c.disable;
     if (ImGui::Checkbox("Enabled", &enabled))
     {
         c.disable = !c.disable;
     }
     display_geometry_combo(scene, c.geometry);
-    ImGui::Text("Skin: %s", typed_skin ? typed_skin->get_asset_id().c_str() : "None");
+    ImGui::Text("Skin of: %s", skin_owner_label(scene, c.skin).c_str());
     return true;
 }
 
 bool display_skin_component(const engine::Scene* scene, engine_skin_component_t& c)
 {
-    const auto typed_skin = reinterpret_cast<engine::Skin*>(c.skin);
-    ImGui::Text("Name: %s", typed_skin ? typed_skin->get_name().c_str() : "None");
-    ImGui::Text("Asset: %s", typed_skin ? typed_skin->get_asset_id().c_str() : "None");
+    const auto name = scene->get_application()->get_skin_name(c.skin);
+    ImGui::Text("Asset: %s", name.empty() ? "None" : name.c_str());
     return false;
 }
 
 bool display_joint_attachment_component(const engine::Scene* scene, engine_joint_attachment_component_t& c)
 {
-    const auto typed_skin = reinterpret_cast<engine::Skin*>(c.skin);
-    ImGui::Text("Skin Name: %s", typed_skin ? typed_skin->get_name().c_str() : "None");
-    ImGui::Text("Join name: %s", c.joint_name->str.c_str());
+    ImGui::Text("Skin of: %s", skin_owner_label(scene, c.skin).c_str());
+    ImGui::Text("Joint name: %s", c.joint_name->str.c_str());
     return false;
 }
 

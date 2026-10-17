@@ -8,6 +8,7 @@
 #include "named_atlas.h"
 #include "nav_mesh.h"
 #include "mesh_defs.h"
+#include "skin.h"
 #include "render/renderer.h"
 
 
@@ -57,6 +58,13 @@ public:
     virtual const Geometry* get_geometry(std::uint32_t idx) const;
     virtual void destroy_geometry(std::uint32_t idx);
 
+    // skin assets, named by the desc's asset ID
+    virtual std::uint32_t add_skin(const SkinDesc& desc, const ModelNodeDesc& root);
+    virtual std::uint32_t get_skin(std::string_view name) const;
+    virtual const Skin* get_skin(std::uint32_t idx) const;
+    virtual std::string get_skin_name(std::uint32_t idx) const;
+    virtual void destroy_skin(std::uint32_t idx);
+
     virtual std::uint32_t add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name);
     virtual std::uint32_t get_shader(std::string_view name) const;
     virtual std::string get_shader_name(std::uint32_t idx) const;
@@ -93,6 +101,7 @@ protected:
     engine_material_t default_material_;
     Atlas<Texture2D> textures_atlas_;
     Atlas<Geometry> geometries_atlas_;
+    Atlas<Skin> skins_atlas_;
     Atlas<NavMesh> nav_mesh_atlas_;
     Atlas<Shader> shader_atlas_;
 

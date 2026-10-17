@@ -31,7 +31,7 @@ void engine::initialize_skinned_mesh_component(entt::registry& registry, entt::e
 {
     auto& comp = get_zero_init_component<engine_skinned_mesh_component_t>(registry, entity);
     comp.geometry = ENGINE_INVALID_OBJECT_HANDLE;
-    comp.skin = nullptr;
+    comp.skin = ENGINE_INVALID_GAME_OBJECT_ID;
 }
 
 void engine::initialize_light_component(entt::registry& registry, entt::entity entity)
@@ -121,13 +121,13 @@ void engine::initialize_collider_component(entt::registry& registry, entt::entit
 void engine::initialize_skin_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_skin_component_t>(registry, entity);
-    comp.skin = nullptr;
+    comp.skin = ENGINE_INVALID_OBJECT_HANDLE;
 }
 
 void engine::initialize_joint_attachment_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_joint_attachment_component_t>(registry, entity);
-    comp.skin = nullptr;
+    comp.skin = ENGINE_INVALID_GAME_OBJECT_ID;
     comp.joint_name = engineStringCreate("");
 }
 
