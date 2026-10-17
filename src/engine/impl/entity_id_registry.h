@@ -2,6 +2,7 @@
 #include <entt/entt.hpp>
 
 #include <cstdint>
+#include <limits>
 #include <unordered_map>
 
 namespace engine
@@ -19,6 +20,8 @@ class EntityIdRegistry
 {
 public:
     static constexpr std::uint64_t INVALID_ID = 0;
+    // the counter moves one past the highest ID in use, so the largest value can never be an ID
+    static constexpr std::uint64_t MAX_ID = std::numeric_limits<std::uint64_t>::max() - 1;
 
     explicit EntityIdRegistry(entt::registry& registry)
         : registry_(registry)
@@ -34,23 +37,23 @@ public:
         registry_.on_destroy<entity_id_component_t>().disconnect<&EntityIdRegistry::on_id_destroyed>(*this);
     }
 
-    // Gives the entity the next free ID.
+    // Gives the entity the next free ID. INVALID_ID (and no ID) when the entity can't get one: it is not valid,
+    // already has an ID, or the IDs are exhausted.
     std::uint64_t assign_next(entt::entity entity)
     {
-        while (entities_.contains(next_id_))
+        while (next_id_ <= MAX_ID && entities_.contains(next_id_))
         {
             next_id_++;
         }
-        const auto id = next_id_++;
-        assign(entity, id);
-        return id;
+        const auto id = next_id_;
+        return assign(entity, id) ? id : INVALID_ID;
     }
 
-    // Gives the entity a known ID (e.g. read from a file, or restored by undo). Fails when the ID is invalid or
-    // already used, or the entity already has an ID. Later assign_next() calls never return this ID.
+    // Gives the entity a known ID (e.g. read from a file, or restored by undo). Fails when the ID is invalid,
+    // above MAX_ID or already used, or the entity already has an ID. Later assign_next() calls never return this ID.
     bool assign(entt::entity entity, std::uint64_t id)
     {
-        if (id == INVALID_ID || entities_.contains(id) || !registry_.valid(entity) || registry_.all_of<entity_id_component_t>(entity))
+        if (id == INVALID_ID || id > MAX_ID || entities_.contains(id) || !registry_.valid(entity) || registry_.all_of<entity_id_component_t>(entity))
         {
             return false;
         }

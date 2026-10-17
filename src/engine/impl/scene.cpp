@@ -715,7 +715,8 @@ entt::entity engine::Scene::create_new_entity(entt::entity hint, std::uint64_t p
 {
     ENGINE_PROFILE_SECTION;
     const auto entity = entity_registry_.create(hint);
-    if (!entity_ids_.assign(entity, persistent_id))
+    // an entity that had no persistent ID (a transient one) is restored without one
+    if (persistent_id != EntityIdRegistry::INVALID_ID && !entity_ids_.assign(entity, persistent_id))
     {
         log::log(log::LogLevel::eError, fmt::format("Scene: can't restore entity with persistent ID {}, it is invalid or already used.\n", persistent_id));
     }

@@ -35,7 +35,8 @@ public:
 
     // every entity gets a persistent ID (see EntityIdRegistry), except the reserved ENGINE_INVALID_GAME_OBJECT_ID one
     entt::entity create_new_entity();
-    // restores an entity with the given persistent ID (e.g. undo of a destroy); the hint is the entt value to reuse if possible
+    // restores an entity with the given persistent ID (e.g. undo of a destroy), or without one when it is
+    // EntityIdRegistry::INVALID_ID (the entity was transient); the hint is the entt value to reuse if possible
     entt::entity create_new_entity(entt::entity hint, std::uint64_t persistent_id);
     // an entity without a persistent ID, for objects that are not part of the scene content (e.g. the editor camera)
     entt::entity create_transient_entity();

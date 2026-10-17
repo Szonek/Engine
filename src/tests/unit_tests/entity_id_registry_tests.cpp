@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <vector>
 
 namespace
@@ -117,6 +118,32 @@ TEST_F(EntityIdRegistryTest, AssignRejectsInvalidUsedOrDoubleIds)
     EXPECT_EQ(ids_.get_id(a), 7u);
     EXPECT_EQ(ids_.get_id(b), EntityIdRegistry::INVALID_ID);
     EXPECT_EQ(ids_.find(8), entt::entity{ entt::null });
+}
+
+TEST_F(EntityIdRegistryTest, LargestIdIsRejectedSoTheCounterNeverWraps)
+{
+    const auto a = registry_.create();
+    EXPECT_FALSE(ids_.assign(a, std::numeric_limits<std::uint64_t>::max()));
+    ASSERT_TRUE(ids_.assign(a, EntityIdRegistry::MAX_ID));
+
+    // the counter is past the last valid ID: no more IDs, and never the reserved 0
+    const auto b = registry_.create();
+    EXPECT_EQ(ids_.assign_next(b), EntityIdRegistry::INVALID_ID);
+    EXPECT_EQ(ids_.get_id(b), EntityIdRegistry::INVALID_ID);
+    EXPECT_EQ(ids_.find(EntityIdRegistry::INVALID_ID), entt::entity{ entt::null });
+}
+
+TEST_F(EntityIdRegistryTest, AssignNextFailsForEntityThatCantTakeAnId)
+{
+    const auto a = registry_.create();
+    const auto id = ids_.assign_next(a);
+    // already has one
+    EXPECT_EQ(ids_.assign_next(a), EntityIdRegistry::INVALID_ID);
+    EXPECT_EQ(ids_.get_id(a), id);
+    // dead
+    const auto b = registry_.create();
+    registry_.destroy(b);
+    EXPECT_EQ(ids_.assign_next(b), EntityIdRegistry::INVALID_ID);
 }
 
 TEST_F(EntityIdRegistryTest, AssignRejectsDeadEntity)
