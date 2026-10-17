@@ -1,6 +1,4 @@
-#include "scenario_harness.h"
-
-#include <scenes/scene_test.h>
+#include "sandbox_scene.h"
 
 #include <gtest/gtest.h>
 
@@ -10,11 +8,29 @@
 #include <utility>
 #include <vector>
 
-// Persistent game object IDs: the same level built twice gives every game object the same ID, so files can
+// Persistent game object IDs: the same scene built twice gives every game object the same ID, so files can
 // reference game objects by it.
 namespace
 {
-using EntityIdTest = scenario::ScenarioTest;
+class EntityIdTest : public scenario::GameplayTest
+{
+protected:
+    // A bit of everything the level is made of. Instancing a prefab also creates and destroys its joint nodes,
+    // the creation history that could disturb the IDs.
+    void load_small_scene()
+    {
+        auto* scene = load_sandbox_scene();
+        scene->build().floor_area(-2.0f, -2.0f, 2.0f, 2.0f);
+        scene->build().wall(-2.5f, 0.0f, 90.0f);
+        scene->build().wall(2.5f, 0.0f, 90.0f);
+        scene->build().player(0.0f, 0.0f);
+        scene->build().enemy(1.0f, 1.0f);
+        scene->build().enemy(-1.0f, 1.0f);
+        scene->build().chest(0.0f, 0.0f, -1.5f);
+        scene->build().weapon_on_ground(1.0f, -1.0f);
+        step();
+    }
+};
 
 struct NamedId
 {
@@ -51,8 +67,7 @@ std::vector<NamedId> named_ids()
 
 TEST_F(EntityIdTest, EveryGameObjectHasAUniqueIdItCanBeFoundBy)
 {
-    load_scene<project_c::TestScene>();
-    step();
+    load_small_scene();
 
     const auto ids = named_ids();
     ASSERT_FALSE(ids.empty());
@@ -67,15 +82,13 @@ TEST_F(EntityIdTest, EveryGameObjectHasAUniqueIdItCanBeFoundBy)
     }
 }
 
-TEST_F(EntityIdTest, LevelBuiltTwiceGetsTheSameIds)
+TEST_F(EntityIdTest, SceneBuiltTwiceGetsTheSameIds)
 {
-    load_scene<project_c::TestScene>();
-    step();
+    load_small_scene();
     const auto first = named_ids();
-    scenario::app().unregister_scene(project_c::TestScene::get_name());
+    scenario::app().unregister_scene(scenario::SandboxScene::get_name());
 
-    load_scene<project_c::TestScene>();
-    step();
+    load_small_scene();
     const auto second = named_ids();
 
     ASSERT_FALSE(first.empty());
@@ -84,8 +97,7 @@ TEST_F(EntityIdTest, LevelBuiltTwiceGetsTheSameIds)
 
 TEST_F(EntityIdTest, DestroyedGameObjectCanNoLongerBeFound)
 {
-    load_scene<project_c::TestScene>();
-    step();
+    load_sandbox_scene();
     const auto go = engineGameObjectCreate();
     const auto id = engineGameObjectGetId(go);
     ASSERT_NE(id, ENGINE_INVALID_GAME_OBJECT_PERSISTENT_ID);
