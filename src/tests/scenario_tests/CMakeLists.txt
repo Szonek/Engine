@@ -9,6 +9,7 @@ add_executable(${SCENARIO_TESTS_NAME}
 	sandbox_scene.cpp
 
 	gameplay_tests.cpp
+	entity_id_tests.cpp
 	harness_tests.cpp
 	level_tests.cpp
 	physics_tests.cpp

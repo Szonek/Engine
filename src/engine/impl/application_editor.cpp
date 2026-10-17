@@ -148,7 +148,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
     if (ImGui::TreeNodeEx(entity_id.c_str(), dispaly_flags))
     {
         // tooltip the id
-        ImGui::SetItemTooltip("ID: %d", node->entity);
+        ImGui::SetItemTooltip("ID: %llu (entity: %u)", static_cast<unsigned long long>(scene->get_persistent_id(node->entity)), static_cast<std::uint32_t>(node->entity));
 
         // select entity with LMB
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
@@ -1075,7 +1075,7 @@ void engine::ApplicationEditor::on_scene_release(Scene* scene)
 engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
     : my_scene_(scene)
     , app_(app)
-    , go_(scene->create_new_entity())
+    , go_(scene->create_transient_entity())
 {
     auto nc = scene->add_component<engine_name_component_t>(go_);
     scene->patch_component<engine_name_component_t>(go_, [nc](engine_name_component_t& c)

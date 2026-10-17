@@ -735,6 +735,27 @@ bool engineGameObjectIsValid(engine_game_object_t game_object)
     return sc->is_valid_entity(api_cast(game_object));
 }
 
+engine_game_object_id_t engineGameObjectGetId(engine_game_object_t game_object)
+{
+    if (!G_ACTIVE_SCENE)
+    {
+        return ENGINE_INVALID_GAME_OBJECT_PERSISTENT_ID;
+    }
+    const auto sc = api_cast(G_ACTIVE_SCENE);
+    return sc->get_persistent_id(api_cast(game_object));
+}
+
+engine_game_object_t engineGameObjectFindById(engine_game_object_id_t id)
+{
+    if (!G_ACTIVE_SCENE)
+    {
+        return ENGINE_INVALID_GAME_OBJECT_ID;
+    }
+    const auto sc = api_cast(G_ACTIVE_SCENE);
+    const auto entity = sc->find_entity_by_persistent_id(id);
+    return entity == entt::null ? ENGINE_INVALID_GAME_OBJECT_ID : static_cast<engine_game_object_t>(entity);
+}
+
 void enginePhysicsSetGravityVector(const float gravity[3])
 {
     if (!G_ACTIVE_SCENE)
