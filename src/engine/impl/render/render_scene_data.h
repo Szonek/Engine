@@ -56,7 +56,7 @@ struct ViewLightingGpuData
     float stylized_band_softness = 1.0f;
     float stylized_rim_power = 1.0f;
     float stylized_rim_static_meshes = 0.0f;
-    float pad2_ = 0.0f;
+    float stylized_flat_shading = 0.0f;
     float pad3_ = 0.0f;
     float pad4_ = 0.0f;
 };

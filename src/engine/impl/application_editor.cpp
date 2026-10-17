@@ -1541,6 +1541,7 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
         auto& stylized = render_settings.stylized;
         ImGui::Checkbox("Enabled##stylized", &stylized.enabled);
         ImGui::BeginDisabled(!stylized.enabled);
+        ImGui::SliderFloat("Flat shading (low-poly)", &stylized.flat_shading, 0.0f, 1.0f);
         // ambient multipliers can be above 1
         const ImGuiColorEditFlags hdr_flags = ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float;
         ImGui::ColorEdit3("Sky ambient", &stylized.sky_ambient.x, hdr_flags);

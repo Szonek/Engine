@@ -39,7 +39,7 @@ layout(binding = ENGINE_BINDING_SLOT_TEXTURE_SPECULAR) uniform sampler2D texture
 void main()
 {
 	// fragment specific
-	vec3 normal = normalize(fs_in.normals);
+	vec3 normal = stylized_shading_normal(normalize(fs_in.normals), fs_in.world_pos);
 	// direction to the eye: from the camera position for perspective projection,
 	// orthographic camera has no single eye position, all of its rays are parallel to its forward axis
 	bool is_orthographic = projection[3][3] > 0.5f;
