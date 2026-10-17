@@ -39,6 +39,7 @@ set(ENGINE_SOURCES
 	
 	${ENGINE_SOURCES_DIR}/profiler.h
 	${ENGINE_SOURCES_DIR}/named_atlas.h
+	${ENGINE_SOURCES_DIR}/entity_id_registry.h
 		
 	${ENGINE_SOURCES_DIR}/mesh_defs.h
 	${ENGINE_SOURCES_DIR}/gltf_parser.h
