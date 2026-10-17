@@ -109,4 +109,24 @@ TEST_F(AtlasTest, FreeSlotIsNotFound)
     EXPECT_EQ(atlas.get_object("missing"), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
+TEST_F(AtlasTest, InvalidHandleHasNoName)
+{
+    TestAtlas atlas;
+    EXPECT_EQ(atlas.get_object_name(ENGINE_INVALID_OBJECT_HANDLE), "");
+}
+
+TEST_F(AtlasTest, ObjectNamesListsOccupiedSlotsInIndexOrder)
+{
+    TestAtlas atlas;
+    const auto a = atlas.add_object("a", 1);
+    const auto b = atlas.add_object("b", 2);
+    const auto c = atlas.add_object("c", 3);
+    atlas.remove_object(b);
+    using Names = std::vector<std::pair<std::uint32_t, std::string>>;
+    EXPECT_EQ(atlas.get_object_names(), (Names{ { a, "a" }, { c, "c" } }));
+    atlas.remove_object(a);
+    atlas.remove_object(c);
+    EXPECT_TRUE(atlas.get_object_names().empty());
+}
+
 }  // namespace

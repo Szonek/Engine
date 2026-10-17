@@ -38,6 +38,9 @@ public:
     virtual std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
     virtual std::uint32_t get_texture(std::string_view name) const;
     virtual const Texture2D* get_texture(std::uint32_t idx) const;
+    // asset ID of the texture, "" for ENGINE_INVALID_OBJECT_HANDLE
+    virtual std::string get_texture_name(std::uint32_t idx) const;
+    virtual std::vector<std::pair<std::uint32_t, std::string>> get_texture_names() const;
     virtual void destroy_texture(std::uint32_t idx);
 
     virtual std::uint32_t add_nav_mesh(std::string_view name);
@@ -50,11 +53,14 @@ public:
     virtual std::uint32_t add_geometry(const engine_vertex_attributes_layout_t& verts_layout, std::int32_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name);
     virtual std::uint32_t get_geometry(std::string_view name) const;
     virtual std::string get_geometry_name(std::uint32_t idx) const;
+    virtual std::vector<std::pair<std::uint32_t, std::string>> get_geometry_names() const;
     virtual const Geometry* get_geometry(std::uint32_t idx) const;
     virtual void destroy_geometry(std::uint32_t idx);
 
     virtual std::uint32_t add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name);
     virtual std::uint32_t get_shader(std::string_view name) const;
+    virtual std::string get_shader_name(std::uint32_t idx) const;
+    virtual std::vector<std::pair<std::uint32_t, std::string>> get_shader_names() const;
     virtual void destroy_shader(std::uint32_t idx);
 
     virtual UiDocument load_ui_document(std::string_view file_name);

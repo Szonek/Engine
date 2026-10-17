@@ -17,6 +17,8 @@
 
 #include "imguizmo/ImGuizmo.h"
 
+#include <fmt/format.h>
+
 #include <array>
 #include <string>
 #include <map>
@@ -275,6 +277,50 @@ inline void display_component(std::string_view name, engine::Scene* scene, engin
     }
 }
 
+// Combo box picking a resource by its asset ID (atlas name) instead of typing its index; "None" selects
+// ENGINE_INVALID_OBJECT_HANDLE. Returns true when the selection changed.
+bool display_asset_combo(const char* label, std::uint32_t& handle, std::string_view current_name, const std::vector<std::pair<std::uint32_t, std::string>>& assets)
+{
+    const auto preview = handle == ENGINE_INVALID_OBJECT_HANDLE ? std::string("None")
+        : current_name.empty() ? fmt::format("<missing #{}>", handle) : std::string(current_name);
+    bool changed = false;
+    if (ImGui::BeginCombo(label, preview.c_str()))
+    {
+        if (ImGui::Selectable("None", handle == ENGINE_INVALID_OBJECT_HANDLE))
+        {
+            changed = handle != ENGINE_INVALID_OBJECT_HANDLE;
+            handle = ENGINE_INVALID_OBJECT_HANDLE;
+        }
+        for (const auto& [idx, name] : assets)
+        {
+            const auto selected = idx == handle;
+            if (ImGui::Selectable(name.c_str(), selected))
+            {
+                changed |= !selected;
+                handle = idx;
+            }
+            if (selected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    return changed;
+}
+
+bool display_geometry_combo(const engine::Scene* scene, std::uint32_t& geometry)
+{
+    const auto* app = scene->get_application();
+    return display_asset_combo("Geometry", geometry, app->get_geometry_name(geometry), app->get_geometry_names());
+}
+
+bool display_texture_combo(const engine::Scene* scene, const char* label, std::uint32_t& texture)
+{
+    const auto* app = scene->get_application();
+    return display_asset_combo(label, texture, app->get_texture_name(texture), app->get_texture_names());
+}
+
 bool display_transform_component(const engine::Scene* scene, engine_tranform_component_t& c)
 {
     const float v_speed = 0.1f;
@@ -298,9 +344,7 @@ bool display_mesh_component(const engine::Scene* scene, engine_mesh_component_t&
     {
         c.disable = !c.disable;
     }
-    const auto geo_name = scene->get_application()->get_geometry_name(c.geometry);
-    ImGui::Text("Geometry: %s", geo_name.c_str());
-    ImGui::InputInt("Geometry ID", reinterpret_cast<std::int32_t*>(&c.geometry));
+    display_geometry_combo(scene, c.geometry);
     return true;
 }
 
@@ -312,10 +356,8 @@ bool display_skinned_mesh_component(const engine::Scene* scene, engine_skinned_m
     {
         c.disable = !c.disable;
     }
-    const auto geo_name = scene->get_application()->get_geometry_name(c.geometry);
-    ImGui::Text("Geometry: %s", geo_name.c_str());
-    ImGui::InputInt("Geometry ID", reinterpret_cast<std::int32_t*>(&c.geometry));
-    ImGui::Text("Skin: %s", typed_skin ? typed_skin->get_name().c_str() : "None");
+    display_geometry_combo(scene, c.geometry);
+    ImGui::Text("Skin: %s", typed_skin ? typed_skin->get_asset_id().c_str() : "None");
     return true;
 }
 
@@ -323,6 +365,7 @@ bool display_skin_component(const engine::Scene* scene, engine_skin_component_t&
 {
     const auto typed_skin = reinterpret_cast<engine::Skin*>(c.skin);
     ImGui::Text("Name: %s", typed_skin ? typed_skin->get_name().c_str() : "None");
+    ImGui::Text("Asset: %s", typed_skin ? typed_skin->get_asset_id().c_str() : "None");
     return false;
 }
 
@@ -419,16 +462,17 @@ bool display_material_component(const engine::Scene* scene, engine_material_comp
     {
         requires_component_updated |= ImGui::ColorEdit4("Diffuse Color", c.data.pong.diffuse_color);
         requires_component_updated |= ImGui::SliderFloat("Shininess", &c.data.pong.shininess, 0.0f, 128.0f);
-        requires_component_updated |= ImGui::InputInt("Texture Diffuse ID", reinterpret_cast<std::int32_t*>(&c.data.pong.diffuse_texture));
-        requires_component_updated |= ImGui::InputInt("Texture Specular ID", reinterpret_cast<std::int32_t*>(&c.data.pong.specular_texture));
+        requires_component_updated |= display_texture_combo(scene, "Diffuse Texture", c.data.pong.diffuse_texture);
+        requires_component_updated |= display_texture_combo(scene, "Specular Texture", c.data.pong.specular_texture);
     }
     else if (c.type == ENGINE_MATERIAL_TYPE_USER)
     {
-        requires_component_updated |= ImGui::InputInt("Shader ID", reinterpret_cast<std::int32_t*>(&c.data.user.shader));
-        for (auto i = 0; i < ENGINE_MATERIAL_USER_MAX_UNIFORM_BUFFER_SIZE; i++)
+        const auto* app = scene->get_application();
+        requires_component_updated |= display_asset_combo("Shader", c.data.user.shader, app->get_shader_name(c.data.user.shader), app->get_shader_names());
+        for (auto i = 0; i < ENGINE_MATERIAL_USER_MAX_TEXTURE_BINDING_COUNT; i++)
         {
-            const std::string tex_name = "Texture_" + std::to_string(i) + " ID";
-            requires_component_updated |= ImGui::InputInt(tex_name.c_str(), reinterpret_cast<std::int32_t*>(&c.data.user.texture_bindings[i]));
+            const std::string tex_label = "Texture " + std::to_string(i);
+            requires_component_updated |= display_texture_combo(scene, tex_label.c_str(), c.data.user.texture_bindings[i]);
         }
     }
 

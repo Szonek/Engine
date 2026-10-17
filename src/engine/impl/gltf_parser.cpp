@@ -2,6 +2,7 @@
 #include "math_helpers.h"
 #include "logger.h"
 #include "asset_store.h"
+#include "asset_id.h"
 
 #define TINYGLTF_IMPLEMENTATION
 #include <tiny_gltf.h>
@@ -519,13 +520,21 @@ engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8
         {
             out.textures.push_back(parse_texture(texture, model));
         });
-    // textures loaded from a file keep its uri as the name, so models referencing the same image share it;
-    // only unnamed embedded textures get a generated one
+    // An image in its own file is named by that file's path (relative to the models folder), so models
+    // referencing the same image share it; an image embedded in the model (buffer or data uri) belongs to this model file.
     for (std::size_t i = 0; i < out.textures.size(); i++)
     {
-        if (out.textures[i].name.empty())
+        const auto& uri = model.images[model.textures[i].source].uri;
+        const auto in_own_file = !uri.empty() && !uri.starts_with("data:");
+        if (in_own_file)
         {
-            out.textures[i].name = fmt::format("{}#texture_{}", source_name, i);
+            const auto image_path = std::filesystem::path(base_dir) / uri;
+            const auto relative_path = image_path.lexically_relative(engine::AssetStore::get_instance().get_models_base_path());
+            out.textures[i].name = relative_path.empty() ? uri : relative_path.generic_string();
+        }
+        else
+        {
+            out.textures[i].name = make_asset_id(source_name, out.textures[i].name, "texture", i);
         }
     }
 
@@ -544,8 +553,7 @@ engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8
     // mesh names are only unique within one file (e.g. "Cube.004" exists in several models)
     for (std::size_t i = 0; i < out.geometries.size(); i++)
     {
-        auto& name = out.geometries[i].name;
-        name = name.empty() ? fmt::format("{}#mesh_{}", source_name, i) : fmt::format("{}#{}", source_name, name);
+        out.geometries[i].name = make_asset_id(source_name, out.geometries[i].name, "mesh", i);
     }
 
     // skins
@@ -553,6 +561,10 @@ engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8
         {
             out.skins.push_back(parse_skin(skin, model));
         });
+    for (std::size_t i = 0; i < out.skins.size(); i++)
+    {
+        out.skins[i].asset_id = make_asset_id(source_name, out.skins[i].name, "skin", i);
+    }
 
     // animations
     out.animations.reserve(model.animations.size());

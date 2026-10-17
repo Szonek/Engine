@@ -21,6 +21,8 @@ public:
     Skin(const SkinDesc& desc, const ModelNodeDesc& root);
 
     const std::string& get_name() const;
+    // the model skin this one was created from, "<model file>#<skin name>"
+    const std::string& get_asset_id() const;
 
     glm::mat4 get_model_matrix_for_joint(std::string_view joint_name) const;
 
@@ -31,6 +33,7 @@ private:
     friend class AnimationController;
     friend class AnimationLibrary;
     std::string name_;
+    std::string asset_id_;
     ozz::unique_ptr<ozz::animation::Skeleton> skeleton_;
 
     // Buffer of local transforms as sampled from animation_.

@@ -41,6 +41,7 @@ inline void construct_skeleton(ozz::animation::offline::RawSkeleton::Joint& join
 engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
     : skeleton_(nullptr)
     , name_(desc.name)
+    , asset_id_(desc.asset_id)
 {
     ENGINE_PROFILE_SECTION_N("engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)");
     ozz::animation::offline::RawSkeleton raw_skeleton;
@@ -90,6 +91,11 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
 const std::string& engine::Skin::get_name() const
 {
     return name_;
+}
+
+const std::string& engine::Skin::get_asset_id() const
+{
+    return asset_id_;
 }
 
 glm::mat4 engine::Skin::get_model_matrix_for_joint(std::string_view joint_name) const

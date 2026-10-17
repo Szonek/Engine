@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <string>
 #include <deque>
+#include <utility>
+#include <vector>
 
 #include <fmt/format.h>
 
@@ -126,8 +128,13 @@ public:
         // it's valid not found object - user may want to check if object exists by trying to get it
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
+    // "" for a free slot and for ENGINE_INVALID_OBJECT_HANDLE (no object)
     std::string get_object_name(std::uint32_t idx) const
     {
+        if (idx == ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            return "";
+        }
         if (idx >= SIZE)
         {
             assert(false && "Index out of bounds");
@@ -136,6 +143,19 @@ public:
         return names_[idx];
     }
 
+    // index and name of every object, by index
+    std::vector<std::pair<std::uint32_t, std::string>> get_object_names() const
+    {
+        std::vector<std::pair<std::uint32_t, std::string>> out;
+        for (std::uint32_t i = 0; i < SIZE; i++)
+        {
+            if (occupied_[i])
+            {
+                out.emplace_back(i, names_[i]);
+            }
+        }
+        return out;
+    }
 
     const std::array<T, SIZE>& get_objects_view() const { return objects_; }
     std::array<T, SIZE>& get_objects_view() { return objects_; }

@@ -64,7 +64,10 @@ namespace engine
 
     struct SkinDesc
     {
+        // name of the glTF skin (the model node with this name owns the skin)
         std::string name = "";
+        // "<model file>#<name>": skins are created per instance, this says which model to rebuild them from
+        std::string asset_id = "";
         std::unordered_map<std::string, std::int32_t> joint_index_map;
         std::unordered_map<std::string, glm::mat4> inverse_bind_matrix_map;
     };

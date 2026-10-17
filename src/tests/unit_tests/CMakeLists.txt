@@ -9,6 +9,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	shadows_tests.cpp
 	atlas_tests.cpp
 	entity_id_registry_tests.cpp
+	asset_id_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
@@ -17,6 +18,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/named_atlas.h
 	# header-only
 	${ENGINE_IMPL_DIR}/entity_id_registry.h
+	${ENGINE_IMPL_DIR}/asset_id.h
 )
 target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/include)
 target_link_libraries(${ENGINE_LOGIC_TESTS_NAME} GTest::gtest_main glm fmt::fmt-header-only EnTT::EnTT)
