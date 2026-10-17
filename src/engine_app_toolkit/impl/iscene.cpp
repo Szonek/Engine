@@ -114,6 +114,14 @@ engine::IScene::~IScene()
 {
     // delete all scripts immediately before deallocating scene
     scripts_.clear();
+    // scripts registered since the last update are owned by the register queue until it is flushed
+    for (auto* script : scripts_register_queue_)
+    {
+        delete script;
+    }
+    scripts_register_queue_.clear();
+    // the unregister queue doesn't own its scripts: they were in scripts_ or in the register queue
+    scripts_unregister_queue_.clear();
     // delete scene
     if (scene_)
     {

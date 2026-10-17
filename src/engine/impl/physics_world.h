@@ -52,6 +52,11 @@ public:
     void remove_rigid_body(entt::basic_registry<entt::entity>& reg, entt::entity entt)
     {
         auto& comp = reg.get<physcic_internal_component_t>(entt);
+        // bodies are created on the next scene update, so a game object destroyed before it has none yet
+        if (!comp.rigid_body)
+        {
+            return;
+        }
         dynamics_world_->removeRigidBody(comp.rigid_body);
 
         delete comp.rigid_body;
