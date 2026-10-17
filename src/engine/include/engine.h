@@ -40,7 +40,7 @@ typedef struct _engine_ui_element_t* engine_ui_element_t;
 typedef uint32_t engine_material_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
-typedef struct _engine_skin_t engine_skin_t;
+typedef uint32_t engine_skin_t;
 typedef struct _engine_animation_controller_t engine_animation_controller_t;
 typedef uint32_t engine_shader_t;
 typedef uint32_t engine_animation_event_id_t;
@@ -463,15 +463,19 @@ ENGINE_API uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* 
 ENGINE_API const engine_animation_desc_t* engineModelDescGetAnimationDesc(const engine_model_desc_t* desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetAnimationsDescCount(const engine_model_desc_t* desc);
 
-// Skin
-ENGINE_API engine_skin_t* engineCreateSkinFromDesc(const engine_skin_desc_t* desc, const engine_model_node_desc_t* root);
-ENGINE_API void engineDestroySkin(engine_skin_t* skin);
-ENGINE_API const char* engineSkinGetName(const engine_skin_t* skin);
+// Skin: an asset shared by every instance of a skinned model (the skeleton and its binding to the mesh), named by
+// the skin desc's asset ID ("<model file>#<skin name>"). Each instance's pose belongs to the game object with the
+// skin component.
+ENGINE_API engine_result_code_t engineSkinCreateFromDesc(const engine_skin_desc_t* desc, const engine_model_node_desc_t* root, engine_skin_t* out);
+ENGINE_API engine_skin_t engineSkinGetByName(const char* name);
+ENGINE_API void engineSkinDestroy(engine_skin_t skin);
 
 // Animation - by default layer with 0 and weight 1.0 is created.
 // A model description preloads and shares its clips across compatible skins.
 // Pass nullptr for model_desc to add animations dynamically after controller creation.
-ENGINE_API engine_animation_controller_t* engineCreateAnimationControllerWithSkin(engine_skin_t* skin, const engine_model_desc_t* model_desc);
+// The controller drives the pose of the game object it's attached to (with an animation controller component next to
+// the skin component).
+ENGINE_API engine_animation_controller_t* engineCreateAnimationControllerWithSkin(engine_skin_t skin, const engine_model_desc_t* model_desc);
 ENGINE_API void engineDestroyAnimationController(engine_animation_controller_t* controller);
 ENGINE_API bool engineAnimationControllerSetPaused(engine_animation_controller_t* controller, bool paused);
 ENGINE_API bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc);

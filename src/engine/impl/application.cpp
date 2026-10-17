@@ -410,6 +410,43 @@ void engine::Application::destroy_geometry(std::uint32_t idx)
     geometries_atlas_.remove_object(idx);
 }
 
+std::uint32_t engine::Application::add_skin(const SkinDesc& desc, const ModelNodeDesc& root)
+{
+    try
+    {
+        return skins_atlas_.add_object(desc.asset_id, Skin(desc, root));
+    }
+    catch (const std::exception& e)
+    {
+        log::log(log::LogLevel::eError, fmt::format("Failed creating skin {}: {}\n", desc.asset_id, e.what()));
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+}
+
+std::uint32_t engine::Application::get_skin(std::string_view name) const
+{
+    return skins_atlas_.get_object(name);
+}
+
+const engine::Skin* engine::Application::get_skin(std::uint32_t idx) const
+{
+    if (idx == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return nullptr;
+    }
+    return skins_atlas_.get_object(idx);
+}
+
+std::string engine::Application::get_skin_name(std::uint32_t idx) const
+{
+    return skins_atlas_.get_object_name(idx);
+}
+
+void engine::Application::destroy_skin(std::uint32_t idx)
+{
+    skins_atlas_.remove_object(idx);
+}
+
 std::uint32_t engine::Application::add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name)
 {
     return shader_atlas_.add_object(name, Shader(vertex_shader_name, fragment_shader_name));

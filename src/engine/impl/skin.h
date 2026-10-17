@@ -15,36 +15,34 @@
 namespace engine
 {
 
+// The pose of one instance of a skin: written by its animation controller, read by skinning and joint attachments.
+struct SkinPose
+{
+    // model space matrix of every joint
+    ozz::vector<ozz::math::Float4x4> models;
+    // what the skinned meshes are deformed with, in glTF joint order
+    std::vector<glm::mat4> skinning_matrices;
+};
+
+// A skin asset, shared by every instance of a skinned model: the skeleton and the data that maps it to the mesh.
+// It never changes after creation; the per-instance state is a SkinPose. Skins live in the application's atlas,
+// named by their asset ID ("<model file>#<skin name>").
 class Skin
 {
 public:
+    Skin() = default;
     Skin(const SkinDesc& desc, const ModelNodeDesc& root);
 
-    const std::string& get_name() const;
-    // the model skin this one was created from, "<model file>#<skin name>"
-    const std::string& get_asset_id() const;
+    const ozz::animation::Skeleton& get_skeleton() const;
 
-    glm::mat4 get_model_matrix_for_joint(std::string_view joint_name) const;
-
-    void compute_skinning_matrices(); // generally should be computed once per frame, after animations are done
-    std::span<const glm::mat4> get_skinning_matrices() const;
+    // a pose standing in the skeleton's rest pose, with its skinning matrices computed
+    SkinPose make_rest_pose() const;
+    glm::mat4 get_model_matrix_for_joint(const SkinPose& pose, std::string_view joint_name) const;
+    void compute_skinning_matrices(SkinPose& pose) const; // generally should be computed once per frame, after animations are done
 
 private:
-    friend class AnimationController;
-    friend class AnimationLibrary;
-    std::string name_;
-    std::string asset_id_;
     ozz::unique_ptr<ozz::animation::Skeleton> skeleton_;
-
-    // Buffer of local transforms as sampled from animation_.
-    ozz::vector<ozz::math::SoaTransform> locals_;
-
-    // Buffer of model space matrices.
-    ozz::vector<ozz::math::Float4x4> models_;
-
     std::unordered_map<std::string, std::int32_t> join_remap_;  // required to remap computed model matrices during skinning
     std::vector<glm::mat4> inverse_bind_matrices_; // required during skinning
-
-    std::vector<glm::mat4> skinning_matrices_;
 };
 }
