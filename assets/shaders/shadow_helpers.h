@@ -29,7 +29,7 @@ layout (binding = ENGINE_BINDING_SLOT_VIEW_LIGHTING_DATA, std140) uniform ViewLi
 	float stylized_band_softness;     // 0: hard step edges, 1: steps blend into each other
 	float stylized_rim_power;         // higher: thinner rim
 	float stylized_rim_static_meshes; // 1: rim on all meshes, 0: only on meshes whose material asks for it (rim_mask)
-	float stylized_flat_shading;      // 0: smooth normals of the mesh, 1: one normal per triangle (faceted low-poly look)
+	float view_lighting_pad2_;
 	float view_lighting_pad3_;
 	float view_lighting_pad4_;
 };

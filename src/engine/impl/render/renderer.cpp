@@ -177,7 +177,6 @@ void engine::Renderer::prepare_gpu_data()
                 lighting.stylized_band_softness = std::clamp(stylized.band_softness, 0.0f, 1.0f);
                 lighting.stylized_rim_power = std::max(stylized.rim_power, 0.5f);
                 lighting.stylized_rim_static_meshes = stylized.rim_on_static_meshes ? 1.0f : 0.0f;
-                lighting.stylized_flat_shading = std::clamp(stylized.flat_shading, 0.0f, 1.0f);
             }
             if (has_shadow)
             {

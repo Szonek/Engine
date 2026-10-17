@@ -53,8 +53,6 @@ struct StylizedLightingSettings
     static constexpr std::uint32_t MAX_BANDS = 4;
 
     bool enabled = false;
-    // Low-poly look: 0 smooth normals of the mesh, 1 every triangle is shaded flat with its own normal (faceted).
-    float flat_shading = 1.0f;
     // Hemisphere ambient: ambient light is multiplied by the sky color on surfaces facing up and by the ground color
     // on surfaces facing down (blended in between). White and white: standard ambient.
     glm::vec3 sky_ambient{ 0.8f, 0.85f, 1.0f };

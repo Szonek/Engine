@@ -13,20 +13,6 @@ struct LightPacket
 // Stylized lighting (parameters in ViewLightingData, shadow_helpers.h). How it works: src/engine/impl/render/STYLIZED_LIGHTING.md
 // With stylized_enabled == 0 every function returns exactly what the standard lighting uses.
 
-// Faceted low-poly look: the normal of the triangle (from the screen space derivatives of the position, the same for
-// the whole triangle) instead of the interpolated mesh normal. Blended by stylized_flat_shading.
-vec3 stylized_shading_normal(vec3 smooth_normal, vec3 world_pos)
-{
-	if (stylized_enabled < 0.5f || stylized_flat_shading <= 0.0f)
-	{
-		return smooth_normal;
-	}
-	vec3 face_normal = normalize(cross(dFdx(world_pos), dFdy(world_pos)));
-	// the winding seen on the screen doesn't say which side is the front, the mesh normal does
-	face_normal = dot(face_normal, smooth_normal) < 0.0f ? -face_normal : face_normal;
-	return normalize(mix(smooth_normal, face_normal, stylized_flat_shading));
-}
-
 // Multiplier of the ambient light: sky color on surfaces facing up, ground color on surfaces facing down.
 vec3 stylized_hemisphere(vec3 normal)
 {
