@@ -1,5 +1,11 @@
 #include "skin.h"
 #include "animation_controller.h"
+#include "components_internals/animation_controller_internal_component.h"
+
+#include <entt/entt.hpp>
+
+#include <memory>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -110,31 +116,28 @@ TEST_F(SkinTest, UnknownJointGivesIdentityInsteadOfReadingOutOfBounds)
     const auto pose = skin.make_rest_pose();
     EXPECT_EQ(skin.get_model_matrix_for_joint(pose, "missing"), glm::mat4(1.0f));
 }
-TEST_F(SkinTest, CachedLibraryForAReusedSkinHandleWithAnotherSkeletonIsDropped)
+TEST_F(SkinTest, ControllersAreFreedWithTheirGameObjects)
 {
+    // the scene owns each controller in an internal component, so destroying the game object (or removing the
+    // component) frees it: reloading a scene doesn't leak controllers
     const engine::Skin skin(desc_, root_);
+    const auto live_before = engine::AnimationController::get_live_count();
+    {
+        entt::registry registry;
+        std::vector<entt::entity> entities;
+        for (int i = 0; i < 3; i++)
+        {
+            const auto e = registry.create();
+            registry.emplace<engine::animation_controller_internal_component_t>(e, std::make_unique<engine::AnimationController>(&skin));
+            entities.push_back(e);
+        }
+        EXPECT_EQ(engine::AnimationController::get_live_count(), live_before + 3);
 
-    // another skeleton: a "finger" below the hand
-    engine::ModelNodeDesc finger;
-    finger.name = "finger";
-    finger.index = 2;
-    finger.parent = &hand_;
-    finger.translation = glm::vec3(0.0f, 0.5f, 0.0f);
-    hand_.children = { &finger };
-    auto other_desc = desc_;
-    other_desc.asset_id = "Other.glb#Rig";
-    other_desc.joint_index_map["finger"] = 2;
-    other_desc.inverse_bind_matrix_map["finger"] = glm::mat4(1.0f);
-    const engine::Skin other_skin(other_desc, root_);
-
-    // skin handles are atlas slots: after `skin` is destroyed, `other_skin` can get the same handle
-    constexpr std::uint32_t handle = 0;
-    engine::AnimationLibraryCache cache;
-    const auto library = std::make_shared<const engine::AnimationLibrary>(skin);
-    cache.libraries[handle] = library;
-
-    EXPECT_EQ(cache.find(handle, skin), library);
-    EXPECT_EQ(cache.find(handle, other_skin), nullptr);
-    EXPECT_TRUE(cache.libraries.empty());
+        registry.destroy(entities[0]);
+        registry.remove<engine::animation_controller_internal_component_t>(entities[1]);
+        EXPECT_EQ(engine::AnimationController::get_live_count(), live_before + 1);
+    }
+    // the registry (scene) is gone
+    EXPECT_EQ(engine::AnimationController::get_live_count(), live_before);
 }
 }  // namespace
