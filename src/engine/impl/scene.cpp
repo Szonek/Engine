@@ -745,11 +745,6 @@ std::uint64_t engine::Scene::get_persistent_id(entt::entity entity) const
     return entity_ids_.get_id(entity);
 }
 
-entt::entity engine::Scene::find_entity_by_persistent_id(std::uint64_t id) const
-{
-    return entity_ids_.find(id);
-}
-
 entt::runtime_view engine::Scene::create_runtime_view()
 {
     ENGINE_PROFILE_SECTION;

@@ -28,10 +28,6 @@ extern "C"
 
 typedef uint32_t engine_game_object_t;
 #define ENGINE_INVALID_GAME_OBJECT_ID 0
-// Persistent identity of a game object, stable across runs (unlike engine_game_object_t): IDs come from a per-scene
-// counter, so building a scene in the same order gives the same IDs. Meant to reference game objects from files.
-typedef uint64_t engine_game_object_id_t;
-#define ENGINE_INVALID_GAME_OBJECT_PERSISTENT_ID 0
 #define ENGINE_INVALID_OBJECT_HANDLE (UINT_MAX)
 typedef struct _engine_application_t* engine_application_t;
 typedef struct _engine_scene_t* engine_scene_t;
@@ -578,10 +574,6 @@ ENGINE_API engine_result_code_t engineSceneSetActive(engine_scene_t handle);
 ENGINE_API engine_game_object_t engineGameObjectCreate();
 ENGINE_API void                 engineGameObjectDestroy(engine_game_object_t game_object);
 ENGINE_API bool                 engineGameObjectIsValid(engine_game_object_t game_object);
-// ENGINE_INVALID_GAME_OBJECT_PERSISTENT_ID if the game object is not valid
-ENGINE_API engine_game_object_id_t engineGameObjectGetId(engine_game_object_t game_object);
-// ENGINE_INVALID_GAME_OBJECT_ID if no game object in the active scene has this ID
-ENGINE_API engine_game_object_t engineGameObjectFindById(engine_game_object_id_t id);
 
 // user input hangling
 ENGINE_API bool engineKeyboardIsButtonDown(engine_keyboard_keys_t key);

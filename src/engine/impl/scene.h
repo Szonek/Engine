@@ -44,8 +44,6 @@ public:
 
     // EntityIdRegistry::INVALID_ID for an entity without a persistent ID
     std::uint64_t get_persistent_id(entt::entity entity) const;
-    // entt::null when no entity has this ID
-    entt::entity find_entity_by_persistent_id(std::uint64_t id) const;
 
     entt::runtime_view create_runtime_view();
 
