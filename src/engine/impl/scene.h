@@ -3,6 +3,7 @@
 #include "graphics.h"
 
 #include "physics_world.h"
+#include "entity_id_registry.h"
 
 #include "render/render_scene_data.h"
 
@@ -32,10 +33,18 @@ public:
     bool is_physics_debug_draw_enabled() const;
     engine_result_code_t update(float dt);
 
+    // every entity gets a persistent ID (see EntityIdRegistry), except the reserved ENGINE_INVALID_GAME_OBJECT_ID one
     entt::entity create_new_entity();
-    entt::entity create_new_entity(entt::entity hint);
+    // restores an entity with the given persistent ID (e.g. undo of a destroy), or without one when it is
+    // EntityIdRegistry::INVALID_ID (the entity was transient); the hint is the entt value to reuse if possible
+    entt::entity create_new_entity(entt::entity hint, std::uint64_t persistent_id);
+    // an entity without a persistent ID, for objects that are not part of the scene content (e.g. the editor camera)
+    entt::entity create_transient_entity();
     void destroy_entity(entt::entity entity);
     bool is_valid_entity(entt::entity entity);
+
+    // EntityIdRegistry::INVALID_ID for an entity without a persistent ID
+    std::uint64_t get_persistent_id(entt::entity entity) const;
 
     entt::runtime_view create_runtime_view();
 
@@ -120,6 +129,8 @@ private:
     RenderContext& rdx_;
     Renderer& renderer_;
     entt::registry entity_registry_;
+    // declared after the registry: it disconnects from the registry's signals when destroyed
+    EntityIdRegistry entity_ids_;
     entt::observer transform_model_matrix_update_observer;
     entt::observer mesh_update_observer;
     entt::observer collider_create_observer;

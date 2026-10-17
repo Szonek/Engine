@@ -124,6 +124,7 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, Renderer& renderer, c
     : app_(app)
     , rdx_(rdx)
     , renderer_(renderer)
+    , entity_ids_(entity_registry_)
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
     , collider_update_observer(entity_registry_, entt::collector.update<engine_collider_component_t>().where<engine_tranform_component_t>())
     , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_tranform_component_t>().where<physcic_internal_component_t>())
@@ -702,13 +703,30 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
 entt::entity engine::Scene::create_new_entity()
 {
     ENGINE_PROFILE_SECTION;
-    return entity_registry_.create();
+    const auto entity = entity_registry_.create();
+    if (static_cast<std::uint32_t>(entity) != ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        entity_ids_.assign_next(entity);
+    }
+    return entity;
 }
 
-entt::entity engine::Scene::create_new_entity(entt::entity hint)
+entt::entity engine::Scene::create_new_entity(entt::entity hint, std::uint64_t persistent_id)
 {
     ENGINE_PROFILE_SECTION;
-    return entity_registry_.create(hint);
+    const auto entity = entity_registry_.create(hint);
+    // an entity that had no persistent ID (a transient one) is restored without one
+    if (persistent_id != EntityIdRegistry::INVALID_ID && !entity_ids_.assign(entity, persistent_id))
+    {
+        log::log(log::LogLevel::eError, fmt::format("Scene: can't restore entity with persistent ID {}, it is invalid or already used.\n", persistent_id));
+    }
+    return entity;
+}
+
+entt::entity engine::Scene::create_transient_entity()
+{
+    ENGINE_PROFILE_SECTION;
+    return entity_registry_.create();
 }
 
 void engine::Scene::destroy_entity(entt::entity entity)
@@ -721,6 +739,11 @@ bool engine::Scene::is_valid_entity(entt::entity entity)
 {
     ENGINE_PROFILE_SECTION;
     return entity_registry_.valid(entity);
+}
+
+std::uint64_t engine::Scene::get_persistent_id(entt::entity entity) const
+{
+    return entity_ids_.get_id(entity);
 }
 
 entt::runtime_view engine::Scene::create_runtime_view()

@@ -8,14 +8,17 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	render_graph_tests.cpp
 	shadows_tests.cpp
 	atlas_tests.cpp
+	entity_id_registry_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
 	${ENGINE_IMPL_DIR}/render/shadows.h
 	# header-only; atlas_tests.cpp provides the logger it uses
 	${ENGINE_IMPL_DIR}/named_atlas.h
+	# header-only
+	${ENGINE_IMPL_DIR}/entity_id_registry.h
 )
 target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/include)
-target_link_libraries(${ENGINE_LOGIC_TESTS_NAME} GTest::gtest_main glm fmt::fmt-header-only)
+target_link_libraries(${ENGINE_LOGIC_TESTS_NAME} GTest::gtest_main glm fmt::fmt-header-only EnTT::EnTT)
 add_test(NAME ${ENGINE_LOGIC_TESTS_NAME} COMMAND ${ENGINE_LOGIC_TESTS_NAME})
 set_tests_properties(${ENGINE_LOGIC_TESTS_NAME} PROPERTIES LABELS ci)

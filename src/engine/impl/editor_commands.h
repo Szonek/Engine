@@ -157,6 +157,7 @@ public:
 private:
     Scene& scene_;
     const entt::entity e_;
+    std::uint64_t persistent_id_;
 };
 
 class CommandSetPhysicsDebugDraw: public ICommand

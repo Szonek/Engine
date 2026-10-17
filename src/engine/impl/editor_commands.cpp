@@ -116,6 +116,7 @@ void CommandAddEntity::undo()
 CommandDestroyEntity::CommandDestroyEntity(Scene& sc, entt::entity e)
     : scene_(sc)
     , e_(e)
+    , persistent_id_(sc.get_persistent_id(e))
 {
     assert(e_ != entt::null);
 }
@@ -127,7 +128,7 @@ void CommandDestroyEntity::execute()
 
 void CommandDestroyEntity::undo()
 {
-    const auto new_entt = scene_.create_new_entity(e_);
+    const auto new_entt = scene_.create_new_entity(e_, persistent_id_);
     assert(new_entt == e_);
 }
 
