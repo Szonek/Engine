@@ -146,7 +146,8 @@ private:
     EditorView editor_view_ = EditorView::eGame;
     EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;
-    bool is_playing_ = false;
+    // the game runs from the start; Pause stops the scripts
+    bool is_playing_ = true;
     float frame_delta_time_ = 0.0f;
     CommandManager commands_;
     std::shared_ptr<OutlineFeature> outline_feature_;
