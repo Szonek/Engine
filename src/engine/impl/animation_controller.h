@@ -19,6 +19,7 @@ namespace engine
 {
 
 class Skin;
+struct SkinPose;
 
 enum class LayerBlendMode
 {
@@ -60,11 +61,17 @@ private:
     std::unordered_map<std::string, std::shared_ptr<const CompiledAnimationData>> animations_;
 };
 
+// the animation libraries built from one model, by the skin asset they were built for
 class AnimationLibraryCache
 {
 public:
+    // The library built for this skin handle, or nullptr. Skin handles are atlas slots and get reused once a skin is
+    // destroyed, so an entry whose skeleton doesn't match `skin` is stale: it is dropped and nullptr returned.
+    // Callers hold `mutex`.
+    std::shared_ptr<const AnimationLibrary> find(std::uint32_t skin_handle, const Skin& skin);
+
     std::mutex mutex;
-    std::vector<std::shared_ptr<const AnimationLibrary>> libraries;
+    std::unordered_map<std::uint32_t, std::shared_ptr<const AnimationLibrary>> libraries;
 };
 
 class SamplingJob
@@ -90,13 +97,13 @@ private:
     ozz::vector<ozz::math::SoaTransform> output_;
 };
 
+// Plays animations on one instance of a skin: every update writes the blended result into that instance's pose.
 class AnimationController
 {
-    friend class Skin;
 public:
-    AnimationController(Skin* skin, std::shared_ptr<const AnimationLibrary> animation_library = {});
+    AnimationController(const Skin* skin, std::shared_ptr<const AnimationLibrary> animation_library = {});
 
-    void update(float dt);
+    void update(float dt, SkinPose& pose);
     bool set_paused(bool paused);
 
     bool add_layer(std::size_t id, float weight);
@@ -156,7 +163,7 @@ private:
         { }
     };
 private:
-    Skin* skin_ = nullptr;
+    const Skin* skin_ = nullptr;
     bool paused_ = false;
     std::unordered_map<std::string, AnimationData> animations_;
 

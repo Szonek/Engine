@@ -8,6 +8,7 @@
 #include "components_internals/camera_internal_component.h"
 #include "components_internals/guizmo_component.h"
 #include "components_internals/outline_component.h"
+#include "components_internals/skin_pose_component.h"
 #include "profiler.h"
 #include "engine_vector_impl_def.h"
 #include "skin.h"
@@ -144,6 +145,10 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, Renderer& renderer, c
     entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
     entity_registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
     entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
+    // only on update: EnTT calls construction listeners last-connected first, so on construction this would run before
+    // initialize_skin_component and read a zeroed handle (a valid atlas slot). A new component has no skin yet anyway.
+    entity_registry_.on_update<engine_skin_component_t>().connect<&Scene::on_skin_component_changed>(*this);
+    entity_registry_.on_destroy<engine_skin_component_t>().connect<&entt::registry::remove<skin_pose_internal_component_t>>();
     entity_registry_.on_construct<engine_joint_attachment_component_t>().connect<&initialize_joint_attachment_component>();
     entity_registry_.on_construct<engine_light_component_t>().connect<&initialize_light_component>();
     entity_registry_.on_construct<engine_sprite_component_t>().connect<&initialize_sprite_component>();
@@ -396,14 +401,14 @@ void engine::Scene::update_world_transforms()
         auto joint_attachment_view = entity_registry_.view<engine_tranform_component_t, const engine_joint_attachment_component_t>();
         joint_attachment_view.each([this](engine_tranform_component_t& transform_component, const engine_joint_attachment_component_t& joint_attachment_component)
             {
-                if (!joint_attachment_component.skin)
+                const auto [pose, skin] = get_skin_instance(joint_attachment_component.skin);
+                if (!pose)
                 {
-                    log::log(log::LogLevel::eError, fmt::format("Skin component has no skin assigned. Are you sure you are doing valid thing?\n"));
+                    log::log(log::LogLevel::eError, fmt::format("Joint attachment references game object {}, which has no skin. Are you sure you are doing valid thing?\n", joint_attachment_component.skin));
                 }
                 else
                 {
-                    const auto typed_skin = reinterpret_cast<const engine::Skin*>(joint_attachment_component.skin);
-                    auto attachment_model_matrix = typed_skin->get_model_matrix_for_joint(joint_attachment_component.joint_name->str);
+                    auto attachment_model_matrix = skin->get_model_matrix_for_joint(*pose, joint_attachment_component.joint_name->str);
                     attachment_model_matrix = attachment_model_matrix * glm::make_mat4x4(transform_component.local_to_world);
 
                     std::memcpy(transform_component.local_to_world, &attachment_model_matrix, sizeof(attachment_model_matrix));
@@ -466,11 +471,12 @@ engine_result_code_t engine::Scene::update(float dt)
     ENGINE_PROFILE_SECTION;
     {
         ENGINE_PROFILE_SECTION_N("animation_controller_update_view");
-        auto animation_controller_updated_view = entity_registry_.view<engine_animation_controller_component_t>();
-        animation_controller_updated_view.each([this, dt](engine_animation_controller_component_t& ac_component)
+        // a controller drives the pose of the skin instance on its own game object
+        auto animation_controller_updated_view = entity_registry_.view<engine_animation_controller_component_t, skin_pose_internal_component_t>();
+        animation_controller_updated_view.each([this, dt](engine_animation_controller_component_t& ac_component, skin_pose_internal_component_t& pose_component)
             {
                 auto typed_ac = reinterpret_cast<engine::AnimationController*>(ac_component.controller);
-                typed_ac->update(dt);
+                typed_ac->update(dt, pose_component.pose);
             });
     }
 
@@ -483,11 +489,13 @@ engine_result_code_t engine::Scene::update(float dt)
 
     {
         ENGINE_PROFILE_SECTION_N("skin_component_view");
-        auto skin_component_view = entity_registry_.view<engine_skin_component_t>();
-        skin_component_view.each([this, dt](engine_skin_component_t& skin_component)
+        auto skin_component_view = entity_registry_.view<const engine_skin_component_t, skin_pose_internal_component_t>();
+        skin_component_view.each([this](const engine_skin_component_t& skin_component, skin_pose_internal_component_t& pose_component)
             {
-                auto typed_ac = reinterpret_cast<engine::Skin*>(skin_component.skin);
-                typed_ac->compute_skinning_matrices();
+                if (const auto* skin = app_->get_skin(skin_component.skin))
+                {
+                    skin->compute_skinning_matrices(pose_component.pose);
+                }
             });
     }
 
@@ -640,7 +648,8 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
                 {
                     return;
                 }
-                if (!skinned_mesh_component.skin)
+                const auto [pose, skin] = get_skin_instance(skinned_mesh_component.skin);
+                if (!pose)
                 {
                     log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Skinned mesh component has no skin assigned. Are you sure you are doing valid thing?\n", (std::uint32_t)entity));
                     return;
@@ -650,8 +659,7 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
                 {
                     return;
                 }
-                const auto typed_skin = reinterpret_cast<engine::Skin*>(skinned_mesh_component.skin);
-                const auto bones = typed_skin->get_skinning_matrices();
+                const auto& bones = pose->skinning_matrices;
                 item.skinning_matrices_offset = static_cast<std::uint32_t>(render_data.skinning_matrices.size());
                 item.skinning_matrices_count = static_cast<std::uint32_t>(bones.size());
                 render_data.skinning_matrices.insert(render_data.skinning_matrices.end(), bones.begin(), bones.end());
@@ -700,6 +708,35 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
     renderer_.submit_scene(std::move(render_data));
 }
 
+void engine::Scene::on_skin_component_changed(entt::registry& registry, entt::entity entity)
+{
+    const auto* skin = app_->get_skin(registry.get<engine_skin_component_t>(entity).skin);
+    if (!skin)
+    {
+        registry.remove<skin_pose_internal_component_t>(entity);
+        return;
+    }
+    registry.emplace_or_replace<skin_pose_internal_component_t>(entity, skin_pose_internal_component_t{ skin->make_rest_pose() });
+}
+
+std::pair<const engine::SkinPose*, const engine::Skin*> engine::Scene::get_skin_instance(engine_game_object_t skin_owner) const
+{
+    const auto entity = static_cast<entt::entity>(skin_owner);
+    if (skin_owner == ENGINE_INVALID_GAME_OBJECT_ID || !entity_registry_.valid(entity))
+    {
+        return { nullptr, nullptr };
+    }
+    const auto* pose_component = entity_registry_.try_get<skin_pose_internal_component_t>(entity);
+    const auto* skin_component = entity_registry_.try_get<engine_skin_component_t>(entity);
+    const auto* skin = skin_component ? app_->get_skin(skin_component->skin) : nullptr;
+    // never a pose without the skin it belongs to
+    if (!pose_component || !skin)
+    {
+        return { nullptr, nullptr };
+    }
+    return { &pose_component->pose, skin };
+}
+
 entt::entity engine::Scene::create_new_entity()
 {
     ENGINE_PROFILE_SECTION;
@@ -735,7 +772,7 @@ void engine::Scene::destroy_entity(entt::entity entity)
     entity_registry_.destroy(entity);
 }
 
-bool engine::Scene::is_valid_entity(entt::entity entity)
+bool engine::Scene::is_valid_entity(entt::entity entity) const
 {
     ENGINE_PROFILE_SECTION;
     return entity_registry_.valid(entity);

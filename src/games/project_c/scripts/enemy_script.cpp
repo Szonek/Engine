@@ -85,7 +85,7 @@ project_c::EnemyWeapon::EnemyWeapon(engine::IScene* my_scene, engine_game_object
     engineGameObjectUpdateParentComponent(go_, &pc);
 
     auto jac = engineGameObjectAddJointAttachmentComponent(go_);
-    jac.skin = engineGameObjectGetSkinComponent(pc.parent).skin;
+    jac.skin = pc.parent;
     engineStringSet(jac.joint_name, "handslot.r");
     engineGameObjectUpdateJointAttachmentComponent(go_, &jac);
 

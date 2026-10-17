@@ -38,10 +38,20 @@ inline void construct_skeleton(ozz::animation::offline::RawSkeleton::Joint& join
 }
 
 
+namespace
+{
+glm::mat4 to_glm(const ozz::math::Float4x4& m)
+{
+    return glm::mat4(
+        m.cols[0].m128_f32[0], m.cols[0].m128_f32[1], m.cols[0].m128_f32[2], m.cols[0].m128_f32[3],
+        m.cols[1].m128_f32[0], m.cols[1].m128_f32[1], m.cols[1].m128_f32[2], m.cols[1].m128_f32[3],
+        m.cols[2].m128_f32[0], m.cols[2].m128_f32[1], m.cols[2].m128_f32[2], m.cols[2].m128_f32[3],
+        m.cols[3].m128_f32[0], m.cols[3].m128_f32[1], m.cols[3].m128_f32[2], m.cols[3].m128_f32[3]);
+}
+}  // namespace
+
 engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
     : skeleton_(nullptr)
-    , name_(desc.name)
-    , asset_id_(desc.asset_id)
 {
     ENGINE_PROFILE_SECTION_N("engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)");
     ozz::animation::offline::RawSkeleton raw_skeleton;
@@ -63,71 +73,52 @@ engine::Skin::Skin(const SkinDesc& desc, const ModelNodeDesc& root)
         assert(joint_idx != -1);
         inverse_bind_matrices_.at(joint_idx) = inv_bind_mtx;
     }
+    log::log(log::LogLevel::eTrace, std::format("Skin {} created with {} joints and {} SoA joints.\n", desc.asset_id, skeleton_->num_joints(), skeleton_->num_soa_joints()).c_str());
+}
 
-    const int num_soa_joints = skeleton_->num_soa_joints();
-    locals_.resize(num_soa_joints, ozz::math::SoaTransform::identity());
-    for (auto i = 0; i < num_soa_joints; i++)
-    {
-        locals_[i] = skeleton_->joint_rest_poses()[i];
-    }
-    const int num_joints = skeleton_->num_joints();
-    models_.resize(num_joints);
-    log::log(log::LogLevel::eTrace, std::format("Skin {} created with {} joints and {} SoA joints.\n", name_, num_joints, num_soa_joints).c_str());
+const ozz::animation::Skeleton& engine::Skin::get_skeleton() const
+{
+    return *skeleton_;
+}
 
-    // Initialize rest pose (just in case, if there was no animation played).
+engine::SkinPose engine::Skin::make_rest_pose() const
+{
+    ENGINE_PROFILE_SECTION_N("engine::Skin::make_rest_pose()");
+    SkinPose pose;
+    pose.models.resize(skeleton_->num_joints());
+
     ozz::animation::LocalToModelJob ltm_job{};
     ltm_job.skeleton = skeleton_.get();
-    ltm_job.input = ozz::make_span(locals_);
-    ltm_job.output = ozz::make_span(models_);
-
+    ltm_job.input = skeleton_->joint_rest_poses();
+    ltm_job.output = ozz::make_span(pose.models);
     if (!ltm_job.Run())
     {
-        log::log(log::LogLevel::eError, std::format("Failed to convert local to model space for skin: {}.\n", name_).c_str());
+        log::log(log::LogLevel::eError, "Failed to convert local to model space for a skin's rest pose.\n");
         throw std::runtime_error("Failed to convert local to model space for skin.");
     }
-
+    compute_skinning_matrices(pose);
+    return pose;
 }
 
-const std::string& engine::Skin::get_name() const
-{
-    return name_;
-}
-
-const std::string& engine::Skin::get_asset_id() const
-{
-    return asset_id_;
-}
-
-glm::mat4 engine::Skin::get_model_matrix_for_joint(std::string_view joint_name) const
+glm::mat4 engine::Skin::get_model_matrix_for_joint(const SkinPose& pose, std::string_view joint_name) const
 {
     ENGINE_PROFILE_SECTION_N("engine::Skin::get_model_matrix_for_joint(std::string_view joint_name)");
     const auto joint_id = ozz::animation::FindJoint(*skeleton_, joint_name.data());
-    const auto& model = models_[joint_id];
-    return glm::mat4(
-        model.cols[0].m128_f32[0], model.cols[0].m128_f32[1], model.cols[0].m128_f32[2], model.cols[0].m128_f32[3],
-        model.cols[1].m128_f32[0], model.cols[1].m128_f32[1], model.cols[1].m128_f32[2], model.cols[1].m128_f32[3],
-        model.cols[2].m128_f32[0], model.cols[2].m128_f32[1], model.cols[2].m128_f32[2], model.cols[2].m128_f32[3],
-        model.cols[3].m128_f32[0], model.cols[3].m128_f32[1], model.cols[3].m128_f32[2], model.cols[3].m128_f32[3]);
+    if (joint_id < 0 || joint_id >= static_cast<int>(pose.models.size()))
+    {
+        log::log(log::LogLevel::eError, std::format("Joint '{}' not found in skin.\n", joint_name).c_str());
+        return glm::mat4(1.0f);
+    }
+    return to_glm(pose.models[joint_id]);
 }
 
-void engine::Skin::compute_skinning_matrices()
+void engine::Skin::compute_skinning_matrices(SkinPose& pose) const
 {
     ENGINE_PROFILE_SECTION_N("engine::Skin::compute_skinning_matrices()");
-    
-    skinning_matrices_.resize(skeleton_->num_joints());
+    pose.skinning_matrices.resize(skeleton_->num_joints());
     for (int i = 0; i < skeleton_->num_joints(); ++i)
     {
         const std::string joint_name = skeleton_->joint_names()[i];
-        const auto& model = models_[i];
-        skinning_matrices_[join_remap_.at(joint_name)] = glm::mat4(
-            model.cols[0].m128_f32[0], model.cols[0].m128_f32[1], model.cols[0].m128_f32[2], model.cols[0].m128_f32[3],
-            model.cols[1].m128_f32[0], model.cols[1].m128_f32[1], model.cols[1].m128_f32[2], model.cols[1].m128_f32[3],
-            model.cols[2].m128_f32[0], model.cols[2].m128_f32[1], model.cols[2].m128_f32[2], model.cols[2].m128_f32[3],
-            model.cols[3].m128_f32[0], model.cols[3].m128_f32[1], model.cols[3].m128_f32[2], model.cols[3].m128_f32[3]) * inverse_bind_matrices_[i];
+        pose.skinning_matrices[join_remap_.at(joint_name)] = to_glm(pose.models[i]) * inverse_bind_matrices_[i];
     }
-}
-
-std::span<const glm::mat4> engine::Skin::get_skinning_matrices() const
-{
-    return skinning_matrices_;
 }

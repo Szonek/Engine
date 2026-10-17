@@ -191,7 +191,7 @@ void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::
     }
 
     auto jac = engineGameObjectAddJointAttachmentComponent(go_);
-    jac.skin = engineGameObjectGetSkinComponent(parent).skin;
+    jac.skin = parent;
     engineStringSet(jac.joint_name, joint_name.data());
     engineGameObjectUpdateJointAttachmentComponent(go_, &jac);
 
@@ -230,7 +230,7 @@ void project_c::Weapon::attach_offhand_to_game_object(engine_game_object_t paren
     engineGameObjectUpdateParentComponent(offhand_go_, &pc);
 
     auto jac = engineGameObjectAddJointAttachmentComponent(offhand_go_);
-    jac.skin = engineGameObjectGetSkinComponent(parent).skin;
+    jac.skin = parent;
     engineStringSet(jac.joint_name, joint_name.data());
     engineGameObjectUpdateJointAttachmentComponent(offhand_go_, &jac);
 
