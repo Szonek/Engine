@@ -574,6 +574,7 @@ engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8
         });
 
     out.nodes = std::move(nodes);
+    out.source_name = source_name;
     return out;
 
 }

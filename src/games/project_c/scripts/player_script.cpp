@@ -434,7 +434,7 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreate(), this);
 
     // set animation layers
-    auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    auto animation_controller = engineGameObjectGetAnimationController(go_);
     engineAnimationControllerLayerSetWeight(animation_controller, LOCOMOTION_LAYER_ID, 1.0f);
     const bool locomotion_loops = engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, true);
     assert(locomotion_loops);
@@ -501,7 +501,7 @@ void project_c::Player::update(float dt)
     dodge_press_pending_ = dodge_press_pending_ || (input().dodge && !dodge_input_was_down_);
     dodge_input_was_down_ = input().dodge;
 
-    auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    auto animation_controller = engineGameObjectGetAnimationController(go_);
     if (hit_stop_remaining_seconds_ > 0.0f)
     {
         if (hit_stop_just_started_)
@@ -831,7 +831,7 @@ void project_c::Player::on_confirmed_attack_hit(float hit_stop_seconds)
     }
     hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, hit_stop_seconds);
     hit_stop_just_started_ = true;
-    const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    const auto animation_controller = engineGameObjectGetAnimationController(go_);
     if (!engineAnimationControllerSetPaused(animation_controller, true))
     {
         engineLog("Failed to pause player animation for hit-stop.\n");
@@ -866,7 +866,7 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
     }
     knockback_velocity_ = glm::normalize(knockback_direction) * PLAYER_KNOCKBACK_SPEED;
 
-    const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    const auto animation_controller = engineGameObjectGetAnimationController(go_);
     if (hp_ == 0)
     {
         // fall off the wall

@@ -181,7 +181,7 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
         engineLog("Skeleton blade prefab is unavailable; enemy weapon visuals and hitbox are disabled.\n");
     }
 
-    const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    const auto animation_controller = engineGameObjectGetAnimationController(go_);
     for (const auto& attack_animation : ENEMY_ATTACK_ANIMATIONS)
     {
         const char* animation_name = attack_animation.name;
@@ -227,7 +227,7 @@ void project_c::Enemy::update(float dt)
 {
     engine::ScopedProfiler prof("project_c::Enemy::update");
 
-    auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    auto animation_controller = engineGameObjectGetAnimationController(go_);
     if (hit_stop_remaining_seconds_ > 0.0f)
     {
         if (hit_stop_just_started_)
@@ -478,7 +478,7 @@ void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_s
 
     hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, hit_stop_seconds);
     hit_stop_just_started_ = true;
-    const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
+    const auto animation_controller = engineGameObjectGetAnimationController(go_);
     if (!engineAnimationControllerSetPaused(animation_controller, true))
     {
         engineLog("Failed to pause enemy animation for hit-stop.\n");

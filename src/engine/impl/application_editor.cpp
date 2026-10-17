@@ -388,15 +388,8 @@ bool display_joint_attachment_component(const engine::Scene* scene, engine_joint
 
 bool display_animation_controller_component(const engine::Scene* scene, engine_animation_controller_component_t& c)
 {
-    const auto typed_controller = reinterpret_cast<engine::AnimationController*>(c.controller);
-    if (!typed_controller)
-    {
-        ImGui::Text("No animation controller assigned");
-    }
-    else
-    {
-        ImGui::Text("Animation controller assigned");
-    }
+    const auto name = scene->get_application()->get_animation_set_name(c.animations);
+    ImGui::Text("Animation set: %s", name.empty() ? "None" : name.c_str());
     return false;
 }
 
@@ -929,6 +922,8 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
     fps_values[fps_idx % fps_values.size()] = 1000.0f / dt;
     fps_idx++;
     ImGui::Text("FPS: %d", static_cast<std::uint32_t>(std::accumulate(fps_values.begin(), fps_values.end(), 0) / (fps_idx < fps_values.size() ? fps_idx : fps_values.size())));
+    // they are owned by their game objects: a number that keeps growing is a leak
+    ImGui::Text("Animation controllers: %zu", engine::AnimationController::get_live_count());
 
     auto& render_settings = renderer_.get_settings();
     ImGui::SeparatorText("Shadows");

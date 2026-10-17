@@ -9,6 +9,7 @@
 #include "components_internals/guizmo_component.h"
 #include "components_internals/outline_component.h"
 #include "components_internals/skin_pose_component.h"
+#include "components_internals/animation_controller_internal_component.h"
 #include "profiler.h"
 #include "engine_vector_impl_def.h"
 #include "skin.h"
@@ -137,6 +138,7 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, Renderer& renderer, c
     // basic initalizers
     entity_registry_.on_construct<engine_tranform_component_t>().connect<&initialize_transform_component>();
     entity_registry_.on_construct<engine_mesh_component_t>().connect<&initialize_mesh_component>();
+    entity_registry_.on_construct<engine_skinned_mesh_component_t>().connect<&initialize_skinned_mesh_component>();
     entity_registry_.on_construct<engine_material_component_t>().connect<&initialize_material_component>();
     entity_registry_.on_construct<engine_parent_component_t>().connect<&initialize_parent_component>();
     entity_registry_.on_construct<engine_name_component_t>().connect<&initialize_name_component>();
@@ -149,7 +151,12 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, Renderer& renderer, c
     // initialize_skin_component and read a zeroed handle (a valid atlas slot). A new component has no skin yet anyway.
     entity_registry_.on_update<engine_skin_component_t>().connect<&Scene::on_skin_component_changed>(*this);
     entity_registry_.on_destroy<engine_skin_component_t>().connect<&entt::registry::remove<skin_pose_internal_component_t>>();
+    // a controller plays on its game object's skin: (re)built when either its animation set or the skin changes
+    entity_registry_.on_update<engine_animation_controller_component_t>().connect<&Scene::on_animation_controller_component_changed>(*this);
+    entity_registry_.on_destroy<engine_animation_controller_component_t>().connect<&entt::registry::remove<animation_controller_internal_component_t>>();
+    entity_registry_.on_destroy<engine_skin_component_t>().connect<&entt::registry::remove<animation_controller_internal_component_t>>();
     entity_registry_.on_construct<engine_joint_attachment_component_t>().connect<&initialize_joint_attachment_component>();
+    entity_registry_.on_construct<engine_animation_controller_component_t>().connect<&initialize_animation_controller_component>();
     entity_registry_.on_construct<engine_light_component_t>().connect<&initialize_light_component>();
     entity_registry_.on_construct<engine_sprite_component_t>().connect<&initialize_sprite_component>();
     
@@ -472,11 +479,10 @@ engine_result_code_t engine::Scene::update(float dt)
     {
         ENGINE_PROFILE_SECTION_N("animation_controller_update_view");
         // a controller drives the pose of the skin instance on its own game object
-        auto animation_controller_updated_view = entity_registry_.view<engine_animation_controller_component_t, skin_pose_internal_component_t>();
-        animation_controller_updated_view.each([this, dt](engine_animation_controller_component_t& ac_component, skin_pose_internal_component_t& pose_component)
+        auto animation_controller_updated_view = entity_registry_.view<animation_controller_internal_component_t, skin_pose_internal_component_t>();
+        animation_controller_updated_view.each([dt](animation_controller_internal_component_t& ac_component, skin_pose_internal_component_t& pose_component)
             {
-                auto typed_ac = reinterpret_cast<engine::AnimationController*>(ac_component.controller);
-                typed_ac->update(dt, pose_component.pose);
+                ac_component.controller->update(dt, pose_component.pose);
             });
     }
 
@@ -713,10 +719,50 @@ void engine::Scene::on_skin_component_changed(entt::registry& registry, entt::en
     const auto* skin = app_->get_skin(registry.get<engine_skin_component_t>(entity).skin);
     if (!skin)
     {
-        registry.remove<skin_pose_internal_component_t>(entity);
+        registry.remove<skin_pose_internal_component_t, animation_controller_internal_component_t>(entity);
         return;
     }
     registry.emplace_or_replace<skin_pose_internal_component_t>(entity, skin_pose_internal_component_t{ skin->make_rest_pose() });
+    // a controller built for another skin is rebuilt for this one
+    const auto* controller = registry.try_get<animation_controller_internal_component_t>(entity);
+    if (registry.all_of<engine_animation_controller_component_t>(entity) && (!controller || controller->controller->get_skin() != skin))
+    {
+        on_animation_controller_component_changed(registry, entity);
+    }
+}
+
+void engine::Scene::on_animation_controller_component_changed(entt::registry& registry, entt::entity entity)
+{
+    registry.remove<animation_controller_internal_component_t>(entity);
+    const auto animation_set_handle = registry.get<engine_animation_controller_component_t>(entity).animations;
+    if (animation_set_handle == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return;
+    }
+    const auto* skin_component = registry.try_get<engine_skin_component_t>(entity);
+    const auto* skin = skin_component ? app_->get_skin(skin_component->skin) : nullptr;
+    auto animation_set = app_->get_animation_set(animation_set_handle);
+    if (!skin || !animation_set)
+    {
+        log::log(log::LogLevel::eError, fmt::format("[Entity: {}] An animation controller needs a valid animation set and a skin on the same game object.\n", static_cast<std::uint32_t>(entity)));
+        return;
+    }
+    if (!animation_set->is_compatible_with(*skin))
+    {
+        log::log(log::LogLevel::eError, fmt::format("[Entity: {}] The animation set {} was built for another skeleton.\n", static_cast<std::uint32_t>(entity), app_->get_animation_set_name(animation_set_handle)));
+        return;
+    }
+    registry.emplace<animation_controller_internal_component_t>(entity, std::make_unique<AnimationController>(skin, std::move(animation_set)));
+}
+
+engine::AnimationController* engine::Scene::get_animation_controller(entt::entity entity)
+{
+    if (!entity_registry_.valid(entity))
+    {
+        return nullptr;
+    }
+    auto* component = entity_registry_.try_get<animation_controller_internal_component_t>(entity);
+    return component ? component->controller.get() : nullptr;
 }
 
 std::pair<const engine::SkinPose*, const engine::Skin*> engine::Scene::get_skin_instance(engine_game_object_t skin_owner) const

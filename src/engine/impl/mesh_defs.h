@@ -10,8 +10,6 @@
 
 namespace engine
 {
-    class AnimationLibraryCache;
-
     inline static const std::int32_t INVALID_VALUE = -1;
 
     struct GeometryDesc
@@ -96,7 +94,8 @@ namespace engine
         std::vector<TextureDesc> textures;
         std::vector<AnimationClipDesc> animations;
         std::vector<SkinDesc> skins;
-        mutable std::shared_ptr<AnimationLibraryCache> animation_library_cache;
+        // the model file it was loaded from (prefix of its asset IDs)
+        std::string source_name;
     };
 
 }

@@ -41,6 +41,7 @@ typedef uint32_t engine_material_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_skin_t;
+typedef uint32_t engine_animation_set_t;
 typedef struct _engine_animation_controller_t engine_animation_controller_t;
 typedef uint32_t engine_shader_t;
 typedef uint32_t engine_animation_event_id_t;
@@ -470,13 +471,15 @@ ENGINE_API engine_result_code_t engineSkinCreateFromDesc(const engine_skin_desc_
 ENGINE_API engine_skin_t engineSkinGetByName(const char* name);
 ENGINE_API void engineSkinDestroy(engine_skin_t skin);
 
-// Animation - by default layer with 0 and weight 1.0 is created.
-// A model description preloads and shares its clips across compatible skins.
-// Pass nullptr for model_desc to add animations dynamically after controller creation.
-// The controller drives the pose of the game object it's attached to (with an animation controller component next to
-// the skin component).
-ENGINE_API engine_animation_controller_t* engineCreateAnimationControllerWithSkin(engine_skin_t skin, const engine_model_desc_t* model_desc);
-ENGINE_API void engineDestroyAnimationController(engine_animation_controller_t* controller);
+// Animation set: an asset with a model's animation clips compiled for one skin, named "<model file>#animations" and
+// shared by every controller of that skin.
+ENGINE_API engine_result_code_t engineAnimationSetCreateFromModelDesc(const engine_model_desc_t* model_desc, engine_skin_t skin, engine_animation_set_t* out);
+ENGINE_API engine_animation_set_t engineAnimationSetGetByName(const char* name);
+ENGINE_API void engineAnimationSetDestroy(engine_animation_set_t animation_set);
+
+// Animation controller: created and owned by the engine for a game object with an animation controller component and
+// a skin component; nullptr when it has none. Valid while the component exists. By default layer 0 with weight 1.0 exists.
+ENGINE_API engine_animation_controller_t* engineGameObjectGetAnimationController(engine_game_object_t game_object);
 ENGINE_API bool engineAnimationControllerSetPaused(engine_animation_controller_t* controller, bool paused);
 ENGINE_API bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc);
 ENGINE_API engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_animation_controller_t* controller, const char* name, float* out);

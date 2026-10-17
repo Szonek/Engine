@@ -12,6 +12,7 @@
 #include <ozz/animation/runtime/blending_job.h>
 
 #include <algorithm>
+#include <atomic>
 #include <stdexcept>
 #include <format>
 #include <cmath>
@@ -179,20 +180,10 @@ const std::unordered_map<std::string, std::shared_ptr<const engine::CompiledAnim
     return animations_;
 }
 
-std::shared_ptr<const engine::AnimationLibrary> engine::AnimationLibraryCache::find(std::uint32_t skin_handle, const Skin& skin)
+namespace
 {
-    const auto it = libraries.find(skin_handle);
-    if (it == libraries.end())
-    {
-        return nullptr;
-    }
-    if (!it->second->is_compatible_with(skin))
-    {
-        libraries.erase(it);
-        return nullptr;
-    }
-    return it->second;
-}
+std::atomic<std::size_t> G_LIVE_ANIMATION_CONTROLLERS = 0;
+}  // namespace
 
 engine::AnimationController::AnimationController(const Skin* skin, std::shared_ptr<const AnimationLibrary> animation_library)
     : skin_(skin)
@@ -216,6 +207,17 @@ engine::AnimationController::AnimationController(const Skin* skin, std::shared_p
     // add default layer
     [[maybe_unused]] const bool default_layer_added = add_layer(0, 1.0f);
     assert(default_layer_added);
+    G_LIVE_ANIMATION_CONTROLLERS++;
+}
+
+engine::AnimationController::~AnimationController()
+{
+    G_LIVE_ANIMATION_CONTROLLERS--;
+}
+
+std::size_t engine::AnimationController::get_live_count()
+{
+    return G_LIVE_ANIMATION_CONTROLLERS;
 }
 
 bool engine::AnimationController::add_animation(const AnimationClipDesc& animation_clip)

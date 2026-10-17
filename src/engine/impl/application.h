@@ -9,6 +9,7 @@
 #include "nav_mesh.h"
 #include "mesh_defs.h"
 #include "skin.h"
+#include "animation_controller.h"
 #include "render/renderer.h"
 
 
@@ -65,6 +66,13 @@ public:
     virtual std::string get_skin_name(std::uint32_t idx) const;
     virtual void destroy_skin(std::uint32_t idx);
 
+    // animation set assets: a model's clips compiled for one skin, shared by that skin's controllers
+    virtual std::uint32_t add_animation_set(std::string_view name, std::shared_ptr<const AnimationLibrary> animation_set);
+    virtual std::uint32_t get_animation_set(std::string_view name) const;
+    virtual std::shared_ptr<const AnimationLibrary> get_animation_set(std::uint32_t idx) const;
+    virtual std::string get_animation_set_name(std::uint32_t idx) const;
+    virtual void destroy_animation_set(std::uint32_t idx);
+
     virtual std::uint32_t add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name);
     virtual std::uint32_t get_shader(std::string_view name) const;
     virtual std::string get_shader_name(std::uint32_t idx) const;
@@ -102,6 +110,7 @@ protected:
     Atlas<Texture2D> textures_atlas_;
     Atlas<Geometry> geometries_atlas_;
     Atlas<Skin> skins_atlas_;
+    Atlas<std::shared_ptr<const AnimationLibrary>> animation_sets_atlas_;
     Atlas<NavMesh> nav_mesh_atlas_;
     Atlas<Shader> shader_atlas_;
 
