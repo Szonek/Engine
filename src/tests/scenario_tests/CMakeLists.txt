@@ -8,6 +8,7 @@ add_executable(${SCENARIO_TESTS_NAME}
 	sandbox_scene.h
 	sandbox_scene.cpp
 
+	asset_name_tests.cpp
 	gameplay_tests.cpp
 	harness_tests.cpp
 	level_tests.cpp

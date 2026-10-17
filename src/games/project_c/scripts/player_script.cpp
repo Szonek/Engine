@@ -111,7 +111,7 @@ void attack_window_close_callback(const engine_animation_event_info_t* info, voi
 project_c::Weapon::Weapon(engine::IScene* my_scene)
     : BaseNode(my_scene, "weapon-daggers")
 {
-    const auto dagger_texture = engineTextured2DGetByName("rogue_texture");
+    const auto dagger_texture = engineTextured2DGetByName("Rogue.glb#rogue_texture");
 
     // transform
     auto tc = engineGameObjectAddTransformComponent(go_);
