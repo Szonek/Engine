@@ -1,4 +1,6 @@
 #pragma once
+#include <glm/vec3.hpp>
+
 #include <cstdint>
 
 namespace engine
@@ -43,6 +45,37 @@ struct SsaoSettings
     float direct_light_occlusion = 0.0f;
 };
 
+// Stylized ("painted") look of the lit shaders. How it works: STYLIZED_LIGHTING.md (next to this file).
+// Disabled: the lit shaders compute exactly the standard lighting. The defaults keep the overall brightness of the
+// standard lighting with the light of the test level (ambient 0.45, diffuse 0.75).
+struct StylizedLightingSettings
+{
+    static constexpr std::uint32_t MAX_BANDS = 4;
+
+    bool enabled = false;
+    // Hemisphere ambient: ambient light is multiplied by the sky color on surfaces facing up and by the ground color
+    // on surfaces facing down (blended in between). White and white: standard ambient.
+    glm::vec3 sky_ambient{ 0.8f, 0.85f, 1.0f };
+    glm::vec3 ground_ambient{ 0.5f, 0.45f, 0.4f };
+    // Light ramp: diffuse light falls into this many steps of equal height, 1: lit or unlit (two tones),
+    // 0: no steps, the standard smooth falloff.
+    std::uint32_t bands = 3;
+    // width of the step edges, 0: hard edges (cel shading), 1: the steps blend into each other
+    float band_softness = 0.3f;
+    // Tinted shadows: part of the directional light that surfaces it doesn't reach (facing away or in shadow) still get,
+    // so shadows are colored instead of only darker. Black: standard shadows.
+    glm::vec3 shadow_color{ 0.05f, 0.07f, 0.16f };
+    // Rim light: bright edge where the surface turns away from the camera, separates characters from the ground.
+    glm::vec3 rim_color{ 1.0f, 0.95f, 0.85f };
+    // 0: no rim light
+    float rim_strength = 0.2f;
+    // higher: thinner rim
+    float rim_power = 4.0f;
+    // false: rim only on skinned meshes (characters). With a top-down camera every wall is seen at a grazing angle,
+    // so a rim on static meshes lights up all vertical surfaces.
+    bool rim_on_static_meshes = false;
+};
+
 enum class RenderDebugView : std::uint32_t
 {
     eNone = 0,
@@ -54,6 +87,7 @@ struct RenderSettings
 {
     ShadowSettings shadows;
     SsaoSettings ssao;
+    StylizedLightingSettings stylized;
     RenderDebugView debug_view = RenderDebugView::eNone;
 };
 

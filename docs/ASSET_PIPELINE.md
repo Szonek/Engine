@@ -35,7 +35,7 @@ Industry steps, and what we actually do of each:
 
 Deliberately skipped: PBR / normal maps / high-to-low baking, Substance, FBX, LODs, an asset database or cook step.
 At our art style, asset counts and poly budgets they cost more than they give. The look comes from lighting (shadows,
-SSAO, and possibly stylised shading and outlines later) instead. The existing Sobel pass (`outline_feature`) is only
+SSAO and the optional stylized lighting, `src/engine/impl/render/STYLIZED_LIGHTING.md`) instead. The existing Sobel pass (`outline_feature`) is only
 the editor's selection outline, not a game outline.
 
 ## Art conventions

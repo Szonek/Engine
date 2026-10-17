@@ -19,6 +19,19 @@ layout (binding = ENGINE_BINDING_SLOT_VIEW_LIGHTING_DATA, std140) uniform ViewLi
 	uint debug_view;
 	float view_lighting_pad0_;
 	float view_lighting_pad1_;
+	// stylized lighting, used by lit_helpers.h. How it works: src/engine/impl/render/STYLIZED_LIGHTING.md
+	vec4 stylized_sky_ambient;        // rgb: ambient light multiplier of surfaces facing up
+	vec4 stylized_ground_ambient;     // rgb: ambient light multiplier of surfaces facing down
+	vec4 stylized_shadow_color;       // rgb: part of the directional light that unlit surfaces still get
+	vec4 stylized_rim_color;          // rgb: rim light color multiplied by its strength
+	float stylized_enabled;           // 1: stylized lighting, 0: standard lighting (all stylized_* values are ignored)
+	float stylized_bands;             // number of steps of the diffuse light, 0: smooth (standard) falloff
+	float stylized_band_softness;     // 0: hard step edges, 1: steps blend into each other
+	float stylized_rim_power;         // higher: thinner rim
+	float stylized_rim_static_meshes; // 1: rim on all meshes, 0: only on meshes whose material asks for it (rim_mask)
+	float view_lighting_pad2_;
+	float view_lighting_pad3_;
+	float view_lighting_pad4_;
 };
 
 // depth of the scene seen from the directional light

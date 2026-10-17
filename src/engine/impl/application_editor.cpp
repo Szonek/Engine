@@ -1536,6 +1536,33 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
         ImGui::SliderFloat("Direct light occlusion", &ssao.direct_light_occlusion, 0.0f, 1.0f);
     }
 
+    ImGui::SeparatorText("Stylized lighting");
+    {
+        auto& stylized = render_settings.stylized;
+        ImGui::Checkbox("Enabled##stylized", &stylized.enabled);
+        ImGui::BeginDisabled(!stylized.enabled);
+        // ambient multipliers can be above 1
+        const ImGuiColorEditFlags hdr_flags = ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float;
+        ImGui::ColorEdit3("Sky ambient", &stylized.sky_ambient.x, hdr_flags);
+        ImGui::ColorEdit3("Ground ambient", &stylized.ground_ambient.x, hdr_flags);
+        int bands = static_cast<int>(stylized.bands);
+        if (ImGui::SliderInt("Bands (0: smooth)", &bands, 0, static_cast<int>(StylizedLightingSettings::MAX_BANDS)))
+        {
+            stylized.bands = static_cast<std::uint32_t>(bands);
+        }
+        ImGui::SliderFloat("Band softness", &stylized.band_softness, 0.0f, 1.0f);
+        ImGui::ColorEdit3("Shadow color", &stylized.shadow_color.x, ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("Rim color", &stylized.rim_color.x, ImGuiColorEditFlags_Float);
+        ImGui::SliderFloat("Rim strength", &stylized.rim_strength, 0.0f, 2.0f);
+        ImGui::SliderFloat("Rim power", &stylized.rim_power, 0.5f, 8.0f);
+        ImGui::Checkbox("Rim on static meshes", &stylized.rim_on_static_meshes);
+        if (ImGui::Button("Reset##stylized"))
+        {
+            stylized = StylizedLightingSettings{ .enabled = true };
+        }
+        ImGui::EndDisabled();
+    }
+
     {
         static const std::array<const char*, 3> debug_view_names = { "None", "Ambient occlusion", "Shadow" };
         int debug_view = static_cast<int>(render_settings.debug_view);

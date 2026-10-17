@@ -29,7 +29,7 @@ struct SceneGpuData
     float pad3_;
 };
 
-// Shadow and ambient occlusion parameters of one camera. Layout has to match ViewLightingData in shadow_helpers.h.
+// Shadow, ambient occlusion and stylized lighting parameters of one camera. Layout has to match ViewLightingData in shadow_helpers.h.
 struct ViewLightingGpuData
 {
     // world space -> shadow map clip space
@@ -46,7 +46,21 @@ struct ViewLightingGpuData
     std::uint32_t debug_view = 0;       // RenderDebugView
     float pad0_ = 0.0f;
     float pad1_ = 0.0f;
+    // stylized lighting (StylizedLightingSettings), ignored while stylized_enabled is 0
+    glm::vec4 stylized_sky_ambient{ 1.0f };     // rgb
+    glm::vec4 stylized_ground_ambient{ 1.0f };  // rgb
+    glm::vec4 stylized_shadow_color{ 0.0f };    // rgb
+    glm::vec4 stylized_rim_color{ 0.0f };       // rgb: color * strength
+    float stylized_enabled = 0.0f;
+    float stylized_bands = 1.0f;
+    float stylized_band_softness = 1.0f;
+    float stylized_rim_power = 1.0f;
+    float stylized_rim_static_meshes = 0.0f;
+    float pad2_ = 0.0f;
+    float pad3_ = 0.0f;
+    float pad4_ = 0.0f;
 };
+static_assert(sizeof(ViewLightingGpuData) == 208, "has to match the std140 size of ViewLightingData in shadow_helpers.h");
 
 struct LightGpuData
 {

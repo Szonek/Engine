@@ -30,6 +30,7 @@ The scene is rendered at the size of the image it is shown in: the window, or wi
 `Application::get_scene_viewport()` is that part of the window, which cameras, the game UI and mouse coordinates use.
 
 Shadows and ambient occlusion (the three passes before Forward) are explained in [SHADOWS_AND_SSAO.md](SHADOWS_AND_SSAO.md).
+The optional stylized look of the lit shaders (no extra passes) is explained in [STYLIZED_LIGHTING.md](STYLIZED_LIGHTING.md).
 Shadow Map and SSAO are declared only when enabled in `RenderSettings` (`Renderer::get_settings()`, editable in the editor's debug panel).
 
 The pass list of the last frame (with culled passes greyed out and resource reads/writes in a tooltip) is shown in the
@@ -44,7 +45,7 @@ editor's debug panel. Every pass is also a named debug group in RenderDoc/Nsight
 | `render_scene_data.h`             | Plain data the scene submits (draw items, lights, cameras) + GPU struct layouts   |
 | `renderer.h/.cpp`                 | Owns the graph, materials, per-scene GPU buffers; builds the built-in passes      |
 | `render_feature.h`                | `RenderFeature` extension point, `FrameContext`                                   |
-| `render_settings.h`               | `RenderSettings`: shadow and SSAO parameters                                      |
+| `render_settings.h`               | `RenderSettings`: shadow, SSAO and stylized lighting parameters                   |
 | `shadows.h/.cpp`                  | Fits the shadow map of the directional light to the camera frustum. **No GL.**    |
 | `ssao_pass.h/.cpp`                | Screen space ambient occlusion passes                                             |
 | `outline_feature.h/.cpp`          | Example feature: editor selection outline (raster mask pass + compute pass)       |

@@ -166,6 +166,18 @@ void engine::Renderer::prepare_gpu_data()
             lighting.ssao_enabled = settings_.ssao.enabled ? 1.0f : 0.0f;
             lighting.ssao_direct_light_occlusion = std::clamp(settings_.ssao.direct_light_occlusion, 0.0f, 1.0f);
             lighting.debug_view = static_cast<std::uint32_t>(settings_.debug_view);
+            if (const auto& stylized = settings_.stylized; stylized.enabled)
+            {
+                lighting.stylized_enabled = 1.0f;
+                lighting.stylized_sky_ambient = glm::vec4(glm::max(stylized.sky_ambient, glm::vec3(0.0f)), 0.0f);
+                lighting.stylized_ground_ambient = glm::vec4(glm::max(stylized.ground_ambient, glm::vec3(0.0f)), 0.0f);
+                lighting.stylized_shadow_color = glm::vec4(glm::max(stylized.shadow_color, glm::vec3(0.0f)), 0.0f);
+                lighting.stylized_rim_color = glm::vec4(glm::max(stylized.rim_color, glm::vec3(0.0f)) * std::max(stylized.rim_strength, 0.0f), 0.0f);
+                lighting.stylized_bands = static_cast<float>(std::min(stylized.bands, StylizedLightingSettings::MAX_BANDS));
+                lighting.stylized_band_softness = std::clamp(stylized.band_softness, 0.0f, 1.0f);
+                lighting.stylized_rim_power = std::max(stylized.rim_power, 0.5f);
+                lighting.stylized_rim_static_meshes = stylized.rim_on_static_meshes ? 1.0f : 0.0f;
+            }
             if (has_shadow)
             {
                 // The shadow map follows the camera, so each view has its own.
