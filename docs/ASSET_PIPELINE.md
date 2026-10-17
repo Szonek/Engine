@@ -34,8 +34,9 @@ Industry steps, and what we actually do of each:
 | Versioning              | Perforce                                    | `.blend` under Git LFS, exports committed as plain files   |
 
 Deliberately skipped: PBR / normal maps / high-to-low baking, Substance, FBX, LODs, an asset database or cook step.
-At our art style, asset counts and poly budgets they cost more than they give. The look comes from lighting, SSAO
-and the Sobel edge pass instead.
+At our art style, asset counts and poly budgets they cost more than they give. The look comes from lighting (shadows,
+SSAO, and possibly stylised shading and outlines later) instead. The existing Sobel pass (`outline_feature`) is only
+the editor's selection outline, not a game outline.
 
 ## Art conventions
 
