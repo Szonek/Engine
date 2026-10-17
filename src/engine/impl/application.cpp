@@ -338,6 +338,16 @@ const engine::Texture2D* engine::Application::get_texture(std::uint32_t idx) con
     return textures_atlas_.get_object(idx);
 }
 
+std::string engine::Application::get_texture_name(std::uint32_t idx) const
+{
+    return textures_atlas_.get_object_name(idx);
+}
+
+std::vector<std::pair<std::uint32_t, std::string>> engine::Application::get_texture_names() const
+{
+    return textures_atlas_.get_object_names();
+}
+
 void engine::Application::destroy_texture(std::uint32_t idx)
 {
     textures_atlas_.remove_object(idx);
@@ -385,6 +395,11 @@ std::string engine::Application::get_geometry_name(std::uint32_t idx) const
     return geometries_atlas_.get_object_name(idx);
 }
 
+std::vector<std::pair<std::uint32_t, std::string>> engine::Application::get_geometry_names() const
+{
+    return geometries_atlas_.get_object_names();
+}
+
 const engine::Geometry* engine::Application::get_geometry(std::uint32_t idx) const
 {
     return geometries_atlas_.get_object(idx);
@@ -403,6 +418,16 @@ std::uint32_t engine::Application::add_shader(const std::vector<std::string>& ve
 std::uint32_t engine::Application::get_shader(std::string_view name) const
 {
     return shader_atlas_.get_object(name);
+}
+
+std::string engine::Application::get_shader_name(std::uint32_t idx) const
+{
+    return shader_atlas_.get_object_name(idx);
+}
+
+std::vector<std::pair<std::uint32_t, std::string>> engine::Application::get_shader_names() const
+{
+    return shader_atlas_.get_object_names();
 }
 
 void engine::Application::destroy_shader(std::uint32_t idx)
