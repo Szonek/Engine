@@ -1,0 +1,135 @@
+#include "render/pixel_art.h"
+
+#include <gtest/gtest.h>
+
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <cmath>
+#include <initializer_list>
+
+namespace
+{
+using namespace engine;
+
+// window uv (0..1) of a world point
+glm::vec2 to_uv(const glm::mat4& view, const glm::mat4& projection, const glm::vec3& world)
+{
+    const auto clip = projection * view * glm::vec4(world, 1.0f);
+    return glm::vec2(clip) / clip.w * 0.5f + 0.5f;
+}
+
+// like the game camera: orthographic, looking down at 45 degrees
+glm::mat4 game_view(const glm::vec3& target)
+{
+    const auto eye = target + 20.0f * glm::normalize(glm::vec3(0.0f, 1.0f, 1.0f));
+    return glm::lookAt(eye, target, glm::vec3(0.0f, 1.0f, 0.0f));
+}
+
+glm::mat4 game_projection(glm::uvec2 window)
+{
+    const float aspect = static_cast<float>(window.x) / static_cast<float>(window.y);
+    constexpr float half_height = 5.0f;
+    return glm::ortho(-aspect * half_height, aspect * half_height, -half_height, half_height, 0.1f, 100.0f);
+}
+
+const std::initializer_list<glm::vec3> WORLD_POINTS = {
+    { 0.0f, 0.0f, 0.0f }, { 1.3f, 0.7f, -2.1f }, { -4.2f, 1.9f, 0.4f }, { 2.6f, -0.3f, 3.3f } };
+
+TEST(PixelArt, SceneTargetSize)
+{
+    EXPECT_EQ(compute_scene_target_size({ 1920, 1080 }, 1), glm::uvec2(1920, 1080));
+    EXPECT_EQ(compute_scene_target_size({ 1920, 1080 }, 3), glm::uvec2(640 + 2 * PIXEL_ART_MARGIN, 360 + 2 * PIXEL_ART_MARGIN));
+    // rounded up
+    EXPECT_EQ(compute_scene_target_size({ 1000, 500 }, 3), glm::uvec2(334 + 2 * PIXEL_ART_MARGIN, 167 + 2 * PIXEL_ART_MARGIN));
+}
+
+TEST(PixelArt, NativeResolutionChangesNothing)
+{
+    const glm::uvec2 window(1280, 720);
+    const auto view = game_view(glm::vec3(0.37f, 0.0f, 1.21f));
+    const auto projection = game_projection(window);
+    const auto camera = compute_low_res_camera(view, projection, window, 1, true);
+    EXPECT_EQ(camera.view, view);
+    EXPECT_EQ(camera.projection, projection);
+    EXPECT_EQ(camera.present.scale, glm::vec2(1.0f));
+    EXPECT_EQ(camera.present.offset, glm::vec2(0.0f));
+}
+
+// A world point is shown at the same window position as with the original camera: window uv mapped by present
+// is where the low resolution camera draws it.
+TEST(PixelArt, PresentShowsWhatTheOriginalCameraSees)
+{
+    const glm::uvec2 window(1280, 720);
+    for (const bool snap : { false, true })
+    {
+        for (const auto& target : { glm::vec3(0.0f), glm::vec3(0.37f, 0.0f, 1.21f), glm::vec3(-3.71f, 0.5f, 7.03f) })
+        {
+            const auto view = game_view(target);
+            const auto projection = game_projection(window);
+            const auto camera = compute_low_res_camera(view, projection, window, 3, snap);
+            for (const auto& world : WORLD_POINTS)
+            {
+                const auto window_uv = to_uv(view, projection, world);
+                const auto target_uv = to_uv(camera.view, camera.projection, world);
+                const auto presented_uv = window_uv * camera.present.scale + camera.present.offset;
+                EXPECT_NEAR(presented_uv.x, target_uv.x, 1e-4f) << "snap " << snap;
+                EXPECT_NEAR(presented_uv.y, target_uv.y, 1e-4f) << "snap " << snap;
+            }
+        }
+    }
+}
+
+// Snapped: a world point stays at the same position within its texel however the camera moves,
+// the image is only shifted by less than a texel when presented.
+TEST(PixelArt, SnappedTexelGridIsFixedInTheWorld)
+{
+    const glm::uvec2 window(1280, 720);
+    const auto target_size = glm::vec2(compute_scene_target_size(window, 3));
+    const auto projection = game_projection(window);
+    const auto texel_fraction = [&](const glm::vec3& camera_target, const glm::vec3& world)
+    {
+        const auto camera = compute_low_res_camera(game_view(camera_target), projection, window, 3, true);
+        const auto texel = to_uv(camera.view, camera.projection, world) * target_size;
+        return texel - glm::floor(texel);
+    };
+    for (const auto& world : WORLD_POINTS)
+    {
+        const auto reference = texel_fraction(glm::vec3(0.0f), world);
+        for (const auto& camera_target : { glm::vec3(0.013f, 0.0f, 0.0f), glm::vec3(0.37f, 0.0f, 1.21f), glm::vec3(-3.71f, 0.5f, 7.03f) })
+        {
+            const auto difference = glm::abs(texel_fraction(camera_target, world) - reference);
+            // fractions near 0 and near 1 are the same position
+            const auto distance = glm::min(difference, 1.0f - difference);
+            EXPECT_LT(distance.x, 2e-3f);
+            EXPECT_LT(distance.y, 2e-3f);
+        }
+    }
+}
+
+TEST(PixelArt, SnapShiftsLessThanTheMargin)
+{
+    const glm::uvec2 window(1280, 720);
+    const auto target_size = glm::vec2(compute_scene_target_size(window, 3));
+    const auto projection = game_projection(window);
+    for (float x = 0.0f; x < 1.0f; x += 0.0173f)
+    {
+        const auto camera = compute_low_res_camera(game_view(glm::vec3(x, 0.0f, x * 0.5f)), projection, window, 3, true);
+        const auto unsnapped_offset = 0.5f - 0.5f * camera.present.scale;
+        const auto shift_in_texels = (camera.present.offset - unsnapped_offset) * target_size;
+        EXPECT_LE(std::abs(shift_in_texels.x), 0.5f + 1e-3f);
+        EXPECT_LE(std::abs(shift_in_texels.y), 0.5f + 1e-3f);
+        EXPECT_LE(0.5f, static_cast<float>(PIXEL_ART_MARGIN));
+    }
+}
+
+TEST(PixelArt, PerspectiveCameraIsNotSnapped)
+{
+    const glm::uvec2 window(1280, 720);
+    const auto view = game_view(glm::vec3(0.37f, 0.0f, 1.21f));
+    const auto projection = glm::perspective(glm::radians(60.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
+    const auto camera = compute_low_res_camera(view, projection, window, 3, true);
+    EXPECT_EQ(camera.view, view);
+    EXPECT_EQ(camera.present.offset, 0.5f - 0.5f * camera.present.scale);
+}
+
+}  // namespace

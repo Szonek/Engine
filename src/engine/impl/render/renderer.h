@@ -2,6 +2,8 @@
 #include "render_feature.h"
 #include "render_graph.h"
 #include "render_graph_gl_backend.h"
+#include "pixel_art.h"
+#include "pixel_outline_pass.h"
 #include "render_scene_data.h"
 #include "render_settings.h"
 #include "ssao_pass.h"
@@ -29,8 +31,10 @@ namespace engine
 //           Depth Pre-pass  (depth of meshes seen from the camera)
 //           SSAO, SSAO Blur (ambient occlusion computed from the depth)
 //           Forward (static + skinned meshes, uses the shadow map and the ambient occlusion) -> Sprites -> Physics Debug Lines
+//       Pixel Outline                         (optional, PixelArtSettings::outline)
 //       RenderStage::ePostProcess features    (i.e. editor outline)
-//       Present                               (scene color -> scene output: the backbuffer or the texture set with set_scene_output())
+//       Present                               (scene color -> scene output: the backbuffer or the texture set with set_scene_output(),
+//                                              scaled up when the scene is rendered at low resolution)
 //       RenderStage::eOverlay features        (i.e. game UI, drawn onto the scene output)
 //       RenderStage::eScreen features         (i.e. the editor, drawn onto the backbuffer)
 //
@@ -54,7 +58,7 @@ public:
     // Features of the same stage are executed in ascending order, ties in registration order.
     void add_feature(std::shared_ptr<RenderFeature> feature, RenderStage stage, int order = 0);
 
-    // Entity id rendered at given pixel (0,0 is the left bottom corner) during the previous frame.
+    // Entity id rendered at given window pixel (0,0 is the left bottom corner) during the previous frame.
     // Returns false if there is no such data (nothing was rendered yet or the pixel is outside).
     bool read_entity_id(std::uint32_t x, std::uint32_t y, std::uint32_t& out_entity_id);
 
@@ -110,6 +114,7 @@ private:
         rg::TextureHandle color;
         rg::TextureHandle entity_id;
         rg::TextureHandle depth;
+        rg::TextureHandle normals;  // invalid: not needed this frame
     };
 
     struct ShadowPassData
@@ -130,7 +135,8 @@ private:
     };
 
     SceneGpu& get_scene_gpu(std::size_t scene_index);
-    void prepare_gpu_data();
+    // pixel_scale > 1: cameras are changed for the low resolution scene targets (pixel_art.h), present_transform_ is set
+    void prepare_gpu_data(glm::uvec2 window_size, std::uint32_t pixel_scale);
     void add_scene_passes(FrameContext& frame);
     void add_present_pass(FrameContext& frame);
     void add_features_passes(FrameContext& frame, RenderStage stage);
@@ -156,9 +162,14 @@ private:
     std::vector<std::string> last_graph_messages_;
     std::shared_ptr<Texture2D> scene_output_;
 
+    // how the scene targets of the current frame are mapped to the window, from the first camera
+    PresentTransform present_transform_;
+
     // entity ids of the previous frame, used for picking
     std::shared_ptr<Texture2D> entity_id_texture_;
     rg::TextureDesc entity_id_desc_;
+    PresentTransform entity_id_present_transform_;
+    glm::uvec2 entity_id_window_size_{ 0 };
     RenderTargetSet readback_targets_;
 
     MaterialStaticGeometryLit material_static_geometry_lit_;
@@ -169,10 +180,11 @@ private:
 
     Shader shader_debug_lines_;
     Geometry geometry_debug_line_;
-    Shader shader_full_screen_quad_;
+    Shader shader_present_;
     Geometry geometry_full_screen_quad_;
 
     SsaoPass ssao_pass_;
+    PixelOutlinePass pixel_outline_pass_;
     // bound in place of the shadow map / ambient occlusion when they are disabled
     Texture2D white_texture_;
 };

@@ -5,6 +5,7 @@ textures carry no detail, so the lighting has to make the shapes read. It change
 shaded, there are no new passes, lights or textures.
 
 Off by default. **Editor: debug panel → Stylized lighting** (next to Shadows / SSAO) switches it on and tunes it live.
+The pixel art preset ([PIXEL_ART.md](PIXEL_ART.md)) sets it to two hard steps with colored shadows and no rim.
 The settings are global (`RenderSettings::stylized`, like shadows and SSAO), not saved anywhere and not in the C API:
 once a look is chosen, put the values into the defaults of `StylizedLightingSettings`.
 

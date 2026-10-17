@@ -1492,6 +1492,29 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
     ImGui::Text("Animation controllers: %zu", engine::AnimationController::get_live_count());
 
     auto& render_settings = renderer_.get_settings();
+    ImGui::SeparatorText("Pixel art");
+    {
+        // sets the pixel art, stylized lighting and shadow settings below
+        if (ImGui::Button("Apply pixel art preset"))
+        {
+            apply_pixel_art_preset(render_settings);
+        }
+        auto& pixel_art = render_settings.pixel_art;
+        int pixel_scale = static_cast<int>(pixel_art.pixel_scale);
+        if (ImGui::SliderInt("Pixel scale (1: off)", &pixel_scale, 1, static_cast<int>(PixelArtSettings::MAX_PIXEL_SCALE)))
+        {
+            pixel_art.pixel_scale = static_cast<std::uint32_t>(pixel_scale);
+        }
+        ImGui::Checkbox("Snap camera to pixels", &pixel_art.snap_camera);
+        ImGui::Checkbox("Outline", &pixel_art.outline);
+        ImGui::BeginDisabled(!pixel_art.outline);
+        ImGui::SliderFloat("Outline strength", &pixel_art.outline_strength, 0.0f, 1.0f);
+        ImGui::SliderFloat("Highlight strength", &pixel_art.highlight_strength, 0.0f, 1.0f);
+        ImGui::DragFloat("Outline depth threshold", &pixel_art.outline_depth_threshold, 0.01f, 0.0f, 10.0f);
+        ImGui::SliderFloat("Highlight normal threshold", &pixel_art.highlight_normal_threshold, 0.0f, 2.0f);
+        ImGui::EndDisabled();
+    }
+
     ImGui::SeparatorText("Shadows");
     {
         auto& shadows = render_settings.shadows;

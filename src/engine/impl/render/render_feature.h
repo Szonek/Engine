@@ -39,15 +39,18 @@ struct FrameContext
 {
     rg::Graph& graph;
     RenderContext& rdx;
-    // size of the scene image: the window, or the editor's scene panel
+    // size of the scene targets (scene_color, entity_id, scene_depth, scene_normals): the size of the scene image (the
+    // window, or the editor's scene panel), or smaller with low resolution rendering (PixelArtSettings::pixel_scale).
+    // scene_output has the size of the scene image, the backbuffer the size of the window.
     std::uint32_t width = 0;
     std::uint32_t height = 0;
 
-    rg::TextureHandle scene_color{};   // what is displayed on the screen (RGBA8)
-    rg::TextureHandle entity_id{};     // entity id of the geometry under each pixel (R32UI), used for picking
+    rg::TextureHandle scene_color{};    // what is displayed on the screen (RGBA8)
+    rg::TextureHandle entity_id{};      // entity id of the geometry under each pixel (R32UI), used for picking
     rg::TextureHandle scene_depth{};
-    rg::TextureHandle scene_output{};  // the presented scene image: the backbuffer, or the texture the editor shows in its scene panel
-    rg::TextureHandle backbuffer{};    // the screen, window sized
+    rg::TextureHandle scene_normals{};  // view space normals of meshes (RGBA8, n * 0.5 + 0.5, alpha 0: nothing), only with the pixel art outline
+    rg::TextureHandle scene_output{};   // the presented scene image: the backbuffer, or the texture the editor shows in its scene panel
+    rg::TextureHandle backbuffer{};     // the screen, window sized
 
     std::span<const FrameView> views;
 

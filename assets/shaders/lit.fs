@@ -27,6 +27,8 @@ layout (binding = ENGINE_BINDING_SLOT_LIGHTS_DATA, std430) readonly buffer Light
 
 layout (location = 0) out vec4 out_fragment_color; 
 layout (location = 1) out uint out_entity_id; 
+// view space normal * 0.5 + 0.5, alpha 1: geometry. Used by the pixel art outline, discarded when there is no such target.
+layout (location = 2) out vec4 out_normal;
 
 uniform vec4 diffuse_color;
 uniform float shininess;
@@ -102,4 +104,5 @@ void main()
 	// final result
 	out_fragment_color = vec4((out_color + ambient + diffuse + specular), 1.0f);
 	out_entity_id = entity_id;
+	out_normal = vec4(normalize(mat3(view) * normal) * 0.5f + 0.5f, 1.0f);
 } 

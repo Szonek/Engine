@@ -66,8 +66,12 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/render/render_settings.h
 	${ENGINE_SOURCES_DIR}/render/shadows.h
 	${ENGINE_SOURCES_DIR}/render/shadows.cpp
+	${ENGINE_SOURCES_DIR}/render/pixel_art.h
+	${ENGINE_SOURCES_DIR}/render/pixel_art.cpp
 	${ENGINE_SOURCES_DIR}/render/ssao_pass.h
 	${ENGINE_SOURCES_DIR}/render/ssao_pass.cpp
+	${ENGINE_SOURCES_DIR}/render/pixel_outline_pass.h
+	${ENGINE_SOURCES_DIR}/render/pixel_outline_pass.cpp
 	${ENGINE_SOURCES_DIR}/render/renderer.h
 	${ENGINE_SOURCES_DIR}/render/renderer.cpp
 	${ENGINE_SOURCES_DIR}/render/outline_feature.h

@@ -76,6 +76,30 @@ struct StylizedLightingSettings
     bool rim_on_static_meshes = false;
 };
 
+// Low resolution rendering with hard pixels and outlines (t3ssel8r style). How it works: PIXEL_ART.md (next to this file).
+struct PixelArtSettings
+{
+    static constexpr std::uint32_t MAX_PIXEL_SCALE = 8;
+
+    // 1: the scene is rendered at the window resolution. N: at 1/N of it, scaled up with hard (nearest) pixels,
+    // every pixel of the scene is an NxN block on the screen. UI is not affected.
+    std::uint32_t pixel_scale = 1;
+    // Orthographic cameras are moved by whole pixels of the scene, the rest of the movement is applied when the image is
+    // scaled up. Without it edges crawl and flicker whenever the camera moves.
+    bool snap_camera = true;
+
+    // Outlines, computed from depth and normals of the scene:
+    bool outline = false;
+    // silhouettes: the pixel of the nearer object is darkened by this much (0..1)
+    float outline_strength = 0.5f;
+    // creases (convex edges between faces): the pixel is brightened by this much
+    float highlight_strength = 0.3f;
+    // how much further away a neighbouring pixel has to be to count as a silhouette (world units)
+    float outline_depth_threshold = 0.3f;
+    // how different the normals of neighbouring pixels have to be to count as a crease: 1 - cos(angle between them)
+    float highlight_normal_threshold = 0.25f;
+};
+
 enum class RenderDebugView : std::uint32_t
 {
     eNone = 0,
@@ -88,7 +112,22 @@ struct RenderSettings
     ShadowSettings shadows;
     SsaoSettings ssao;
     StylizedLightingSettings stylized;
+    PixelArtSettings pixel_art;
     RenderDebugView debug_view = RenderDebugView::eNone;
 };
+
+// Everything for the low resolution "pixel art" look: 1/3 resolution, snapped camera, outlines, hard two step light with
+// colored shadows, hard shadow edges. Other settings are kept.
+inline void apply_pixel_art_preset(RenderSettings& settings)
+{
+    settings.pixel_art = PixelArtSettings{ .pixel_scale = 3, .snap_camera = true, .outline = true };
+    settings.shadows.pcf_radius = 0;
+    settings.stylized = StylizedLightingSettings{
+        .enabled = true,
+        .bands = 2,
+        .band_softness = 0.05f,
+        .shadow_color = glm::vec3(0.07f, 0.08f, 0.2f),
+        .rim_strength = 0.0f };
+}
 
 }  // namespace engine

@@ -42,9 +42,10 @@ engine::Renderer::Renderer(RenderContext& rdx)
     , backend_(rdx)
     , shader_debug_lines_({ "debug_physics_lines_ssbo.vs" }, { "debug_physics_lines_ssbo.fs" })
     , geometry_debug_line_(2)
-    , shader_full_screen_quad_({ "full_screen_quad.vs" }, { "full_screen_quad.fs" })
+    , shader_present_({ "full_screen_quad.vs" }, { "present.fs" })
     , geometry_full_screen_quad_(6)
     , ssao_pass_(rdx, geometry_full_screen_quad_)
+    , pixel_outline_pass_(rdx, geometry_full_screen_quad_)
     , white_texture_(1, 1, false, WHITE_PIXEL.data(), DataLayout::eRGBA_U8, TextureAddressClampMode::eClampToEdge)
 {
 }
@@ -71,12 +72,20 @@ void engine::Renderer::add_feature(std::shared_ptr<RenderFeature> feature, Rende
 
 bool engine::Renderer::read_entity_id(std::uint32_t x, std::uint32_t y, std::uint32_t& out_entity_id)
 {
-    if (!entity_id_texture_ || x >= entity_id_desc_.width || y >= entity_id_desc_.height)
+    if (!entity_id_texture_ || x >= entity_id_window_size_.x || y >= entity_id_window_size_.y)
+    {
+        return false;
+    }
+    // pixel of the scene image -> texel of the scene targets, which can be smaller (low resolution rendering)
+    const auto window_uv = (glm::vec2(x, y) + 0.5f) / glm::vec2(entity_id_window_size_);
+    const auto target_size = glm::vec2(entity_id_desc_.width, entity_id_desc_.height);
+    const auto texel = glm::floor((window_uv * entity_id_present_transform_.scale + entity_id_present_transform_.offset) * target_size);
+    if (texel.x < 0.0f || texel.y < 0.0f || texel.x >= target_size.x || texel.y >= target_size.y)
     {
         return false;
     }
     readback_targets_.set_color_attachment(0, entity_id_texture_.get());
-    const auto pixels = readback_targets_.read_pixels(0, { x, y, 1, 1 }, DataLayout::eR_U32);
+    const auto pixels = readback_targets_.read_pixels(0, { static_cast<std::uint32_t>(texel.x), static_cast<std::uint32_t>(texel.y), 1, 1 }, DataLayout::eR_U32);
     readback_targets_.set_color_attachment(0, nullptr);
     RenderTargetSet::bind_default();
 
@@ -94,13 +103,14 @@ engine::Renderer::SceneGpu& engine::Renderer::get_scene_gpu(std::size_t scene_in
     return *scene_gpu_[scene_index];
 }
 
-void engine::Renderer::prepare_gpu_data()
+void engine::Renderer::prepare_gpu_data(glm::uvec2 window_size, std::uint32_t pixel_scale)
 {
     ENGINE_PROFILE_SECTION;
     frame_views_.clear();
+    present_transform_ = PresentTransform{};
     for (std::size_t scene_index = 0; scene_index < frame_scenes_.size(); scene_index++)
     {
-        const auto& scene = frame_scenes_[scene_index];
+        auto& scene = frame_scenes_[scene_index];
         auto& gpu = get_scene_gpu(scene_index);
 
         {
@@ -155,7 +165,21 @@ void engine::Renderer::prepare_gpu_data()
         const bool has_shadow = settings_.shadows.enabled && scene.scene_gpu.direction_light_count > 0 && !scene.lights.empty();
         for (std::size_t view_index = 0; view_index < scene.views.size(); view_index++)
         {
-            const auto& camera = scene.views[view_index];
+            auto& camera = scene.views[view_index];
+            if (pixel_scale > 1)
+            {
+                // Rendered with the camera of the low resolution targets. The game keeps using its own camera
+                // (i.e. for mouse picking), present maps the image back to it.
+                const auto low_res = compute_low_res_camera(camera.view, camera.projection, window_size, pixel_scale, settings_.pixel_art.snap_camera);
+                camera.view = low_res.view;
+                camera.projection = low_res.projection;
+                camera.position = low_res.position;
+                // all cameras draw to the same targets, which are presented with the snapping of the first one
+                if (frame_views_.empty())
+                {
+                    present_transform_ = low_res.present;
+                }
+            }
             auto& view_gpu = *gpu.views[view_index];
             {
                 BufferMapContext<CameraGpuData, UniformBuffer> camera_ubo(view_gpu.camera_ubo, false, true);
@@ -225,28 +249,37 @@ void engine::Renderer::render_frame()
     }
     const auto window_width = static_cast<std::uint32_t>(window_size.width);
     const auto window_height = static_cast<std::uint32_t>(window_size.height);
+    // size of the scene image; the scene targets are this size or smaller (low resolution rendering)
     const auto width = scene_output_ ? scene_output_->get_width() : window_width;
     const auto height = scene_output_ ? scene_output_->get_height() : window_height;
+    const auto pixel_scale = std::clamp(settings_.pixel_art.pixel_scale, 1u, PixelArtSettings::MAX_PIXEL_SCALE);
+    const auto target_size = compute_scene_target_size({ width, height }, pixel_scale);
 
-    prepare_gpu_data();
+    prepare_gpu_data({ width, height }, pixel_scale);
 
     backend_.new_frame();
     graph_.reset();
 
-    FrameContext frame{ .graph = graph_, .rdx = rdx_, .width = width, .height = height, .views = frame_views_, .full_screen_quad = &geometry_full_screen_quad_ };
+    FrameContext frame{ .graph = graph_, .rdx = rdx_, .width = target_size.x, .height = target_size.y, .views = frame_views_, .full_screen_quad = &geometry_full_screen_quad_ };
     frame.backbuffer = graph_.import_backbuffer("Backbuffer", window_width, window_height);
     frame.scene_output = scene_output_
         ? graph_.import_texture("SceneOutput", scene_output_, rg::TextureDesc{ width, height, DataLayout::eRGBA_U8 })
         : frame.backbuffer;
 
     add_scene_passes(frame);
+    if (frame.scene_normals.is_valid() && !frame.views.empty())
+    {
+        frame.scene_color = pixel_outline_pass_.add_pass(graph_, frame.scene_color, frame.scene_depth, frame.scene_normals, *frame.views.front().camera, settings_.pixel_art);
+    }
     add_features_passes(frame, RenderStage::ePostProcess);
     add_present_pass(frame);
     add_features_passes(frame, RenderStage::eOverlay);
     add_features_passes(frame, RenderStage::eScreen);
 
     graph_.extract_texture(frame.entity_id, &entity_id_texture_);
-    entity_id_desc_ = rg::TextureDesc{ width, height, DataLayout::eR_U32 };
+    entity_id_desc_ = rg::TextureDesc{ target_size.x, target_size.y, DataLayout::eR_U32 };
+    entity_id_present_transform_ = present_transform_;
+    entity_id_window_size_ = { width, height };
 
     graph_.compile();
     if (graph_.get_messages() != last_graph_messages_)
@@ -280,12 +313,17 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
             data.color = builder.write_color(0, builder.create_texture("SceneColor", desc_rgba), rg::LoadOp::eClear, rg::ClearValue{ .color = { 0.0f, 0.0f, 0.0f, 1.0f } });
             data.entity_id = builder.write_color(1, builder.create_texture("EntityId", desc_id), rg::LoadOp::eClear, rg::ClearValue{ .uint_value = ENGINE_INVALID_GAME_OBJECT_ID });
             data.depth = builder.write_depth(builder.create_texture("SceneDepth", desc_depth), rg::LoadOp::eClear);
+            if (settings_.pixel_art.outline)
+            {
+                data.normals = builder.write_color(2, builder.create_texture("SceneNormals", desc_rgba), rg::LoadOp::eClear, rg::ClearValue{ .color = { 0.0f, 0.0f, 0.0f, 0.0f } });
+            }
         },
         [](const SceneTargetsPassData&, rg::PassContext&) {});
 
     frame.scene_color = targets.color;
     frame.entity_id = targets.entity_id;
     frame.scene_depth = targets.depth;
+    frame.scene_normals = targets.normals;
 
     std::size_t view_counter = 0;
     for (const auto& view : frame.views)
@@ -344,6 +382,10 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
                 }
                 builder.write_color(0, frame.scene_color, rg::LoadOp::eLoad);
                 builder.write_color(1, frame.entity_id, rg::LoadOp::eLoad);
+                if (frame.scene_normals.is_valid())
+                {
+                    builder.write_color(2, frame.scene_normals, rg::LoadOp::eLoad);
+                }
                 builder.write_depth(frame.scene_depth, rg::LoadOp::eLoad);
             },
             [this, view](const ForwardPassData& data, rg::PassContext& ctx)
@@ -396,12 +438,14 @@ void engine::Renderer::add_present_pass(FrameContext& frame)
             data.scene_color = builder.read(frame.scene_color);
             builder.write_color(0, frame.scene_output, rg::LoadOp::eDontCare);
         },
-        [this](const PresentPassData& data, rg::PassContext& ctx)
+        [this, present = present_transform_](const PresentPassData& data, rg::PassContext& ctx)
         {
             rdx_.set_depth_test(false);
             rdx_.set_cull_face(false);
-            shader_full_screen_quad_.bind();
-            shader_full_screen_quad_.set_texture_with_sampler("screen_texture", &ctx.texture(data.scene_color));
+            shader_present_.bind();
+            shader_present_.set_texture_with_sampler("screen_texture", &ctx.texture(data.scene_color));
+            shader_present_.set_uniform_f2("uv_scale", { glm::value_ptr(present.scale), 2 });
+            shader_present_.set_uniform_f2("uv_offset", { glm::value_ptr(present.offset), 2 });
             geometry_full_screen_quad_.bind();
             geometry_full_screen_quad_.draw(Geometry::Mode::eTriangles);
         });
