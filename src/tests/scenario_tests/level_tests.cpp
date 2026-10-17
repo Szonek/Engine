@@ -30,4 +30,17 @@ TEST_F(LevelTest, LevelLoadsAndPlays)
     EXPECT_EQ(encounter->get_state(), project_c::Encounter::State::eInProgress);
     EXPECT_EQ(encounter->get_remaining_enemies(), 5u);
 }
+
+// A scene destroyed before its first update still owns the scripts waiting in its register queue (the HUD's
+// UI document among them); leaking them made the next load of the level crash.
+TEST_F(LevelTest, LevelUnloadedBeforeFirstStepCanBeLoadedAgain)
+{
+    load_scene<project_c::TestScene>();
+    TearDown();
+
+    auto* scene = load_scene<project_c::TestScene>();
+    step(1);
+    EXPECT_NE(scene->find_script<project_c::GameplayHud>(), nullptr);
+    EXPECT_NE(scene->find_script<project_c::Player>(), nullptr);
+}
 }  // namespace
