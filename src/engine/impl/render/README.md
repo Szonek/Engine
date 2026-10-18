@@ -115,7 +115,7 @@ A new built-in lit/unlit shader is a `Material*` class in `material.h/.cpp` plus
 
 * Entity ids for picking come from the **previous** frame: `Renderer::read_entity_id()` reads the extracted `EntityId` texture
   (window pixels are mapped into it, it can be smaller than the window).
-* Scene targets can be smaller than the window (`PixelArtSettings::pixel_scale`): a feature which creates textures matching
+* Scene targets can be smaller than the window (`PixelArtSettings::target_height`): a feature which creates textures matching
   them uses `FrameContext::width/height`, never the window size.
 * Geometry/Texture pointers in draw items are only valid until the end of the frame.
 * Meshes are drawn by three passes (Shadow Map, Depth Pre-pass, Forward). The Forward pass uses depth test "less or equal" against the

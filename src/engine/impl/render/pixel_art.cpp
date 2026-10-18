@@ -5,6 +5,16 @@
 #include <algorithm>
 #include <cmath>
 
+std::uint32_t engine::compute_pixel_scale(std::uint32_t window_height, std::uint32_t target_height)
+{
+    if (target_height == 0)
+    {
+        return 1;
+    }
+    const auto scale = std::lround(static_cast<double>(window_height) / static_cast<double>(target_height));
+    return static_cast<std::uint32_t>(std::clamp<long>(scale, 1, PIXEL_ART_MAX_SCALE));
+}
+
 glm::uvec2 engine::compute_scene_target_size(glm::uvec2 window_size, std::uint32_t pixel_scale)
 {
     if (pixel_scale <= 1)

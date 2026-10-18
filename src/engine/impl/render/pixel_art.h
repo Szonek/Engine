@@ -10,6 +10,11 @@ namespace engine
 // Extra texels rendered on each side of the scene targets: the camera snapping shifts the image by up to half a texel
 // when it's scaled up, the margin is what becomes visible at the window edges.
 inline constexpr std::uint32_t PIXEL_ART_MARGIN = 1;
+inline constexpr std::uint32_t PIXEL_ART_MAX_SCALE = 8;
+
+// Whole number scale which brings the window height closest to target_height scene pixels (1080 -> 3 and 1440 -> 4 for
+// 360), so the image looks the same on every screen and all pixels are equally big. target_height 0: 1 (window resolution).
+std::uint32_t compute_pixel_scale(std::uint32_t window_height, std::uint32_t target_height);
 
 // Window uv (0..1 over the window, 0,0 is the left bottom corner) -> uv in the scene targets: uv * scale + offset
 struct PresentTransform

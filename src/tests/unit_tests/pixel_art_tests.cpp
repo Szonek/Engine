@@ -35,6 +35,22 @@ glm::mat4 game_projection(glm::uvec2 window)
 const std::initializer_list<glm::vec3> WORLD_POINTS = {
     { 0.0f, 0.0f, 0.0f }, { 1.3f, 0.7f, -2.1f }, { -4.2f, 1.9f, 0.4f }, { 2.6f, -0.3f, 3.3f } };
 
+TEST(PixelArt, PixelScaleFromTargetHeight)
+{
+    // the same 360 lines on the common screens
+    EXPECT_EQ(compute_pixel_scale(1080, 360), 3u);
+    EXPECT_EQ(compute_pixel_scale(1440, 360), 4u);
+    EXPECT_EQ(compute_pixel_scale(2160, 360), 6u);
+    EXPECT_EQ(compute_pixel_scale(720, 360), 2u);
+    // closest whole number
+    EXPECT_EQ(compute_pixel_scale(1200, 360), 3u);
+    EXPECT_EQ(compute_pixel_scale(1300, 360), 4u);
+    // off, window smaller than the target, limit
+    EXPECT_EQ(compute_pixel_scale(1080, 0), 1u);
+    EXPECT_EQ(compute_pixel_scale(180, 360), 1u);
+    EXPECT_EQ(compute_pixel_scale(4320, 100), PIXEL_ART_MAX_SCALE);
+}
+
 TEST(PixelArt, SceneTargetSize)
 {
     EXPECT_EQ(compute_scene_target_size({ 1920, 1080 }, 1), glm::uvec2(1920, 1080));

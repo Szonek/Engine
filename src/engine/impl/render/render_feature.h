@@ -40,7 +40,7 @@ struct FrameContext
     rg::Graph& graph;
     RenderContext& rdx;
     // size of the scene targets (scene_color, entity_id, scene_depth, scene_normals): the size of the scene image (the
-    // window, or the editor's scene panel), or smaller with low resolution rendering (PixelArtSettings::pixel_scale).
+    // window, or the editor's scene panel), or smaller with low resolution rendering (PixelArtSettings::target_height).
     // scene_output has the size of the scene image, the backbuffer the size of the window.
     std::uint32_t width = 0;
     std::uint32_t height = 0;

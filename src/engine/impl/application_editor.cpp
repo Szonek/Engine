@@ -1500,11 +1500,22 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
             apply_pixel_art_preset(render_settings);
         }
         auto& pixel_art = render_settings.pixel_art;
-        int pixel_scale = static_cast<int>(pixel_art.pixel_scale);
-        if (ImGui::SliderInt("Pixel scale (1: off)", &pixel_scale, 1, static_cast<int>(PixelArtSettings::MAX_PIXEL_SCALE)))
+        static const std::array<std::uint32_t, 6> target_heights = { 0, 180, 270, 360, 480, 540 };
+        const auto height_name = [](std::uint32_t height) { return height == 0 ? std::string("Off (window resolution)") : std::to_string(height); };
+        if (ImGui::BeginCombo("Target height", height_name(pixel_art.target_height).c_str()))
         {
-            pixel_art.pixel_scale = static_cast<std::uint32_t>(pixel_scale);
+            for (const auto height : target_heights)
+            {
+                if (ImGui::Selectable(height_name(height).c_str(), height == pixel_art.target_height))
+                {
+                    pixel_art.target_height = height;
+                }
+            }
+            ImGui::EndCombo();
         }
+        const auto window_height = static_cast<std::uint32_t>(std::max(rdx_.get_window_size_in_pixels().height, 0));
+        const auto pixel_scale = compute_pixel_scale(window_height, pixel_art.target_height);
+        ImGui::Text("Pixel scale: %u (scene %u lines)", pixel_scale, (window_height + pixel_scale - 1) / pixel_scale);
         ImGui::Checkbox("Snap camera to pixels", &pixel_art.snap_camera);
         ImGui::Checkbox("Outline", &pixel_art.outline);
         ImGui::BeginDisabled(!pixel_art.outline);

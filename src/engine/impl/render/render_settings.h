@@ -79,11 +79,11 @@ struct StylizedLightingSettings
 // Low resolution rendering with hard pixels and outlines (t3ssel8r style). How it works: PIXEL_ART.md (next to this file).
 struct PixelArtSettings
 {
-    static constexpr std::uint32_t MAX_PIXEL_SCALE = 8;
-
-    // 1: the scene is rendered at the window resolution. N: at 1/N of it, scaled up with hard (nearest) pixels,
-    // every pixel of the scene is an NxN block on the screen. UI is not affected.
-    std::uint32_t pixel_scale = 1;
+    // Height of the scene in pixels, 0: the scene is rendered at the window resolution. Otherwise it's rendered at 1/N of
+    // the window, scaled up with hard (nearest) pixels: every scene pixel is an NxN block on the screen. N is the whole
+    // number closest to window height / target_height (1080p -> 3, 1440p -> 4, 2160p -> 6 for 360), so the look is the
+    // same on every screen. UI is not affected.
+    std::uint32_t target_height = 0;
     // Orthographic cameras are moved by whole pixels of the scene, the rest of the movement is applied when the image is
     // scaled up. Without it edges crawl and flicker whenever the camera moves.
     bool snap_camera = true;
@@ -116,11 +116,11 @@ struct RenderSettings
     RenderDebugView debug_view = RenderDebugView::eNone;
 };
 
-// Everything for the low resolution "pixel art" look: 1/3 resolution, snapped camera, outlines, hard two step light with
+// Everything for the low resolution "pixel art" look: 360 scene lines (1/3 of 1080p), snapped camera, outlines, hard two step light with
 // colored shadows, hard shadow edges. Other settings are kept.
 inline void apply_pixel_art_preset(RenderSettings& settings)
 {
-    settings.pixel_art = PixelArtSettings{ .pixel_scale = 3, .snap_camera = true, .outline = true };
+    settings.pixel_art = PixelArtSettings{ .target_height = 360, .snap_camera = true, .outline = true };
     settings.shadows.pcf_radius = 0;
     settings.stylized = StylizedLightingSettings{
         .enabled = true,

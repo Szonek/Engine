@@ -4,7 +4,7 @@ Low resolution rendering with hard pixels, a camera locked to the pixel grid and
 look (t3ssel8r style). The scene is rendered small and scaled up; UI and editor widgets stay at the window resolution.
 
 Off by default. **Editor: debug panel → Pixel art**. *Apply pixel art preset* (`apply_pixel_art_preset` in
-`render_settings.h`) switches everything on: pixel scale 3, camera snapping, outlines, stylized lighting with two hard
+`render_settings.h`) switches everything on: 360 scene lines, camera snapping, outlines, stylized lighting with two hard
 steps and colored shadows, hard shadow edges (PCF radius 0). Like the other render settings they are global, not saved
 and not in the C API.
 
@@ -20,7 +20,12 @@ and not in the C API.
 
 ## 1. Low resolution scene targets
 
-With `pixel_scale` N the scene targets (`SceneColor`, `EntityId`, `SceneDepth`, `SceneNormals`) are `window / N`
+`target_height` is the height of the scene in pixels. The pixel scale N is the whole number closest to
+`window height / target_height` (`compute_pixel_scale`): 360 gives 3 at 1080p, 4 at 1440p and 6 at 2160p, so every
+screen shows the same 360 lines, and every scene pixel is an equal NxN block (a fractional scale would make some pixel
+rows and columns wider than others). Windows which aren't a multiple get slightly more or fewer lines.
+
+With pixel scale N the scene targets (`SceneColor`, `EntityId`, `SceneDepth`, `SceneNormals`) are `window / N`
 (rounded up) plus a margin of `PIXEL_ART_MARGIN` texels on every side. All scene passes (shadow map, depth pre-pass, SSAO,
 Forward, ...) and post-process features run at that size: `FrameContext::width/height` is the size of the scene targets,
 not of the window. Present writes the window sized backbuffer and every window pixel takes the texel under it, so a
@@ -69,6 +74,8 @@ and perspective cameras.
 
 ## Tuning notes
 
-- 3 is a good pixel scale for 1920x1080 (640x360 scene) with the game camera; at 4 the KayKit characters' faces fall apart.
+- What decides the look is how many scene pixels one world unit covers: target height / world units visible vertically.
+  With 360 lines and the game camera (`ORTHO_HALF_HEIGHT` 5, 10 units visible) it's 36 px per unit. Art guidelines for
+  that density are in `docs/ASSET_PIPELINE.md` (Designing for the pixel art look).
 - Art for this look wants simple shapes and few colors; detailed textures turn into noise at low resolution.
 - Smooth-normal meshes (characters) get few creases, which is usually right; lower `highlight_normal_threshold` for more.

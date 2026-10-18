@@ -34,9 +34,52 @@ Industry steps, and what we actually do of each:
 | Versioning              | Perforce                                    | `.blend` under Git LFS, exports committed as plain files   |
 
 Deliberately skipped: PBR / normal maps / high-to-low baking, Substance, FBX, LODs, an asset database or cook step.
-At our art style, asset counts and poly budgets they cost more than they give. The look comes from lighting (shadows,
-SSAO and the optional stylized lighting, `src/engine/impl/render/STYLIZED_LIGHTING.md`) instead. The existing Sobel pass (`outline_feature`) is only
-the editor's selection outline, not a game outline.
+At our art style, asset counts and poly budgets they cost more than they give. The look comes from the rendering
+(next section) instead.
+
+## How assets are rendered
+
+The target look is "3D pixel art" (t3ssel8r style): the scene is rendered at a low resolution and scaled up with hard
+pixels, lit with a few hard light steps, and outlined. What an asset goes through on its way to the screen:
+
+```
+glTF (palette texture, smooth normals)
+  -> Shadow Map, Depth Pre-pass, SSAO        at the low scene resolution (360 lines)
+  -> Forward: stylized lighting              hemisphere ambient, 2 hard light steps, colored shadows (lit.fs)
+  -> Pixel Outline                           1 px dark silhouettes, bright creases (convex edges)
+  -> Present                                 scaled up to the window with hard pixels, camera snapped to the pixel grid
+  -> UI                                      at the full window resolution
+```
+
+| Stage                | What it means for an asset                                                                    | Details |
+|----------------------|-----------------------------------------------------------------------------------------------|---------|
+| Low resolution       | 360 scene lines whatever the screen (1080p, 1440p, 4K): with the game camera one world unit is about 36 pixels, see the guidelines below | `src/engine/impl/render/PIXEL_ART.md` |
+| Camera snapping      | The image moves in whole pixels, so thin details don't crawl or shimmer while the camera moves | `PIXEL_ART.md` |
+| Stylized lighting    | Surfaces are lit / half lit / in colored shadow with sharp edges between: shape reads from big faces facing different directions, not from texture shading | `src/engine/impl/render/STYLIZED_LIGHTING.md` |
+| Shadows, SSAO        | Hard shadow edges, ambient occlusion in corners and under objects                              | `src/engine/impl/render/SHADOWS_AND_SSAO.md` |
+| Outline              | Silhouettes get a dark 1 px line, convex edges between faces a bright one                     | `PIXEL_ART.md` |
+
+The pipeline itself (render graph, passes) is described in `src/engine/impl/render/README.md`. All of it is tuned live
+in the editor's debug panel; *Pixel art → Apply pixel art preset* switches the look on.
+
+## Designing for the pixel art look
+
+The output resolution doesn't matter, the density does: about **36 scene pixels per world unit** (360 lines, 10 units
+visible vertically with the game camera). Design and check assets at that density; KayKit assets are fine for
+prototyping gameplay but their painted detail is made for high resolution and isn't a reference for the look.
+
+- **Silhouette first.** A 1.5 unit tall character is about 50 px on screen. It must read as a black shape at that size.
+- **Minimum feature size.** Anything below ~0.05 units (2 px) disappears or flickers. Features that must be seen (eyes,
+  hands, weapon blades) need ~0.08 units (3 px) or more; exaggerate them (bigger heads, hands and weapons).
+- **Shape from geometry and big color areas, not texture detail.** Fits the palette workflow: one swatch is one flat
+  color. Texture detail finer than a scene pixel turns into noise.
+- **Bevels and hard edges.** Convex edges between faces get the bright crease line, which is a big part of the look:
+  chamfer box edges and keep props faceted. Small smooth curves get no line; smooth normals are fine on characters.
+- **Few, strong colors.** Lighting already makes three variants of each (lit, half lit, colored shadow); a palette of
+  ~16-32 colors is plenty. Keep neighbouring areas different in value, not only in hue, so they separate in shadow.
+- **Mind the camera angle.** The camera looks down at 45 degrees: tops of objects get as much screen space as fronts.
+- **Check in game, not in Blender.** Blender's viewport is high resolution and smooth: re-export and look at it with the
+  preset on (model hot-reload is planned).
 
 ## Art conventions
 
@@ -165,7 +208,8 @@ scripts (see `src/games/project_c/CLIMBING_AND_OCCLUSION.md`), and the C API nee
 
 ## Learning order
 
-1. A static prop (crate, barrel) on the palette; swap it in for `Box_B.gltf` and check scale and lighting.
+1. A static prop (crate, barrel) on the palette; swap it in for `Box_B.gltf` and check scale and lighting with the
+   pixel art preset on.
 2. A modular wall / floor tile that lines up with `LevelBuilder`'s grid.
 3. A weapon: origin and orientation matter because it attaches to a hand bone (later a socket).
 4. A character skinned to the shared skeleton, reusing the KayKit animations.

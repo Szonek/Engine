@@ -252,7 +252,7 @@ void engine::Renderer::render_frame()
     // size of the scene image; the scene targets are this size or smaller (low resolution rendering)
     const auto width = scene_output_ ? scene_output_->get_width() : window_width;
     const auto height = scene_output_ ? scene_output_->get_height() : window_height;
-    const auto pixel_scale = std::clamp(settings_.pixel_art.pixel_scale, 1u, PixelArtSettings::MAX_PIXEL_SCALE);
+    const auto pixel_scale = compute_pixel_scale(height, settings_.pixel_art.target_height);
     const auto target_size = compute_scene_target_size({ width, height }, pixel_scale);
 
     prepare_gpu_data({ width, height }, pixel_scale);
