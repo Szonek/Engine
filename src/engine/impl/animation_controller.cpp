@@ -189,20 +189,17 @@ engine::AnimationController::AnimationController(const Skin* skin, std::shared_p
     : skin_(skin)
 {
     ENGINE_PROFILE_SECTION;
-    if (!skin_)
+    if (!skin_ || !animation_library)
     {
-        throw std::invalid_argument("Skin pointer cannot be null!");
+        throw std::invalid_argument("An animation controller needs a skin and an animation set.");
     }
-    if (animation_library)
+    if (!animation_library->is_compatible_with(*skin_))
     {
-        if (!animation_library->is_compatible_with(*skin_))
-        {
-            throw std::invalid_argument("Animation library is incompatible with the skin skeleton.");
-        }
-        for (const auto& [name, compiled] : animation_library->animations())
-        {
-            animations_.emplace(name, AnimationData{ compiled, {} });
-        }
+        throw std::invalid_argument("Animation library is incompatible with the skin skeleton.");
+    }
+    for (const auto& [name, compiled] : animation_library->animations())
+    {
+        animations_.emplace(name, AnimationData{ compiled, {} });
     }
     // add default layer
     [[maybe_unused]] const bool default_layer_added = add_layer(0, 1.0f);
@@ -218,29 +215,6 @@ engine::AnimationController::~AnimationController()
 std::size_t engine::AnimationController::get_live_count()
 {
     return G_LIVE_ANIMATION_CONTROLLERS;
-}
-
-bool engine::AnimationController::add_animation(const AnimationClipDesc& animation_clip)
-{
-    ENGINE_PROFILE_SECTION;
-    if (animation_clip.name.empty())
-    {
-        log::log(log::LogLevel::eError, "Animation name cannot be empty.\n");
-        return false;
-    }
-    if (animations_.find(animation_clip.name) != animations_.end())
-    {
-        log::log(log::LogLevel::eError, std::format("Animation '{}' already exists in the controller.\n", animation_clip.name).c_str());
-        return false;
-    }
-    AnimationLibrary compiled_library(*skin_);
-    if (!compiled_library.add_animation(animation_clip, *skin_))
-    {
-        return false;
-    }
-    const auto& compiled = compiled_library.animations().at(animation_clip.name);
-    animations_.emplace(animation_clip.name, AnimationData{ compiled, {} });
-    return true;
 }
 
 void engine::AnimationController::update(float dt, SkinPose& pose)

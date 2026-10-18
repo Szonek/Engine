@@ -425,8 +425,6 @@ ENGINE_API const char* engineSkinDescGetName(const engine_skin_desc_t* desc);
 ENGINE_API uint32_t engineSkinDescGetJointsCount(const engine_skin_desc_t* desc);
 ENGINE_API const char* engineSkinDescGetJointName(const engine_skin_desc_t* desc, size_t idx);
 
-typedef struct _engine_animation_desc_t engine_animation_desc_t;
-ENGINE_API const char* engineAnimationDescGetName(const engine_animation_desc_t* desc);
 
 // Model Node DESC
 typedef struct _engine_model_node_desc_t engine_model_node_desc_t;
@@ -460,7 +458,6 @@ ENGINE_API uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc
 ENGINE_API const engine_skin_desc_t* engineModelDescGetSkinDesc(const engine_model_desc_t* desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc);
 
-ENGINE_API const engine_animation_desc_t* engineModelDescGetAnimationDesc(const engine_model_desc_t* desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetAnimationsDescCount(const engine_model_desc_t* desc);
 
 // Skin: an asset shared by every instance of a skinned model (the skeleton and its binding to the mesh), named by
@@ -481,7 +478,6 @@ ENGINE_API void engineAnimationSetDestroy(engine_animation_set_t animation_set);
 // the game object (like enginePhysicsAddForce); they fail (false / an error code) when it has none.
 // By default layer 0 with weight 1.0 exists.
 ENGINE_API bool engineAnimationControllerSetPaused(engine_game_object_t game_object, bool paused);
-ENGINE_API bool engineAnimationControllerAddAnimation(engine_game_object_t game_object, const engine_animation_desc_t* desc);
 ENGINE_API engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_game_object_t game_object, const char* name, float* out);
 ENGINE_API bool engineAnimationControllerIsAnimationPlaying(engine_game_object_t game_object, const char* name);
 ENGINE_API bool engineAnimationControllerIsAnimationPlayingOnLayer(engine_game_object_t game_object, const char* name, size_t layer_id);

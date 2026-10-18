@@ -4,7 +4,6 @@
 #include "math_helpers.h"
 #include "logger.h"
 #include "profiler.h"
-#include "skin.h"
 #include "animation_controller.h"
 #include "engine_string_impl_def.h"
 

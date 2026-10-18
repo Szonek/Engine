@@ -7,12 +7,12 @@
 #include <ozz/base/memory/unique_ptr.h>
 #include <ozz/base/containers/vector.h>
 #include <ozz/base/maths/simd_math.h>
+#include <ozz/base/maths/soa_transform.h>
 
 #include <optional>
 #include <unordered_map>
 #include <functional>
 #include <memory>
-#include <mutex>
 #include <utility>
 
 namespace engine
@@ -90,7 +90,7 @@ private:
 class AnimationController
 {
 public:
-    AnimationController(const Skin* skin, std::shared_ptr<const AnimationLibrary> animation_library = {});
+    AnimationController(const Skin* skin, std::shared_ptr<const AnimationLibrary> animation_library);
     AnimationController(const AnimationController&) = delete;
     AnimationController(AnimationController&&) = delete;
     AnimationController& operator=(const AnimationController&) = delete;
@@ -113,7 +113,6 @@ public:
     bool set_layer_joint_weight(std::size_t id, const std::string& joint_name, float weight);
     bool set_layer_mode(std::size_t id, LayerBlendMode mode);
 
-    bool add_animation(const AnimationClipDesc& animation_clip);
     bool play(const std::string& animation_name, std::size_t layer_id);
     bool cross_fade_to(const std::string& animation_name, std::size_t layer_id, float duration);
     bool is_playing(const std::string& animation_name) const;

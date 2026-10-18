@@ -15,7 +15,6 @@
 #include "logger.h"
 
 #include <utility>
-#include <mutex>
 
 #include <format>
 
@@ -134,26 +133,6 @@ inline auto api_cast(const engine_collision_desc_t* contact)
 inline auto api_cast(const engine::CollisionDesc& contact)
 {
     return reinterpret_cast<const engine_collision_desc_t*>(&contact);
-}
-
-inline auto api_cast(engine_animation_desc_t* desc)
-{
-    return reinterpret_cast<engine::AnimationClipDesc*>(desc);
-}
-
-inline auto api_cast(const engine_animation_desc_t* desc)
-{
-    return reinterpret_cast<const engine::AnimationClipDesc*>(desc);
-}
-
-inline auto api_cast(engine::AnimationClipDesc& desc)
-{
-    return reinterpret_cast<engine_animation_desc_t*>(&desc);
-}
-
-inline auto api_cast(const engine::AnimationClipDesc& desc)
-{
-    return reinterpret_cast<const engine_animation_desc_t*>(&desc);
 }
 
 template<typename T>
@@ -1526,12 +1505,6 @@ const char* engineSkinDescGetJointName(const engine_skin_desc_t* desc, size_t id
     return nullptr;
 }
 
-const char* engineAnimationDescGetName(const engine_animation_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->name.c_str();
-}
-
 const char* engineModelNodeDescGetName(const engine_model_node_desc_t* desc)
 {
     assert(desc);
@@ -1706,17 +1679,6 @@ uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc)
     return api_cast(desc)->skins.size();
 }
 
-const engine_animation_desc_t* engineModelDescGetAnimationDesc(const engine_model_desc_t* desc, size_t idx)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    if (idx < typed_desc->animations.size())
-    {
-        return api_cast(typed_desc->animations.at(idx));
-    }
-    return nullptr;
-}
-
 uint32_t engineModelDescGetAnimationsDescCount(const engine_model_desc_t* desc)
 {
     assert(desc);
@@ -1832,17 +1794,6 @@ bool engineAnimationControllerSetPaused(engine_game_object_t game_object, bool p
         return false;
     }
     return typed_controller->set_paused(paused);
-}
-
-bool engineAnimationControllerAddAnimation(engine_game_object_t game_object, const engine_animation_desc_t* desc)
-{
-    auto* typed_controller = find_animation_controller(game_object);
-    if (!typed_controller || !desc)
-    {
-        return false;
-    }
-    auto typed_desc = api_cast(desc);
-    return typed_controller->add_animation(*typed_desc);
 }
 
 engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_game_object_t game_object, const char* name, float* out)

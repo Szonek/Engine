@@ -52,6 +52,14 @@ protected:
         return clip;
     }
 
+    // an animation set with one clip, as engineAnimationSetCreateFromModelDesc builds it
+    static std::shared_ptr<const engine::AnimationLibrary> animation_set(const engine::Skin& skin, const engine::AnimationClipDesc& clip)
+    {
+        auto library = std::make_shared<engine::AnimationLibrary>(skin);
+        EXPECT_TRUE(library->add_animation(clip, skin));
+        return library;
+    }
+
     static float hand_height(const engine::Skin& skin, const engine::SkinPose& pose)
     {
         return skin.get_model_matrix_for_joint(pose, "hand")[3][1];
@@ -78,8 +86,7 @@ TEST_F(SkinTest, InstancesOfOneSkinHaveIndependentPoses)
     auto animated = skin.make_rest_pose();
     const auto idle = skin.make_rest_pose();
 
-    engine::AnimationController controller(&skin);
-    ASSERT_TRUE(controller.add_animation(raise_hand_clip(3.0f)));
+    engine::AnimationController controller(&skin, animation_set(skin, raise_hand_clip(3.0f)));
     ASSERT_TRUE(controller.play("raise_hand", 0));
     controller.update(500.0f, animated);  // ms
     skin.compute_skinning_matrices(animated);
@@ -96,11 +103,8 @@ TEST_F(SkinTest, TwoControllersOnOneSkinDriveTheirOwnPoses)
     auto pose_a = skin.make_rest_pose();
     auto pose_b = skin.make_rest_pose();
 
-    engine::AnimationController controller_a(&skin);
-    engine::AnimationController controller_b(&skin);
-    auto clip_b = raise_hand_clip(-2.0f);
-    ASSERT_TRUE(controller_a.add_animation(raise_hand_clip(3.0f)));
-    ASSERT_TRUE(controller_b.add_animation(clip_b));
+    engine::AnimationController controller_a(&skin, animation_set(skin, raise_hand_clip(3.0f)));
+    engine::AnimationController controller_b(&skin, animation_set(skin, raise_hand_clip(-2.0f)));
     ASSERT_TRUE(controller_a.play("raise_hand", 0));
     ASSERT_TRUE(controller_b.play("raise_hand", 0));
     controller_a.update(500.0f, pose_a);
@@ -128,7 +132,7 @@ TEST_F(SkinTest, ControllersAreFreedWithTheirGameObjects)
         for (int i = 0; i < 3; i++)
         {
             const auto e = registry.create();
-            registry.emplace<engine::animation_controller_internal_component_t>(e, std::make_unique<engine::AnimationController>(&skin));
+            registry.emplace<engine::animation_controller_internal_component_t>(e, std::make_unique<engine::AnimationController>(&skin, std::make_shared<engine::AnimationLibrary>(skin)));
             entities.push_back(e);
         }
         EXPECT_EQ(engine::AnimationController::get_live_count(), live_before + 3);
