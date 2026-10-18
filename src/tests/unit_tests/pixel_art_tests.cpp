@@ -166,20 +166,47 @@ TEST(PixelArt, SnappedObjectsKeepTheirPlaceInTheTexel)
     }
 }
 
-TEST(PixelArt, ObjectsAreMovedLessThanHalfATexel)
+TEST(PixelArt, ObjectsAreMovedHorizontallyByLessThanHalfATexelOnTheScreen)
 {
     const glm::uvec2 window(1280, 720);
     const auto camera = compute_low_res_camera(game_view(glm::vec3(0.37f, 0.0f, 1.21f)), game_projection(window), window, 3, true);
     for (const auto& world : WORLD_POINTS)
     {
-        const auto view_offset = glm::mat3(camera.view) * compute_object_snap_offset(camera, world);
+        const auto offset = compute_object_snap_offset(camera, world);
+        EXPECT_EQ(offset.y, 0.0f);  // height doesn't change
+        const auto view_offset = glm::mat3(camera.view) * offset;
         EXPECT_LE(std::abs(view_offset.x), 0.5f * camera.texel_size.x + 1e-5f);
         EXPECT_LE(std::abs(view_offset.y), 0.5f * camera.texel_size.y + 1e-5f);
-        EXPECT_NEAR(view_offset.z, 0.0f, 1e-5f);  // depth doesn't change
     }
     // nothing to snap to without a snapped camera
     const auto unsnapped = compute_low_res_camera(game_view(glm::vec3(0.37f, 0.0f, 1.21f)), game_projection(window), window, 3, false);
     EXPECT_EQ(compute_object_snap_offset(unsnapped, glm::vec3(1.3f, 0.7f, -2.1f)), glm::vec3(0.0f));
+}
+
+// The shadow of a snapped object on the ground moves in whole texels with it: no jitter while the object moves.
+TEST(PixelArt, ShadowOfASnappedObjectKeepsItsPlaceInTheTexel)
+{
+    const glm::uvec2 window(1280, 720);
+    const auto target_size = glm::vec2(compute_scene_target_size(window, 3));
+    const auto camera = compute_low_res_camera(game_view(glm::vec3(0.0f)), game_projection(window), window, 3, true);
+    const auto direction_to_light = glm::normalize(glm::vec3(0.4f, 1.0f, 0.3f));
+    const glm::vec3 shoulder(0.2f, 1.4f, 0.1f);  // a point of the object, relative to its origin
+    const auto shadow_texel_fraction = [&](const glm::vec3& object_origin)
+    {
+        const auto point = object_origin + compute_object_snap_offset(camera, object_origin) + shoulder;
+        // where the point's shadow falls on the ground plane (y = 0)
+        const auto shadow = point - direction_to_light * (point.y / direction_to_light.y);
+        const auto texel = to_uv(camera.view, camera.projection, shadow) * target_size;
+        return texel - glm::floor(texel);
+    };
+    const auto reference = shadow_texel_fraction(glm::vec3(0.0f));
+    for (float t = 0.0f; t < 2.0f; t += 0.037f)
+    {
+        const auto difference = glm::abs(shadow_texel_fraction(glm::vec3(t, 0.0f, 0.4f * t)) - reference);
+        const auto distance = glm::min(difference, 1.0f - difference);
+        EXPECT_LT(distance.x, 2e-3f) << "t " << t;
+        EXPECT_LT(distance.y, 2e-3f) << "t " << t;
+    }
 }
 
 TEST(PixelArt, PerspectiveCameraIsNotSnapped)

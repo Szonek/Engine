@@ -25,6 +25,9 @@ struct ShadowSettings
     std::uint32_t pcf_radius = 1;
     // 0: shadow is invisible, 1: shadowed surface gets no light from the directional light
     float strength = 1.0f;
+    // The filtered (PCF) shadow is thresholded at one half: crisp edges for the pixel art look which still move smoothly
+    // with the caster. Needs pcf_radius > 0 and shadow map texels smaller than screen pixels to look right.
+    bool hard_edges = false;
 };
 
 struct SsaoSettings
@@ -117,11 +120,17 @@ struct RenderSettings
 };
 
 // Everything for the low resolution "pixel art" look: 360 scene lines (1/3 of 1080p), snapped camera, outlines, hard two step light with
-// colored shadows, hard shadow edges. Other settings are kept.
+// colored shadows, crisp shadow edges. Other settings are kept.
 inline void apply_pixel_art_preset(RenderSettings& settings)
 {
     settings.pixel_art = PixelArtSettings{ .target_height = 360, .snap_camera = true, .outline = true };
-    settings.shadows.pcf_radius = 0;
+    // Shadow map texels several times smaller than a scene pixel (35 covers the game camera's view: the ground at the top
+    // of the screen is ~26 units away and the shadow fades out over the last 15%), filtered and thresholded: crisp edges
+    // that don't shimmer. A shadow map texel close to the scene pixel size aliases with it: ragged, jittering edges.
+    settings.shadows.map_size = 4096;
+    settings.shadows.distance = 35.0f;
+    settings.shadows.pcf_radius = 1;
+    settings.shadows.hard_edges = true;
     settings.stylized = StylizedLightingSettings{
         .enabled = true,
         .bands = 2,

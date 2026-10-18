@@ -17,7 +17,7 @@ layout (binding = ENGINE_BINDING_SLOT_VIEW_LIGHTING_DATA, std140) uniform ViewLi
 	float ssao_enabled;
 	float ssao_direct_light_occlusion;
 	uint debug_view;
-	float view_lighting_pad0_;
+	float shadow_hard_edges;      // 1: the filtered (PCF) shadow is thresholded at 0.5: crisp edge, placed with sub-texel precision
 	float view_lighting_pad1_;
 	// stylized lighting, used by lit_helpers.h. How it works: src/engine/impl/render/STYLIZED_LIGHTING.md
 	vec4 stylized_sky_ambient;        // rgb: ambient light multiplier of surfaces facing up
@@ -95,6 +95,13 @@ float calc_directional_shadow(vec3 world_pos, vec3 normal, vec3 dir_to_light, fl
 		}
 		float box_size = float(2 * r + 1);
 		lit /= box_size * box_size;
+	}
+
+	// Hard edges: filtered value thresholded. The edge is where the filtered shadow crosses one half, which moves smoothly
+	// (with sub-texel precision) as the caster moves, so the edge is crisp but doesn't jump from texel to texel.
+	if (shadow_hard_edges > 0.5f)
+	{
+		lit = step(0.5f, lit);
 	}
 
 	// the shadow map covers only the surroundings of the camera, fade the shadow out before it ends

@@ -5,7 +5,7 @@ look (t3ssel8r style). The scene is rendered small and scaled up; UI and editor 
 
 Off by default. **Editor: debug panel → Pixel art**. *Apply pixel art preset* (`apply_pixel_art_preset` in
 `render_settings.h`) switches everything on: 360 scene lines, camera snapping, outlines, stylized lighting with two hard
-steps and colored shadows, hard shadow edges (PCF radius 0). Like the other render settings they are global, not saved
+steps and colored shadows, crisp shadow edges (4096 shadow map over 35 units, PCF 1, `hard_edges`). Like the other render settings they are global, not saved
 and not in the C API.
 
 | File                                   | What lives there                                                                |
@@ -62,8 +62,14 @@ Limits:
 The camera snap keeps everything that stands still stable. An object that moves through the world (the player, enemies,
 anything the camera follows) is at a different fraction of a texel every frame, so its edges are rasterized differently
 every frame and flicker. Objects are therefore snapped too (`compute_object_snap_offset`, `Renderer::snap_objects_to_pixel_grid`):
-every mesh is moved by less than half a texel along the camera's right and up so that its **snap origin** lands on the
-texel grid. The whole mesh moves by the same offset, so it keeps its exact shape and only moves in whole texels.
+every mesh is moved so that its **snap origin** lands on the texel grid (less than half a texel on the screen). The
+whole mesh moves by the same offset, so it keeps its exact shape and only moves in whole texels.
+
+The offset is horizontal (world XZ), the object keeps its height. Moving it along the camera's right and up instead
+would also move it up and down in the world (the camera looks down at 45 degrees), so a walking character would bob by a
+fraction of a texel every frame and its shadow on the ground would jitter. At a constant height, the shadow on flat ground
+is at a constant offset from the object, so it lands on the texel grid too and moves with it (unit tested in
+`ShadowOfASnappedObjectKeepsItsPlaceInTheTexel`). Only a camera looking horizontally falls back to the camera plane.
 
 The snap origin is the world position of the topmost ancestor of the mesh (`hierarchy_root_position` in
 `Scene::submit_render_data`): all parts of a prefab and everything attached to it (a weapon in the hand) share it, so they
@@ -77,6 +83,21 @@ are snapped together and never separate. Consequences:
 What snapping can't remove: an animated mesh changes shape every frame, and at this resolution even a small change
 (idle breathing) moves some edge pixels. That is the "boiling" of animated low resolution 3D. The pixel art answer is to
 animate at a lower frame rate (stepped animation, ~12 fps), like sprite animation; it isn't done by the engine yet.
+
+### Shadows
+
+A shadow map texel close to the size of a scene pixel aliases with the pixel grid: shadow edges become ragged staircases
+of irregular steps, and shift whenever a caster moves relative to the shadow map. The preset makes shadow map texels
+several times smaller than a scene pixel (4096 map; with `distance` 35 one texel is ~0.01 world units, a scene pixel is
+~0.03) and turns on `ShadowSettings::hard_edges`: the PCF filtered shadow is thresholded at one half, so the edge is crisp
+but placed with sub-texel precision. Every scene pixel then takes the shadow at its own center, and edges follow the
+scene pixel grid like everything else.
+
+Measured offscreen (walking character, camera following it, 1080p, game camera): shadow pixels that change shape from one
+frame to the next went from 2.1% (shadows of 2048 over 40 units, PCF 0, objects snapped in the camera plane) to 0.26%.
+
+What remains: the shadow map texel grid is fixed in the world, a moving caster is rasterized into it a little
+differently every frame, so a rare edge pixel still changes. Self-shadowing on a moving character changes the same way.
 
 ## 3. Outlines ("Pixel Outline" pass)
 

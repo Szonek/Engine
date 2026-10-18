@@ -1552,6 +1552,7 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
             shadows.pcf_radius = static_cast<std::uint32_t>(pcf_radius);
         }
         ImGui::SliderFloat("Strength##shadows", &shadows.strength, 0.0f, 1.0f);
+        ImGui::Checkbox("Hard edges", &shadows.hard_edges);
     }
 
     ImGui::SeparatorText("SSAO");

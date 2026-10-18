@@ -48,7 +48,9 @@ LowResCamera compute_low_res_camera(const glm::mat4& view, const glm::mat4& proj
 // Moving objects need the same treatment as the camera: an object at a different fraction of a texel every frame is
 // rasterized differently every frame, so its edges flicker while it moves. Returns the world space offset which moves
 // origin (the object's snap origin) to the texel grid of the snapped camera; every vertex of the object is moved by it, so
-// the object keeps its shape and moves in whole texels. Zero if the camera isn't snapped.
+// the object keeps its shape and moves in whole texels. The offset is horizontal (the object keeps its height, so its
+// shadow on flat ground moves in whole texels with it), except for a camera looking horizontally. Zero if the camera
+// isn't snapped.
 glm::vec3 compute_object_snap_offset(const LowResCamera& camera, const glm::vec3& origin);
 
 }  // namespace engine

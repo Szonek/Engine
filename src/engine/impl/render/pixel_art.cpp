@@ -75,9 +75,26 @@ glm::vec3 engine::compute_object_snap_offset(const LowResCamera& camera, const g
     {
         return glm::vec3(0.0f);
     }
-    // in view space the texel grid of the snapped camera is fixed, move the origin onto it along the camera's right and up
+    // in view space the texel grid of the snapped camera is fixed: this is how far the origin is from it
     const auto view_origin = glm::vec2(camera.view * glm::vec4(origin, 1.0f));
     const auto snapped = glm::round(view_origin / camera.texel_size) * camera.texel_size;
-    const auto view_offset = glm::vec3(snapped - view_origin, 0.0f);
-    return glm::transpose(glm::mat3(camera.view)) * view_offset;
+    const auto view_offset = snapped - view_origin;
+
+    // The object is moved horizontally (world XZ), never up or down: with the camera looking down at an angle, moving
+    // it along the camera's up axis would also change its height, so a walking object would bob by a fraction of a texel
+    // and its shadow on the ground would jitter. Kept at the same height, its shadow on flat ground stays at a constant
+    // offset from it, so the shadow lands on the texel grid too and moves with it.
+    // Solve right . d = view_offset.x, up . d = view_offset.y for d = (x, 0, z):
+    const auto right = glm::vec3(camera.view[0][0], camera.view[1][0], camera.view[2][0]);
+    const auto up = glm::vec3(camera.view[0][1], camera.view[1][1], camera.view[2][1]);
+    const float determinant = right.x * up.z - right.z * up.x;
+    if (std::abs(determinant) < 1e-3f)
+    {
+        // camera looks horizontally: moving on the ground can't move the object up or down on the screen
+        return right * view_offset.x + up * view_offset.y;
+    }
+    return glm::vec3(
+        (view_offset.x * up.z - right.z * view_offset.y) / determinant,
+        0.0f,
+        (right.x * view_offset.y - up.x * view_offset.x) / determinant);
 }

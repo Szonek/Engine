@@ -221,6 +221,7 @@ void engine::Renderer::prepare_gpu_data(glm::uvec2 window_size, std::uint32_t pi
                 lighting.shadow_fade_start = settings_.shadows.distance * SHADOW_FADE_START;
                 lighting.shadow_fade_end = settings_.shadows.distance;
                 lighting.shadow_pcf_radius = static_cast<std::int32_t>(std::min(settings_.shadows.pcf_radius, SHADOW_MAX_PCF_RADIUS));
+                lighting.shadow_hard_edges = settings_.shadows.hard_edges ? 1.0f : 0.0f;
             }
             {
                 BufferMapContext<ViewLightingGpuData, UniformBuffer> lighting_ubo(view_gpu.lighting_ubo, false, true);

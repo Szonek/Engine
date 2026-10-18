@@ -44,7 +44,7 @@ struct ViewLightingGpuData
     float ssao_enabled = 0.0f;
     float ssao_direct_light_occlusion = 0.0f;
     std::uint32_t debug_view = 0;       // RenderDebugView
-    float pad0_ = 0.0f;
+    float shadow_hard_edges = 0.0f;
     float pad1_ = 0.0f;
     // stylized lighting (StylizedLightingSettings), ignored while stylized_enabled is 0
     glm::vec4 stylized_sky_ambient{ 1.0f };     // rgb
