@@ -156,26 +156,6 @@ inline auto api_cast(const engine::AnimationClipDesc& desc)
     return reinterpret_cast<const engine_animation_desc_t*>(&desc);
 }
 
-inline auto api_cast(engine_animation_controller_t* controller)
-{
-    return reinterpret_cast<engine::AnimationController*>(controller);
-}
-
-inline auto api_cast(const engine_animation_controller_t* controller)
-{
-    return reinterpret_cast<const engine::AnimationController*>(controller);
-}
-
-inline auto api_cast(engine::AnimationController& contact)
-{
-    return reinterpret_cast<engine_animation_controller_t*>(&contact);
-}
-
-inline auto api_cast(const engine::AnimationController& contact)
-{
-    return reinterpret_cast<const engine_animation_controller_t*>(&contact);
-}
-
 template<typename T>
 inline T add_component(engine_scene_t scene, engine_game_object_t engine_game_object_t)
 {
@@ -1831,43 +1811,47 @@ void engineAnimationSetDestroy(engine_animation_set_t animation_set)
     api_cast(G_ACTIVE_APP)->destroy_animation_set(animation_set);
 }
 
-engine_animation_controller_t* engineGameObjectGetAnimationController(engine_game_object_t game_object)
+namespace
+{
+// the controller of the game object's animation controller component in the active scene, or nullptr
+engine::AnimationController* find_animation_controller(engine_game_object_t game_object)
 {
     if (!G_ACTIVE_SCENE)
     {
         return nullptr;
     }
-    auto* controller = api_cast(G_ACTIVE_SCENE)->get_animation_controller(api_cast(game_object));
-    return controller ? api_cast(*controller) : nullptr;
+    return api_cast(G_ACTIVE_SCENE)->get_animation_controller(api_cast(game_object));
 }
+}  // namespace
 
-bool engineAnimationControllerSetPaused(engine_animation_controller_t* controller, bool paused)
+bool engineAnimationControllerSetPaused(engine_game_object_t game_object, bool paused)
 {
-    if (!controller)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller)
     {
         return false;
     }
-    return api_cast(controller)->set_paused(paused);
+    return typed_controller->set_paused(paused);
 }
 
-bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc)
+bool engineAnimationControllerAddAnimation(engine_game_object_t game_object, const engine_animation_desc_t* desc)
 {
-    if (!controller || !desc)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller || !desc)
     {
         return false;
     }
-    auto typed_controller = api_cast(controller);
     auto typed_desc = api_cast(desc);
     return typed_controller->add_animation(*typed_desc);
 }
 
-engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_animation_controller_t* controller, const char* name, float* out)
+engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_game_object_t game_object, const char* name, float* out)
 {
-    if (!controller || !name || !out)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller || !name || !out)
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
-    auto typed_controller = api_cast(controller);
     *out = typed_controller->get_duration(name);
     if (*out == 0.0f)
     {
@@ -1876,115 +1860,115 @@ engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_animat
     return ENGINE_RESULT_CODE_OK;
 }
 
-bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name, size_t layer_id)
+bool engineAnimationControllerAnimationPlay(engine_game_object_t game_object, const char* name, size_t layer_id)
 {
-    if (!controller || !name)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller || !name)
     {
         return false;
     }
-    auto typed_controller = api_cast(controller);
     return typed_controller->play(name, layer_id);
 }
 
-bool engineAnimationControllerAnimationCrossFade(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float duration)
+bool engineAnimationControllerAnimationCrossFade(engine_game_object_t game_object, const char* new_animation_name, size_t layer_id, float duration)
 {
-    if (!controller || !new_animation_name)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller || !new_animation_name)
     {
         return false;
     }
-    auto typed_controller = api_cast(controller);
     return typed_controller->cross_fade_to(new_animation_name, layer_id, std::max(0.0f, duration));
 }
 
 
-bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name)
+bool engineAnimationControllerIsAnimationPlaying(engine_game_object_t game_object, const char* name)
 {
-    if (!controller || !name)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller || !name)
     {
         return false;
     }
-    auto typed_controller = api_cast(controller);
 
     return typed_controller->is_playing(name);
 }
 
-bool engineAnimationControllerIsAnimationPlayingOnLayer(engine_animation_controller_t* controller, const char* name, size_t layer_id)
+bool engineAnimationControllerIsAnimationPlayingOnLayer(engine_game_object_t game_object, const char* name, size_t layer_id)
 {
-    if (!controller || !name)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller || !name)
     {
         return false;
     }
-    auto typed_controller = api_cast(controller);
     return typed_controller->is_playing(name, layer_id);
 }
 
-bool engineAnimationControllerAddLayer(engine_animation_controller_t* controller, size_t id, float default_weight)
+bool engineAnimationControllerAddLayer(engine_game_object_t game_object, size_t id, float default_weight)
 {
-    if (!controller)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller)
     {
         return false;
     }
-    auto typed_controller = api_cast(controller);
     return typed_controller->add_layer(id, default_weight);
 }
 
-bool engineAnimationControllerRemoveLayer(engine_animation_controller_t* controller, size_t id)
+bool engineAnimationControllerRemoveLayer(engine_game_object_t game_object, size_t id)
 {
-    if (!controller)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller)
     {
         return false;
     }
-    auto typed_controller = api_cast(controller);
     return typed_controller->remove_layer(id);
 }
 
-bool engineAnimationControllerLayerSetWeight(engine_animation_controller_t* controller, size_t id, float new_weight)
+bool engineAnimationControllerLayerSetWeight(engine_game_object_t game_object, size_t id, float new_weight)
 {
-    if (!controller)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller)
     {
         return false;
     }
-    auto typed_controller = api_cast(controller);
     return typed_controller->set_layer_weight(id, new_weight);
 }
 
-bool engineAnimationControllerLayerSetPlaybackRate(engine_animation_controller_t* controller, size_t id, float playback_rate)
+bool engineAnimationControllerLayerSetPlaybackRate(engine_game_object_t game_object, size_t id, float playback_rate)
 {
-    if (!controller)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller)
     {
         return false;
     }
-    auto typed_controller = api_cast(controller);
     return typed_controller->set_layer_playback_rate(id, playback_rate);
 }
 
-bool engineAnimationControllerLayerSetLooping(engine_animation_controller_t* controller, size_t id, bool looping)
+bool engineAnimationControllerLayerSetLooping(engine_game_object_t game_object, size_t id, bool looping)
 {
-    if (!controller)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller)
     {
         return false;
     }
-    auto typed_controller = api_cast(controller);
     return typed_controller->set_layer_looping(id, looping);
 }
 
-bool engineAnimationControllerLayerSetJointWeight(engine_animation_controller_t* controller, size_t id, const char* joint_name, float weight)
+bool engineAnimationControllerLayerSetJointWeight(engine_game_object_t game_object, size_t id, const char* joint_name, float weight)
 {
-    if (!controller || !joint_name)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller || !joint_name)
     {
         return false;
     }
-    auto typed_controller = api_cast(controller);
     return typed_controller->set_layer_joint_weight(id, joint_name, weight);
 }
 
-bool engineAnimationControllerSetMode(engine_animation_controller_t* controller, size_t id, engine_animation_layer_mode_t mode)
+bool engineAnimationControllerSetMode(engine_game_object_t game_object, size_t id, engine_animation_layer_mode_t mode)
 {
-    if (!controller)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller)
     {
         return false;
     }
-    auto typed_controller = api_cast(controller);
     engine::LayerBlendMode blend_mode = engine::LayerBlendMode::eOverride;
     switch (mode)
     {
@@ -2006,14 +1990,14 @@ bool engineAnimationControllerSetMode(engine_animation_controller_t* controller,
     return typed_controller->set_layer_mode(id, blend_mode);
 }
 
-engine_result_code_t engineAnimationControllerAnimationAddEvent(engine_animation_controller_t* controller, const char* anim_name, engine_animation_event_t event, engine_animation_event_id_t* out_id)
+engine_result_code_t engineAnimationControllerAnimationAddEvent(engine_game_object_t game_object, const char* anim_name, engine_animation_event_t event, engine_animation_event_id_t* out_id)
 {
-    if (!controller || !anim_name || !out_id)
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller || !anim_name || !out_id)
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
 
-    auto typed_controller = api_cast(controller);
 
     const auto [res, ev_id] = typed_controller->add_event(anim_name, event);
     if (!res)
@@ -2024,14 +2008,14 @@ engine_result_code_t engineAnimationControllerAnimationAddEvent(engine_animation
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_result_code_t engineAnimationControllerAnimationRemoveEvent(engine_animation_controller_t* controller, const char* anim_name, engine_animation_event_id_t id)
+engine_result_code_t engineAnimationControllerAnimationRemoveEvent(engine_game_object_t game_object, const char* anim_name, engine_animation_event_id_t id)
 {
-    if (!controller || !anim_name || (id == ENGINE_INVALID_OBJECT_HANDLE))
+    auto* typed_controller = find_animation_controller(game_object);
+    if (!typed_controller || !anim_name || (id == ENGINE_INVALID_OBJECT_HANDLE))
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
 
-    auto typed_controller = api_cast(controller);
     const auto res = typed_controller->remove_event(anim_name, id);
     return res ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }

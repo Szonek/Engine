@@ -9,8 +9,8 @@ extern "C"
 
 typedef uint32_t engine_animation_set_t;
 // Plays the animation set on the skin of the same game object. The engine creates the controller when the component
-// gets an animation set (and the game object has a skin) and destroys it with the component; get it with
-// engineGameObjectGetAnimationController.
+// gets an animation set (and the game object has a skin) and destroys it with the component; the
+// engineAnimationController* functions act on it through the game object.
 typedef struct _engine_animation_controller_component_t
 {
     engine_animation_set_t animations;

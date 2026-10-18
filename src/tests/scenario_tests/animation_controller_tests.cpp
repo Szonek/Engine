@@ -5,72 +5,99 @@
 #include <gtest/gtest.h>
 
 // Animation controllers are created and owned by the engine: one per game object with an animation controller
-// component and a skin, playing the model's shared animation set, and gone with the component.
+// component and a skin, playing the model's shared animation set, and gone with the component. The animation API
+// acts on a game object's controller and fails cleanly when there is none.
 namespace
 {
 using AnimationControllerTest = scenario::GameplayTest;
 
+// a bare skeleton (no script driving its animations)
+engine_game_object_t spawn_skeleton(engine::IScene* scene)
+{
+    return scenario::app().instantiate_prefab(project_c::PREFAB_TYPE_SKELETON_WARRIOR, scene).go;
+}
+
+// whether the game object has a controller: only then does the animation API answer
+bool has_controller(engine_game_object_t go)
+{
+    float duration = 0.0f;
+    return engineAnimationControllerAnimationGetDuration(go, "Idle", &duration) == ENGINE_RESULT_CODE_OK;
+}
+
 TEST_F(AnimationControllerTest, EachInstancePlaysTheModelsSharedAnimationSet)
 {
     auto* scene = load_sandbox_scene();
-    scene->build().floor_area(-2.0f, -2.0f, 2.0f, 2.0f);
-    auto* first = scene->build().enemy(-1.0f, 1.0f);
-    auto* second = scene->build().enemy(1.0f, 1.0f);
-    ASSERT_NE(first, nullptr);
-    ASSERT_NE(second, nullptr);
+    const auto first = spawn_skeleton(scene);
+    const auto second = spawn_skeleton(scene);
     step();
 
     const auto animation_set = engineAnimationSetGetByName("Skeleton_Warrior.glb#animations");
     ASSERT_NE(animation_set, ENGINE_INVALID_OBJECT_HANDLE);
-    const auto first_go = first->get_game_object();
-    const auto second_go = second->get_game_object();
-    EXPECT_EQ(engineGameObjectGetAnimationControllerComponent(first_go).animations, animation_set);
-    EXPECT_EQ(engineGameObjectGetAnimationControllerComponent(second_go).animations, animation_set);
+    EXPECT_EQ(engineGameObjectGetAnimationControllerComponent(first).animations, animation_set);
+    EXPECT_EQ(engineGameObjectGetAnimationControllerComponent(second).animations, animation_set);
 
-    // one controller each, already playing (the enemy script starts its idle animation)
-    auto* first_controller = engineGameObjectGetAnimationController(first_go);
-    auto* second_controller = engineGameObjectGetAnimationController(second_go);
-    ASSERT_NE(first_controller, nullptr);
-    ASSERT_NE(second_controller, nullptr);
-    EXPECT_NE(first_controller, second_controller);
+    // one controller each: playing on one doesn't play on the other
+    ASSERT_TRUE(engineAnimationControllerAnimationPlay(first, "Running_A", 0));
+    step();
+    EXPECT_TRUE(engineAnimationControllerIsAnimationPlaying(first, "Running_A"));
+    EXPECT_FALSE(engineAnimationControllerIsAnimationPlaying(second, "Running_A"));
 }
 
 TEST_F(AnimationControllerTest, ControllerGoesAwayWithItsComponentOrSkin)
 {
     auto* scene = load_sandbox_scene();
-    // bare model instances, no scripts using their controllers
-    const auto with_component = scenario::app().instantiate_prefab(project_c::PREFAB_TYPE_SKELETON_WARRIOR, scene).go;
-    const auto with_skin = scenario::app().instantiate_prefab(project_c::PREFAB_TYPE_SKELETON_WARRIOR, scene).go;
+    const auto with_component = spawn_skeleton(scene);
+    const auto with_skin = spawn_skeleton(scene);
     step();
-    ASSERT_NE(engineGameObjectGetAnimationController(with_component), nullptr);
-    ASSERT_NE(engineGameObjectGetAnimationController(with_skin), nullptr);
+    ASSERT_TRUE(has_controller(with_component));
+    ASSERT_TRUE(has_controller(with_skin));
 
     engineGameObjectRemoveAnimationControllerComponent(with_component);
     engineGameObjectRemoveSkinComponent(with_skin);
     step();
-    EXPECT_EQ(engineGameObjectGetAnimationController(with_component), nullptr);
-    EXPECT_EQ(engineGameObjectGetAnimationController(with_skin), nullptr);
+    EXPECT_FALSE(has_controller(with_component));
+    EXPECT_FALSE(has_controller(with_skin));
+    // calls on a game object without a controller fail instead of crashing
+    EXPECT_FALSE(engineAnimationControllerAnimationPlay(with_component, "Idle", 0));
 
     // a component without an animation set has no controller either
     auto ac = engineGameObjectAddAnimationControllerComponent(with_component);
     engineGameObjectUpdateAnimationControllerComponent(with_component, &ac);
     step();
-    EXPECT_EQ(engineGameObjectGetAnimationController(with_component), nullptr);
+    EXPECT_FALSE(has_controller(with_component));
 
     // giving it the set again creates one
     ac.animations = engineAnimationSetGetByName("Skeleton_Warrior.glb#animations");
     engineGameObjectUpdateAnimationControllerComponent(with_component, &ac);
     step();
-    EXPECT_NE(engineGameObjectGetAnimationController(with_component), nullptr);
+    EXPECT_TRUE(has_controller(with_component));
 }
 
-TEST_F(AnimationControllerTest, ControllerOfADestroyedGameObjectCanNoLongerBeFound)
+TEST_F(AnimationControllerTest, DestroyedGameObjectHasNoController)
 {
     auto* scene = load_sandbox_scene();
-    const auto go = scenario::app().instantiate_prefab(project_c::PREFAB_TYPE_SKELETON_WARRIOR, scene).go;
+    const auto go = spawn_skeleton(scene);
     step();
-    ASSERT_NE(engineGameObjectGetAnimationController(go), nullptr);
+    ASSERT_TRUE(has_controller(go));
     engineGameObjectDestroy(go);
-    EXPECT_EQ(engineGameObjectGetAnimationController(go), nullptr);
+    EXPECT_FALSE(has_controller(go));
+    EXPECT_FALSE(engineAnimationControllerAnimationPlay(go, "Idle", 0));
+}
+
+TEST_F(AnimationControllerTest, EnemiesAnimateThroughTheirGameObject)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-3.0f, -3.0f, 3.0f, 3.0f);
+    scene->build().player(0.0f, -2.0f);
+    auto* enemy = scene->build().enemy(0.0f, 2.0f);
+    ASSERT_NE(enemy, nullptr);
+    step(10);
+    // the enemy script drives the controller on its own game object: idle, running or attacking, depending on its state
+    const auto go = enemy->get_game_object();
+    const bool animating = engineAnimationControllerIsAnimationPlaying(go, "Idle")
+        || engineAnimationControllerIsAnimationPlaying(go, "Running_A")
+        || engineAnimationControllerIsAnimationPlaying(go, "1H_Melee_Attack_Slice_Diagonal")
+        || engineAnimationControllerIsAnimationPlaying(go, "1H_Melee_Attack_Slice_Horizontal");
+    EXPECT_TRUE(animating);
 }
 }  // namespace

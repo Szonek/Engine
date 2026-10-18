@@ -434,23 +434,22 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreate(), this);
 
     // set animation layers
-    auto animation_controller = engineGameObjectGetAnimationController(go_);
-    engineAnimationControllerLayerSetWeight(animation_controller, LOCOMOTION_LAYER_ID, 1.0f);
-    const bool locomotion_loops = engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, true);
+    engineAnimationControllerLayerSetWeight(go_, LOCOMOTION_LAYER_ID, 1.0f);
+    const bool locomotion_loops = engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
     assert(locomotion_loops);
-    engineAnimationControllerAddLayer(animation_controller, COMBAT_LAYER_ID, 9.0f);
-    engineAnimationControllerSetMode(animation_controller, COMBAT_LAYER_ID, ENGINE_ANIMATION_LAYER_MODE_OVERRIDE);
-    const bool pelvis_masked = engineAnimationControllerLayerSetJointWeight(animation_controller, COMBAT_LAYER_ID, "hips", 0.15f);
-    const bool left_leg_masked = engineAnimationControllerLayerSetJointWeight(animation_controller, COMBAT_LAYER_ID, "upperleg.l", 0.0f);
-    const bool right_leg_masked = engineAnimationControllerLayerSetJointWeight(animation_controller, COMBAT_LAYER_ID, "upperleg.r", 0.0f);
-    const bool upper_body_masked = engineAnimationControllerLayerSetJointWeight(animation_controller, COMBAT_LAYER_ID, "spine", 1.0f);
+    engineAnimationControllerAddLayer(go_, COMBAT_LAYER_ID, 9.0f);
+    engineAnimationControllerSetMode(go_, COMBAT_LAYER_ID, ENGINE_ANIMATION_LAYER_MODE_OVERRIDE);
+    const bool pelvis_masked = engineAnimationControllerLayerSetJointWeight(go_, COMBAT_LAYER_ID, "hips", 0.15f);
+    const bool left_leg_masked = engineAnimationControllerLayerSetJointWeight(go_, COMBAT_LAYER_ID, "upperleg.l", 0.0f);
+    const bool right_leg_masked = engineAnimationControllerLayerSetJointWeight(go_, COMBAT_LAYER_ID, "upperleg.r", 0.0f);
+    const bool upper_body_masked = engineAnimationControllerLayerSetJointWeight(go_, COMBAT_LAYER_ID, "spine", 1.0f);
     assert(pelvis_masked && left_leg_masked && right_leg_masked && upper_body_masked);
 
     for (std::size_t combo_index = 0; combo_index < AttackStateData::combo_length; ++combo_index)
     {
         const auto& attack = attack_data_.get_attack(combo_index);
         float duration = 0.0f;
-        engineAnimationControllerAnimationGetDuration(animation_controller, attack.animation_name, &duration);
+        engineAnimationControllerAnimationGetDuration(go_, attack.animation_name, &duration);
         assert(duration > 0.0f);
 
         for (std::size_t window_index = 0; window_index < attack.hit_windows_count; ++window_index)
@@ -463,7 +462,7 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
             open_event.user_data = attack_trigger_;
             open_event.fn_ptr = attack_window_open_callback;
             engine_animation_event_id_t open_event_id = ENGINE_INVALID_OBJECT_HANDLE;
-            const auto open_result = engineAnimationControllerAnimationAddEvent(animation_controller, attack.animation_name, open_event, &open_event_id);
+            const auto open_result = engineAnimationControllerAnimationAddEvent(go_, attack.animation_name, open_event, &open_event_id);
             assert(open_result == ENGINE_RESULT_CODE_OK && open_event_id != ENGINE_INVALID_OBJECT_HANDLE);
 
             engine_animation_event_t close_event{};
@@ -471,7 +470,7 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
             close_event.user_data = attack_trigger_;
             close_event.fn_ptr = attack_window_close_callback;
             engine_animation_event_id_t close_event_id = ENGINE_INVALID_OBJECT_HANDLE;
-            const auto close_result = engineAnimationControllerAnimationAddEvent(animation_controller, attack.animation_name, close_event, &close_event_id);
+            const auto close_result = engineAnimationControllerAnimationAddEvent(go_, attack.animation_name, close_event, &close_event_id);
             assert(close_result == ENGINE_RESULT_CODE_OK && close_event_id != ENGINE_INVALID_OBJECT_HANDLE);
         }
     }
@@ -501,7 +500,6 @@ void project_c::Player::update(float dt)
     dodge_press_pending_ = dodge_press_pending_ || (input().dodge && !dodge_input_was_down_);
     dodge_input_was_down_ = input().dodge;
 
-    auto animation_controller = engineGameObjectGetAnimationController(go_);
     if (hit_stop_remaining_seconds_ > 0.0f)
     {
         if (hit_stop_just_started_)
@@ -517,7 +515,7 @@ void project_c::Player::update(float dt)
         {
             return;
         }
-        if (!engineAnimationControllerSetPaused(animation_controller, false))
+        if (!engineAnimationControllerSetPaused(go_, false))
         {
             engineLog("Failed to resume player animation after hit-stop.\n");
         }
@@ -543,7 +541,7 @@ void project_c::Player::update(float dt)
     {
         update_traversal_marker({}, dt / 1000.0f);
         // space lets go of the wall
-        update_traversal(animation_controller, dt / 1000.0f, dodge_pressed);
+        update_traversal(dt / 1000.0f, dodge_pressed);
         return;
     }
 
@@ -551,7 +549,7 @@ void project_c::Player::update(float dt)
     {
         if (!check_state_bit(States::ATTACK))
         {
-            start_attack(animation_controller, 0);
+            start_attack(0);
         }
         else if (attack_combo_index_ + 1 < AttackStateData::combo_length)
         {
@@ -617,7 +615,7 @@ void project_c::Player::update(float dt)
         && traversal_plan.distance <= TRAVERSAL_TRIGGER_DISTANCE
         && traversal_regrab_cooldown_ <= 0.0f)
     {
-        execute_traversal(animation_controller, traversal_plan);
+        execute_traversal(traversal_plan);
         return;
     }
 
@@ -626,7 +624,7 @@ void project_c::Player::update(float dt)
         && hit_stun_remaining_seconds_ <= 0.0f
         && !check_state_bit(States::ATTACK))
     {
-        start_dodge(animation_controller, move_input, rotation);
+        start_dodge(move_input, rotation);
     }
 
     auto movement_transform = engineGameObjectGetTransformComponent(go_);
@@ -642,8 +640,8 @@ void project_c::Player::update(float dt)
         dodge_invulnerability_remaining_seconds_ = std::max(0.0f, dodge_invulnerability_remaining_seconds_ - delta_seconds);
         if (dodge_remaining_seconds_ <= 0.0f)
         {
-            const bool locomotion_loops = engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, true);
-            const bool combat_layer_restored = engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 1.0f);
+            const bool locomotion_loops = engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
+            const bool combat_layer_restored = engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
             assert(locomotion_loops && combat_layer_restored);
         }
     }
@@ -703,21 +701,21 @@ void project_c::Player::update(float dt)
         const auto animation_name = move_data_.get_animation_name(animation_direction);
         const float reference_speed = move_data_.get_animation_reference_speed(animation_direction);
         const float playback_rate = std::clamp(movement_speed / reference_speed, 0.05f, 1.35f);
-        const bool playback_rate_set = engineAnimationControllerLayerSetPlaybackRate(animation_controller, LOCOMOTION_LAYER_ID, playback_rate);
+        const bool playback_rate_set = engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, playback_rate);
         assert(playback_rate_set);
 
-        if (!engineAnimationControllerIsAnimationPlayingOnLayer(animation_controller, animation_name, LOCOMOTION_LAYER_ID))
+        if (!engineAnimationControllerIsAnimationPlayingOnLayer(go_, animation_name, LOCOMOTION_LAYER_ID))
         {
-            engineAnimationControllerAnimationCrossFade(animation_controller, animation_name, LOCOMOTION_LAYER_ID, 0.15f);
+            engineAnimationControllerAnimationCrossFade(go_, animation_name, LOCOMOTION_LAYER_ID, 0.15f);
         }
     }
     else
     {
-        const bool playback_rate_set = engineAnimationControllerLayerSetPlaybackRate(animation_controller, LOCOMOTION_LAYER_ID, 1.0f);
+        const bool playback_rate_set = engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
         assert(playback_rate_set);
-        if (!engineAnimationControllerIsAnimationPlayingOnLayer(animation_controller, "Unarmed_Idle", LOCOMOTION_LAYER_ID))
+        if (!engineAnimationControllerIsAnimationPlayingOnLayer(go_, "Unarmed_Idle", LOCOMOTION_LAYER_ID))
         {
-            engineAnimationControllerAnimationCrossFade(animation_controller, "Unarmed_Idle", LOCOMOTION_LAYER_ID, 0.15f);
+            engineAnimationControllerAnimationCrossFade(go_, "Unarmed_Idle", LOCOMOTION_LAYER_ID, 0.15f);
         }
     }
     if (check_state_bit(States::ATTACK))
@@ -749,19 +747,19 @@ void project_c::Player::update(float dt)
             attack_phase_ = AttackPhase::eWindup;
         }
 
-        const bool attack_is_playing = engineAnimationControllerIsAnimationPlayingOnLayer(animation_controller, attack.animation_name, COMBAT_LAYER_ID);
+        const bool attack_is_playing = engineAnimationControllerIsAnimationPlayingOnLayer(go_, attack.animation_name, COMBAT_LAYER_ID);
         const bool combo_window_open = attack_elapsed_ >= attack.combo_window_start && attack_elapsed_ < attack.combo_window_end;
         if (attack_buffered_ && combo_window_open)
         {
             attack_buffered_ = false;
-            start_attack(animation_controller, attack_combo_index_ + 1);
+            start_attack(attack_combo_index_ + 1);
         }
         else if (!attack_is_playing || attack_elapsed_ >= attack.exit_time)
         {
             if (attack_buffered_ && attack_combo_index_ + 1 < AttackStateData::combo_length)
             {
                 attack_buffered_ = false;
-                start_attack(animation_controller, attack_combo_index_ + 1);
+                start_attack(attack_combo_index_ + 1);
             }
             else
             {
@@ -769,11 +767,11 @@ void project_c::Player::update(float dt)
                 attack_phase_ = AttackPhase::eIdle;
                 attack_trigger_->deactivate();
                 attack_buffered_ = false;
-                const bool combat_rate_reset = engineAnimationControllerLayerSetPlaybackRate(animation_controller, COMBAT_LAYER_ID, 1.0f);
+                const bool combat_rate_reset = engineAnimationControllerLayerSetPlaybackRate(go_, COMBAT_LAYER_ID, 1.0f);
                 assert(combat_rate_reset);
-                if (engineAnimationControllerAnimationCrossFade(animation_controller, "Unarmed_Idle", COMBAT_LAYER_ID, ATTACK_EXIT_CROSS_FADE_SECONDS))
+                if (engineAnimationControllerAnimationCrossFade(go_, "Unarmed_Idle", COMBAT_LAYER_ID, ATTACK_EXIT_CROSS_FADE_SECONDS))
                 {
-                    const bool combat_idle_loops = engineAnimationControllerLayerSetLooping(animation_controller, COMBAT_LAYER_ID, true);
+                    const bool combat_idle_loops = engineAnimationControllerLayerSetLooping(go_, COMBAT_LAYER_ID, true);
                     assert(combat_idle_loops);
                 }
                 else
@@ -831,8 +829,7 @@ void project_c::Player::on_confirmed_attack_hit(float hit_stop_seconds)
     }
     hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, hit_stop_seconds);
     hit_stop_just_started_ = true;
-    const auto animation_controller = engineGameObjectGetAnimationController(go_);
-    if (!engineAnimationControllerSetPaused(animation_controller, true))
+    if (!engineAnimationControllerSetPaused(go_, true))
     {
         engineLog("Failed to pause player animation for hit-stop.\n");
     }
@@ -866,24 +863,23 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
     }
     knockback_velocity_ = glm::normalize(knockback_direction) * PLAYER_KNOCKBACK_SPEED;
 
-    const auto animation_controller = engineGameObjectGetAnimationController(go_);
     if (hp_ == 0)
     {
         // fall off the wall
-        stop_traversal(animation_controller, 0.0f);
+        stop_traversal(0.0f);
         update_traversal_marker({}, 0.0f);
         state_ |= States::DEAD;
         movement_velocity_ = glm::vec2(0.0f);
         knockback_velocity_ = glm::vec3(0.0f);
         attack_trigger_->deactivate();
-        if (!engineAnimationControllerSetPaused(animation_controller, false))
+        if (!engineAnimationControllerSetPaused(go_, false))
         {
             engineLog("Failed to resume player animation before death.\n");
         }
-        const bool combat_layer_hidden = engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 0.0f);
-        const bool locomotion_stopped_looping = engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, false);
+        const bool combat_layer_hidden = engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 0.0f);
+        const bool locomotion_stopped_looping = engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, false);
         assert(combat_layer_hidden && locomotion_stopped_looping);
-        if (!engineAnimationControllerAnimationPlay(animation_controller, "Death_A", LOCOMOTION_LAYER_ID))
+        if (!engineAnimationControllerAnimationPlay(go_, "Death_A", LOCOMOTION_LAYER_ID))
         {
             engineLog("Failed to play player death animation.\n");
         }
@@ -899,8 +895,8 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
                 attack_phase_ = AttackPhase::eIdle;
                 attack_buffered_ = false;
                 attack_trigger_->deactivate();
-                engineAnimationControllerLayerSetPlaybackRate(animation_controller, COMBAT_LAYER_ID, 1.0f);
-                if (!engineAnimationControllerAnimationCrossFade(animation_controller, "Unarmed_Idle", COMBAT_LAYER_ID, 0.08f))
+                engineAnimationControllerLayerSetPlaybackRate(go_, COMBAT_LAYER_ID, 1.0f);
+                if (!engineAnimationControllerAnimationCrossFade(go_, "Unarmed_Idle", COMBAT_LAYER_ID, 0.08f))
                 {
                     engineLog("Failed to interrupt player attack after taking damage.\n");
                 }
@@ -910,7 +906,7 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
         hit_stun_remaining_seconds_ = PLAYER_HIT_STUN_SECONDS;
         hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, 0.04f);
         hit_stop_just_started_ = true;
-        if (!engineAnimationControllerSetPaused(animation_controller, true))
+        if (!engineAnimationControllerSetPaused(go_, true))
         {
             engineLog("Failed to pause player animation after taking damage.\n");
         }
@@ -994,7 +990,7 @@ const char* project_c::Player::AttackStateData::get_animation_name(std::size_t c
     return get_attack(combo_index).animation_name;
 }
 
-bool project_c::Player::start_attack(engine_animation_controller_t* animation_controller, std::size_t combo_index)
+bool project_c::Player::start_attack(std::size_t combo_index)
 {
     if (combo_index >= AttackStateData::combo_length)
     {
@@ -1003,13 +999,12 @@ bool project_c::Player::start_attack(engine_animation_controller_t* animation_co
 
     const auto animation_name = attack_data_.get_animation_name(combo_index);
     float duration = 0.0f;
-    engineAnimationControllerAnimationGetDuration(animation_controller, animation_name, &duration);
+    engineAnimationControllerAnimationGetDuration(go_, animation_name, &duration);
     // Checked before the combat layer is touched: on failure the layer stays as it was (idle, or the attack which is still playing).
     // Play and CrossFade fail without changing the layer.
     const bool animation_started = duration > 0.0f && (combo_index == 0 && !combat_layer_has_pose_
-        ? engineAnimationControllerAnimationPlay(animation_controller, animation_name, COMBAT_LAYER_ID)
-        : engineAnimationControllerAnimationCrossFade(
-            animation_controller,
+        ? engineAnimationControllerAnimationPlay(go_, animation_name, COMBAT_LAYER_ID)
+        : engineAnimationControllerAnimationCrossFade(go_,
             animation_name,
             COMBAT_LAYER_ID,
             combo_index == 0 ? ATTACK_EXIT_CROSS_FADE_SECONDS : ATTACK_COMBO_CROSS_FADE_SECONDS));
@@ -1019,8 +1014,8 @@ bool project_c::Player::start_attack(engine_animation_controller_t* animation_co
         return false;
     }
 
-    const bool combat_layer_stopped_looping = engineAnimationControllerLayerSetLooping(animation_controller, COMBAT_LAYER_ID, false);
-    const bool combat_rate_set = engineAnimationControllerLayerSetPlaybackRate(animation_controller, COMBAT_LAYER_ID, ATTACK_PLAYBACK_RATE);
+    const bool combat_layer_stopped_looping = engineAnimationControllerLayerSetLooping(go_, COMBAT_LAYER_ID, false);
+    const bool combat_rate_set = engineAnimationControllerLayerSetPlaybackRate(go_, COMBAT_LAYER_ID, ATTACK_PLAYBACK_RATE);
     assert(combat_layer_stopped_looping && combat_rate_set);
 
     attack_trigger_->begin_swing();
@@ -1033,7 +1028,7 @@ bool project_c::Player::start_attack(engine_animation_controller_t* animation_co
     return true;
 }
 
-bool project_c::Player::start_dodge(engine_animation_controller_t* animation_controller, const glm::vec2& move_input, const glm::quat& rotation)
+bool project_c::Player::start_dodge(const glm::vec2& move_input, const glm::quat& rotation)
 {
     glm::vec3 world_direction(move_input.x, 0.0f, move_input.y);
     if (glm::dot(world_direction, world_direction) <= 0.0001f)
@@ -1054,22 +1049,22 @@ bool project_c::Player::start_dodge(engine_animation_controller_t* animation_con
     }
 
     float duration = 0.0f;
-    engineAnimationControllerAnimationGetDuration(animation_controller, animation_name, &duration);
+    engineAnimationControllerAnimationGetDuration(go_, animation_name, &duration);
     if (duration <= 0.0f)
     {
         engineLog(std::format("Dodge animation '{}' has no valid duration.\n", animation_name).c_str());
         return false;
     }
 
-    const bool locomotion_stopped_looping = engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, false);
-    const bool locomotion_rate_reset = engineAnimationControllerLayerSetPlaybackRate(animation_controller, LOCOMOTION_LAYER_ID, 1.0f);
-    const bool combat_layer_hidden = engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 0.0f);
+    const bool locomotion_stopped_looping = engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, false);
+    const bool locomotion_rate_reset = engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
+    const bool combat_layer_hidden = engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 0.0f);
     if (!locomotion_stopped_looping || !locomotion_rate_reset || !combat_layer_hidden
-        || !engineAnimationControllerAnimationCrossFade(animation_controller, animation_name, LOCOMOTION_LAYER_ID, 0.05f))
+        || !engineAnimationControllerAnimationCrossFade(go_, animation_name, LOCOMOTION_LAYER_ID, 0.05f))
     {
         engineLog("Failed to start player dodge.\n");
-        engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, true);
-        engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 1.0f);
+        engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
+        engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
         return false;
     }
 
@@ -1307,26 +1302,26 @@ project_c::Player::TraversalPlan project_c::Player::plan_climb_down(const glm::v
     return {};
 }
 
-void project_c::Player::execute_traversal(engine_animation_controller_t* animation_controller, const TraversalPlan& plan)
+void project_c::Player::execute_traversal(const TraversalPlan& plan)
 {
     switch (plan.type)
     {
     case TraversalPlan::Type::eClimb:
-        start_climbing(animation_controller, plan.wall_normal, plan.climb_position);
+        start_climbing(plan.wall_normal, plan.climb_position);
         break;
     case TraversalPlan::Type::eVault:
-        start_traversal_move(animation_controller, plan.move, VAULT_ANIMATION);
+        start_traversal_move(plan.move, VAULT_ANIMATION);
         break;
     case TraversalPlan::Type::eClimbDown:
         climb_wall_normal_ = plan.wall_normal;
-        start_traversal_move(animation_controller, plan.move, CLIMB_ANIMATION);
+        start_traversal_move(plan.move, CLIMB_ANIMATION);
         break;
     default:
         break;
     }
 }
 
-bool project_c::Player::try_start_mantle(engine_animation_controller_t* animation_controller, const glm::vec3& position)
+bool project_c::Player::try_start_mantle(const glm::vec3& position)
 {
     const glm::vec3 into_wall = -climb_wall_normal_;
     const glm::vec3 ledge_xz = position + into_wall * (CLIMB_WALL_OFFSET + MANTLE_LEDGE_DEPTH);
@@ -1359,35 +1354,35 @@ bool project_c::Player::try_start_mantle(engine_animation_controller_t* animatio
     move.duration = MANTLE_DURATION;
     move.split = 0.55f;
     move.yaw = yaw_from_direction(into_wall);
-    start_traversal_move(animation_controller, move, MANTLE_ANIMATION);
+    start_traversal_move(move, MANTLE_ANIMATION);
     return true;
 }
 
-void project_c::Player::start_climbing(engine_animation_controller_t* animation_controller, const glm::vec3& wall_normal, const glm::vec3& position)
+void project_c::Player::start_climbing(const glm::vec3& wall_normal, const glm::vec3& position)
 {
     if (traversal_state_ == TraversalState::eNone)
     {
         set_kinematic(true);
-        engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 0.0f);
+        engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 0.0f);
     }
     traversal_state_ = TraversalState::eClimbing;
     climb_wall_normal_ = wall_normal;
     movement_velocity_ = glm::vec2(0.0f);
     set_position_and_yaw(position, yaw_from_direction(-wall_normal));
 
-    engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, true);
-    if (!engineAnimationControllerIsAnimationPlayingOnLayer(animation_controller, CLIMB_ANIMATION, LOCOMOTION_LAYER_ID))
+    engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
+    if (!engineAnimationControllerIsAnimationPlayingOnLayer(go_, CLIMB_ANIMATION, LOCOMOTION_LAYER_ID))
     {
-        engineAnimationControllerAnimationCrossFade(animation_controller, CLIMB_ANIMATION, LOCOMOTION_LAYER_ID, 0.08f);
+        engineAnimationControllerAnimationCrossFade(go_, CLIMB_ANIMATION, LOCOMOTION_LAYER_ID, 0.08f);
     }
 }
 
-void project_c::Player::start_traversal_move(engine_animation_controller_t* animation_controller, const TraversalMove& move, const char* animation_name)
+void project_c::Player::start_traversal_move(const TraversalMove& move, const char* animation_name)
 {
     if (traversal_state_ == TraversalState::eNone)
     {
         set_kinematic(true);
-        engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 0.0f);
+        engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 0.0f);
     }
     traversal_state_ = TraversalState::eScriptedMove;
     traversal_move_ = move;
@@ -1396,17 +1391,17 @@ void project_c::Player::start_traversal_move(engine_animation_controller_t* anim
 
     // stretch the clip over the whole move
     float duration = 0.0f;
-    engineAnimationControllerAnimationGetDuration(animation_controller, animation_name, &duration);
+    engineAnimationControllerAnimationGetDuration(go_, animation_name, &duration);
     const float playback_rate = duration > 0.0f ? std::clamp(duration / move.duration, 0.25f, 4.0f) : 1.0f;
-    engineAnimationControllerLayerSetPlaybackRate(animation_controller, LOCOMOTION_LAYER_ID, playback_rate);
-    if (!engineAnimationControllerIsAnimationPlayingOnLayer(animation_controller, animation_name, LOCOMOTION_LAYER_ID))
+    engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, playback_rate);
+    if (!engineAnimationControllerIsAnimationPlayingOnLayer(go_, animation_name, LOCOMOTION_LAYER_ID))
     {
-        engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, false);
-        engineAnimationControllerAnimationCrossFade(animation_controller, animation_name, LOCOMOTION_LAYER_ID, 0.06f);
+        engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, false);
+        engineAnimationControllerAnimationCrossFade(go_, animation_name, LOCOMOTION_LAYER_ID, 0.06f);
     }
 }
 
-void project_c::Player::stop_traversal(engine_animation_controller_t* animation_controller, float regrab_cooldown)
+void project_c::Player::stop_traversal(float regrab_cooldown)
 {
     if (traversal_state_ == TraversalState::eNone)
     {
@@ -1417,12 +1412,12 @@ void project_c::Player::stop_traversal(engine_animation_controller_t* animation_
     traversal_regrab_cooldown_ = regrab_cooldown;
     set_kinematic(false);
     // locomotion code picks idle/run animation in the next update
-    engineAnimationControllerLayerSetLooping(animation_controller, LOCOMOTION_LAYER_ID, true);
-    engineAnimationControllerLayerSetPlaybackRate(animation_controller, LOCOMOTION_LAYER_ID, 1.0f);
-    engineAnimationControllerLayerSetWeight(animation_controller, COMBAT_LAYER_ID, 1.0f);
+    engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
+    engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
+    engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
 }
 
-void project_c::Player::update_traversal(engine_animation_controller_t* animation_controller, float delta_seconds, bool drop_pressed)
+void project_c::Player::update_traversal(float delta_seconds, bool drop_pressed)
 {
     const auto tc = engineGameObjectGetTransformComponent(go_);
     glm::vec3 position(tc.position[0], tc.position[1], tc.position[2]);
@@ -1453,11 +1448,11 @@ void project_c::Player::update_traversal(engine_animation_controller_t* animatio
         {
             if (move.climb_after)
             {
-                start_climbing(animation_controller, climb_wall_normal_, move.p2);
+                start_climbing(climb_wall_normal_, move.p2);
             }
             else
             {
-                stop_traversal(animation_controller, TRAVERSAL_REGRAB_COOLDOWN);
+                stop_traversal(TRAVERSAL_REGRAB_COOLDOWN);
             }
         }
         return;
@@ -1469,7 +1464,7 @@ void project_c::Player::update_traversal(engine_animation_controller_t* animatio
     if (drop_pressed)
     {
         set_position_and_yaw(position + wall_normal * CLIMB_DROP_PUSH, yaw_from_direction(-wall_normal));
-        stop_traversal(animation_controller, TRAVERSAL_DROP_REGRAB_COOLDOWN);
+        stop_traversal(TRAVERSAL_DROP_REGRAB_COOLDOWN);
         return;
     }
 
@@ -1524,7 +1519,7 @@ void project_c::Player::update_traversal(engine_animation_controller_t* animatio
         if (!wall_probe(candidate, PROBE_HEAD_HEIGHT).climbable)
         {
             // head above the wall: pull up onto the ledge if there is one
-            if (try_start_mantle(animation_controller, position))
+            if (try_start_mantle(position))
             {
                 return;
             }
@@ -1546,7 +1541,7 @@ void project_c::Player::update_traversal(engine_animation_controller_t* animatio
         {
             // reached the ground
             set_position_and_yaw(glm::vec3(position.x, ground_hit.position.y + 0.01f, position.z), yaw_from_direction(-wall_normal));
-            stop_traversal(animation_controller, TRAVERSAL_REGRAB_COOLDOWN);
+            stop_traversal(TRAVERSAL_REGRAB_COOLDOWN);
             return;
         }
         if (touches_wall(candidate))
@@ -1571,12 +1566,12 @@ void project_c::Player::update_traversal(engine_animation_controller_t* animatio
     if (!on_wall)
     {
         // lost the wall (i.e. it was removed), fall
-        stop_traversal(animation_controller, TRAVERSAL_REGRAB_COOLDOWN);
+        stop_traversal(TRAVERSAL_REGRAB_COOLDOWN);
         return;
     }
 
     const bool moving = vertical_input != 0.0f || lateral_input != 0.0f;
-    engineAnimationControllerLayerSetPlaybackRate(animation_controller, LOCOMOTION_LAYER_ID, moving ? CLIMB_ANIMATION_RATE_MOVING : CLIMB_ANIMATION_RATE_IDLE);
+    engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, moving ? CLIMB_ANIMATION_RATE_MOVING : CLIMB_ANIMATION_RATE_IDLE);
 }
 
 void project_c::Player::create_traversal_marker()
