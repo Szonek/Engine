@@ -137,6 +137,8 @@ private:
     SceneGpu& get_scene_gpu(std::size_t scene_index);
     // pixel_scale > 1: cameras are changed for the low resolution scene targets (pixel_art.h), present_transform_ is set
     void prepare_gpu_data(glm::uvec2 window_size, std::uint32_t pixel_scale);
+    // moves every mesh of the scene by the snap offset of its hierarchy (compute_object_snap_offset)
+    void snap_objects_to_pixel_grid(SceneRenderData& scene, const LowResCamera& camera);
     void add_scene_passes(FrameContext& frame);
     void add_present_pass(FrameContext& frame);
     void add_features_passes(FrameContext& frame, RenderStage stage);

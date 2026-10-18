@@ -57,6 +57,27 @@ Limits:
 - Perspective cameras (the editor camera) are rendered at low resolution without snapping.
 - All cameras draw into the same targets, Present uses the snapping of the first one.
 
+### Moving objects
+
+The camera snap keeps everything that stands still stable. An object that moves through the world (the player, enemies,
+anything the camera follows) is at a different fraction of a texel every frame, so its edges are rasterized differently
+every frame and flicker. Objects are therefore snapped too (`compute_object_snap_offset`, `Renderer::snap_objects_to_pixel_grid`):
+every mesh is moved by less than half a texel along the camera's right and up so that its **snap origin** lands on the
+texel grid. The whole mesh moves by the same offset, so it keeps its exact shape and only moves in whole texels.
+
+The snap origin is the world position of the topmost ancestor of the mesh (`hierarchy_root_position` in
+`Scene::submit_render_data`): all parts of a prefab and everything attached to it (a weapon in the hand) share it, so they
+are snapped together and never separate. Consequences:
+- Don't parent moving objects under a static grouping node (like the editor's "enviorment" group): they'd be snapped by
+  the node's position, i.e. not at all, and flicker again.
+- Within one hierarchy, parts moving relative to the root (animated bones, a swinging weapon) aren't snapped; that is
+  animation, the shape really changes.
+- Only meshes are snapped, not sprites or debug lines.
+
+What snapping can't remove: an animated mesh changes shape every frame, and at this resolution even a small change
+(idle breathing) moves some edge pixels. That is the "boiling" of animated low resolution 3D. The pixel art answer is to
+animate at a lower frame rate (stepped animation, ~12 fps), like sprite animation; it isn't done by the engine yet.
+
 ## 3. Outlines ("Pixel Outline" pass)
 
 After the scene passes and before the post-process features (the editor's selection outline and grid are not

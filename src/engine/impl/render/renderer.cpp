@@ -8,6 +8,7 @@
 
 #include <fmt/format.h>
 
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
 #include <array>
@@ -174,10 +175,12 @@ void engine::Renderer::prepare_gpu_data(glm::uvec2 window_size, std::uint32_t pi
                 camera.view = low_res.view;
                 camera.projection = low_res.projection;
                 camera.position = low_res.position;
-                // all cameras draw to the same targets, which are presented with the snapping of the first one
+                // all cameras draw to the same targets, which are presented with the snapping of the first one,
+                // and objects are snapped to its pixel grid
                 if (frame_views_.empty())
                 {
                     present_transform_ = low_res.present;
+                    snap_objects_to_pixel_grid(scene, low_res);
                 }
             }
             auto& view_gpu = *gpu.views[view_index];
@@ -236,6 +239,30 @@ void engine::Renderer::prepare_gpu_data(glm::uvec2 window_size, std::uint32_t pi
                 .shadow_camera_ubo = &view_gpu.shadow_camera_ubo,
                 .has_shadow = has_shadow });
         }
+    }
+}
+
+void engine::Renderer::snap_objects_to_pixel_grid(SceneRenderData& scene, const LowResCamera& camera)
+{
+    if (camera.texel_size.x <= 0.0f)
+    {
+        return;  // camera isn't snapped
+    }
+    const auto snap = [&camera](glm::mat4& model, const glm::vec3& snap_origin)
+    {
+        model = glm::translate(glm::mat4(1.0f), compute_object_snap_offset(camera, snap_origin)) * model;
+    };
+    for (auto& item : scene.static_meshes)
+    {
+        snap(item.model, item.snap_origin);
+    }
+    for (auto& item : scene.skinned_meshes)
+    {
+        snap(item.model, item.snap_origin);
+    }
+    for (auto& item : scene.outline_items)
+    {
+        snap(item.model, item.snap_origin);
     }
 }
 

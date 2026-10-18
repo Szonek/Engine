@@ -95,6 +95,9 @@ struct StaticMeshDrawItem
     std::uint32_t entity_id = 0;
     const Geometry* geometry = nullptr;
     glm::mat4 model{ 1.0f };
+    // world position of the root of the object's hierarchy: everything in a hierarchy (a character, its parts and its
+    // weapon) is snapped to the pixel grid by the same offset, so it stays together (pixel_art.h)
+    glm::vec3 snap_origin{ 0.0f };
     glm::vec4 diffuse_color{ 1.0f };
     float shininess = 0.0f;
     const Texture2D* texture_diffuse = nullptr;
@@ -119,6 +122,7 @@ struct OutlineDrawItem
 {
     const Geometry* geometry = nullptr;
     glm::mat4 model{ 1.0f };
+    glm::vec3 snap_origin{ 0.0f };  // see StaticMeshDrawItem::snap_origin
 };
 
 struct SceneRenderData

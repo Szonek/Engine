@@ -58,6 +58,7 @@ engine::LowResCamera engine::compute_low_res_camera(const glm::mat4& view, const
         ret.view[3][0] = snapped.x;
         ret.view[3][1] = snapped.y;
         ret.position = -glm::transpose(glm::mat3(ret.view)) * glm::vec3(ret.view[3]);
+        ret.texel_size = texel_size;
     }
 
     // Window uv u shows what the original camera sees at NDC 2u-1. With the snapped camera that is drawn at
@@ -66,4 +67,17 @@ engine::LowResCamera engine::compute_low_res_camera(const glm::mat4& view, const
     ret.present.scale = ndc_scale;
     ret.present.offset = 0.5f - 0.5f * ndc_scale - 0.5f * ndc_scale * ndc_offset;
     return ret;
+}
+
+glm::vec3 engine::compute_object_snap_offset(const LowResCamera& camera, const glm::vec3& origin)
+{
+    if (camera.texel_size.x <= 0.0f || camera.texel_size.y <= 0.0f)
+    {
+        return glm::vec3(0.0f);
+    }
+    // in view space the texel grid of the snapped camera is fixed, move the origin onto it along the camera's right and up
+    const auto view_origin = glm::vec2(camera.view * glm::vec4(origin, 1.0f));
+    const auto snapped = glm::round(view_origin / camera.texel_size) * camera.texel_size;
+    const auto view_offset = glm::vec3(snapped - view_origin, 0.0f);
+    return glm::transpose(glm::mat3(camera.view)) * view_offset;
 }

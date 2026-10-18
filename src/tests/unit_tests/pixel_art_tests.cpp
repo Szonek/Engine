@@ -138,6 +138,50 @@ TEST(PixelArt, SnapShiftsLessThanTheMargin)
     }
 }
 
+// A moving object, snapped by its origin, is at the same position within its texel wherever it is and wherever the
+// camera is: it's rasterized the same way every frame (no flickering edges), only moved by whole texels.
+TEST(PixelArt, SnappedObjectsKeepTheirPlaceInTheTexel)
+{
+    const glm::uvec2 window(1280, 720);
+    const auto target_size = glm::vec2(compute_scene_target_size(window, 3));
+    const auto projection = game_projection(window);
+    const glm::vec3 vertex_offset(0.31f, 1.17f, -0.23f);  // a vertex of the object, relative to its origin
+    const auto vertex_texel_fraction = [&](const glm::vec3& camera_target, const glm::vec3& object_origin)
+    {
+        const auto camera = compute_low_res_camera(game_view(camera_target), projection, window, 3, true);
+        const auto vertex = object_origin + compute_object_snap_offset(camera, object_origin) + vertex_offset;
+        const auto texel = to_uv(camera.view, camera.projection, vertex) * target_size;
+        return texel - glm::floor(texel);
+    };
+    const auto reference = vertex_texel_fraction(glm::vec3(0.0f), glm::vec3(0.0f));
+    for (float t = 0.0f; t < 2.0f; t += 0.037f)
+    {
+        // the camera follows the object, like the game camera follows the player
+        const glm::vec3 object_origin(t, 0.0f, 0.4f * t);
+        const glm::vec3 camera_target = object_origin * 0.93f;
+        const auto difference = glm::abs(vertex_texel_fraction(camera_target, object_origin) - reference);
+        const auto distance = glm::min(difference, 1.0f - difference);
+        EXPECT_LT(distance.x, 2e-3f) << "t " << t;
+        EXPECT_LT(distance.y, 2e-3f) << "t " << t;
+    }
+}
+
+TEST(PixelArt, ObjectsAreMovedLessThanHalfATexel)
+{
+    const glm::uvec2 window(1280, 720);
+    const auto camera = compute_low_res_camera(game_view(glm::vec3(0.37f, 0.0f, 1.21f)), game_projection(window), window, 3, true);
+    for (const auto& world : WORLD_POINTS)
+    {
+        const auto view_offset = glm::mat3(camera.view) * compute_object_snap_offset(camera, world);
+        EXPECT_LE(std::abs(view_offset.x), 0.5f * camera.texel_size.x + 1e-5f);
+        EXPECT_LE(std::abs(view_offset.y), 0.5f * camera.texel_size.y + 1e-5f);
+        EXPECT_NEAR(view_offset.z, 0.0f, 1e-5f);  // depth doesn't change
+    }
+    // nothing to snap to without a snapped camera
+    const auto unsnapped = compute_low_res_camera(game_view(glm::vec3(0.37f, 0.0f, 1.21f)), game_projection(window), window, 3, false);
+    EXPECT_EQ(compute_object_snap_offset(unsnapped, glm::vec3(1.3f, 0.7f, -2.1f)), glm::vec3(0.0f));
+}
+
 TEST(PixelArt, PerspectiveCameraIsNotSnapped)
 {
     const glm::uvec2 window(1280, 720);

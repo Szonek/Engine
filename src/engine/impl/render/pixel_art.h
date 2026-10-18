@@ -33,6 +33,8 @@ struct LowResCamera
     glm::mat4 projection{ 1.0f };
     glm::vec3 position{ 0.0f };  // world space, matches view
     PresentTransform present;
+    // size of a scene target texel in view space units, 0: the camera isn't snapped (objects can't be snapped either)
+    glm::vec2 texel_size{ 0.0f };
 };
 
 // view, projection: the camera as the game sees it (projection made for the window aspect).
@@ -42,5 +44,11 @@ struct LowResCamera
 // camera really is, only the texel grid lags behind by less than a texel.
 // Window pixel -> scene target texel is the same with or without snapping, except for that sub-texel offset.
 LowResCamera compute_low_res_camera(const glm::mat4& view, const glm::mat4& projection, glm::uvec2 window_size, std::uint32_t pixel_scale, bool snap);
+
+// Moving objects need the same treatment as the camera: an object at a different fraction of a texel every frame is
+// rasterized differently every frame, so its edges flicker while it moves. Returns the world space offset which moves
+// origin (the object's snap origin) to the texel grid of the snapped camera; every vertex of the object is moved by it, so
+// the object keeps its shape and moves in whole texels. Zero if the camera isn't snapped.
+glm::vec3 compute_object_snap_offset(const LowResCamera& camera, const glm::vec3& origin);
 
 }  // namespace engine
