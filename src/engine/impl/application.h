@@ -95,6 +95,9 @@ public:
     virtual bool keyboard_is_key_down(engine_keyboard_keys_t key);
 
     virtual engine_fvec2_t mouse_get_coords();
+    // What the game sees: mouse_get_coords() while the mouse is enabled, otherwise (i.e. over an editor panel)
+    // the last position it saw, so the cursor stays where it left the scene instead of jumping.
+    engine_fvec2_t mouse_get_game_coords();
     virtual bool mouse_is_button_down(engine_mouse_button_t button);
 
     virtual std::array<engine_finger_info_t, 10> get_finger_info_events() const;
@@ -124,6 +127,8 @@ protected:
 
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;
+    // the centre of the scene until the game gets the mouse
+    engine_fvec2_t last_game_mouse_coords_{ 0.5f, 0.5f };
 
     Renderer renderer_;
 };

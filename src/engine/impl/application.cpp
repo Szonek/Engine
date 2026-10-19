@@ -584,6 +584,15 @@ engine_fvec2_t engine::Application::mouse_get_coords()
 	return ret;
 }
 
+engine_fvec2_t engine::Application::mouse_get_game_coords()
+{
+    if (is_mouse_enabled())
+    {
+        last_game_mouse_coords_ = mouse_get_coords();
+    }
+    return last_game_mouse_coords_;
+}
+
 engine::viewport_t engine::Application::get_scene_viewport() const
 {
     const auto window_size = rdx_.get_window_size_in_pixels();
