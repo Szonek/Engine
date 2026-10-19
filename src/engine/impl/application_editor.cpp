@@ -147,83 +147,82 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
     }
 
     const auto entity_id = std::string(node->name) + "##" + std::to_string(static_cast<std::uint32_t>(node->entity));
-    if (ImGui::TreeNodeEx(entity_id.c_str(), dispaly_flags))
+    // a collapsed node returns false but can still be clicked, dragged etc., so its item is handled either way
+    const bool open = ImGui::TreeNodeEx(entity_id.c_str(), dispaly_flags);
+    // tooltip the id
+    ImGui::SetItemTooltip("ID: %llu (entity: %u)", static_cast<unsigned long long>(scene->get_persistent_id(node->entity)), static_cast<std::uint32_t>(node->entity));
+
+    // select entity with LMB
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
     {
-        // tooltip the id
-        ImGui::SetItemTooltip("ID: %llu (entity: %u)", static_cast<unsigned long long>(scene->get_persistent_id(node->entity)), static_cast<std::uint32_t>(node->entity));
-
-        // select entity with LMB
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+        // but if tree was expanded (i.e. by pressing arrow) it does not count as selection of entity
+        if (!ImGui::IsItemToggledOpen())
         {
-            // but if tree was expanded (i.e. by pressing arrow) it does not count as selection of entity
-            if (!ImGui::IsItemToggledOpen())
-            {
-                ctx.set_selected_entity(scene, node->entity, commands);
-            }
+            ctx.set_selected_entity(scene, node->entity, commands);
         }
-        
-        // context menu with RMB
-        if (ImGui::BeginPopupContextItem())
+    }
+    
+    // context menu with RMB
+    if (ImGui::BeginPopupContextItem())
+    {
+        // delete entity
+        if (ImGui::MenuItem("Delete"))
         {
-            // delete entity
-            if (ImGui::MenuItem("Delete"))
-            {
-                ctx.set_selected_entity(scene, entt::null, commands);
-                commands.execute_command(std::make_unique<engine::CommandDestroyEntity>(*scene, node->entity));
-            }
-
-            //rename entity
-            static decltype(engine_name_component_t::name) new_name = "New name";
-            if(ImGui::Button("Rename"))
-            {
-                commands.execute_command(std::make_unique<engine::CommandRenameEntity>(*scene, node->entity, new_name));
-                // reset static new name
-                std::strcpy(new_name, "New name");
-            }
-            ImGui::SameLine();        
-            ImGui::InputText("##edit", new_name, IM_ARRAYSIZE(new_name));
-            ImGui::EndPopup();
+            ctx.set_selected_entity(scene, entt::null, commands);
+            commands.execute_command(std::make_unique<engine::CommandDestroyEntity>(*scene, node->entity));
         }
 
-        // drag and drop
-        if (ImGui::BeginDragDropSource())
+        //rename entity
+        static decltype(engine_name_component_t::name) new_name = "New name";
+        if(ImGui::Button("Rename"))
         {
-            ImGui::SetDragDropPayload("DND_ENTITY", &node->entity, sizeof(entt::entity));
-            ImGui::Text("Drag and drop. Entity: %s", node->name.c_str());
-            ImGui::EndDragDropSource();
+            commands.execute_command(std::make_unique<engine::CommandRenameEntity>(*scene, node->entity, new_name));
+            // reset static new name
+            std::strcpy(new_name, "New name");
         }
+        ImGui::SameLine();        
+        ImGui::InputText("##edit", new_name, IM_ARRAYSIZE(new_name));
+        ImGui::EndPopup();
+    }
 
-        if (ImGui::BeginDragDropTarget())
+    // drag and drop
+    if (ImGui::BeginDragDropSource())
+    {
+        ImGui::SetDragDropPayload("DND_ENTITY", &node->entity, sizeof(entt::entity));
+        ImGui::Text("Drag and drop. Entity: %s", node->name.c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ENTITY"))
         {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ENTITY"))
+            IM_ASSERT(payload->DataSize == sizeof(entt::entity));
+            entt::entity payload_n = *static_cast<entt::entity*>(payload->Data);
+            //engine::log::log(engine::log::LogLevel::eInfo, "Dropped entity %d to %d\n", payload_n, node->entity);
+
+
+            if (scene->has_component<engine_parent_component_t>(payload_n))
             {
-                IM_ASSERT(payload->DataSize == sizeof(entt::entity));
-                entt::entity payload_n = *static_cast<entt::entity*>(payload->Data);
-                //engine::log::log(engine::log::LogLevel::eInfo, "Dropped entity %d to %d\n", payload_n, node->entity);
-
-
-                if (scene->has_component<engine_parent_component_t>(payload_n))
-                {
-                    engine_parent_component_t pc{};
-                    pc.parent = static_cast<std::uint32_t>(node->entity);
-                    scene->update_component<engine_parent_component_t>(payload_n, pc);
-                }
-                else
-                {
-                    auto pc = *scene->add_component<engine_parent_component_t>(payload_n);
-                    pc.parent = static_cast<std::uint32_t>(node->entity);
-                    scene->update_component<engine_parent_component_t>(payload_n, pc);
-                }
+                engine_parent_component_t pc{};
+                pc.parent = static_cast<std::uint32_t>(node->entity);
+                scene->update_component<engine_parent_component_t>(payload_n, pc);
             }
-            ImGui::EndDragDropTarget();
+            else
+            {
+                auto pc = *scene->add_component<engine_parent_component_t>(payload_n);
+                pc.parent = static_cast<std::uint32_t>(node->entity);
+                scene->update_component<engine_parent_component_t>(payload_n, pc);
+            }
         }
+        ImGui::EndDragDropTarget();
+    }
 
-        else
+    if (open)
+    {
+        for (auto& child : node->children)
         {
-            for (auto& child : node->children)
-            {
-                display_node(child, scene, commands, ctx);
-            }
+            display_node(child, scene, commands, ctx);
         }
         ImGui::TreePop();
     }
