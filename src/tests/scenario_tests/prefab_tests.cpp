@@ -38,10 +38,10 @@ TEST_F(PrefabTest, InstanceRootIsLinkedToItsPrefab)
     step();
 
     // the root is the parent of the rest of the instance, which isn't linked itself
-    const auto children = engineGameObjectGetChildrenComponent(first);
-    ASSERT_NE(children.child[0], ENGINE_INVALID_GAME_OBJECT_ID);
-    EXPECT_EQ(engineGameObjectGetParentComponent(children.child[0]).parent, first);
-    EXPECT_EQ(enginePrefabInstanceGetPrefab(children.child[0]), ENGINE_INVALID_OBJECT_HANDLE);
+    const auto child = engineGameObjectGetChild(first, 0);
+    ASSERT_NE(child, ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_EQ(engineGameObjectGetParentComponent(child).parent, first);
+    EXPECT_EQ(enginePrefabInstanceGetPrefab(child), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
 TEST_F(PrefabTest, GameObjectWhichIsNotAnInstanceRootHasNoPrefab)
@@ -67,13 +67,13 @@ TEST_F(PrefabTest, SkinnedInstanceOwnsItsSkinAndAnimationController)
     // the skin's owner is one of the instance's game objects
     auto skin_owner = ENGINE_INVALID_GAME_OBJECT_ID;
     std::vector<engine_game_object_t> instance = { root };
-    for (const auto child : engineGameObjectGetChildrenComponent(root).child)
+    for (size_t i = 0; i < engineGameObjectGetChildrenCount(root); i++)
     {
-        instance.push_back(child);
+        instance.push_back(engineGameObjectGetChild(root, i));
     }
     for (const auto go : instance)
     {
-        if (go != ENGINE_INVALID_GAME_OBJECT_ID && engineGameObjectHasSkinComponent(go))
+        if (engineGameObjectHasSkinComponent(go))
         {
             skin_owner = go;
         }

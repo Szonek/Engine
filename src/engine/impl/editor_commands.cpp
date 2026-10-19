@@ -4,6 +4,7 @@
 #include <cstring>
 #include <string>
 #include <algorithm>
+#include <vector>
 
 namespace engine
 {
@@ -12,16 +13,14 @@ namespace
 {
 inline void delete_entity_hierarchy(Scene& sc, entt::entity entity)
 {
-    if (sc.has_component<engine_children_component_t>(entity))
+    // a copy: destroying a child removes it from the list
+    const auto children_view = sc.get_children(entity);
+    const std::vector<entt::entity> children(children_view.begin(), children_view.end());
+    for (const auto child : children)
     {
-        const auto children = sc.get_component<engine_children_component_t>(entity);
-        for (int c = 0; c < ENGINE_MAX_CHILDREN; c++)
+        if (sc.is_valid_entity(child))
         {
-            const auto child = static_cast<entt::entity>(children->child[c]);
-            if (sc.is_valid_entity(child))
-            {
-                delete_entity_hierarchy(sc, child);
-            }
+            delete_entity_hierarchy(sc, child);
         }
     }
     sc.destroy_entity(entity);

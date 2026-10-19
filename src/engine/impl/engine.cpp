@@ -881,6 +881,31 @@ void engineComponentViewAttachNameComponent(engine_component_view_t view)
     sc->attach_component_to_runtime_view<engine_name_component_t>(*rv);
 }
 
+engine_folder_component_t engineGameObjectAddFolderComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_folder_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_folder_component_t engineGameObjectGetFolderComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_folder_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+void engineGameObjectUpdateFolderComponent(engine_game_object_t game_object, const engine_folder_component_t* comp)
+{
+    update_component(G_ACTIVE_SCENE, game_object, comp);
+}
+
+void engineGameObjectRemoveFolderComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_folder_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+bool engineGameObjectHasFolderComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_folder_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
 engine_tranform_component_t engineGameObjectAddTransformComponent(engine_game_object_t game_object)
 {
     return add_component<engine_tranform_component_t>(G_ACTIVE_SCENE, game_object);
@@ -1237,14 +1262,23 @@ bool engineGameObjectHasParentComponent(engine_game_object_t game_object)
     return has_component<engine_parent_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_children_component_t engineGameObjectGetChildrenComponent(engine_game_object_t game_object)
+size_t engineGameObjectGetChildrenCount(engine_game_object_t game_object)
 {
-    return get_component<engine_children_component_t>(G_ACTIVE_SCENE, game_object);
+    if (!G_ACTIVE_SCENE)
+    {
+        return 0;
+    }
+    return api_cast(G_ACTIVE_SCENE)->get_children(api_cast(game_object)).size();
 }
 
-bool engineGameObjectHasChildrenComponent(engine_game_object_t game_object)
+engine_game_object_t engineGameObjectGetChild(engine_game_object_t game_object, size_t index)
 {
-    return has_component<engine_children_component_t>(G_ACTIVE_SCENE, game_object);
+    if (!G_ACTIVE_SCENE)
+    {
+        return ENGINE_INVALID_GAME_OBJECT_ID;
+    }
+    const auto children = api_cast(G_ACTIVE_SCENE)->get_children(api_cast(game_object));
+    return index < children.size() ? static_cast<engine_game_object_t>(children[index]) : ENGINE_INVALID_GAME_OBJECT_ID;
 }
 
 engine_fvec3_t engineCollisionContactPointDescGetPointOnObjectA(const engine_collision_contact_point_desc_t* contact)

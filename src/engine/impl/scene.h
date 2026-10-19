@@ -11,6 +11,7 @@
 
 #include <array>
 #include <deque>
+#include <span>
 #include <tuple>
 
 namespace engine
@@ -45,6 +46,10 @@ public:
     entt::entity create_transient_entity();
     void destroy_entity(entt::entity entity);
     bool is_valid_entity(entt::entity entity) const;
+
+    // the entities whose parent component points at `entity`, in the order they were parented; invalidated by any
+    // change of the hierarchy
+    std::span<const entt::entity> get_children(entt::entity entity) const;
 
     // the engine-owned animation controller of the entity, or nullptr
     AnimationController* get_animation_controller(entt::entity entity);
