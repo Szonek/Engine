@@ -40,6 +40,7 @@ typedef struct _engine_ui_element_t* engine_ui_element_t;
 typedef uint32_t engine_material_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
+typedef uint32_t engine_prefab_t;
 typedef uint32_t engine_skin_t;
 typedef uint32_t engine_animation_set_t;
 typedef uint32_t engine_shader_t;
@@ -72,14 +73,6 @@ typedef struct _engine_fvec4_t
     float z;
     float w;
 } engine_fvec4_t;
-
-typedef struct _engine_color_desc_t
-{
-    float r;
-    float g;
-    float b;
-    float a;
-} engine_color_desc_t;
 
 typedef struct _engine_application_create_desc_t
 {
@@ -116,19 +109,6 @@ typedef struct _engine_application_frame_end_info_t
 {
     bool success;
 } engine_application_frame_end_info_t;
-
-typedef enum _engine_data_layout_t
-{
-    ENGINE_DATA_LAYOUT_RGBA_U8 = 0,
-    ENGINE_DATA_LAYOUT_RGB_U8 = 1,
-    ENGINE_DATA_LAYOUT_R_U8 = 2,
-    // ..
-    // ..
-    // ..
-    ENGINE_DATA_LAYOUT_RGBA_FP32,
-    ENGINE_DATA_LAYOUT_R_FP32,
-    ENGINE_DATA_LAYOUT_COUNT
-} engine_data_layout_t;
 
 typedef enum _engine_finger_event_t
 {
@@ -392,86 +372,27 @@ typedef enum _engine_model_specification_t
     ENGINE_MODEL_SPECIFICATION_GLTF_2
 } engine_model_specification_t;
 
-// Texture2D DESC
-typedef struct _engine_texture_2d_desc_t engine_texture_2d_desc_t;
-ENGINE_API const char* engineTexture2dDescGetName(const engine_texture_2d_desc_t* desc);
-ENGINE_API uint32_t engineTexture2dDescGetWidth(const engine_texture_2d_desc_t* desc);
-ENGINE_API uint32_t engineTexture2dDescGetHeight(const engine_texture_2d_desc_t* desc);
-ENGINE_API engine_data_layout_t engineTexture2dDescGetDataLayout(const engine_texture_2d_desc_t* desc);
-ENGINE_API const void* engineTexture2dDescGetData(const engine_texture_2d_desc_t* desc);
+// Prefab: an asset built from a model file, named by the file ("Rogue.glb"). Creating it also creates the model's
+// geometries, textures, skin and animation set as assets named "<file>#<name>" (e.g. "Rogue.glb#Rig", the skin and
+// "Rogue.glb#animations", the animation set), and destroying it destroys them. Instantiating it creates the model's
+// game objects in the active scene.
+ENGINE_API engine_result_code_t enginePrefabCreateFromFile(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_prefab_t* out);
+ENGINE_API engine_prefab_t enginePrefabGetByName(const char* name);
+// Returns the root game object of the new instance, or ENGINE_INVALID_GAME_OBJECT_ID. The root is the parent of all the
+// other game objects of the instance.
+ENGINE_API engine_game_object_t enginePrefabInstantiate(engine_prefab_t prefab);
+// The prefab the game object is the root of an instance of, or ENGINE_INVALID_OBJECT_HANDLE.
+ENGINE_API engine_prefab_t enginePrefabInstanceGetPrefab(engine_game_object_t game_object);
+ENGINE_API void enginePrefabDestroy(engine_prefab_t prefab);
 
-// Geometry DESC
-typedef struct _engine_geometry_desc_t engine_geometry_desc_t;
-ENGINE_API const char* engineGeometryDescGetName(const engine_geometry_desc_t* desc);
-
-ENGINE_API const void* engineGeometryDescGetVertsData(const engine_geometry_desc_t* desc);
-ENGINE_API size_t engineGeometryDescGetVertsDataSize(const engine_geometry_desc_t* desc);
-ENGINE_API uint32_t engineGeometryDescGetVertsCount(const engine_geometry_desc_t* desc);
-
-ENGINE_API const uint32_t* engineGeometryDescGetIndsData(const engine_geometry_desc_t* desc);
-ENGINE_API uint32_t engineGeometryDescGetIndsCount(const engine_geometry_desc_t* desc);
-
-ENGINE_API engine_vertex_attributes_layout_t engineGeometryDescGetAttributesLayout(const engine_geometry_desc_t* desc);
-
-// Material DESC
-typedef struct _engine_material_desc_t engine_material_desc_t;
-ENGINE_API const char* engineMaterialDescGetName(const engine_material_desc_t* desc);
-ENGINE_API engine_color_desc_t engineMaterialDescGetDiffuseColor(const engine_material_desc_t* desc);
-ENGINE_API uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_material_desc_t* desc); // -1 if not used
-
-// Skin DESC
-typedef struct _engine_skin_desc_t engine_skin_desc_t;
-ENGINE_API const char* engineSkinDescGetName(const engine_skin_desc_t* desc);
-ENGINE_API uint32_t engineSkinDescGetJointsCount(const engine_skin_desc_t* desc);
-ENGINE_API const char* engineSkinDescGetJointName(const engine_skin_desc_t* desc, size_t idx);
-
-
-// Model Node DESC
-typedef struct _engine_model_node_desc_t engine_model_node_desc_t;
-ENGINE_API const char* engineModelNodeDescGetName(const engine_model_node_desc_t* desc);
-ENGINE_API const engine_model_node_desc_t* engineModelNodeDescGetParent(const engine_model_node_desc_t* desc);
-ENGINE_API const engine_model_node_desc_t* engineModelNodeDescGetChildren(const engine_model_node_desc_t* desc, size_t idx);
-ENGINE_API uint32_t engineModelNodeDescGetChildrenCount(const engine_model_node_desc_t* desc);
-ENGINE_API uint32_t engineModelNodeDescGetIndex(const engine_model_node_desc_t* desc);
-ENGINE_API uint32_t engineModelNodeDescGetGeometryIndex(const engine_model_node_desc_t* desc); // -1 if not used
-ENGINE_API uint32_t engineModelNodeDescGetSkinIndex(const engine_model_node_desc_t* desc); // -1 if not used
-ENGINE_API uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc_t* desc); // -1 if not used
-ENGINE_API engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc_t* desc);
-ENGINE_API engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc_t* desc);
-ENGINE_API engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_desc_t* desc); // quaternion: {x, y, z, w}
-
-// Model DESC
-typedef struct _engine_model_desc_t engine_model_desc_t;
-ENGINE_API const engine_model_node_desc_t* engineModelDescGetNodeDesc(const engine_model_desc_t* desc, size_t idx);
-ENGINE_API const engine_model_node_desc_t* engineModelDescGetNodeDescByName(const engine_model_desc_t* desc, const char* name);
-ENGINE_API uint32_t engineModelDescGetNodesDescCount(const engine_model_desc_t* desc);
-
-ENGINE_API const engine_texture_2d_desc_t* engineModelDescGetTexture2dDesc(const engine_model_desc_t* desc, size_t idx);
-ENGINE_API uint32_t engineModelDescGetTextures2dDescCount(const engine_model_desc_t* desc);
-
-ENGINE_API const engine_geometry_desc_t* engineModelDescGetGeometryDesc(const engine_model_desc_t* desc, size_t idx);
-ENGINE_API uint32_t engineModelDescGetGeometriesDescCount(const engine_model_desc_t* desc);
-
-ENGINE_API const engine_material_desc_t* engineModelDescGetMaterialDesc(const engine_model_desc_t* desc, size_t idx);
-ENGINE_API uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc_t* desc);
-
-ENGINE_API const engine_skin_desc_t* engineModelDescGetSkinDesc(const engine_model_desc_t* desc, size_t idx);
-ENGINE_API uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc);
-
-ENGINE_API uint32_t engineModelDescGetAnimationsDescCount(const engine_model_desc_t* desc);
-
-// Skin: an asset shared by every instance of a skinned model (the skeleton and its binding to the mesh), named by
-// the skin desc's asset ID ("<model file>#<skin name>"). Each instance's pose belongs to the game object with the
+// Skin: an asset shared by every instance of a skinned model (the skeleton and its binding to the mesh), created with
+// the model's prefab and named "<model file>#<skin name>". Each instance's pose belongs to the game object with the
 // skin component.
-ENGINE_API engine_result_code_t engineSkinCreateFromDesc(const engine_skin_desc_t* desc, const engine_model_node_desc_t* root, engine_skin_t* out);
 ENGINE_API engine_skin_t engineSkinGetByName(const char* name);
-ENGINE_API void engineSkinDestroy(engine_skin_t skin);
 
-// Animation set: an asset with a model's animation clips compiled for one skin, named "<model file>#animations" and
-// shared by every controller of that skin.
-ENGINE_API engine_result_code_t engineAnimationSetCreateFromModelDesc(const engine_model_desc_t* model_desc, engine_skin_t skin, engine_animation_set_t* out);
+// Animation set: an asset with a model's animation clips compiled for its skin, created with the model's prefab, named
+// "<model file>#animations" and shared by every controller of that skin.
 ENGINE_API engine_animation_set_t engineAnimationSetGetByName(const char* name);
-ENGINE_API void engineAnimationSetDestroy(engine_animation_set_t animation_set);
 
 // Animation controller: the runtime part of a game object's animation controller component, created and owned by the
 // engine when the component has an animation set and the game object has a skin. The functions below act on it through
@@ -588,18 +509,11 @@ ENGINE_API void engineShaderDestroy(engine_shader_t pso);
 // fonts
 ENGINE_API engine_result_code_t engineFontCreateFromFile(const char* file_name, const char* handle_name);
 
-// model loading
-ENGINE_API engine_result_code_t engineModelDescAllocateAndLoadDataFromFile(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t** out);
-ENGINE_API void engineModelDescRelease(engine_model_desc_t* model_info);
-
-// geometry
-ENGINE_API engine_result_code_t engineGeometryCreateFromDesc(const engine_geometry_desc_t* desc, engine_geometry_t* out);
+// geometry: created with the prefab of its model
 ENGINE_API engine_geometry_t engineGeometryGetByName(const char* name);
 ENGINE_API engine_geometry_attribute_limit_t engineGeometryGetAttributeLimits(engine_geometry_t geometry, engine_vertex_attribute_type_t type);
-ENGINE_API void engineGeometryDestroy(engine_geometry_t geometry);
 
 // textures 
-ENGINE_API engine_result_code_t engineTexture2DCreateFromDesc(const engine_texture_2d_desc_t* desc, engine_texture2d_t* out);
 ENGINE_API engine_result_code_t engineTexture2DCreateFromFile(const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_texture2d_t   engineTextured2DGetByName(const char* name);
 ENGINE_API void engineTexture2DDestroy(engine_texture2d_t tex2d);

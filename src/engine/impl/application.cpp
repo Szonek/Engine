@@ -477,6 +477,52 @@ void engine::Application::destroy_animation_set(std::uint32_t idx)
     animation_sets_atlas_.remove_object(idx);
 }
 
+std::uint32_t engine::Application::add_prefab_from_file(std::string_view file_name, std::string_view base_dir)
+{
+    // its assets are named after the file, so loading it twice can't succeed
+    if (get_prefab(file_name) != ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        log::log(log::LogLevel::eError, fmt::format("Prefab \"{}\" already exists. Names must be unique.\n", file_name));
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+
+    const auto assets_dir = AssetStore::get_instance().get_models_base_path() / base_dir;
+    const auto file_data = AssetStore::get_instance().get_raw_data_content(assets_dir / file_name);
+    if (file_data.get_size() == 0)
+    {
+        log::log(log::LogLevel::eError, fmt::format("Failed loading model file: {}\n", (assets_dir / file_name).string()));
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    auto model = parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string(), std::string(file_name));
+    auto prefab = Prefab::create(*this, std::move(model));
+    if (!prefab)
+    {
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    // when it isn't added, the prefab is destroyed here and releases its assets
+    return prefabs_atlas_.add_object(file_name, std::move(prefab));
+}
+
+std::uint32_t engine::Application::get_prefab(std::string_view name) const
+{
+    return prefabs_atlas_.get_object(name);
+}
+
+const engine::Prefab* engine::Application::get_prefab(std::uint32_t idx) const
+{
+    if (idx == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return nullptr;
+    }
+    const auto* prefab = prefabs_atlas_.get_object(idx);
+    return prefab ? prefab->get() : nullptr;
+}
+
+void engine::Application::destroy_prefab(std::uint32_t idx)
+{
+    prefabs_atlas_.remove_object(idx);
+}
+
 std::uint32_t engine::Application::add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name)
 {
     return shader_atlas_.add_object(name, Shader(vertex_shader_name, fragment_shader_name));

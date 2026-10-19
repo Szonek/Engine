@@ -75,6 +75,8 @@ set(ENGINE_SOURCES
 	
 	${ENGINE_SOURCES_DIR}/skin.h
 	${ENGINE_SOURCES_DIR}/skin.cpp
+	${ENGINE_SOURCES_DIR}/prefab.h
+	${ENGINE_SOURCES_DIR}/prefab.cpp
 	
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.h
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.cpp
@@ -85,6 +87,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/components_internals/physics_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/skin_pose_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/animation_controller_internal_component.h
+	${ENGINE_SOURCES_DIR}/components_internals/prefab_instance_component.h
 	
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.h
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.cpp
