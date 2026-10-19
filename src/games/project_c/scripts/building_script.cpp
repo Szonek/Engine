@@ -144,7 +144,7 @@ void project_c::House::add_wall(AppProjectC& app, const glm::vec3& position, flo
     {
         return;
     }
-    auto part = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WALL, my_scene_).go,
+    auto part = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WALL).go,
         "house-wall", position, y_rotation_degrees, scale, WALL_BOX, true);
     part->set_climbable_away_from({ center_.x, ground_y_, center_.y });
     if (camera_facing)
@@ -160,7 +160,7 @@ void project_c::House::add_window_wall(AppProjectC& app, const glm::vec3& positi
         return;
     }
     // visible piece, without collider
-    auto part = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WINDOW, my_scene_).go,
+    auto part = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WINDOW).go,
         "house-window", position, y_rotation_degrees, scale, std::nullopt, false);
     if (camera_facing)
     {
@@ -185,7 +185,7 @@ void project_c::House::add_roof(AppProjectC& app)
     // roof covers walls fully, so its edge is flush with the outer face of the walls
     const float roof_xz_scale = (half_size + wall_thickness * 0.5f) / 2.0f;
     const float roof_y_scale = roof_thickness / (ROOF_BOX.half_extents.y * 2.0f);
-    roof_ = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_ROOF, my_scene_).go,
+    roof_ = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_ROOF).go,
         "house-roof", glm::vec3(center_.x, ground_y_ + wall_height, center_.y), 0.0f, glm::vec3(roof_xz_scale, roof_y_scale, roof_xz_scale),
         ROOF_BOX, false);
 }

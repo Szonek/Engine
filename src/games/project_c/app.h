@@ -36,7 +36,7 @@ public:
     AppProjectC(const PrefabsData& prefabs_data, const AppConfig& config = {});
     ~AppProjectC();
 
-    PrefabResult instantiate_prefab(PrefabType type, engine::IScene* scene);
+    PrefabResult instantiate_prefab(PrefabType type);
     bool is_prefab_available(PrefabType type) const;
     // One frame of the game (dt in milliseconds): updates the scenes, then applies scene changes they requested.
     // The caller owns the loop and calls it between engineFrameBegin() and engineFrameEnd() (main.cpp, tests).

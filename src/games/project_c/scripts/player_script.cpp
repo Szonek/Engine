@@ -1602,7 +1602,7 @@ void project_c::Player::create_traversal_marker()
     {
         return;
     }
-    traversal_marker_ = app->instantiate_prefab(PREFAB_TYPE_TRAVERSAL_MARKER, my_scene_).go;
+    traversal_marker_ = app->instantiate_prefab(PREFAB_TYPE_TRAVERSAL_MARKER).go;
     if (traversal_marker_ == ENGINE_INVALID_GAME_OBJECT_ID)
     {
         return;

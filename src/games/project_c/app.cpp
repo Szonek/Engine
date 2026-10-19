@@ -1,5 +1,4 @@
 #include "app.h"
-#include "iscene.h"
 
 #include "scripts/enemy_script.h"
 
@@ -89,7 +88,7 @@ project_c::AppProjectC::~AppProjectC()
     }
 }
 
-project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType type, engine::IScene* scene)
+project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType type)
 {
     if (type >= PREFAB_TYPE_COUNT)
     {
