@@ -84,6 +84,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/components_internals/outline_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/physics_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/skin_pose_component.h
+	${ENGINE_SOURCES_DIR}/components_internals/animation_controller_internal_component.h
 	
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.h
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.cpp

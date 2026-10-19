@@ -1,5 +1,13 @@
 #include "skin.h"
 #include "animation_controller.h"
+#include "components_internals/animation_controller_internal_component.h"
+
+#include <entt/entt.hpp>
+
+#include <cstring>
+#include <memory>
+#include <utility>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -46,6 +54,32 @@ protected:
         return clip;
     }
 
+    // an animation set with one clip, as engineAnimationSetCreateFromModelDesc builds it
+    static std::shared_ptr<const engine::AnimationLibrary> animation_set(const engine::Skin& skin, const engine::AnimationClipDesc& clip)
+    {
+        auto library = std::make_shared<engine::AnimationLibrary>(skin);
+        EXPECT_TRUE(library->add_animation(clip, skin));
+        return library;
+    }
+
+    // the component's layer setup: one override layer, plus a second one masked by `joint_weights` if given
+    static engine_animation_controller_component_t layers(std::vector<std::pair<const char*, float>> second_layer_joint_weights = {})
+    {
+        engine_animation_controller_component_t component{};
+        component.layers_count = second_layer_joint_weights.empty() ? 1 : 2;
+        component.layers[0].mode = ENGINE_ANIMATION_LAYER_MODE_OVERRIDE;
+        component.layers[0].weight = 1.0f;
+        component.layers[1].mode = ENGINE_ANIMATION_LAYER_MODE_OVERRIDE;
+        component.layers[1].weight = 1.0f;
+        component.layers[1].joint_weights_count = static_cast<std::uint32_t>(second_layer_joint_weights.size());
+        for (std::size_t i = 0; i < second_layer_joint_weights.size(); i++)
+        {
+            std::strncpy(component.layers[1].joint_weights[i].joint_name, second_layer_joint_weights[i].first, ENGINE_ANIMATION_JOINT_NAME_MAX_LENGTH - 1);
+            component.layers[1].joint_weights[i].weight = second_layer_joint_weights[i].second;
+        }
+        return component;
+    }
+
     static float hand_height(const engine::Skin& skin, const engine::SkinPose& pose)
     {
         return skin.get_model_matrix_for_joint(pose, "hand")[3][1];
@@ -72,8 +106,8 @@ TEST_F(SkinTest, InstancesOfOneSkinHaveIndependentPoses)
     auto animated = skin.make_rest_pose();
     const auto idle = skin.make_rest_pose();
 
-    engine::AnimationController controller(&skin);
-    ASSERT_TRUE(controller.add_animation(raise_hand_clip(3.0f)));
+    engine::AnimationController controller(&skin, animation_set(skin, raise_hand_clip(3.0f)));
+    ASSERT_TRUE(controller.configure_layers(layers()));
     ASSERT_TRUE(controller.play("raise_hand", 0));
     controller.update(500.0f, animated);  // ms
     skin.compute_skinning_matrices(animated);
@@ -90,11 +124,10 @@ TEST_F(SkinTest, TwoControllersOnOneSkinDriveTheirOwnPoses)
     auto pose_a = skin.make_rest_pose();
     auto pose_b = skin.make_rest_pose();
 
-    engine::AnimationController controller_a(&skin);
-    engine::AnimationController controller_b(&skin);
-    auto clip_b = raise_hand_clip(-2.0f);
-    ASSERT_TRUE(controller_a.add_animation(raise_hand_clip(3.0f)));
-    ASSERT_TRUE(controller_b.add_animation(clip_b));
+    engine::AnimationController controller_a(&skin, animation_set(skin, raise_hand_clip(3.0f)));
+    engine::AnimationController controller_b(&skin, animation_set(skin, raise_hand_clip(-2.0f)));
+    ASSERT_TRUE(controller_a.configure_layers(layers()));
+    ASSERT_TRUE(controller_b.configure_layers(layers()));
     ASSERT_TRUE(controller_a.play("raise_hand", 0));
     ASSERT_TRUE(controller_b.play("raise_hand", 0));
     controller_a.update(500.0f, pose_a);
@@ -110,31 +143,90 @@ TEST_F(SkinTest, UnknownJointGivesIdentityInsteadOfReadingOutOfBounds)
     const auto pose = skin.make_rest_pose();
     EXPECT_EQ(skin.get_model_matrix_for_joint(pose, "missing"), glm::mat4(1.0f));
 }
-TEST_F(SkinTest, CachedLibraryForAReusedSkinHandleWithAnotherSkeletonIsDropped)
+TEST_F(SkinTest, ControllersAreFreedWithTheirGameObjects)
+{
+    // the scene owns each controller in an internal component, so destroying the game object (or removing the
+    // component) frees it: reloading a scene doesn't leak controllers
+    const engine::Skin skin(desc_, root_);
+    const auto live_before = engine::AnimationController::get_live_count();
+    {
+        entt::registry registry;
+        std::vector<entt::entity> entities;
+        for (int i = 0; i < 3; i++)
+        {
+            const auto e = registry.create();
+            registry.emplace<engine::animation_controller_internal_component_t>(e, std::make_unique<engine::AnimationController>(&skin, std::make_shared<engine::AnimationLibrary>(skin)));
+            entities.push_back(e);
+        }
+        EXPECT_EQ(engine::AnimationController::get_live_count(), live_before + 3);
+
+        registry.destroy(entities[0]);
+        registry.remove<engine::animation_controller_internal_component_t>(entities[1]);
+        EXPECT_EQ(engine::AnimationController::get_live_count(), live_before + 1);
+    }
+    // the registry (scene) is gone
+    EXPECT_EQ(engine::AnimationController::get_live_count(), live_before);
+}
+
+TEST_F(SkinTest, ControllerHasOnlyTheLayersItsComponentDescribes)
 {
     const engine::Skin skin(desc_, root_);
+    engine::AnimationController controller(&skin, animation_set(skin, raise_hand_clip(3.0f)));
+    EXPECT_FALSE(controller.has_layer(0));
+    ASSERT_TRUE(controller.configure_layers(layers({ { "root", 1.0f } })));
+    EXPECT_TRUE(controller.has_layer(0));
+    EXPECT_TRUE(controller.has_layer(1));
+    EXPECT_FALSE(controller.has_layer(2));
+    EXPECT_FALSE(controller.play("raise_hand", 2));
+}
 
-    // another skeleton: a "finger" below the hand
-    engine::ModelNodeDesc finger;
-    finger.name = "finger";
-    finger.index = 2;
-    finger.parent = &hand_;
-    finger.translation = glm::vec3(0.0f, 0.5f, 0.0f);
-    hand_.children = { &finger };
-    auto other_desc = desc_;
-    other_desc.asset_id = "Other.glb#Rig";
-    other_desc.joint_index_map["finger"] = 2;
-    other_desc.inverse_bind_matrix_map["finger"] = glm::mat4(1.0f);
-    const engine::Skin other_skin(other_desc, root_);
+TEST_F(SkinTest, JointWeightsMaskTheLayer)
+{
+    const engine::Skin skin(desc_, root_);
+    auto masked_pose = skin.make_rest_pose();
+    auto unmasked_pose = skin.make_rest_pose();
 
-    // skin handles are atlas slots: after `skin` is destroyed, `other_skin` can get the same handle
-    constexpr std::uint32_t handle = 0;
-    engine::AnimationLibraryCache cache;
-    const auto library = std::make_shared<const engine::AnimationLibrary>(skin);
-    cache.libraries[handle] = library;
+    // the clip plays on layer 1 only; masked, the hand doesn't follow it
+    engine::AnimationController masked(&skin, animation_set(skin, raise_hand_clip(3.0f)));
+    engine::AnimationController unmasked(&skin, animation_set(skin, raise_hand_clip(3.0f)));
+    ASSERT_TRUE(masked.configure_layers(layers({ { "root", 1.0f }, { "hand", 0.0f } })));
+    ASSERT_TRUE(unmasked.configure_layers(layers({ { "root", 1.0f } })));
+    ASSERT_TRUE(masked.play("raise_hand", 1));
+    ASSERT_TRUE(unmasked.play("raise_hand", 1));
+    masked.update(500.0f, masked_pose);
+    unmasked.update(500.0f, unmasked_pose);
 
-    EXPECT_EQ(cache.find(handle, skin), library);
-    EXPECT_EQ(cache.find(handle, other_skin), nullptr);
-    EXPECT_TRUE(cache.libraries.empty());
+    EXPECT_NEAR(hand_height(skin, masked_pose), 1.0f, 1e-4f);
+    EXPECT_NEAR(hand_height(skin, unmasked_pose), 3.0f, 1e-4f);
+}
+
+TEST_F(SkinTest, ReconfiguringLayersKeepsAnimationEvents)
+{
+    const engine::Skin skin(desc_, root_);
+    auto pose = skin.make_rest_pose();
+    engine::AnimationController controller(&skin, animation_set(skin, raise_hand_clip(3.0f)));
+    ASSERT_TRUE(controller.configure_layers(layers()));
+
+    int fired = 0;
+    engine_animation_event_t ev{};
+    ev.trigger_time = 0.1f;
+    ev.user_data = &fired;
+    ev.fn_ptr = [](const engine_animation_event_info_t*, void* user_data) { (*static_cast<int*>(user_data))++; };
+    ASSERT_TRUE(controller.add_event("raise_hand", ev).first);
+
+    // e.g. a layer edited in the editor
+    ASSERT_TRUE(controller.configure_layers(layers()));
+    ASSERT_TRUE(controller.play("raise_hand", 0));
+    controller.update(500.0f, pose);
+    EXPECT_EQ(fired, 1);
+}
+
+TEST_F(SkinTest, UnknownMaskJointFailsTheLayerSetup)
+{
+    const engine::Skin skin(desc_, root_);
+    engine::AnimationController controller(&skin, animation_set(skin, raise_hand_clip(3.0f)));
+    EXPECT_FALSE(controller.configure_layers(layers({ { "tail", 1.0f } })));
+    // the layers themselves still exist
+    EXPECT_TRUE(controller.has_layer(1));
 }
 }  // namespace

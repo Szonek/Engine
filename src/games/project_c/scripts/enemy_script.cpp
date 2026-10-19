@@ -181,12 +181,11 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
         engineLog("Skeleton blade prefab is unavailable; enemy weapon visuals and hitbox are disabled.\n");
     }
 
-    const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
     for (const auto& attack_animation : ENEMY_ATTACK_ANIMATIONS)
     {
         const char* animation_name = attack_animation.name;
         float duration = 0.0f;
-        engineAnimationControllerAnimationGetDuration(animation_controller, animation_name, &duration);
+        engineAnimationControllerAnimationGetDuration(go_, animation_name, &duration);
         if (duration <= 0.0f)
         {
             engineLog("Enemy attack animation has no valid duration.\n");
@@ -198,7 +197,7 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
         open_event.user_data = this;
         open_event.fn_ptr = enemy_attack_window_open_callback;
         engine_animation_event_id_t event_id = ENGINE_INVALID_OBJECT_HANDLE;
-        if (engineAnimationControllerAnimationAddEvent(animation_controller, animation_name, open_event, &event_id) != ENGINE_RESULT_CODE_OK
+        if (engineAnimationControllerAnimationAddEvent(go_, animation_name, open_event, &event_id) != ENGINE_RESULT_CODE_OK
             || event_id == ENGINE_INVALID_OBJECT_HANDLE)
         {
             engineLog("Failed to add enemy attack opening event.\n");
@@ -209,7 +208,7 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
         close_event.user_data = this;
         close_event.fn_ptr = enemy_attack_window_close_callback;
         event_id = ENGINE_INVALID_OBJECT_HANDLE;
-        if (engineAnimationControllerAnimationAddEvent(animation_controller, animation_name, close_event, &event_id) != ENGINE_RESULT_CODE_OK
+        if (engineAnimationControllerAnimationAddEvent(go_, animation_name, close_event, &event_id) != ENGINE_RESULT_CODE_OK
             || event_id == ENGINE_INVALID_OBJECT_HANDLE)
         {
             engineLog("Failed to add enemy attack closing event.\n");
@@ -227,7 +226,6 @@ void project_c::Enemy::update(float dt)
 {
     engine::ScopedProfiler prof("project_c::Enemy::update");
 
-    auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
     if (hit_stop_remaining_seconds_ > 0.0f)
     {
         if (hit_stop_just_started_)
@@ -243,7 +241,7 @@ void project_c::Enemy::update(float dt)
         {
             return;
         }
-        if (!engineAnimationControllerSetPaused(animation_controller, false))
+        if (!engineAnimationControllerSetPaused(go_, false))
         {
             engineLog("Failed to resume enemy animation after hit-stop.\n");
         }
@@ -295,11 +293,11 @@ void project_c::Enemy::update(float dt)
     {
         state_ = States::DIE;
         set_attack_window_active(false);
-        if (!engineAnimationControllerLayerSetLooping(animation_controller, 0, false))
+        if (!engineAnimationControllerLayerSetLooping(go_, 0, false))
         {
             engineLog("Failed to disable looping for enemy death.\n");
         }
-        if (!engineAnimationControllerAnimationPlay(animation_controller, "Death_A", 0))
+        if (!engineAnimationControllerAnimationPlay(go_, "Death_A", 0))
         {
             engineLog("Failed to play enemy death animation.\n");
         }
@@ -329,13 +327,13 @@ void project_c::Enemy::update(float dt)
             {
                 weapon_->begin_swing();
             }
-            if (!engineAnimationControllerLayerSetLooping(animation_controller, 0, false))
+            if (!engineAnimationControllerLayerSetLooping(go_, 0, false))
             {
                 engineLog("Failed to disable looping for enemy attack.\n");
             }
-            if (!engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name()))
+            if (!engineAnimationControllerIsAnimationPlaying(go_, attack_data_.get_animation_name()))
             {
-                if (!engineAnimationControllerAnimationPlay(animation_controller, attack_data_.get_animation_name(), 0))
+                if (!engineAnimationControllerAnimationPlay(go_, attack_data_.get_animation_name(), 0))
                 {
                     engineLog("Failed to start enemy attack animation.\n");
                     state_ = States::DECISION_MAKE;
@@ -363,20 +361,20 @@ void project_c::Enemy::update(float dt)
     }
     case States::IDLE:
     {
-        if (!engineAnimationControllerLayerSetLooping(animation_controller, 0, true))
+        if (!engineAnimationControllerLayerSetLooping(go_, 0, true))
         {
             engineLog("Failed to enable looping for enemy idle.\n");
         }
-        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Idle"))
+        if (!engineAnimationControllerIsAnimationPlaying(go_, "Idle"))
         {
-            engineAnimationControllerAnimationPlay(animation_controller, "Idle", 0);
+            engineAnimationControllerAnimationPlay(go_, "Idle", 0);
         }
         state_ = States::DECISION_MAKE;
         break;
     }
     case States::ATTACK:
     {
-        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, attack_data_.get_animation_name()))
+        if (!engineAnimationControllerIsAnimationPlaying(go_, attack_data_.get_animation_name()))
         {
             state_ = States::DECISION_MAKE;
             set_attack_window_active(false);
@@ -393,7 +391,7 @@ void project_c::Enemy::update(float dt)
     }
     case States::DIE:
     {
-        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Death_A"))
+        if (!engineAnimationControllerIsAnimationPlaying(go_, "Death_A"))
         {
             my_scene_->unregister_script(this);
         }
@@ -409,13 +407,13 @@ void project_c::Enemy::update(float dt)
             state_ = States::DECISION_MAKE;
             break;
         }
-        if (!engineAnimationControllerLayerSetLooping(animation_controller, 0, true))
+        if (!engineAnimationControllerLayerSetLooping(go_, 0, true))
         {
             engineLog("Failed to enable looping for enemy movement.\n");
         }
-        if (!engineAnimationControllerIsAnimationPlaying(animation_controller, "Running_A"))
+        if (!engineAnimationControllerIsAnimationPlaying(go_, "Running_A"))
         {
-            engineAnimationControllerAnimationPlay(animation_controller, "Running_A", 0);
+            engineAnimationControllerAnimationPlay(go_, "Running_A", 0);
         }
         for (auto& node : path.nodes)
         {
@@ -478,8 +476,7 @@ void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_s
 
     hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, hit_stop_seconds);
     hit_stop_just_started_ = true;
-    const auto animation_controller = engineGameObjectGetAnimationControllerComponent(go_).controller;
-    if (!engineAnimationControllerSetPaused(animation_controller, true))
+    if (!engineAnimationControllerSetPaused(go_, true))
     {
         engineLog("Failed to pause enemy animation for hit-stop.\n");
     }

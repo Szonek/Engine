@@ -41,7 +41,7 @@ typedef uint32_t engine_material_t;
 typedef uint32_t engine_texture2d_t;
 typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_skin_t;
-typedef struct _engine_animation_controller_t engine_animation_controller_t;
+typedef uint32_t engine_animation_set_t;
 typedef uint32_t engine_shader_t;
 typedef uint32_t engine_animation_event_id_t;
 
@@ -425,8 +425,6 @@ ENGINE_API const char* engineSkinDescGetName(const engine_skin_desc_t* desc);
 ENGINE_API uint32_t engineSkinDescGetJointsCount(const engine_skin_desc_t* desc);
 ENGINE_API const char* engineSkinDescGetJointName(const engine_skin_desc_t* desc, size_t idx);
 
-typedef struct _engine_animation_desc_t engine_animation_desc_t;
-ENGINE_API const char* engineAnimationDescGetName(const engine_animation_desc_t* desc);
 
 // Model Node DESC
 typedef struct _engine_model_node_desc_t engine_model_node_desc_t;
@@ -460,7 +458,6 @@ ENGINE_API uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc
 ENGINE_API const engine_skin_desc_t* engineModelDescGetSkinDesc(const engine_model_desc_t* desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc);
 
-ENGINE_API const engine_animation_desc_t* engineModelDescGetAnimationDesc(const engine_model_desc_t* desc, size_t idx);
 ENGINE_API uint32_t engineModelDescGetAnimationsDescCount(const engine_model_desc_t* desc);
 
 // Skin: an asset shared by every instance of a skinned model (the skeleton and its binding to the mesh), named by
@@ -470,37 +467,28 @@ ENGINE_API engine_result_code_t engineSkinCreateFromDesc(const engine_skin_desc_
 ENGINE_API engine_skin_t engineSkinGetByName(const char* name);
 ENGINE_API void engineSkinDestroy(engine_skin_t skin);
 
-// Animation - by default layer with 0 and weight 1.0 is created.
-// A model description preloads and shares its clips across compatible skins.
-// Pass nullptr for model_desc to add animations dynamically after controller creation.
-// The controller drives the pose of the game object it's attached to (with an animation controller component next to
-// the skin component).
-ENGINE_API engine_animation_controller_t* engineCreateAnimationControllerWithSkin(engine_skin_t skin, const engine_model_desc_t* model_desc);
-ENGINE_API void engineDestroyAnimationController(engine_animation_controller_t* controller);
-ENGINE_API bool engineAnimationControllerSetPaused(engine_animation_controller_t* controller, bool paused);
-ENGINE_API bool engineAnimationControllerAddAnimation(engine_animation_controller_t* controller, const engine_animation_desc_t* desc);
-ENGINE_API engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_animation_controller_t* controller, const char* name, float* out);
-ENGINE_API bool engineAnimationControllerIsAnimationPlaying(engine_animation_controller_t* controller, const char* name);
-ENGINE_API bool engineAnimationControllerIsAnimationPlayingOnLayer(engine_animation_controller_t* controller, const char* name, size_t layer_id);
-ENGINE_API bool engineAnimationControllerAnimationPlay(engine_animation_controller_t* controller, const char* name, size_t layer_id);
+// Animation set: an asset with a model's animation clips compiled for one skin, named "<model file>#animations" and
+// shared by every controller of that skin.
+ENGINE_API engine_result_code_t engineAnimationSetCreateFromModelDesc(const engine_model_desc_t* model_desc, engine_skin_t skin, engine_animation_set_t* out);
+ENGINE_API engine_animation_set_t engineAnimationSetGetByName(const char* name);
+ENGINE_API void engineAnimationSetDestroy(engine_animation_set_t animation_set);
+
+// Animation controller: the runtime part of a game object's animation controller component, created and owned by the
+// engine when the component has an animation set and the game object has a skin. The functions below act on it through
+// the game object (like enginePhysicsAddForce); they fail (false / an error code) when it has none.
+ENGINE_API bool engineAnimationControllerSetPaused(engine_game_object_t game_object, bool paused);
+ENGINE_API engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_game_object_t game_object, const char* name, float* out);
+ENGINE_API bool engineAnimationControllerIsAnimationPlaying(engine_game_object_t game_object, const char* name);
+ENGINE_API bool engineAnimationControllerIsAnimationPlayingOnLayer(engine_game_object_t game_object, const char* name, size_t layer_id);
+ENGINE_API bool engineAnimationControllerAnimationPlay(engine_game_object_t game_object, const char* name, size_t layer_id);
 // Start fading in from current animation to 'new_animation' over 'duration' seconds
-ENGINE_API bool engineAnimationControllerAnimationCrossFade(engine_animation_controller_t* controller, const char* new_animation_name, size_t layer_id, float duration);
-// layers
-typedef enum _engine_animation_layer_mode_t
-{
-    ENGINE_ANIMATION_LAYER_MODE_OVERRIDE,
-    ENGINE_ANIMATION_LAYER_MODE_ADDITIVE
-} engine_animation_layer_mode_t;
-ENGINE_API bool engineAnimationControllerAddLayer(engine_animation_controller_t* controller, size_t id, float default_weight);
-ENGINE_API bool engineAnimationControllerRemoveLayer(engine_animation_controller_t* controller, size_t id);
-ENGINE_API bool engineAnimationControllerLayerSetWeight(engine_animation_controller_t* controller, size_t id, float new_weight);
+ENGINE_API bool engineAnimationControllerAnimationCrossFade(engine_game_object_t game_object, const char* new_animation_name, size_t layer_id, float duration);
+// layers: set up in the animation controller component; these change them while playing
+ENGINE_API bool engineAnimationControllerLayerSetWeight(engine_game_object_t game_object, size_t id, float new_weight);
 // Multiplies the playback speed of animations on this layer. Must be finite and greater than zero.
-ENGINE_API bool engineAnimationControllerLayerSetPlaybackRate(engine_animation_controller_t* controller, size_t id, float playback_rate);
+ENGINE_API bool engineAnimationControllerLayerSetPlaybackRate(engine_game_object_t game_object, size_t id, float playback_rate);
 // Restarts animations on this layer when they reach their end; disabled by default.
-ENGINE_API bool engineAnimationControllerLayerSetLooping(engine_animation_controller_t* controller, size_t id, bool looping);
-// Sets a layer's weight for the named joint and all its descendants.
-ENGINE_API bool engineAnimationControllerLayerSetJointWeight(engine_animation_controller_t* controller, size_t id, const char* joint_name, float weight);
-ENGINE_API bool engineAnimationControllerSetMode(engine_animation_controller_t* controller, size_t id, engine_animation_layer_mode_t mode);
+ENGINE_API bool engineAnimationControllerLayerSetLooping(engine_game_object_t game_object, size_t id, bool looping);
 // events
 typedef struct _engine_animation_event_info_t {
     float current_time;
@@ -512,8 +500,8 @@ typedef struct _engine_animation_event_t {
     void* user_data;       // Optional user data
 } engine_animation_event_t;
 
-ENGINE_API engine_result_code_t engineAnimationControllerAnimationAddEvent(engine_animation_controller_t* controller, const char* anim_name, engine_animation_event_t event, engine_animation_event_id_t* out_id);
-ENGINE_API engine_result_code_t engineAnimationControllerAnimationRemoveEvent(engine_animation_controller_t* controller, const char* anim_name, engine_animation_event_id_t id);
+ENGINE_API engine_result_code_t engineAnimationControllerAnimationAddEvent(engine_game_object_t game_object, const char* anim_name, engine_animation_event_t event, engine_animation_event_id_t* out_id);
+ENGINE_API engine_result_code_t engineAnimationControllerAnimationRemoveEvent(engine_game_object_t game_object, const char* anim_name, engine_animation_event_id_t id);
 /**
  * @struct engine_geometry_attribute_limit_t
  * @brief A structure representing the limits of a geometry attribute in the engine.

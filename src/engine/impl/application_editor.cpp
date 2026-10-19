@@ -4,7 +4,6 @@
 #include "math_helpers.h"
 #include "logger.h"
 #include "profiler.h"
-#include "skin.h"
 #include "animation_controller.h"
 #include "engine_string_impl_def.h"
 
@@ -20,7 +19,9 @@
 #include <fmt/format.h>
 
 #include <array>
+#include <cstring>
 #include <string>
+#include <string_view>
 #include <map>
 #include <numeric>
 #include <vector>
@@ -388,16 +389,36 @@ bool display_joint_attachment_component(const engine::Scene* scene, engine_joint
 
 bool display_animation_controller_component(const engine::Scene* scene, engine_animation_controller_component_t& c)
 {
-    const auto typed_controller = reinterpret_cast<engine::AnimationController*>(c.controller);
-    if (!typed_controller)
+    const auto name = scene->get_application()->get_animation_set_name(c.animations);
+    ImGui::Text("Animation set: %s", name.empty() ? "None" : name.c_str());
+
+    // layer setup; an edit reconfigures the layers of the same controller (its animation events stay)
+    bool changed = false;
+    const char* modes[] = { "Override", "Additive" };
+    for (std::uint32_t id = 0; id < c.layers_count && id < ENGINE_ANIMATION_CONTROLLER_MAX_LAYERS; id++)
     {
-        ImGui::Text("No animation controller assigned");
+        auto& layer = c.layers[id];
+        ImGui::PushID(static_cast<int>(id));
+        const auto layer_name = std::string_view(layer.name, strnlen(layer.name, ENGINE_ANIMATION_LAYER_NAME_MAX_LENGTH));
+        ImGui::SeparatorText((layer_name.empty() ? fmt::format("Layer {}", id) : fmt::format("Layer {} ({})", id, layer_name)).c_str());
+        changed |= ImGui::InputText("Name", layer.name, ENGINE_ANIMATION_LAYER_NAME_MAX_LENGTH);
+        std::int32_t mode = layer.mode;
+        if (ImGui::Combo("Mode", &mode, modes, IM_ARRAYSIZE(modes)))
+        {
+            layer.mode = static_cast<engine_animation_layer_mode_t>(mode);
+            changed = true;
+        }
+        changed |= ImGui::DragFloat("Weight", &layer.weight, 0.05f, 0.0f, 10.0f);
+        changed |= ImGui::Checkbox("Looping", &layer.looping);
+        for (std::uint32_t i = 0; i < layer.joint_weights_count && i < ENGINE_ANIMATION_LAYER_MAX_JOINT_WEIGHTS; i++)
+        {
+            ImGui::PushID(static_cast<int>(i));
+            changed |= ImGui::SliderFloat(layer.joint_weights[i].joint_name, &layer.joint_weights[i].weight, 0.0f, 1.0f);
+            ImGui::PopID();
+        }
+        ImGui::PopID();
     }
-    else
-    {
-        ImGui::Text("Animation controller assigned");
-    }
-    return false;
+    return changed;
 }
 
 
@@ -929,6 +950,8 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
     fps_values[fps_idx % fps_values.size()] = 1000.0f / dt;
     fps_idx++;
     ImGui::Text("FPS: %d", static_cast<std::uint32_t>(std::accumulate(fps_values.begin(), fps_values.end(), 0) / (fps_idx < fps_values.size() ? fps_idx : fps_values.size())));
+    // they are owned by their game objects: a number that keeps growing is a leak
+    ImGui::Text("Animation controllers: %zu", engine::AnimationController::get_live_count());
 
     auto& render_settings = renderer_.get_settings();
     ImGui::SeparatorText("Shadows");

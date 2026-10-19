@@ -134,5 +134,9 @@ void engine::initialize_joint_attachment_component(entt::registry& registry, ent
 void engine::initialize_animation_controller_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_animation_controller_component_t>(registry, entity);
-    comp.controller = nullptr;
+    comp.animations = ENGINE_INVALID_OBJECT_HANDLE;
+    // one plain layer: enough to play animations
+    comp.layers_count = 1;
+    comp.layers[0].mode = ENGINE_ANIMATION_LAYER_MODE_OVERRIDE;
+    comp.layers[0].weight = 1.0f;
 }

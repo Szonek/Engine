@@ -1,5 +1,6 @@
 #pragma once
 #include "mesh_defs.h"
+#include "components/animation_controller_component.h"
 
 #include <ozz/animation/runtime/skeleton.h>
 #include <ozz/animation/runtime/animation.h>
@@ -7,12 +8,12 @@
 #include <ozz/base/memory/unique_ptr.h>
 #include <ozz/base/containers/vector.h>
 #include <ozz/base/maths/simd_math.h>
+#include <ozz/base/maths/soa_transform.h>
 
 #include <optional>
 #include <unordered_map>
 #include <functional>
 #include <memory>
-#include <mutex>
 #include <utility>
 
 namespace engine
@@ -47,6 +48,8 @@ struct CompiledAnimationData
     ozz::unique_ptr<ozz::animation::Animation> additive_animation;
 };
 
+// A model's animation clips compiled for one skin. Shared by every controller of that skin: the "animation set"
+// asset in the application's atlas, named "<model file>#animations".
 class AnimationLibrary
 {
 public:
@@ -59,19 +62,6 @@ public:
 private:
     std::vector<std::string> joint_names_;
     std::unordered_map<std::string, std::shared_ptr<const CompiledAnimationData>> animations_;
-};
-
-// the animation libraries built from one model, by the skin asset they were built for
-class AnimationLibraryCache
-{
-public:
-    // The library built for this skin handle, or nullptr. Skin handles are atlas slots and get reused once a skin is
-    // destroyed, so an entry whose skeleton doesn't match `skin` is stale: it is dropped and nullptr returned.
-    // Callers hold `mutex`.
-    std::shared_ptr<const AnimationLibrary> find(std::uint32_t skin_handle, const Skin& skin);
-
-    std::mutex mutex;
-    std::unordered_map<std::uint32_t, std::shared_ptr<const AnimationLibrary>> libraries;
 };
 
 class SamplingJob
@@ -101,21 +91,28 @@ private:
 class AnimationController
 {
 public:
-    AnimationController(const Skin* skin, std::shared_ptr<const AnimationLibrary> animation_library = {});
+    AnimationController(const Skin* skin, std::shared_ptr<const AnimationLibrary> animation_library);
+    AnimationController(const AnimationController&) = delete;
+    AnimationController(AnimationController&&) = delete;
+    AnimationController& operator=(const AnimationController&) = delete;
+    AnimationController& operator=(AnimationController&&) = delete;
+    ~AnimationController();
+
+    // how many controllers exist (they are owned by their game objects, so this shows leaks)
+    static std::size_t get_live_count();
 
     void update(float dt, SkinPose& pose);
+    const Skin* get_skin() const { return skin_; }
     bool set_paused(bool paused);
 
-    bool add_layer(std::size_t id, float weight);
-    bool remove_layer(std::size_t id);
+    // Replaces the layers with the component's setup (layer id = index). Keeps the animations and their events.
+    // false (and logs why) when a layer can't be set up as described, e.g. an unknown joint.
+    bool configure_layers(const engine_animation_controller_component_t& component);
     bool has_layer(std::size_t id) const;
     bool set_layer_weight(std::size_t id, float weight);
     bool set_layer_playback_rate(std::size_t id, float playback_rate);
     bool set_layer_looping(std::size_t id, bool looping);
-    bool set_layer_joint_weight(std::size_t id, const std::string& joint_name, float weight);
-    bool set_layer_mode(std::size_t id, LayerBlendMode mode);
 
-    bool add_animation(const AnimationClipDesc& animation_clip);
     bool play(const std::string& animation_name, std::size_t layer_id);
     bool cross_fade_to(const std::string& animation_name, std::size_t layer_id, float duration);
     bool is_playing(const std::string& animation_name) const;
@@ -126,6 +123,9 @@ public:
     bool remove_event(const std::string& animation_name, std::uint32_t id);
 
 private:
+    bool add_layer(std::size_t id, float weight, LayerBlendMode mode, bool looping);
+    bool set_layer_joint_weight(std::size_t id, const std::string& joint_name, float weight);
+
     struct AnimationData
     {
         std::shared_ptr<const CompiledAnimationData> compiled;

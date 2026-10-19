@@ -447,6 +447,36 @@ void engine::Application::destroy_skin(std::uint32_t idx)
     skins_atlas_.remove_object(idx);
 }
 
+std::uint32_t engine::Application::add_animation_set(std::string_view name, std::shared_ptr<const AnimationLibrary> animation_set)
+{
+    return animation_sets_atlas_.add_object(name, std::move(animation_set));
+}
+
+std::uint32_t engine::Application::get_animation_set(std::string_view name) const
+{
+    return animation_sets_atlas_.get_object(name);
+}
+
+std::shared_ptr<const engine::AnimationLibrary> engine::Application::get_animation_set(std::uint32_t idx) const
+{
+    if (idx == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return nullptr;
+    }
+    const auto* animation_set = animation_sets_atlas_.get_object(idx);
+    return animation_set ? *animation_set : nullptr;
+}
+
+std::string engine::Application::get_animation_set_name(std::uint32_t idx) const
+{
+    return animation_sets_atlas_.get_object_name(idx);
+}
+
+void engine::Application::destroy_animation_set(std::uint32_t idx)
+{
+    animation_sets_atlas_.remove_object(idx);
+}
+
 std::uint32_t engine::Application::add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name)
 {
     return shader_atlas_.add_object(name, Shader(vertex_shader_name, fragment_shader_name));

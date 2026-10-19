@@ -13,7 +13,7 @@ project_c::Prefab::Prefab(Prefab&& rhs) noexcept
     std::swap(textures_, rhs.textures_);
     std::swap(materials_, rhs.materials_);
     std::swap(skins_, rhs.skins_);
-    std::swap(animation_controllers_, rhs.animation_controllers_);
+    std::swap(animation_set_, rhs.animation_set_);
 }
 
 project_c::Prefab& project_c::Prefab::operator=(Prefab&& rhs) noexcept
@@ -25,7 +25,7 @@ project_c::Prefab& project_c::Prefab::operator=(Prefab&& rhs) noexcept
         std::swap(textures_, rhs.textures_);
         std::swap(materials_, rhs.materials_);
         std::swap(skins_, rhs.skins_);
-        std::swap(animation_controllers_, rhs.animation_controllers_);
+        std::swap(animation_set_, rhs.animation_set_);
     }
     return *this;
 }
@@ -45,13 +45,9 @@ project_c::Prefab::~Prefab()
                 engineTexture2DDestroy(t.obj);
             }
         }
-        // controllers first: they use the skin assets
-        for (const auto& anim_controller : animation_controllers_)
+        if (animation_set_ != ENGINE_INVALID_OBJECT_HANDLE)
         {
-            if (anim_controller)
-            {
-                engineDestroyAnimationController(anim_controller);
-            }
+            engineAnimationSetDestroy(animation_set_);
         }
         for (const auto& skin : skins_)
         {
@@ -148,6 +144,17 @@ project_c::Prefab::Prefab(engine_result_code_t& engine_error_code, std::string_v
         }
         skins_.push_back(skin);
     }
+
+    // the model's animations, compiled once for its skin; every instance's controller plays them
+    if (!skins_.empty() && engineModelDescGetAnimationsDescCount(model_desc_) > 0)
+    {
+        engine_error_code = engineAnimationSetCreateFromModelDesc(model_desc_, skins_.front(), &animation_set_);
+        if (engine_error_code != ENGINE_RESULT_CODE_OK)
+        {
+            engineLog("Failed creating animation set for loaded model. Exiting!\n");
+            return;
+        }
+    }
 }
 
 project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp)
@@ -161,19 +168,6 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
     // the game object owning this instance's skin (and its pose); skinned meshes and joint attachments point at it
     engine_game_object_t skin_owner = ENGINE_INVALID_GAME_OBJECT_ID;
     std::vector<engine_game_object_t> skinned_meshes;
-    engine_animation_controller_t* anim_controller = nullptr;
-    const auto animations_count = engineModelDescGetAnimationsDescCount(model_desc_);
-    if (animations_count > 0)
-    {
-        // create animation controller
-        anim_controller = engineCreateAnimationControllerWithSkin(skin_handle, model_desc_);
-        if (!anim_controller)
-        {
-            engineLog("Failed creating animation controller for loaded model. Exiting!\n");
-            return ret;
-        }
-        animation_controllers_.push_back(anim_controller);
-    }
 
     std::map<std::uint32_t, engine_game_object_t> node_id_to_game_object;
     const auto nodes_count = engineModelDescGetNodesDescCount(model_desc_);
@@ -205,11 +199,11 @@ project_c::PrefabResult project_c::Prefab::instantiate(engine::IScene* scene_cpp
                 skin_owner = go;
             }
 
-            // and owner of the animation controller
-            if (anim_controller)
+            // and owner of the animation controller (the engine creates one for this instance)
+            if (animation_set_ != ENGINE_INVALID_OBJECT_HANDLE)
             {
                 auto ac = engineGameObjectAddAnimationControllerComponent(go);
-                ac.controller = anim_controller;
+                ac.animations = animation_set_;
                 engineGameObjectUpdateAnimationControllerComponent(go, &ac);
                 log(std::format("\t[{}] has added animation controller component with name: {}\n", go, skin_name));
             }

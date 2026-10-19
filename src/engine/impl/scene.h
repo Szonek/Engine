@@ -19,6 +19,7 @@ class Application;
 class Renderer;
 class Skin;
 struct SkinPose;
+class AnimationController;
 class Scene
 {
 public:
@@ -44,6 +45,9 @@ public:
     entt::entity create_transient_entity();
     void destroy_entity(entt::entity entity);
     bool is_valid_entity(entt::entity entity) const;
+
+    // the engine-owned animation controller of the entity, or nullptr
+    AnimationController* get_animation_controller(entt::entity entity);
 
     // EntityIdRegistry::INVALID_ID for an entity without a persistent ID
     std::uint64_t get_persistent_id(entt::entity entity) const;
@@ -125,6 +129,8 @@ private:
     void update_world_transforms();
     // (re)creates the pose of a skin instance when its skin component gets a skin, removes it when it loses one
     void on_skin_component_changed(entt::registry& registry, entt::entity entity);
+    // (re)creates the entity's animation controller from its animation set and skin, or removes it when either is missing
+    void on_animation_controller_component_changed(entt::registry& registry, entt::entity entity);
     // the pose and skin asset of the skin instance owned by `skin_owner`, or {nullptr, nullptr} (both or neither)
     std::pair<const SkinPose*, const Skin*> get_skin_instance(engine_game_object_t skin_owner) const;
     // Collects cameras and everything visible in this scene into render_data and submits it to the renderer. No rendering API calls happen here.

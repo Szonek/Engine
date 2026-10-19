@@ -3,14 +3,9 @@
 #include "mesh_defs.h"
 
 #include <ozz/animation/runtime/skeleton.h>
-#include <ozz/animation/runtime/animation.h>
 #include <ozz/base/memory/unique_ptr.h>
 #include <ozz/base/containers/vector.h>
-#include <ozz/base/maths/soa_transform.h>
-#include <ozz/animation/runtime/sampling_job.h>
-
-
-#include <span>
+#include <ozz/base/maths/simd_math.h>
 
 namespace engine
 {

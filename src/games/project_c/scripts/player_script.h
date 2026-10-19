@@ -221,8 +221,8 @@ private:
     Weapon* weapon_;
     std::uint64_t coins_ = 0;
 
-    bool start_attack(engine_animation_controller_t* animation_controller, std::size_t combo_index);
-    bool start_dodge(engine_animation_controller_t* animation_controller, const glm::vec2& move_input, const glm::quat& rotation);
+    bool start_attack(std::size_t combo_index);
+    bool start_dodge(const glm::vec2& move_input, const glm::quat& rotation);
 
     // traversal
     TraversalState traversal_state_ = TraversalState::eNone;
@@ -238,12 +238,12 @@ private:
     TraversalPlan find_nearest_traversal(const glm::vec3& position) const;
     TraversalPlan plan_vault(const glm::vec3& position, const ProbeHit& low_hit) const;
     TraversalPlan plan_climb_down(const glm::vec3& position, const glm::vec3& direction) const;
-    void execute_traversal(engine_animation_controller_t* animation_controller, const TraversalPlan& plan);
-    bool try_start_mantle(engine_animation_controller_t* animation_controller, const glm::vec3& position);
-    void start_climbing(engine_animation_controller_t* animation_controller, const glm::vec3& wall_normal, const glm::vec3& position);
-    void start_traversal_move(engine_animation_controller_t* animation_controller, const TraversalMove& move, const char* animation_name);
-    void update_traversal(engine_animation_controller_t* animation_controller, float delta_seconds, bool drop_pressed);
-    void stop_traversal(engine_animation_controller_t* animation_controller, float regrab_cooldown);
+    void execute_traversal(const TraversalPlan& plan);
+    bool try_start_mantle(const glm::vec3& position);
+    void start_climbing(const glm::vec3& wall_normal, const glm::vec3& position);
+    void start_traversal_move(const TraversalMove& move, const char* animation_name);
+    void update_traversal(float delta_seconds, bool drop_pressed);
+    void stop_traversal(float regrab_cooldown);
     void create_traversal_marker();
     void update_traversal_marker(const TraversalPlan& plan, float delta_seconds);
     void set_kinematic(bool kinematic);
