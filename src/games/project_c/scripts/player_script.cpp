@@ -441,12 +441,14 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
         ac.layers_count = 2;
         auto& locomotion = ac.layers[LOCOMOTION_LAYER_ID];
         locomotion = {};
+        std::strncpy(locomotion.name, "locomotion", ENGINE_ANIMATION_LAYER_NAME_MAX_LENGTH - 1);
         locomotion.mode = ENGINE_ANIMATION_LAYER_MODE_OVERRIDE;
         locomotion.weight = 1.0f;
         locomotion.looping = true;
 
         auto& combat = ac.layers[COMBAT_LAYER_ID];
         combat = {};
+        std::strncpy(combat.name, "combat", ENGINE_ANIMATION_LAYER_NAME_MAX_LENGTH - 1);
         combat.mode = ENGINE_ANIMATION_LAYER_MODE_OVERRIDE;
         combat.weight = 9.0f;
         constexpr std::array<std::pair<const char*, float>, 4> combat_mask = { {

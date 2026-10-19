@@ -114,6 +114,8 @@ TEST_F(AnimationControllerTest, PlayerLayersComeFromItsComponent)
     const auto go = player->get_game_object();
     const auto ac = engineGameObjectGetAnimationControllerComponent(go);
     ASSERT_EQ(ac.layers_count, 2u);
+    EXPECT_STREQ(ac.layers[0].name, "locomotion");
+    EXPECT_STREQ(ac.layers[1].name, "combat");
     EXPECT_TRUE(ac.layers[0].looping);
     EXPECT_EQ(ac.layers[1].joint_weights_count, 4u);
     EXPECT_STREQ(ac.layers[1].joint_weights[3].joint_name, "spine");

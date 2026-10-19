@@ -12,6 +12,7 @@ extern "C"
 #define ENGINE_ANIMATION_CONTROLLER_MAX_LAYERS 4
 #define ENGINE_ANIMATION_LAYER_MAX_JOINT_WEIGHTS 8
 #define ENGINE_ANIMATION_JOINT_NAME_MAX_LENGTH 64
+#define ENGINE_ANIMATION_LAYER_NAME_MAX_LENGTH 32
 
 typedef uint32_t engine_animation_set_t;
 
@@ -32,6 +33,8 @@ typedef struct _engine_animation_layer_joint_weight_t
 // LayerSetLooping change them while playing.
 typedef struct _engine_animation_layer_desc_t
 {
+    // optional, only descriptive (e.g. shown by the editor); scripts address layers by id
+    char name[ENGINE_ANIMATION_LAYER_NAME_MAX_LENGTH];
     engine_animation_layer_mode_t mode;
     float weight;
     bool looping;

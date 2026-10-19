@@ -19,7 +19,9 @@
 #include <fmt/format.h>
 
 #include <array>
+#include <cstring>
 #include <string>
+#include <string_view>
 #include <map>
 #include <numeric>
 #include <vector>
@@ -397,7 +399,9 @@ bool display_animation_controller_component(const engine::Scene* scene, engine_a
     {
         auto& layer = c.layers[id];
         ImGui::PushID(static_cast<int>(id));
-        ImGui::SeparatorText(fmt::format("Layer {}", id).c_str());
+        const auto layer_name = std::string_view(layer.name, strnlen(layer.name, ENGINE_ANIMATION_LAYER_NAME_MAX_LENGTH));
+        ImGui::SeparatorText((layer_name.empty() ? fmt::format("Layer {}", id) : fmt::format("Layer {} ({})", id, layer_name)).c_str());
+        changed |= ImGui::InputText("Name", layer.name, ENGINE_ANIMATION_LAYER_NAME_MAX_LENGTH);
         std::int32_t mode = layer.mode;
         if (ImGui::Combo("Mode", &mode, modes, IM_ARRAYSIZE(modes)))
         {
