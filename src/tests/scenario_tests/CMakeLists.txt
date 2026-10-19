@@ -11,6 +11,7 @@ add_executable(${SCENARIO_TESTS_NAME}
 	animation_controller_tests.cpp
 	asset_name_tests.cpp
 	gameplay_tests.cpp
+	hierarchy_tests.cpp
 	harness_tests.cpp
 	level_tests.cpp
 	physics_tests.cpp

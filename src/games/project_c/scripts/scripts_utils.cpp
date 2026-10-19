@@ -7,19 +7,23 @@
 
 #include <array>
 
+std::vector<engine_game_object_t> project_c::utils::get_children(engine_game_object_t go)
+{
+    std::vector<engine_game_object_t> ret(engineGameObjectGetChildrenCount(go));
+    for (std::size_t i = 0; i < ret.size(); i++)
+    {
+        ret[i] = engineGameObjectGetChild(go, i);
+    }
+    return ret;
+}
+
 void project_c::utils::delete_game_objects_hierarchy(engine_game_object_t go)
 {
-    if (engineGameObjectHasChildrenComponent(go))
+    // a copy: destroying a child changes the list
+    for (const auto child : get_children(go))
     {
-        auto cc = engineGameObjectGetChildrenComponent(go);
-        for (auto i = 0; i < std::size(cc.child); i++)
-        {
-            if (cc.child[i] != ENGINE_INVALID_GAME_OBJECT_ID)
-            {
-                delete_game_objects_hierarchy(cc.child[i]);
-                engineGameObjectDestroy(cc.child[i]);
-            }
-        }
+        delete_game_objects_hierarchy(child);
+        engineGameObjectDestroy(child);
     }
 }
 

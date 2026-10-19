@@ -1,29 +1,19 @@
 #include "enviorment_script.h"
 #include "scripts_utils.h"
 #include "iscene.h"
-#include "iapplication.h"
+
+#include <algorithm>
+#include <cstring>
+#include <string>
 
 namespace
 {
-void add_parent_component_for_editor(engine::IScene& my_scene, engine_game_object_t go , std::string_view parent_name)
+// lists the game object in the given folder of the editor's scene hierarchy
+void set_editor_folder(engine_game_object_t go, std::string_view path)
 {
-    if (!my_scene.get_app()->is_editor_enabled())
-    {
-        return;
-    }
-    auto parent_go = project_c::utils::get_game_objects_with_name(parent_name);
-    if (parent_go.empty())
-    {
-        const auto env_parent = engineGameObjectCreate();
-        auto nc = engineGameObjectAddNameComponent(env_parent);
-        std::strncpy(nc.name, parent_name.data(), ENGINE_ENTITY_NAME_MAX_LENGTH);
-        engineGameObjectUpdateNameComponent(env_parent, &nc);
-        parent_go.push_back(env_parent);
-    }
-
-    auto p = engineGameObjectAddParentComponent(go);
-    p.parent = parent_go.front();
-    engineGameObjectUpdateParentComponent(go, &p);
+    auto fc = engineGameObjectAddFolderComponent(go);
+    std::strncpy(fc.path, path.data(), std::min<std::size_t>(path.size(), ENGINE_FOLDER_PATH_MAX_LENGTH - 1));
+    engineGameObjectUpdateFolderComponent(go, &fc);
 }
 } // namespace 
 
@@ -79,7 +69,7 @@ project_c::Wall::Wall(engine::IScene* my_scene, engine_game_object_t go, float o
 project_c::FloorOutsideRegion::FloorOutsideRegion(engine::IScene* my_scene, engine_game_object_t go)
     : BaseNode(my_scene, go, "primitive-cube")
 {
-    add_parent_component_for_editor(*my_scene, go_, "enviorment");
+    set_editor_folder(go_, "environment/primitive-cube");
 
     auto tc = engineGameObjectGetTransformComponent(go_);
     tc.scale[0] = 0.25f;
@@ -235,7 +225,7 @@ project_c::SpotLight::SpotLight(engine::IScene* my_scene)
 project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x, float offset_z)
     : BaseNode(my_scene, "debug-path-node")
 {
-    add_parent_component_for_editor(*my_scene, go_, "debug_path");
+    set_editor_folder(go_, "debug_path");
 
     auto tc = engineGameObjectAddTransformComponent(go_);
     tc.position[0] = offset_x;
@@ -266,12 +256,12 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x
 project_c::EnviormentBaseScript::EnviormentBaseScript(engine::IScene* my_scene, engine_game_object_t go, std::string_view name)
     : BaseNode(my_scene, go, name)
 {
-    add_parent_component_for_editor(*my_scene, go_, "enviorment");
+    set_editor_folder(go_, std::string("environment/") + std::string(name));
 }
 
 project_c::LightBaseScript::LightBaseScript(engine::IScene* my_scene, std::string_view name)
     : BaseNode(my_scene, name)
 {
-    add_parent_component_for_editor(*my_scene, go_, "lights");
+    set_editor_folder(go_, "lights");
 }
 

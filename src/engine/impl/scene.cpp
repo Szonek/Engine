@@ -10,6 +10,7 @@
 #include "components_internals/outline_component.h"
 #include "components_internals/skin_pose_component.h"
 #include "components_internals/animation_controller_internal_component.h"
+#include "components_internals/children_internal_component.h"
 #include "profiler.h"
 #include "engine_vector_impl_def.h"
 #include "skin.h"
@@ -31,6 +32,7 @@
 #include "imgui/imgui.h"
 #include "imguizmo/ImGuizmo.h"
 
+#include <algorithm>
 #include <cmath>
 
 
@@ -43,46 +45,28 @@ static inline void update_parent_component(entt::registry& registry, entt::entit
         return;
     }
     const auto parent_entt = static_cast<entt::entity>(parent.parent);
-    engine_children_component_t* cc = registry.try_get<engine_children_component_t>(parent_entt);
-    if (!cc)
+    auto& children = registry.get_or_emplace<engine::children_internal_component_t>(parent_entt).children;
+    // an update which keeps the parent must not list the child twice
+    if (std::find(children.begin(), children.end(), entity) == children.end())
     {
-        cc = &registry.emplace<engine_children_component_t>(parent_entt);
+        children.push_back(entity);
     }
-    for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
-    {
-        if (cc->child[i] == ENGINE_INVALID_GAME_OBJECT_ID)
-        {
-            cc->child[i] = static_cast<std::uint32_t>(entity);
-            return;
-        }
-              
-    }
-    engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has no more space for children. Are you sure you are doing valid thing?\n"));
 }
 
 static inline void destroy_parent_component(entt::registry& registry, entt::entity entity)
 {
     const auto parent_entt = static_cast<entt::entity>(registry.get<engine_parent_component_t>(entity).parent);
-    auto& cc = registry.get<engine_children_component_t>(parent_entt);
-    std::size_t child_counter = 0;
-    for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
-    {
-        if (cc.child[i] == static_cast<std::uint32_t>(entity))
-        {
-            cc.child[i] = ENGINE_INVALID_GAME_OBJECT_ID;
-        }
-    }
+    auto& children = registry.get<engine::children_internal_component_t>(parent_entt).children;
+    children.erase(std::remove(children.begin(), children.end(), entity), children.end());
 }
 
 static inline void destroy_children_component(entt::registry& registry, entt::entity entity)
 {
-    auto& cc = registry.get<engine_children_component_t>(entity);
-    for (auto i = 0; i < ENGINE_MAX_CHILDREN; i++)
+    // a copy: removing a child's parent component removes the child from this list
+    const auto children = registry.get<engine::children_internal_component_t>(entity).children;
+    for (const auto child : children)
     {
-        if (cc.child[i] != ENGINE_INVALID_GAME_OBJECT_ID)
-        {
-            registry.erase<engine_parent_component_t>(static_cast<entt::entity>(cc.child[i]));
-        }
+        registry.erase<engine_parent_component_t>(child);
     }
 }
 
@@ -142,6 +126,7 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, Renderer& renderer, c
     entity_registry_.on_construct<engine_material_component_t>().connect<&initialize_material_component>();
     entity_registry_.on_construct<engine_parent_component_t>().connect<&initialize_parent_component>();
     entity_registry_.on_construct<engine_name_component_t>().connect<&initialize_name_component>();
+    entity_registry_.on_construct<engine_folder_component_t>().connect<&initialize_folder_component>();
     entity_registry_.on_construct<engine_camera_component_t>().connect<&initialize_camera_component>();
     entity_registry_.on_construct<engine_camera_component_t>().connect<&entt::registry::emplace<camera_internal_component_t>>();
     entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
@@ -162,7 +147,7 @@ engine::Scene::Scene(Application* app, RenderContext& rdx, Renderer& renderer, c
     
     entity_registry_.on_update<engine_parent_component_t>().connect<&update_parent_component>();
     entity_registry_.on_destroy<engine_parent_component_t>().connect<&destroy_parent_component>();
-    entity_registry_.on_destroy<engine_children_component_t>().connect<&destroy_children_component>();
+    entity_registry_.on_destroy<children_internal_component_t>().connect<&destroy_children_component>();
 
     entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<physcic_internal_component_t>>();
     entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<physcic_internal_component_t>>();
@@ -771,6 +756,12 @@ void engine::Scene::on_animation_controller_component_changed(entt::registry& re
         log::log(log::LogLevel::eError, fmt::format("[Entity: {}] Some animation layers couldn't be set up as described.\n", static_cast<std::uint32_t>(entity)));
     }
     registry.emplace<animation_controller_internal_component_t>(entity, std::move(controller), animation_set_handle);
+}
+
+std::span<const entt::entity> engine::Scene::get_children(entt::entity entity) const
+{
+    const auto* children = entity_registry_.try_get<children_internal_component_t>(entity);
+    return children ? std::span<const entt::entity>(children->children) : std::span<const entt::entity>();
 }
 
 engine::AnimationController* engine::Scene::get_animation_controller(entt::entity entity)

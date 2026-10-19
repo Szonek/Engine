@@ -5,6 +5,7 @@
 #include "components/light_component.h"
 #include "components/transform_component.h"
 #include "components/name_component.h"
+#include "components/folder_component.h"
 #include "components/mesh_component.h"
 #include "components/material_component.h"
 #include "components/rigid_body_component.h"
@@ -563,6 +564,13 @@ ENGINE_API void engineGameObjectRemoveNameComponent(engine_game_object_t game_ob
 ENGINE_API bool engineGameObjectHasNameComponent(engine_game_object_t game_object);
 ENGINE_API void engineComponentViewAttachNameComponent(engine_component_view_t view);
 
+// folder component
+ENGINE_API engine_folder_component_t engineGameObjectAddFolderComponent(engine_game_object_t game_object);
+ENGINE_API engine_folder_component_t engineGameObjectGetFolderComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateFolderComponent(engine_game_object_t game_object, const engine_folder_component_t* comp);
+ENGINE_API void engineGameObjectRemoveFolderComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasFolderComponent(engine_game_object_t game_object);
+
 // transform component
 ENGINE_API engine_tranform_component_t engineGameObjectAddTransformComponent(engine_game_object_t game_object);
 ENGINE_API engine_tranform_component_t engineGameObjectGetTransformComponent(engine_game_object_t game_object);
@@ -657,9 +665,11 @@ ENGINE_API void engineGameObjectUpdateParentComponent(engine_game_object_t game_
 ENGINE_API void engineGameObjectRemoveParentComponent(engine_game_object_t game_object);
 ENGINE_API bool engineGameObjectHasParentComponent(engine_game_object_t game_object);
 
-// children component - only getters - it's managed internally by engine and user can't update its state 
-ENGINE_API engine_children_component_t engineGameObjectGetChildrenComponent(engine_game_object_t game_object);
-ENGINE_API bool engineGameObjectHasChildrenComponent(engine_game_object_t game_object);
+// children: the game objects whose parent component points at the given game object, in the order they were parented.
+// It's managed by the engine: parent components are all there is to change. Any change of the hierarchy invalidates
+// the indices, so copy the children first if you destroy or reparent them while iterating.
+ENGINE_API size_t engineGameObjectGetChildrenCount(engine_game_object_t game_object);
+ENGINE_API engine_game_object_t engineGameObjectGetChild(engine_game_object_t game_object, size_t index); // ENGINE_INVALID_GAME_OBJECT_ID when out of range
 #ifdef __cplusplus
 }
 #endif  // #ifndef __cplusplus

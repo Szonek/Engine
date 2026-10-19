@@ -88,6 +88,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/components_internals/skin_pose_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/animation_controller_internal_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/prefab_instance_component.h
+	${ENGINE_SOURCES_DIR}/components_internals/children_internal_component.h
 	
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.h
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.cpp
@@ -130,6 +131,7 @@ set(ENGINE_API_SOURCES
 	${ENGINE_API_COMPONENTS}/mesh_component.h
 	${ENGINE_API_COMPONENTS}/transform_component.h
 	${ENGINE_API_COMPONENTS}/name_component.h
+	${ENGINE_API_COMPONENTS}/folder_component.h
 	${ENGINE_API_COMPONENTS}/rigid_body_component.h
 	${ENGINE_API_COMPONENTS}/collider_component.h
     ${ENGINE_API_COMPONENTS}/parent_component.h

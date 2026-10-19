@@ -84,6 +84,11 @@ void engine::initialize_name_component(entt::registry& registry, entt::entity en
     auto& comp = get_zero_init_component<engine_name_component_t>(registry, entity);
 }
 
+void engine::initialize_folder_component(entt::registry& registry, entt::entity entity)
+{
+    get_zero_init_component<engine_folder_component_t>(registry, entity);
+}
+
 void engine::initialize_camera_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_camera_component_t>(registry, entity);

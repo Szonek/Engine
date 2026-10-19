@@ -23,6 +23,7 @@
 #include <string>
 #include <string_view>
 #include <map>
+#include <memory>
 #include <numeric>
 #include <vector>
 
@@ -95,7 +96,6 @@ struct entity_node_t
     entity_node_t* parent = nullptr;
     std::vector<entity_node_t*> children;
 
-    bool displayed = false;
 };
 
 inline void traverse_hierarchy(entity_node_t* node, std::function<void(entity_node_t*)> fn)
@@ -124,7 +124,6 @@ inline bool is_entity_parent_of(entt::entity parent, entt::entity child, engine:
 inline void display_node(entity_node_t* node, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_node");
-    node->displayed = true;
     uint32_t dispaly_flags = ctx.get_selected_entity() == node->entity ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None;
     //dispaly_flags |= ImGuiTreeNodeFlags_DefaultOpen;
     dispaly_flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -225,6 +224,132 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
             {
                 display_node(child, scene, commands, ctx);
             }
+        }
+        ImGui::TreePop();
+    }
+}
+
+// A folder of the scene hierarchy. The game objects without a parent are listed in the folder their folder component
+// names; folders nest along the '/' separated path.
+struct folder_node_t
+{
+    // from the hierarchy root, e.g. "environment/walls"; "" for the root
+    std::string path;
+    std::map<std::string, std::unique_ptr<folder_node_t>> folders;
+    std::vector<entity_node_t*> entities;
+};
+
+// the folder path of the game object without empty segments ("a//b/" is "a/b")
+inline std::string get_folder_path(const engine::Scene* scene, entt::entity entity)
+{
+    if (!scene->has_component<engine_folder_component_t>(entity))
+    {
+        return "";
+    }
+    const auto* folder = scene->get_component<engine_folder_component_t>(entity);
+    const std::string_view path(folder->path, strnlen(folder->path, ENGINE_FOLDER_PATH_MAX_LENGTH));
+    std::string ret;
+    std::size_t begin = 0;
+    while (begin <= path.size())
+    {
+        auto end = path.find('/', begin);
+        end = end == std::string_view::npos ? path.size() : end;
+        if (end > begin)
+        {
+            ret += (ret.empty() ? "" : "/") + std::string(path.substr(begin, end - begin));
+        }
+        begin = end + 1;
+    }
+    return ret;
+}
+
+inline folder_node_t& get_or_create_folder(folder_node_t& root, std::string_view path)
+{
+    auto* folder = &root;
+    std::size_t begin = 0;
+    while (begin < path.size())
+    {
+        auto end = path.find('/', begin);
+        end = end == std::string_view::npos ? path.size() : end;
+        auto& sub = folder->folders[std::string(path.substr(begin, end - begin))];
+        if (!sub)
+        {
+            sub = std::make_unique<folder_node_t>();
+            sub->path = std::string(path.substr(0, end));
+        }
+        folder = sub.get();
+        begin = end + 1;
+    }
+    return *folder;
+}
+
+inline std::size_t count_folder_entities(const folder_node_t& folder)
+{
+    auto count = folder.entities.size();
+    for (const auto& [name, sub] : folder.folders)
+    {
+        count += count_folder_entities(*sub);
+    }
+    return count;
+}
+
+// whether `folder_path` is `path` or one of its parent folders
+inline bool is_folder_on_path(std::string_view folder_path, std::string_view path)
+{
+    return path == folder_path || (path.size() > folder_path.size() && path.substr(0, folder_path.size()) == folder_path && path[folder_path.size()] == '/');
+}
+
+// the folder of the top parent of the entity: the folder the entity is listed in
+inline std::string get_listed_folder_path(const engine::Scene* scene, entt::entity entity)
+{
+    while (scene->has_component<engine_parent_component_t>(entity))
+    {
+        entity = static_cast<entt::entity>(scene->get_component<engine_parent_component_t>(entity)->parent);
+    }
+    return get_folder_path(scene, entity);
+}
+
+inline void display_folder(const std::string& name, folder_node_t& folder, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
+{
+    // if we have selected entity by mouse then open all folders of selected entity for easier naviation in the scene panel
+    if (ctx.has_selected_entity() && ctx.is_forced_open_selected_parents())
+    {
+        ImGui::SetNextItemOpen(is_folder_on_path(folder.path, get_listed_folder_path(scene, ctx.get_selected_entity())));
+    }
+    const auto label = fmt::format("{} ({})##folder:{}", name, count_folder_entities(folder), folder.path);
+    const bool open = ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth);
+
+    // an entity dropped on a folder is listed in it (and is no one's child anymore)
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ENTITY"))
+        {
+            IM_ASSERT(payload->DataSize == sizeof(entt::entity));
+            const entt::entity dropped = *static_cast<entt::entity*>(payload->Data);
+            if (scene->has_component<engine_parent_component_t>(dropped))
+            {
+                scene->remove_component<engine_parent_component_t>(dropped);
+            }
+            if (!scene->has_component<engine_folder_component_t>(dropped))
+            {
+                scene->add_component<engine_folder_component_t>(dropped);
+            }
+            engine_folder_component_t fc{};
+            std::strncpy(fc.path, folder.path.c_str(), ENGINE_FOLDER_PATH_MAX_LENGTH - 1);
+            scene->update_component<engine_folder_component_t>(dropped, fc);
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    if (open)
+    {
+        for (auto& [sub_name, sub] : folder.folders)
+        {
+            display_folder(sub_name, *sub, scene, commands, ctx);
+        }
+        for (auto* node : folder.entities)
+        {
+            display_node(node, scene, commands, ctx);
         }
         ImGui::TreePop();
     }
@@ -378,6 +503,11 @@ bool display_skin_component(const engine::Scene* scene, engine_skin_component_t&
     const auto name = scene->get_application()->get_skin_name(c.skin);
     ImGui::Text("Asset: %s", name.empty() ? "None" : name.c_str());
     return false;
+}
+
+bool display_folder_component(const engine::Scene* scene, engine_folder_component_t& c)
+{
+    return ImGui::InputText("Path##folder", c.path, ENGINE_FOLDER_PATH_MAX_LENGTH);
 }
 
 bool display_joint_attachment_component(const engine::Scene* scene, engine_joint_attachment_component_t& c)
@@ -880,12 +1010,22 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
             ImGui::EndDragDropTarget();
         }
 
-        for (auto& [e, f] : entity_map)
+        // game objects without a parent are listed in their folders
+        folder_node_t root_folder;
+        for (auto& [e, node] : entity_map)
         {
-            if (!f.displayed && !f.parent)
+            if (!node.parent)
             {
-                display_node(&f, scene, commands_, scene_hierarchy_context_);
+                get_or_create_folder(root_folder, get_folder_path(scene, e)).entities.push_back(&node);
             }
+        }
+        for (auto& [name, folder] : root_folder.folders)
+        {
+            display_folder(name, *folder, scene, commands_, scene_hierarchy_context_);
+        }
+        for (auto* node : root_folder.entities)
+        {
+            display_node(node, scene, commands_, scene_hierarchy_context_);
         }
         ImGui::TreePop();
     }
@@ -904,6 +1044,7 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
     if (scene_hierarchy_context_.has_selected_entity())
     {
         const auto selected = scene_hierarchy_context_.get_selected_entity();
+        display_component<engine_folder_component_t>("Folder", scene, commands_, selected, display_folder_component);
         display_component<engine_tranform_component_t>("Transform", scene, commands_, selected, display_transform_component);
         display_component<engine_light_component_t>("Light", scene, commands_, selected, display_light_component);
         display_component<engine_camera_component_t>("Camera", scene, commands_, selected, display_camera_component);

@@ -10,6 +10,7 @@ void initialize_skinned_mesh_component(entt::registry& registry, entt::entity en
 void initialize_material_component(entt::registry& registry, entt::entity entity);
 void initialize_parent_component(entt::registry& registry, entt::entity entity);
 void initialize_name_component(entt::registry& registry, entt::entity entity);
+void initialize_folder_component(entt::registry& registry, entt::entity entity);
 void initialize_camera_component(entt::registry& registry, entt::entity entity);
 void initialize_rigidbody_component(entt::registry& registry, entt::entity entity);
 void initialize_collider_component(entt::registry& registry, entt::entity entity);

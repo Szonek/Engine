@@ -504,16 +504,9 @@ void project_c::Enemy::collect_hit_flash_materials(engine_game_object_t game_obj
         }
     }
 
-    if (engineGameObjectHasChildrenComponent(game_object))
+    for (const auto child : utils::get_children(game_object))
     {
-        const auto children = engineGameObjectGetChildrenComponent(game_object);
-        for (const auto child : children.child)
-        {
-            if (child != ENGINE_INVALID_GAME_OBJECT_ID)
-            {
-                collect_hit_flash_materials(child);
-            }
-        }
+        collect_hit_flash_materials(child);
     }
 }
 
