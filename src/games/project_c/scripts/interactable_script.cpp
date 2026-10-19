@@ -35,7 +35,7 @@ void project_c::Chest::interact()
     {
         // drop coin, ToDO: random items?
         const auto tc = engineGameObjectGetTransformComponent(go_);
-        auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD, my_scene_).go);
+        auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD).go);
         coin->set_world_position(tc.position[0], tc.position[1] + 1.0f, tc.position[2]);
         coin->push_force(0.0f, 20.0f, 150.0f, ENGINE_FORCE_TYPE_IMPLUSE);
         // update chest to dark color to simulate opened chest

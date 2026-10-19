@@ -13,9 +13,9 @@ namespace
 using AnimationControllerTest = scenario::GameplayTest;
 
 // a bare skeleton (no script driving its animations)
-engine_game_object_t spawn_skeleton(engine::IScene* scene)
+engine_game_object_t spawn_skeleton()
 {
-    return scenario::app().instantiate_prefab(project_c::PREFAB_TYPE_SKELETON_WARRIOR, scene).go;
+    return scenario::app().instantiate_prefab(project_c::PREFAB_TYPE_SKELETON_WARRIOR).go;
 }
 
 // whether the game object has a controller: only then does the animation API answer
@@ -27,9 +27,9 @@ bool has_controller(engine_game_object_t go)
 
 TEST_F(AnimationControllerTest, EachInstancePlaysTheModelsSharedAnimationSet)
 {
-    auto* scene = load_sandbox_scene();
-    const auto first = spawn_skeleton(scene);
-    const auto second = spawn_skeleton(scene);
+    load_sandbox_scene();
+    const auto first = spawn_skeleton();
+    const auto second = spawn_skeleton();
     step();
 
     const auto animation_set = engineAnimationSetGetByName("Skeleton_Warrior.glb#animations");
@@ -46,9 +46,9 @@ TEST_F(AnimationControllerTest, EachInstancePlaysTheModelsSharedAnimationSet)
 
 TEST_F(AnimationControllerTest, ControllerGoesAwayWithItsComponentOrSkin)
 {
-    auto* scene = load_sandbox_scene();
-    const auto with_component = spawn_skeleton(scene);
-    const auto with_skin = spawn_skeleton(scene);
+    load_sandbox_scene();
+    const auto with_component = spawn_skeleton();
+    const auto with_skin = spawn_skeleton();
     step();
     ASSERT_TRUE(has_controller(with_component));
     ASSERT_TRUE(has_controller(with_skin));
@@ -76,8 +76,8 @@ TEST_F(AnimationControllerTest, ControllerGoesAwayWithItsComponentOrSkin)
 
 TEST_F(AnimationControllerTest, DestroyedGameObjectHasNoController)
 {
-    auto* scene = load_sandbox_scene();
-    const auto go = spawn_skeleton(scene);
+    load_sandbox_scene();
+    const auto go = spawn_skeleton();
     step();
     ASSERT_TRUE(has_controller(go));
     engineGameObjectDestroy(go);

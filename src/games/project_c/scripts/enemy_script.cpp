@@ -170,7 +170,7 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     auto* app = reinterpret_cast<AppProjectC*>(my_scene_->get_app());
     if (app->is_prefab_available(PREFAB_TYPE_SKELETON_BLADE))
     {
-        const auto blade = app->instantiate_prefab(PREFAB_TYPE_SKELETON_BLADE, my_scene_);
+        const auto blade = app->instantiate_prefab(PREFAB_TYPE_SKELETON_BLADE);
         if (blade.go != ENGINE_INVALID_GAME_OBJECT_ID)
         {
             weapon_ = my_scene_->register_script<EnemyWeapon>(blade.go, this);
@@ -305,7 +305,7 @@ void project_c::Enemy::update(float dt)
         engineGameObjectRemoveColliderComponent(go_);
         if (reinterpret_cast<AppProjectC*>(my_scene_->get_app())->is_prefab_available(project_c::PrefabType::PREFAB_TYPE_COIN_GOLD))
         {
-            auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD, my_scene_).go);
+            auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD).go);
             coin->set_world_position(tc.position[0], tc.position[1] + 1.0f, tc.position[2]);
         }
     }

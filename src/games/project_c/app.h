@@ -4,7 +4,6 @@
 #include "scene_manager.h"
 #include "iscene.h"
 
-#include "prefab.h"
 #include "prefab_types.h"
 #include "player_input.h"
 
@@ -37,7 +36,7 @@ public:
     AppProjectC(const PrefabsData& prefabs_data, const AppConfig& config = {});
     ~AppProjectC();
 
-    PrefabResult instantiate_prefab(PrefabType type, engine::IScene* scene);
+    PrefabResult instantiate_prefab(PrefabType type);
     bool is_prefab_available(PrefabType type) const;
     // One frame of the game (dt in milliseconds): updates the scenes, then applies scene changes they requested.
     // The caller owns the loop and calls it between engineFrameBegin() and engineFrameEnd() (main.cpp, tests).
@@ -60,7 +59,8 @@ public:
     }
 
 private:
-    std::array<Prefab, PREFAB_TYPE_COUNT> prefabs_;
+    // the engine prefab assets of the models loaded at startup, ENGINE_INVALID_OBJECT_HANDLE for a model which failed loading
+    std::array<engine_prefab_t, PREFAB_TYPE_COUNT> prefabs_;
     PlayerInput player_input_{};
     std::function<void()> pending_scene_change_;
 };

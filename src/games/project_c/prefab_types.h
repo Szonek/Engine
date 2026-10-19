@@ -1,5 +1,7 @@
 #pragma once
 
+#include <engine.h>
+
 namespace project_c
 {
 enum PrefabType
@@ -25,6 +27,12 @@ enum PrefabType
     PREFAB_TYPE_TRAVERSAL_MARKER,
 
     PREFAB_TYPE_COUNT
+};
+
+// the root game object of an instantiated prefab
+struct PrefabResult
+{
+    engine_game_object_t go;
 };
 
 } // namespace project_c

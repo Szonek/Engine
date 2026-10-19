@@ -3,8 +3,6 @@ set(APP_NAME "project_c_game")
 set(LIB_NAME "project_c_lib")
 
 set(LIB_SOURCES
-	prefab.h
-	prefab.cpp
 	prefab_types.h
 	
 	app.h

@@ -6,10 +6,8 @@
 #include "asset_store.h"
 #include "ui_document.h"
 #include "collision_desc.h"
-#include "gltf_parser.h"
-#include "skin.h"
+#include "components_internals/prefab_instance_component.h"
 #include "animation_controller.h"
-#include "asset_id.h"
 #include "profiler.h"
 
 #include "logger.h"
@@ -59,61 +57,6 @@ inline auto api_cast(engine_component_view_t comp_view)
 inline auto api_cast(engine_component_iterator_t it)
 {
     return reinterpret_cast<decltype(std::declval<entt::runtime_view>().begin())*>(it);
-}
-
-inline auto api_cast(const engine_model_desc_t* desc)
-{
-    return reinterpret_cast<const engine::ModelDesc*>(desc);
-}
-
-inline auto api_cast(const engine_model_node_desc_t* desc)
-{
-    return reinterpret_cast<const engine::ModelNodeDesc*>(desc);
-}
-
-inline auto api_cast(const engine::ModelNodeDesc* desc)
-{
-    return reinterpret_cast<const engine_model_node_desc_t*>(desc);
-}
-
-inline auto api_cast(const engine_texture_2d_desc_t* desc)
-{
-    return reinterpret_cast<const engine::TextureDesc*>(desc);
-}
-
-inline auto api_cast(const engine::TextureDesc& desc)
-{
-    return reinterpret_cast<const engine_texture_2d_desc_t*>(&desc);
-}
-
-inline auto api_cast(const engine_geometry_desc_t* desc)
-{
-    return reinterpret_cast<const engine::GeometryDesc*>(desc);
-}
-
-inline auto api_cast(const engine::GeometryDesc& desc)
-{
-    return reinterpret_cast<const engine_geometry_desc_t*>(&desc);
-}
-
-inline auto api_cast(const engine_material_desc_t* desc)
-{
-    return reinterpret_cast<const engine::MaterialDesc*>(desc);
-}
-
-inline auto api_cast(const engine::MaterialDesc& desc)
-{
-    return reinterpret_cast<const engine_material_desc_t*>(&desc);
-}
-
-inline auto api_cast(const engine_skin_desc_t* desc)
-{
-    return reinterpret_cast<const engine::SkinDesc*>(desc);
-}
-
-inline auto api_cast(const engine::SkinDesc& desc)
-{
-    return reinterpret_cast<const engine_skin_desc_t*>(&desc);
 }
 
 inline auto api_cast(const engine_collision_contact_point_desc_t* contact)
@@ -426,24 +369,6 @@ engine_result_code_t engineFontCreateFromFile(const char* file_name, const char*
     return result ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
-engine_result_code_t engineGeometryCreateFromDesc(const engine_geometry_desc_t* desc, engine_geometry_t* out)
-{
-    if (!G_ACTIVE_APP)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    auto* app = api_cast(G_ACTIVE_APP);
-    const auto geo_desc = api_cast(desc);
-    const auto ret = app->add_geometry(geo_desc->vertex_laytout, geo_desc->vertex_count, geo_desc->vertex_data, geo_desc->indicies, geo_desc->name);
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    *out = ret;
-    engineLog(fmt::format("Created geometry: {}, with id: {}\n", geo_desc->name, ret).c_str());
-    return ENGINE_RESULT_CODE_OK;
-}
-
 engine_geometry_t engineGeometryGetByName(const char* name)
 {
     if (!G_ACTIVE_APP)
@@ -472,34 +397,6 @@ engine_geometry_attribute_limit_t engineGeometryGetAttributeLimits(engine_geomet
         ret.min[i] = attrib.range_min[i];
     }
     return ret;
-}
-
-void engineGeometryDestroy(engine_geometry_t geometry)
-{
-    if (!G_ACTIVE_APP)
-    {
-        return;
-    }
-    api_cast(G_ACTIVE_APP)->destroy_geometry(geometry);
-}
-
-engine_result_code_t engineTexture2DCreateFromDesc(const engine_texture_2d_desc_t* desc, engine_texture2d_t* out)
-{
-    if (!G_ACTIVE_APP)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    auto* app = api_cast(G_ACTIVE_APP);
-    const auto typed_desc = api_cast(desc);
-    const auto ret = app->add_texture(*typed_desc);
-
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE || !out)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    *out = ret;
-    engineLog(fmt::format("Created texture: {}, with id: {}\n", typed_desc->name, ret).c_str());
-    return ENGINE_RESULT_CODE_OK;
 }
 
 engine_result_code_t engineTexture2DCreateFromFile(const char* file_name, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out)
@@ -538,34 +435,75 @@ void engineTexture2DDestroy(engine_texture2d_t tex2d)
     api_cast(G_ACTIVE_APP)->destroy_texture(tex2d);
 }
 
-engine_result_code_t engineModelDescAllocateAndLoadDataFromFile(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_model_desc_t** out)
+engine_result_code_t enginePrefabCreateFromFile(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_prefab_t* out)
 {
-    if (!G_ACTIVE_APP || !out || !file_name || !base_dir)
+    if (!G_ACTIVE_APP || !file_name || !base_dir || !out || spec != ENGINE_MODEL_SPECIFICATION_GLTF_2)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const auto ret = api_cast(G_ACTIVE_APP)->add_prefab_from_file(file_name, base_dir);
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    assert(*out == nullptr && "Model desc handle must be nullptr before calling this function!");
-    assert(spec == ENGINE_MODEL_SPECIFICATION_GLTF_2);
-    const auto assets_dir = engine::AssetStore::get_instance().get_models_base_path() / base_dir;
-    const auto file_data = engine::AssetStore::get_instance().get_raw_data_content(assets_dir / file_name);
-    if (file_data.get_size() == 0)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    const auto model_info = new engine::ModelDesc(engine::parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string(), file_name));
-    *out = reinterpret_cast<engine_model_desc_t*>(model_info);
+    *out = ret;
+    engineLog(fmt::format("Created prefab: {}, with id: {}\n", file_name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 
-void engineModelDescRelease(engine_model_desc_t* model_info)
+engine_prefab_t enginePrefabGetByName(const char* name)
+{
+    if (!G_ACTIVE_APP || !name)
+    {
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    return api_cast(G_ACTIVE_APP)->get_prefab(std::string_view(name));
+}
+
+engine_game_object_t enginePrefabInstantiate(engine_prefab_t prefab)
+{
+    if (!G_ACTIVE_APP || !G_ACTIVE_SCENE)
+    {
+        return ENGINE_INVALID_GAME_OBJECT_ID;
+    }
+    const auto* typed_prefab = api_cast(G_ACTIVE_APP)->get_prefab(prefab);
+    if (!typed_prefab)
+    {
+        engineLog(fmt::format("Can't instantiate prefab {}: it doesn't exist.\n", prefab).c_str());
+        return ENGINE_INVALID_GAME_OBJECT_ID;
+    }
+    auto* scene = api_cast(G_ACTIVE_SCENE);
+    const auto root = typed_prefab->instantiate(*scene);
+    if (static_cast<engine_game_object_t>(root) == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        return ENGINE_INVALID_GAME_OBJECT_ID;
+    }
+    scene->add_component(root, engine::prefab_instance_internal_component_t{ prefab });
+    return static_cast<engine_game_object_t>(root);
+}
+
+engine_prefab_t enginePrefabInstanceGetPrefab(engine_game_object_t game_object)
+{
+    if (!G_ACTIVE_SCENE)
+    {
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    auto* scene = api_cast(G_ACTIVE_SCENE);
+    const auto entity = api_cast(game_object);
+    if (!scene->is_valid_entity(entity) || !scene->has_component<engine::prefab_instance_internal_component_t>(entity))
+    {
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    return scene->get_component<engine::prefab_instance_internal_component_t>(entity)->prefab;
+}
+
+void enginePrefabDestroy(engine_prefab_t prefab)
 {
     if (!G_ACTIVE_APP)
     {
         return;
     }
-    auto* app = api_cast(G_ACTIVE_APP);
-    auto typed_desc = api_cast(model_info);
-    delete typed_desc;
+    api_cast(G_ACTIVE_APP)->destroy_prefab(prefab);
 }
 
 engine_result_code_t engineSceneCreate(engine_scene_create_desc_t desc, engine_scene_t* out)
@@ -1368,342 +1306,6 @@ const engine_collision_contact_point_desc_t* engineCollisionDescGetContactPoint(
     return nullptr;
 }
 
-const char* engineTexture2dDescGetName(const engine_texture_2d_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->name.c_str();
-}
-
-uint32_t engineTexture2dDescGetWidth(const engine_texture_2d_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->width;
-}
-
-uint32_t engineTexture2dDescGetHeight(const engine_texture_2d_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->height;
-}
-
-engine_data_layout_t engineTexture2dDescGetDataLayout(const engine_texture_2d_desc_t* desc)
-{
-    using namespace engine;
-    const auto data_layout = [](const auto engine_api_layout)
-        {
-            switch (engine_api_layout)
-            {
-            case DataLayout::eRGBA_FP32: return ENGINE_DATA_LAYOUT_RGBA_FP32;
-            case DataLayout::eR_FP32: return ENGINE_DATA_LAYOUT_R_FP32;
-
-            case DataLayout::eRGBA_U8: return ENGINE_DATA_LAYOUT_RGBA_U8;
-            case DataLayout::eRGB_U8: return ENGINE_DATA_LAYOUT_RGB_U8;
-            case DataLayout::eR_U8: return ENGINE_DATA_LAYOUT_R_U8;
-
-            default:
-                return ENGINE_DATA_LAYOUT_COUNT;
-            }
-        }(api_cast(desc)->layout);
-    return data_layout;
-}
-
-const void* engineTexture2dDescGetData(const engine_texture_2d_desc_t* desc)
-{
-    return api_cast(desc)->data.data();
-}
-
-const char* engineGeometryDescGetName(const engine_geometry_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->name.c_str();
-}
-
-const void* engineGeometryDescGetVertsData(const engine_geometry_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->vertex_data.data();
-}
-
-size_t engineGeometryDescGetVertsDataSize(const engine_geometry_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->vertex_data.size();
-}
-
-uint32_t engineGeometryDescGetVertsCount(const engine_geometry_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->vertex_count;
-}
-
-const uint32_t* engineGeometryDescGetIndsData(const engine_geometry_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->indicies.data();
-}
-
-uint32_t engineGeometryDescGetIndsCount(const engine_geometry_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->indicies.size();
-}
-
-engine_vertex_attributes_layout_t engineGeometryDescGetAttributesLayout(const engine_geometry_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->vertex_laytout;
-}
-
-const char* engineMaterialDescGetName(const engine_material_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->name.c_str();
-}
-
-engine_color_desc_t engineMaterialDescGetDiffuseColor(const engine_material_desc_t* desc)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    // memcpy?
-    engine_color_desc_t ret{};
-    ret.r = typed_desc->diffuse_factor.r;
-    ret.g = typed_desc->diffuse_factor.g;
-    ret.b = typed_desc->diffuse_factor.b;
-    ret.a = typed_desc->diffuse_factor.a;
-    return ret;
-}
-
-uint32_t engineMaterialDescGetDiffuseTextureIndex(const engine_material_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->diffuse_texture;
-}
-
-const char* engineSkinDescGetName(const engine_skin_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->name.c_str();
-}
-
-uint32_t engineSkinDescGetJointsCount(const engine_skin_desc_t* desc)
-{
-    assert(desc);
-    return static_cast<uint32_t>(api_cast(desc)->inverse_bind_matrix_map.size());
-}
-
-const char* engineSkinDescGetJointName(const engine_skin_desc_t* desc, size_t idx)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    // get key value from map
-    if (idx < typed_desc->inverse_bind_matrix_map.size())
-    {
-        auto it = typed_desc->inverse_bind_matrix_map.begin();
-        std::advance(it, idx);
-        return it->first.c_str();
-    }
-    return nullptr;
-}
-
-const char* engineModelNodeDescGetName(const engine_model_node_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->name.c_str();
-}
-
-const engine_model_node_desc_t* engineModelNodeDescGetParent(const engine_model_node_desc_t* desc)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    if (typed_desc->parent)
-    {
-        return api_cast(typed_desc->parent);
-    }
-    return nullptr;
-}
-
-const engine_model_node_desc_t* engineModelNodeDescGetChildren(const engine_model_node_desc_t* desc, size_t idx)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    if (idx < typed_desc->children.size())
-    {
-        return api_cast(typed_desc->children.at(idx));
-    }
-    assert("Index out of bounds for children array!");
-    return nullptr;
-}
-
-uint32_t engineModelNodeDescGetChildrenCount(const engine_model_node_desc_t* desc)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    return static_cast<uint32_t>(typed_desc->children.size());
-}
-
-uint32_t engineModelNodeDescGetIndex(const engine_model_node_desc_t* desc)
-{
-    return api_cast(desc)->index;
-}
-
-uint32_t engineModelNodeDescGetGeometryIndex(const engine_model_node_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->mesh;
-}
-
-uint32_t engineModelNodeDescGetSkinIndex(const engine_model_node_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->skin;
-}
-
-uint32_t engineModelNodeDescGetMaterialIndex(const engine_model_node_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->material;
-}
-
-engine_fvec3_t engineModelNodeDescGetTranslation(const engine_model_node_desc_t* desc)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    engine_fvec3_t ret{};
-    ret.x = typed_desc->translation[0];
-    ret.y = typed_desc->translation[1];
-    ret.z = typed_desc->translation[2];
-    return ret;
-}
-
-engine_fvec3_t engineModelNodeDescGetScale(const engine_model_node_desc_t* desc)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    engine_fvec3_t ret{};
-    ret.x = typed_desc->scale[0];
-    ret.y = typed_desc->scale[1];
-    ret.z = typed_desc->scale[2];
-    return ret;
-}
-
-engine_fvec4_t engineModelNodeDescGetRotationQuaternion(const engine_model_node_desc_t* desc)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    engine_fvec4_t ret{};
-    ret.x = typed_desc->rotation[0];
-    ret.y = typed_desc->rotation[1];
-    ret.z = typed_desc->rotation[2];
-    ret.w = typed_desc->rotation[3];
-    return ret;
-}
-
-const engine_model_node_desc_t* engineModelDescGetNodeDesc(const engine_model_desc_t* desc, size_t idx)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    return api_cast(typed_desc->nodes.at(idx).get());
-}
-
-const engine_model_node_desc_t* engineModelDescGetNodeDescByName(const engine_model_desc_t* desc, const char* name)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    const auto fnd = std::find_if(typed_desc->nodes.begin(), typed_desc->nodes.end(),
-        [&name](const auto& node) {
-            return node->name == name;
-        });
-    if (fnd != typed_desc->nodes.end())
-    {
-        return api_cast(fnd->get());
-    }
-    assert("Node with given name not found in model desc!");
-    return nullptr;
-}
-
-uint32_t engineModelDescGetNodesDescCount(const engine_model_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->nodes.size();
-}
-
-const engine_texture_2d_desc_t* engineModelDescGetTexture2dDesc(const engine_model_desc_t* desc, size_t idx)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    return api_cast(typed_desc->textures.at(idx));
-}
-
-uint32_t engineModelDescGetTextures2dDescCount(const engine_model_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->textures.size();
-}
-
-const engine_geometry_desc_t* engineModelDescGetGeometryDesc(const engine_model_desc_t* desc, size_t idx)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    return api_cast(typed_desc->geometries.at(idx));
-}
-
-uint32_t engineModelDescGetGeometriesDescCount(const engine_model_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->geometries.size();
-}
-
-const engine_material_desc_t* engineModelDescGetMaterialDesc(const engine_model_desc_t* desc, size_t idx)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    return api_cast(typed_desc->materials.at(idx));
-}
-
-uint32_t engineModelDescGetMaterialsDescCount(const engine_model_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->materials.size();
-}
-
-const engine_skin_desc_t* engineModelDescGetSkinDesc(const engine_model_desc_t* desc, size_t idx)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    return api_cast(typed_desc->skins.at(idx));
-}
-
-uint32_t engineModelDescGetSkinsDescCount(const engine_model_desc_t* desc)
-{
-    assert(desc);
-    return api_cast(desc)->skins.size();
-}
-
-uint32_t engineModelDescGetAnimationsDescCount(const engine_model_desc_t* desc)
-{
-    assert(desc);
-    const auto typed_desc = api_cast(desc);
-    return static_cast<uint32_t>(typed_desc->animations.size());
-}
-
-engine_result_code_t engineSkinCreateFromDesc(const engine_skin_desc_t* desc, const engine_model_node_desc_t* root, engine_skin_t* out)
-{
-    if (!G_ACTIVE_APP || !desc || !root || !out)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    auto* app = api_cast(G_ACTIVE_APP);
-    const auto typed_desc = api_cast(desc);
-    const auto ret = app->add_skin(*typed_desc, *api_cast(root));
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    *out = ret;
-    engineLog(fmt::format("Created skin: {}, with id: {}\n", typed_desc->asset_id, ret).c_str());
-    return ENGINE_RESULT_CODE_OK;
-}
-
 engine_skin_t engineSkinGetByName(const char* name)
 {
     if (!G_ACTIVE_APP || !name)
@@ -1713,48 +1315,6 @@ engine_skin_t engineSkinGetByName(const char* name)
     return api_cast(G_ACTIVE_APP)->get_skin(name);
 }
 
-void engineSkinDestroy(engine_skin_t skin)
-{
-    if (!G_ACTIVE_APP)
-    {
-        return;
-    }
-    api_cast(G_ACTIVE_APP)->destroy_skin(skin);
-}
-
-engine_result_code_t engineAnimationSetCreateFromModelDesc(const engine_model_desc_t* model_desc, engine_skin_t skin, engine_animation_set_t* out)
-{
-    if (!G_ACTIVE_APP || !model_desc || !out)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    auto* app = api_cast(G_ACTIVE_APP);
-    const auto* typed_skin = app->get_skin(skin);
-    const auto* typed_desc = api_cast(model_desc);
-    if (!typed_skin || typed_desc->animations.empty())
-    {
-        engineLog("An animation set needs a valid skin and a model with animations.\n");
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    auto library = std::make_shared<engine::AnimationLibrary>(*typed_skin);
-    for (const auto& animation : typed_desc->animations)
-    {
-        if (!library->add_animation(animation, *typed_skin))
-        {
-            return ENGINE_RESULT_CODE_FAIL;
-        }
-    }
-    const auto name = engine::make_asset_id(typed_desc->source_name, "animations", "animations", 0);
-    const auto ret = app->add_animation_set(name, std::move(library));
-    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    *out = ret;
-    engineLog(fmt::format("Created animation set: {}, with id: {}\n", name, ret).c_str());
-    return ENGINE_RESULT_CODE_OK;
-}
-
 engine_animation_set_t engineAnimationSetGetByName(const char* name)
 {
     if (!G_ACTIVE_APP || !name)
@@ -1762,15 +1322,6 @@ engine_animation_set_t engineAnimationSetGetByName(const char* name)
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
     return api_cast(G_ACTIVE_APP)->get_animation_set(name);
-}
-
-void engineAnimationSetDestroy(engine_animation_set_t animation_set)
-{
-    if (!G_ACTIVE_APP)
-    {
-        return;
-    }
-    api_cast(G_ACTIVE_APP)->destroy_animation_set(animation_set);
 }
 
 namespace

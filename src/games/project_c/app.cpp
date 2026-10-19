@@ -1,5 +1,4 @@
 #include "app.h"
-#include "iscene.h"
 
 #include "scripts/enemy_script.h"
 
@@ -54,6 +53,7 @@ project_c::PrefabsData project_c::default_prefabs_data()
 project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppConfig& config)
     : engine::IApplication(app_cd(config))
 {
+    prefabs_.fill(ENGINE_INVALID_OBJECT_HANDLE);
     const auto load_start = std::chrono::high_resolution_clock::now();
 
     if (engineFontCreateFromFile("tahoma.ttf", "tahoma_font") != ENGINE_RESULT_CODE_OK)
@@ -65,9 +65,7 @@ project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppCo
     for (const auto& [type, file_and_basedir] : prefabs_data)
     {
         const auto& [model_file_name, base_dir] = file_and_basedir;
-        engine_result_code_t engine_error_code = ENGINE_RESULT_CODE_FAIL;
-        prefabs_[type] = std::move(Prefab(engine_error_code, model_file_name, base_dir));
-        if (engine_error_code != ENGINE_RESULT_CODE_OK)
+        if (enginePrefabCreateFromFile(ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.c_str(), base_dir.c_str(), &prefabs_[type]) != ENGINE_RESULT_CODE_OK)
         {
             log(fmt::format("Failed loading prefab: {}\n", type));
         }
@@ -81,9 +79,16 @@ project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppCo
 
 project_c::AppProjectC::~AppProjectC()
 {
+    for (const auto prefab : prefabs_)
+    {
+        if (prefab != ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            enginePrefabDestroy(prefab);
+        }
+    }
 }
 
-project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType type, engine::IScene* scene)
+project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType type)
 {
     if (type >= PREFAB_TYPE_COUNT)
     {
@@ -91,18 +96,17 @@ project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType ty
         return { ENGINE_INVALID_GAME_OBJECT_ID };
     }
 
-    auto& prefab = prefabs_[type];
-    if (!prefab.is_valid())
+    if (!is_prefab_available(type))
     {
         log(fmt::format("Prefab: {} is not valid\n", type));
         return { ENGINE_INVALID_GAME_OBJECT_ID };
     }
-    return prefab.instantiate(scene);
+    return { enginePrefabInstantiate(prefabs_[type]) };
 }
 
 bool project_c::AppProjectC::is_prefab_available(PrefabType type) const
 {
-    return prefabs_[type].is_valid();
+    return prefabs_[type] != ENGINE_INVALID_OBJECT_HANDLE;
 }
 
 void project_c::AppProjectC::update(float dt)

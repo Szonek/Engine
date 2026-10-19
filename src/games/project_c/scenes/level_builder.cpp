@@ -32,7 +32,7 @@ project_c::LevelBuilder& project_c::LevelBuilder::floor(float x, float z)
     {
         return *this;
     }
-    scene_.register_script<Floor>(app_.instantiate_prefab(PREFAB_TYPE_FLOOR, &scene_).go, x, z);
+    scene_.register_script<Floor>(app_.instantiate_prefab(PREFAB_TYPE_FLOOR).go, x, z);
 
     const auto cell = to_cell(x, z);
     if (nav_nodes_.contains(cell))
@@ -75,7 +75,7 @@ project_c::LevelBuilder& project_c::LevelBuilder::floor_without_nav(float x, flo
 {
     if (app_.is_prefab_available(PREFAB_TYPE_FLOOR))
     {
-        scene_.register_script<Floor>(app_.instantiate_prefab(PREFAB_TYPE_FLOOR, &scene_).go, x, z);
+        scene_.register_script<Floor>(app_.instantiate_prefab(PREFAB_TYPE_FLOOR).go, x, z);
     }
     return *this;
 }
@@ -84,7 +84,7 @@ project_c::LevelBuilder& project_c::LevelBuilder::floor_outside_region(float x, 
 {
     if (app_.is_prefab_available(PREFAB_FLOOR_OUTSIDE_REGION))
     {
-        auto sc = scene_.register_script<FloorOutsideRegion>(app_.instantiate_prefab(PREFAB_FLOOR_OUTSIDE_REGION, &scene_).go);
+        auto sc = scene_.register_script<FloorOutsideRegion>(app_.instantiate_prefab(PREFAB_FLOOR_OUTSIDE_REGION).go);
         sc->set_world_position(x, 0.0f, z);
     }
     return *this;
@@ -94,7 +94,7 @@ project_c::LevelBuilder& project_c::LevelBuilder::wall(float x, float z, float y
 {
     if (app_.is_prefab_available(PREFAB_TYPE_WALL))
     {
-        scene_.register_script<Wall>(app_.instantiate_prefab(PREFAB_TYPE_WALL, &scene_).go, x, z, y_rotation_degrees);
+        scene_.register_script<Wall>(app_.instantiate_prefab(PREFAB_TYPE_WALL).go, x, z, y_rotation_degrees);
     }
     return *this;
 }
@@ -130,7 +130,7 @@ project_c::Player* project_c::LevelBuilder::player(float x, float z)
     {
         return nullptr;
     }
-    auto* player = scene_.register_script<Player>(app_.instantiate_prefab(PREFAB_TYPE_ROGUE, &scene_));
+    auto* player = scene_.register_script<Player>(app_.instantiate_prefab(PREFAB_TYPE_ROGUE));
     player->set_world_position(x, 1.0f, z);
     auto* weapon = scene_.register_script<Weapon>();
     player->equip_waepon(weapon);
@@ -143,7 +143,7 @@ project_c::Enemy* project_c::LevelBuilder::enemy(float x, float z)
     {
         return nullptr;
     }
-    return scene_.register_script<Enemy>(app_.instantiate_prefab(PREFAB_TYPE_SKELETON_WARRIOR, &scene_), &nav_mesh_, x, z);
+    return scene_.register_script<Enemy>(app_.instantiate_prefab(PREFAB_TYPE_SKELETON_WARRIOR), &nav_mesh_, x, z);
 }
 
 project_c::Chest* project_c::LevelBuilder::chest(float x, float y, float z)
@@ -152,7 +152,7 @@ project_c::Chest* project_c::LevelBuilder::chest(float x, float y, float z)
     {
         return nullptr;
     }
-    auto* chest = scene_.register_script<Chest>(app_.instantiate_prefab(PREFAB_TYPE_BOX, &scene_).go);
+    auto* chest = scene_.register_script<Chest>(app_.instantiate_prefab(PREFAB_TYPE_BOX).go);
     chest->set_world_position(x, y, z);
     return chest;
 }

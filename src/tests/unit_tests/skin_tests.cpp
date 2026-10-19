@@ -54,7 +54,7 @@ protected:
         return clip;
     }
 
-    // an animation set with one clip, as engineAnimationSetCreateFromModelDesc builds it
+    // an animation set with one clip, as a prefab builds it
     static std::shared_ptr<const engine::AnimationLibrary> animation_set(const engine::Skin& skin, const engine::AnimationClipDesc& clip)
     {
         auto library = std::make_shared<engine::AnimationLibrary>(skin);
