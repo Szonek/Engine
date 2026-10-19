@@ -1,6 +1,7 @@
 #include "sandbox_scene.h"
 
 #include <scripts/enemy_script.h>
+#include <scripts/player_script.h>
 
 #include <gtest/gtest.h>
 
@@ -99,5 +100,30 @@ TEST_F(AnimationControllerTest, EnemiesAnimateThroughTheirGameObject)
         || engineAnimationControllerIsAnimationPlaying(go, "1H_Melee_Attack_Slice_Diagonal")
         || engineAnimationControllerIsAnimationPlaying(go, "1H_Melee_Attack_Slice_Horizontal");
     EXPECT_TRUE(animating);
+}
+
+TEST_F(AnimationControllerTest, PlayerLayersComeFromItsComponent)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-1.0f, -1.0f, 1.0f, 1.0f);
+    auto* player = scene->build().player(0.0f, 0.0f);
+    ASSERT_NE(player, nullptr);
+    step();
+
+    // locomotion + an upper-body combat layer, described as data on the component
+    const auto go = player->get_game_object();
+    const auto ac = engineGameObjectGetAnimationControllerComponent(go);
+    ASSERT_EQ(ac.layers_count, 2u);
+    EXPECT_TRUE(ac.layers[0].looping);
+    EXPECT_EQ(ac.layers[1].joint_weights_count, 4u);
+    EXPECT_STREQ(ac.layers[1].joint_weights[3].joint_name, "spine");
+    // the controller has exactly those layers
+    EXPECT_TRUE(engineAnimationControllerLayerSetWeight(go, 1, 1.0f));
+    EXPECT_FALSE(engineAnimationControllerLayerSetWeight(go, 2, 1.0f));
+
+    // updating the component with the same animation set keeps the controller: the player still animates
+    engineGameObjectUpdateAnimationControllerComponent(go, &ac);
+    step(5);
+    EXPECT_TRUE(engineAnimationControllerLayerSetWeight(go, 1, 1.0f));
 }
 }  // namespace

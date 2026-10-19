@@ -15,6 +15,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <array>
+#include <cstring>
 #include <algorithm>
 #include <cmath>
 #include <format>
@@ -433,17 +434,35 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     // add attack trigger
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreate(), this);
 
-    // set animation layers
-    engineAnimationControllerLayerSetWeight(go_, LOCOMOTION_LAYER_ID, 1.0f);
-    const bool locomotion_loops = engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
-    assert(locomotion_loops);
-    engineAnimationControllerAddLayer(go_, COMBAT_LAYER_ID, 9.0f);
-    engineAnimationControllerSetMode(go_, COMBAT_LAYER_ID, ENGINE_ANIMATION_LAYER_MODE_OVERRIDE);
-    const bool pelvis_masked = engineAnimationControllerLayerSetJointWeight(go_, COMBAT_LAYER_ID, "hips", 0.15f);
-    const bool left_leg_masked = engineAnimationControllerLayerSetJointWeight(go_, COMBAT_LAYER_ID, "upperleg.l", 0.0f);
-    const bool right_leg_masked = engineAnimationControllerLayerSetJointWeight(go_, COMBAT_LAYER_ID, "upperleg.r", 0.0f);
-    const bool upper_body_masked = engineAnimationControllerLayerSetJointWeight(go_, COMBAT_LAYER_ID, "spine", 1.0f);
-    assert(pelvis_masked && left_leg_masked && right_leg_masked && upper_body_masked);
+    // animation layers: locomotion on the whole body, combat on the upper body only (the legs keep walking while
+    // attacking). The joint weights apply in order: a little of the pelvis, none of the legs, all of the spine up.
+    {
+        auto ac = engineGameObjectGetAnimationControllerComponent(go_);
+        ac.layers_count = 2;
+        auto& locomotion = ac.layers[LOCOMOTION_LAYER_ID];
+        locomotion = {};
+        locomotion.mode = ENGINE_ANIMATION_LAYER_MODE_OVERRIDE;
+        locomotion.weight = 1.0f;
+        locomotion.looping = true;
+
+        auto& combat = ac.layers[COMBAT_LAYER_ID];
+        combat = {};
+        combat.mode = ENGINE_ANIMATION_LAYER_MODE_OVERRIDE;
+        combat.weight = 9.0f;
+        constexpr std::array<std::pair<const char*, float>, 4> combat_mask = { {
+            { "hips", 0.15f },
+            { "upperleg.l", 0.0f },
+            { "upperleg.r", 0.0f },
+            { "spine", 1.0f },
+        } };
+        combat.joint_weights_count = static_cast<std::uint32_t>(combat_mask.size());
+        for (std::size_t i = 0; i < combat_mask.size(); i++)
+        {
+            std::strncpy(combat.joint_weights[i].joint_name, combat_mask[i].first, ENGINE_ANIMATION_JOINT_NAME_MAX_LENGTH - 1);
+            combat.joint_weights[i].weight = combat_mask[i].second;
+        }
+        engineGameObjectUpdateAnimationControllerComponent(go_, &ac);
+    }
 
     for (std::size_t combo_index = 0; combo_index < AttackStateData::combo_length; ++combo_index)
     {

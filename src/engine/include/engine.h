@@ -476,7 +476,6 @@ ENGINE_API void engineAnimationSetDestroy(engine_animation_set_t animation_set);
 // Animation controller: the runtime part of a game object's animation controller component, created and owned by the
 // engine when the component has an animation set and the game object has a skin. The functions below act on it through
 // the game object (like enginePhysicsAddForce); they fail (false / an error code) when it has none.
-// By default layer 0 with weight 1.0 exists.
 ENGINE_API bool engineAnimationControllerSetPaused(engine_game_object_t game_object, bool paused);
 ENGINE_API engine_result_code_t engineAnimationControllerAnimationGetDuration(engine_game_object_t game_object, const char* name, float* out);
 ENGINE_API bool engineAnimationControllerIsAnimationPlaying(engine_game_object_t game_object, const char* name);
@@ -484,22 +483,12 @@ ENGINE_API bool engineAnimationControllerIsAnimationPlayingOnLayer(engine_game_o
 ENGINE_API bool engineAnimationControllerAnimationPlay(engine_game_object_t game_object, const char* name, size_t layer_id);
 // Start fading in from current animation to 'new_animation' over 'duration' seconds
 ENGINE_API bool engineAnimationControllerAnimationCrossFade(engine_game_object_t game_object, const char* new_animation_name, size_t layer_id, float duration);
-// layers
-typedef enum _engine_animation_layer_mode_t
-{
-    ENGINE_ANIMATION_LAYER_MODE_OVERRIDE,
-    ENGINE_ANIMATION_LAYER_MODE_ADDITIVE
-} engine_animation_layer_mode_t;
-ENGINE_API bool engineAnimationControllerAddLayer(engine_game_object_t game_object, size_t id, float default_weight);
-ENGINE_API bool engineAnimationControllerRemoveLayer(engine_game_object_t game_object, size_t id);
+// layers: set up in the animation controller component; these change them while playing
 ENGINE_API bool engineAnimationControllerLayerSetWeight(engine_game_object_t game_object, size_t id, float new_weight);
 // Multiplies the playback speed of animations on this layer. Must be finite and greater than zero.
 ENGINE_API bool engineAnimationControllerLayerSetPlaybackRate(engine_game_object_t game_object, size_t id, float playback_rate);
 // Restarts animations on this layer when they reach their end; disabled by default.
 ENGINE_API bool engineAnimationControllerLayerSetLooping(engine_game_object_t game_object, size_t id, bool looping);
-// Sets a layer's weight for the named joint and all its descendants.
-ENGINE_API bool engineAnimationControllerLayerSetJointWeight(engine_game_object_t game_object, size_t id, const char* joint_name, float weight);
-ENGINE_API bool engineAnimationControllerSetMode(engine_game_object_t game_object, size_t id, engine_animation_layer_mode_t mode);
 // events
 typedef struct _engine_animation_event_info_t {
     float current_time;

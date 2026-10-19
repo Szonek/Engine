@@ -12,6 +12,7 @@
 #include <ozz/animation/runtime/blending_job.h>
 
 #include <algorithm>
+#include <cstring>
 #include <atomic>
 #include <stdexcept>
 #include <format>
@@ -201,9 +202,7 @@ engine::AnimationController::AnimationController(const Skin* skin, std::shared_p
     {
         animations_.emplace(name, AnimationData{ compiled, {} });
     }
-    // add default layer
-    [[maybe_unused]] const bool default_layer_added = add_layer(0, 1.0f);
-    assert(default_layer_added);
+    // no layers until configure_layers
     G_LIVE_ANIMATION_CONTROLLERS++;
 }
 
@@ -347,21 +346,45 @@ bool engine::AnimationController::set_paused(bool paused)
     return true;
 }
 
-bool engine::AnimationController::add_layer(std::size_t id, float weight)
+bool engine::AnimationController::configure_layers(const engine_animation_controller_component_t& component)
+{
+    layers_.clear();
+    if (component.layers_count > ENGINE_ANIMATION_CONTROLLER_MAX_LAYERS)
+    {
+        log::log(log::LogLevel::eError, std::format("An animation controller can have at most {} layers, got {}.\n", ENGINE_ANIMATION_CONTROLLER_MAX_LAYERS, component.layers_count).c_str());
+        return false;
+    }
+    bool ok = true;
+    for (std::uint32_t id = 0; id < component.layers_count; id++)
+    {
+        const auto& layer = component.layers[id];
+        const auto mode = layer.mode == ENGINE_ANIMATION_LAYER_MODE_ADDITIVE ? LayerBlendMode::eAdditive : LayerBlendMode::eOverride;
+        add_layer(id, layer.weight, mode, layer.looping);
+        if (layer.joint_weights_count > ENGINE_ANIMATION_LAYER_MAX_JOINT_WEIGHTS)
+        {
+            log::log(log::LogLevel::eError, std::format("Animation layer {} has more than {} joint weights.\n", id, ENGINE_ANIMATION_LAYER_MAX_JOINT_WEIGHTS).c_str());
+            ok = false;
+            continue;
+        }
+        for (std::uint32_t i = 0; i < layer.joint_weights_count; i++)
+        {
+            const auto& joint_weight = layer.joint_weights[i];
+            const std::string joint_name(joint_weight.joint_name, strnlen(joint_weight.joint_name, ENGINE_ANIMATION_JOINT_NAME_MAX_LENGTH));
+            ok &= set_layer_joint_weight(id, joint_name, joint_weight.weight);
+        }
+    }
+    return ok;
+}
+
+bool engine::AnimationController::add_layer(std::size_t id, float weight, LayerBlendMode mode, bool looping)
 {
     if (has_layer(id))
     {
         return false;
     }
-
-    layers_[id] = AnimationLayer(id, weight, skin_->get_skeleton().num_joints(), LayerBlendMode::eOverride);
-    
+    layers_[id] = AnimationLayer(id, weight, skin_->get_skeleton().num_joints(), mode);
+    layers_[id].looping = looping;
     return true;
-}
-
-bool engine::AnimationController::remove_layer(std::size_t id)
-{
-    return layers_.erase(id) != 0;
 }
 
 bool engine::AnimationController::has_layer(std::size_t id) const
@@ -440,16 +463,6 @@ bool engine::AnimationController::set_layer_joint_weight(std::size_t id, const s
         skin_->get_skeleton(),
         WeightSetupIterator(*layer.joint_weights, weight),
         joint_index);
-    return true;
-}
-
-bool engine::AnimationController::set_layer_mode(std::size_t id, LayerBlendMode mode)
-{
-    if (!has_layer(id))
-    {
-        return false;
-    }
-    layers_.at(id).mode = mode;
     return true;
 }
 

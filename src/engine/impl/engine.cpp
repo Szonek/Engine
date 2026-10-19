@@ -1853,26 +1853,6 @@ bool engineAnimationControllerIsAnimationPlayingOnLayer(engine_game_object_t gam
     return typed_controller->is_playing(name, layer_id);
 }
 
-bool engineAnimationControllerAddLayer(engine_game_object_t game_object, size_t id, float default_weight)
-{
-    auto* typed_controller = find_animation_controller(game_object);
-    if (!typed_controller)
-    {
-        return false;
-    }
-    return typed_controller->add_layer(id, default_weight);
-}
-
-bool engineAnimationControllerRemoveLayer(engine_game_object_t game_object, size_t id)
-{
-    auto* typed_controller = find_animation_controller(game_object);
-    if (!typed_controller)
-    {
-        return false;
-    }
-    return typed_controller->remove_layer(id);
-}
-
 bool engineAnimationControllerLayerSetWeight(engine_game_object_t game_object, size_t id, float new_weight)
 {
     auto* typed_controller = find_animation_controller(game_object);
@@ -1901,44 +1881,6 @@ bool engineAnimationControllerLayerSetLooping(engine_game_object_t game_object, 
         return false;
     }
     return typed_controller->set_layer_looping(id, looping);
-}
-
-bool engineAnimationControllerLayerSetJointWeight(engine_game_object_t game_object, size_t id, const char* joint_name, float weight)
-{
-    auto* typed_controller = find_animation_controller(game_object);
-    if (!typed_controller || !joint_name)
-    {
-        return false;
-    }
-    return typed_controller->set_layer_joint_weight(id, joint_name, weight);
-}
-
-bool engineAnimationControllerSetMode(engine_game_object_t game_object, size_t id, engine_animation_layer_mode_t mode)
-{
-    auto* typed_controller = find_animation_controller(game_object);
-    if (!typed_controller)
-    {
-        return false;
-    }
-    engine::LayerBlendMode blend_mode = engine::LayerBlendMode::eOverride;
-    switch (mode)
-    {
-    case ENGINE_ANIMATION_LAYER_MODE_OVERRIDE:
-    {
-        blend_mode = engine::LayerBlendMode::eOverride;
-        break;
-    }
-    case ENGINE_ANIMATION_LAYER_MODE_ADDITIVE:
-    {
-        blend_mode = engine::LayerBlendMode::eAdditive;
-        break;
-    }
-    default:
-    {
-        engine::log::log(engine::log::LogLevel::eError, std::format("Unrecognized blend mode: {} for layer id: {}", (std::int32_t)mode, id));
-    }
-    }
-    return typed_controller->set_layer_mode(id, blend_mode);
 }
 
 engine_result_code_t engineAnimationControllerAnimationAddEvent(engine_game_object_t game_object, const char* anim_name, engine_animation_event_t event, engine_animation_event_id_t* out_id)

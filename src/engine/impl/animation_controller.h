@@ -1,5 +1,6 @@
 #pragma once
 #include "mesh_defs.h"
+#include "components/animation_controller_component.h"
 
 #include <ozz/animation/runtime/skeleton.h>
 #include <ozz/animation/runtime/animation.h>
@@ -104,14 +105,13 @@ public:
     const Skin* get_skin() const { return skin_; }
     bool set_paused(bool paused);
 
-    bool add_layer(std::size_t id, float weight);
-    bool remove_layer(std::size_t id);
+    // Replaces the layers with the component's setup (layer id = index). Keeps the animations and their events.
+    // false (and logs why) when a layer can't be set up as described, e.g. an unknown joint.
+    bool configure_layers(const engine_animation_controller_component_t& component);
     bool has_layer(std::size_t id) const;
     bool set_layer_weight(std::size_t id, float weight);
     bool set_layer_playback_rate(std::size_t id, float playback_rate);
     bool set_layer_looping(std::size_t id, bool looping);
-    bool set_layer_joint_weight(std::size_t id, const std::string& joint_name, float weight);
-    bool set_layer_mode(std::size_t id, LayerBlendMode mode);
 
     bool play(const std::string& animation_name, std::size_t layer_id);
     bool cross_fade_to(const std::string& animation_name, std::size_t layer_id, float duration);
@@ -123,6 +123,9 @@ public:
     bool remove_event(const std::string& animation_name, std::uint32_t id);
 
 private:
+    bool add_layer(std::size_t id, float weight, LayerBlendMode mode, bool looping);
+    bool set_layer_joint_weight(std::size_t id, const std::string& joint_name, float weight);
+
     struct AnimationData
     {
         std::shared_ptr<const CompiledAnimationData> compiled;

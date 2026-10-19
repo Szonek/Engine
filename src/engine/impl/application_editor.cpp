@@ -389,7 +389,32 @@ bool display_animation_controller_component(const engine::Scene* scene, engine_a
 {
     const auto name = scene->get_application()->get_animation_set_name(c.animations);
     ImGui::Text("Animation set: %s", name.empty() ? "None" : name.c_str());
-    return false;
+
+    // layer setup; an edit reconfigures the layers of the same controller (its animation events stay)
+    bool changed = false;
+    const char* modes[] = { "Override", "Additive" };
+    for (std::uint32_t id = 0; id < c.layers_count && id < ENGINE_ANIMATION_CONTROLLER_MAX_LAYERS; id++)
+    {
+        auto& layer = c.layers[id];
+        ImGui::PushID(static_cast<int>(id));
+        ImGui::SeparatorText(fmt::format("Layer {}", id).c_str());
+        std::int32_t mode = layer.mode;
+        if (ImGui::Combo("Mode", &mode, modes, IM_ARRAYSIZE(modes)))
+        {
+            layer.mode = static_cast<engine_animation_layer_mode_t>(mode);
+            changed = true;
+        }
+        changed |= ImGui::DragFloat("Weight", &layer.weight, 0.05f, 0.0f, 10.0f);
+        changed |= ImGui::Checkbox("Looping", &layer.looping);
+        for (std::uint32_t i = 0; i < layer.joint_weights_count && i < ENGINE_ANIMATION_LAYER_MAX_JOINT_WEIGHTS; i++)
+        {
+            ImGui::PushID(static_cast<int>(i));
+            changed |= ImGui::SliderFloat(layer.joint_weights[i].joint_name, &layer.joint_weights[i].weight, 0.0f, 1.0f);
+            ImGui::PopID();
+        }
+        ImGui::PopID();
+    }
+    return changed;
 }
 
 

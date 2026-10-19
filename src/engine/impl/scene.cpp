@@ -733,14 +733,27 @@ void engine::Scene::on_skin_component_changed(entt::registry& registry, entt::en
 
 void engine::Scene::on_animation_controller_component_changed(entt::registry& registry, entt::entity entity)
 {
+    const auto& component = registry.get<engine_animation_controller_component_t>(entity);
+    const auto animation_set_handle = component.animations;
+    const auto* skin_component = registry.try_get<engine_skin_component_t>(entity);
+    const auto* skin = skin_component ? app_->get_skin(skin_component->skin) : nullptr;
+
+    // same animation set and skin: only the layer setup changed, keep the controller (and its animation events)
+    if (auto* existing = registry.try_get<animation_controller_internal_component_t>(entity);
+        existing && skin && existing->animation_set == animation_set_handle && existing->controller->get_skin() == skin)
+    {
+        if (!existing->controller->configure_layers(component))
+        {
+            log::log(log::LogLevel::eError, fmt::format("[Entity: {}] Some animation layers couldn't be set up as described.\n", static_cast<std::uint32_t>(entity)));
+        }
+        return;
+    }
+
     registry.remove<animation_controller_internal_component_t>(entity);
-    const auto animation_set_handle = registry.get<engine_animation_controller_component_t>(entity).animations;
     if (animation_set_handle == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return;
     }
-    const auto* skin_component = registry.try_get<engine_skin_component_t>(entity);
-    const auto* skin = skin_component ? app_->get_skin(skin_component->skin) : nullptr;
     auto animation_set = app_->get_animation_set(animation_set_handle);
     if (!skin || !animation_set)
     {
@@ -752,7 +765,12 @@ void engine::Scene::on_animation_controller_component_changed(entt::registry& re
         log::log(log::LogLevel::eError, fmt::format("[Entity: {}] The animation set {} was built for another skeleton.\n", static_cast<std::uint32_t>(entity), app_->get_animation_set_name(animation_set_handle)));
         return;
     }
-    registry.emplace<animation_controller_internal_component_t>(entity, std::make_unique<AnimationController>(skin, std::move(animation_set)));
+    auto controller = std::make_unique<AnimationController>(skin, std::move(animation_set));
+    if (!controller->configure_layers(component))
+    {
+        log::log(log::LogLevel::eError, fmt::format("[Entity: {}] Some animation layers couldn't be set up as described.\n", static_cast<std::uint32_t>(entity)));
+    }
+    registry.emplace<animation_controller_internal_component_t>(entity, std::move(controller), animation_set_handle);
 }
 
 engine::AnimationController* engine::Scene::get_animation_controller(entt::entity entity)
