@@ -602,18 +602,26 @@ void engine::Texture2D::bind(std::uint32_t slot, AccessType access, DataLayout v
     glBindImageTexture(slot, texture_, 0, false, 0, gl_access, to_image_unit_format(view_layout));
 }
 
+// size of this texture, not of the one which happens to be bound; the binding is left as it was
+static std::uint32_t get_texture_level_0_parameter(std::uint32_t texture, GLenum parameter)
+{
+    std::int32_t bound_texture = 0;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound_texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    std::int32_t ret = 0;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, parameter, &ret);
+    glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(bound_texture));
+    return std::uint32_t(ret);
+}
+
 std::uint32_t engine::Texture2D::get_width() const
 {
-    std::int32_t ret = 0;
-    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &ret);
-    return std::uint32_t(ret);
+    return get_texture_level_0_parameter(texture_, GL_TEXTURE_WIDTH);
 }
 
 std::uint32_t engine::Texture2D::get_height() const
 {
-    std::int32_t ret = 0;
-    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &ret);
-    return std::uint32_t(ret);
+    return get_texture_level_0_parameter(texture_, GL_TEXTURE_HEIGHT);
 }
 
 std::size_t engine::Texture2D::get_imgui_texture_id() const
