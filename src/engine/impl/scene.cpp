@@ -76,7 +76,7 @@ static inline void destroy_joint_attachment(entt::registry& registry, entt::enti
     engineStringDestroy(comp.joint_name);
 }
 
-static inline void calculate_camera_view_and_projection(std::size_t window_width, std::size_t window_height, const glm::vec3& eye_position, const engine_camera_component_t& camera, engine::camera_internal_component_t& camera_internal)
+static inline void calculate_camera_view_and_projection(std::size_t view_width, std::size_t view_height, const glm::vec3& eye_position, const engine_camera_component_t& camera, engine::camera_internal_component_t& camera_internal)
 {
     // update camera: view and projection
     ENGINE_PROFILE_SECTION_N("camera_update");
@@ -87,8 +87,8 @@ static inline void calculate_camera_view_and_projection(std::size_t window_width
         const auto z_far = camera.clip_plane_far;
         // ToD: multi camera - this should use resolution of camera!!!
 
-        const auto adjusted_width = window_width * (camera.viewport_rect.width - camera.viewport_rect.x);
-        const auto adjusted_height = window_height * (camera.viewport_rect.height - camera.viewport_rect.y);
+        const auto adjusted_width = view_width * (camera.viewport_rect.width - camera.viewport_rect.x);
+        const auto adjusted_height = view_height * (camera.viewport_rect.height - camera.viewport_rect.y);
         const float aspect = adjusted_width / adjusted_height;
 
         if (camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC)
@@ -106,9 +106,8 @@ static inline void calculate_camera_view_and_projection(std::size_t window_width
     }
 }
 
-engine::Scene::Scene(Application* app, RenderContext& rdx, Renderer& renderer, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
+engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : app_(app)
-    , rdx_(rdx)
     , renderer_(renderer)
     , entity_ids_(entity_registry_)
     , collider_create_observer(entity_registry_, entt::collector.group<engine_tranform_component_t, engine_collider_component_t>(entt::exclude<engine_rigid_body_component_t>))
@@ -582,7 +581,7 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
         auto skinned_mesh_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_skinned_mesh_component_t, const engine_material_component_t>();
         auto sprite_renderer = entity_registry_.view<const engine_tranform_component_t, const engine_material_component_t, const engine_sprite_component_t>();
         auto camera_view = entity_registry_.view<const engine_camera_component_t, const engine_tranform_component_t, camera_internal_component_t>();
-        const auto window_size_pixels = rdx_.get_window_size_in_pixels();
+        const auto scene_viewport = app_->get_scene_viewport();
 
         camera_view.each([&](auto, const engine_camera_component_t& camera, const engine_tranform_component_t& camera_transform, camera_internal_component_t& camera_internal)
         {
@@ -591,7 +590,7 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
                 return;
             }
 
-            calculate_camera_view_and_projection(window_size_pixels.width, window_size_pixels.height,
+            calculate_camera_view_and_projection(scene_viewport.width, scene_viewport.height,
                 glm::make_vec3(camera_transform.position), camera, camera_internal);
             render_data.views.push_back(camera_internal.data);
             // data was taken, so the next frame has to compute it again
@@ -912,12 +911,12 @@ glm::vec3 engine::Scene::convert_world_point_to_screen_point(const glm::vec3& wo
     if (camera_component && camera_transform)
     {
         auto& camera_internal_component = entity_registry_.get<camera_internal_component_t>(entt::entity(camera_go));
-        const auto window_size = rdx_.get_window_size_in_pixels();
-        calculate_camera_view_and_projection(window_size.width, window_size.height,
+        const auto scene_viewport = app_->get_scene_viewport();
+        calculate_camera_view_and_projection(scene_viewport.width, scene_viewport.height,
             glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
-        ret = glm::project(world_point, camera_internal_component.data.view, camera_internal_component.data.projection, glm::vec4(0, 0, window_size.width, window_size.height));
-        ret.x /= window_size.width;
-        ret.y /= window_size.height;
+        ret = glm::project(world_point, camera_internal_component.data.view, camera_internal_component.data.projection, glm::vec4(0, 0, scene_viewport.width, scene_viewport.height));
+        ret.x /= scene_viewport.width;
+        ret.y /= scene_viewport.height;
     }
     return ret;
 }
@@ -931,14 +930,13 @@ glm::vec3 engine::Scene::convert_screen_point_to_world_point(glm::vec3 screen_po
     if (camera_component && camera_transform)
     {
         auto& camera_internal_component = entity_registry_.get<camera_internal_component_t>(entt::entity(camera_go));    
-        const auto window_size = rdx_.get_window_size_in_pixels();
-        calculate_camera_view_and_projection(window_size.width, window_size.height,
+        const auto scene_viewport = app_->get_scene_viewport();
+        calculate_camera_view_and_projection(scene_viewport.width, scene_viewport.height,
             glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
 
-        const float aspect = window_size.width / window_size.height;
-        screen_point.x *= window_size.width;
-        screen_point.y *= window_size.height;
-        ret = glm::unProject(screen_point, camera_internal_component.data.view, camera_internal_component.data.projection, glm::vec4(0, 0, window_size.width, window_size.height));
+        screen_point.x *= scene_viewport.width;
+        screen_point.y *= scene_viewport.height;
+        ret = glm::unProject(screen_point, camera_internal_component.data.view, camera_internal_component.data.projection, glm::vec4(0, 0, scene_viewport.width, scene_viewport.height));
     }
     return ret;
 }
@@ -948,11 +946,11 @@ glm::mat4 engine::Scene::get_camera_view(entt::entity camera_go)
     ENGINE_PROFILE_SECTION;
     const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(camera_go);
     const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(camera_go);
-    const auto window_size = rdx_.get_window_size_in_pixels();
+    const auto scene_viewport = app_->get_scene_viewport();
     if (camera_component && camera_transform)
     {
         auto& camera_internal_component = entity_registry_.get<camera_internal_component_t>(camera_go);
-        calculate_camera_view_and_projection(window_size.width, window_size.height,
+        calculate_camera_view_and_projection(scene_viewport.width, scene_viewport.height,
             glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
         return camera_internal_component.data.view;
     }
@@ -964,11 +962,11 @@ glm::mat4 engine::Scene::get_camera_projection(entt::entity camera_go)
     ENGINE_PROFILE_SECTION;
     const auto camera_component = entity_registry_.try_get<engine_camera_component_t>(camera_go);
     const auto camera_transform = entity_registry_.try_get<engine_tranform_component_t>(camera_go);
-    const auto window_size = rdx_.get_window_size_in_pixels();
+    const auto scene_viewport = app_->get_scene_viewport();
     if (camera_component && camera_transform)
     {
         auto& camera_internal_component = entity_registry_.get<camera_internal_component_t>(camera_go);
-        calculate_camera_view_and_projection(window_size.width, window_size.height,
+        calculate_camera_view_and_projection(scene_viewport.width, scene_viewport.height,
             glm::make_vec3(camera_transform->position), *camera_component, camera_internal_component);
         return camera_internal_component.data.projection;
     }

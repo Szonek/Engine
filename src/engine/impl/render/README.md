@@ -21,8 +21,13 @@ Passes declared every frame:
 | SSAO / SSAO Blur                            | built-in, per scene camera | AmbientOcclusion       |
 | Forward / Sprites / Physics Debug Lines     | built-in, per scene camera | SceneColor (+EntityId, SceneDepth) |
 | *features of stage* `ePostProcess`          | `RenderFeature` | usually SceneColor                |
-| Present                                     | built-in      | Backbuffer                          |
-| *features of stage* `eOverlay`              | `RenderFeature` | Backbuffer (UI, editor widgets)   |
+| Present                                     | built-in      | SceneOutput                         |
+| *features of stage* `eOverlay`              | `RenderFeature` | SceneOutput (game UI)             |
+| *features of stage* `eScreen`               | `RenderFeature` | Backbuffer (editor)               |
+
+The scene is rendered at the size of the image it is shown in: the window, or with the editor the scene panel.
+`SceneOutput` is then the backbuffer, or with the editor a texture it shows in that panel (`Renderer::set_scene_output`);
+`Application::get_scene_viewport()` is that part of the window, which cameras, the game UI and mouse coordinates use.
 
 Shadows and ambient occlusion (the three passes before Forward) are explained in [SHADOWS_AND_SSAO.md](SHADOWS_AND_SSAO.md).
 Shadow Map and SSAO are declared only when enabled in `RenderSettings` (`Renderer::get_settings()`, editable in the editor's debug panel).
@@ -90,11 +95,12 @@ once as `[RenderGraph]` errors and the broken pass is skipped.
 ## Adding rendering without touching the renderer
 
 1. Derive from `RenderFeature` (or use `CallbackRenderFeature` for something small) and declare passes in `add_passes(FrameContext&)`.
-   `FrameContext` gives the graph, window size, scene color/depth/entity id handles, the backbuffer and the cameras of all submitted scenes.
+   `FrameContext` gives the graph, the size of the scene image, scene color/depth/entity id handles, the scene output, the backbuffer and the cameras of all submitted scenes.
 2. Register it: `renderer.add_feature(feature, RenderStage::ePostProcess, order)`.
 3. Switch it on/off at runtime with `feature->set_enabled(bool)` - disabled features declare nothing.
 
-Use `RenderStage::eOverlay` + `add_backbuffer_overlay_pass(...)` for anything drawn straight onto the screen (UI is done this way).
+Use `RenderStage::eOverlay` + `add_overlay_pass(frame, name, frame.scene_output, ...)` for anything drawn on top of the presented scene (the game UI is done this way),
+and `RenderStage::eScreen` with `frame.backbuffer` for what is drawn around it (the editor).
 
 New data from the game world (e.g. decals) is added to `SceneRenderData`, filled in `Scene::submit_render_data()` and consumed by a pass.
 A new built-in lit/unlit shader is a `Material*` class in `material.h/.cpp` plus a draw call in a pass.

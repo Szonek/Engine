@@ -24,7 +24,7 @@ class AnimationController;
 class Scene
 {
 public:
-    Scene(Application* app, RenderContext& rdx, Renderer& renderer, const engine_scene_create_desc_t& config, engine_result_code_t& out_code);
+    Scene(Application* app, Renderer& renderer, const engine_scene_create_desc_t& config, engine_result_code_t& out_code);
     Scene(const Scene&) = delete;
     Scene(Scene&& rhs) = delete;
     Scene& operator=(const Scene&) = delete;
@@ -143,7 +143,6 @@ private:
 
 private:
     Application* app_;
-    RenderContext& rdx_;
     Renderer& renderer_;
     entt::registry entity_registry_;
     // declared after the registry: it disconnects from the registry's signals when destroyed

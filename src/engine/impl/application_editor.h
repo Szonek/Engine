@@ -65,6 +65,10 @@ public:
     ~ApplicationEditor();
     bool is_playing() const { return is_playing_; }
     bool is_game_view() const;
+    // The mouse is over the scene panel (or a button pressed over it is still held), not over another editor panel.
+    bool is_mouse_over_scene() const;
+    // the scene panel, or the whole window while ImGui is hidden (F1)
+    viewport_t get_scene_viewport() const override;
 
 protected:
     void on_frame_begine(const engine_application_frame_begine_info_t& frame_begin_info) override;
@@ -78,6 +82,8 @@ protected:
     void on_scene_release(class Scene* scene) override;
 
 private:
+    // the panel showing the scene image
+    void render_scene_view();
     void render_editor_controls(class Scene* scene, float dt);
     void render_scene_hierarchy_panel(class Scene* scene, float dt);
     void render_entity_properties_panel(class Scene* scene, float dt);
@@ -121,8 +127,6 @@ private:
         const char* get_window_right() const { return window_right; }
         const char* get_window_scene() const { return window_scene; }
 
-        viewport_t get_scene_render_viewport() const;
-
     private:
         bool initalized_ = false;
 
@@ -154,6 +158,11 @@ private:
     std::shared_ptr<GridFeature> grid_feature_;
     bool draw_grid_ = true;
     bool render_imgui_ = true;
+    // the scene is rendered into it at its panel's size
+    std::shared_ptr<Texture2D> scene_view_texture_;
+    viewport_t scene_view_rect_{};
+    bool scene_view_has_mouse_ = false;
+    bool scene_view_focused_ = false;
     SceneHierarchyContext scene_hierarchy_context_;
 };
 

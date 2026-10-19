@@ -30,8 +30,9 @@ namespace engine
 //           SSAO, SSAO Blur (ambient occlusion computed from the depth)
 //           Forward (static + skinned meshes, uses the shadow map and the ambient occlusion) -> Sprites -> Physics Debug Lines
 //       RenderStage::ePostProcess features    (i.e. editor outline)
-//       Present                               (scene color -> backbuffer)
-//       RenderStage::eOverlay features        (i.e. UI, editor widgets)
+//       Present                               (scene color -> scene output: the backbuffer or the texture set with set_scene_output())
+//       RenderStage::eOverlay features        (i.e. game UI, drawn onto the scene output)
+//       RenderStage::eScreen features         (i.e. the editor, drawn onto the backbuffer)
 //
 // New rendering can be added without touching the code above by implementing a RenderFeature and registering it with add_feature().
 class Renderer
@@ -45,6 +46,10 @@ public:
     void begin_frame();
     void submit_scene(SceneRenderData&& scene);
     void render_frame();
+
+    // Where the scene image is presented. nullptr (default): the backbuffer, the scene is rendered at the window size.
+    // A texture (RGBA8): the scene is rendered at the texture's size, i.e. for the editor to show it in a panel.
+    void set_scene_output(std::shared_ptr<Texture2D> texture) { scene_output_ = std::move(texture); }
 
     // Features of the same stage are executed in ascending order, ties in registration order.
     void add_feature(std::shared_ptr<RenderFeature> feature, RenderStage stage, int order = 0);
@@ -149,6 +154,7 @@ private:
     std::vector<FrameView> frame_views_;
     std::vector<FeatureEntry> features_;
     std::vector<std::string> last_graph_messages_;
+    std::shared_ptr<Texture2D> scene_output_;
 
     // entity ids of the previous frame, used for picking
     std::shared_ptr<Texture2D> entity_id_texture_;

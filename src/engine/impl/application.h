@@ -19,10 +19,6 @@ namespace engine
 class Application
 {
 public:
-    // Order of overlay features which are drawn on top of the presented scene (lower is drawn first).
-    static constexpr int OVERLAY_ORDER_EDITOR = 0;
-    static constexpr int OVERLAY_ORDER_UI = 100;
-
     Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code);
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
@@ -88,6 +84,10 @@ public:
 
     virtual UiDocument load_ui_document(std::string_view file_name);
     virtual UiDataHandle create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
+
+    // Part of the window the scene is shown in, in window coordinates with the origin in the top left corner.
+    // The whole window, unless the editor shows the scene in a panel. Cameras, the game UI and mouse coordinates use it.
+    virtual viewport_t get_scene_viewport() const;
 
     virtual bool is_mouse_enabled() { return true; }
     virtual bool is_keyboard_enabled() { return true; }

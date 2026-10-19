@@ -196,6 +196,8 @@ private:
 
 		int viewport[4];
 		int scissor[4];
+		// the frame is drawn to this framebuffer (the engine draws the UI into the scene image, not always the backbuffer)
+		int draw_framebuffer;
 
 		int active_texture;
 

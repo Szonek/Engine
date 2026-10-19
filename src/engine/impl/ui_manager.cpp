@@ -23,8 +23,9 @@ engine::UiManager::UiManager(RenderContext& rdx)
 {
     ENGINE_PROFILE_SECTION;
     Rml::Initialise();
-    // create context with some aribtrary name and dimension.  (dimensions wil lbe update in update(..))
+    // the whole window until set_viewport(..) says otherwise
     const auto window_size_pixels = rdx_.get_window_size_in_pixels();
+    viewport_ = viewport_t{ 0, 0, static_cast<std::uint32_t>(window_size_pixels.width), static_cast<std::uint32_t>(window_size_pixels.height) };
     ui_rml_context_ = Rml::CreateContext("app", Rml::Vector2i(window_size_pixels.width, window_size_pixels.height));
     assert(ui_rml_context_);
     ui_rml_debugger_available = Rml::Debugger::Initialise(ui_rml_context_);
@@ -88,9 +89,28 @@ bool engine::UiManager::load_font_from_file(std::string_view file_name, std::str
     return success;
 }
 
+void engine::UiManager::set_viewport(const viewport_t& viewport)
+{
+    viewport_ = viewport;
+    const auto dimensions = Rml::Vector2i(static_cast<int>(viewport.width), static_cast<int>(viewport.height));
+    if (ui_rml_context_->GetDimensions() != dimensions)
+    {
+        ui_rml_context_->SetDimensions(dimensions);
+    }
+}
+
 void engine::UiManager::parse_sdl_event(SDL_Event ev)
 {
     ENGINE_PROFILE_SECTION;
+    if (ev.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+    {
+        return;  // the dimensions follow the viewport, which isn't always the window
+    }
+    if (ev.type == SDL_EVENT_MOUSE_MOTION)
+    {
+        ev.motion.x -= static_cast<float>(viewport_.x);
+        ev.motion.y -= static_cast<float>(viewport_.y);
+    }
     RmlSDL::InputEventHandler(ui_rml_context_, rdx_.get_sdl_window(), ev);
 }
 
