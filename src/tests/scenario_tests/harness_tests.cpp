@@ -9,12 +9,7 @@
 // and the same scenario gives the same result every time.
 namespace
 {
-class EmptyScene : public engine::IScene
-{
-public:
-    EmptyScene(engine::IApplication* app) : IScene(app) {}
-    static constexpr const char* get_name() { return "scenario_empty"; }
-};
+using scenario::EmptyScene;
 
 class UpdateCounter : public engine::IScript
 {

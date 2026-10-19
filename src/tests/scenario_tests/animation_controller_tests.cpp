@@ -1,22 +1,15 @@
-#include "sandbox_scene.h"
-
-#include <scripts/enemy_script.h>
-#include <scripts/player_script.h>
+#include "test_models.h"
 
 #include <gtest/gtest.h>
 
 // Animation controllers are created and owned by the engine: one per game object with an animation controller
 // component and a skin, playing the model's shared animation set, and gone with the component. The animation API
-// acts on a game object's controller and fails cleanly when there is none.
+// acts on a game object's controller and fails cleanly when there is none. The model is skinned_arm.gltf, which has
+// the clips "Wave" (1 s) and "Idle" (0.5 s).
 namespace
 {
-using AnimationControllerTest = scenario::GameplayTest;
-
-// a bare skeleton (no script driving its animations)
-engine_game_object_t spawn_skeleton()
-{
-    return scenario::app().instantiate_prefab(project_c::PREFAB_TYPE_SKELETON_WARRIOR).go;
-}
+using AnimationControllerTest = scenario::ModelTest;
+using scenario::TestModel;
 
 // whether the game object has a controller: only then does the animation API answer
 bool has_controller(engine_game_object_t go)
@@ -27,28 +20,46 @@ bool has_controller(engine_game_object_t go)
 
 TEST_F(AnimationControllerTest, EachInstancePlaysTheModelsSharedAnimationSet)
 {
-    load_sandbox_scene();
-    const auto first = spawn_skeleton();
-    const auto second = spawn_skeleton();
+    const TestModel arm("skinned_arm.gltf");
+    ASSERT_TRUE(arm.loaded());
+    const auto first = arm.instantiate();
+    const auto second = arm.instantiate();
     step();
 
-    const auto animation_set = engineAnimationSetGetByName("Skeleton_Warrior.glb#animations");
+    const auto animation_set = engineAnimationSetGetByName(arm.asset("animations").c_str());
     ASSERT_NE(animation_set, ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(engineGameObjectGetAnimationControllerComponent(first).animations, animation_set);
     EXPECT_EQ(engineGameObjectGetAnimationControllerComponent(second).animations, animation_set);
 
     // one controller each: playing on one doesn't play on the other
-    ASSERT_TRUE(engineAnimationControllerAnimationPlay(first, "Running_A", 0));
+    ASSERT_TRUE(engineAnimationControllerAnimationPlay(first, "Wave", 0));
     step();
-    EXPECT_TRUE(engineAnimationControllerIsAnimationPlaying(first, "Running_A"));
-    EXPECT_FALSE(engineAnimationControllerIsAnimationPlaying(second, "Running_A"));
+    EXPECT_TRUE(engineAnimationControllerIsAnimationPlaying(first, "Wave"));
+    EXPECT_FALSE(engineAnimationControllerIsAnimationPlaying(second, "Wave"));
+}
+
+TEST_F(AnimationControllerTest, ClipsHaveTheirDurations)
+{
+    const TestModel arm("skinned_arm.gltf");
+    ASSERT_TRUE(arm.loaded());
+    const auto go = arm.instantiate();
+    step();
+
+    float duration = 0.0f;
+    ASSERT_EQ(engineAnimationControllerAnimationGetDuration(go, "Wave", &duration), ENGINE_RESULT_CODE_OK);
+    EXPECT_NEAR(duration, 1.0f, 1e-4f);
+    ASSERT_EQ(engineAnimationControllerAnimationGetDuration(go, "Idle", &duration), ENGINE_RESULT_CODE_OK);
+    EXPECT_NEAR(duration, 0.5f, 1e-4f);
+    EXPECT_NE(engineAnimationControllerAnimationGetDuration(go, "No_Such_Clip", &duration), ENGINE_RESULT_CODE_OK);
+    EXPECT_FALSE(engineAnimationControllerAnimationPlay(go, "No_Such_Clip", 0));
 }
 
 TEST_F(AnimationControllerTest, ControllerGoesAwayWithItsComponentOrSkin)
 {
-    load_sandbox_scene();
-    const auto with_component = spawn_skeleton();
-    const auto with_skin = spawn_skeleton();
+    const TestModel arm("skinned_arm.gltf");
+    ASSERT_TRUE(arm.loaded());
+    const auto with_component = arm.instantiate();
+    const auto with_skin = arm.instantiate();
     step();
     ASSERT_TRUE(has_controller(with_component));
     ASSERT_TRUE(has_controller(with_skin));
@@ -68,7 +79,7 @@ TEST_F(AnimationControllerTest, ControllerGoesAwayWithItsComponentOrSkin)
     EXPECT_FALSE(has_controller(with_component));
 
     // giving it the set again creates one
-    ac.animations = engineAnimationSetGetByName("Skeleton_Warrior.glb#animations");
+    ac.animations = engineAnimationSetGetByName(arm.asset("animations").c_str());
     engineGameObjectUpdateAnimationControllerComponent(with_component, &ac);
     step();
     EXPECT_TRUE(has_controller(with_component));
@@ -76,8 +87,9 @@ TEST_F(AnimationControllerTest, ControllerGoesAwayWithItsComponentOrSkin)
 
 TEST_F(AnimationControllerTest, DestroyedGameObjectHasNoController)
 {
-    load_sandbox_scene();
-    const auto go = spawn_skeleton();
+    const TestModel arm("skinned_arm.gltf");
+    ASSERT_TRUE(arm.loaded());
+    const auto go = arm.instantiate();
     step();
     ASSERT_TRUE(has_controller(go));
     engineGameObjectDestroy(go);
@@ -85,47 +97,27 @@ TEST_F(AnimationControllerTest, DestroyedGameObjectHasNoController)
     EXPECT_FALSE(engineAnimationControllerAnimationPlay(go, "Idle", 0));
 }
 
-TEST_F(AnimationControllerTest, EnemiesAnimateThroughTheirGameObject)
+TEST_F(AnimationControllerTest, LayersAreSetUpOnTheComponent)
 {
-    auto* scene = load_sandbox_scene();
-    scene->build().floor_area(-3.0f, -3.0f, 3.0f, 3.0f);
-    scene->build().player(0.0f, -2.0f);
-    auto* enemy = scene->build().enemy(0.0f, 2.0f);
-    ASSERT_NE(enemy, nullptr);
-    step(10);
-    // the enemy script drives the controller on its own game object: idle, running or attacking, depending on its state
-    const auto go = enemy->get_game_object();
-    const bool animating = engineAnimationControllerIsAnimationPlaying(go, "Idle")
-        || engineAnimationControllerIsAnimationPlaying(go, "Running_A")
-        || engineAnimationControllerIsAnimationPlaying(go, "1H_Melee_Attack_Slice_Diagonal")
-        || engineAnimationControllerIsAnimationPlaying(go, "1H_Melee_Attack_Slice_Horizontal");
-    EXPECT_TRUE(animating);
-}
-
-TEST_F(AnimationControllerTest, PlayerLayersComeFromItsComponent)
-{
-    auto* scene = load_sandbox_scene();
-    scene->build().floor_area(-1.0f, -1.0f, 1.0f, 1.0f);
-    auto* player = scene->build().player(0.0f, 0.0f);
-    ASSERT_NE(player, nullptr);
+    const TestModel arm("skinned_arm.gltf");
+    ASSERT_TRUE(arm.loaded());
+    const auto go = arm.instantiate();
     step();
 
-    // locomotion + an upper-body combat layer, described as data on the component
-    const auto go = player->get_game_object();
-    const auto ac = engineGameObjectGetAnimationControllerComponent(go);
-    ASSERT_EQ(ac.layers_count, 2u);
-    EXPECT_STREQ(ac.layers[0].name, "locomotion");
-    EXPECT_STREQ(ac.layers[1].name, "combat");
-    EXPECT_TRUE(ac.layers[0].looping);
-    EXPECT_EQ(ac.layers[1].joint_weights_count, 4u);
-    EXPECT_STREQ(ac.layers[1].joint_weights[3].joint_name, "spine");
-    // the controller has exactly those layers
-    EXPECT_TRUE(engineAnimationControllerLayerSetWeight(go, 1, 1.0f));
-    EXPECT_FALSE(engineAnimationControllerLayerSetWeight(go, 2, 1.0f));
+    // a new component has one override layer: the controller has exactly the layers the component describes
+    auto ac = engineGameObjectGetAnimationControllerComponent(go);
+    ASSERT_EQ(ac.layers_count, 1u);
+    EXPECT_TRUE(engineAnimationControllerLayerSetWeight(go, 0, 0.5f));
+    EXPECT_FALSE(engineAnimationControllerLayerSetWeight(go, 1, 0.5f));
 
-    // updating the component with the same animation set keeps the controller: the player still animates
+    // another layer, described as data on the component, with the same animation set: the controller is reconfigured
+    ac.layers_count = 2;
+    ac.layers[1].mode = ENGINE_ANIMATION_LAYER_MODE_OVERRIDE;
+    ac.layers[1].weight = 1.0f;
     engineGameObjectUpdateAnimationControllerComponent(go, &ac);
-    step(5);
-    EXPECT_TRUE(engineAnimationControllerLayerSetWeight(go, 1, 1.0f));
+    step();
+    EXPECT_TRUE(engineAnimationControllerLayerSetWeight(go, 1, 0.5f));
+    EXPECT_FALSE(engineAnimationControllerLayerSetWeight(go, 2, 0.5f));
+    EXPECT_TRUE(has_controller(go));
 }
 }  // namespace

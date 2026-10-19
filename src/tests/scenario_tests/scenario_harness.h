@@ -1,6 +1,8 @@
 #pragma once
 #include "app.h"
 
+#include <iscene.h>
+
 #include <gtest/gtest.h>
 
 #include <cstdint>
@@ -18,6 +20,14 @@ inline constexpr float FIXED_DT_MS = 1000.0f / 60.0f;
 project_c::AppProjectC& app();
 void create_app();
 void destroy_app();
+
+// A scene with nothing in it, for tests of the engine and the harness
+class EmptyScene : public engine::IScene
+{
+public:
+    EmptyScene(engine::IApplication* app) : IScene(app) {}
+    static constexpr const char* get_name() { return "scenario_empty"; }
+};
 
 // Base fixture: load a scene with load_scene<T>(), then advance it with step(). The scene is unregistered after the test.
 class ScenarioTest : public ::testing::Test

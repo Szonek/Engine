@@ -1,73 +1,78 @@
-#include "sandbox_scene.h"
-
-#include <scripts/enemy_script.h>
-#include <scripts/player_script.h>
+#include "test_models.h"
 
 #include <gtest/gtest.h>
 
-// Asset IDs: resources inside the game's models are named "<model file>#<name>", images in their own file by that
-// file's path, so the same resource has the same name in every run and a name tells which file it comes from.
+// Asset IDs: resources inside a model are named "<model file>#<name>", images in their own file by that file's path
+// relative to the models folder, so the same resource has the same name in every run and a name tells which file it
+// comes from.
 namespace
 {
-using AssetNameTest = scenario::GameplayTest;
-
-TEST_F(AssetNameTest, EmbeddedTexturesAreQualifiedByTheirModelFile)
-{
-    EXPECT_NE(engineTextured2DGetByName("Rogue.glb#rogue_texture"), ENGINE_INVALID_OBJECT_HANDLE);
-    EXPECT_NE(engineTextured2DGetByName("Skeleton_Warrior.glb#skeleton_texture"), ENGINE_INVALID_OBJECT_HANDLE);
-    // the bare glTF image name is not an asset ID: several models embed an image with the same name
-    EXPECT_EQ(engineTextured2DGetByName("rogue_texture"), ENGINE_INVALID_OBJECT_HANDLE);
-}
-
-TEST_F(AssetNameTest, TextureInItsOwnFileIsNamedByItsPathAndShared)
-{
-    // referenced by every KayKit prototype model, loaded once
-    EXPECT_NE(engineTextured2DGetByName("KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/prototypebits_texture.png"), ENGINE_INVALID_OBJECT_HANDLE);
-    EXPECT_EQ(engineTextured2DGetByName("Box_B.gltf#prototypebits_texture"), ENGINE_INVALID_OBJECT_HANDLE);
-}
+using AssetNameTest = scenario::ModelTest;
+using scenario::TestModel;
 
 TEST_F(AssetNameTest, GeometriesAreQualifiedByTheirModelFile)
 {
-    EXPECT_NE(engineGeometryGetByName("Rogue.glb#Cylinder.008"), ENGINE_INVALID_OBJECT_HANDLE);
-    EXPECT_NE(engineGeometryGetByName("Rogue.glb#Cylinder.002"), ENGINE_INVALID_OBJECT_HANDLE);
+    const TestModel crate("crate.gltf");
+    ASSERT_TRUE(crate.loaded());
+    EXPECT_NE(engineGeometryGetByName("crate.gltf#Plate"), ENGINE_INVALID_OBJECT_HANDLE);
+    // the bare mesh name is not an asset ID: several models have a mesh with the same name
+    EXPECT_EQ(engineGeometryGetByName("Plate"), ENGINE_INVALID_OBJECT_HANDLE);
+
+    const TestModel arm("skinned_arm.gltf");
+    ASSERT_TRUE(arm.loaded());
+    EXPECT_NE(engineGeometryGetByName("skinned_arm.gltf#Arm"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_NE(engineGeometryGetByName("skinned_arm.gltf#Sword"), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
-TEST_F(AssetNameTest, PlayerWeaponUsesTheRogueTexture)
+TEST_F(AssetNameTest, EmbeddedTexturesAreQualifiedByTheirModelFile)
 {
-    auto* scene = load_sandbox_scene();
-    scene->build().floor_area(-1.0f, -1.0f, 1.0f, 1.0f);
-    scene->build().player(0.0f, 0.0f);
-    step();
+    const TestModel model("embedded_texture.gltf");
+    ASSERT_TRUE(model.loaded());
+    EXPECT_NE(engineTextured2DGetByName("embedded_texture.gltf#checker"), ENGINE_INVALID_OBJECT_HANDLE);
+    // the bare glTF image name is not an asset ID: several models embed an image with the same name
+    EXPECT_EQ(engineTextured2DGetByName("checker"), ENGINE_INVALID_OBJECT_HANDLE);
+}
 
-    const auto* weapon = scene->find_script<project_c::Weapon>();
-    ASSERT_NE(weapon, nullptr);
-    const auto material = engineGameObjectGetMaterialComponent(weapon->get_game_object());
-    EXPECT_EQ(material.data.pong.diffuse_texture, engineTextured2DGetByName("Rogue.glb#rogue_texture"));
-    EXPECT_NE(material.data.pong.diffuse_texture, ENGINE_INVALID_OBJECT_HANDLE);
+TEST_F(AssetNameTest, TextureInItsOwnFileIsNamedByItsPath)
+{
+    const TestModel model("textured_a.gltf");
+    ASSERT_TRUE(model.loaded());
+    EXPECT_NE(engineTextured2DGetByName("test_fixtures/test_texture.png"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(engineTextured2DGetByName("textured_a.gltf#test_texture.png"), ENGINE_INVALID_OBJECT_HANDLE);
+}
+
+TEST_F(AssetNameTest, SkinAndAnimationSetAreQualifiedByTheirModelFile)
+{
+    const TestModel arm("skinned_arm.gltf");
+    ASSERT_TRUE(arm.loaded());
+    EXPECT_NE(engineSkinGetByName("skinned_arm.gltf#Rig"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_NE(engineAnimationSetGetByName("skinned_arm.gltf#animations"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(engineSkinGetByName("Rig"), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
 TEST_F(AssetNameTest, SkinnedInstancesShareOneSkinAsset)
 {
-    auto* scene = load_sandbox_scene();
-    scene->build().floor_area(-2.0f, -2.0f, 2.0f, 2.0f);
-    auto* first = scene->build().enemy(-1.0f, 1.0f);
-    auto* second = scene->build().enemy(1.0f, 1.0f);
-    ASSERT_NE(first, nullptr);
-    ASSERT_NE(second, nullptr);
+    const TestModel arm("skinned_arm.gltf");
+    ASSERT_TRUE(arm.loaded());
+    const auto first = arm.instantiate();
+    const auto second = arm.instantiate();
     step();
 
-    const auto skin = engineSkinGetByName("Skeleton_Warrior.glb#Rig");
+    const auto skin = engineSkinGetByName("skinned_arm.gltf#Rig");
     ASSERT_NE(skin, ENGINE_INVALID_OBJECT_HANDLE);
-    // each enemy owns an instance (its own pose) of the one skin asset
-    ASSERT_TRUE(engineGameObjectHasSkinComponent(first->get_game_object()));
-    ASSERT_TRUE(engineGameObjectHasSkinComponent(second->get_game_object()));
-    EXPECT_EQ(engineGameObjectGetSkinComponent(first->get_game_object()).skin, skin);
-    EXPECT_EQ(engineGameObjectGetSkinComponent(second->get_game_object()).skin, skin);
+    // each instance owns its own pose of the one skin asset
+    ASSERT_TRUE(engineGameObjectHasSkinComponent(first));
+    ASSERT_TRUE(engineGameObjectHasSkinComponent(second));
+    EXPECT_NE(first, second);
+    EXPECT_EQ(engineGameObjectGetSkinComponent(first).skin, skin);
+    EXPECT_EQ(engineGameObjectGetSkinComponent(second).skin, skin);
 }
 
 TEST_F(AssetNameTest, SkinComponentWithoutASkinHasNoPose)
 {
-    load_sandbox_scene();
+    const TestModel arm("skinned_arm.gltf");
+    ASSERT_TRUE(arm.loaded());
+
     // a skin component added but never given a skin (e.g. "add component" in the editor)
     const auto owner = engineGameObjectCreate();
     engineGameObjectAddTransformComponent(owner);
@@ -79,13 +84,13 @@ TEST_F(AssetNameTest, SkinComponentWithoutASkinHasNoPose)
     engineGameObjectAddTransformComponent(attached);
     auto jac = engineGameObjectAddJointAttachmentComponent(attached);
     jac.skin = owner;
-    engineStringSet(jac.joint_name, "handslot.r");
+    engineStringSet(jac.joint_name, "tip");
     engineGameObjectUpdateJointAttachmentComponent(attached, &jac);
     step(2);
 
     // giving it a skin later works, and taking it away again removes the pose
     auto sc = engineGameObjectGetSkinComponent(owner);
-    sc.skin = engineSkinGetByName("Rogue.glb#Rig");
+    sc.skin = engineSkinGetByName(arm.asset("Rig").c_str());
     ASSERT_NE(sc.skin, ENGINE_INVALID_OBJECT_HANDLE);
     engineGameObjectUpdateSkinComponent(owner, &sc);
     step(2);
