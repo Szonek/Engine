@@ -479,6 +479,39 @@ void engine::Application::destroy_animation_set(std::uint32_t idx)
     animation_sets_atlas_.remove_object(idx);
 }
 
+std::uint32_t engine::Application::acquire_prefab_texture(const TextureDesc& desc)
+{
+    if (const auto existing = get_texture(desc.name); existing != ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        log::log(log::LogLevel::eTrace, fmt::format("Texture {} already exists, reusing it.\n", desc.name));
+        if (const auto users = prefab_texture_users_.find(existing); users != prefab_texture_users_.end())
+        {
+            ++users->second;
+        }
+        return existing;
+    }
+    const auto texture = add_texture(desc);
+    if (texture != ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        prefab_texture_users_[texture] = 1;
+    }
+    return texture;
+}
+
+void engine::Application::release_prefab_texture(std::uint32_t idx)
+{
+    const auto users = prefab_texture_users_.find(idx);
+    if (users == prefab_texture_users_.end())
+    {
+        return;
+    }
+    if (--users->second == 0)
+    {
+        prefab_texture_users_.erase(users);
+        destroy_texture(idx);
+    }
+}
+
 std::uint32_t engine::Application::add_prefab_from_file(std::string_view file_name, std::string_view base_dir)
 {
     // its assets are named after the file, so loading it twice can't succeed
@@ -496,6 +529,11 @@ std::uint32_t engine::Application::add_prefab_from_file(std::string_view file_na
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
     auto model = parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string(), std::string(file_name));
+    if (model.nodes.empty())
+    {
+        log::log(log::LogLevel::eError, fmt::format("Model file {} has no nodes, it is not a usable glTF file.\n", (assets_dir / file_name).string()));
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
     auto prefab = Prefab::create(*this, std::move(model));
     if (!prefab)
     {

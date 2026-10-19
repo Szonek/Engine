@@ -63,12 +63,9 @@ engine::Prefab::~Prefab()
     {
         app_.destroy_skin(skin_);
     }
-    for (const auto& texture : textures_)
+    for (const auto texture : textures_)
     {
-        if (texture.owner)
-        {
-            app_.destroy_texture(texture.handle);
-        }
+        app_.release_prefab_texture(texture);
     }
     for (const auto geometry : geometries_)
     {
@@ -100,19 +97,13 @@ bool engine::Prefab::create_textures()
 {
     for (const auto& texture_desc : model_.textures)
     {
-        if (const auto existing = app_.get_texture(texture_desc.name); existing != ENGINE_INVALID_OBJECT_HANDLE)
-        {
-            log::log(LogLevel::eTrace, fmt::format("Prefab {}: texture {} already exists, reusing it.\n", get_name(), texture_desc.name));
-            textures_.push_back({ existing, false });
-            continue;
-        }
-        const auto texture = app_.add_texture(texture_desc);
+        const auto texture = app_.acquire_prefab_texture(texture_desc);
         if (texture == ENGINE_INVALID_OBJECT_HANDLE)
         {
             log::log(LogLevel::eError, fmt::format("Prefab {}: failed creating texture {}.\n", get_name(), texture_desc.name));
             return false;
         }
-        textures_.push_back({ texture, true });
+        textures_.push_back(texture);
     }
     return true;
 }
@@ -132,7 +123,7 @@ void engine::Prefab::create_materials()
         material.data.pong.diffuse_color[3] = material_desc.diffuse_factor.a;
         if (material_desc.diffuse_texture != INVALID_VALUE)
         {
-            material.data.pong.diffuse_texture = textures_.at(material_desc.diffuse_texture).handle;
+            material.data.pong.diffuse_texture = textures_.at(material_desc.diffuse_texture);
         }
         material.data.pong.shininess = 32;
     }

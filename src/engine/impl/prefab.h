@@ -48,17 +48,10 @@ private:
 
     const ModelNodeDesc* find_node(const std::string& name) const;
 
-    struct OwnedTexture
-    {
-        std::uint32_t handle;
-        // false for a texture which already existed (e.g. an image file shared by several models)
-        bool owner;
-    };
-
     Application& app_;
     ModelDesc model_;
     std::vector<std::uint32_t> geometries_;
-    std::vector<OwnedTexture> textures_;
+    std::vector<std::uint32_t> textures_;
     std::vector<engine_material_component_t> materials_;
     // a model has at most one skin
     std::uint32_t skin_ = ENGINE_INVALID_OBJECT_HANDLE;

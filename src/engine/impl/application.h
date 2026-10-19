@@ -13,6 +13,8 @@
 #include "prefab.h"
 #include "render/renderer.h"
 
+#include <unordered_map>
+
 
 namespace engine
 {
@@ -71,6 +73,12 @@ public:
     virtual void destroy_animation_set(std::uint32_t idx);
 
     // prefab assets: a model file with the assets created from it, named by the file ("Rogue.glb")
+    // Textures of the models in prefabs: an image used by several models (an image file) is created once and
+    // destroyed with the last prefab using it. A texture which exists already (not created by a prefab) is only
+    // reused: the prefab doesn't own it.
+    virtual std::uint32_t acquire_prefab_texture(const TextureDesc& desc);
+    virtual void release_prefab_texture(std::uint32_t idx);
+
     virtual std::uint32_t add_prefab_from_file(std::string_view file_name, std::string_view base_dir);
     virtual std::uint32_t get_prefab(std::string_view name) const;
     virtual const Prefab* get_prefab(std::uint32_t idx) const;
@@ -122,6 +130,8 @@ protected:
     Atlas<Skin> skins_atlas_;
     Atlas<std::shared_ptr<const AnimationLibrary>> animation_sets_atlas_;
     Atlas<std::unique_ptr<Prefab>> prefabs_atlas_;
+    // texture created by a prefab -> number of prefabs using it
+    std::unordered_map<std::uint32_t, std::uint32_t> prefab_texture_users_;
     Atlas<NavMesh> nav_mesh_atlas_;
     Atlas<Shader> shader_atlas_;
 
