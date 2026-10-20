@@ -29,7 +29,7 @@ Binaries land in `build/bin/<Config>/`, libraries in `build/lib/<Config>/`.
 
 Things that will trip you up:
 
-- **Sources are listed explicitly** in each `CMakeLists.txt` (no globbing). A new `.cpp`/`.h` must be added to the list by hand. `src/games/project_c/scripts/solider_script.cpp` is on disk but intentionally not in the build.
+- **Sources are listed explicitly** in each `CMakeLists.txt` (no globbing). A new `.cpp`/`.h` must be added to the list by hand.
 - **The asset path is baked in at configure time**: `PROJECT_C_ASSETS_DIR` (set in `src/games/project_c/CMakeLists.txt`) points at the `assets/` folder of the source tree the game was built from, so a worktree build uses its own shaders. Shaders, models, fonts and UI documents are loaded from there at runtime, so asset edits need no rebuild.
 - **With the editor enabled** (`enable_editor = true` in `app.cpp`) the game starts in Play mode; the Pause button stops it. Scripts only tick while the editor is in Play mode — see `IScene::update`.
 - `engine_logic_tests` (in `src/tests/unit_tests`) compiles the engine sources under test (render graph, shadow maths, the header-only resource atlas and ID registry, skins and the animation controller, with a stub logger; Tracy/RmlUi only as headers, so the profiling macros are empty) directly and needs neither GL nor the engine DLL. **Add new GL-free tests to it** instead of creating another executable; tests that need a GL context belong in `scenario_tests`.
