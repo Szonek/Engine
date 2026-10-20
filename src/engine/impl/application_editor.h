@@ -162,6 +162,8 @@ private:
     std::shared_ptr<Texture2D> scene_view_texture_;
     viewport_t scene_view_rect_{};
     bool scene_view_has_mouse_ = false;
+    // a mouse button pressed over the scene panel is still held
+    bool scene_view_mouse_held_ = false;
     bool scene_view_focused_ = false;
     SceneHierarchyContext scene_hierarchy_context_;
 };

@@ -929,7 +929,7 @@ void engine::ApplicationEditor::render_scene_view()
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::Begin(editor_windows_context_.get_window_scene(), nullptr,
-        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoNavInputs);
+        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoMove);
     ImGui::PopStyleVar();
 
     const auto pos = ImGui::GetCursorScreenPos();
@@ -945,10 +945,21 @@ void engine::ApplicationEditor::render_scene_view()
     // the scene is rendered into the texture at the end of this frame; GL textures start at the bottom
     const auto image_max = ImVec2(pos.x + static_cast<float>(width), pos.y + static_cast<float>(height));
     ImGui::GetWindowDrawList()->AddImage(static_cast<ImTextureID>(scene_view_texture_->get_imgui_texture_id()), pos, image_max, ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
-    // takes the clicks, so the mouse stays with the scene while a button pressed over it is held
-    ImGui::InvisibleButton("scene_view", ImVec2(static_cast<float>(width), static_cast<float>(height)),
-        ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight | ImGuiButtonFlags_MouseButtonMiddle);
-    scene_view_has_mouse_ = ImGui::IsItemHovered() || ImGui::IsItemActive();
+    // No item covers the image: ImGuizmo only starts a drag when no item is hovered.
+    // The mouse stays with the scene while a button pressed over it is held.
+    const bool hovered = ImGui::IsWindowHovered();
+    const auto& io = ImGui::GetIO();
+    const bool any_button_down = io.MouseDown[ImGuiMouseButton_Left] || io.MouseDown[ImGuiMouseButton_Right] || io.MouseDown[ImGuiMouseButton_Middle];
+    const bool any_button_clicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right) || ImGui::IsMouseClicked(ImGuiMouseButton_Middle);
+    if (hovered && any_button_clicked)
+    {
+        scene_view_mouse_held_ = true;
+    }
+    else if (!any_button_down)
+    {
+        scene_view_mouse_held_ = false;
+    }
+    scene_view_has_mouse_ = hovered || scene_view_mouse_held_;
     scene_view_focused_ = ImGui::IsWindowFocused();
     ImGui::End();
 }
@@ -1291,7 +1302,8 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
 
 void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
 {
-    if (!is_mouse_over_scene())
+    // a click on the gizmo moves the object, it doesn't pick what is under it
+    if (!is_mouse_over_scene() || ImGuizmo::IsUsingAny())
     {
         return;
     }
