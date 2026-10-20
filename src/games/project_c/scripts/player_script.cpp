@@ -111,8 +111,8 @@ void attack_window_close_callback(const engine_animation_event_info_t* info, voi
 }
 } // namespace anonymous
 
-project_c::Weapon::Weapon(engine::IScene* my_scene)
-    : BaseNode(my_scene, "weapon-daggers")
+project_c::Weapon::Weapon(engine::IScene* my_scene, engine_game_object_t go)
+    : BaseNode(my_scene, go, "weapon-daggers")
 {
     const auto dagger_texture = engineTextured2DGetByName("Rogue.glb#rogue_texture");
 
@@ -135,26 +135,6 @@ project_c::Weapon::Weapon(engine::IScene* my_scene)
     matc.data.pong.shininess = 32.0f;
     matc.data.pong.diffuse_texture = dagger_texture;
     engineGameObjectUpdateMaterialComponent(go_, &matc);
-
-    // offhand dagger
-    offhand_go_ = engineGameObjectCreate();
-    auto offhand_nc = engineGameObjectAddNameComponent(offhand_go_);
-    std::strncpy(offhand_nc.name, "weapon-daggers-offhand", std::size(offhand_nc.name));
-    engineGameObjectUpdateNameComponent(offhand_go_, &offhand_nc);
-
-    auto offhand_tc = engineGameObjectAddTransformComponent(offhand_go_);
-    engineGameObjectUpdateTransformComponent(offhand_go_, &offhand_tc);
-
-    auto offhand_mc = engineGameObjectAddMeshComponent(offhand_go_);
-    offhand_mc.geometry = engineGeometryGetByName("Rogue.glb#Cylinder.002");
-    assert(offhand_mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
-    engineGameObjectUpdateMeshComponent(offhand_go_, &offhand_mc);
-
-    auto offhand_matc = engineGameObjectAddMaterialComponent(offhand_go_);
-    offhand_matc = matc;
-    engineGameObjectUpdateMaterialComponent(offhand_go_, &offhand_matc);
-
-    attach_offhand_to_main();
 
     // physics
     auto cc = engineGameObjectAddColliderComponent(go_);
@@ -218,33 +198,48 @@ void project_c::Weapon::attach_to_game_object(engine_game_object_t parent, std::
     }
 }
 
+void project_c::Weapon::on_start()
+{
+    // the second dagger is runtime-only: the weapon creates it whether it was placed by the level or spawned
+    offhand_go_ = engineGameObjectCreateTransient();
+    auto offhand_nc = engineGameObjectAddNameComponent(offhand_go_);
+    std::strncpy(offhand_nc.name, "weapon-daggers-offhand", std::size(offhand_nc.name));
+    engineGameObjectUpdateNameComponent(offhand_go_, &offhand_nc);
+
+    auto offhand_tc = engineGameObjectAddTransformComponent(offhand_go_);
+    engineGameObjectUpdateTransformComponent(offhand_go_, &offhand_tc);
+
+    auto offhand_mc = engineGameObjectAddMeshComponent(offhand_go_);
+    offhand_mc.geometry = engineGeometryGetByName("Rogue.glb#Cylinder.002");
+    assert(offhand_mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
+    engineGameObjectUpdateMeshComponent(offhand_go_, &offhand_mc);
+
+    auto offhand_matc = engineGameObjectAddMaterialComponent(offhand_go_);
+    offhand_matc = engineGameObjectGetMaterialComponent(go_);
+    engineGameObjectUpdateMaterialComponent(offhand_go_, &offhand_matc);
+
+    place_offhand();
+}
+
 void project_c::Weapon::attach_offhand_to_game_object(engine_game_object_t parent, std::string_view joint_name)
 {
-    if (engineGameObjectHasJointAttachmentComponent(offhand_go_))
-    {
-        engineGameObjectRemoveJointAttachmentComponent(offhand_go_);
-    }
-    if (engineGameObjectHasParentComponent(offhand_go_))
-    {
-        engineGameObjectRemoveParentComponent(offhand_go_);
-    }
-    auto pc = engineGameObjectAddParentComponent(offhand_go_);
-    pc.parent = parent;
-    engineGameObjectUpdateParentComponent(offhand_go_, &pc);
-
-    auto jac = engineGameObjectAddJointAttachmentComponent(offhand_go_);
-    jac.skin = parent;
-    engineStringSet(jac.joint_name, joint_name.data());
-    engineGameObjectUpdateJointAttachmentComponent(offhand_go_, &jac);
-
-    auto tc = engineGameObjectGetTransformComponent(offhand_go_);
-    set_c_array(tc.position, std::array<float, 3>{ 0.0f, 0.0f, 0.0f });
-    set_c_array(tc.rotation, std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f });
-    engineGameObjectUpdateTransformComponent(offhand_go_, &tc);
+    offhand_holder_ = OffhandHolder{ parent, std::string(joint_name) };
+    place_offhand();
 }
 
 void project_c::Weapon::attach_offhand_to_main()
 {
+    offhand_holder_.reset();
+    place_offhand();
+}
+
+void project_c::Weapon::place_offhand()
+{
+    // before on_start there is no offhand dagger yet: on_start places it
+    if (offhand_go_ == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        return;
+    }
     if (engineGameObjectHasJointAttachmentComponent(offhand_go_))
     {
         engineGameObjectRemoveJointAttachmentComponent(offhand_go_);
@@ -254,12 +249,23 @@ void project_c::Weapon::attach_offhand_to_main()
         engineGameObjectRemoveParentComponent(offhand_go_);
     }
     auto pc = engineGameObjectAddParentComponent(offhand_go_);
-    pc.parent = go_;
+    pc.parent = offhand_holder_ ? offhand_holder_->parent : go_;
     engineGameObjectUpdateParentComponent(offhand_go_, &pc);
 
-    // lay it next to the main dagger
     auto tc = engineGameObjectGetTransformComponent(offhand_go_);
-    set_c_array(tc.position, std::array<float, 3>{ 0.3f, 0.0f, 0.0f });
+    if (offhand_holder_)
+    {
+        auto jac = engineGameObjectAddJointAttachmentComponent(offhand_go_);
+        jac.skin = offhand_holder_->parent;
+        engineStringSet(jac.joint_name, offhand_holder_->joint_name.c_str());
+        engineGameObjectUpdateJointAttachmentComponent(offhand_go_, &jac);
+        set_c_array(tc.position, std::array<float, 3>{ 0.0f, 0.0f, 0.0f });
+    }
+    else
+    {
+        // lay it next to the main dagger
+        set_c_array(tc.position, std::array<float, 3>{ 0.3f, 0.0f, 0.0f });
+    }
     set_c_array(tc.rotation, std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f });
     engineGameObjectUpdateTransformComponent(offhand_go_, &tc);
 }
@@ -351,18 +357,10 @@ project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_ob
     set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.3f / PLAYER_SCALE, 0.05f / PLAYER_SCALE, 0.3f / PLAYER_SCALE });
     engineGameObjectUpdateColliderComponent(go_, &cc);
 
-    // parent to root
-    const auto gos_with_root_name = utils::get_game_objects_with_name("player");
-    for (auto& parent : gos_with_root_name)
-    {
-        if (parent != ENGINE_INVALID_GAME_OBJECT_ID)
-        {
-            auto pc = engineGameObjectAddParentComponent(go_);
-            pc.parent = parent;
-            engineGameObjectUpdateParentComponent(go_, &pc);
-            break;
-        }
-    }
+    // follows the player
+    auto pc = engineGameObjectAddParentComponent(go_);
+    pc.parent = player_->get_game_object();
+    engineGameObjectUpdateParentComponent(go_, &pc);
 }
 
 void project_c::AttackTrigger::on_collision(const collision_t& info)
@@ -417,17 +415,16 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     character.max_slope = 45.0f;
     engineGameObjectUpdateCharacterControllerComponent(go_, &character);
 
-    create_traversal_marker();
-
-    // delete objects not needed at creation time
-    engineGameObjectDestroy(utils::get_game_objects_with_name("Knife")[0]);
-    engineGameObjectDestroy(utils::get_game_objects_with_name("Knife_Offhand")[0]);
-    engineGameObjectDestroy(utils::get_game_objects_with_name("1H_Crossbow")[0]);
-    engineGameObjectDestroy(utils::get_game_objects_with_name("2H_Crossbow")[0]);
-    engineGameObjectDestroy(utils::get_game_objects_with_name("Throwable")[0]);
-
-    // add attack trigger
-    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreate(), this);
+    // the model's own weapons aren't used: the player equips a Weapon
+    constexpr std::array<const char*, 5> unused_model_parts = { "Knife", "Knife_Offhand", "1H_Crossbow", "2H_Crossbow", "Throwable" };
+    for (const auto child : utils::get_children(go_))
+    {
+        const auto name = engineGameObjectHasNameComponent(child) ? engineGameObjectGetNameComponent(child) : engine_name_component_t{};
+        if (std::ranges::any_of(unused_model_parts, [&name](const char* part) { return std::strcmp(name.name, part) == 0; }))
+        {
+            engineGameObjectDestroy(child);
+        }
+    }
 
     // animation layers: locomotion on the whole body, combat on the upper body only (the legs keep walking while
     // attacking). The joint weights apply in order: a little of the pelvis, none of the legs, all of the spine up.
@@ -460,6 +457,14 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
         }
         engineGameObjectUpdateAnimationControllerComponent(go_, &ac);
     }
+}
+
+void project_c::Player::on_start()
+{
+    // runtime parts of the player, never saved: the attack trigger, the traversal marker and the starting weapon
+    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreateTransient(), this);
+    create_traversal_marker();
+    equip_waepon(my_scene_->register_script<Weapon>(engineGameObjectCreateTransient()));
 
     for (std::size_t combo_index = 0; combo_index < AttackStateData::combo_length; ++combo_index)
     {
@@ -1584,7 +1589,7 @@ void project_c::Player::create_traversal_marker()
     {
         return;
     }
-    traversal_marker_ = app->instantiate_prefab(PREFAB_TYPE_TRAVERSAL_MARKER).go;
+    traversal_marker_ = app->spawn_prefab(PREFAB_TYPE_TRAVERSAL_MARKER).go;
     if (traversal_marker_ == ENGINE_INVALID_GAME_OBJECT_ID)
     {
         return;

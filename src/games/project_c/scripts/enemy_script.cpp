@@ -166,20 +166,6 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, float 
     character.max_slope = 45.0f;
     engineGameObjectUpdateCharacterControllerComponent(go_, &character);
 
-    auto* app = reinterpret_cast<AppProjectC*>(my_scene_->get_app());
-    if (app->is_prefab_available(PREFAB_TYPE_SKELETON_BLADE))
-    {
-        const auto blade = app->instantiate_prefab(PREFAB_TYPE_SKELETON_BLADE);
-        if (blade.go != ENGINE_INVALID_GAME_OBJECT_ID)
-        {
-            weapon_ = my_scene_->register_script<EnemyWeapon>(blade.go, this);
-        }
-    }
-    else
-    {
-        engineLog("Skeleton blade prefab is unavailable; enemy weapon visuals and hitbox are disabled.\n");
-    }
-
     for (const auto& attack_animation : ENEMY_ATTACK_ANIMATIONS)
     {
         const char* animation_name = attack_animation.name;
@@ -212,6 +198,29 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, float 
         {
             engineLog("Failed to add enemy attack closing event.\n");
         }
+    }
+}
+
+void project_c::Enemy::on_start()
+{
+    if (const auto* player = my_scene_->find_script<Player>())
+    {
+        player_go_ = player->get_game_object();
+    }
+
+    // the blade is part of the enemy's loadout, a runtime object
+    auto* app = reinterpret_cast<AppProjectC*>(my_scene_->get_app());
+    if (app->is_prefab_available(PREFAB_TYPE_SKELETON_BLADE))
+    {
+        const auto blade = app->spawn_prefab(PREFAB_TYPE_SKELETON_BLADE);
+        if (blade.go != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            weapon_ = my_scene_->register_script<EnemyWeapon>(blade.go, this);
+        }
+    }
+    else
+    {
+        engineLog("Skeleton blade prefab is unavailable; enemy weapon visuals and hitbox are disabled.\n");
     }
 }
 
@@ -248,14 +257,10 @@ void project_c::Enemy::update(float dt)
 
     attack_cooldown_remaining_seconds_ = std::max(0.0f, attack_cooldown_remaining_seconds_ - dt / 1000.0f);
 
+    // a scene without a player (e.g. a test scene)
     if (player_go_ == ENGINE_INVALID_GAME_OBJECT_ID)
     {
-        const auto player_game_objects = utils::get_game_objects_with_name("player");
-        if (player_game_objects.empty())
-        {
-            return;
-        }
-        player_go_ = player_game_objects.front();
+        return;
     }
 
     for (auto& s : debug_scripts_)
@@ -305,7 +310,7 @@ void project_c::Enemy::update(float dt)
         engineGameObjectRemoveCharacterControllerComponent(go_);
         if (reinterpret_cast<AppProjectC*>(my_scene_->get_app())->is_prefab_available(project_c::PrefabType::PREFAB_TYPE_COIN_GOLD))
         {
-            auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD).go);
+            auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->spawn_prefab(project_c::PREFAB_TYPE_COIN_GOLD).go);
             coin->set_world_position(tc.position[0], tc.position[1] + 1.0f, tc.position[2]);
         }
     }
@@ -419,7 +424,7 @@ void project_c::Enemy::update(float dt)
         }
         for (std::size_t i = 1; i < path_points_count; i++)
         {
-            debug_scripts_.push_back(my_scene_->register_script<project_c::DebugPathNode>(path[i].x, path[i].z));
+            debug_scripts_.push_back(my_scene_->register_script<project_c::DebugPathNode>(engineGameObjectCreateTransient(), path[i].x, path[i].z));
         }
         const glm::vec3 target = direct_approach
             ? glm::vec3(ec.position[0], tc.position[1], ec.position[2])

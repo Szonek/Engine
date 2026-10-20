@@ -53,6 +53,8 @@ public:
 
     Enemy(engine::IScene* my_scene, const PrefabResult& pr, float offset_x, float offset_z);
 
+    void on_start() override;
+
     void update(float dt);
     void receive_attack_hit(std::uint32_t damage, float hit_stop_seconds);
     void set_attack_window_active(bool active);
@@ -75,7 +77,7 @@ private:
     std::vector<IScript*> debug_scripts_;
     std::vector<HitFlashMaterial> hit_flash_materials_;
     EnemyWeapon* weapon_ = nullptr;
-    engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;  // cache the result, because  it's performance expensive to find player go with each frame
+    engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;  // found in on_start
     float hit_flash_remaining_seconds_ = 0.0f;
     float hit_stop_remaining_seconds_ = 0.0f;
     float attack_cooldown_remaining_seconds_ = 0.0f;

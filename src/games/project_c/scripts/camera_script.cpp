@@ -1,5 +1,6 @@
 #include "camera_script.h"
 #include "scripts_utils.h"
+#include "player_script.h"
 #include "../app.h"
 
 #include "iscene.h"
@@ -77,6 +78,11 @@ project_c::CameraScript::CameraScript(engine::IScene* my_scene)
     engineGameObjectUpdateTransformComponent(go_, &camera_transform_comp);
 }
 
+void project_c::CameraScript::on_start()
+{
+    snap_to_player();
+}
+
 void project_c::CameraScript::late_update(float dt)
 {
     engine::ScopedProfiler profiler("project_c::CameraScript::late_update");
@@ -136,9 +142,10 @@ bool project_c::CameraScript::find_player()
     {
         return true;
     }
-    const auto all_players = utils::get_game_objects_with_name("player");
-    player_go_ = all_players.empty() ? ENGINE_INVALID_GAME_OBJECT_ID : all_players.front();
-    return player_go_ != ENGINE_INVALID_GAME_OBJECT_ID;
+    // the player can be placed after the camera started (e.g. in a test scene)
+    const auto* player = my_scene_->find_script<Player>();
+    player_go_ = player ? player->get_game_object() : ENGINE_INVALID_GAME_OBJECT_ID;
+    return player != nullptr;
 }
 
 glm::vec3 project_c::CameraScript::compute_look_ahead(const glm::vec3& player_position) const

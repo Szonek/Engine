@@ -36,6 +36,16 @@ public:
     void set_alignment_point(const glm::vec3& point) { alignment_point_ = point; }
     std::optional<glm::vec3> get_alignment_point() const { return alignment_point_; }
 
+    // What the House hides while the player is inside it (the camera facing walls, the roof)
+    enum class HideWhenInside
+    {
+        eNever,
+        eMesh,
+        eMeshAndCollider  // so mouse picking goes through the hidden roof
+    };
+    void set_hide_when_inside(HideWhenInside hide) { hide_when_inside_ = hide; }
+    HideWhenInside get_hide_when_inside() const { return hide_when_inside_; }
+
     // Hides mesh, and optionally removes the collider (so mouse picking goes through hidden roofs).
     void set_hidden(bool hidden, bool affect_collider);
 
@@ -48,12 +58,14 @@ private:
     std::optional<glm::vec3> climbable_away_from_;
     glm::vec3 position_{ 0.0f };
     bool climbable_ = false;
+    HideWhenInside hide_when_inside_ = HideWhenInside::eNever;
     bool hidden_ = false;
     bool collider_removed_ = false;
 };
 
 // Small, single room house: 4 walls (one with an open window), walkable roof.
-// While the player is inside, the roof and the wall facing the camera are hidden.
+// The parts are level content: BuildingParts which are children of the house (build_house places them). While the
+// player is inside, the house hides the parts marked with HideWhenInside (the roof and the wall facing the camera).
 class House : public BaseNode
 {
 public:
@@ -62,8 +74,9 @@ public:
     static constexpr float wall_thickness = 0.5f;
     static constexpr float roof_thickness = 0.25f;
 
-    House(engine::IScene* my_scene, AppProjectC& app, const glm::vec2& center, float ground_y);
+    House(engine::IScene* my_scene, const glm::vec2& center, float ground_y);
 
+    void on_start() override;
     void update(float dt) override;
 
     float get_roof_top_y() const { return ground_y_ + wall_height + roof_thickness; }
@@ -74,18 +87,17 @@ public:
 private:
     bool is_inside(const glm::vec3& p) const;
 
-    void add_wall(AppProjectC& app, const glm::vec3& position, float y_rotation_degrees, const glm::vec3& scale, bool camera_facing);
-    void add_window_wall(AppProjectC& app, const glm::vec3& position, float y_rotation_degrees, const glm::vec3& scale, bool camera_facing);
-    void add_roof(AppProjectC& app);
-
 private:
     glm::vec2 center_;
     float ground_y_ = 0.0f;
     bool player_inside_ = false;
     engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
-    std::vector<BuildingPart*> camera_occluders_;
+    // child parts with a HideWhenInside other than eNever, found in on_start
+    std::vector<BuildingPart*> hidden_when_inside_;
     std::vector<engine_game_object_t> roof_props_;
-    BuildingPart* roof_ = nullptr;
 };
+
+// A house centered on `center` (x, z) standing on ground_y, with its parts; parts whose prefab failed to load are skipped.
+House* build_house(engine::IScene& scene, AppProjectC& app, const glm::vec2& center, float ground_y);
 
 } // namespace project_c

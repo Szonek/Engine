@@ -222,8 +222,8 @@ project_c::SpotLight::SpotLight(engine::IScene* my_scene)
     engineGameObjectUpdateLightComponent(go_, &lc);
 }
 
-project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, float offset_x, float offset_z)
-    : BaseNode(my_scene, "debug-path-node")
+project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, engine_game_object_t go, float offset_x, float offset_z)
+    : BaseNode(my_scene, go, "debug-path-node")
 {
     set_editor_folder(go_, "debug_path");
 

@@ -1,6 +1,7 @@
 #include "level_builder.h"
 
 #include "../app.h"
+#include "../scripts/building_script.h"
 #include "../scripts/enemy_script.h"
 #include "../scripts/enviorment_script.h"
 #include "../scripts/interactable_script.h"
@@ -113,8 +114,6 @@ project_c::Player* project_c::LevelBuilder::player(float x, float z)
     }
     auto* player = scene_.register_script<Player>(app_.instantiate_prefab(PREFAB_TYPE_ROGUE));
     player->set_world_position(x, 1.0f, z);
-    auto* weapon = scene_.register_script<Weapon>();
-    player->equip_waepon(weapon);
     return player;
 }
 
@@ -145,7 +144,12 @@ project_c::Weapon* project_c::LevelBuilder::weapon_on_ground(float x, float z)
     {
         return nullptr;
     }
-    auto* weapon = scene_.register_script<Weapon>();
+    auto* weapon = scene_.register_script<Weapon>(engineGameObjectCreate());
     weapon->drop_on_ground(glm::vec3(x, 0.5f, z));
     return weapon;
+}
+
+project_c::House* project_c::LevelBuilder::house(float x, float z, float ground_y)
+{
+    return build_house(scene_, app_, glm::vec2(x, z), ground_y);
 }

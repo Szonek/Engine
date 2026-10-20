@@ -90,18 +90,28 @@ project_c::AppProjectC::~AppProjectC()
 
 project_c::PrefabResult project_c::AppProjectC::instantiate_prefab(PrefabType type)
 {
+    return { is_valid_prefab_type(type) ? enginePrefabInstantiate(prefabs_[type]) : ENGINE_INVALID_GAME_OBJECT_ID };
+}
+
+project_c::PrefabResult project_c::AppProjectC::spawn_prefab(PrefabType type)
+{
+    return { is_valid_prefab_type(type) ? enginePrefabInstantiateTransient(prefabs_[type]) : ENGINE_INVALID_GAME_OBJECT_ID };
+}
+
+bool project_c::AppProjectC::is_valid_prefab_type(PrefabType type) const
+{
     if (type >= PREFAB_TYPE_COUNT)
     {
         log(fmt::format("Invalid prefab type: {}\n", type));
-        return { ENGINE_INVALID_GAME_OBJECT_ID };
+        return false;
     }
 
     if (!is_prefab_available(type))
     {
         log(fmt::format("Prefab: {} is not valid\n", type));
-        return { ENGINE_INVALID_GAME_OBJECT_ID };
+        return false;
     }
-    return { enginePrefabInstantiate(prefabs_[type]) };
+    return true;
 }
 
 bool project_c::AppProjectC::is_prefab_available(PrefabType type) const

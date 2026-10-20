@@ -36,7 +36,10 @@ public:
     AppProjectC(const PrefabsData& prefabs_data, const AppConfig& config = {});
     ~AppProjectC();
 
+    // an instance which is part of the scene's content: the level places these
     PrefabResult instantiate_prefab(PrefabType type);
+    // a transient instance (never saved, no persistent IDs): scripts spawn these at runtime
+    PrefabResult spawn_prefab(PrefabType type);
     bool is_prefab_available(PrefabType type) const;
     // One frame of the game (dt in milliseconds): updates the scenes, then applies scene changes they requested.
     // The caller owns the loop and calls it between engineFrameBegin() and engineFrameEnd() (main.cpp, tests).
@@ -59,6 +62,9 @@ public:
     }
 
 private:
+    // logs why when the type can't be instantiated
+    bool is_valid_prefab_type(PrefabType type) const;
+
     // the engine prefab assets of the models loaded at startup, ENGINE_INVALID_OBJECT_HANDLE for a model which failed loading
     std::array<engine_prefab_t, PREFAB_TYPE_COUNT> prefabs_;
     PlayerInput player_input_{};

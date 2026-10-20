@@ -10,6 +10,8 @@ class CameraScript : public BaseNode
 {
 public:
     CameraScript(engine::IScene* my_scene);
+    // snaps to the player
+    void on_start() override;
     void snap_to_player();
     void late_update(float dt) override;
     void shake(float intensity, float duration_seconds);

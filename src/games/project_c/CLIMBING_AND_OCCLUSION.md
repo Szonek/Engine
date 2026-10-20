@@ -110,7 +110,8 @@ The combat (upper body) layer is muted while traversing.
 
 ## The house
 
-`House` is built over the bounding box of the `h` cells of the map. These cells get floor tiles with a not-walkable nav
+`House` is built over the bounding box of the `h` cells of the map by `build_house` (`LevelBuilder::house`). Its parts
+are level content: `BuildingPart` children of the house game object, which the house collects in `on_start`. These cells get floor tiles with a not-walkable nav
 modifier, so the nav mesh leaves them out and enemies don't walk into it. Enemies also ignore a player who is more than 0.6 higher than them (on a wall or the roof).
 
 * Walls are KayKit `Primitive_Wall` pieces at half size: 2 wide, 2 tall, 0.5 thick. The roof (`Primitive_Floor`) sits on
@@ -118,7 +119,8 @@ modifier, so the nav mesh leaves them out and enemies don't walk into it. Enemie
 * The engine's compound collider supports one child only, so the window wall's collision is four invisible blockers
   (left/right pillar, sill, lintel) sharing the transform of the visible `Primitive_Window` piece. The blockers point their
   alignment point (vault) to the visible piece.
-* While the player is inside, the roof and the wall facing the camera are hidden - see Occlusion below.
+* While the player is inside, the parts marked with `BuildingPart::HideWhenInside` (the roof and the wall facing the
+  camera) are hidden - see Occlusion below.
 
 ## Camera
 
@@ -135,9 +137,10 @@ modifier, so the nav mesh leaves them out and enemies don't walk into it. Enemie
 The only occlusion handling is the classic ARPG cutaway of the house, all in `House::update`:
 
 * `House::is_inside` checks the player against the interior of the house (below the roof).
-* When the player enters, the roof is hidden (mesh disabled; collider removed, so mouse aiming hits the room floor instead
-  of the roof) together with the props standing on it (`House::add_roof_prop`), and the camera facing wall pieces are
-  hidden (`BuildingPart::set_hidden`; their colliders stay, so the walls still block movement and can be vaulted through).
+* When the player enters, the roof is hidden (`HideWhenInside::eMeshAndCollider`: mesh disabled, collider removed, so
+  mouse aiming hits the room floor instead of the roof) together with the props standing on it (`House::add_roof_prop`),
+  and the camera facing wall pieces are hidden (`HideWhenInside::eMesh`: their colliders stay, so the walls still block
+  movement and can be vaulted through).
 * When the player leaves, everything is shown again.
 
 Outside the house nothing reacts: a player behind the house or climbing its back wall is hidden by it. That was a
