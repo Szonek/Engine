@@ -73,8 +73,8 @@ TEST_F(MovementTest, DiagonalSpeedEqualsStraightSpeed)
     EXPECT_NEAR(diagonal_speed, straight_speed, straight_speed * 0.05f);
 }
 
-// A new game object's colliders are synced to physics before its first local_to_world is computed. Children (the
-// player's attack trigger) used to get an uninitialized transform for that frame, which made Bullet assert on
+// A new game object's colliders used to be synced to physics before its first world transform was computed: children
+// (the player's attack trigger) got an uninitialized transform for that frame, which made Bullet assert on
 // rays near the world origin, where the debug reset key puts the player.
 TEST_F(MovementTest, PlayerAtWorldOriginLands)
 {

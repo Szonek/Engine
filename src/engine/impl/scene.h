@@ -11,6 +11,7 @@
 
 #include <array>
 #include <deque>
+#include <optional>
 #include <span>
 #include <tuple>
 
@@ -50,6 +51,9 @@ public:
     // destroys the entity and its children, with theirs
     void destroy_entity(entt::entity entity);
     bool is_valid_entity(entt::entity entity) const;
+
+    // the space the entity's transform is local to (parent world * joint), see engine::get_parent_space_matrix
+    glm::mat4 get_parent_space_matrix(entt::entity entity) const;
 
     // the entities whose parent component points at `entity`, in the order they were parented; invalidated by any
     // change of the hierarchy
@@ -141,8 +145,12 @@ public:
 
 private:
     engine_result_code_t physics_update(float dt);
-    // local_to_world of every transform: TRS, then joint attachments, then the parent chain
+    // the scale of the entity's collision shape
+    glm::vec3 get_collider_shape_scale(entt::entity entity) const;
+    // the world_transform_internal_component_t of every transform, see engine::update_world_transforms
     void update_world_transforms();
+    // the model matrix of the attachment's joint in its skin instance, nullopt (logged) when it has none
+    std::optional<glm::mat4> get_joint_matrix(const engine_joint_attachment_component_t& joint_attachment) const;
     // (re)creates the pose of a skin instance when its skin component gets a skin, removes it when it loses one
     void on_skin_component_changed(entt::registry& registry, entt::entity entity);
     // (re)creates the entity's animation controller from its animation set and skin, or removes it when either is missing
@@ -160,7 +168,6 @@ private:
     entt::registry entity_registry_;
     // declared after the registry: it disconnects from the registry's signals when destroyed
     EntityIdRegistry entity_ids_;
-    entt::observer transform_model_matrix_update_observer;
     entt::observer mesh_update_observer;
     entt::observer collider_create_observer;
     entt::observer collider_update_observer;

@@ -612,6 +612,10 @@ ENGINE_API engine_transform_component_t engineGameObjectGetTransformComponent(en
 ENGINE_API void engineGameObjectUpdateTransformComponent(engine_game_object_t game_object, const engine_transform_component_t* comp);
 ENGINE_API void engineGameObjectRemoveTransformComponent(engine_game_object_t game_object);
 ENGINE_API bool engineGameObjectHasTransformComponent(engine_game_object_t game_object);
+// The game object's local-to-world matrix (column-major): its transform, joint attachment and parents. Derived by the
+// scene and read-only, valid after the last scene update (engineFrameSceneUpdate): changes made since then show up after the next one.
+// Fails when the game object has no transform component.
+ENGINE_API engine_result_code_t engineGameObjectGetWorldTransform(engine_game_object_t game_object, float out_matrix[16]);
 
 // light component
 ENGINE_API engine_light_component_t engineGameObjectAddLightComponent(engine_game_object_t game_object);

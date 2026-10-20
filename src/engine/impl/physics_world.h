@@ -46,8 +46,9 @@ public:
      */
     void collect_debug_lines(std::vector<DebugLineGpuData>& out_lines);
 
+    // the body is placed at the translation and rotation of local_to_world, shape_scale scales its collision shape
     physcic_internal_component_t create_rigid_body(const engine_collider_component_t& collider,
-        const engine_rigid_body_component_t& rigid_body, const engine_transform_component_t& transform, std::int32_t body_index);
+        const engine_rigid_body_component_t& rigid_body, const glm::mat4& local_to_world, const glm::vec3& shape_scale, std::int32_t body_index);
 
     void remove_rigid_body(entt::basic_registry<entt::entity>& reg, entt::entity entt)
     {

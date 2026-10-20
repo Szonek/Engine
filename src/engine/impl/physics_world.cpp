@@ -10,6 +10,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/matrix_access.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 
 #include <fmt/format.h>
 
@@ -75,9 +76,20 @@ void engine::PhysicsWorld::collect_debug_lines(std::vector<DebugLineGpuData>& ou
     }
 }
 
-engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const engine_transform_component_t& transform, std::int32_t body_index)
+engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const glm::mat4& local_to_world, const glm::vec3& shape_scale, std::int32_t body_index)
 {
     physcic_internal_component_t ret{};
+    glm::vec3 scale{ 1.0f };
+    glm::quat rotation{};
+    glm::vec3 translation{ 0.0f };
+    glm::vec3 skew;
+    glm::vec4 perspective;
+    if (!glm::decompose(local_to_world, scale, rotation, translation, skew, perspective))
+    {
+        engine::log::log(engine::log::LogLevel::eError, fmt::format("Body {} is created at a world transform which can't be decomposed (zero scale?), it starts at the origin.\n", body_index));
+        rotation = glm::make_quat(std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f }.data());
+        translation = glm::vec3{ 0.0f };
+    }
     if (collider.type == ENGINE_COLLIDER_TYPE_BOX)
     {
         const btVector3 box_bounds{
@@ -125,7 +137,7 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
         return ret;
     }
 
-    ret.collision_shape->setLocalScaling(btVector3(transform.scale[0], transform.scale[1], transform.scale[2]));
+    ret.collision_shape->setLocalScaling(btVector3(shape_scale.x, shape_scale.y, shape_scale.z));
     btVector3 local_inertia(0, 0, 0);
     if (rigid_body.mass)
     {
@@ -135,8 +147,8 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
 
     btTransform transform_init;
     transform_init.setIdentity();
-    transform_init.setOrigin(btVector3(transform.position[0], transform.position[1], transform.position[2]));
-    transform_init.setRotation(btQuaternion(transform.rotation[0], transform.rotation[1], transform.rotation[2], transform.rotation[3]));
+    transform_init.setOrigin(btVector3(translation.x, translation.y, translation.z));
+    transform_init.setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, rotation.w));
 
     //using motionstate is optional, it provides interpolation capabilities, and only synchronizes 'active' objects
     //ToDo: Validate if motion state should be used instead?

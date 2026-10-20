@@ -2,6 +2,7 @@
 
 #include "scene.h"
 #include "math_helpers.h"
+#include "world_transform.h"
 #include "logger.h"
 #include "profiler.h"
 #include "animation_controller.h"
@@ -1301,9 +1302,8 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
         scene->attach_component_to_runtime_view<engine::guizmo_component_t>(gizmo_view);
         for (const auto& entity : gizmo_view)
         {
-            const auto transform_component = *scene->get_component<engine_transform_component_t>(entity);
-            // ImGuizmo manipulation
-            auto model_matrix = glm::make_mat4x4(transform_component.local_to_world);
+            // ImGuizmo manipulates the world matrix, the transform component is local to the parent space
+            auto model_matrix = scene->get_component<engine::world_transform_internal_component_t>(entity)->local_to_world;
 
             ImGuizmo::SetOrthographic(camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC); // Set the projection mode to perspective
             ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection),
@@ -1313,25 +1313,11 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
 
             if (ImGuizmo::IsUsing())
             {
-                glm::vec3 translation{};
-                glm::vec3 scale{};
-                glm::vec3 rotation{};
-                ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
-
-                engine_transform_component_t c{};
-                std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
-                const glm::quat rot = glm::quat(glm::radians(rotation));
-                std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
-                std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
-                commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, c));
-
-                //scene->patch_component<engine_transform_component_t>(entity, [&](engine_transform_component_t& c)
-                //    {
-                //        std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
-                //        const glm::quat rot = glm::quat(glm::radians(rotation));
-                //        std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
-                //        std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
-                //    });
+                auto c = *scene->get_component<engine_transform_component_t>(entity);
+                if (engine::local_transform_from_world(scene->get_parent_space_matrix(entity), model_matrix, c))
+                {
+                    commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, c));
+                }
             }
         }
     }
