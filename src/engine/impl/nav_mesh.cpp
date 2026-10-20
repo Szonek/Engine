@@ -211,7 +211,7 @@ std::unique_ptr<engine::NavMesh> engine::NavMesh::build(const NavMeshInput& inpu
 
     RecastLogContext context;
 
-    // rasterize the triangles into voxels; walkable is decided by slope, unless a modifier decided it
+    // rasterize the triangles into voxels; walkable is decided by slope, obstacles are never walkable
     HeightfieldPtr heightfield(rcAllocHeightfield());
     if (!heightfield || !rcCreateHeightfield(&context, *heightfield, config.width, config.height, config.bmin, config.bmax, config.cs, config.ch))
     {
@@ -222,11 +222,7 @@ std::unique_ptr<engine::NavMesh> engine::NavMesh::build(const NavMeshInput& inpu
     const auto& input_areas = input.get_triangle_areas();
     for (int i = 0; i < triangle_count; i++)
     {
-        if (input_areas[i] == NavArea::eWalkable)
-        {
-            areas[i] = RC_WALKABLE_AREA;
-        }
-        else if (input_areas[i] == NavArea::eNotWalkable)
+        if (input_areas[i] == NavArea::eNotWalkable)
         {
             areas[i] = RC_NULL_AREA;
         }
@@ -346,54 +342,62 @@ engine::NavMesh::~NavMesh()
     dtFreeNavMesh(nav_mesh_);
 }
 
-std::optional<glm::vec3> engine::NavMesh::find_nearest_point(const glm::vec3& point) const
+std::optional<glm::vec3> engine::NavMesh::find_nearest_point(const glm::vec3& point, const glm::vec3& search_half_extents) const
 {
     const dtQueryFilter filter;
     dtPolyRef poly = 0;
     glm::vec3 nearest(0.0f);
-    if (dtStatusFailed(query_->findNearestPoly(glm::value_ptr(point), QUERY_HALF_EXTENTS, &filter, &poly, glm::value_ptr(nearest))) || poly == 0)
+    if (dtStatusFailed(query_->findNearestPoly(glm::value_ptr(point), glm::value_ptr(search_half_extents), &filter, &poly, glm::value_ptr(nearest))) || poly == 0)
     {
         return std::nullopt;
     }
     return nearest;
 }
 
-std::vector<glm::vec3> engine::NavMesh::find_path(const glm::vec3& start, const glm::vec3& end, std::size_t max_points) const
+std::optional<engine::NavMesh::Path> engine::NavMesh::find_path(const glm::vec3& start, const glm::vec3& end, const glm::vec3& search_half_extents, std::size_t max_points) const
 {
     ENGINE_PROFILE_SECTION;
     if (max_points == 0)
     {
-        return {};
+        return std::nullopt;
     }
     const dtQueryFilter filter;
     dtPolyRef start_poly = 0;
     dtPolyRef end_poly = 0;
     glm::vec3 start_on_mesh(0.0f);
     glm::vec3 end_on_mesh(0.0f);
-    query_->findNearestPoly(glm::value_ptr(start), QUERY_HALF_EXTENTS, &filter, &start_poly, glm::value_ptr(start_on_mesh));
-    query_->findNearestPoly(glm::value_ptr(end), QUERY_HALF_EXTENTS, &filter, &end_poly, glm::value_ptr(end_on_mesh));
+    query_->findNearestPoly(glm::value_ptr(start), glm::value_ptr(search_half_extents), &filter, &start_poly, glm::value_ptr(start_on_mesh));
+    query_->findNearestPoly(glm::value_ptr(end), glm::value_ptr(search_half_extents), &filter, &end_poly, glm::value_ptr(end_on_mesh));
     if (start_poly == 0 || end_poly == 0)
     {
-        return {};
+        return std::nullopt;
     }
 
     std::array<dtPolyRef, MAX_PATH_POLYS> polys{};
     int poly_count = 0;
     const auto status = query_->findPath(start_poly, end_poly, glm::value_ptr(start_on_mesh), glm::value_ptr(end_on_mesh), &filter,
         polys.data(), &poly_count, MAX_PATH_POLYS);
-    // a partial path ends at the polygon closest to the end: the end isn't reachable
-    if (dtStatusFailed(status) || dtStatusDetail(status, DT_PARTIAL_RESULT) || poly_count == 0 || polys[poly_count - 1] != end_poly)
+    if (dtStatusFailed(status) || poly_count == 0)
     {
-        return {};
+        return std::nullopt;
     }
 
-    std::vector<glm::vec3> points(max_points);
-    int point_count = 0;
-    if (dtStatusFailed(query_->findStraightPath(glm::value_ptr(start_on_mesh), glm::value_ptr(end_on_mesh), polys.data(), poly_count,
-        glm::value_ptr(points[0]), nullptr, nullptr, &point_count, static_cast<int>(max_points))))
+    Path path{};
+    // a partial path ends at the polygon closest to the end, so it ends at the point of that polygon closest to the end
+    path.partial = dtStatusDetail(status, DT_PARTIAL_RESULT) || polys[poly_count - 1] != end_poly;
+    glm::vec3 path_end = end_on_mesh;
+    if (path.partial)
     {
-        return {};
+        query_->closestPointOnPoly(polys[poly_count - 1], glm::value_ptr(end_on_mesh), glm::value_ptr(path_end), nullptr);
     }
-    points.resize(point_count);
-    return points;
+
+    path.points.resize(max_points);
+    int point_count = 0;
+    if (dtStatusFailed(query_->findStraightPath(glm::value_ptr(start_on_mesh), glm::value_ptr(path_end), polys.data(), poly_count,
+        glm::value_ptr(path.points[0]), nullptr, nullptr, &point_count, static_cast<int>(max_points))))
+    {
+        return std::nullopt;
+    }
+    path.points.resize(point_count);
+    return path;
 }

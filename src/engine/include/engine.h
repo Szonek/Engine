@@ -472,6 +472,12 @@ typedef enum _engine_force_type_t
     ENGINE_FORCE_TYPE_IMPLUSE = 1, // instant force applied to the object
 } engine_force_type_t;
 
+typedef enum _engine_nav_path_status_t
+{
+    ENGINE_NAV_PATH_STATUS_COMPLETE = 0, // the path ends at the end
+    ENGINE_NAV_PATH_STATUS_PARTIAL = 1, // the end can't be reached: the path ends at the reachable point closest to it
+} engine_nav_path_status_t;
+
 // utilities
 ENGINE_API void engineLog(const char* str);
 
@@ -544,14 +550,16 @@ ENGINE_API bool enginePhysicsAddForce(engine_game_object_t go, const float force
 // (see engine_nav_surface_component_t, engine_nav_modifier_component_t). It is derived data, never saved: build it after
 // the level is built or loaded, and again after its static colliders changed. The build logs its triangle count and time.
 ENGINE_API engine_result_code_t engineNavMeshBuild();
-// The path from start to end over the nav mesh, both snapped onto it (within 1 m horizontally and 2 m vertically): its
-// corners as x, y, z triples, the first one the start and the last one the end. A path with more than max_points corners
-// is cut off after the first max_points. Fails (*out_points_count = 0) when the scene has no nav mesh, either point is
-// off it or the end can't be reached.
-ENGINE_API engine_result_code_t engineNavFindPath(const float start[3], const float end[3], float* out_points, size_t max_points, size_t* out_points_count);
-// The closest point on the nav mesh (within 1 m horizontally and 2 m vertically). Fails when the scene has no nav mesh or
-// there is none.
-ENGINE_API engine_result_code_t engineNavFindNearestPoint(const float point[3], float out[3]);
+// The path from start to end over the nav mesh, both snapped onto it (the nav mesh is searched within the box of
+// search_half_extents around each): its corners as x, y, z triples, the first one the start. *out_status says whether it
+// reaches the end or, when the end can't be reached (e.g. on a disconnected island), the reachable point closest to it.
+// A path with more than max_points corners is cut off after the first max_points. Fails (*out_points_count = 0) when the
+// scene has no nav mesh or either point is off it.
+ENGINE_API engine_result_code_t engineNavFindPath(const float start[3], const float end[3], const float search_half_extents[3],
+    float* out_points, size_t max_points, size_t* out_points_count, engine_nav_path_status_t* out_status);
+// The closest point on the nav mesh within the box of search_half_extents around `point`. Fails when the scene has no nav
+// mesh or there is none.
+ENGINE_API engine_result_code_t engineNavFindNearestPoint(const float point[3], const float search_half_extents[3], float out[3]);
 
 // ui
 // create data handel first, before loading document!

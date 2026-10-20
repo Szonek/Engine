@@ -75,8 +75,9 @@ void engine::initialize_nav_surface_component(entt::registry& registry, entt::en
 
 void engine::initialize_nav_modifier_component(entt::registry& registry, entt::entity entity)
 {
+    // like no modifier, until a type is picked
     auto& comp = get_zero_init_component<engine_nav_modifier_component_t>(registry, entity);
-    comp.type = ENGINE_NAV_MODIFIER_TYPE_NOT_WALKABLE;
+    comp.type = ENGINE_NAV_MODIFIER_TYPE_WALKABLE;
 }
 
 

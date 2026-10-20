@@ -644,36 +644,36 @@ engine_result_code_t engineNavMeshBuild()
     return api_cast(G_ACTIVE_SCENE)->build_nav_mesh();
 }
 
-engine_result_code_t engineNavFindPath(const float start[3], const float end[3], float* out_points, size_t max_points, size_t* out_points_count)
+engine_result_code_t engineNavFindPath(const float start[3], const float end[3], const float search_half_extents[3],
+    float* out_points, size_t max_points, size_t* out_points_count, engine_nav_path_status_t* out_status)
 {
-    if (!start || !end || !out_points || !out_points_count)
+    if (!start || !end || !search_half_extents || !out_points || max_points == 0 || !out_points_count || !out_status)
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
     *out_points_count = 0;
     const auto* nav_mesh = G_ACTIVE_SCENE ? api_cast(G_ACTIVE_SCENE)->get_nav_mesh() : nullptr;
-    if (!nav_mesh)
+    const auto path = nav_mesh
+        ? nav_mesh->find_path(glm::make_vec3(start), glm::make_vec3(end), glm::make_vec3(search_half_extents), max_points)
+        : std::nullopt;
+    if (!path)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    const auto path = nav_mesh->find_path(glm::make_vec3(start), glm::make_vec3(end), max_points);
-    if (path.empty())
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    std::memcpy(out_points, path.data(), path.size() * sizeof(glm::vec3));
-    *out_points_count = path.size();
+    std::memcpy(out_points, path->points.data(), path->points.size() * sizeof(glm::vec3));
+    *out_points_count = path->points.size();
+    *out_status = path->partial ? ENGINE_NAV_PATH_STATUS_PARTIAL : ENGINE_NAV_PATH_STATUS_COMPLETE;
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_result_code_t engineNavFindNearestPoint(const float point[3], float out[3])
+engine_result_code_t engineNavFindNearestPoint(const float point[3], const float search_half_extents[3], float out[3])
 {
-    if (!point || !out)
+    if (!point || !search_half_extents || !out)
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
     const auto* nav_mesh = G_ACTIVE_SCENE ? api_cast(G_ACTIVE_SCENE)->get_nav_mesh() : nullptr;
-    const auto nearest = nav_mesh ? nav_mesh->find_nearest_point(glm::make_vec3(point)) : std::nullopt;
+    const auto nearest = nav_mesh ? nav_mesh->find_nearest_point(glm::make_vec3(point), glm::make_vec3(search_half_extents)) : std::nullopt;
     if (!nearest)
     {
         return ENGINE_RESULT_CODE_FAIL;

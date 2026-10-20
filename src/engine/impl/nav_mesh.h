@@ -18,8 +18,8 @@ namespace engine
 enum class NavArea : std::uint8_t
 {
     // walkable where its slope is within the agent's max slope
-    eBySlope = 0,
-    eWalkable,
+    eWalkable = 0,
+    // an obstacle: never walkable
     eNotWalkable,
 };
 
@@ -71,17 +71,22 @@ public:
     NavMesh& operator=(NavMesh&&) = delete;
     ~NavMesh();
 
-    // the closest point on the nav mesh within QUERY_HALF_EXTENTS of `point`
-    std::optional<glm::vec3> find_nearest_point(const glm::vec3& point) const;
-    // The string-pulled path from start to end (both snapped onto the nav mesh): its corners, the first one being the
-    // start and the last one the end. Empty when either point is off the nav mesh or the end can't be reached. At most
-    // max_points: a longer path is cut off (its beginning is returned).
-    std::vector<glm::vec3> find_path(const glm::vec3& start, const glm::vec3& end, std::size_t max_points) const;
+    struct Path
+    {
+        // the corners, the first one being the start
+        std::vector<glm::vec3> points;
+        // the end isn't reachable: the path ends at the reachable point closest to it
+        bool partial = false;
+    };
+
+    // the closest point on the nav mesh within the box of `search_half_extents` around `point`
+    std::optional<glm::vec3> find_nearest_point(const glm::vec3& point, const glm::vec3& search_half_extents) const;
+    // The string-pulled path from start to end, both snapped onto the nav mesh (searched within `search_half_extents`).
+    // nullopt when either point is off the nav mesh. At most max_points (> 0): a longer path is cut off (its beginning is
+    // returned).
+    std::optional<Path> find_path(const glm::vec3& start, const glm::vec3& end, const glm::vec3& search_half_extents, std::size_t max_points) const;
 
     const dtNavMesh& get_detour_nav_mesh() const { return *nav_mesh_; }
-
-    // how far from a queried point the nav mesh is searched
-    static constexpr float QUERY_HALF_EXTENTS[3] = { 1.0f, 2.0f, 1.0f };
 
 private:
     NavMesh(dtNavMesh* nav_mesh, dtNavMeshQuery* query);

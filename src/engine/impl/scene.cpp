@@ -224,14 +224,17 @@ engine_result_code_t engine::Scene::build_nav_mesh()
             {
                 return;
             }
-            auto area = NavArea::eBySlope;
+            auto area = NavArea::eWalkable;
             if (const auto* modifier = find_nav_modifier(entity))
             {
                 if (modifier->type == ENGINE_NAV_MODIFIER_TYPE_IGNORE)
                 {
                     return;
                 }
-                area = modifier->type == ENGINE_NAV_MODIFIER_TYPE_WALKABLE ? NavArea::eWalkable : NavArea::eNotWalkable;
+                if (modifier->type == ENGINE_NAV_MODIFIER_TYPE_NOT_WALKABLE)
+                {
+                    area = NavArea::eNotWalkable;
+                }
             }
             input.add_collider(collider, glm::make_mat4(transform.local_to_world), area);
         });

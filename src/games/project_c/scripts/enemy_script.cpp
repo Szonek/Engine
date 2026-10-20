@@ -49,6 +49,9 @@ constexpr float ENEMY_DIRECT_APPROACH_RANGE = 0.8f;
 constexpr float ENEMY_CHASE_START_PATH_LENGTH = 3.0f;
 // corners of the path to the player, including the enemy's own position; only the next one is walked to
 constexpr std::size_t ENEMY_MAX_PATH_POINTS = 16;
+// how far from the enemy and the player the nav mesh is searched for the ends of the path (the player can stand on the
+// edge of the floor, outside the nav mesh, which keeps an agent radius away from it)
+constexpr float ENEMY_PATH_SEARCH_HALF_EXTENTS[3] = { 1.0f, 2.0f, 1.0f };
 // player climbing a wall or standing on a roof is out of reach
 constexpr float ENEMY_MAX_REACH_HEIGHT = 0.6f;
 constexpr float ENEMY_ATTACK_COOLDOWN_SECONDS = 0.8f;
@@ -273,11 +276,14 @@ void project_c::Enemy::update(float dt)
         ? std::numeric_limits<float>::max()
         : glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
 
-    // path[0] is the enemy's own position (on the nav mesh), path[1] the next corner to walk to
+    // path[0] is the enemy's own position (on the nav mesh), path[1] the next corner to walk to; a player it can't reach
+    // (a partial path) is not chased
     std::array<glm::vec3, ENEMY_MAX_PATH_POINTS> path{};
     std::size_t path_points_count = 0;
+    engine_nav_path_status_t path_status = ENGINE_NAV_PATH_STATUS_COMPLETE;
     if (distance_to_player >= ENEMY_DIRECT_APPROACH_RANGE
-        && engineNavFindPath(tc.position, ec.position, glm::value_ptr(path[0]), path.size(), &path_points_count) != ENGINE_RESULT_CODE_OK)
+        && (engineNavFindPath(tc.position, ec.position, ENEMY_PATH_SEARCH_HALF_EXTENTS, glm::value_ptr(path[0]), path.size(), &path_points_count, &path_status) != ENGINE_RESULT_CODE_OK
+            || path_status == ENGINE_NAV_PATH_STATUS_PARTIAL))
     {
         path_points_count = 0;
     }

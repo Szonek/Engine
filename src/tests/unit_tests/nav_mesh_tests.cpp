@@ -22,7 +22,7 @@ engine_collider_component_t box_collider(const glm::vec3& half_extents)
     return collider;
 }
 
-void add_box(engine::NavMeshInput& input, const glm::vec3& center, const glm::vec3& half_extents, engine::NavArea area = engine::NavArea::eBySlope)
+void add_box(engine::NavMeshInput& input, const glm::vec3& center, const glm::vec3& half_extents, engine::NavArea area = engine::NavArea::eWalkable)
 {
     input.add_collider(box_collider(half_extents), glm::translate(glm::mat4(1.0f), center), area);
 }
@@ -66,6 +66,7 @@ float path_length(const std::vector<glm::vec3>& path)
 }
 
 constexpr float FLOOR_TOP = 0.1f;
+const glm::vec3 SEARCH_HALF_EXTENTS(1.0f, 2.0f, 1.0f);
 }  // namespace
 
 // a 10 x 10 m floor with a wall from its west edge to x = 3 across the middle: the path from south to north of the wall
@@ -80,7 +81,10 @@ TEST(NavMesh, PathGoesAroundWall)
 
     const glm::vec3 start(-2.0f, FLOOR_TOP, -3.0f);
     const glm::vec3 end(-2.0f, FLOOR_TOP, 3.0f);
-    const auto path = nav_mesh->find_path(start, end, 32);
+    const auto result = nav_mesh->find_path(start, end, SEARCH_HALF_EXTENTS, 32);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_FALSE(result->partial);
+    const auto& path = result->points;
     ASSERT_GE(path.size(), 3u);
     EXPECT_NEAR(glm::distance(path.front(), start), 0.0f, 0.1f);
     EXPECT_NEAR(glm::distance(path.back(), end), 0.0f, 0.1f);
@@ -90,12 +94,14 @@ TEST(NavMesh, PathGoesAroundWall)
     EXPECT_GT(path_length(path), 2.0f * glm::distance(glm::vec2(-2.0f, -3.0f), glm::vec2(3.0f, 0.0f)) - 0.5f);
 
     // the path is cut off after max_points, keeping its beginning
-    const auto first_two = nav_mesh->find_path(start, end, 2);
-    ASSERT_EQ(first_two.size(), 2u);
-    EXPECT_EQ(first_two[1], path[1]);
+    const auto first_two = nav_mesh->find_path(start, end, SEARCH_HALF_EXTENTS, 2);
+    ASSERT_TRUE(first_two.has_value());
+    ASSERT_EQ(first_two->points.size(), 2u);
+    EXPECT_EQ(first_two->points[1], path[1]);
 }
 
-TEST(NavMesh, NoPathToDisconnectedIsland)
+// the path toward an unreachable end is partial: it ends on the start's floor, at the point closest to the end
+TEST(NavMesh, PathToDisconnectedIslandIsPartial)
 {
     engine::NavMeshInput input;
     add_box(input, { 0.0f, 0.0f, 0.0f }, { 3.0f, FLOOR_TOP, 3.0f });
@@ -104,11 +110,22 @@ TEST(NavMesh, NoPathToDisconnectedIsland)
     ASSERT_NE(nav_mesh, nullptr);
 
     const glm::vec3 on_island(10.0f, FLOOR_TOP, 0.0f);
-    EXPECT_TRUE(nav_mesh->find_nearest_point(on_island).has_value());
-    EXPECT_TRUE(nav_mesh->find_path({ 0.0f, FLOOR_TOP, 0.0f }, on_island, 32).empty());
-    EXPECT_FALSE(nav_mesh->find_path({ 0.0f, FLOOR_TOP, 0.0f }, { 1.0f, FLOOR_TOP, 1.0f }, 32).empty());
+    EXPECT_TRUE(nav_mesh->find_nearest_point(on_island, SEARCH_HALF_EXTENTS).has_value());
+    const auto to_island = nav_mesh->find_path({ 0.0f, FLOOR_TOP, 0.0f }, on_island, SEARCH_HALF_EXTENTS, 32);
+    ASSERT_TRUE(to_island.has_value());
+    EXPECT_TRUE(to_island->partial);
+    ASSERT_FALSE(to_island->points.empty());
+    // the east edge of the start's floor (x = 3) minus the agent radius
+    EXPECT_NEAR(to_island->points.back().x, 2.7f, 0.15f);
+
+    const auto on_same_floor = nav_mesh->find_path({ 0.0f, FLOOR_TOP, 0.0f }, { 1.0f, FLOOR_TOP, 1.0f }, SEARCH_HALF_EXTENTS, 32);
+    ASSERT_TRUE(on_same_floor.has_value());
+    EXPECT_FALSE(on_same_floor->partial);
     // far from both floors
-    EXPECT_FALSE(nav_mesh->find_nearest_point({ 5.0f, FLOOR_TOP, 0.0f }).has_value());
+    EXPECT_FALSE(nav_mesh->find_nearest_point({ 5.0f, FLOOR_TOP, 0.0f }, SEARCH_HALF_EXTENTS).has_value());
+    EXPECT_FALSE(nav_mesh->find_path({ 5.0f, FLOOR_TOP, 0.0f }, on_island, SEARCH_HALF_EXTENTS, 32).has_value());
+    // found within larger search extents
+    EXPECT_TRUE(nav_mesh->find_nearest_point({ 5.0f, FLOOR_TOP, 0.0f }, glm::vec3(3.0f)).has_value());
 }
 
 // Recast voxelizes all input into one heightfield, so a floor of 1 m tiles gives the same nav mesh as one big box
@@ -145,8 +162,17 @@ TEST(NavMesh, NotWalkableColliderIsLeftOut)
     const auto nav_mesh = engine::NavMesh::build(input, {});
     ASSERT_NE(nav_mesh, nullptr);
 
-    EXPECT_TRUE(nav_mesh->find_nearest_point({ 0.0f, FLOOR_TOP, 0.0f }).has_value());
-    EXPECT_FALSE(nav_mesh->find_nearest_point({ 7.0f, FLOOR_TOP, 0.0f }).has_value());
+    EXPECT_TRUE(nav_mesh->find_nearest_point({ 0.0f, FLOOR_TOP, 0.0f }, SEARCH_HALF_EXTENTS).has_value());
+    EXPECT_FALSE(nav_mesh->find_nearest_point({ 7.0f, FLOOR_TOP, 0.0f }, SEARCH_HALF_EXTENTS).has_value());
+}
+
+// walkable surfaces still have to be within the agent's max slope (45 degrees by default)
+TEST(NavMesh, WalkableSurfaceSteeperThanMaxSlopeIsNotWalkable)
+{
+    engine::NavMeshInput input;
+    const auto plank = glm::rotate(glm::mat4(1.0f), glm::radians(60.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    input.add_collider(box_collider({ 3.0f, 0.05f, 2.0f }), plank, engine::NavArea::eWalkable);
+    EXPECT_EQ(engine::NavMesh::build(input, {}), nullptr);
 }
 
 TEST(NavMesh, NothingWalkableFailsToBuild)
