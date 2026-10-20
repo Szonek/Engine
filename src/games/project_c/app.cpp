@@ -65,7 +65,7 @@ project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppCo
     for (const auto& [type, file_and_basedir] : prefabs_data)
     {
         const auto& [model_file_name, base_dir] = file_and_basedir;
-        if (enginePrefabCreateFromFile(ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.c_str(), base_dir.c_str(), &prefabs_[type]) != ENGINE_RESULT_CODE_OK)
+        if (enginePrefabLoad(ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.c_str(), base_dir.c_str(), &prefabs_[type]) != ENGINE_RESULT_CODE_OK)
         {
             log(fmt::format("Failed loading prefab: {}\n", type));
         }
@@ -83,7 +83,7 @@ project_c::AppProjectC::~AppProjectC()
     {
         if (prefab != ENGINE_INVALID_OBJECT_HANDLE)
         {
-            enginePrefabDestroy(prefab);
+            enginePrefabRelease(prefab);
         }
     }
 }

@@ -4,30 +4,9 @@
 #include <cstring>
 #include <string>
 #include <algorithm>
-#include <vector>
 
 namespace engine
 {
-// helper for destroy entity command
-namespace
-{
-inline void delete_entity_hierarchy(Scene& sc, entt::entity entity)
-{
-    // a copy: destroying a child removes it from the list
-    const auto children_view = sc.get_children(entity);
-    const std::vector<entt::entity> children(children_view.begin(), children_view.end());
-    for (const auto child : children)
-    {
-        if (sc.is_valid_entity(child))
-        {
-            delete_entity_hierarchy(sc, child);
-        }
-    }
-    sc.destroy_entity(entity);
-}
-} // namespace
-
-
 CommandSetSelectedEntity::CommandSetSelectedEntity(Scene& sc, entt::entity prev_selected, entt::entity new_selected)
     : sc_(sc)
     , e_prev_(prev_selected)
@@ -122,7 +101,7 @@ CommandDestroyEntity::CommandDestroyEntity(Scene& sc, entt::entity e)
 
 void CommandDestroyEntity::execute()
 {
-    delete_entity_hierarchy(scene_, e_);
+    scene_.destroy_entity(e_);
 }
 
 void CommandDestroyEntity::undo()

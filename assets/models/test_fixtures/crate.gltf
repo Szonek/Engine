@@ -1,0 +1,121 @@
+{
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 4,
+   "max": [
+    0.5,
+    1.0,
+    0.0
+   ],
+   "min": [
+    -0.5,
+    0.0,
+    0.0
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 4,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5123,
+   "count": 6,
+   "type": "SCALAR"
+  }
+ ],
+ "asset": {
+  "generator": "generate_test_models.py",
+  "version": "2.0"
+ },
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteLength": 48,
+   "byteOffset": 0,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 48,
+   "byteOffset": 48,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 12,
+   "byteOffset": 96,
+   "target": 34963
+  }
+ ],
+ "buffers": [
+  {
+   "byteLength": 108,
+   "uri": "data:application/octet-stream;base64,AAAAvwAAAAAAAAAAAAAAPwAAAAAAAAAAAAAAPwAAgD8AAAAAAAAAvwAAgD8AAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAABAAIAAAACAAMA"
+  }
+ ],
+ "materials": [
+  {
+   "name": "wood",
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.6,
+     0.4,
+     0.2,
+     1.0
+    ],
+    "metallicFactor": 0.0
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "name": "Plate",
+   "primitives": [
+    {
+     "attributes": {
+      "NORMAL": 1,
+      "POSITION": 0
+     },
+     "indices": 2,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "children": [
+    1,
+    2
+   ],
+   "name": "Crate"
+  },
+  {
+   "mesh": 0,
+   "name": "Lid",
+   "translation": [
+    0.0,
+    1.0,
+    0.0
+   ]
+  },
+  {
+   "mesh": 0,
+   "name": "Base"
+  }
+ ],
+ "scene": 0,
+ "scenes": [
+  {
+   "nodes": [
+    0
+   ]
+  }
+ ]
+}

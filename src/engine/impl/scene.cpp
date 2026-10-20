@@ -615,6 +615,12 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
                 item.shininess = static_cast<float>(material_component.data.pong.shininess);
                 item.texture_diffuse = get_application()->get_texture(texture_diffuse_idx);
                 item.texture_specular = get_application()->get_texture(texture_diffuse_idx);
+                // a handle to an asset which was released (e.g. with the prefab of its model) finds nothing
+                if (!item.geometry || !item.texture_diffuse)
+                {
+                    log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Mesh or material uses a geometry or texture which doesn't exist (any more). Is its prefab still loaded?\n", (std::uint32_t)entity));
+                    return false;
+                }
                 return true;
             };
 
@@ -679,12 +685,13 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
         auto outline_view = entity_registry_.view<const outline_component_t, const engine_tranform_component_t, const engine_mesh_component_t, const engine_material_component_t>();
         outline_view.each([&](const outline_component_t&, const engine_tranform_component_t& transform_component, const engine_mesh_component_t& mesh_component, const engine_material_component_t&)
             {
-                if (mesh_component.geometry == ENGINE_INVALID_OBJECT_HANDLE)
+                const auto* geometry = get_application()->get_geometry(mesh_component.geometry);
+                if (!geometry)
                 {
                     return;
                 }
                 render_data.outline_items.push_back(OutlineDrawItem{
-                    .geometry = get_application()->get_geometry(mesh_component.geometry),
+                    .geometry = geometry,
                     .model = glm::make_mat4(transform_component.local_to_world) });
             }
         );
@@ -823,6 +830,13 @@ entt::entity engine::Scene::create_transient_entity()
 void engine::Scene::destroy_entity(entt::entity entity)
 {
     ENGINE_PROFILE_SECTION;
+    // a copy: destroying a child removes it from the list
+    const auto children_view = get_children(entity);
+    const std::vector<entt::entity> children(children_view.begin(), children_view.end());
+    for (const auto child : children)
+    {
+        destroy_entity(child);
+    }
     entity_registry_.destroy(entity);
 }
 

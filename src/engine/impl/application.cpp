@@ -161,7 +161,7 @@ engine::Application::~Application()
 {
     if (default_texture_idx_ != ENGINE_INVALID_OBJECT_HANDLE)
     {
-        destroy_texture(default_texture_idx_);
+        release_texture(default_texture_idx_);
     }
 }
 
@@ -350,9 +350,14 @@ std::vector<std::pair<std::uint32_t, std::string>> engine::Application::get_text
     return textures_atlas_.get_object_names();
 }
 
-void engine::Application::destroy_texture(std::uint32_t idx)
+bool engine::Application::acquire_texture(std::uint32_t idx)
 {
-    textures_atlas_.remove_object(idx);
+    return textures_atlas_.acquire(idx);
+}
+
+void engine::Application::release_texture(std::uint32_t idx)
+{
+    textures_atlas_.release(idx);
 }
 
 std::uint32_t engine::Application::add_nav_mesh(std::string_view name)
@@ -370,9 +375,9 @@ const engine::NavMesh* engine::Application::get_nav_mesh(std::uint32_t idx) cons
     return nav_mesh_atlas_.get_object(idx);
 }
 
-void engine::Application::destroy_nav_mesh(std::uint32_t idx)
+void engine::Application::release_nav_mesh(std::uint32_t idx)
 {
-    nav_mesh_atlas_.remove_object(idx);
+    nav_mesh_atlas_.release(idx);
 }
 
 bool engine::Application::add_font_from_file(std::string_view file_name, std::string_view handle_name)
@@ -407,9 +412,9 @@ const engine::Geometry* engine::Application::get_geometry(std::uint32_t idx) con
     return geometries_atlas_.get_object(idx);
 }
 
-void engine::Application::destroy_geometry(std::uint32_t idx)
+void engine::Application::release_geometry(std::uint32_t idx)
 {
-    geometries_atlas_.remove_object(idx);
+    geometries_atlas_.release(idx);
 }
 
 std::uint32_t engine::Application::add_skin(const SkinDesc& desc, const ModelNodeDesc& root)
@@ -432,10 +437,6 @@ std::uint32_t engine::Application::get_skin(std::string_view name) const
 
 const engine::Skin* engine::Application::get_skin(std::uint32_t idx) const
 {
-    if (idx == ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        return nullptr;
-    }
     return skins_atlas_.get_object(idx);
 }
 
@@ -444,9 +445,9 @@ std::string engine::Application::get_skin_name(std::uint32_t idx) const
     return skins_atlas_.get_object_name(idx);
 }
 
-void engine::Application::destroy_skin(std::uint32_t idx)
+void engine::Application::release_skin(std::uint32_t idx)
 {
-    skins_atlas_.remove_object(idx);
+    skins_atlas_.release(idx);
 }
 
 std::uint32_t engine::Application::add_animation_set(std::string_view name, std::shared_ptr<const AnimationLibrary> animation_set)
@@ -461,10 +462,6 @@ std::uint32_t engine::Application::get_animation_set(std::string_view name) cons
 
 std::shared_ptr<const engine::AnimationLibrary> engine::Application::get_animation_set(std::uint32_t idx) const
 {
-    if (idx == ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        return nullptr;
-    }
     const auto* animation_set = animation_sets_atlas_.get_object(idx);
     return animation_set ? *animation_set : nullptr;
 }
@@ -474,18 +471,17 @@ std::string engine::Application::get_animation_set_name(std::uint32_t idx) const
     return animation_sets_atlas_.get_object_name(idx);
 }
 
-void engine::Application::destroy_animation_set(std::uint32_t idx)
+void engine::Application::release_animation_set(std::uint32_t idx)
 {
-    animation_sets_atlas_.remove_object(idx);
+    animation_sets_atlas_.release(idx);
 }
 
-std::uint32_t engine::Application::add_prefab_from_file(std::string_view file_name, std::string_view base_dir)
+std::uint32_t engine::Application::load_prefab(std::string_view file_name, std::string_view base_dir)
 {
-    // its assets are named after the file, so loading it twice can't succeed
-    if (get_prefab(file_name) != ENGINE_INVALID_OBJECT_HANDLE)
+    // a prefab is named by its model file: that file is loaded already
+    if (const auto loaded = get_prefab(file_name); loaded != ENGINE_INVALID_OBJECT_HANDLE)
     {
-        log::log(log::LogLevel::eError, fmt::format("Prefab \"{}\" already exists. Names must be unique.\n", file_name));
-        return ENGINE_INVALID_OBJECT_HANDLE;
+        return acquire_prefab(loaded) ? loaded : ENGINE_INVALID_OBJECT_HANDLE;
     }
 
     const auto assets_dir = AssetStore::get_instance().get_models_base_path() / base_dir;
@@ -496,6 +492,11 @@ std::uint32_t engine::Application::add_prefab_from_file(std::string_view file_na
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
     auto model = parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string(), std::string(file_name));
+    if (model.nodes.empty())
+    {
+        log::log(log::LogLevel::eError, fmt::format("Model file {} has no nodes, it is not a usable glTF file.\n", (assets_dir / file_name).string()));
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
     auto prefab = Prefab::create(*this, std::move(model));
     if (!prefab)
     {
@@ -512,17 +513,18 @@ std::uint32_t engine::Application::get_prefab(std::string_view name) const
 
 const engine::Prefab* engine::Application::get_prefab(std::uint32_t idx) const
 {
-    if (idx == ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        return nullptr;
-    }
     const auto* prefab = prefabs_atlas_.get_object(idx);
     return prefab ? prefab->get() : nullptr;
 }
 
-void engine::Application::destroy_prefab(std::uint32_t idx)
+bool engine::Application::acquire_prefab(std::uint32_t idx)
 {
-    prefabs_atlas_.remove_object(idx);
+    return prefabs_atlas_.acquire(idx);
+}
+
+void engine::Application::release_prefab(std::uint32_t idx)
+{
+    prefabs_atlas_.release(idx);
 }
 
 std::uint32_t engine::Application::add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name)
@@ -545,9 +547,9 @@ std::vector<std::pair<std::uint32_t, std::string>> engine::Application::get_shad
     return shader_atlas_.get_object_names();
 }
 
-void engine::Application::destroy_shader(std::uint32_t idx)
+void engine::Application::release_shader(std::uint32_t idx)
 {
-    shader_atlas_.remove_object(idx);
+    shader_atlas_.release(idx);
 }
 
 engine::UiDocument engine::Application::load_ui_document(std::string_view file_name)

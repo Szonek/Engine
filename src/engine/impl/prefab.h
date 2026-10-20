@@ -14,9 +14,11 @@ class Application;
 class Scene;
 
 // A model (glTF) loaded into an application, named by its file ("Rogue.glb").
-// It owns the assets created from the model's data (geometries, textures, skin, animation set; the model's asset IDs
-// are "<file>#<name>", see asset_id.h) and releases them when destroyed. instantiate() stamps out the model's node
-// hierarchy as game objects that use those assets.
+// It holds a reference to each asset created from the model's data (geometries, textures, skin, animation set; the
+// model's asset IDs are "<file>#<name>", see asset_id.h) and releases them when destroyed, so they live as long as the
+// prefab. An image in its own file is an asset of its own which other models (or the game) may use too: the prefab
+// only holds one reference to it. instantiate() stamps out the model's node hierarchy as game objects that use the
+// assets.
 class Prefab
 {
 public:
@@ -48,17 +50,10 @@ private:
 
     const ModelNodeDesc* find_node(const std::string& name) const;
 
-    struct OwnedTexture
-    {
-        std::uint32_t handle;
-        // false for a texture which already existed (e.g. an image file shared by several models)
-        bool owner;
-    };
-
     Application& app_;
     ModelDesc model_;
     std::vector<std::uint32_t> geometries_;
-    std::vector<OwnedTexture> textures_;
+    std::vector<std::uint32_t> textures_;
     std::vector<engine_material_component_t> materials_;
     // a model has at most one skin
     std::uint32_t skin_ = ENGINE_INVALID_OBJECT_HANDLE;

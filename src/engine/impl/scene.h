@@ -44,6 +44,7 @@ public:
     entt::entity create_new_entity(entt::entity hint, std::uint64_t persistent_id);
     // an entity without a persistent ID, for objects that are not part of the scene content (e.g. the editor camera)
     entt::entity create_transient_entity();
+    // destroys the entity and its children, with theirs
     void destroy_entity(entt::entity entity);
     bool is_valid_entity(entt::entity entity) const;
 

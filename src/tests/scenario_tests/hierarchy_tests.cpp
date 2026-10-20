@@ -89,23 +89,44 @@ TEST_F(HierarchyTest, DestroyingAChildRemovesItFromItsParent)
     EXPECT_EQ(children_of(parent), (std::vector<engine_game_object_t>{ second }));
 }
 
-TEST_F(HierarchyTest, DestroyingAParentDetachesItsChildren)
+TEST_F(HierarchyTest, DestroyingAParentDestroysItsDescendants)
 {
     load_sandbox_scene();
     const auto parent = engineGameObjectCreate();
     std::vector<engine_game_object_t> children;
+    std::vector<engine_game_object_t> grandchildren;
     for (int i = 0; i < 200; i++)
     {
         children.push_back(engineGameObjectCreate());
         set_parent(children.back(), parent);
+        grandchildren.push_back(engineGameObjectCreate());
+        set_parent(grandchildren.back(), children.back());
     }
+    const auto unrelated = engineGameObjectCreate();
 
     engineGameObjectDestroy(parent);
-    for (const auto child : children)
+    EXPECT_FALSE(engineGameObjectIsValid(parent));
+    for (int i = 0; i < 200; i++)
     {
-        EXPECT_TRUE(engineGameObjectIsValid(child));
-        EXPECT_FALSE(engineGameObjectHasParentComponent(child));
+        EXPECT_FALSE(engineGameObjectIsValid(children[i]));
+        EXPECT_FALSE(engineGameObjectIsValid(grandchildren[i]));
     }
+    EXPECT_TRUE(engineGameObjectIsValid(unrelated));
+}
+
+TEST_F(HierarchyTest, ChildReparentedBeforeItsParentIsDestroyedIsKept)
+{
+    load_sandbox_scene();
+    const auto parent = engineGameObjectCreate();
+    const auto kept = engineGameObjectCreate();
+    const auto destroyed = engineGameObjectCreate();
+    set_parent(kept, parent);
+    set_parent(destroyed, parent);
+
+    engineGameObjectRemoveParentComponent(kept);
+    engineGameObjectDestroy(parent);
+    EXPECT_TRUE(engineGameObjectIsValid(kept));
+    EXPECT_FALSE(engineGameObjectIsValid(destroyed));
 }
 
 TEST_F(HierarchyTest, UpdatingTheParentComponentWithTheSameParentDoesNotListTheChildTwice)
