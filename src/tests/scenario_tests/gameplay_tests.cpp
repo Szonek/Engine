@@ -205,6 +205,23 @@ TEST_F(CombatTest, EnemyNearbyDamagesIdlePlayer)
     }
 }
 
+// the nav mesh is built from the static colliders: the enemy walks around an obstacle between it and the player
+TEST_F(CombatTest, EnemyWalksAroundObstacleToPlayer)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
+    auto* player = scene->build().player(PLAYER_X, PLAYER_Z);
+    scene->build().obstacle({ PLAYER_X, 0.625f, PLAYER_Z + 1.0f }, { 0.8f, 1.0f, 0.3f });
+    auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + 2.0f);
+    ASSERT_NE(enemy, nullptr);
+    scene->snap_camera_to_player();
+
+    step(LANDING_FRAMES + 300);
+
+    EXPECT_LT(player->get_hp(), player->get_max_hp());
+    EXPECT_FALSE(player->is_dead());
+}
+
 // getting hit puts the player into a short hit-stop; an attack pressed during it used to be dropped
 TEST_F(CombatTest, AttackPressedDuringHitStopIsNotLost)
 {

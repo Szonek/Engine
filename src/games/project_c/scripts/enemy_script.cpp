@@ -7,8 +7,6 @@
 #include "../app.h"
 #include "encounter_script.h"
 
-#include "../nav_mesh.h"
-
 #include "iscene.h"
 
 #include <glm/glm.hpp>
@@ -47,6 +45,10 @@ constexpr std::array<EnemyAttackAnimation, 2> ENEMY_ATTACK_ANIMATIONS = { {
 constexpr float ENEMY_ATTACK_RANGE = 0.5f;
 // closer than this there is no nav mesh path to follow: the enemy walks straight at the player
 constexpr float ENEMY_DIRECT_APPROACH_RANGE = 0.8f;
+// the enemy starts chasing a player whose path is shorter than this
+constexpr float ENEMY_CHASE_START_PATH_LENGTH = 3.0f;
+// corners of the path to the player, including the enemy's own position; only the next one is walked to
+constexpr std::size_t ENEMY_MAX_PATH_POINTS = 16;
 // player climbing a wall or standing on a roof is out of reach
 constexpr float ENEMY_MAX_REACH_HEIGHT = 0.6f;
 constexpr float ENEMY_ATTACK_COOLDOWN_SECONDS = 0.8f;
@@ -130,10 +132,9 @@ void project_c::EnemyWeapon::on_collision(const collision_t& info)
     enemy_->on_weapon_hit_player(info.other);
 }
 
-project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const NavMesh* nav_mesh, float offset_x, float offset_z)
+project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, float offset_x, float offset_z)
     : BaseNode(my_scene, pr, "enemy")
     , state_(States::DECISION_MAKE)
-    , nav_mesh_(nav_mesh)
 {
     auto tc = engineGameObjectGetTransformComponent(go_);
 
@@ -272,16 +273,20 @@ void project_c::Enemy::update(float dt)
         ? std::numeric_limits<float>::max()
         : glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
 
-    const auto my_node_idx =  nav_mesh_->get_node_idx({ tc.position[0], tc.position[1], tc.position[2] });
-    const auto player_node_idx =  nav_mesh_->get_node_idx({ ec.position[0], ec.position[1], ec.position[2] });
-    auto path = [&]()
-        {
-            if (distance_to_player < ENEMY_DIRECT_APPROACH_RANGE || my_node_idx == -1 || player_node_idx == -1)
-            {
-                return NavMeshPathFinder::PathFromStartToEnd{};
-            }
-            return NavMeshPathFinder::find_path(*nav_mesh_, my_node_idx, player_node_idx);
-        }();
+    // path[0] is the enemy's own position (on the nav mesh), path[1] the next corner to walk to
+    std::array<glm::vec3, ENEMY_MAX_PATH_POINTS> path{};
+    std::size_t path_points_count = 0;
+    if (distance_to_player >= ENEMY_DIRECT_APPROACH_RANGE
+        && engineNavFindPath(tc.position, ec.position, glm::value_ptr(path[0]), path.size(), &path_points_count) != ENGINE_RESULT_CODE_OK)
+    {
+        path_points_count = 0;
+    }
+    const bool has_path = path_points_count >= 2;
+    float path_length = 0.0f;
+    for (std::size_t i = 1; i < path_points_count; i++)
+    {
+        path_length += glm::distance(path[i - 1], path[i]);
+    }
 
     if (hp <= 0 && state_ != States::DIE)
     {
@@ -339,7 +344,7 @@ void project_c::Enemy::update(float dt)
         {
             state_ = States::IDLE;
         }
-        else if (path.nodes.size() >= 1 && path.nodes.size() < 3)
+        else if (has_path && path_length < ENEMY_CHASE_START_PATH_LENGTH)
         {
             state_ = States::MOVE;
         }
@@ -395,8 +400,8 @@ void project_c::Enemy::update(float dt)
     {
         // path is computed per_frame, but decision was made frame before
         // so it can happen that target has moved and new position is not reachable or close to current position
-        const bool direct_approach = path.nodes.empty() && distance_to_player < ENEMY_DIRECT_APPROACH_RANGE;
-        if (distance_to_player <= ENEMY_ATTACK_RANGE || (path.nodes.empty() && !direct_approach))
+        const bool direct_approach = !has_path && distance_to_player < ENEMY_DIRECT_APPROACH_RANGE;
+        if (distance_to_player <= ENEMY_ATTACK_RANGE || (!has_path && !direct_approach))
         {
             state_ = States::DECISION_MAKE;
             break;
@@ -409,14 +414,13 @@ void project_c::Enemy::update(float dt)
         {
             engineAnimationControllerAnimationPlay(go_, "Running_A", 0);
         }
-        for (auto& node : path.nodes)
+        for (std::size_t i = 1; i < path_points_count; i++)
         {
-            const auto n_pos = nav_mesh_->get_node(node).get_center();
-            debug_scripts_.push_back(my_scene_->register_script<project_c::DebugPathNode>(n_pos.x, n_pos.z));
+            debug_scripts_.push_back(my_scene_->register_script<project_c::DebugPathNode>(path[i].x, path[i].z));
         }
         const glm::vec3 target = direct_approach
             ? glm::vec3(ec.position[0], tc.position[1], ec.position[2])
-            : nav_mesh_->get_node(path.nodes[0]).get_center();
+            : path[1];
         auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), target);
         //auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
         quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);

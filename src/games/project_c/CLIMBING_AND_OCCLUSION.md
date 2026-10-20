@@ -110,8 +110,8 @@ The combat (upper body) layer is muted while traversing.
 
 ## The house
 
-`House` is built over the bounding box of the `h` cells of the map. These cells get floor tiles but no nav-mesh nodes, so
-enemies don't walk into it. Enemies also ignore a player who is more than 0.6 higher than them (on a wall or the roof).
+`House` is built over the bounding box of the `h` cells of the map. These cells get floor tiles with a not-walkable nav
+modifier, so the nav mesh leaves them out and enemies don't walk into it. Enemies also ignore a player who is more than 0.6 higher than them (on a wall or the roof).
 
 * Walls are KayKit `Primitive_Wall` pieces at half size: 2 wide, 2 tall, 0.5 thick. The roof (`Primitive_Floor`) sits on
   top, flush with the outer faces, so the top of a climbed wall is the roof edge.

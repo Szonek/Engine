@@ -2,7 +2,6 @@
 
 #include "engine.h"
 #include "iscene.h"
-#include "../nav_mesh.h"
 
 namespace project_c
 {
@@ -23,7 +22,6 @@ public:
     static constexpr const char* get_name() { return "TestScene"; }
 
 private:
-    NavMesh nav_mesh_{};
     GameplayHud* hud_ = nullptr;
     bool restart_was_down_ = false;
 };

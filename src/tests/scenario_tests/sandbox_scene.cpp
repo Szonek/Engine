@@ -9,11 +9,23 @@
 
 scenario::SandboxScene::SandboxScene(engine::IApplication* app)
     : IScene(app)
-    , builder_(*static_cast<project_c::AppProjectC*>(app), *this, nav_mesh_)
+    , builder_(*static_cast<project_c::AppProjectC*>(app), *this)
 {
+    builder_.nav_surface();
     camera_ = register_script<project_c::CameraScript>();
     register_script<project_c::MainLight>();
     encounter_ = register_script<project_c::Encounter>();
+}
+
+engine_result_code_t scenario::SandboxScene::update(float dt)
+{
+    if (!nav_mesh_built_)
+    {
+        nav_mesh_built_ = true;
+        // a scene without a floor has no nav mesh; its enemies don't move
+        engineNavMeshBuild();
+    }
+    return IScene::update(dt);
 }
 
 void scenario::SandboxScene::snap_camera_to_player()

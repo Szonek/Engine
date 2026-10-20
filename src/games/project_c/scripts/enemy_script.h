@@ -51,7 +51,7 @@ public:
     std::uint32_t hp = 20;
     std::uint32_t max_hp = 20;
 
-    Enemy(engine::IScene* my_scene, const PrefabResult& pr, const class NavMesh* nav_mesh, float offset_x, float offset_z);
+    Enemy(engine::IScene* my_scene, const PrefabResult& pr, float offset_x, float offset_z);
 
     void update(float dt);
     void receive_attack_hit(std::uint32_t damage, float hit_stop_seconds);
@@ -68,7 +68,6 @@ private:
     void collect_hit_flash_materials(engine_game_object_t game_object);
     void update_hit_flash(float strength);
 
-    const class NavMesh* nav_mesh_;
     bool triggered_ = false;
     bool attack_right_ = false;
     States state_;

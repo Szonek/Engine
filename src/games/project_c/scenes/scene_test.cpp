@@ -12,8 +12,6 @@
 #include "../scripts/scripts_utils.h"
 #include "level_builder.h"
 
-#include "../nav_mesh.h"
-
 #include <engine_vector.h>
 
 #include <limits>
@@ -72,9 +70,10 @@ private:
 };
 
 
-inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_mesh, project_c::AppProjectC& app, engine::IScene& scene)
+inline void generate_scene(std::string_view scene_str, project_c::AppProjectC& app, engine::IScene& scene)
 {
-    project_c::LevelBuilder builder(app, scene, nav_mesh);
+    project_c::LevelBuilder builder(app, scene);
+    builder.nav_surface();
 
     struct SceneSpawnPoints
     {
@@ -139,8 +138,8 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
             }
             else if (c == 'h' || c == 'B')
             {
-                // house footprint: floor without nav mesh node, enemies do not walk into (or under) the house
-                builder.floor_without_nav(x_offset, z_offset);
+                // house footprint: enemies do not walk into the house
+                builder.floor_not_walkable(x_offset, z_offset);
                 scene_spawn_points.house_cells.push_back({ x_offset, z_offset });
                 if (c == 'B')
                 {
@@ -227,6 +226,11 @@ inline void generate_scene(std::string_view scene_str, project_c::NavMesh& nav_m
     {
         builder.weapon_on_ground(wpn.x, wpn.y);
     }
+
+    if (engineNavMeshBuild() != ENGINE_RESULT_CODE_OK)
+    {
+        engineLog("Failed to build the level's nav mesh; enemies will not move.\n");
+    }
 }
 }
 
@@ -257,7 +261,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
 
     register_script<MainLight>();
     auto typed_app = static_cast<AppProjectC*>(app);
-    generate_scene(scene_str, nav_mesh_, *typed_app, *this);
+    generate_scene(scene_str, *typed_app, *this);
     camera_script->snap_to_player();
 }
 
