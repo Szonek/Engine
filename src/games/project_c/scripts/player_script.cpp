@@ -23,6 +23,9 @@
 
 namespace
 {
+// the scale of the player's model; its children (attack trigger, weapon) inherit it, so their colliders are in the
+// model's units
+constexpr float PLAYER_SCALE = 0.35f;
 constexpr float ATTACK_PLAYBACK_RATE = 1.25f;
 constexpr float ATTACK_INPUT_BUFFER_SECONDS = 0.25f;
 constexpr float ATTACK_COMBO_CROSS_FADE_SECONDS = 0.08f;
@@ -342,10 +345,11 @@ project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_ob
     cc.is_trigger = true;
     auto& cc_child = cc.collider.compound.children[0];
     cc_child.rotation_quaternion[3] = 1.0f;
-    cc_child.transform[1] = 0.21f;
-    cc_child.transform[2] = 0.6f;
+    // a box 0.6 m in front of the player, in the player's (scaled) space
+    cc_child.transform[1] = 0.21f / PLAYER_SCALE;
+    cc_child.transform[2] = 0.6f / PLAYER_SCALE;
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
-    set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.3f, 0.05f, 0.3f});
+    set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.3f / PLAYER_SCALE, 0.05f / PLAYER_SCALE, 0.3f / PLAYER_SCALE });
     engineGameObjectUpdateColliderComponent(go_, &cc);
 
     // parent to root
@@ -401,9 +405,9 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
 {
     auto tc = engineGameObjectGetTransformComponent(go_);
     tc.position[1] = -0.25f;
-    tc.scale[0] = 0.35f;
-    tc.scale[1] = 0.35f;
-    tc.scale[2] = 0.35f;
+    tc.scale[0] = PLAYER_SCALE;
+    tc.scale[1] = PLAYER_SCALE;
+    tc.scale[2] = PLAYER_SCALE;
     engineGameObjectUpdateTransformComponent(go_, &tc);
 
     // physics

@@ -145,8 +145,8 @@ public:
 
 private:
     engine_result_code_t physics_update(float dt);
-    // the scale of the entity's collision shape
-    glm::vec3 get_collider_shape_scale(entt::entity entity) const;
+    // true when the entity's world transform depends on other game objects (a parent or joint attachment)
+    bool follows_other_game_objects(entt::entity entity) const;
     // the world_transform_internal_component_t of every transform, see engine::update_world_transforms
     void update_world_transforms();
     // the model matrix of the attachment's joint in its skin instance, nullopt (logged) when it has none

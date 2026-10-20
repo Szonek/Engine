@@ -21,6 +21,9 @@
 
 namespace
 {
+// the scale of the enemy's model; its weapon inherits it, so the weapon's hitbox is in the model's units
+constexpr float ENEMY_SCALE = 0.35f;
+
 struct EnemyAttackAnimation
 {
     const char* name;
@@ -99,11 +102,12 @@ project_c::EnemyWeapon::EnemyWeapon(engine::IScene* my_scene, engine_game_object
     cc.is_trigger = true;
     auto& hitbox = cc.collider.compound.children[0];
     hitbox.type = ENGINE_COLLIDER_TYPE_BOX;
+    // sized in meters, in the weapon's space which has the enemy's scale
     hitbox.transform[0] = 0.0f;
-    hitbox.transform[1] = 0.15f;
+    hitbox.transform[1] = 0.15f / ENEMY_SCALE;
     hitbox.transform[2] = 0.0f;
     hitbox.rotation_quaternion[3] = 1.0f;
-    set_c_array(hitbox.collider.box.size, std::array<float, 3>{ 0.10f, 0.26f, 0.045f });
+    set_c_array(hitbox.collider.box.size, std::array<float, 3>{ 0.10f / ENEMY_SCALE, 0.26f / ENEMY_SCALE, 0.045f / ENEMY_SCALE });
     engineGameObjectUpdateColliderComponent(go_, &cc);
 }
 
@@ -145,9 +149,9 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, float 
     tc.position[1] += 0.25f;
     tc.position[2] = offset_z;
 
-    tc.scale[0] = 0.35f;
-    tc.scale[1] = 0.35f;
-    tc.scale[2] = 0.35f;
+    tc.scale[0] = ENEMY_SCALE;
+    tc.scale[1] = ENEMY_SCALE;
+    tc.scale[2] = ENEMY_SCALE;
 
     engineGameObjectUpdateTransformComponent(go_, &tc);
     collect_hit_flash_materials(go_);

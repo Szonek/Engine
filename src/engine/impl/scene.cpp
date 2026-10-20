@@ -279,117 +279,89 @@ const engine_nav_modifier_component_t* engine::Scene::find_nav_modifier(entt::en
     return nullptr;
 }
 
-glm::vec3 engine::Scene::get_collider_shape_scale(entt::entity entity) const
+bool engine::Scene::follows_other_game_objects(entt::entity entity) const
 {
-    // the game object's own scale, not the one inherited from its parents: collider sizes are authored that way
-    return glm::make_vec3(get_component<engine_transform_component_t>(entity)->scale);
+    return has_component<engine_parent_component_t>(entity) || has_component<engine_joint_attachment_component_t>(entity);
 }
 
 engine_result_code_t engine::Scene::physics_update(float dt)
 {
     ENGINE_PROFILE_SECTION_N("physics_update");
-    // collider created, create internal rigid body
-    for (const auto entt : collider_create_observer)
-    {
-        const auto collider_component = get_component<engine_collider_component_t>(entt);
-        const auto& world = *get_component<world_transform_internal_component_t>(entt);
-        auto physcics_component = *get_component<physcic_internal_component_t>(entt);
-        if (physcics_component.rigid_body)
+    // bodies are (re)created at their world transforms (current: update_world_transforms runs right before
+    // physics_update). Without mass a body is static, or kinematic when it follows other game objects.
+    std::vector<entt::entity> created_bodies;
+    const auto create_body = [this, &created_bodies](entt::entity entity)
         {
-            physics_world_.remove_rigid_body(entity_registry_, entt);
-        }
-
-        // Create dummy rigid body component with mass 0.0f. 
-        // Object is not dynamic. Such object cant be moved with velocity
-        // Such object will be taking part in collisions.
-        engine_rigid_body_component_t rigidbody_component{};
-        rigidbody_component.mass = 0.0f;
-
-        physcics_component = physics_world_.create_rigid_body(*collider_component, rigidbody_component, world.local_to_world, get_collider_shape_scale(entt), static_cast<std::int32_t>(entt));
-        update_component(entt, physcics_component);
+            physics_world_.remove_rigid_body(entity_registry_, entity);
+            engine_rigid_body_component_t rigidbody_component{};
+            if (const auto* rigidbody = entity_registry_.try_get<engine_rigid_body_component_t>(entity))
+            {
+                rigidbody_component = *rigidbody;
+            }
+            const auto& collider_component = *get_component<engine_collider_component_t>(entity);
+            const auto& world = *get_component<world_transform_internal_component_t>(entity);
+            const auto physcics_component = physics_world_.create_rigid_body(collider_component, rigidbody_component, world.local_to_world,
+                follows_other_game_objects(entity), static_cast<std::int32_t>(entity));
+            update_component(entity, physcics_component);
+            created_bodies.push_back(entity);
+        };
+    // collider added (or rigid body removed)
+    for (const auto entity : collider_create_observer)
+    {
+        create_body(entity);
     }
     collider_create_observer.clear();
-
-    // detect new group creation, when rigid body component was added
-    for (const auto entt : rigid_body_create_observer)
+    // rigid body added or updated (e.g. its mass)
+    for (const auto entity : rigid_body_create_observer)
     {
-        const auto collider_component = get_component<engine_collider_component_t>(entt);
-        const auto rigidbody_component = get_component<engine_rigid_body_component_t>(entt);
-        const auto& world = *get_component<world_transform_internal_component_t>(entt);
-        auto physcics_component = *get_component<physcic_internal_component_t>(entt);
-        if (physcics_component.rigid_body)
-        {
-            physics_world_.remove_rigid_body(entity_registry_, entt);
-        }
-        physcics_component = physics_world_.create_rigid_body(*collider_component, *rigidbody_component, world.local_to_world, get_collider_shape_scale(entt), static_cast<std::int32_t>(entt));
-        update_component(entt, physcics_component);
+        create_body(entity);
     }
     rigid_body_create_observer.clear();
-    
-    // in cases when collider was updated, remove old rigid body and create new one to have physics world updated
-    // this can happen in run-time (saldom), or through editor (more often)
-    for (const auto entt : collider_update_observer)
+    for (const auto entity : rigid_body_update_observer)
     {
-        physics_world_.remove_rigid_body(entity_registry_, entt);
-
-        const auto collider_component = get_component<engine_collider_component_t>(entt);
-        const auto& world = *get_component<world_transform_internal_component_t>(entt);
-        auto physcics_component = *get_component<physcic_internal_component_t>(entt);
-
-        engine_rigid_body_component_t rigidbody_component{};
-        if (has_component<engine_rigid_body_component_t>(entt))
-        {
-            rigidbody_component = *get_component<engine_rigid_body_component_t>(entt);
-        }
-        else
-        {
-            rigidbody_component.mass = 0.0f;
-        }
-        physcics_component = physics_world_.create_rigid_body(*collider_component, rigidbody_component, world.local_to_world, get_collider_shape_scale(entt), static_cast<std::int32_t>(entt));
-        update_component(entt, physcics_component);
+        create_body(entity);
+    }
+    rigid_body_update_observer.clear();
+    // collider updated: this can happen in run-time (seldom), or through the editor (more often)
+    for (const auto entity : collider_update_observer)
+    {
+        create_body(entity);
     }
     collider_update_observer.clear();
 
-    // move the bodies to their game objects' world transforms (current: update_world_transforms runs right before
-    // physics_update). As a rule of thumb: if rigid body has mass (is dynamic) than it cant be moved by transform component.
-    const auto sync_body_to_world_transform = [this](entt::entity entity)
+    // move the bodies to their game objects' world transforms. As a rule of thumb: if rigid body has mass (is dynamic)
+    // than it cant be moved by transform component.
+    const auto move_body = [this](entt::entity entity)
         {
-            const auto& physcics_component = *get_component<physcic_internal_component_t>(entity);
-            if (!physcics_component.rigid_body)
+            if (auto* rigid_body = get_component<physcic_internal_component_t>(entity)->rigid_body)
             {
-                return;
+                // the body stays where it is when the matrix can't be decomposed (e.g. a zero scale)
+                physics_world_.set_world_transform(rigid_body, get_component<world_transform_internal_component_t>(entity)->local_to_world);
             }
-            glm::vec3 scale;
-            glm::quat rotation;
-            glm::vec3 translation;
-            glm::vec3 skew;
-            glm::vec4 perspective;
-            // decompose leaves its outputs uninitialized when it fails (e.g. a zero scale), the body stays where it is then
-            if (!glm::decompose(get_component<world_transform_internal_component_t>(entity)->local_to_world, scale, rotation, translation, skew, perspective))
-            {
-                return;
-            }
-            btTransform world_transform;
-            world_transform.setOrigin(btVector3(translation.x, translation.y, translation.z));
-            world_transform.setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, rotation.w));
-            physics_world_.set_world_transform(physcics_component.rigid_body, world_transform);
         };
     // bodies whose world transform depends on other game objects (parents, joints) follow them every frame
     for (const auto entity : entity_registry_.view<const physcic_internal_component_t, const engine_parent_component_t>())
     {
-        sync_body_to_world_transform(entity);
+        move_body(entity);
     }
     for (const auto entity : entity_registry_.view<const physcic_internal_component_t, const engine_joint_attachment_component_t>(entt::exclude<engine_parent_component_t>))
     {
-        sync_body_to_world_transform(entity);
+        move_body(entity);
     }
-    // the others when their transform changed
+    // the others when their transform changed. A static body moved after the frame it was created in (placed) is
+    // moving: it becomes kinematic, so Bullet gives it a velocity and wakes up what it pushes.
     for (const auto entity : transform_update_collider_observer)
     {
-        if (!has_component<engine_parent_component_t>(entity) && !has_component<engine_joint_attachment_component_t>(entity))
+        if (follows_other_game_objects(entity))
         {
-            sync_body_to_world_transform(entity);
+            continue;
         }
+        auto* rigid_body = get_component<physcic_internal_component_t>(entity)->rigid_body;
+        if (rigid_body && std::find(created_bodies.begin(), created_bodies.end(), entity) == created_bodies.end())
+        {
+            physics_world_.make_kinematic(rigid_body);
+        }
+        move_body(entity);
     }
     transform_update_collider_observer.clear();
 
@@ -431,7 +403,7 @@ engine_result_code_t engine::Scene::physics_update(float dt)
             const auto& body_transform = physcics.rigid_body->getWorldTransform();
             const auto& origin = body_transform.getOrigin();
             const auto& body_rotation = body_transform.getRotation();
-            if (!has_component<engine_parent_component_t>(entity) && !has_component<engine_joint_attachment_component_t>(entity))
+            if (!follows_other_game_objects(entity))
             {
                 transform.position[0] = origin.getX();
                 transform.position[1] = origin.getY();

@@ -15,6 +15,38 @@
 #include <fmt/format.h>
 
 #include <cassert>
+#include <cmath>
+#include <optional>
+
+namespace
+{
+struct BodyPose
+{
+    btTransform transform;
+    btVector3 scale;
+};
+
+// a world matrix as a Bullet transform (translation and rotation) and the scale of the collision shape
+std::optional<BodyPose> to_body_pose(const glm::mat4& local_to_world)
+{
+    glm::vec3 scale;
+    glm::quat rotation;
+    glm::vec3 translation;
+    glm::vec3 skew;
+    glm::vec4 perspective;
+    // decompose leaves its outputs uninitialized when it fails; a zero scale divides by zero
+    if (std::abs(glm::determinant(local_to_world)) < 1e-12f || !glm::decompose(local_to_world, scale, rotation, translation, skew, perspective))
+    {
+        return std::nullopt;
+    }
+    BodyPose pose;
+    pose.transform.setIdentity();
+    pose.transform.setOrigin(btVector3(translation.x, translation.y, translation.z));
+    pose.transform.setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, rotation.w));
+    pose.scale = btVector3(scale.x, scale.y, scale.z);
+    return pose;
+}
+}  // namespace
 
 
 
@@ -76,20 +108,12 @@ void engine::PhysicsWorld::collect_debug_lines(std::vector<DebugLineGpuData>& ou
     }
 }
 
-engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const glm::mat4& local_to_world, const glm::vec3& shape_scale, std::int32_t body_index)
+engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const glm::mat4& local_to_world, bool kinematic, std::int32_t body_index)
 {
     physcic_internal_component_t ret{};
-    glm::vec3 scale{ 1.0f };
-    glm::quat rotation{};
-    glm::vec3 translation{ 0.0f };
-    glm::vec3 skew;
-    glm::vec4 perspective;
-    if (!glm::decompose(local_to_world, scale, rotation, translation, skew, perspective))
-    {
-        engine::log::log(engine::log::LogLevel::eError, fmt::format("Body {} is created at a world transform which can't be decomposed (zero scale?), it starts at the origin.\n", body_index));
-        rotation = glm::make_quat(std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f }.data());
-        translation = glm::vec3{ 0.0f };
-    }
+    // a world transform with a zero scale (e.g. a joint scaled to zero by an animation) can't place a body: it starts at
+    // the origin and gets its transform and scale when it is moved to a valid one
+    const auto pose = to_body_pose(local_to_world).value_or(BodyPose{ btTransform::getIdentity(), btVector3(1.0f, 1.0f, 1.0f) });
     if (collider.type == ENGINE_COLLIDER_TYPE_BOX)
     {
         const btVector3 box_bounds{
@@ -137,18 +161,13 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
         return ret;
     }
 
-    ret.collision_shape->setLocalScaling(btVector3(shape_scale.x, shape_scale.y, shape_scale.z));
+    ret.collision_shape->setLocalScaling(pose.scale);
     btVector3 local_inertia(0, 0, 0);
     if (rigid_body.mass)
     {
         ret.collision_shape->calculateLocalInertia(rigid_body.mass, local_inertia);
     }
 
-
-    btTransform transform_init;
-    transform_init.setIdentity();
-    transform_init.setOrigin(btVector3(translation.x, translation.y, translation.z));
-    transform_init.setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, rotation.w));
 
     //using motionstate is optional, it provides interpolation capabilities, and only synchronizes 'active' objects
     //ToDo: Validate if motion state should be used instead?
@@ -157,33 +176,82 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
     ret.rigid_body = new btRigidBody(rbInfo);
     ret.rigid_body->setFriction(collider.friction_static);
     ret.rigid_body->setRestitution(collider.bounciness);
-    ret.rigid_body->setWorldTransform(transform_init);
+    ret.rigid_body->setWorldTransform(pose.transform);
     if (collider.is_trigger)
     {
-        ret.rigid_body->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
+        // keeps the static flag the constructor sets for a body without mass
+        ret.rigid_body->setCollisionFlags(ret.rigid_body->getCollisionFlags() | btCollisionObject::CF_NO_CONTACT_RESPONSE);
     }
-    //dynamics_world_->getCollisionWorld().
-    //if (rigid_body.mass == 0.0f)
-    //{
-    //    ret.rigid_body->setCollisionFlags(ret.rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-    //    ret.rigid_body->setActivationState(DISABLE_DEACTIVATION);
-    //}
-
     ret.rigid_body->setUserIndex(body_index);
-
-    dynamics_world_->addRigidBody(ret.rigid_body);
-
+    if (kinematic && ret.rigid_body->isStaticObject())
+    {
+        set_kinematic_flags(ret.rigid_body);
+    }
+    add_to_world(ret.rigid_body);
     return ret;
 }
 
-void engine::PhysicsWorld::set_world_transform(btRigidBody* rigid_body, const btTransform& world_transform)
+void engine::PhysicsWorld::make_kinematic(btRigidBody* rigid_body)
 {
+    if (!rigid_body->isStaticObject() || rigid_body->isKinematicObject())
+    {
+        return;
+    }
+    // the broadphase filter is chosen when a body is added
+    dynamics_world_->removeRigidBody(rigid_body);
+    set_kinematic_flags(rigid_body);
+    add_to_world(rigid_body);
+}
+
+void engine::PhysicsWorld::set_kinematic_flags(btRigidBody* rigid_body)
+{
+    rigid_body->setCollisionFlags(rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+    // Bullet computes a kinematic body's velocity from its moves, only while it is awake
+    rigid_body->setActivationState(DISABLE_DEACTIVATION);
+}
+
+void engine::PhysicsWorld::add_to_world(btRigidBody* rigid_body)
+{
+    if (rigid_body->isKinematicObject())
+    {
+        // Bullet's default puts kinematic bodies into the static group, which doesn't pair with itself: moving
+        // triggers (hitboxes) wouldn't see a kinematic player then. Kinematic bodies pair with everything but statics.
+        dynamics_world_->addRigidBody(rigid_body, btBroadphaseProxy::KinematicFilter, btBroadphaseProxy::AllFilter ^ btBroadphaseProxy::StaticFilter);
+    }
+    else
+    {
+        dynamics_world_->addRigidBody(rigid_body);
+    }
+}
+
+bool engine::PhysicsWorld::set_world_transform(btRigidBody* rigid_body, const glm::mat4& local_to_world)
+{
+    const auto maybe_pose = to_body_pose(local_to_world);
+    if (!maybe_pose)
+    {
+        return false;
+    }
+    const auto& pose = *maybe_pose;
+    auto* shape = rigid_body->getCollisionShape();
+    if (shape && shape->getLocalScaling() != pose.scale)
+    {
+        shape->setLocalScaling(pose.scale);
+        if (rigid_body->getInvMass() > 0.0f)
+        {
+            const auto mass = 1.0f / rigid_body->getInvMass();
+            btVector3 local_inertia(0.0f, 0.0f, 0.0f);
+            shape->calculateLocalInertia(mass, local_inertia);
+            rigid_body->setMassProps(mass, local_inertia);
+            rigid_body->updateInertiaTensor();
+        }
+    }
     rigid_body->activate(true);
-    rigid_body->setWorldTransform(world_transform);
+    rigid_body->setWorldTransform(pose.transform);
     if (rigid_body->getBroadphaseHandle())
     {
         dynamics_world_->updateSingleAabb(rigid_body);
     }
+    return true;
 }
 
 void engine::PhysicsWorld::update(float dt)
