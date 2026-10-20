@@ -62,6 +62,45 @@ glm::vec3 world_position(engine_game_object_t go)
     return { matrix[12], matrix[13], matrix[14] };
 }
 
+void set_scale(engine_game_object_t go, float scale)
+{
+    auto tc = engineGameObjectGetTransformComponent(go);
+    tc.scale[0] = scale;
+    tc.scale[1] = scale;
+    tc.scale[2] = scale;
+    engineGameObjectUpdateTransformComponent(go, &tc);
+}
+
+void add_rigid_body(engine_game_object_t go, float mass)
+{
+    auto rb = engineGameObjectAddRigidBodyComponent(go);
+    rb.mass = mass;
+    engineGameObjectUpdateRigidBodyComponent(go, &rb);
+}
+
+void set_mass(engine_game_object_t go, float mass)
+{
+    auto rb = engineGameObjectGetRigidBodyComponent(go);
+    rb.mass = mass;
+    engineGameObjectUpdateRigidBodyComponent(go, &rb);
+}
+
+// whether the physics reported a collision between a and b in the last frame
+bool collided(engine_game_object_t a, engine_game_object_t b)
+{
+    for (size_t i = 0; i < enginePhysicsGetNumCollisions(); i++)
+    {
+        const auto* collision = enginePhysicsGetCollisionDesc(i);
+        const auto object_a = engineCollisionDescGetObjectA(collision);
+        const auto object_b = engineCollisionDescGetObjectB(collision);
+        if ((object_a == a && object_b == b) || (object_a == b && object_b == a))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 // game object whose collider a vertical ray at (x, z) hits first, or ENGINE_INVALID_GAME_OBJECT_ID
 engine_game_object_t collider_below(float x, float z)
 {
@@ -145,9 +184,7 @@ TEST_F(PhysicsTest, DynamicChildBodyStaysWhereThePhysicsPutsIt)
     const auto child = create_object(0.0f, 5.0f, 0.0f);
     set_parent(child, parent);
     add_box_collider(child);
-    auto rb = engineGameObjectAddRigidBodyComponent(child);
-    rb.mass = 1.0f;
-    engineGameObjectUpdateRigidBodyComponent(child, &rb);
+    add_rigid_body(child, 1.0f);
 
     step(10);
 
@@ -156,5 +193,97 @@ TEST_F(PhysicsTest, DynamicChildBodyStaysWhereThePhysicsPutsIt)
     EXPECT_LT(position.y, 5.0f);
     EXPECT_NEAR(engineGameObjectGetTransformComponent(child).position[0], 0.0f, 1e-3f);
     EXPECT_EQ(collider_below(10.0f, 0.0f), child);
+}
+
+// collider sizes are in the space of their game object: they scale with it and with its parents
+TEST_F(PhysicsTest, ChildColliderHasTheScaleItInheritsFromItsParent)
+{
+    load_scene<PhysicsScene>();
+    const auto parent = create_object(0.0f, 0.0f, 0.0f);
+    set_scale(parent, 2.0f);
+    // world x = 2, half extents 0.25 * 2
+    const auto child = create_object(1.0f, 0.0f, 0.0f);
+    set_parent(child, parent);
+    add_box_collider(child);
+
+    step();
+
+    EXPECT_EQ(collider_below(2.4f, 0.0f), child);
+    EXPECT_EQ(collider_below(2.6f, 0.0f), ENGINE_INVALID_GAME_OBJECT_ID);
+}
+
+TEST_F(PhysicsTest, ChildColliderFollowsAScaleChangeOfItsParent)
+{
+    load_scene<PhysicsScene>();
+    const auto parent = create_object(0.0f, 0.0f, 0.0f);
+    const auto child = create_object(1.0f, 0.0f, 0.0f);
+    set_parent(child, parent);
+    add_box_collider(child);
+    step();
+    ASSERT_EQ(collider_below(1.2f, 0.0f), child);
+    ASSERT_EQ(collider_below(1.4f, 0.0f), ENGINE_INVALID_GAME_OBJECT_ID);
+
+    set_scale(parent, 2.0f);
+    step();
+
+    EXPECT_EQ(collider_below(2.4f, 0.0f), child);
+    EXPECT_EQ(collider_below(1.2f, 0.0f), ENGINE_INVALID_GAME_OBJECT_ID);
+}
+
+// hitboxes (triggers following a parent) detect colliders moved by their transform, e.g. the climbing player whose
+// rigid body is removed: both are kinematic
+TEST_F(PhysicsTest, TriggerFollowingItsParentDetectsAColliderMovedByItsTransform)
+{
+    load_scene<PhysicsScene>();
+    const auto parent = create_object(0.0f, 0.0f, 0.0f);
+    const auto trigger = create_object(1.0f, 0.0f, 0.0f);
+    set_parent(trigger, parent);
+    add_box_collider(trigger);
+    auto trigger_collider = engineGameObjectGetColliderComponent(trigger);
+    trigger_collider.is_trigger = true;
+    engineGameObjectUpdateColliderComponent(trigger, &trigger_collider);
+    const auto target = create_object(4.0f, 0.0f, 0.0f);
+    add_box_collider(target);
+    step();
+
+    bool detected = false;
+    for (int i = 1; i <= 30 && !detected; i++)
+    {
+        move_to(parent, i * 0.1f, 0.0f);
+        move_to(target, 4.0f, i * 0.001f);
+        step();
+        detected = collided(trigger, target);
+    }
+
+    EXPECT_TRUE(detected);
+}
+
+TEST_F(PhysicsTest, UpdatedMassOfARigidBodyTakesEffect)
+{
+    load_scene<PhysicsScene>();
+    const auto go = create_object(0.0f, 5.0f, 0.0f);
+    add_box_collider(go);
+    add_rigid_body(go, 0.0f);
+    step(10);
+    ASSERT_NEAR(world_position(go).y, 5.0f, 1e-4f);
+
+    set_mass(go, 1.0f);
+    step(10);
+
+    EXPECT_LT(world_position(go).y, 4.9f);
+}
+
+// colliders without mass which never move stay static: they don't detect each other
+TEST_F(PhysicsTest, StaticCollidersDontCollideWithEachOther)
+{
+    load_scene<PhysicsScene>();
+    const auto a = create_object(0.0f, 0.0f, 0.0f);
+    add_box_collider(a);
+    const auto b = create_object(0.1f, 0.0f, 0.0f);
+    add_box_collider(b);
+
+    step(2);
+
+    EXPECT_FALSE(collided(a, b));
 }
 }  // namespace
