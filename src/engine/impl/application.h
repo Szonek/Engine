@@ -6,7 +6,6 @@
 #include "ui_manager.h"
 #include "ui_document.h"
 #include "named_atlas.h"
-#include "nav_mesh.h"
 #include "mesh_defs.h"
 #include "skin.h"
 #include "animation_controller.h"
@@ -43,11 +42,6 @@ public:
     // assets are reference counted (see Atlas): adding one gives the caller a reference, the last release destroys it
     virtual bool acquire_texture(std::uint32_t idx);
     virtual void release_texture(std::uint32_t idx);
-
-    virtual std::uint32_t add_nav_mesh(std::string_view name);
-    virtual std::uint32_t get_nav_mesh(std::string_view name) const;
-    virtual const NavMesh* get_nav_mesh(std::uint32_t idx) const;
-    virtual void release_nav_mesh(std::uint32_t idx);
 
     virtual bool add_font_from_file(std::string_view file_name, std::string_view handle_name);
 
@@ -126,7 +120,6 @@ protected:
     Atlas<Skin> skins_atlas_;
     Atlas<std::shared_ptr<const AnimationLibrary>> animation_sets_atlas_;
     Atlas<std::unique_ptr<Prefab>> prefabs_atlas_;
-    Atlas<NavMesh> nav_mesh_atlas_;
     Atlas<Shader> shader_atlas_;
 
     UiManager ui_manager_;

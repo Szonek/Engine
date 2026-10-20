@@ -72,6 +72,8 @@ set(ENGINE_SOURCES
 
 	${ENGINE_SOURCES_DIR}/nav_mesh.h
 	${ENGINE_SOURCES_DIR}/nav_mesh.cpp
+	${ENGINE_SOURCES_DIR}/nav_mesh_debug_draw.h
+	${ENGINE_SOURCES_DIR}/nav_mesh_debug_draw.cpp
 	
 	${ENGINE_SOURCES_DIR}/skin.h
 	${ENGINE_SOURCES_DIR}/skin.cpp
@@ -89,6 +91,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/components_internals/animation_controller_internal_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/prefab_instance_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/children_internal_component.h
+	${ENGINE_SOURCES_DIR}/components_internals/nav_mesh_internal_component.h
 	
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.h
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.cpp
@@ -135,7 +138,8 @@ set(ENGINE_API_SOURCES
 	${ENGINE_API_COMPONENTS}/rigid_body_component.h
 	${ENGINE_API_COMPONENTS}/collider_component.h
     ${ENGINE_API_COMPONENTS}/parent_component.h
-    ${ENGINE_API_COMPONENTS}/nav_component.h
+    ${ENGINE_API_COMPONENTS}/nav_surface_component.h
+    ${ENGINE_API_COMPONENTS}/nav_modifier_component.h
     ${ENGINE_API_COMPONENTS}/sprite_component.h
     ${ENGINE_API_COMPONENTS}/animation_controller_component.h
     ${ENGINE_API_COMPONENTS}/skin_component.h
@@ -146,7 +150,7 @@ set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})
 add_library(${ENGINE} SHARED ${ENGINE_ALL_SOURCES})
 
 target_include_directories(${ENGINE} PUBLIC ${ENGINE_API} PRIVATE ${BULLET_INCLUDE_DIRS} ${ENGINE_SOURCES_DIR}/imgui)
-target_link_libraries(${ENGINE} PRIVATE stb tinygltf glad glm EnTT::EnTT SDL3::SDL3-static fmt::fmt-header-only Freetype::Freetype RmlUi::RmlUi RmlUi::Debugger TracyClient ozz_animation ozz_animation_offline ${BULLET_LIBRARIES})
+target_link_libraries(${ENGINE} PRIVATE stb tinygltf glad glm EnTT::EnTT SDL3::SDL3-static fmt::fmt-header-only Freetype::Freetype RmlUi::RmlUi RmlUi::Debugger TracyClient ozz_animation ozz_animation_offline RecastNavigation::Recast RecastNavigation::Detour RecastNavigation::DebugUtils ${BULLET_LIBRARIES})
 target_compile_definitions(${ENGINE} PUBLIC GLM_FORCE_QUAT_DATA_XYZW GLM_ENABLE_EXPERIMENTAL PRIVATE RMLUI_SDL_VERSION_MAJOR=3 BT_NO_SIMD_OPERATOR_OVERLOADS=1)
 
 target_compile_options(${ENGINE} PRIVATE

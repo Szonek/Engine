@@ -1,13 +1,7 @@
 #pragma once
-#include "../nav_mesh.h"
-
 #include <engine.h>
 
 #include <glm/glm.hpp>
-
-#include <cstdint>
-#include <map>
-#include <utility>
 
 namespace engine
 {
@@ -22,21 +16,24 @@ class Enemy;
 class Player;
 class Weapon;
 
-// Places gameplay objects into a scene the way the game does: floor tiles with nav mesh nodes, walls, the player,
-// enemies, chests and weapons. The level (TestScene's ASCII map) and the scenario tests both build with it.
+// Places gameplay objects into a scene the way the game does: the nav surface, floor tiles, walls, the player, enemies,
+// chests and weapons. The level (TestScene's ASCII map) and the scenario tests both build with it. The nav mesh is built
+// from the static colliders with engineNavMeshBuild() once everything is placed.
 // x/z are world positions in metres; floor tiles sit on the 1 m grid. Objects whose prefab failed to load are skipped
 // (nullptr / no-op), like the level always did.
 class LevelBuilder
 {
 public:
-    LevelBuilder(AppProjectC& app, engine::IScene& scene, NavMesh& nav_mesh);
+    LevelBuilder(AppProjectC& app, engine::IScene& scene);
 
-    // floor tile at cell (x, z) with a nav mesh node, connected to the nodes of the 8 neighbouring cells
+    // the game object with the scene's nav surface component (nav mesh settings for the enemies)
+    engine_game_object_t nav_surface();
+    // floor tile at cell (x, z)
     LevelBuilder& floor(float x, float z);
     // walkable floor for every cell in [x_min, x_max] x [z_min, z_max]
     LevelBuilder& floor_area(float x_min, float z_min, float x_max, float z_max);
-    // floor tile without a nav mesh node: enemies never walk there (e.g. under the house)
-    LevelBuilder& floor_without_nav(float x, float z);
+    // floor tile left out of the nav mesh: enemies never walk there (e.g. inside the house)
+    LevelBuilder& floor_not_walkable(float x, float z);
     // the dark ground outside the playable area
     LevelBuilder& floor_outside_region(float x, float z);
     // the Wall prefab (currently not loaded, see default_prefabs_data())
@@ -54,7 +51,5 @@ public:
 private:
     AppProjectC& app_;
     engine::IScene& scene_;
-    NavMesh& nav_mesh_;
-    std::map<std::pair<std::int32_t, std::int32_t>, NavMeshNodeIdx> nav_nodes_;
 };
 }  // namespace project_c

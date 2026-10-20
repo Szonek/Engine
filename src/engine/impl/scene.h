@@ -21,6 +21,7 @@ class Renderer;
 class Skin;
 struct SkinPose;
 class AnimationController;
+class NavMesh;
 class Scene
 {
 public:
@@ -35,6 +36,8 @@ public:
 
     void enable_physics_debug_draw(bool enable);
     bool is_physics_debug_draw_enabled() const;
+    void enable_nav_mesh_debug_draw(bool enable);
+    bool is_nav_mesh_debug_draw_enabled() const;
     engine_result_code_t update(float dt);
 
     // every entity gets a persistent ID (see EntityIdRegistry), except the reserved ENGINE_INVALID_GAME_OBJECT_ID one
@@ -118,6 +121,13 @@ public:
         return entity_registry_.any_of<T>(entity);
     }
 
+    // (Re)builds the nav mesh from the static colliders (see engine_nav_modifier_component_t) with the settings of the
+    // scene's nav surface component, and keeps it on that game object. Fails when there is no nav surface or nothing
+    // is walkable (the previous nav mesh is dropped then).
+    engine_result_code_t build_nav_mesh();
+    // the nav mesh of the scene's nav surface, or nullptr when it hasn't been built
+    const NavMesh* get_nav_mesh() const;
+
     void set_physcis_gravity(std::array<float, 3> g);
     const std::vector<CollisionDesc>& get_physcis_collisions() const;
 
@@ -137,6 +147,8 @@ private:
     void on_skin_component_changed(entt::registry& registry, entt::entity entity);
     // (re)creates the entity's animation controller from its animation set and skin, or removes it when either is missing
     void on_animation_controller_component_changed(entt::registry& registry, entt::entity entity);
+    // the nav modifier of the entity or its closest ancestor with one, or nullptr
+    const engine_nav_modifier_component_t* find_nav_modifier(entt::entity entity) const;
     // the pose and skin asset of the skin instance owned by `skin_owner`, or {nullptr, nullptr} (both or neither)
     std::pair<const SkinPose*, const Skin*> get_skin_instance(engine_game_object_t skin_owner) const;
     // Collects cameras and everything visible in this scene into render_data and submits it to the renderer. No rendering API calls happen here.
@@ -157,6 +169,7 @@ private:
     entt::observer rigid_body_update_observer;
 
     PhysicsWorld physics_world_;
+    bool nav_mesh_debug_draw_ = false;
     std::deque<std::tuple<entt::entity, std::array<float, 3>, engine_force_type_t>> forces_to_apply_;
 };
 }  // namespace engine

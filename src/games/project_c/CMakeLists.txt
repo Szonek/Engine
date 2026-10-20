@@ -11,8 +11,6 @@ set(LIB_SOURCES
 	player_input.h
 	player_input.cpp
 	
-	nav_mesh.h
-	nav_mesh.cpp
 	
 	scenes/level_builder.h
 	scenes/level_builder.cpp

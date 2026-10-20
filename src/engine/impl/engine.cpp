@@ -3,6 +3,7 @@
 #include "application.h"
 #include "application_editor.h"
 #include "scene.h"
+#include "nav_mesh.h"
 #include "asset_store.h"
 #include "ui_document.h"
 #include "collision_desc.h"
@@ -12,6 +13,10 @@
 
 #include "logger.h"
 
+#include <glm/gtc/type_ptr.hpp>
+
+#include <cstring>
+#include <optional>
 #include <utility>
 
 #include <format>
@@ -630,6 +635,55 @@ bool enginePhysicsAddForce(engine_game_object_t go, const float force[3], engine
     return result;
 }
 
+engine_result_code_t engineNavMeshBuild()
+{
+    if (!G_ACTIVE_SCENE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    return api_cast(G_ACTIVE_SCENE)->build_nav_mesh();
+}
+
+engine_result_code_t engineNavFindPath(const float start[3], const float end[3], const float search_half_extents[3],
+    float* out_points, size_t max_points, size_t* out_points_count, engine_nav_path_status_t* out_status)
+{
+    if (!start || !end || !search_half_extents || !out_points || max_points == 0 || !out_points_count || !out_status)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    *out_points_count = 0;
+    const auto* nav_mesh = G_ACTIVE_SCENE ? api_cast(G_ACTIVE_SCENE)->get_nav_mesh() : nullptr;
+    const auto path = nav_mesh
+        ? nav_mesh->find_path(glm::make_vec3(start), glm::make_vec3(end), glm::make_vec3(search_half_extents), max_points)
+        : std::nullopt;
+    if (!path)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    std::memcpy(out_points, path->points.data(), path->points.size() * sizeof(glm::vec3));
+    *out_points_count = path->points.size();
+    *out_status = path->partial ? ENGINE_NAV_PATH_STATUS_PARTIAL : ENGINE_NAV_PATH_STATUS_COMPLETE;
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t engineNavFindNearestPoint(const float point[3], const float search_half_extents[3], float out[3])
+{
+    if (!point || !search_half_extents || !out)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const auto* nav_mesh = G_ACTIVE_SCENE ? api_cast(G_ACTIVE_SCENE)->get_nav_mesh() : nullptr;
+    const auto nearest = nav_mesh ? nav_mesh->find_nearest_point(glm::make_vec3(point), glm::make_vec3(search_half_extents)) : std::nullopt;
+    if (!nearest)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    out[0] = nearest->x;
+    out[1] = nearest->y;
+    out[2] = nearest->z;
+    return ENGINE_RESULT_CODE_OK;
+}
+
 engine_result_code_t engineUiDocumentCreateDataHandle(const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)
 {
     if (!G_ACTIVE_APP || (bindings_count == 0 && !bindings))
@@ -1210,6 +1264,56 @@ void engineGameObjectRemoveRigidBodyComponent(engine_game_object_t game_object)
 bool engineGameObjectHasRigidBodyComponent(engine_game_object_t game_object)
 {
     return has_component<engine_rigid_body_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_nav_surface_component_t engineGameObjectAddNavSurfaceComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_nav_surface_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_nav_surface_component_t engineGameObjectGetNavSurfaceComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_nav_surface_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+void engineGameObjectUpdateNavSurfaceComponent(engine_game_object_t game_object, const engine_nav_surface_component_t* comp)
+{
+    update_component(G_ACTIVE_SCENE, game_object, comp);
+}
+
+void engineGameObjectRemoveNavSurfaceComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_nav_surface_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+bool engineGameObjectHasNavSurfaceComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_nav_surface_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_nav_modifier_component_t engineGameObjectAddNavModifierComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_nav_modifier_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_nav_modifier_component_t engineGameObjectGetNavModifierComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_nav_modifier_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+void engineGameObjectUpdateNavModifierComponent(engine_game_object_t game_object, const engine_nav_modifier_component_t* comp)
+{
+    update_component(G_ACTIVE_SCENE, game_object, comp);
+}
+
+void engineGameObjectRemoveNavModifierComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_nav_modifier_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+bool engineGameObjectHasNavModifierComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_nav_modifier_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
 engine_collider_component_t engineGameObjectAddColliderComponent(engine_game_object_t game_object)

@@ -2,6 +2,7 @@
 #include "scene.h"
 #include "ui_manager.h"
 #include "nav_mesh.h"
+#include "nav_mesh_debug_draw.h"
 #include "logger.h"
 #include "math_helpers.h"
 #include "components_utils/components_initializers.h"
@@ -11,6 +12,7 @@
 #include "components_internals/skin_pose_component.h"
 #include "components_internals/animation_controller_internal_component.h"
 #include "components_internals/children_internal_component.h"
+#include "components_internals/nav_mesh_internal_component.h"
 #include "profiler.h"
 #include "engine_vector_impl_def.h"
 #include "skin.h"
@@ -143,6 +145,9 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     entity_registry_.on_construct<engine_animation_controller_component_t>().connect<&initialize_animation_controller_component>();
     entity_registry_.on_construct<engine_light_component_t>().connect<&initialize_light_component>();
     entity_registry_.on_construct<engine_sprite_component_t>().connect<&initialize_sprite_component>();
+    entity_registry_.on_construct<engine_nav_surface_component_t>().connect<&initialize_nav_surface_component>();
+    entity_registry_.on_construct<engine_nav_modifier_component_t>().connect<&initialize_nav_modifier_component>();
+    entity_registry_.on_destroy<engine_nav_surface_component_t>().connect<&entt::registry::remove<nav_mesh_internal_component_t>>();
     
     entity_registry_.on_update<engine_parent_component_t>().connect<&update_parent_component>();
     entity_registry_.on_destroy<engine_parent_component_t>().connect<&destroy_parent_component>();
@@ -172,6 +177,104 @@ void engine::Scene::enable_physics_debug_draw(bool enable)
 bool engine::Scene::is_physics_debug_draw_enabled() const
 {
     return physics_world_.is_debug_drawer_enabled();
+}
+
+void engine::Scene::enable_nav_mesh_debug_draw(bool enable)
+{
+    nav_mesh_debug_draw_ = enable;
+}
+
+bool engine::Scene::is_nav_mesh_debug_draw_enabled() const
+{
+    return nav_mesh_debug_draw_;
+}
+
+engine_result_code_t engine::Scene::build_nav_mesh()
+{
+    ENGINE_PROFILE_SECTION;
+    auto surfaces = entity_registry_.view<const engine_nav_surface_component_t>();
+    if (surfaces.begin() == surfaces.end())
+    {
+        log::log(log::LogLevel::eError, "Nav mesh build: the scene has no nav surface component.\n");
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const auto surface_entity = *surfaces.begin();
+    if (std::next(surfaces.begin()) != surfaces.end())
+    {
+        log::log(log::LogLevel::eError, "Nav mesh build: the scene has more than one nav surface component, using one of them.\n");
+    }
+    const auto& surface = surfaces.get<const engine_nav_surface_component_t>(surface_entity);
+    NavMeshBuildSettings settings{};
+    settings.agent_radius = surface.agent_radius;
+    settings.agent_height = surface.agent_height;
+    settings.agent_max_slope = surface.agent_max_slope;
+    settings.agent_max_climb = surface.agent_max_climb;
+    settings.cell_size = surface.cell_size;
+    settings.cell_height = surface.cell_height;
+
+    // the colliders are placed by their world transforms, which are not computed yet for objects created this frame
+    update_world_transforms();
+    NavMeshInput input;
+    auto colliders = entity_registry_.view<const engine_tranform_component_t, const engine_collider_component_t>();
+    colliders.each([this, &input](auto entity, const engine_tranform_component_t& transform, const engine_collider_component_t& collider)
+        {
+            // only static colliders: dynamic bodies move, triggers don't block
+            const auto* rigid_body = entity_registry_.try_get<engine_rigid_body_component_t>(entity);
+            if (collider.is_trigger || (rigid_body && rigid_body->mass > 0.0f))
+            {
+                return;
+            }
+            auto area = NavArea::eWalkable;
+            if (const auto* modifier = find_nav_modifier(entity))
+            {
+                if (modifier->type == ENGINE_NAV_MODIFIER_TYPE_IGNORE)
+                {
+                    return;
+                }
+                if (modifier->type == ENGINE_NAV_MODIFIER_TYPE_NOT_WALKABLE)
+                {
+                    area = NavArea::eNotWalkable;
+                }
+            }
+            input.add_collider(collider, glm::make_mat4(transform.local_to_world), area);
+        });
+
+    auto nav_mesh = NavMesh::build(input, settings);
+    if (!nav_mesh)
+    {
+        entity_registry_.remove<nav_mesh_internal_component_t>(surface_entity);
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    entity_registry_.emplace_or_replace<nav_mesh_internal_component_t>(surface_entity, std::move(nav_mesh));
+    return ENGINE_RESULT_CODE_OK;
+}
+
+const engine::NavMesh* engine::Scene::get_nav_mesh() const
+{
+    const auto nav_meshes = entity_registry_.view<const nav_mesh_internal_component_t>();
+    if (nav_meshes.begin() == nav_meshes.end())
+    {
+        return nullptr;
+    }
+    return nav_meshes.get<const nav_mesh_internal_component_t>(*nav_meshes.begin()).nav_mesh.get();
+}
+
+const engine_nav_modifier_component_t* engine::Scene::find_nav_modifier(entt::entity entity) const
+{
+    while (entity_registry_.valid(entity))
+    {
+        if (const auto* modifier = entity_registry_.try_get<engine_nav_modifier_component_t>(entity))
+        {
+            return modifier;
+        }
+        const auto* parent = entity_registry_.try_get<engine_parent_component_t>(entity);
+        if (!parent || parent->parent == ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            return nullptr;
+        }
+        entity = static_cast<entt::entity>(parent->parent);
+    }
+    return nullptr;
 }
 
 engine_result_code_t engine::Scene::physics_update(float dt)
@@ -700,6 +803,13 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
     if (physics_world_.is_debug_drawer_enabled())
     {
         physics_world_.collect_debug_lines(render_data.debug_lines);
+    }
+    if (nav_mesh_debug_draw_)
+    {
+        if (const auto* nav_mesh = get_nav_mesh())
+        {
+            collect_nav_mesh_debug_lines(*nav_mesh, render_data.debug_lines);
+        }
     }
 
     renderer_.submit_scene(std::move(render_data));

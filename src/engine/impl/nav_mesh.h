@@ -1,79 +1,97 @@
 #pragma once
-
-#include <unordered_map>
+#include "components/collider_component.h"
 
 #include <glm/glm.hpp>
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <vector>
+
+class dtNavMesh;
+class dtNavMeshQuery;
+
 namespace engine
 {
-using NavMeshNodeIdx = std::int32_t;
-constexpr inline NavMeshNodeIdx invalid_node_idx = -1;
-using NavMeshEdgeCost = std::uint32_t;
-using NavMeshPosition3D = glm::vec3;
-using NavMeshNodeCenterOfMass = glm::vec3;
-using NavMeshNodeHalfSize = glm::vec3;
-
-class NavMeshNode
+// what a triangle of the nav mesh input contributes
+enum class NavArea : std::uint8_t
 {
-public:
-    NavMeshNode(NavMeshNodeIdx my_idx, NavMeshNodeCenterOfMass&& center, NavMeshNodeHalfSize&& size);
-    ~NavMeshNode() = default;
-    NavMeshNode(NavMeshNode&& rhs) noexcept = default;
-    NavMeshNode(const NavMeshNode& rhs) = default;
-    NavMeshNode& operator=(const NavMeshNode& rhs) = default;
-    NavMeshNode& operator=(NavMeshNode&& rhs) noexcept = default;
-
-    inline NavMeshNodeIdx get_idx() const { return idx_; }
-    inline NavMeshNodeCenterOfMass get_center() const { return center_; }
-    inline NavMeshNodeHalfSize get_size() const { return size_; }
-
-    void add_edge(NavMeshNodeIdx node_idx, NavMeshEdgeCost cost);
-    inline const std::unordered_map<NavMeshNodeIdx, NavMeshEdgeCost>& get_edges() const { return edges_; }
-private:
-    NavMeshNodeCenterOfMass center_;
-    NavMeshNodeHalfSize size_;
-    NavMeshNodeIdx idx_;
-    std::unordered_map<NavMeshNodeIdx, NavMeshEdgeCost> edges_;
+    // walkable where its slope is within the agent's max slope
+    eWalkable = 0,
+    // an obstacle: never walkable
+    eNotWalkable,
 };
 
+struct NavMeshBuildSettings
+{
+    float agent_radius = 0.3f;
+    float agent_height = 1.0f;
+    float agent_max_slope = 45.0f;  // degrees
+    float agent_max_climb = 0.2f;
+    float cell_size = 0.1f;
+    float cell_height = 0.05f;
+};
+
+// Triangles in world space, the input of a nav mesh build. Shapes are closed and convex, so their triangles are wound
+// with outward normals (Recast's slope test relies on it).
+class NavMeshInput
+{
+public:
+    // the collider's shapes, placed by the world matrix of its game object (boxes: 12 triangles, spheres: a coarse
+    // triangulation, compounds: each child)
+    void add_collider(const engine_collider_component_t& collider, const glm::mat4& world, NavArea area);
+
+    const std::vector<float>& get_vertices() const { return vertices_; }
+    const std::vector<std::int32_t>& get_triangles() const { return triangles_; }
+    const std::vector<NavArea>& get_triangle_areas() const { return areas_; }
+    std::size_t get_triangle_count() const { return areas_.size(); }
+
+private:
+    void add_box(const glm::mat4& world, const glm::vec3& half_extents, NavArea area);
+    void add_sphere(const glm::mat4& world, float radius, NavArea area);
+    // a triangle of the convex shape with the given center, wound so its normal points away from the center
+    void add_convex_shape_triangle(const glm::vec3& center, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, NavArea area);
+
+    std::vector<float> vertices_;
+    std::vector<std::int32_t> triangles_;
+    std::vector<NavArea> areas_;
+};
+
+// A Recast nav mesh (one tile) with a Detour query. Built from a NavMeshInput; immutable afterwards.
 class NavMesh
 {
 public:
-    NavMesh();
-    NavMesh(const NavMesh& rhs) = delete;
-    NavMesh(NavMesh&& rhs) noexcept = default;
-    NavMesh& operator=(const NavMesh& rhs) = delete;
-    NavMesh& operator=(NavMesh&& rhs) noexcept = default;
-    ~NavMesh() = default;
+    // nullptr when nothing is walkable or the build fails (logged)
+    static std::unique_ptr<NavMesh> build(const NavMeshInput& input, const NavMeshBuildSettings& settings);
 
-    NavMeshNodeIdx add_node(NavMeshNodeCenterOfMass&& center, NavMeshNodeHalfSize&& size);
-    void add_edge(NavMeshNodeIdx node_idx_1, NavMeshNodeIdx node_idx_2, NavMeshEdgeCost cost);
+    NavMesh(const NavMesh&) = delete;
+    NavMesh(NavMesh&&) = delete;
+    NavMesh& operator=(const NavMesh&) = delete;
+    NavMesh& operator=(NavMesh&&) = delete;
+    ~NavMesh();
 
-    const NavMeshNode& get_node(NavMeshNodeIdx idx) const;
-    NavMeshNodeIdx get_node_idx(const NavMeshPosition3D& pos) const;
-
-private:
-    std::vector<NavMeshNode> nodes_;
-};
-
-class NavMeshPathFinder
-{
-public:
     struct Path
     {
-        std::vector<NavMeshNodeIdx> nodes;
+        // the corners, the first one being the start
+        std::vector<glm::vec3> points;
+        // the end isn't reachable: the path ends at the reachable point closest to it
+        bool partial = false;
     };
-    struct PathFromStartToEnd : public Path
-    {
-    };
-public:
-    NavMeshPathFinder() = default;
-    NavMeshPathFinder(const NavMeshPathFinder& rhs) = delete;
-    NavMeshPathFinder(NavMeshPathFinder&& rhs) noexcept = default;
-    NavMeshPathFinder& operator=(const NavMeshPathFinder& rhs) = delete;
-    NavMeshPathFinder& operator=(NavMeshPathFinder&& rhs) noexcept = default;
-    ~NavMeshPathFinder() = default;
 
-    static PathFromStartToEnd find_path(const NavMesh& mesh, NavMeshNodeIdx start, NavMeshNodeIdx end);
+    // the closest point on the nav mesh within the box of `search_half_extents` around `point`
+    std::optional<glm::vec3> find_nearest_point(const glm::vec3& point, const glm::vec3& search_half_extents) const;
+    // The string-pulled path from start to end, both snapped onto the nav mesh (searched within `search_half_extents`).
+    // nullopt when either point is off the nav mesh. At most max_points (> 0): a longer path is cut off (its beginning is
+    // returned).
+    std::optional<Path> find_path(const glm::vec3& start, const glm::vec3& end, const glm::vec3& search_half_extents, std::size_t max_points) const;
+
+    const dtNavMesh& get_detour_nav_mesh() const { return *nav_mesh_; }
+
+private:
+    NavMesh(dtNavMesh* nav_mesh, dtNavMeshQuery* query);
+
+    dtNavMesh* nav_mesh_ = nullptr;
+    dtNavMeshQuery* query_ = nullptr;
 };
 }  // namespace engine

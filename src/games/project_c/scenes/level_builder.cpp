@@ -8,53 +8,30 @@
 
 #include <iscene.h>
 
-#include <array>
-#include <cmath>
+#include <cstring>
 
-namespace
-{
-std::pair<std::int32_t, std::int32_t> to_cell(float x, float z)
-{
-    return { static_cast<std::int32_t>(std::lround(x)), static_cast<std::int32_t>(std::lround(z)) };
-}
-}  // namespace
-
-project_c::LevelBuilder::LevelBuilder(AppProjectC& app, engine::IScene& scene, NavMesh& nav_mesh)
+project_c::LevelBuilder::LevelBuilder(AppProjectC& app, engine::IScene& scene)
     : app_(app)
     , scene_(scene)
-    , nav_mesh_(nav_mesh)
 {
+}
+
+engine_game_object_t project_c::LevelBuilder::nav_surface()
+{
+    const auto go = engineGameObjectCreate();
+    auto nc = engineGameObjectAddNameComponent(go);
+    std::strncpy(nc.name, "nav-surface", ENGINE_ENTITY_NAME_MAX_LENGTH);
+    engineGameObjectUpdateNameComponent(go, &nc);
+    // the engine's defaults fit the skeletons
+    engineGameObjectAddNavSurfaceComponent(go);
+    return go;
 }
 
 project_c::LevelBuilder& project_c::LevelBuilder::floor(float x, float z)
 {
-    if (!app_.is_prefab_available(PREFAB_TYPE_FLOOR))
+    if (app_.is_prefab_available(PREFAB_TYPE_FLOOR))
     {
-        return *this;
-    }
-    scene_.register_script<Floor>(app_.instantiate_prefab(PREFAB_TYPE_FLOOR).go, x, z);
-
-    const auto cell = to_cell(x, z);
-    if (nav_nodes_.contains(cell))
-    {
-        return *this;
-    }
-    const auto id = nav_mesh_.add_node({ x, 0.0f, z }, { 0.5f, 0.0f, 0.5f });
-    nav_nodes_[cell] = id;
-
-    // edge costs are integers, so a diagonal step costs the same as a straight one
-    constexpr std::array<std::array<std::int32_t, 2>, 8> neighbours{ {
-        { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }, { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } };
-    for (const auto& [dx, dz] : neighbours)
-    {
-        const auto it = nav_nodes_.find({ cell.first + dx, cell.second + dz });
-        if (it == nav_nodes_.end())
-        {
-            continue;
-        }
-        const auto cost = static_cast<NavMeshEdgeCost>(dx != 0 && dz != 0 ? 1.414f : 1.0f);
-        nav_mesh_.add_edge(id, it->second, cost);
-        nav_mesh_.add_edge(it->second, id, cost);
+        scene_.register_script<Floor>(app_.instantiate_prefab(PREFAB_TYPE_FLOOR).go, x, z);
     }
     return *this;
 }
@@ -71,11 +48,15 @@ project_c::LevelBuilder& project_c::LevelBuilder::floor_area(float x_min, float 
     return *this;
 }
 
-project_c::LevelBuilder& project_c::LevelBuilder::floor_without_nav(float x, float z)
+project_c::LevelBuilder& project_c::LevelBuilder::floor_not_walkable(float x, float z)
 {
     if (app_.is_prefab_available(PREFAB_TYPE_FLOOR))
     {
-        scene_.register_script<Floor>(app_.instantiate_prefab(PREFAB_TYPE_FLOOR).go, x, z);
+        const auto go = app_.instantiate_prefab(PREFAB_TYPE_FLOOR).go;
+        scene_.register_script<Floor>(go, x, z);
+        auto nmc = engineGameObjectAddNavModifierComponent(go);
+        nmc.type = ENGINE_NAV_MODIFIER_TYPE_NOT_WALKABLE;
+        engineGameObjectUpdateNavModifierComponent(go, &nmc);
     }
     return *this;
 }
@@ -143,7 +124,7 @@ project_c::Enemy* project_c::LevelBuilder::enemy(float x, float z)
     {
         return nullptr;
     }
-    return scene_.register_script<Enemy>(app_.instantiate_prefab(PREFAB_TYPE_SKELETON_WARRIOR), &nav_mesh_, x, z);
+    return scene_.register_script<Enemy>(app_.instantiate_prefab(PREFAB_TYPE_SKELETON_WARRIOR), x, z);
 }
 
 project_c::Chest* project_c::LevelBuilder::chest(float x, float y, float z)

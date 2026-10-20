@@ -360,26 +360,6 @@ void engine::Application::release_texture(std::uint32_t idx)
     textures_atlas_.release(idx);
 }
 
-std::uint32_t engine::Application::add_nav_mesh(std::string_view name)
-{
-    return nav_mesh_atlas_.add_object(name, NavMesh());
-}
-
-std::uint32_t engine::Application::get_nav_mesh(std::string_view name) const
-{
-    return nav_mesh_atlas_.get_object(name);
-}
-
-const engine::NavMesh* engine::Application::get_nav_mesh(std::uint32_t idx) const
-{
-    return nav_mesh_atlas_.get_object(idx);
-}
-
-void engine::Application::release_nav_mesh(std::uint32_t idx)
-{
-    nav_mesh_atlas_.release(idx);
-}
-
 bool engine::Application::add_font_from_file(std::string_view file_name, std::string_view handle_name)
 {
     const auto res = ui_manager_.load_font_from_file(file_name, handle_name);

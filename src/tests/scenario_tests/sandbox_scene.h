@@ -1,7 +1,6 @@
 #pragma once
 #include "scenario_harness.h"
 
-#include <nav_mesh.h>
 #include <scenes/level_builder.h>
 
 #include <iscene.h>
@@ -22,12 +21,15 @@ namespace scenario
 //   scene->build().floor_area(-3, -3, 3, 3);
 //   scene->build().player(0, 0);
 //   scene->build().enemy(0, 1);
-// Everything is placed at exact positions, so runs are deterministic (no random spawners).
+// Everything is placed at exact positions, so runs are deterministic (no random spawners). The nav mesh is built from
+// what was placed before the first step.
 class SandboxScene : public engine::IScene
 {
 public:
     SandboxScene(engine::IApplication* app);
     static constexpr const char* get_name() { return "scenario_sandbox_scene"; }
+
+    engine_result_code_t update(float dt) override;
 
     project_c::LevelBuilder& build() { return builder_; }
     // the camera follows the player with a spring; call after placing the player so it starts on it
@@ -37,10 +39,10 @@ public:
     project_c::Encounter* encounter() { return encounter_; }
 
 private:
-    project_c::NavMesh nav_mesh_{};
     project_c::LevelBuilder builder_;
     project_c::CameraScript* camera_ = nullptr;
     project_c::Encounter* encounter_ = nullptr;
+    bool nav_mesh_built_ = false;
 };
 
 class GameplayTest : public ScenarioTest
