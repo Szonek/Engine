@@ -17,16 +17,6 @@ std::vector<engine_game_object_t> project_c::utils::get_children(engine_game_obj
     return ret;
 }
 
-void project_c::utils::delete_game_objects_hierarchy(engine_game_object_t go)
-{
-    // a copy: destroying a child changes the list
-    for (const auto child : get_children(go))
-    {
-        delete_game_objects_hierarchy(child);
-        engineGameObjectDestroy(child);
-    }
-}
-
 std::vector<engine_game_object_t> project_c::utils::get_active_camera_game_objects()
 {
     engine::ScopedProfiler prof("project_c::utils::get_active_camera_game_objects");

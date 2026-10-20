@@ -830,6 +830,13 @@ entt::entity engine::Scene::create_transient_entity()
 void engine::Scene::destroy_entity(entt::entity entity)
 {
     ENGINE_PROFILE_SECTION;
+    // a copy: destroying a child removes it from the list
+    const auto children_view = get_children(entity);
+    const std::vector<entt::entity> children(children_view.begin(), children_view.end());
+    for (const auto child : children)
+    {
+        destroy_entity(child);
+    }
     entity_registry_.destroy(entity);
 }
 

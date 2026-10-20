@@ -13,7 +13,6 @@ namespace utils
 {
 // the game objects whose parent is `go`; a copy, so they can be destroyed or reparented while iterating
 std::vector<engine_game_object_t> get_children(engine_game_object_t go);
-void delete_game_objects_hierarchy(engine_game_object_t go);
 std::vector<engine_game_object_t> get_active_camera_game_objects();
 std::vector<engine_game_object_t> get_game_objects_with_name(std::string_view name);
 glm::quat rotate_toward(glm::vec3 origin, glm::vec3 target);

@@ -172,6 +172,8 @@ TEST_F(PrefabTest, InstanceKeepsItsPrefabLoaded)
     ASSERT_TRUE(crate->loaded());
     const auto prefab = crate->prefab();
     const auto root = crate->instantiate();
+    const auto children = children_of(root);
+    ASSERT_FALSE(children.empty());
     const auto geometry_id = crate->asset("Plate");
 
     // the game is done with the prefab, its instance isn't
@@ -180,7 +182,12 @@ TEST_F(PrefabTest, InstanceKeepsItsPrefabLoaded)
     EXPECT_EQ(enginePrefabInstanceGetPrefab(root), prefab);
     EXPECT_NE(engineGeometryGetByName(geometry_id.c_str()), ENGINE_INVALID_OBJECT_HANDLE);
 
+    // the instance goes away as a whole, so none of its game objects is left with the destroyed assets
     engineGameObjectDestroy(root);
+    for (const auto child : children)
+    {
+        EXPECT_FALSE(engineGameObjectIsValid(child));
+    }
     EXPECT_EQ(enginePrefabGetByName("crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(engineGeometryGetByName(geometry_id.c_str()), ENGINE_INVALID_OBJECT_HANDLE);
 }

@@ -52,7 +52,6 @@ public:
     std::uint32_t max_hp = 20;
 
     Enemy(engine::IScene* my_scene, const PrefabResult& pr, const class NavMesh* nav_mesh, float offset_x, float offset_z);
-    virtual ~Enemy();
 
     void update(float dt);
     void receive_attack_hit(std::uint32_t damage, float hit_stop_seconds);

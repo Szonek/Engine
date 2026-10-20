@@ -216,12 +216,6 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, const 
     }
 }
 
-project_c::Enemy::~Enemy()
-{
-    //assert(engineGameObjectIsValid(go_));
-    utils::delete_game_objects_hierarchy(go_);
-}
-
 void project_c::Enemy::update(float dt)
 {
     engine::ScopedProfiler prof("project_c::Enemy::update");
