@@ -11,6 +11,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	entity_id_registry_tests.cpp
 	asset_id_tests.cpp
 	skin_tests.cpp
+	nav_mesh_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
@@ -25,6 +26,9 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/animation_controller.cpp
 	${ENGINE_IMPL_DIR}/animation_controller.h
 	${ENGINE_IMPL_DIR}/asset_id.h
+	# nav mesh build (Recast) and queries (Detour)
+	${ENGINE_IMPL_DIR}/nav_mesh.cpp
+	${ENGINE_IMPL_DIR}/nav_mesh.h
 )
 target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/include)
 # profiler.h includes Tracy and RmlUi headers: only their headers, without TRACY_ENABLE the profiling macros are empty
@@ -33,6 +37,6 @@ target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE
 	$<TARGET_PROPERTY:RmlUi::RmlUi,INTERFACE_INCLUDE_DIRECTORIES>)
 # same glm configuration as the engine, so quaternions have the same layout
 target_compile_definitions(${ENGINE_LOGIC_TESTS_NAME} PRIVATE GLM_FORCE_QUAT_DATA_XYZW GLM_ENABLE_EXPERIMENTAL)
-target_link_libraries(${ENGINE_LOGIC_TESTS_NAME} GTest::gtest_main glm fmt::fmt-header-only EnTT::EnTT ozz_animation ozz_animation_offline)
+target_link_libraries(${ENGINE_LOGIC_TESTS_NAME} GTest::gtest_main glm fmt::fmt-header-only EnTT::EnTT ozz_animation ozz_animation_offline RecastNavigation::Recast RecastNavigation::Detour)
 add_test(NAME ${ENGINE_LOGIC_TESTS_NAME} COMMAND ${ENGINE_LOGIC_TESTS_NAME})
 set_tests_properties(${ENGINE_LOGIC_TESTS_NAME} PROPERTIES LABELS ci)

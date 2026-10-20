@@ -1,5 +1,6 @@
 #include "components_initializers.h"
 #include "engine.h"
+#include "../nav_mesh.h"
 
 namespace
 {
@@ -58,6 +59,24 @@ void engine::initialize_light_component(entt::registry& registry, entt::entity e
 void engine::initialize_sprite_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_sprite_component_t>(registry, entity);
+}
+
+void engine::initialize_nav_surface_component(entt::registry& registry, entt::entity entity)
+{
+    auto& comp = get_zero_init_component<engine_nav_surface_component_t>(registry, entity);
+    const NavMeshBuildSettings defaults{};
+    comp.agent_radius = defaults.agent_radius;
+    comp.agent_height = defaults.agent_height;
+    comp.agent_max_slope = defaults.agent_max_slope;
+    comp.agent_max_climb = defaults.agent_max_climb;
+    comp.cell_size = defaults.cell_size;
+    comp.cell_height = defaults.cell_height;
+}
+
+void engine::initialize_nav_modifier_component(entt::registry& registry, entt::entity entity)
+{
+    auto& comp = get_zero_init_component<engine_nav_modifier_component_t>(registry, entity);
+    comp.type = ENGINE_NAV_MODIFIER_TYPE_NOT_WALKABLE;
 }
 
 

@@ -10,6 +10,8 @@
 #include "components/material_component.h"
 #include "components/rigid_body_component.h"
 #include "components/collider_component.h"
+#include "components/nav_surface_component.h"
+#include "components/nav_modifier_component.h"
 #include "components/parent_component.h"
 #include "components/sprite_component.h"
 #include "components/skin_component.h"
@@ -538,6 +540,19 @@ ENGINE_API const engine_collision_desc_t* enginePhysicsGetCollisionDesc(size_t i
 ENGINE_API engine_ray_hit_info_t enginePhysicsRayCast(const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance);
 ENGINE_API bool enginePhysicsAddForce(engine_game_object_t go, const float force[3], engine_force_type_t type);
 
+// navigation: the scene's nav mesh is built from its static colliders with the settings of its nav surface component
+// (see engine_nav_surface_component_t, engine_nav_modifier_component_t). It is derived data, never saved: build it after
+// the level is built or loaded, and again after its static colliders changed. The build logs its triangle count and time.
+ENGINE_API engine_result_code_t engineNavMeshBuild();
+// The path from start to end over the nav mesh, both snapped onto it (within 1 m horizontally and 2 m vertically): its
+// corners as x, y, z triples, the first one the start and the last one the end. A path with more than max_points corners
+// is cut off after the first max_points. Fails (*out_points_count = 0) when the scene has no nav mesh, either point is
+// off it or the end can't be reached.
+ENGINE_API engine_result_code_t engineNavFindPath(const float start[3], const float end[3], float* out_points, size_t max_points, size_t* out_points_count);
+// The closest point on the nav mesh (within 1 m horizontally and 2 m vertically). Fails when the scene has no nav mesh or
+// there is none.
+ENGINE_API engine_result_code_t engineNavFindNearestPoint(const float point[3], float out[3]);
+
 // ui
 // create data handel first, before loading document!
 ENGINE_API engine_result_code_t engineUiDocumentCreateDataHandle(const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out);
@@ -669,6 +684,20 @@ ENGINE_API engine_collider_component_t engineGameObjectGetColliderComponent(engi
 ENGINE_API void engineGameObjectUpdateColliderComponent(engine_game_object_t game_object, const engine_collider_component_t* comp);
 ENGINE_API void engineGameObjectRemoveColliderComponent(engine_game_object_t game_object);
 ENGINE_API bool engineGameObjectHasColliderComponent(engine_game_object_t game_object);
+
+// nav surface component: one per scene
+ENGINE_API engine_nav_surface_component_t engineGameObjectAddNavSurfaceComponent(engine_game_object_t game_object);
+ENGINE_API engine_nav_surface_component_t engineGameObjectGetNavSurfaceComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateNavSurfaceComponent(engine_game_object_t game_object, const engine_nav_surface_component_t* comp);
+ENGINE_API void engineGameObjectRemoveNavSurfaceComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasNavSurfaceComponent(engine_game_object_t game_object);
+
+// nav modifier component
+ENGINE_API engine_nav_modifier_component_t engineGameObjectAddNavModifierComponent(engine_game_object_t game_object);
+ENGINE_API engine_nav_modifier_component_t engineGameObjectGetNavModifierComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateNavModifierComponent(engine_game_object_t game_object, const engine_nav_modifier_component_t* comp);
+ENGINE_API void engineGameObjectRemoveNavModifierComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasNavModifierComponent(engine_game_object_t game_object);
 
 // parent component
 ENGINE_API engine_parent_component_t engineGameObjectAddParentComponent(engine_game_object_t game_object);

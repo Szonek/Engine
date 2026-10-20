@@ -741,6 +741,31 @@ bool display_rigidbody_component(const engine::Scene* scene, engine_rigid_body_c
     return requires_update;
 }
 
+bool display_nav_surface_component(const engine::Scene* scene, engine_nav_surface_component_t& c)
+{
+    // takes effect with the next nav mesh build
+    bool changed = false;
+    changed |= ImGui::DragFloat("Agent radius", &c.agent_radius, 0.01f, 0.0f, 10.0f);
+    changed |= ImGui::DragFloat("Agent height", &c.agent_height, 0.01f, 0.01f, 10.0f);
+    changed |= ImGui::DragFloat("Agent max slope", &c.agent_max_slope, 0.5f, 0.0f, 90.0f);
+    changed |= ImGui::DragFloat("Agent max climb", &c.agent_max_climb, 0.01f, 0.0f, 10.0f);
+    changed |= ImGui::DragFloat("Cell size", &c.cell_size, 0.005f, 0.01f, 1.0f);
+    changed |= ImGui::DragFloat("Cell height", &c.cell_height, 0.005f, 0.01f, 1.0f);
+    return changed;
+}
+
+bool display_nav_modifier_component(const engine::Scene* scene, engine_nav_modifier_component_t& c)
+{
+    const char* types[] = { "Walkable", "Not walkable", "Ignore" };
+    std::int32_t type = c.type;
+    if (ImGui::Combo("Type##nav_modifier", &type, types, static_cast<int>(std::size(types))))
+    {
+        c.type = static_cast<engine_nav_modifier_type_t>(type);
+        return true;
+    }
+    return false;
+}
+
 bool display_camera_component(const engine::Scene* scene, engine_camera_component_t& c)
 {
     bool update_required = false;
@@ -1047,6 +1072,18 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
 
     //scene->enable_physics_debug_draw(phys_debug_draw_check);
 
+    bool nav_mesh_debug_draw_check = scene->is_nav_mesh_debug_draw_enabled();
+    if (ImGui::Checkbox("Nav mesh debug draw", &nav_mesh_debug_draw_check))
+    {
+        scene->enable_nav_mesh_debug_draw(nav_mesh_debug_draw_check);
+    }
+    ImGui::SameLine();
+    // e.g. after editing the nav surface or moving static colliders
+    if (ImGui::Button("Build nav mesh"))
+    {
+        scene->build_nav_mesh();
+    }
+
     ImGui::SeparatorText("Scene hierarchy");
     if (ImGui::TreeNodeEx("Scene Collection", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth))
     {
@@ -1112,6 +1149,8 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
         display_component<engine_material_component_t>("Material", scene, commands_, selected, display_material_component);
         display_component<engine_collider_component_t>("Collider", scene, commands_, selected, display_collider_component);
         display_component<engine_rigid_body_component_t>("Rigid Body", scene, commands_, selected, display_rigidbody_component);
+        display_component<engine_nav_surface_component_t>("Nav Surface", scene, commands_, selected, display_nav_surface_component);
+        display_component<engine_nav_modifier_component_t>("Nav Modifier", scene, commands_, selected, display_nav_modifier_component);
     }
     else
     {
