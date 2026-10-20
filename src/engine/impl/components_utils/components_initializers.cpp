@@ -15,7 +15,7 @@ T& get_zero_init_component(entt::registry& registry, entt::entity entity)
 
 void engine::initialize_transform_component(entt::registry& registry, entt::entity entity)
 {
-    auto& comp = get_zero_init_component<engine_tranform_component_t>(registry, entity);
+    auto& comp = get_zero_init_component<engine_transform_component_t>(registry, entity);
     comp.scale[0] = 1.0f;
     comp.scale[1] = 1.0f;
     comp.scale[2] = 1.0f;

@@ -47,7 +47,7 @@ public:
     void collect_debug_lines(std::vector<DebugLineGpuData>& out_lines);
 
     physcic_internal_component_t create_rigid_body(const engine_collider_component_t& collider,
-        const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform, std::int32_t body_index);
+        const engine_rigid_body_component_t& rigid_body, const engine_transform_component_t& transform, std::int32_t body_index);
 
     void remove_rigid_body(entt::basic_registry<entt::entity>& reg, entt::entity entt)
     {

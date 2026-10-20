@@ -75,7 +75,7 @@ void engine::PhysicsWorld::collect_debug_lines(std::vector<DebugLineGpuData>& ou
     }
 }
 
-engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const engine_tranform_component_t& transform, std::int32_t body_index)
+engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const engine_transform_component_t& transform, std::int32_t body_index)
 {
     physcic_internal_component_t ret{};
     if (collider.type == ENGINE_COLLIDER_TYPE_BOX)

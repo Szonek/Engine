@@ -232,7 +232,7 @@ entt::entity engine::Prefab::instantiate(Scene& scene) const
             }
         }
 
-        engine_tranform_component_t transform{};
+        engine_transform_component_t transform{};
         copy_vec3(transform.position, node->translation);
         transform.rotation[0] = node->rotation.x;
         transform.rotation[1] = node->rotation.y;

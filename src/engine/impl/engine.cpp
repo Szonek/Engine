@@ -960,29 +960,29 @@ bool engineGameObjectHasFolderComponent(engine_game_object_t game_object)
     return has_component<engine_folder_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_tranform_component_t engineGameObjectAddTransformComponent(engine_game_object_t game_object)
+engine_transform_component_t engineGameObjectAddTransformComponent(engine_game_object_t game_object)
 {
-    return add_component<engine_tranform_component_t>(G_ACTIVE_SCENE, game_object);
+    return add_component<engine_transform_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_tranform_component_t engineGameObjectGetTransformComponent(engine_game_object_t game_object)
+engine_transform_component_t engineGameObjectGetTransformComponent(engine_game_object_t game_object)
 {
-    return get_component<engine_tranform_component_t>(G_ACTIVE_SCENE, game_object);
+    return get_component<engine_transform_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineGameObjectUpdateTransformComponent(engine_game_object_t game_object, const engine_tranform_component_t* comp)
+void engineGameObjectUpdateTransformComponent(engine_game_object_t game_object, const engine_transform_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
 void engineGameObjectRemoveTransformComponent(engine_game_object_t game_object)
 {
-    remove_component<engine_tranform_component_t>(G_ACTIVE_SCENE, game_object);
+    remove_component<engine_transform_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
 bool engineGameObjectHasTransformComponent(engine_game_object_t game_object)
 {
-    return has_component<engine_tranform_component_t>(G_ACTIVE_SCENE, game_object);
+    return has_component<engine_transform_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
 engine_mesh_component_t engineGameObjectAddMeshComponent(engine_game_object_t game_object)

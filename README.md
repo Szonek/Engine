@@ -39,7 +39,7 @@ engineApplicationSceneCreate(app, scene_desc, &scene);
 engine_game_object_t game_object = engineSceneCreateGameObject(scene);
 
 // Add a transform component to the game object
-engine_tranform_component_t transform = engineSceneAddTransformComponent(scene, game_object);
+engine_transform_component_t transform = engineSceneAddTransformComponent(scene, game_object);
 transform.position[0] = 0.0f;
 transform.position[1] = 0.0f;
 transform.position[2] = 0.0f;

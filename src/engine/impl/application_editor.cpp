@@ -446,7 +446,7 @@ bool display_texture_combo(const engine::Scene* scene, const char* label, std::u
     return display_asset_combo(label, texture, app->get_texture_name(texture), app->get_texture_names());
 }
 
-bool display_transform_component(const engine::Scene* scene, engine_tranform_component_t& c)
+bool display_transform_component(const engine::Scene* scene, engine_transform_component_t& c)
 {
     const float v_speed = 0.1f;
     bool requires_update = ImGui::DragFloat3("Position##transform", c.position, v_speed);
@@ -1132,7 +1132,7 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
     {
         const auto selected = scene_hierarchy_context_.get_selected_entity();
         display_component<engine_folder_component_t>("Folder", scene, commands_, selected, display_folder_component);
-        display_component<engine_tranform_component_t>("Transform", scene, commands_, selected, display_transform_component);
+        display_component<engine_transform_component_t>("Transform", scene, commands_, selected, display_transform_component);
         display_component<engine_light_component_t>("Light", scene, commands_, selected, display_light_component);
         display_component<engine_camera_component_t>("Camera", scene, commands_, selected, display_camera_component);
         display_component<engine_mesh_component_t>("Mesh", scene, commands_, selected, display_mesh_component);
@@ -1297,11 +1297,11 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
         const auto camera_projection = scene->get_camera_projection(camera_entity);
 
         auto gizmo_view = scene->create_runtime_view();
-        scene->attach_component_to_runtime_view<engine_tranform_component_t>(gizmo_view);
+        scene->attach_component_to_runtime_view<engine_transform_component_t>(gizmo_view);
         scene->attach_component_to_runtime_view<engine::guizmo_component_t>(gizmo_view);
         for (const auto& entity : gizmo_view)
         {
-            const auto transform_component = *scene->get_component<engine_tranform_component_t>(entity);
+            const auto transform_component = *scene->get_component<engine_transform_component_t>(entity);
             // ImGuizmo manipulation
             auto model_matrix = glm::make_mat4x4(transform_component.local_to_world);
 
@@ -1318,14 +1318,14 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
                 glm::vec3 rotation{};
                 ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
 
-                engine_tranform_component_t c{};
+                engine_transform_component_t c{};
                 std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
                 const glm::quat rot = glm::quat(glm::radians(rotation));
                 std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
                 std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
-                commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_tranform_component_t>>(*scene, entity, c));
+                commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, c));
 
-                //scene->patch_component<engine_tranform_component_t>(entity, [&](engine_tranform_component_t& c)
+                //scene->patch_component<engine_transform_component_t>(entity, [&](engine_transform_component_t& c)
                 //    {
                 //        std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
                 //        const glm::quat rot = glm::quat(glm::radians(rotation));
@@ -1418,8 +1418,8 @@ engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
             c.target[2] = 0.2f;
         });
 
-    auto camera_transform_comp = scene->add_component<engine_tranform_component_t>(go_);
-    scene->patch_component<engine_tranform_component_t>(go_, [](engine_tranform_component_t& c)
+    auto camera_transform_comp = scene->add_component<engine_transform_component_t>(go_);
+    scene->patch_component<engine_transform_component_t>(go_, [](engine_transform_component_t& c)
         {
             c.position[0] = -1.0f;
             c.position[1] = 1.7f;
@@ -1501,9 +1501,9 @@ void engine::CameraScript::translate(const glm::vec3& delta)
     sc_[0] = std::max(sc_[0], 0.1f);
     // Update the camera's position based on the new spherical coordinates
     const auto new_position = get_cartesian_coordinates(sc_);
-    auto tc = my_scene_->get_component<engine_tranform_component_t>(go_);
+    auto tc = my_scene_->get_component<engine_transform_component_t>(go_);
     auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
-    my_scene_->patch_component<engine_tranform_component_t>(go_, [tc, new_position, cc](engine_tranform_component_t& c)
+    my_scene_->patch_component<engine_transform_component_t>(go_, [tc, new_position, cc](engine_transform_component_t& c)
         {
             c.position[0] = new_position[0] + cc->target[0];
             c.position[1] = new_position[1] + cc->target[1];
@@ -1516,7 +1516,7 @@ void engine::CameraScript::rotate(const glm::vec2 delta)
     // https://nerdhut.de/2020/05/09/unity-arcball-camera-spherical-coordinates/
     if (delta.x != 0 || delta.y != 0)
     {
-        auto tc = my_scene_->get_component<engine_tranform_component_t>(go_);
+        auto tc = my_scene_->get_component<engine_transform_component_t>(go_);
         // Rotate the camera left and right
         sc_[1] += delta.x;
 
@@ -1527,7 +1527,7 @@ void engine::CameraScript::rotate(const glm::vec2 delta)
         const auto new_position = get_cartesian_coordinates(sc_);
         auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
 
-        my_scene_->patch_component<engine_tranform_component_t>(go_, [tc, new_position, cc](engine_tranform_component_t& c)
+        my_scene_->patch_component<engine_transform_component_t>(go_, [tc, new_position, cc](engine_transform_component_t& c)
             {
                 c.position[0] = new_position[0] + cc->target[0];
                 c.position[1] = new_position[1] + cc->target[1];
@@ -1539,7 +1539,7 @@ void engine::CameraScript::rotate(const glm::vec2 delta)
 void engine::CameraScript::strafe(float delta_x, float delta_y)
 {
     // Get the current camera orientation
-    auto tc = *my_scene_->get_component<engine_tranform_component_t>(go_);
+    auto tc = *my_scene_->get_component<engine_transform_component_t>(go_);
     auto cc = *my_scene_->get_component<engine_camera_component_t>(go_);
 
     // Compute the right vector from the camera's orientation
@@ -1558,7 +1558,7 @@ void engine::CameraScript::strafe(float delta_x, float delta_y)
     cc.target[2] += delta_x * right.z;
 
     // Update the transform and camera components
-    my_scene_->update_component<engine_tranform_component_t>(go_, tc);
+    my_scene_->update_component<engine_transform_component_t>(go_, tc);
     my_scene_->update_component<engine_camera_component_t>(go_, cc);
 }
 
