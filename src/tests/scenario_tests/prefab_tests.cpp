@@ -24,6 +24,30 @@ TEST_F(PrefabTest, PrefabIsNamedByItsModelFile)
     EXPECT_EQ(enginePrefabGetByName(crate.asset("Plate").c_str()), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
+TEST_F(PrefabTest, TransientInstanceHasOnlyTransientGameObjects)
+{
+    const TestModel crate("crate.gltf");
+    ASSERT_TRUE(crate.loaded());
+    const auto persistent = crate.instantiate();
+    const auto transient = crate.instantiate_transient();
+    ASSERT_NE(persistent, ENGINE_INVALID_GAME_OBJECT_ID);
+    ASSERT_NE(transient, ENGINE_INVALID_GAME_OBJECT_ID);
+
+    // the same game objects, only without persistent IDs
+    EXPECT_EQ(enginePrefabInstanceGetPrefab(transient), crate.prefab());
+    ASSERT_EQ(engineGameObjectGetChildrenCount(transient), 2u);
+    EXPECT_TRUE(engineGameObjectIsTransient(transient));
+    for (const auto child : children_of(transient))
+    {
+        EXPECT_TRUE(engineGameObjectIsTransient(child));
+    }
+    EXPECT_FALSE(engineGameObjectIsTransient(persistent));
+    for (const auto child : children_of(persistent))
+    {
+        EXPECT_FALSE(engineGameObjectIsTransient(child));
+    }
+}
+
 TEST_F(PrefabTest, InstanceIsTheModelsNodesUnderTheRoot)
 {
     const TestModel crate("crate.gltf");

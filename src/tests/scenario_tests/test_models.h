@@ -35,6 +35,7 @@ public:
     // the ID of an asset inside the model: "<file>#<name>"
     std::string asset(const char* name) const { return file_name_ + "#" + name; }
     engine_game_object_t instantiate() const { return enginePrefabInstantiate(prefab_); }
+    engine_game_object_t instantiate_transient() const { return enginePrefabInstantiateTransient(prefab_); }
 
 private:
     std::string file_name_;

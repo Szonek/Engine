@@ -466,7 +466,7 @@ engine_prefab_t enginePrefabGetByName(const char* name)
     return api_cast(G_ACTIVE_APP)->get_prefab(std::string_view(name));
 }
 
-engine_game_object_t enginePrefabInstantiate(engine_prefab_t prefab)
+static engine_game_object_t instantiate_prefab(engine_prefab_t prefab, engine::Prefab::Instance instance)
 {
     if (!G_ACTIVE_APP || !G_ACTIVE_SCENE)
     {
@@ -479,13 +479,23 @@ engine_game_object_t enginePrefabInstantiate(engine_prefab_t prefab)
         return ENGINE_INVALID_GAME_OBJECT_ID;
     }
     auto* scene = api_cast(G_ACTIVE_SCENE);
-    const auto root = typed_prefab->instantiate(*scene);
+    const auto root = typed_prefab->instantiate(*scene, instance);
     if (static_cast<engine_game_object_t>(root) == ENGINE_INVALID_GAME_OBJECT_ID)
     {
         return ENGINE_INVALID_GAME_OBJECT_ID;
     }
     scene->add_component(root, engine::prefab_instance_internal_component_t(*api_cast(G_ACTIVE_APP), prefab));
     return static_cast<engine_game_object_t>(root);
+}
+
+engine_game_object_t enginePrefabInstantiate(engine_prefab_t prefab)
+{
+    return instantiate_prefab(prefab, engine::Prefab::Instance::ePersistent);
+}
+
+engine_game_object_t enginePrefabInstantiateTransient(engine_prefab_t prefab)
+{
+    return instantiate_prefab(prefab, engine::Prefab::Instance::eTransient);
 }
 
 engine_prefab_t enginePrefabInstanceGetPrefab(engine_game_object_t game_object)
@@ -560,6 +570,27 @@ engine_game_object_t engineGameObjectCreate()
     auto sc = api_cast(G_ACTIVE_SCENE);
     auto new_entity = sc->create_new_entity();
     return static_cast<engine_game_object_t>(new_entity);
+}
+
+engine_game_object_t engineGameObjectCreateTransient()
+{
+    if (!G_ACTIVE_SCENE)
+    {
+        return ENGINE_INVALID_GAME_OBJECT_ID;
+    }
+    return static_cast<engine_game_object_t>(api_cast(G_ACTIVE_SCENE)->create_transient_entity());
+}
+
+bool engineGameObjectIsTransient(engine_game_object_t game_object)
+{
+    // the scene's first entity has the value of ENGINE_INVALID_GAME_OBJECT_ID and gets no persistent ID either
+    if (!G_ACTIVE_SCENE || game_object == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        return false;
+    }
+    const auto* sc = api_cast(G_ACTIVE_SCENE);
+    const auto entity = api_cast(game_object);
+    return sc->is_valid_entity(entity) && sc->get_persistent_id(entity) == engine::EntityIdRegistry::INVALID_ID;
 }
 
 void engineGameObjectDestroy(engine_game_object_t game_object)
