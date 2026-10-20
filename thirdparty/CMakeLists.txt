@@ -60,6 +60,12 @@ add_subdirectory(bullet3)
 set(BULLET_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/bullet3/src  CACHE STRING "Include headers of bullet dependency")
 set(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath CACHE STRING "Include libraries of bullet dependency")
 
+# navigation: Recast (nav mesh generation), Detour (path queries), DebugUtils (nav mesh debug draw)
+set(RECASTNAVIGATION_DEMO OFF CACHE BOOL "")
+set(RECASTNAVIGATION_TESTS OFF CACHE BOOL "")
+set(RECASTNAVIGATION_EXAMPLES OFF CACHE BOOL "")
+add_subdirectory(recastnavigation)
+
 #freetype prebuilt
 add_library(Freetype::Freetype STATIC IMPORTED GLOBAL)
 set_property(TARGET Freetype::Freetype PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/freetype/include)
