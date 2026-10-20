@@ -13,8 +13,6 @@
 #include "prefab.h"
 #include "render/renderer.h"
 
-#include <unordered_map>
-
 
 namespace engine
 {
@@ -42,12 +40,14 @@ public:
     // asset ID of the texture, "" for ENGINE_INVALID_OBJECT_HANDLE
     virtual std::string get_texture_name(std::uint32_t idx) const;
     virtual std::vector<std::pair<std::uint32_t, std::string>> get_texture_names() const;
-    virtual void destroy_texture(std::uint32_t idx);
+    // assets are reference counted (see Atlas): adding one gives the caller a reference, the last release destroys it
+    virtual bool acquire_texture(std::uint32_t idx);
+    virtual void release_texture(std::uint32_t idx);
 
     virtual std::uint32_t add_nav_mesh(std::string_view name);
     virtual std::uint32_t get_nav_mesh(std::string_view name) const;
     virtual const NavMesh* get_nav_mesh(std::uint32_t idx) const;
-    virtual void destroy_nav_mesh(std::uint32_t idx);
+    virtual void release_nav_mesh(std::uint32_t idx);
 
     virtual bool add_font_from_file(std::string_view file_name, std::string_view handle_name);
 
@@ -56,39 +56,35 @@ public:
     virtual std::string get_geometry_name(std::uint32_t idx) const;
     virtual std::vector<std::pair<std::uint32_t, std::string>> get_geometry_names() const;
     virtual const Geometry* get_geometry(std::uint32_t idx) const;
-    virtual void destroy_geometry(std::uint32_t idx);
+    virtual void release_geometry(std::uint32_t idx);
 
     // skin assets, named by the desc's asset ID
     virtual std::uint32_t add_skin(const SkinDesc& desc, const ModelNodeDesc& root);
     virtual std::uint32_t get_skin(std::string_view name) const;
     virtual const Skin* get_skin(std::uint32_t idx) const;
     virtual std::string get_skin_name(std::uint32_t idx) const;
-    virtual void destroy_skin(std::uint32_t idx);
+    virtual void release_skin(std::uint32_t idx);
 
     // animation set assets: a model's clips compiled for one skin, shared by that skin's controllers
     virtual std::uint32_t add_animation_set(std::string_view name, std::shared_ptr<const AnimationLibrary> animation_set);
     virtual std::uint32_t get_animation_set(std::string_view name) const;
     virtual std::shared_ptr<const AnimationLibrary> get_animation_set(std::uint32_t idx) const;
     virtual std::string get_animation_set_name(std::uint32_t idx) const;
-    virtual void destroy_animation_set(std::uint32_t idx);
+    virtual void release_animation_set(std::uint32_t idx);
 
     // prefab assets: a model file with the assets created from it, named by the file ("Rogue.glb")
-    // Textures of the models in prefabs: an image used by several models (an image file) is created once and
-    // destroyed with the last prefab using it. A texture which exists already (not created by a prefab) is only
-    // reused: the prefab doesn't own it.
-    virtual std::uint32_t acquire_prefab_texture(const TextureDesc& desc);
-    virtual void release_prefab_texture(std::uint32_t idx);
-
-    virtual std::uint32_t add_prefab_from_file(std::string_view file_name, std::string_view base_dir);
+    // Loading a model which is loaded already returns its prefab with one more reference.
+    virtual std::uint32_t load_prefab(std::string_view file_name, std::string_view base_dir);
+    virtual bool acquire_prefab(std::uint32_t idx);
+    virtual void release_prefab(std::uint32_t idx);
     virtual std::uint32_t get_prefab(std::string_view name) const;
     virtual const Prefab* get_prefab(std::uint32_t idx) const;
-    virtual void destroy_prefab(std::uint32_t idx);
 
     virtual std::uint32_t add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name);
     virtual std::uint32_t get_shader(std::string_view name) const;
     virtual std::string get_shader_name(std::uint32_t idx) const;
     virtual std::vector<std::pair<std::uint32_t, std::string>> get_shader_names() const;
-    virtual void destroy_shader(std::uint32_t idx);
+    virtual void release_shader(std::uint32_t idx);
 
     virtual UiDocument load_ui_document(std::string_view file_name);
     virtual UiDataHandle create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
@@ -130,8 +126,6 @@ protected:
     Atlas<Skin> skins_atlas_;
     Atlas<std::shared_ptr<const AnimationLibrary>> animation_sets_atlas_;
     Atlas<std::unique_ptr<Prefab>> prefabs_atlas_;
-    // texture created by a prefab -> number of prefabs using it
-    std::unordered_map<std::uint32_t, std::uint32_t> prefab_texture_users_;
     Atlas<NavMesh> nav_mesh_atlas_;
     Atlas<Shader> shader_atlas_;
 

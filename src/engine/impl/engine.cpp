@@ -351,7 +351,7 @@ void engineShaderDestroy(engine_shader_t shader)
         return;
     }
     auto* app = api_cast(G_ACTIVE_APP);
-    app->destroy_shader(shader);  
+    app->release_shader(shader);
 }
 
 engine_result_code_t engineFontCreateFromFile(const char* file_name, const char* handle_name)
@@ -379,12 +379,16 @@ engine_geometry_attribute_limit_t engineGeometryGetAttributeLimits(engine_geomet
 {
     engine_geometry_attribute_limit_t ret{};
     ret.elements_count = 0;
-    if (!G_ACTIVE_APP || geometry == ENGINE_INVALID_OBJECT_HANDLE || type == ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT)
+    if (!G_ACTIVE_APP || type == ENGINE_VERTEX_ATTRIBUTE_TYPE_COUNT)
     {
         return ret;
     }
     const auto* app = api_cast(G_ACTIVE_APP);
     const auto geometry_obj = app->get_geometry(geometry);
+    if (!geometry_obj)
+    {
+        return ret;
+    }
     const auto attrib = geometry_obj->get_vertex_attribute(type);
     ret.elements_count = attrib.range_max.size();
     for (auto i = 0; i < ret.elements_count; i++)
@@ -422,28 +426,28 @@ engine_texture2d_t engineTextured2DGetByName(const char* name)
     return app->get_texture(name);
 }
 
-void engineTexture2DDestroy(engine_texture2d_t tex2d)
+void engineTexture2DRelease(engine_texture2d_t tex2d)
 {
     if (!G_ACTIVE_APP)
     {
         return;
     }
-    api_cast(G_ACTIVE_APP)->destroy_texture(tex2d);
+    api_cast(G_ACTIVE_APP)->release_texture(tex2d);
 }
 
-engine_result_code_t enginePrefabCreateFromFile(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_prefab_t* out)
+engine_result_code_t enginePrefabLoad(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_prefab_t* out)
 {
     if (!G_ACTIVE_APP || !file_name || !base_dir || !out || spec != ENGINE_MODEL_SPECIFICATION_GLTF_2)
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
-    const auto ret = api_cast(G_ACTIVE_APP)->add_prefab_from_file(file_name, base_dir);
+    const auto ret = api_cast(G_ACTIVE_APP)->load_prefab(file_name, base_dir);
     if (ret == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
     *out = ret;
-    engineLog(fmt::format("Created prefab: {}, with id: {}\n", file_name, ret).c_str());
+    engineLog(fmt::format("Loaded prefab: {}, with id: {}\n", file_name, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -474,7 +478,7 @@ engine_game_object_t enginePrefabInstantiate(engine_prefab_t prefab)
     {
         return ENGINE_INVALID_GAME_OBJECT_ID;
     }
-    scene->add_component(root, engine::prefab_instance_internal_component_t{ prefab });
+    scene->add_component(root, engine::prefab_instance_internal_component_t(*api_cast(G_ACTIVE_APP), prefab));
     return static_cast<engine_game_object_t>(root);
 }
 
@@ -490,16 +494,16 @@ engine_prefab_t enginePrefabInstanceGetPrefab(engine_game_object_t game_object)
     {
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
-    return scene->get_component<engine::prefab_instance_internal_component_t>(entity)->prefab;
+    return scene->get_component<engine::prefab_instance_internal_component_t>(entity)->get_prefab();
 }
 
-void enginePrefabDestroy(engine_prefab_t prefab)
+void enginePrefabRelease(engine_prefab_t prefab)
 {
     if (!G_ACTIVE_APP)
     {
         return;
     }
-    api_cast(G_ACTIVE_APP)->destroy_prefab(prefab);
+    api_cast(G_ACTIVE_APP)->release_prefab(prefab);
 }
 
 engine_result_code_t engineSceneCreate(engine_scene_create_desc_t desc, engine_scene_t* out)

@@ -10,14 +10,14 @@ namespace scenario
 // models, which will be replaced.
 inline constexpr const char* TEST_MODELS_DIR = "test_fixtures";
 
-// A test model loaded as a prefab; destroyed with this object, so a test leaves nothing behind even when an
+// A test model loaded as a prefab; released with this object, so a test leaves nothing behind even when an
 // assertion fails. Loading can fail on purpose (the broken models), see result().
 class TestModel
 {
 public:
     explicit TestModel(const char* file_name) : file_name_(file_name)
     {
-        result_ = enginePrefabCreateFromFile(ENGINE_MODEL_SPECIFICATION_GLTF_2, file_name, TEST_MODELS_DIR, &prefab_);
+        result_ = enginePrefabLoad(ENGINE_MODEL_SPECIFICATION_GLTF_2, file_name, TEST_MODELS_DIR, &prefab_);
     }
     TestModel(const TestModel&) = delete;
     TestModel& operator=(const TestModel&) = delete;
@@ -25,7 +25,7 @@ public:
     {
         if (prefab_ != ENGINE_INVALID_OBJECT_HANDLE)
         {
-            enginePrefabDestroy(prefab_);
+            enginePrefabRelease(prefab_);
         }
     }
 

@@ -6,8 +6,8 @@
 #include <string>
 
 // Prefabs are engine assets: a model file with the assets created from it. Instantiating one creates the model's game
-// objects in the active scene; destroying it destroys the assets. The models are the generated ones in
-// assets/models/test_fixtures.
+// objects in the active scene. Prefabs are reference counted (the loaders and the instances hold them), and the last
+// release destroys the assets. The models are the generated ones in assets/models/test_fixtures.
 namespace
 {
 using PrefabTest = scenario::ModelTest;
@@ -146,16 +146,57 @@ TEST_F(PrefabTest, SkinnedInstanceOwnsItsSkinAndAnimationController)
     EXPECT_STREQ(engineStringCStr(attachment.joint_name), "tip");
 }
 
-TEST_F(PrefabTest, ModelCanNotBeLoadedTwice)
+TEST_F(PrefabTest, LoadingAModelTwiceReturnsTheSamePrefab)
 {
-    const TestModel first("crate.gltf");
-    ASSERT_TRUE(first.loaded());
-    const TestModel second("crate.gltf");
-    EXPECT_FALSE(second.loaded());
-    EXPECT_EQ(second.prefab(), ENGINE_INVALID_OBJECT_HANDLE);
-    // the first one is untouched
-    EXPECT_EQ(enginePrefabGetByName("crate.gltf"), first.prefab());
-    EXPECT_NE(engineGeometryGetByName(first.asset("Plate").c_str()), ENGINE_INVALID_OBJECT_HANDLE);
+    auto first = std::make_unique<TestModel>("crate.gltf");
+    auto second = std::make_unique<TestModel>("crate.gltf");
+    ASSERT_TRUE(first->loaded());
+    ASSERT_TRUE(second->loaded());
+    EXPECT_EQ(second->prefab(), first->prefab());
+    const auto geometry_id = first->asset("Plate");
+    const auto geometry = engineGeometryGetByName(geometry_id.c_str());
+    ASSERT_NE(geometry, ENGINE_INVALID_OBJECT_HANDLE);
+
+    // each load is a reference: the prefab and its assets stay until both are released
+    first.reset();
+    EXPECT_EQ(enginePrefabGetByName("crate.gltf"), second->prefab());
+    EXPECT_EQ(engineGeometryGetByName(geometry_id.c_str()), geometry);
+    second.reset();
+    EXPECT_EQ(enginePrefabGetByName("crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(engineGeometryGetByName(geometry_id.c_str()), ENGINE_INVALID_OBJECT_HANDLE);
+}
+
+TEST_F(PrefabTest, InstanceKeepsItsPrefabLoaded)
+{
+    auto crate = std::make_unique<TestModel>("crate.gltf");
+    ASSERT_TRUE(crate->loaded());
+    const auto prefab = crate->prefab();
+    const auto root = crate->instantiate();
+    const auto geometry_id = crate->asset("Plate");
+
+    // the game is done with the prefab, its instance isn't
+    crate.reset();
+    EXPECT_EQ(enginePrefabGetByName("crate.gltf"), prefab);
+    EXPECT_EQ(enginePrefabInstanceGetPrefab(root), prefab);
+    EXPECT_NE(engineGeometryGetByName(geometry_id.c_str()), ENGINE_INVALID_OBJECT_HANDLE);
+
+    engineGameObjectDestroy(root);
+    EXPECT_EQ(enginePrefabGetByName("crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(engineGeometryGetByName(geometry_id.c_str()), ENGINE_INVALID_OBJECT_HANDLE);
+}
+
+TEST_F(PrefabTest, SceneReleasesThePrefabsOfItsInstances)
+{
+    auto crate = std::make_unique<TestModel>("crate.gltf");
+    ASSERT_TRUE(crate->loaded());
+    crate->instantiate();
+    crate->instantiate();
+    crate.reset();
+    ASSERT_NE(enginePrefabGetByName("crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
+
+    // the scene is destroyed with its game objects
+    TearDown();
+    EXPECT_EQ(enginePrefabGetByName("crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
 TEST_F(PrefabTest, ModelWhichCanNotBeUsedFailsToLoad)
@@ -188,12 +229,14 @@ TEST_F(PrefabTest, FailedLoadLeavesNoAssetsBehind)
     EXPECT_EQ(engineGeometryGetByName(duplicates.asset("Same").c_str()), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
-TEST_F(PrefabTest, DestroyingAPrefabDestroysItsAssets)
+TEST_F(PrefabTest, ReleasingAPrefabDestroysItsAssets)
 {
     auto crate = std::make_unique<TestModel>("crate.gltf");
     ASSERT_TRUE(crate->loaded());
     const auto geometry_id = crate->asset("Plate");
-    EXPECT_NE(engineGeometryGetByName(geometry_id.c_str()), ENGINE_INVALID_OBJECT_HANDLE);
+    const auto geometry = engineGeometryGetByName(geometry_id.c_str());
+    ASSERT_NE(geometry, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_GT(engineGeometryGetAttributeLimits(geometry, ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION).elements_count, 0);
 
     crate.reset();
     EXPECT_EQ(enginePrefabGetByName("crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
@@ -202,6 +245,11 @@ TEST_F(PrefabTest, DestroyingAPrefabDestroysItsAssets)
     // the names are free again
     const TestModel again("crate.gltf");
     EXPECT_TRUE(again.loaded());
+    // a handle kept from before finds nothing, not the new geometry
+    const auto new_geometry = engineGeometryGetByName(geometry_id.c_str());
+    ASSERT_NE(new_geometry, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_NE(new_geometry, geometry);
+    EXPECT_EQ(engineGeometryGetAttributeLimits(geometry, ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION).elements_count, 0);
 
     auto arm = std::make_unique<TestModel>("skinned_arm.gltf");
     ASSERT_TRUE(arm->loaded());
@@ -224,8 +272,12 @@ TEST_F(PrefabTest, TextureInItsOwnFileIsSharedByTheModelsUsingIt)
     ASSERT_TRUE(second->loaded());
     const auto texture = engineTextured2DGetByName(TEXTURE);
     ASSERT_NE(texture, ENGINE_INVALID_OBJECT_HANDLE);
-    EXPECT_EQ(engineGameObjectGetMaterialComponent(first->instantiate()).data.pong.diffuse_texture, texture);
-    EXPECT_EQ(engineGameObjectGetMaterialComponent(second->instantiate()).data.pong.diffuse_texture, texture);
+    for (const auto* model : { first.get(), second.get() })
+    {
+        const auto instance = model->instantiate();
+        EXPECT_EQ(engineGameObjectGetMaterialComponent(instance).data.pong.diffuse_texture, texture);
+        engineGameObjectDestroy(instance);
+    }
 
     // the model which loaded the image first goes away: the other one still has it
     first.reset();
@@ -234,18 +286,36 @@ TEST_F(PrefabTest, TextureInItsOwnFileIsSharedByTheModelsUsingIt)
     EXPECT_EQ(engineTextured2DGetByName(TEXTURE), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
-TEST_F(PrefabTest, TextureWhichExistedBeforeTheModelIsNotDestroyedWithIt)
+TEST_F(PrefabTest, TextureCreatedByTheGameIsSharedWithTheModelsUsingIt)
 {
+    // the game and the model each hold the texture: it goes away with the last of them, whichever that is
     constexpr auto TEXTURE = "test_fixtures/test_texture.png";
-    engine_texture2d_t existing = ENGINE_INVALID_OBJECT_HANDLE;
     const auto file = std::string(TEST_ASSETS_DIR) + "/models/" + TEXTURE;
-    ASSERT_EQ(engineTexture2DCreateFromFile(file.c_str(), ENGINE_TEXTURE_COLOR_SPACE_SRGB, TEXTURE, &existing), ENGINE_RESULT_CODE_OK);
+    for (const bool game_releases_first : { false, true })
+    {
+        SCOPED_TRACE(game_releases_first ? "the game releases it first" : "the model is released first");
+        engine_texture2d_t existing = ENGINE_INVALID_OBJECT_HANDLE;
+        ASSERT_EQ(engineTexture2DCreateFromFile(file.c_str(), ENGINE_TEXTURE_COLOR_SPACE_SRGB, TEXTURE, &existing), ENGINE_RESULT_CODE_OK);
 
-    auto model = std::make_unique<TestModel>("textured_a.gltf");
-    ASSERT_TRUE(model->loaded());
-    EXPECT_EQ(engineGameObjectGetMaterialComponent(model->instantiate()).data.pong.diffuse_texture, existing);
-    model.reset();
-    EXPECT_EQ(engineTextured2DGetByName(TEXTURE), existing);
-    engineTexture2DDestroy(existing);
+        auto model = std::make_unique<TestModel>("textured_a.gltf");
+        ASSERT_TRUE(model->loaded());
+        const auto instance = model->instantiate();
+        EXPECT_EQ(engineGameObjectGetMaterialComponent(instance).data.pong.diffuse_texture, existing);
+        engineGameObjectDestroy(instance);
+
+        if (game_releases_first)
+        {
+            engineTexture2DRelease(existing);
+            EXPECT_EQ(engineTextured2DGetByName(TEXTURE), existing);
+            model.reset();
+        }
+        else
+        {
+            model.reset();
+            EXPECT_EQ(engineTextured2DGetByName(TEXTURE), existing);
+            engineTexture2DRelease(existing);
+        }
+        EXPECT_EQ(engineTextured2DGetByName(TEXTURE), ENGINE_INVALID_OBJECT_HANDLE);
+    }
 }
 }  // namespace

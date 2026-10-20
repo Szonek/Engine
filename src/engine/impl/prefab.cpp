@@ -4,14 +4,17 @@
 #include "asset_id.h"
 #include "logger.h"
 #include "scene.h"
+#include "components_internals/prefab_instance_component.h"
 
 #include <engine.h>
 
 #include <fmt/format.h>
 
 #include <algorithm>
+#include <cassert>
 #include <cstring>
 #include <map>
+#include <utility>
 
 namespace
 {
@@ -57,19 +60,19 @@ engine::Prefab::~Prefab()
 {
     if (animation_set_ != ENGINE_INVALID_OBJECT_HANDLE)
     {
-        app_.destroy_animation_set(animation_set_);
+        app_.release_animation_set(animation_set_);
     }
     if (skin_ != ENGINE_INVALID_OBJECT_HANDLE)
     {
-        app_.destroy_skin(skin_);
+        app_.release_skin(skin_);
     }
     for (const auto texture : textures_)
     {
-        app_.release_prefab_texture(texture);
+        app_.release_texture(texture);
     }
     for (const auto geometry : geometries_)
     {
-        app_.destroy_geometry(geometry);
+        app_.release_geometry(geometry);
     }
 }
 
@@ -97,7 +100,13 @@ bool engine::Prefab::create_textures()
 {
     for (const auto& texture_desc : model_.textures)
     {
-        const auto texture = app_.acquire_prefab_texture(texture_desc);
+        // an image in its own file may be used already (by another model or the game): the prefab only uses it too
+        if (const auto existing = app_.get_texture(texture_desc.name); existing != ENGINE_INVALID_OBJECT_HANDLE && app_.acquire_texture(existing))
+        {
+            textures_.push_back(existing);
+            continue;
+        }
+        const auto texture = app_.add_texture(texture_desc);
         if (texture == ENGINE_INVALID_OBJECT_HANDLE)
         {
             log::log(LogLevel::eError, fmt::format("Prefab {}: failed creating texture {}.\n", get_name(), texture_desc.name));
@@ -316,4 +325,46 @@ entt::entity engine::Prefab::instantiate(Scene& scene) const
         }
     }
     return root;
+}
+
+engine::prefab_instance_internal_component_t::prefab_instance_internal_component_t(Application& app, std::uint32_t prefab)
+    : app_(&app)
+    , prefab_(prefab)
+{
+    const auto acquired = app_->acquire_prefab(prefab_);
+    assert(acquired && "the prefab of an instance must be valid");
+    if (!acquired)
+    {
+        app_ = nullptr;
+    }
+}
+
+engine::prefab_instance_internal_component_t::prefab_instance_internal_component_t(prefab_instance_internal_component_t&& rhs) noexcept
+    : app_(std::exchange(rhs.app_, nullptr))
+    , prefab_(rhs.prefab_)
+{
+}
+
+engine::prefab_instance_internal_component_t& engine::prefab_instance_internal_component_t::operator=(prefab_instance_internal_component_t&& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        release();
+        app_ = std::exchange(rhs.app_, nullptr);
+        prefab_ = rhs.prefab_;
+    }
+    return *this;
+}
+
+engine::prefab_instance_internal_component_t::~prefab_instance_internal_component_t()
+{
+    release();
+}
+
+void engine::prefab_instance_internal_component_t::release()
+{
+    if (app_)
+    {
+        std::exchange(app_, nullptr)->release_prefab(prefab_);
+    }
 }

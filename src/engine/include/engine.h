@@ -29,6 +29,9 @@ extern "C"
 
 typedef uint32_t engine_game_object_t;
 #define ENGINE_INVALID_GAME_OBJECT_ID 0
+// Asset handles (textures, geometries, prefabs, ...) are not reused: a handle to an asset which was destroyed stays
+// invalid (lookups with it find nothing) when other assets are created afterwards, until its slot has been reused about
+// four million times.
 #define ENGINE_INVALID_OBJECT_HANDLE (UINT_MAX)
 typedef struct _engine_application_t* engine_application_t;
 typedef struct _engine_scene_t* engine_scene_t;
@@ -373,18 +376,23 @@ typedef enum _engine_model_specification_t
     ENGINE_MODEL_SPECIFICATION_GLTF_2
 } engine_model_specification_t;
 
-// Prefab: an asset built from a model file, named by the file ("Rogue.glb"). Creating it also creates the model's
+// Prefab: an asset built from a model file, named by the file ("Rogue.glb"). Loading it also creates the model's
 // geometries, textures, skin and animation set as assets named "<file>#<name>" (e.g. "Rogue.glb#Rig", the skin and
-// "Rogue.glb#animations", the animation set), and destroying it destroys them. Instantiating it creates the model's
-// game objects in the active scene.
-ENGINE_API engine_result_code_t enginePrefabCreateFromFile(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_prefab_t* out);
+// "Rogue.glb#animations", the animation set); they live as long as the prefab. An image in its own file is shared with
+// the other models (and textures of the game) using it and lives as long as the last of them.
+// Prefabs are reference counted: loading gives the caller a reference to the prefab (loading a model which is loaded
+// already returns the same prefab), every instance holds one until it is destroyed, and the prefab is destroyed with
+// its assets when the last reference is released. Instantiating it creates the model's game objects in the active
+// scene. Components store asset handles without holding references: a game object using a model's asset (e.g. its
+// geometry) needs someone to hold the prefab, like the game or an instance.
+ENGINE_API engine_result_code_t enginePrefabLoad(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_prefab_t* out);
 ENGINE_API engine_prefab_t enginePrefabGetByName(const char* name);
 // Returns the root game object of the new instance, or ENGINE_INVALID_GAME_OBJECT_ID. The root is the parent of all the
 // other game objects of the instance.
 ENGINE_API engine_game_object_t enginePrefabInstantiate(engine_prefab_t prefab);
 // The prefab the game object is the root of an instance of, or ENGINE_INVALID_OBJECT_HANDLE.
 ENGINE_API engine_prefab_t enginePrefabInstanceGetPrefab(engine_game_object_t game_object);
-ENGINE_API void enginePrefabDestroy(engine_prefab_t prefab);
+ENGINE_API void enginePrefabRelease(engine_prefab_t prefab);
 
 // Skin: an asset shared by every instance of a skinned model (the skeleton and its binding to the mesh), created with
 // the model's prefab and named "<model file>#<skin name>". Each instance's pose belongs to the game object with the
@@ -516,10 +524,11 @@ ENGINE_API engine_result_code_t engineFontCreateFromFile(const char* file_name, 
 ENGINE_API engine_geometry_t engineGeometryGetByName(const char* name);
 ENGINE_API engine_geometry_attribute_limit_t engineGeometryGetAttributeLimits(engine_geometry_t geometry, engine_vertex_attribute_type_t type);
 
-// textures 
+// textures: creating one gives the caller a reference; a prefab using it holds another, so it is destroyed when the last
+// of them is released
 ENGINE_API engine_result_code_t engineTexture2DCreateFromFile(const char* file_path, engine_texture_color_space_t color_space, const char* name, engine_texture2d_t* out);
 ENGINE_API engine_texture2d_t   engineTextured2DGetByName(const char* name);
-ENGINE_API void engineTexture2DDestroy(engine_texture2d_t tex2d);
+ENGINE_API void engineTexture2DRelease(engine_texture2d_t tex2d);
 
 // physics 
 ENGINE_API void enginePhysicsSetGravityVector(const float gravity[3]);
