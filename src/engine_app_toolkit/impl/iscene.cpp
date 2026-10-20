@@ -146,6 +146,46 @@ bool engine::IScene::is_active() const
     return is_activate_;
 }
 
+void engine::IScene::flush_register_queue(bool playing)
+{
+    engine::ScopedProfiler prof("engine::IScene::flush_register_queue");
+    do
+    {
+        // on_start can register more scripts, so take this batch out of the queue first
+        ScriptsQueue batch;
+        batch.swap(scripts_register_queue_);
+        for (auto* script : batch)
+        {
+            const auto go = script->get_game_object();
+            // its game object was destroyed while it waited in the queue: it never starts nor updates
+            if (!engineGameObjectIsValid(go))
+            {
+                std::erase(scripts_unregister_queue_, script);
+                delete script;
+                continue;
+            }
+            scripts_[go] = std::unique_ptr<IScript>(script);
+            scripts_to_start_.push_back(go);
+        }
+
+        if (!playing)
+        {
+            return;
+        }
+        std::vector<engine_game_object_t> to_start;
+        to_start.swap(scripts_to_start_);
+        for (const auto go : to_start)
+        {
+            // an earlier on_start may have destroyed it
+            const auto it = scripts_.find(go);
+            if (it != scripts_.end() && engineGameObjectIsValid(go))
+            {
+                it->second->on_start();
+            }
+        }
+    } while (!scripts_register_queue_.empty());
+}
+
 engine_result_code_t engine::IScene::update(float dt)
 {
     engine::ScopedProfiler prof("engine::IScene::update");
@@ -154,13 +194,9 @@ engine_result_code_t engine::IScene::update(float dt)
         return ENGINE_RESULT_CODE_OK;
     }
 
-    for (auto& srq : scripts_register_queue_)
-    {
-        scripts_[srq->get_game_object()] = std::unique_ptr<IScript>(srq);
-    }
-    scripts_register_queue_.clear();
-
     const bool gameplay_paused = !engineEditorIsPlaying();
+    flush_register_queue(!gameplay_paused);
+
     if (!gameplay_paused)
     {
         update_hook_begin();
