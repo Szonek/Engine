@@ -33,6 +33,9 @@ public:
 
     bool load_font_from_file(std::string_view file_name, std::string_view handle_name);
 
+    // Part of the window the UI is shown in (Application::get_scene_viewport()): the UI is laid out for its size
+    // and mouse positions are relative to it.
+    void set_viewport(const viewport_t& viewport);
     void parse_sdl_event(SDL_Event ev);
 
     void update_state_and_render();
@@ -40,6 +43,7 @@ public:
 private:
     RenderContext& rdx_;
     Rml::Context* ui_rml_context_;
+    viewport_t viewport_{};
     bool ui_rml_debugger_available = false;
 };
 

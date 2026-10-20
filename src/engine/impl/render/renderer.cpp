@@ -211,8 +211,10 @@ void engine::Renderer::render_frame()
     {
         return;  // minimized
     }
-    const auto width = static_cast<std::uint32_t>(window_size.width);
-    const auto height = static_cast<std::uint32_t>(window_size.height);
+    const auto window_width = static_cast<std::uint32_t>(window_size.width);
+    const auto window_height = static_cast<std::uint32_t>(window_size.height);
+    const auto width = scene_output_ ? scene_output_->get_width() : window_width;
+    const auto height = scene_output_ ? scene_output_->get_height() : window_height;
 
     prepare_gpu_data();
 
@@ -220,12 +222,16 @@ void engine::Renderer::render_frame()
     graph_.reset();
 
     FrameContext frame{ .graph = graph_, .rdx = rdx_, .width = width, .height = height, .views = frame_views_, .full_screen_quad = &geometry_full_screen_quad_ };
-    frame.backbuffer = graph_.import_backbuffer("Backbuffer", width, height);
+    frame.backbuffer = graph_.import_backbuffer("Backbuffer", window_width, window_height);
+    frame.scene_output = scene_output_
+        ? graph_.import_texture("SceneOutput", scene_output_, rg::TextureDesc{ width, height, DataLayout::eRGBA_U8 })
+        : frame.backbuffer;
 
     add_scene_passes(frame);
     add_features_passes(frame, RenderStage::ePostProcess);
     add_present_pass(frame);
     add_features_passes(frame, RenderStage::eOverlay);
+    add_features_passes(frame, RenderStage::eScreen);
 
     graph_.extract_texture(frame.entity_id, &entity_id_texture_);
     entity_id_desc_ = rg::TextureDesc{ width, height, DataLayout::eR_U32 };
@@ -376,7 +382,7 @@ void engine::Renderer::add_present_pass(FrameContext& frame)
         [&](rg::Builder& builder, PresentPassData& data)
         {
             data.scene_color = builder.read(frame.scene_color);
-            builder.write_color(0, frame.backbuffer, rg::LoadOp::eDontCare);
+            builder.write_color(0, frame.scene_output, rg::LoadOp::eDontCare);
         },
         [this](const PresentPassData& data, rg::PassContext& ctx)
         {

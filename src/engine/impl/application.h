@@ -19,10 +19,6 @@ namespace engine
 class Application
 {
 public:
-    // Order of overlay features which are drawn on top of the presented scene (lower is drawn first).
-    static constexpr int OVERLAY_ORDER_EDITOR = 0;
-    static constexpr int OVERLAY_ORDER_UI = 100;
-
     Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code);
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
@@ -89,12 +85,19 @@ public:
     virtual UiDocument load_ui_document(std::string_view file_name);
     virtual UiDataHandle create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
 
+    // Part of the window the scene is shown in, in window coordinates with the origin in the top left corner.
+    // The whole window, unless the editor shows the scene in a panel. Cameras, the game UI and mouse coordinates use it.
+    virtual viewport_t get_scene_viewport() const;
+
     virtual bool is_mouse_enabled() { return true; }
     virtual bool is_keyboard_enabled() { return true; }
 
     virtual bool keyboard_is_key_down(engine_keyboard_keys_t key);
 
     virtual engine_fvec2_t mouse_get_coords();
+    // What the game sees: mouse_get_coords() while the mouse is enabled, otherwise (i.e. over an editor panel)
+    // the last position it saw, so the cursor stays where it left the scene instead of jumping.
+    engine_fvec2_t mouse_get_game_coords();
     virtual bool mouse_is_button_down(engine_mouse_button_t button);
 
     virtual std::array<engine_finger_info_t, 10> get_finger_info_events() const;
@@ -124,6 +127,8 @@ protected:
 
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;
+    // the centre of the scene until the game gets the mouse
+    engine_fvec2_t last_game_mouse_coords_{ 0.5f, 0.5f };
 
     Renderer renderer_;
 };

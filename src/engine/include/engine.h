@@ -493,6 +493,8 @@ ENGINE_API bool                 engineGameObjectIsValid(engine_game_object_t gam
 ENGINE_API bool engineKeyboardIsButtonDown(engine_keyboard_keys_t key);
 ENGINE_API bool engineKeyboardIsButtonUp(engine_keyboard_keys_t key);
 
+// Relative to the scene: (0, 0) left bottom, (1, 1) right top. While the game doesn't get the mouse (in the editor:
+// over another panel or outside the window) it stays at the last position the game got.
 ENGINE_API engine_fvec2_t engineMouseCoordsGet();
 ENGINE_API bool engineMouseIsButtonDown(engine_mouse_button_t mb);
 ENGINE_API bool engineMouseIsButtonUp(engine_mouse_button_t mb);

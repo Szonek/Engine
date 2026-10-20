@@ -231,11 +231,7 @@ engine_fvec2_t engineMouseCoordsGet()
         return {};
     }
 	auto* app = api_cast(G_ACTIVE_APP);
-    if (!app->is_mouse_enabled())
-    {
-        return {};
-    }
-	return app->mouse_get_coords();
+	return app->mouse_get_game_coords();
 }
 
 bool engineMouseIsButtonDown(engine_mouse_button_t button)

@@ -135,11 +135,11 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
 {
     renderer_.add_feature(std::make_shared<CallbackRenderFeature>("UI", [this](FrameContext& frame)
         {
-            add_backbuffer_overlay_pass(frame, "UI", [this](rg::PassContext&)
+            add_overlay_pass(frame, "UI", frame.scene_output, [this](rg::PassContext&)
                 {
                     ui_manager_.update_state_and_render();
                 });
-        }), RenderStage::eOverlay, OVERLAY_ORDER_UI);
+        }), RenderStage::eOverlay);
 
 	{
 		const std::vector<std::byte> default_texture_color = { static_cast<std::byte>(255), static_cast<std::byte>(255), static_cast<std::byte>(255) };
@@ -168,7 +168,7 @@ engine::Application::~Application()
 engine::Scene* engine::Application::allocate_scene(const engine_scene_create_desc_t& desc)
 {
     engine_result_code_t ret_code = ENGINE_RESULT_CODE_FAIL;
-    auto ret = new Scene(this, rdx_, renderer_, desc, ret_code);
+    auto ret = new Scene(this, renderer_, desc, ret_code);
     if (ret_code == ENGINE_RESULT_CODE_FAIL)
     {
         delete ret;
@@ -308,6 +308,8 @@ engine_application_frame_end_info_t engine::Application::end_frame()
 {
     ENGINE_PROFILE_SECTION;
     on_frame_end();
+    // the UI is laid out for the image rendered now; mouse events of the next frame happen while it is on the screen
+    ui_manager_.set_viewport(get_scene_viewport());
     renderer_.render_frame();
     rdx_.end_frame();
     ENGINE_PROFILE_FRAME;
@@ -570,13 +572,31 @@ engine_fvec2_t engine::Application::mouse_get_coords()
 	float coord_y = 0.;
     SDL_GetMouseState(&coord_x, &coord_y);
 
-    const auto window_size = rdx_.get_window_size_in_pixels();
+    // relative to the scene, outside [0, 1] when the mouse isn't over it
+    const auto viewport = get_scene_viewport();
+    const auto x = static_cast<std::int32_t>(std::floor(coord_x)) - static_cast<std::int32_t>(viewport.x);
+    const auto y = static_cast<std::int32_t>(std::floor(coord_y)) - static_cast<std::int32_t>(viewport.y);
 
     engine_fvec2_t ret{};
-	ret.x = static_cast<std::int32_t>(std::floor(coord_x)) / static_cast<float>(window_size.width);
+	ret.x = x / static_cast<float>(viewport.width);
     // flip Y coords so left, bottom corner is (0, 0) and right top is (1, 1)
-    ret.y = 1.0f - static_cast<std::int32_t>(std::floor(coord_y)) / static_cast<float>(window_size.height);
+    ret.y = 1.0f - y / static_cast<float>(viewport.height);
 	return ret;
+}
+
+engine_fvec2_t engine::Application::mouse_get_game_coords()
+{
+    if (is_mouse_enabled())
+    {
+        last_game_mouse_coords_ = mouse_get_coords();
+    }
+    return last_game_mouse_coords_;
+}
+
+engine::viewport_t engine::Application::get_scene_viewport() const
+{
+    const auto window_size = rdx_.get_window_size_in_pixels();
+    return viewport_t{ 0, 0, static_cast<std::uint32_t>(window_size.width), static_cast<std::uint32_t>(window_size.height) };
 }
 
 bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)

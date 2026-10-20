@@ -39,13 +39,15 @@ struct FrameContext
 {
     rg::Graph& graph;
     RenderContext& rdx;
+    // size of the scene image: the window, or the editor's scene panel
     std::uint32_t width = 0;
     std::uint32_t height = 0;
 
-    rg::TextureHandle scene_color;  // what is displayed on the screen (RGBA8)
-    rg::TextureHandle entity_id;    // entity id of the geometry under each pixel (R32UI), used for picking
+    rg::TextureHandle scene_color;   // what is displayed on the screen (RGBA8)
+    rg::TextureHandle entity_id;     // entity id of the geometry under each pixel (R32UI), used for picking
     rg::TextureHandle scene_depth;
-    rg::TextureHandle backbuffer;   // the screen
+    rg::TextureHandle scene_output;  // the presented scene image: the backbuffer, or the texture the editor shows in its scene panel
+    rg::TextureHandle backbuffer;    // the screen, window sized
 
     std::span<const FrameView> views;
 
@@ -58,8 +60,10 @@ enum class RenderStage
 {
     // Modifies scene_color before it's presented, i.e. outline, bloom, tone mapping...
     ePostProcess,
-    // Draws on top of the presented image directly to the backbuffer, i.e. UI, editor widgets.
-    eOverlay
+    // Draws on top of the presented scene image (FrameContext::scene_output), i.e. game UI.
+    eOverlay,
+    // Draws to the backbuffer once the scene image is complete, i.e. the editor, which shows that image in a panel.
+    eScreen
 };
 
 // An independent piece of rendering (effect, overlay, ...) which can be plugged into the Renderer without changing it.
@@ -97,15 +101,15 @@ private:
     std::function<void(FrameContext&)> add_passes_fn_;
 };
 
-// Adds a pass which draws directly to the backbuffer on top of what is already there.
+// Adds a pass which draws on top of what is already in target (FrameContext::scene_output or FrameContext::backbuffer).
 // execute: void(rg::PassContext&)
 template<typename ExecuteFn>
-void add_backbuffer_overlay_pass(FrameContext& frame, std::string_view name, ExecuteFn&& execute)
+void add_overlay_pass(FrameContext& frame, std::string_view name, rg::TextureHandle target, ExecuteFn&& execute)
 {
     frame.graph.add_pass(name,
-        [&frame](rg::Builder& builder, rg::NoPassData&)
+        [target](rg::Builder& builder, rg::NoPassData&)
         {
-            builder.write_color(0, frame.backbuffer, rg::LoadOp::eLoad);
+            builder.write_color(0, target, rg::LoadOp::eLoad);
         },
         [fn = std::forward<ExecuteFn>(execute)](const rg::NoPassData&, rg::PassContext& ctx) mutable
         {

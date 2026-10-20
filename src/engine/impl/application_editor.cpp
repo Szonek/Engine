@@ -815,11 +815,11 @@ engine::ApplicationEditor::ApplicationEditor(const engine_application_create_des
             {
                 return;
             }
-            add_backbuffer_overlay_pass(frame, "ImGui", [](rg::PassContext&)
+            add_overlay_pass(frame, "ImGui", frame.backbuffer, [](rg::PassContext&)
                 {
                     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
                 });
-        }), RenderStage::eOverlay, OVERLAY_ORDER_EDITOR);
+        }), RenderStage::eScreen);
 }
 
 engine::ApplicationEditor::~ApplicationEditor()
@@ -845,16 +845,20 @@ void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_b
     // DockSpace
     const auto viewport = ImGui::GetMainViewport();
     ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-    ImGui::DockSpaceOverViewport(dockspace_id, viewport, ImGuiDockNodeFlags_PassthruCentralNode);
+    ImGui::DockSpaceOverViewport(dockspace_id, viewport);
     if (!editor_windows_context_.is_initialized())
     {
         editor_windows_context_.initialize(dockspace_id);
     }
+    // before the scenes update: their cameras use the size of the panel
+    render_scene_view();
 }
 
 void engine::ApplicationEditor::on_frame_end()
 {
     ImGui::Render();
+    // without ImGui (F1) the scene is shown in the whole window
+    renderer_.set_scene_output(render_imgui_ ? scene_view_texture_ : nullptr);
     if(ImGui::IsKeyPressed(ImGuiKey_F1))
     {
         render_imgui_ = !render_imgui_;
@@ -918,6 +922,59 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
 
 
     camera_context_.on_scene_update_post(scene, editor_delta_time);
+}
+
+void engine::ApplicationEditor::render_scene_view()
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::Begin(editor_windows_context_.get_window_scene(), nullptr,
+        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoMove);
+    ImGui::PopStyleVar();
+
+    const auto pos = ImGui::GetCursorScreenPos();
+    const auto size = ImGui::GetContentRegionAvail();
+    const auto width = static_cast<std::uint32_t>(std::max(size.x, 1.0f));
+    const auto height = static_cast<std::uint32_t>(std::max(size.y, 1.0f));
+    if (!scene_view_texture_ || scene_view_rect_.width != width || scene_view_rect_.height != height)
+    {
+        scene_view_texture_ = std::make_shared<Texture2D>(width, height, false, nullptr, DataLayout::eRGBA_U8, TextureAddressClampMode::eClampToEdge);
+    }
+    scene_view_rect_ = viewport_t{ static_cast<std::uint32_t>(pos.x), static_cast<std::uint32_t>(pos.y), width, height };
+
+    // the scene is rendered into the texture at the end of this frame; GL textures start at the bottom
+    const auto image_max = ImVec2(pos.x + static_cast<float>(width), pos.y + static_cast<float>(height));
+    ImGui::GetWindowDrawList()->AddImage(static_cast<ImTextureID>(scene_view_texture_->get_imgui_texture_id()), pos, image_max, ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
+    // No item covers the image: ImGuizmo only starts a drag when no item is hovered.
+    // The mouse stays with the scene while a button pressed over it is held.
+    const bool hovered = ImGui::IsWindowHovered();
+    const auto& io = ImGui::GetIO();
+    const bool any_button_down = io.MouseDown[ImGuiMouseButton_Left] || io.MouseDown[ImGuiMouseButton_Right] || io.MouseDown[ImGuiMouseButton_Middle];
+    const bool any_button_clicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right) || ImGui::IsMouseClicked(ImGuiMouseButton_Middle);
+    if (hovered && any_button_clicked)
+    {
+        scene_view_mouse_held_ = true;
+    }
+    else if (!any_button_down)
+    {
+        scene_view_mouse_held_ = false;
+    }
+    scene_view_has_mouse_ = hovered || scene_view_mouse_held_;
+    scene_view_focused_ = ImGui::IsWindowFocused();
+    ImGui::End();
+}
+
+bool engine::ApplicationEditor::is_mouse_over_scene() const
+{
+    return !render_imgui_ || scene_view_has_mouse_;
+}
+
+engine::viewport_t engine::ApplicationEditor::get_scene_viewport() const
+{
+    if (!render_imgui_ || !scene_view_texture_)
+    {
+        return Application::get_scene_viewport();
+    }
+    return scene_view_rect_;
 }
 
 void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float dt)
@@ -1182,6 +1239,12 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
     {
         return;
     }
+    // drawn on top of the scene image, in its panel (Begin appends to the window)
+    ImGui::Begin(editor_windows_context_.get_window_scene());
+    ImGuizmo::SetDrawlist();
+    const auto scene_viewport = get_scene_viewport();
+    ImGuizmo::SetRect(static_cast<float>(scene_viewport.x), static_cast<float>(scene_viewport.y), static_cast<float>(scene_viewport.width), static_cast<float>(scene_viewport.height));
+
     auto camera_view = scene->create_runtime_view();
     scene->attach_component_to_runtime_view<engine_camera_component_t>(camera_view);
     for (const auto& camera_entity : camera_view)
@@ -1204,9 +1267,6 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
             auto model_matrix = glm::make_mat4x4(transform_component.local_to_world);
 
             ImGuizmo::SetOrthographic(camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC); // Set the projection mode to perspective
-            //ImGuizmo::SetDrawlist(); // Set the draw list to the current ImGui window's draw list
-            ImGuizmo::SetRect(0, 0, ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);  // Set the rectangle area for the gizmo to cover the entire display area
-
             ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection),
                 ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::SCALE | ImGuizmo::OPERATION::ROTATE,
                 ImGuizmo::MODE::LOCAL,
@@ -1236,22 +1296,28 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
             }
         }
     }
+    ImGui::End();
 }
 
 void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
 {
-    if (ImGui::GetIO().WantCaptureMouse)
+    // a click on the gizmo moves the object, it doesn't pick what is under it
+    if (!is_mouse_over_scene() || ImGuizmo::IsUsingAny())
     {
         return;
     }
     if (mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT) && !keyboard_is_key_down(G_MOUSE_SELECT_KEYBOARD_KEY))
     {
-        const auto window_size = rdx_.get_window_size_in_pixels();
+        const auto scene_viewport = get_scene_viewport();
         const auto mouse_coords = mouse_get_coords();
+        if (mouse_coords.x < 0.0f || mouse_coords.y < 0.0f)
+        {
+            return;  // held since a click over the scene, but moved off it
+        }
         // entity ids come from the previous frame, which is what was visible on the screen when the user clicked
         std::uint32_t picked_id = ENGINE_INVALID_GAME_OBJECT_ID;
-        const auto x = static_cast<std::uint32_t>(mouse_coords.x * window_size.width);
-        const auto y = static_cast<std::uint32_t>(mouse_coords.y * window_size.height);
+        const auto x = static_cast<std::uint32_t>(mouse_coords.x * scene_viewport.width);
+        const auto y = static_cast<std::uint32_t>(mouse_coords.y * scene_viewport.height);
         if (!renderer_.read_entity_id(x, y, picked_id))
         {
             return;
@@ -1268,14 +1334,14 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
 
 bool engine::ApplicationEditor::is_mouse_enabled()
 {
-    const bool editor_is_using_mouse = editor_view_ == EditorView::eEditor || ImGui::GetIO().WantCaptureMouse;
-    return !editor_is_using_mouse;
+    return editor_view_ == EditorView::eGame && is_mouse_over_scene();
 }
 
 bool engine::ApplicationEditor::is_keyboard_enabled()
 {
-    const bool editor_is_using_keybord = editor_view_ == EditorView::eEditor || ImGui::GetIO().WantCaptureKeyboard;
-    return !editor_is_using_keybord;
+    // the scene panel being focused is enough: clicking it makes ImGui want the keyboard while the button is held
+    const bool scene_has_keyboard = !render_imgui_ || scene_view_focused_ || !ImGui::GetIO().WantCaptureKeyboard;
+    return editor_view_ == EditorView::eGame && scene_has_keyboard;
 }
 
 void engine::ApplicationEditor::on_scene_create(Scene* scene)
@@ -1359,7 +1425,7 @@ void engine::CameraScript::update(float dt)
     }
 
     // dont allow to move camera if mouse is down
-    if (ImGui::GetIO().WantCaptureMouse || ImGuizmo::IsUsingAny())
+    if (!app_->is_mouse_over_scene() || ImGuizmo::IsUsingAny())
     {
         return;
     }
@@ -1606,12 +1672,4 @@ void engine::ApplicationEditor::EditorWindowsContext::initialize(std::uint32_t d
     ImGui::DockBuilderFinish(dockspace_id);
 
     this->initalized_ = true;
-}
-
-engine::viewport_t engine::ApplicationEditor::EditorWindowsContext::get_scene_render_viewport() const
-{
-    const auto dock_id_scene = ImGui::DockBuilderGetNode(ImGui::GetID(window_scene));
-    const auto pos = dock_id_scene->Pos;
-    const auto size = dock_id_scene->Size;
-    return viewport_t(pos.x, pos.y, size.x, size.y);
 }
