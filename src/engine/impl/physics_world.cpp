@@ -57,6 +57,9 @@ engine::PhysicsWorld::PhysicsWorld()
 {
     collision_config_ = std::make_unique<btDefaultCollisionConfiguration>();
     dispatcher_ = std::make_unique<btCollisionDispatcher>(collision_config_.get());
+    // Bullet's debug builds warn once about a pair of static or kinematic bodies: kinematic bodies pair with each other
+    // on purpose (hitboxes and characters, see add_to_world)
+    dispatcher_->setDispatcherFlags(dispatcher_->getDispatcherFlags() | btCollisionDispatcher::CD_STATIC_STATIC_REPORTED);
     overlapping_pair_cache_ = std::make_unique<btDbvtBroadphase>();
     solver_ = std::make_unique<btSequentialImpulseConstraintSolver>();
 
@@ -488,7 +491,7 @@ bool engine::PhysicsWorld::set_world_transform(btRigidBody* rigid_body, const gl
 
 void engine::PhysicsWorld::update(float dt)
 {
-    dynamics_world_->stepSimulation(dt, 10);
+    dynamics_world_->stepSimulation(dt, MAX_SUB_STEPS, FIXED_TIME_STEP);
 
     collisions_desc_cache_.clear();
 }

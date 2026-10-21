@@ -152,6 +152,11 @@ private:
     bool follows_other_game_objects(entt::entity entity) const;
     // the type of the entity's body: its rigid body's, or for a collider alone kinematic when it follows other game objects
     PhysicsWorld::BodyType get_body_type(entt::entity entity) const;
+    // (re)creates the entity's body (collider or character controller) at its world transform
+    void create_body(entt::entity entity);
+    // whether colliders, rigid bodies or character controllers were added or changed since their bodies were made
+    bool has_pending_bodies() const;
+    void create_pending_bodies();
     // the world_transform_internal_component_t of every transform, see engine::update_world_transforms
     void update_world_transforms();
     // the model matrix of the attachment's joint in its skin instance, nullopt (logged) when it has none
@@ -181,6 +186,8 @@ private:
     entt::observer rigid_body_update_observer;
     entt::observer character_controller_create_observer;
     entt::observer character_controller_update_observer;
+    // reported moves of static bodies skip these: being placed in the frame they were created is no move
+    std::vector<entt::entity> bodies_created_this_frame_;
 
     PhysicsWorld physics_world_;
     bool nav_mesh_debug_draw_ = false;
