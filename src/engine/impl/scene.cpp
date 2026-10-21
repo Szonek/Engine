@@ -15,7 +15,6 @@
 #include "components_internals/animation_controller_internal_component.h"
 #include "components_internals/children_internal_component.h"
 #include "components_internals/nav_mesh_internal_component.h"
-#include "components_internals/character_controller_internal_component.h"
 #include "profiler.h"
 #include "engine_vector_impl_def.h"
 #include "skin.h"
@@ -75,28 +74,6 @@ static inline void destroy_children_component(entt::registry& registry, entt::en
     }
 }
 
-// the body of a collider or character controller (a game object should have one of them)
-static inline void add_physics_internal_component(entt::registry& registry, entt::entity entity)
-{
-    registry.get_or_emplace<engine::physcic_internal_component_t>(entity);
-}
-
-static inline void remove_physics_internal_component_of_collider(entt::registry& registry, entt::entity entity)
-{
-    if (!registry.any_of<engine_character_controller_component_t>(entity))
-    {
-        registry.remove<engine::physcic_internal_component_t>(entity);
-    }
-}
-
-static inline void remove_physics_internal_component_of_character_controller(entt::registry& registry, entt::entity entity)
-{
-    if (!registry.any_of<engine_collider_component_t>(entity))
-    {
-        registry.remove<engine::physcic_internal_component_t>(entity);
-    }
-}
-
 static inline void destroy_joint_attachment(entt::registry& registry, entt::entity entity)
 {
     auto& comp = registry.get<engine_joint_attachment_component_t>(entity);
@@ -137,29 +114,12 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     : app_(app)
     , renderer_(renderer)
     , entity_ids_(entity_registry_)
-    , transform_update_collider_observer(entity_registry_, entt::collector.update<engine_transform_component_t>().where<physcic_internal_component_t>())
+    // connects its listeners before the initializers below: EnTT calls them last-connected first, so its listeners run after them
+    , physics_(entity_registry_,
+        [this](const engine_joint_attachment_component_t& joint_attachment) { return get_joint_matrix(joint_attachment); },
+        [this]() { const auto* editor = dynamic_cast<const ApplicationEditor*>(app_); return editor && !editor->is_playing(); })
     , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
 {
-    // Bodies are created as soon as their components exist (like Unity and Unreal) and created again when they change:
-    // physics queries during the scripts' update see game objects created earlier in the frame.
-    // EnTT calls listeners last-connected first, so these run after the initializers connected below.
-    entity_registry_.on_construct<engine_transform_component_t>().connect<&Scene::on_body_component_changed>(*this);
-    entity_registry_.on_construct<engine_collider_component_t>().connect<&Scene::on_body_component_changed>(*this);
-    entity_registry_.on_update<engine_collider_component_t>().connect<&Scene::on_body_component_changed>(*this);
-    entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&Scene::on_body_component_changed>(*this);
-    entity_registry_.on_update<engine_rigid_body_component_t>().connect<&Scene::on_body_component_changed>(*this);
-    entity_registry_.on_destroy<engine_rigid_body_component_t>().connect<&Scene::on_rigid_body_removed>(*this);
-    entity_registry_.on_construct<engine_character_controller_component_t>().connect<&Scene::on_body_component_changed>(*this);
-    entity_registry_.on_update<engine_character_controller_component_t>().connect<&Scene::on_body_component_changed>(*this);
-    entity_registry_.on_destroy<engine_character_controller_component_t>().connect<&Scene::on_character_controller_removed>(*this);
-    // bodies follow their transforms lazily: before the physics step and before physics queries, when anything moved
-    entity_registry_.on_update<engine_transform_component_t>().connect<&Scene::on_transforms_changed>(*this);
-    entity_registry_.on_construct<engine_parent_component_t>().connect<&Scene::on_transforms_changed>(*this);
-    entity_registry_.on_update<engine_parent_component_t>().connect<&Scene::on_transforms_changed>(*this);
-    entity_registry_.on_destroy<engine_parent_component_t>().connect<&Scene::on_transforms_changed>(*this);
-    entity_registry_.on_update<engine_joint_attachment_component_t>().connect<&Scene::on_transforms_changed>(*this);
-    entity_registry_.on_destroy<engine_joint_attachment_component_t>().connect<&Scene::on_transforms_changed>(*this);
-
     // basic initalizers
     entity_registry_.on_construct<engine_transform_component_t>().connect<&initialize_transform_component>();
     entity_registry_.on_construct<engine_transform_component_t>().connect<&entt::registry::emplace<world_transform_internal_component_t>>();
@@ -172,8 +132,6 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     entity_registry_.on_construct<engine_folder_component_t>().connect<&initialize_folder_component>();
     entity_registry_.on_construct<engine_camera_component_t>().connect<&initialize_camera_component>();
     entity_registry_.on_construct<engine_camera_component_t>().connect<&entt::registry::emplace<camera_internal_component_t>>();
-    entity_registry_.on_construct<engine_rigid_body_component_t>().connect<&initialize_rigidbody_component>();
-    entity_registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
     entity_registry_.on_construct<engine_skin_component_t>().connect<&initialize_skin_component>();
     // only on update: EnTT calls construction listeners last-connected first, so on construction this would run before
     // initialize_skin_component and read a zeroed handle (a valid atlas slot). A new component has no skin yet anyway.
@@ -195,15 +153,6 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     entity_registry_.on_destroy<engine_parent_component_t>().connect<&destroy_parent_component>();
     entity_registry_.on_destroy<children_internal_component_t>().connect<&destroy_children_component>();
 
-    entity_registry_.on_construct<engine_collider_component_t>().connect<&add_physics_internal_component>();
-    entity_registry_.on_destroy<engine_collider_component_t>().connect<&remove_physics_internal_component_of_collider>();
-    entity_registry_.on_construct<engine_character_controller_component_t>().connect<&initialize_character_controller_component>();
-    entity_registry_.on_construct<engine_character_controller_component_t>().connect<&add_physics_internal_component>();
-    entity_registry_.on_construct<engine_character_controller_component_t>().connect<&entt::registry::emplace<character_controller_internal_component_t>>();
-    entity_registry_.on_destroy<engine_character_controller_component_t>().connect<&remove_physics_internal_component_of_character_controller>();
-    entity_registry_.on_destroy<engine_character_controller_component_t>().connect<&entt::registry::remove<character_controller_internal_component_t>>();
-    entity_registry_.on_destroy<physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
-
     out_code = ENGINE_RESULT_CODE_OK;
 }
 
@@ -216,14 +165,14 @@ engine::Application* engine::Scene::get_application() const
     return app_;
 }
 
-void engine::Scene::enable_physics_debug_draw(bool enable)
+engine::PhysicsSystem& engine::Scene::physics()
 {
-    physics_world_.enable_debug_draw(enable);
+    return physics_;
 }
 
-bool engine::Scene::is_physics_debug_draw_enabled() const
+const engine::PhysicsSystem& engine::Scene::physics() const
 {
-    return physics_world_.is_debug_drawer_enabled();
+    return physics_;
 }
 
 void engine::Scene::enable_nav_mesh_debug_draw(bool enable)
@@ -325,265 +274,6 @@ const engine_nav_modifier_component_t* engine::Scene::find_nav_modifier(entt::en
     return nullptr;
 }
 
-bool engine::Scene::follows_other_game_objects(entt::entity entity) const
-{
-    return has_component<engine_parent_component_t>(entity) || has_component<engine_joint_attachment_component_t>(entity);
-}
-
-engine::PhysicsWorld::BodyType engine::Scene::get_body_type(entt::entity entity) const
-{
-    if (has_component<engine_character_controller_component_t>(entity))
-    {
-        return PhysicsWorld::BodyType::eKinematic;
-    }
-    if (const auto* rigid_body = entity_registry_.try_get<engine_rigid_body_component_t>(entity))
-    {
-        switch (rigid_body->type)
-        {
-        case ENGINE_RIGID_BODY_TYPE_KINEMATIC:
-            return PhysicsWorld::BodyType::eKinematic;
-        case ENGINE_RIGID_BODY_TYPE_STATIC:
-            return PhysicsWorld::BodyType::eStatic;
-        default:
-            return rigid_body->mass > 0.0f ? PhysicsWorld::BodyType::eDynamic : PhysicsWorld::BodyType::eStatic;
-        }
-    }
-    return get_collider_body_type(entity);
-}
-
-engine::PhysicsWorld::BodyType engine::Scene::get_collider_body_type(entt::entity entity) const
-{
-    // a collider alone moves with its parent or joint, if it has one
-    return follows_other_game_objects(entity) ? PhysicsWorld::BodyType::eKinematic : PhysicsWorld::BodyType::eStatic;
-}
-
-void engine::Scene::create_body(entt::entity entity, bool without_rigid_body, bool without_character_controller)
-{
-    physics_world_.remove_rigid_body(entity_registry_, entity);
-    const auto* character = without_character_controller ? nullptr : entity_registry_.try_get<engine_character_controller_component_t>(entity);
-    const auto* collider = entity_registry_.try_get<engine_collider_component_t>(entity);
-    if (!has_component<engine_transform_component_t>(entity) || (!character && !collider))
-    {
-        return;
-    }
-    const auto local_to_world = get_world_matrix(entity);
-    physcic_internal_component_t physcics_component{};
-    if (character)
-    {
-        if (collider)
-        {
-            log::log(log::LogLevel::eError, fmt::format("[Entity: {}] has a collider and a character controller, the collider is ignored.\n", static_cast<std::uint32_t>(entity)));
-        }
-        physcics_component = physics_world_.create_character_body(character->radius, character->height, local_to_world, static_cast<std::int32_t>(entity));
-    }
-    else
-    {
-        const auto* rigid_body = without_rigid_body ? nullptr : entity_registry_.try_get<engine_rigid_body_component_t>(entity);
-        physcics_component = physics_world_.create_rigid_body(*collider, rigid_body ? get_body_type(entity) : get_collider_body_type(entity),
-            rigid_body ? rigid_body->mass : 0.0f, local_to_world, static_cast<std::int32_t>(entity));
-    }
-    update_component(entity, physcics_component);
-    bodies_created_this_frame_.push_back(entity);
-}
-
-void engine::Scene::on_body_component_changed(entt::registry& registry, entt::entity entity)
-{
-    if (registry.any_of<physcic_internal_component_t>(entity))
-    {
-        create_body(entity);
-    }
-}
-
-void engine::Scene::on_rigid_body_removed(entt::registry& registry, entt::entity entity)
-{
-    // called before the component is gone: the collider alone gets its body
-    if (registry.any_of<physcic_internal_component_t>(entity))
-    {
-        create_body(entity, true, false);
-    }
-}
-
-void engine::Scene::on_character_controller_removed(entt::registry& registry, entt::entity entity)
-{
-    // called before the component is gone: a collider on the same game object gets its body (without one, the body is
-    // removed with the internal component)
-    if (registry.any_of<engine_collider_component_t>(entity))
-    {
-        create_body(entity, false, true);
-    }
-}
-
-void engine::Scene::on_transforms_changed(entt::registry&, entt::entity)
-{
-    transforms_changed_ = true;
-}
-
-void engine::Scene::sync_bodies_to_transforms(bool force)
-{
-    if (!force && !transforms_changed_)
-    {
-        return;
-    }
-    ENGINE_PROFILE_SECTION;
-    transforms_changed_ = false;
-    // As a rule of thumb: if rigid body has mass (is dynamic) than it cant be moved by transform component.
-    const auto* editor = dynamic_cast<const ApplicationEditor*>(app_);
-    const bool editing = editor && !editor->is_playing();
-    const auto move_body = [&](entt::entity entity, bool moved_by_its_transform)
-        {
-            auto& physcics_component = *get_component<physcic_internal_component_t>(entity);
-            if (!physcics_component.rigid_body)
-            {
-                return;
-            }
-            const auto type = get_body_type(entity);
-            if (PhysicsWorld::get_body_type(physcics_component.rigid_body) != type)
-            {
-                // it got or lost a parent or joint attachment: created again, where it is now
-                create_body(entity);
-                return;
-            }
-            // moving a static body teleports it: nothing it touches is pushed or woken up. Editing a level does it on purpose.
-            if (type == PhysicsWorld::BodyType::eStatic && moved_by_its_transform && !editing && !physcics_component.reported_moving_static
-                && std::find(bodies_created_this_frame_.begin(), bodies_created_this_frame_.end(), entity) == bodies_created_this_frame_.end())
-            {
-                physcics_component.reported_moving_static = true;
-                log::log(log::LogLevel::eError, fmt::format("[Entity: {}] A static collider is moved by its transform. If it keeps moving, give it a kinematic rigid body.\n", static_cast<std::uint32_t>(entity)));
-            }
-            // the body stays where it is when the matrix can't be decomposed (e.g. a zero scale)
-            physics_world_.set_world_transform(physcics_component.rigid_body, get_world_matrix(entity));
-        };
-    // bodies whose world transform depends on other game objects (parents, joints) follow them
-    for (const auto entity : entity_registry_.view<const physcic_internal_component_t, const engine_parent_component_t>())
-    {
-        move_body(entity, false);
-    }
-    for (const auto entity : entity_registry_.view<const physcic_internal_component_t, const engine_joint_attachment_component_t>(entt::exclude<engine_parent_component_t>))
-    {
-        move_body(entity, false);
-    }
-    // the others when their transform changed
-    for (const auto entity : transform_update_collider_observer)
-    {
-        if (!follows_other_game_objects(entity))
-        {
-            move_body(entity, true);
-        }
-    }
-    transform_update_collider_observer.clear();
-}
-
-engine_result_code_t engine::Scene::physics_update(float dt)
-{
-    ENGINE_PROFILE_SECTION_N("physics_update");
-    // also when no transform changed: animations move what is attached to joints
-    sync_bodies_to_transforms(true);
-    bodies_created_this_frame_.clear();
-
-    for (const auto& f : forces_to_apply_)
-    {
-        const auto entity = std::get<0>(f);
-        const auto force = std::get<1>(f);
-        const auto type = std::get<2>(f);
-        if (!has_component<physcic_internal_component_t>(entity))
-        {
-            continue;
-        }
-        auto& physcics = *get_component<physcic_internal_component_t>(entity);
-        if (!physcics.rigid_body)
-        {
-            continue;
-        }
-        if (type == engine_force_type_t::ENGINE_FORCE_TYPE_FORCE)
-        {
-            physcics.rigid_body->applyCentralForce(btVector3(force[0], force[1], force[2]));
-        }
-        else if (type == engine_force_type_t::ENGINE_FORCE_TYPE_IMPLUSE)
-        {
-            physcics.rigid_body->applyCentralImpulse(btVector3(force[0], force[1], force[2]));
-        }
-    }
-    forces_to_apply_.clear();
-
-    physics_world_.update(dt / 1000.0f);
-
-    // sync physcis to graphics world: the bodies are in world space, transforms are local to their parent space
-    auto transform_physcis_view_post_update = entity_registry_.view<engine_transform_component_t, const physcic_internal_component_t, const engine_rigid_body_component_t>();
-    transform_physcis_view_post_update.each([this](auto entity, engine_transform_component_t& transform, const physcic_internal_component_t& physcics, const engine_rigid_body_component_t&)
-        {
-            if (!physcics.rigid_body)
-            {
-                return;
-            }
-            const auto& body_transform = physcics.rigid_body->getWorldTransform();
-            const auto& origin = body_transform.getOrigin();
-            const auto& body_rotation = body_transform.getRotation();
-            if (!follows_other_game_objects(entity))
-            {
-                transform.position[0] = origin.getX();
-                transform.position[1] = origin.getY();
-                transform.position[2] = origin.getZ();
-                transform.rotation[0] = body_rotation.getX();
-                transform.rotation[1] = body_rotation.getY();
-                transform.rotation[2] = body_rotation.getZ();
-                transform.rotation[3] = body_rotation.getW();
-            }
-            else
-            {
-                // the body has no scale: keep the game object's world scale
-                const auto old_world = get_world_matrix(entity);
-                const glm::vec3 world_scale{ glm::length(glm::vec3(old_world[0])), glm::length(glm::vec3(old_world[1])), glm::length(glm::vec3(old_world[2])) };
-                const glm::vec3 position{ origin.getX(), origin.getY(), origin.getZ() };
-                const glm::quat rotation = glm::make_quat(std::array<float, 4>{ body_rotation.getX(), body_rotation.getY(), body_rotation.getZ(), body_rotation.getW() }.data());
-                const auto body_world = compute_model_matrix(position, rotation, world_scale);
-                if (!local_transform_from_world(get_parent_space_matrix(entity), body_world, transform))
-                {
-                    return;
-                }
-            }
-            update_component(entity, transform);
-        }
-    );
-    return ENGINE_RESULT_CODE_OK;
-}
-
-engine_result_code_t engine::Scene::move_character_controller(entt::entity entity, const glm::vec3& velocity, float dt, engine_character_controller_move_result_t& out_result)
-{
-    const auto* character = entity_registry_.try_get<engine_character_controller_component_t>(entity);
-    auto* transform = entity_registry_.try_get<engine_transform_component_t>(entity);
-    if (!character || !transform)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    if (follows_other_game_objects(entity))
-    {
-        log::log(log::LogLevel::eError, fmt::format("[Entity: {}] A character controller can't move a game object with a parent or joint attachment.\n", static_cast<std::uint32_t>(entity)));
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    // what scripts moved earlier this frame blocks it where it is now
-    sync_bodies_to_transforms(false);
-    // the transform is the world transform (no parent); this frame's, the world transform component is from the last update
-    const auto local_to_world = compute_local_matrix(*get_component<engine_transform_component_t>(entity));
-    auto& state = *get_component<character_controller_internal_component_t>(entity);
-    const float dt_seconds = dt / 1000.0f;
-    state.vertical_speed += physics_world_.get_gravity().y * dt_seconds;
-    const auto motion = velocity * dt_seconds + glm::vec3(0.0f, state.vertical_speed * dt_seconds, 0.0f);
-    const float step_height = character->step_height * glm::length(glm::vec3(local_to_world[1]));
-    const auto result = physics_world_.move_character(get_component<physcic_internal_component_t>(entity)->rigid_body, glm::make_vec3(get_component<engine_transform_component_t>(entity)->position),
-        motion, step_height, character->max_slope);
-    if ((result.blocked_below && state.vertical_speed < 0.0f) || (result.hit_ceiling && state.vertical_speed > 0.0f))
-    {
-        state.vertical_speed = 0.0f;
-    }
-    auto updated = *get_component<engine_transform_component_t>(entity);
-    std::memcpy(updated.position, glm::value_ptr(result.position), sizeof(updated.position));
-    update_component(entity, updated);
-    out_result.grounded = result.grounded;
-    out_result.hit_wall = result.hit_wall;
-    out_result.hit_ceiling = result.hit_ceiling;
-    return ENGINE_RESULT_CODE_OK;
-}
-
 std::optional<glm::mat4> engine::Scene::get_joint_matrix(const engine_joint_attachment_component_t& joint_attachment) const
 {
     const auto [pose, skin] = get_skin_instance(joint_attachment.skin);
@@ -598,11 +288,6 @@ std::optional<glm::mat4> engine::Scene::get_joint_matrix(const engine_joint_atta
 glm::mat4 engine::Scene::get_parent_space_matrix(entt::entity entity) const
 {
     return engine::get_parent_space_matrix(entity_registry_, entity, [this](const auto& joint_attachment) { return get_joint_matrix(joint_attachment); });
-}
-
-glm::mat4 engine::Scene::get_world_matrix(entt::entity entity) const
-{
-    return engine::compute_world_matrix(entity_registry_, entity, [this](const auto& joint_attachment) { return get_joint_matrix(joint_attachment); });
 }
 
 void engine::Scene::update_world_transforms()
@@ -625,7 +310,7 @@ engine_result_code_t engine::Scene::update(float dt)
 
     // physics computes the world transforms of its bodies from the transforms (it can't wait for this pass: it answers
     // queries during the scripts' update); this pass is for everything else, after the step moved the dynamic bodies
-    physics_update(dt);
+    physics_.update(dt);
     update_world_transforms();
 
     {
@@ -847,9 +532,9 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
         );
     }
 
-    if (physics_world_.is_debug_drawer_enabled())
+    if (physics_.is_debug_draw_enabled())
     {
-        physics_world_.collect_debug_lines(render_data.debug_lines);
+        physics_.collect_debug_lines(render_data.debug_lines);
     }
     if (nav_mesh_debug_draw_)
     {
@@ -1026,53 +711,6 @@ std::vector<entt::entity> engine::Scene::get_all_entities() const
         }
     }
     return entities;
-}
-
-void engine::Scene::set_physcis_gravity(std::array<float, 3> g)
-{
-    ENGINE_PROFILE_SECTION;
-    physics_world_.set_gravity(g);
-}
-
-const std::vector<engine::CollisionDesc>& engine::Scene::get_physcis_collisions() const
-{
-    ENGINE_PROFILE_SECTION;
-    return physics_world_.get_collisions();
-}
-
-engine_ray_hit_info_t engine::Scene::raycast_into_physics_world(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance)
-{
-    ENGINE_PROFILE_SECTION;
-    // what scripts moved earlier this frame is hit where it is now
-    sync_bodies_to_transforms(false);
-    return physics_world_.raycast(ray, ignore_list, max_distance);
-}
-
-bool engine::Scene::add_force_to_physics_entity(entt::entity entity, std::array<float, 3> force, engine_force_type_t type)
-{
-    ENGINE_PROFILE_SECTION;
-    /*
-    Deffered force application to the physics world. Beacuse at this point rigid body may not be created yet (i.e. force applied immeditly after creating object).
-    */
-    if (has_component<physcic_internal_component_t>(entity))
-    {
-        auto& physcics_component = entity_registry_.get<physcic_internal_component_t>(entity);
-        if (type == engine_force_type_t::ENGINE_FORCE_TYPE_FORCE)
-        {
-            forces_to_apply_.push_back({ entity, force, type });
-        }
-        else if (type == engine_force_type_t::ENGINE_FORCE_TYPE_IMPLUSE)
-        {
-            forces_to_apply_.push_back({ entity, force, type });
-        }
-        else
-        {
-            log::log(log::LogLevel::eError, fmt::format("Unknown force type: {}\n", static_cast<std::uint32_t>(type)));
-            return false;
-        }
-        return true;
-    }
-    return false;
 }
 
 glm::vec3 engine::Scene::convert_world_point_to_screen_point(const glm::vec3& world_point, engine_game_object_t camera_go)

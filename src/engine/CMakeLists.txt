@@ -74,6 +74,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/nav_mesh.cpp
 	${ENGINE_SOURCES_DIR}/world_transform.h
 	${ENGINE_SOURCES_DIR}/world_transform.cpp
+	${ENGINE_SOURCES_DIR}/physics_system.h
+	${ENGINE_SOURCES_DIR}/physics_system.cpp
 	${ENGINE_SOURCES_DIR}/nav_mesh_debug_draw.h
 	${ENGINE_SOURCES_DIR}/nav_mesh_debug_draw.cpp
 	

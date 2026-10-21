@@ -589,7 +589,7 @@ void enginePhysicsSetGravityVector(const float gravity[3])
         return;
     }
     auto sc = api_cast(G_ACTIVE_SCENE);
-    sc->set_physcis_gravity(std::array<float, 3>{gravity[0], gravity[1], gravity[2]});
+    sc->physics().set_gravity(std::array<float, 3>{gravity[0], gravity[1], gravity[2]});
 }
 
 size_t enginePhysicsGetNumCollisions()
@@ -599,7 +599,7 @@ size_t enginePhysicsGetNumCollisions()
         return 0;
     }
     auto sc = api_cast(G_ACTIVE_SCENE);
-    return sc->get_physcis_collisions().size();
+    return sc->physics().get_collisions().size();
 }
 
 const engine_collision_desc_t* enginePhysicsGetCollisionDesc(size_t idx)
@@ -609,7 +609,7 @@ const engine_collision_desc_t* enginePhysicsGetCollisionDesc(size_t idx)
         return nullptr;
     }
     auto sc = api_cast(G_ACTIVE_SCENE);
-    return api_cast(sc->get_physcis_collisions().at(idx));
+    return api_cast(sc->physics().get_collisions().at(idx));
 }
 
 engine_ray_hit_info_t enginePhysicsRayCast(const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance)
@@ -619,7 +619,7 @@ engine_ray_hit_info_t enginePhysicsRayCast(const engine_game_object_t* ignore_li
         return {};
     }
     auto sc = api_cast(G_ACTIVE_SCENE);
-    return sc->raycast_into_physics_world(*ray, { ignore_list, ignore_list_count }, max_distance);
+    return sc->physics().raycast(*ray, { ignore_list, ignore_list_count }, max_distance);
 }
 
 bool enginePhysicsAddForce(engine_game_object_t go, const float force[3], engine_force_type_t type)
@@ -631,7 +631,7 @@ bool enginePhysicsAddForce(engine_game_object_t go, const float force[3], engine
 
     auto sc = api_cast(G_ACTIVE_SCENE);
     auto entity = api_cast(go);
-    const auto result = sc->add_force_to_physics_entity(entity, std::array<float, 3>{force[0], force[1], force[2]}, type);
+    const auto result = sc->physics().add_force(entity, std::array<float, 3>{force[0], force[1], force[2]}, type);
     assert(result && "Failed to add force to physics entity!");
     return result;
 }
@@ -1325,7 +1325,7 @@ engine_result_code_t engineCharacterControllerMove(engine_game_object_t game_obj
         return ENGINE_RESULT_CODE_FAIL;
     }
     engine_character_controller_move_result_t result{};
-    const auto code = scene->move_character_controller(entity, glm::make_vec3(velocity), delta_time, result);
+    const auto code = scene->physics().move_character(entity, glm::make_vec3(velocity), delta_time, result);
     if (out_result)
     {
         *out_result = result;
