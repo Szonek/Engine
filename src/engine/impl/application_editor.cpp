@@ -201,14 +201,15 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
             entt::entity payload_n = *static_cast<entt::entity*>(payload->Data);
             //engine::log::log(engine::log::LogLevel::eInfo, "Dropped entity %d to %d\n", payload_n, node->entity);
 
-
-            if (scene->has_component<engine_parent_component_t>(payload_n))
+            // a game object can't become a child of itself or of one of its own children (a cycle): such a drop is ignored
+            const bool creates_cycle = is_entity_parent_of(payload_n, node->entity, scene);
+            if (!creates_cycle && scene->has_component<engine_parent_component_t>(payload_n))
             {
                 engine_parent_component_t pc{};
                 pc.parent = static_cast<std::uint32_t>(node->entity);
                 scene->update_component<engine_parent_component_t>(payload_n, pc);
             }
-            else
+            else if (!creates_cycle)
             {
                 auto pc = *scene->add_component<engine_parent_component_t>(payload_n);
                 pc.parent = static_cast<std::uint32_t>(node->entity);
@@ -814,6 +815,9 @@ bool display_camera_component(const engine::Scene* scene, engine_camera_componen
 engine::ApplicationEditor::ApplicationEditor(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
     : Application(desc, out_code)
 {
+    // hot reload of edited shaders
+    FileWatcher::get_instance().start();
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();

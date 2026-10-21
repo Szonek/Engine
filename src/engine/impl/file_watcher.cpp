@@ -31,6 +31,16 @@ void engine::FileWatcher::unregister_callback(const std::filesystem::path& path)
 
 void engine::FileWatcher::start()
 {
+    if (background_thread_.joinable())
+    {
+        return;
+    }
+    running_ = true;
+    background_thread_ = std::thread(&FileWatcher::run, this);
+}
+
+void engine::FileWatcher::run()
+{
     while (running_)
     {
         constexpr const auto delay = std::chrono::milliseconds{ 150 };
@@ -47,9 +57,4 @@ void engine::FileWatcher::start()
             }
         }
     }
-}
-
-void engine::FileWatcher::stop()
-{
-    running_ = false;
 }
