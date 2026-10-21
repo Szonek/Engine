@@ -221,6 +221,24 @@ TEST_F(SkinTest, ReconfiguringLayersKeepsAnimationEvents)
     EXPECT_EQ(fired, 1);
 }
 
+TEST_F(SkinTest, CrossFadeOnAnIdleLayerStartsFromTheRestPose)
+{
+    // e.g. a character's first animation: there is nothing to fade from, so the fade starts at the rest pose,
+    // not at an unsampled (zero, so zero scale) pose
+    const engine::Skin skin(desc_, root_);
+    auto pose = skin.make_rest_pose();
+    engine::AnimationController controller(&skin, animation_set(skin, raise_hand_clip(3.0f)));
+    ASSERT_TRUE(controller.configure_layers(layers()));
+    ASSERT_TRUE(controller.cross_fade_to("raise_hand", 0, 1.0f));
+    controller.update(100.0f, pose);  // ms: a tenth of the fade
+
+    const auto hand = skin.get_model_matrix_for_joint(pose, "hand");
+    EXPECT_NEAR(glm::length(glm::vec3(hand[0])), 1.0f, 1e-4f);
+    EXPECT_NEAR(glm::length(glm::vec3(hand[1])), 1.0f, 1e-4f);
+    EXPECT_NEAR(glm::length(glm::vec3(hand[2])), 1.0f, 1e-4f);
+    EXPECT_NEAR(hand_height(skin, pose), 1.2f, 1e-3f);
+}
+
 TEST_F(SkinTest, UnknownMaskJointFailsTheLayerSetup)
 {
     const engine::Skin skin(desc_, root_);

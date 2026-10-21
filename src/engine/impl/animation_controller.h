@@ -67,7 +67,9 @@ private:
 class SamplingJob
 {
 public:
-    SamplingJob(std::size_t num_joints);
+    // holds the skeleton's rest pose until it samples an animation: a cross-fade on a layer where nothing played yet
+    // fades from it
+    SamplingJob(const ozz::animation::Skeleton& skeleton);
     
     void start(const ozz::animation::Animation* anim, const AnimationTimeline* timeline);
     bool update(float dt, bool looping);
@@ -150,16 +152,13 @@ private:
         std::optional<ozz::vector<ozz::math::SimdFloat4>> joint_weights;  // used for mask
         ozz::vector<ozz::math::SoaTransform> output;
 
-        AnimationLayer(std::size_t id, float weight, std::size_t num_joints, LayerBlendMode mode)
+        AnimationLayer(std::size_t id, float weight, const ozz::animation::Skeleton& skeleton, LayerBlendMode mode)
             : id(id)
             , weight(weight)
             , mode(mode)
-            , animation_a(num_joints)
-            , animation_b(num_joints)
-            , output((num_joints + 3) / 4)
-        { }
-        AnimationLayer()
-            : AnimationLayer(0, 0.0f, 0, LayerBlendMode::eOverride)
+            , animation_a(skeleton)
+            , animation_b(skeleton)
+            , output(skeleton.num_soa_joints())
         { }
     };
 private:
