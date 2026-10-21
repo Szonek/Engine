@@ -1,21 +1,11 @@
 #include "named_atlas.h"
+#include "test_logger.h"
 
 #include <gtest/gtest.h>
 
 #include <cstdint>
 #include <string>
 #include <vector>
-
-// The atlas is header-only. Tests provide the logger the engine library would, and record what was logged.
-namespace
-{
-std::vector<std::string> G_LOGGED_MESSAGES;
-}  // namespace
-
-void engine::log::log(engine::log::LogLevel /*level*/, std::string_view msg)
-{
-    G_LOGGED_MESSAGES.emplace_back(msg);
-}
 
 namespace
 {
@@ -24,7 +14,7 @@ using TestAtlas = engine::Atlas<int, 4>;
 class AtlasTest : public ::testing::Test
 {
 protected:
-    void SetUp() override { G_LOGGED_MESSAGES.clear(); }
+    void SetUp() override { test_logger::messages().clear(); }
 };
 
 TEST_F(AtlasTest, AddedObjectCanBeFoundByIndexAndName)
@@ -45,8 +35,8 @@ TEST_F(AtlasTest, DuplicateNameIsRejected)
     const auto first = atlas.add_object("a", 1);
     const auto second = atlas.add_object("a", 2);
     EXPECT_EQ(second, ENGINE_INVALID_OBJECT_HANDLE);
-    ASSERT_EQ(G_LOGGED_MESSAGES.size(), 1u);
-    EXPECT_NE(G_LOGGED_MESSAGES.front().find("\"a\" already exists"), std::string::npos);
+    ASSERT_EQ(test_logger::messages().size(), 1u);
+    EXPECT_NE(test_logger::messages().front().find("\"a\" already exists"), std::string::npos);
     // the original object is untouched
     EXPECT_EQ(atlas.get_object("a"), first);
     EXPECT_EQ(*atlas.get_object(first), 1);
@@ -57,7 +47,7 @@ TEST_F(AtlasTest, EmptyNameIsRejected)
 {
     TestAtlas atlas;
     EXPECT_EQ(atlas.add_object("", 1), ENGINE_INVALID_OBJECT_HANDLE);
-    EXPECT_EQ(G_LOGGED_MESSAGES.size(), 1u);
+    EXPECT_EQ(test_logger::messages().size(), 1u);
     // an empty name never matches, not even free slots
     EXPECT_EQ(atlas.get_object(""), ENGINE_INVALID_OBJECT_HANDLE);
 }
@@ -143,12 +133,12 @@ TEST_F(AtlasTest, InvalidHandleCanNotBeAcquiredOrReleased)
     const auto a = atlas.add_object("a", 1);
     const auto b = atlas.add_object("b", 2);
     atlas.release(a);
-    G_LOGGED_MESSAGES.clear();
+    test_logger::messages().clear();
     EXPECT_FALSE(atlas.acquire(a));
     // released once too many: logged, and the other objects are untouched
     atlas.release(a);
     atlas.release(ENGINE_INVALID_OBJECT_HANDLE);
-    EXPECT_EQ(G_LOGGED_MESSAGES.size(), 3u);
+    EXPECT_EQ(test_logger::messages().size(), 3u);
     EXPECT_EQ(atlas.get_reference_count(b), 1u);
     EXPECT_EQ(*atlas.get_object(b), 2);
     atlas.release(b);

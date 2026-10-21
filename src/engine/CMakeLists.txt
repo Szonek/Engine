@@ -83,6 +83,10 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/skin.cpp
 	${ENGINE_SOURCES_DIR}/prefab.h
 	${ENGINE_SOURCES_DIR}/prefab.cpp
+	${ENGINE_SOURCES_DIR}/serialization/type_registry.h
+	${ENGINE_SOURCES_DIR}/serialization/type_registry.cpp
+	${ENGINE_SOURCES_DIR}/serialization/builtin_types.h
+	${ENGINE_SOURCES_DIR}/serialization/builtin_types.cpp
 	
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.h
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.cpp
