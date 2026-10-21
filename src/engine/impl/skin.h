@@ -21,7 +21,7 @@ struct SkinPose
 
 // A skin asset, shared by every instance of a skinned model: the skeleton and the data that maps it to the mesh.
 // It never changes after creation; the per-instance state is a SkinPose. Skins live in the application's atlas,
-// named by their asset ID ("<model file>#<skin name>").
+// named by their asset ID ("<model path>#<skin name>").
 class Skin
 {
 public:

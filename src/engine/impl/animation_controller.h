@@ -49,7 +49,7 @@ struct CompiledAnimationData
 };
 
 // A model's animation clips compiled for one skin. Shared by every controller of that skin: the "animation set"
-// asset in the application's atlas, named "<model file>#animations".
+// asset in the application's atlas, named "<model path>#animations".
 class AnimationLibrary
 {
 public:

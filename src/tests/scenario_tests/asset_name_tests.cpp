@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-// Asset IDs: resources inside a model are named "<model file>#<name>", images in their own file by that file's path
+// Asset IDs: resources inside a model are named "<model path>#<name>", images in their own file by that file's path
 // relative to the models folder, so the same resource has the same name in every run and a name tells which file it
 // comes from.
 namespace
