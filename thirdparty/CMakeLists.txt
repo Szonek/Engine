@@ -38,6 +38,8 @@ add_subdirectory(ozz-animation)
 set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "")
 set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "")
 add_subdirectory(rapidjson)
+# header-only, without a target
+set(RAPIDJSON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rapidjson/include CACHE INTERNAL "")
 
 # gltf 2.0
 set(TINYGLTF_BUILD_LOADER_EXAMPLE OFF CACHE BOOL "")
