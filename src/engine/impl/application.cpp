@@ -180,8 +180,6 @@ engine::Scene* engine::Application::allocate_scene(const engine_scene_create_des
         delete ret;
         return nullptr;
     }
-    const auto invalid_entity_id = ret->create_new_entity();
-    assert(ENGINE_INVALID_OBJECT_HANDLE != static_cast<std::uint32_t>(invalid_entity_id)); // add invalid game object id
     on_scene_create(ret);
     return ret;
 }
