@@ -69,14 +69,26 @@ void engine::update_world_transforms(entt::registry& registry, const JointMatrix
     }
 }
 
+glm::mat4 engine::compute_world_matrix(const entt::registry& registry, entt::entity entity, const JointMatrixFunction& joint_matrix)
+{
+    const auto* transform = registry.try_get<engine_transform_component_t>(entity);
+    if (!transform)
+    {
+        return glm::mat4{ 1.0f };
+    }
+    return get_parent_space_matrix(registry, entity, joint_matrix) * compute_local_matrix(*transform);
+}
+
 glm::mat4 engine::get_parent_space_matrix(const entt::registry& registry, entt::entity entity, const JointMatrixFunction& joint_matrix)
 {
     glm::mat4 parent_space{ 1.0f };
     if (const auto* parent = registry.try_get<engine_parent_component_t>(entity); parent && parent->parent != ENGINE_INVALID_GAME_OBJECT_ID)
     {
-        if (const auto* parent_world = registry.try_get<world_transform_internal_component_t>(static_cast<entt::entity>(parent->parent)))
+        // like update_world_transforms: a parent without a transform ends the chain
+        const auto parent_entity = static_cast<entt::entity>(parent->parent);
+        if (registry.all_of<engine_transform_component_t>(parent_entity))
         {
-            parent_space = parent_world->local_to_world;
+            parent_space = compute_world_matrix(registry, parent_entity, joint_matrix);
         }
     }
     if (const auto* joint_attachment = registry.try_get<engine_joint_attachment_component_t>(entity))

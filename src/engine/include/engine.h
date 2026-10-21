@@ -91,6 +91,9 @@ typedef struct _engine_application_create_desc_t
     bool enable_editor;
     // create the window hidden (e.g. automated tests); frames still render but are never presented
     bool hidden_window;
+    // the longest frame time engineFrameBegin reports, in milliseconds (like Unity's Maximum Allowed Timestep): after a
+    // long frame (loading, a breakpoint) the game runs slower instead of jumping ahead. 0 means 1000 / 3.
+    float max_delta_time;
 } engine_application_create_desc_t;
 
 typedef struct _engine_scene_create_desc_t
@@ -108,6 +111,7 @@ typedef uint32_t engine_begin_frame_events_mask_t;
 
 typedef struct _engine_application_frame_begine_info_t
 {
+    // milliseconds since the last frame began, at most engine_application_create_desc_t::max_delta_time
     float delta_time;
     engine_begin_frame_events_mask_t events;
 } engine_application_frame_begine_info_t;

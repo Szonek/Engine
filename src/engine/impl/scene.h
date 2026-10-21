@@ -150,13 +150,22 @@ private:
     engine_result_code_t physics_update(float dt);
     // true when the entity's world transform depends on other game objects (a parent or joint attachment)
     bool follows_other_game_objects(entt::entity entity) const;
-    // the type of the entity's body: its rigid body's, or for a collider alone kinematic when it follows other game objects
+    // the type of the entity's body: its rigid body's, or its collider's alone
     PhysicsWorld::BodyType get_body_type(entt::entity entity) const;
-    // (re)creates the entity's body (collider or character controller) at its world transform
-    void create_body(entt::entity entity);
-    // whether colliders, rigid bodies or character controllers were added or changed since their bodies were made
-    bool has_pending_bodies() const;
-    void create_pending_bodies();
+    // a collider without a rigid body: kinematic when it follows other game objects, otherwise static
+    PhysicsWorld::BodyType get_collider_body_type(entt::entity entity) const;
+    // (re)creates the entity's body (character controller, or collider with its rigid body) at its current world
+    // transform (none without a transform); the flags leave out a component which is being removed
+    void create_body(entt::entity entity, bool without_rigid_body = false, bool without_character_controller = false);
+    void on_body_component_changed(entt::registry& registry, entt::entity entity);
+    void on_rigid_body_removed(entt::registry& registry, entt::entity entity);
+    void on_character_controller_removed(entt::registry& registry, entt::entity entity);
+    void on_transforms_changed(entt::registry& registry, entt::entity entity);
+    // moves the bodies to their game objects' current world transforms; without `force` only when a transform, parent or
+    // joint attachment changed since the last sync (before physics queries)
+    void sync_bodies_to_transforms(bool force);
+    // the entity's world matrix from the current transforms (the world transform components are from the last update)
+    glm::mat4 get_world_matrix(entt::entity entity) const;
     // the world_transform_internal_component_t of every transform, see engine::update_world_transforms
     void update_world_transforms();
     // the model matrix of the attachment's joint in its skin instance, nullopt (logged) when it has none
@@ -179,15 +188,11 @@ private:
     // declared after the registry: it disconnects from the registry's signals when destroyed
     EntityIdRegistry entity_ids_;
     entt::observer mesh_update_observer;
-    entt::observer collider_create_observer;
-    entt::observer collider_update_observer;
     entt::observer transform_update_collider_observer;
-    entt::observer rigid_body_create_observer;
-    entt::observer rigid_body_update_observer;
-    entt::observer character_controller_create_observer;
-    entt::observer character_controller_update_observer;
     // reported moves of static bodies skip these: being placed in the frame they were created is no move
     std::vector<entt::entity> bodies_created_this_frame_;
+    // a transform, parent or joint attachment changed since the bodies were last synced to the transforms
+    bool transforms_changed_ = false;
 
     PhysicsWorld physics_world_;
     bool nav_mesh_debug_draw_ = false;

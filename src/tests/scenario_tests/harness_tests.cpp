@@ -5,6 +5,9 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
+#include <thread>
+
 // Tests of the harness itself: the app runs without the editor, frames advance at a fixed time step,
 // and the same scenario gives the same result every time.
 namespace
@@ -157,3 +160,18 @@ TEST_F(FallingBoxTest, SameScenarioGivesSameResult)
 }
 
 }  // namespace
+
+// The engine's frame time (not the harness, which always steps FIXED_DT_MS): a long frame (loading, a breakpoint) is
+// reported as at most the app's max_delta_time, 1/3 s by default, so the game slows down instead of jumping ahead.
+TEST(FrameTime, LongFrameIsCappedAtTheMaxDeltaTime)
+{
+    engineFrameBegin();
+    engineFrameEnd();
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    const auto frame = engineFrameBegin();
+    engineFrameEnd();
+
+    EXPECT_LE(frame.delta_time, 1000.0f / 3.0f + 0.01f);
+    EXPECT_GT(frame.delta_time, 300.0f);
+}

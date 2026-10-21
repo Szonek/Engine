@@ -112,6 +112,8 @@ protected:
 protected:
     RenderContext rdx_;
     GameTimer timer_;
+    // see engine_application_create_desc_t::max_delta_time
+    float max_delta_time_ = 1000.0f / 3.0f;
 
     engine_texture2d_t default_texture_idx_;
     engine_material_t default_material_;

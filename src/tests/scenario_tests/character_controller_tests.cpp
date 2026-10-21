@@ -140,8 +140,8 @@ TEST_F(CharacterControllerTest, FallsAndLandsOnTheFloor)
     EXPECT_NEAR(position_of(character).y, 0.0f, 0.02f);
 }
 
-// regression: the game's first frame is long (loading) and comes before the bodies of the level exist; the character
-// fell through the floor which was created in the same frame
+// regression: bodies used to be created in the scene update, after the scripts, so on the game's first frame (long,
+// after loading) the character fell through the floor which was created in the same frame
 TEST_F(CharacterControllerTest, LandsOnAFloorCreatedInTheSameFrame)
 {
     const auto character = create_character({ 0.0f, 0.1f, 0.0f });
@@ -152,18 +152,6 @@ TEST_F(CharacterControllerTest, LandsOnAFloorCreatedInTheSameFrame)
 
     EXPECT_TRUE(result.grounded);
     EXPECT_NEAR(position_of(character).y, 0.0f, 0.02f);
-}
-
-// like the physics, a frame simulates at most 10 steps of 1/60 s: a long frame doesn't throw the character far
-TEST_F(CharacterControllerTest, LongFrameMovesAsFarAsThePhysicsSimulates)
-{
-    const auto character = create_character({ 0.0f, 5.0f, 0.0f });
-
-    const glm::vec3 velocity(2.0f, 0.0f, 0.0f);
-    ASSERT_EQ(engineCharacterControllerMove(character, &velocity.x, 5000.0f, nullptr), ENGINE_RESULT_CODE_OK);
-
-    EXPECT_NEAR(position_of(character).x, 2.0f / 6.0f, 1e-3f);
-    EXPECT_GT(position_of(character).y, 4.5f);
 }
 
 TEST_F(CharacterControllerTest, StandsStillOnTheFloor)

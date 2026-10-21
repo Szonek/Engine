@@ -10,6 +10,8 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <SDL3/SDL.h>
+
+#include <algorithm>
 #include <SDL3/SDL_events.h>
 #include <fmt/format.h>
 
@@ -133,6 +135,10 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
     , renderer_(rdx_)
 {
+    if (desc.max_delta_time > 0.0f)
+    {
+        max_delta_time_ = desc.max_delta_time;
+    }
     renderer_.add_feature(std::make_shared<CallbackRenderFeature>("UI", [this](FrameContext& frame)
         {
             add_overlay_pass(frame, "UI", frame.scene_output, [this](rg::PassContext&)
@@ -205,7 +211,7 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
 	timer_.tick();
 
     engine_application_frame_begine_info_t ret{};
-    ret.delta_time = static_cast<float>(timer_.delta_time().count()) / 1000.0f;
+    ret.delta_time = std::min(static_cast<float>(timer_.delta_time().count()) / 1000.0f, max_delta_time_);
     ret.events = ENGINE_EVENT_NONE;
 
 	for(auto& f : finger_info_buffer)

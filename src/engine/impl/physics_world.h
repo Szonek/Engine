@@ -90,8 +90,6 @@ public:
     }
 
     void update(float dt);
-    // the most time one update simulates (Bullet's sub-step cap), in seconds; a longer frame runs slower
-    float get_max_step_time() const { return MAX_SUB_STEPS * FIXED_TIME_STEP; }
     const std::vector<CollisionDesc>& get_collisions() const;
 
     // moves a body by hand to a world transform (kinematic bodies, dynamic ones moved by their game object), rescaling its

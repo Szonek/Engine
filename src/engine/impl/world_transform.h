@@ -27,8 +27,12 @@ glm::mat4 compute_local_matrix(const engine_transform_component_t& transform);
 // Writes only world_transform_internal_component_t, so no update listeners or observers fire.
 void update_world_transforms(entt::registry& registry, const JointMatrixFunction& joint_matrix);
 
-// The space the entity's transform is local to: its parent's world matrix times its joint attachment's joint matrix
-// (each identity when there is none), so local_to_world = parent space * local matrix.
+// The entity's world matrix computed from the current transforms of it and its parents, like update_world_transforms
+// but without its result: right after a transform changed (physics, before the next update_world_transforms).
+glm::mat4 compute_world_matrix(const entt::registry& registry, entt::entity entity, const JointMatrixFunction& joint_matrix);
+
+// The space the entity's transform is local to, from the current transforms: its parent's world matrix times its joint
+// attachment's joint matrix (each identity when there is none), so local_to_world = parent space * local matrix.
 glm::mat4 get_parent_space_matrix(const entt::registry& registry, entt::entity entity, const JointMatrixFunction& joint_matrix);
 
 // The local transform (position, rotation, scale) which puts a game object whose parent space is `parent_space` at `world`.

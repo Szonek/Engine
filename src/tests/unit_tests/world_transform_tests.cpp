@@ -128,6 +128,26 @@ TEST_F(WorldTransformTest, JointAttachmentIsBetweenTheParentAndTheLocalTransform
     expect_matrix_near(engine::get_parent_space_matrix(registry_, parent, joint_matrix), glm::mat4(1.0f));
 }
 
+// physics computes world matrices from the transforms between update_world_transforms passes
+TEST_F(WorldTransformTest, ComputeWorldMatrixMatchesUpdateWorldTransformsWithoutIt)
+{
+    const auto root_rotation = glm::angleAxis(glm::radians(30.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    const auto root = create(make_transform({ 1.0f, 2.0f, 3.0f }, root_rotation, glm::vec3(2.0f)));
+    const auto child = create(make_transform({ 1.0f, 0.0f, 0.0f }), root);
+    const auto attached = create(make_transform({ 0.0f, 0.5f, 0.0f }, glm::angleAxis(glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f))), child);
+    registry_.emplace<engine_joint_attachment_component_t>(attached, engine_joint_attachment_component_t{ static_cast<engine_game_object_t>(root), nullptr });
+    const auto joint = trs_matrix({ 0.0f, 1.0f, 0.2f }, glm::angleAxis(glm::radians(20.0f), glm::vec3(0.0f, 0.0f, 1.0f)));
+    const auto joint_matrix = [&joint](const engine_joint_attachment_component_t&) -> std::optional<glm::mat4> { return joint; };
+
+    // the world transform components are still identity: nothing was computed yet
+    const auto computed = engine::compute_world_matrix(registry_, attached, joint_matrix);
+    engine::update_world_transforms(registry_, joint_matrix);
+
+    expect_matrix_near(computed, world(attached));
+    expect_matrix_near(engine::compute_world_matrix(registry_, child, joint_matrix), world(child));
+    expect_matrix_near(engine::compute_world_matrix(registry_, root, joint_matrix), world(root));
+}
+
 // what the editor gizmo does: it moves the world matrix and writes the local transform back
 TEST_F(WorldTransformTest, LocalTransformFromWorldPutsTheChildAtThatWorldMatrix)
 {

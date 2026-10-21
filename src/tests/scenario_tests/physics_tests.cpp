@@ -318,6 +318,46 @@ TEST_F(PhysicsTest, KinematicBodyIsNotMovedByGravity)
     EXPECT_NEAR(world_position(go).y, 5.0f, 1e-4f);
 }
 
+// bodies exist as soon as their components do: a script's ray cast sees what was created earlier in the same frame
+TEST_F(PhysicsTest, RayCastHitsAColliderCreatedInTheSameFrame)
+{
+    load_scene<PhysicsScene>();
+    step();
+    const auto go = create_object(2.0f, 0.0f, 0.0f);
+    add_box_collider(go);
+
+    EXPECT_EQ(collider_below(2.0f, 0.0f), go);
+}
+
+TEST_F(PhysicsTest, RayCastHitsAColliderWhereItWasMovedInTheSameFrame)
+{
+    load_scene<PhysicsScene>();
+    const auto go = create_object(0.0f, 0.0f, 0.0f);
+    add_box_collider(go);
+    set_body_type(go, ENGINE_RIGID_BODY_TYPE_KINEMATIC);
+    step();
+
+    move_to(go, 3.0f, 0.0f);
+
+    EXPECT_EQ(collider_below(3.0f, 0.0f), go);
+    EXPECT_EQ(collider_below(0.0f, 0.0f), ENGINE_INVALID_GAME_OBJECT_ID);
+}
+
+TEST_F(PhysicsTest, RayCastHitsAChildWhereItsParentWasMovedInTheSameFrame)
+{
+    load_scene<PhysicsScene>();
+    const auto parent = create_object(0.0f, 0.0f, 0.0f);
+    const auto child = create_object(1.0f, 0.0f, 0.0f);
+    set_parent(child, parent);
+    add_box_collider(child);
+    step();
+
+    move_to(parent, 0.0f, 4.0f);
+
+    EXPECT_EQ(collider_below(1.0f, 4.0f), child);
+    EXPECT_EQ(collider_below(1.0f, 0.0f), ENGINE_INVALID_GAME_OBJECT_ID);
+}
+
 TEST_F(PhysicsTest, UpdatedMassOfARigidBodyTakesEffect)
 {
     load_scene<PhysicsScene>();
