@@ -117,6 +117,22 @@ struct TypeInfo
     }
 };
 
+// A buffer for one value of a registered type, aligned for any of them (C structs, aligned to at most 16).
+class ValueBuffer
+{
+public:
+    explicit ValueBuffer(std::size_t size) : data_((size + sizeof(Chunk) - 1) / sizeof(Chunk)) {}
+    std::byte* get() { return data_.empty() ? nullptr : data_.front().bytes; }
+    const std::byte* get() const { return data_.empty() ? nullptr : data_.front().bytes; }
+
+private:
+    struct alignas(16) Chunk
+    {
+        std::byte bytes[16];
+    };
+    std::vector<Chunk> data_;
+};
+
 // The types the engine can save, by name. Components keep the order they were registered in: scenes are saved and
 // loaded in that order, so a component is registered after the ones its listeners read (transform before parent before
 // colliders: a body is created at the world matrix of the transforms when its collider is added).

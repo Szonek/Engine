@@ -91,6 +91,35 @@ void CommandAddEntity::undo()
 }
 
 
+CommandUpdateTypedComponent::CommandUpdateTypedComponent(Scene& sc, entt::entity e, const TypeInfo& type, const void* new_value)
+    : sc_(sc)
+    , e_(e)
+    , type_(type)
+    , prev_(type.size)
+    , new_(type.size)
+{
+    sc_.get_component(type_, e_, prev_.get());
+    std::memcpy(new_.get(), new_value, type_.size);
+}
+
+void CommandUpdateTypedComponent::execute()
+{
+    apply(new_);
+}
+
+void CommandUpdateTypedComponent::undo()
+{
+    apply(prev_);
+}
+
+void CommandUpdateTypedComponent::apply(const ValueBuffer& value)
+{
+    if (sc_.is_valid_entity(e_) && sc_.has_component(type_, e_))
+    {
+        sc_.update_component(type_, e_, value.get());
+    }
+}
+
 CommandDestroyEntity::CommandDestroyEntity(Scene& sc, entt::entity e)
     : scene_(sc)
     , e_(e)

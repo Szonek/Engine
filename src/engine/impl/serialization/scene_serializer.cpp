@@ -24,17 +24,6 @@ namespace
 using Writer = rapidjson::PrettyWriter<rapidjson::StringBuffer>;
 using Json = rapidjson::Value;
 
-// A buffer for one value of a registered type, aligned for any of them (they are C structs).
-class ValueBuffer
-{
-public:
-    explicit ValueBuffer(std::size_t size) : data_((size + sizeof(std::max_align_t) - 1) / sizeof(std::max_align_t)) {}
-    std::byte* get() { return reinterpret_cast<std::byte*>(data_.data()); }
-
-private:
-    std::vector<std::max_align_t> data_;
-};
-
 template<typename T>
 T read_as(const std::byte* p)
 {
@@ -498,7 +487,7 @@ std::string engine::save_scene(const TypeRegistry& types, const entt::registry& 
             {
                 continue;
             }
-            ValueBuffer value(type->size);
+            engine::ValueBuffer value(type->size);
             type->storage->get(registry, entity, value.get());
             w.Key(type->name.c_str());
             out.write_struct(*type, value.get(), fmt::format("game object {}: {}", id, type->name));
@@ -639,7 +628,7 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
             {
                 type->storage->add(registry, entity);
             }
-            ValueBuffer value(type->size);
+            engine::ValueBuffer value(type->size);
             type->storage->get(registry, entity, value.get());
             reader.read_struct(*type, it->value, value.get(), type->name);
             type->storage->update(registry, entity, value.get());

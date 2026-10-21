@@ -416,6 +416,248 @@ bool display_texture_combo(const engine::Scene* scene, const char* label, std::u
     return display_asset_combo(label, texture, app->get_texture_name(texture), app->get_texture_names());
 }
 
+// Draws a value of a registered type from its description, a widget per field kind; for the components without a
+// hand-written panel (game-defined components). Edits the value in place and returns true when a field changed.
+class TypeInspector
+{
+public:
+    explicit TypeInspector(const engine::Scene* scene) : scene_(scene) {}
+
+    bool draw_struct(const engine::TypeInfo& type, std::byte* value)
+    {
+        // a union's data belongs to the case its tag selected: another case starts zeroed (like a loaded file)
+        std::vector<std::int32_t> tags_before;
+        for (const auto& field : type.fields)
+        {
+            if (field.kind == engine::FieldKind::eUnion)
+            {
+                tags_before.push_back(read_tag(type, field, value));
+            }
+        }
+
+        bool changed = false;
+        for (const auto& field : type.fields)
+        {
+            ImGui::PushID(field.name.c_str());
+            changed |= field.kind == engine::FieldKind::eUnion ? draw_union(type, field, value) : draw_field(field, value + field.offset);
+            ImGui::PopID();
+        }
+
+        std::size_t union_index = 0;
+        for (const auto& field : type.fields)
+        {
+            if (field.kind == engine::FieldKind::eUnion && read_tag(type, field, value) != tags_before[union_index++])
+            {
+                std::memset(value + field.offset, 0, field.size);
+            }
+        }
+        return changed;
+    }
+
+private:
+    static std::int32_t read_tag(const engine::TypeInfo& type, const engine::FieldInfo& union_field, const std::byte* value)
+    {
+        std::int32_t tag = 0;
+        std::memcpy(&tag, value + type.find_field(union_field.union_tag)->offset, sizeof(tag));
+        return tag;
+    }
+
+    bool draw_union(const engine::TypeInfo& type, const engine::FieldInfo& field, std::byte* value)
+    {
+        const auto tag = read_tag(type, field, value);
+        const auto it = std::ranges::find(field.union_cases, tag, &engine::UnionCase::tag);
+        if (it == field.union_cases.end())
+        {
+            ImGui::TextDisabled("%s: no data for this %s", field.name.c_str(), field.union_tag.c_str());
+            return false;
+        }
+        bool changed = false;
+        if (ImGui::TreeNodeEx(fmt::format("{} ({})", field.name, it->name).c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            changed = draw_struct(*it->type, value + field.offset);
+            ImGui::TreePop();
+        }
+        return changed;
+    }
+
+    bool draw_field(const engine::FieldInfo& field, std::byte* p)
+    {
+        using engine::FieldKind;
+        if (!field.is_array)
+        {
+            return draw_element(field, p, field.name.c_str());
+        }
+        // short arrays of numbers (vectors, colours) on one line
+        const auto count = static_cast<int>(field.count);
+        if (count <= 4 && field.kind == FieldKind::eFloat)
+        {
+            return ImGui::DragScalarN(field.name.c_str(), ImGuiDataType_Float, p, count, 0.1f);
+        }
+        if (count <= 4 && (field.kind == FieldKind::eInt32 || field.kind == FieldKind::eUint32))
+        {
+            return ImGui::DragScalarN(field.name.c_str(), field.kind == FieldKind::eInt32 ? ImGuiDataType_S32 : ImGuiDataType_U32, p, count, 1.0f);
+        }
+        bool changed = false;
+        if (ImGui::TreeNode(fmt::format("{} [{}]", field.name, field.count).c_str()))
+        {
+            for (std::size_t i = 0; i < field.count; i++)
+            {
+                ImGui::PushID(static_cast<int>(i));
+                changed |= draw_element(field, p + i * field.size, fmt::format("[{}]", i).c_str());
+                ImGui::PopID();
+            }
+            ImGui::TreePop();
+        }
+        return changed;
+    }
+
+    bool draw_element(const engine::FieldInfo& field, std::byte* p, const char* label)
+    {
+        using engine::FieldKind;
+        switch (field.kind)
+        {
+        case FieldKind::eBool: return ImGui::Checkbox(label, reinterpret_cast<bool*>(p));
+        case FieldKind::eInt32: return ImGui::DragScalar(label, ImGuiDataType_S32, p, 1.0f);
+        case FieldKind::eUint32: return ImGui::DragScalar(label, ImGuiDataType_U32, p, 1.0f);
+        case FieldKind::eFloat: return ImGui::DragScalar(label, ImGuiDataType_Float, p, 0.1f);
+        case FieldKind::eString: return ImGui::InputText(label, reinterpret_cast<char*>(p), field.size);
+        case FieldKind::eEnum: return draw_enum(field, p, label);
+        case FieldKind::eStruct:
+        {
+            bool changed = false;
+            if (ImGui::TreeNodeEx(label, ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                changed = draw_struct(*field.struct_type, p);
+                ImGui::TreePop();
+            }
+            return changed;
+        }
+        case FieldKind::eUnion: return false;  // drawn by draw_struct, which knows the tag
+        case FieldKind::eAsset:
+        {
+            auto handle = read<std::uint32_t>(p);
+            const auto* app = scene_->get_application();
+            const bool changed = field.asset_kind == engine::AssetKind::eGeometry
+                ? display_asset_combo(label, handle, app->get_geometry_name(handle), app->get_geometry_names())
+                : display_asset_combo(label, handle, app->get_texture_name(handle), app->get_texture_names());
+            std::memcpy(p, &handle, sizeof(handle));
+            return changed;
+        }
+        case FieldKind::eGameObject: return draw_game_object(p, label);
+        }
+        return false;
+    }
+
+    template<typename T>
+    static T read(const std::byte* p)
+    {
+        T value;
+        std::memcpy(&value, p, sizeof(T));
+        return value;
+    }
+
+    static bool draw_enum(const engine::FieldInfo& field, std::byte* p, const char* label)
+    {
+        const auto value = read<std::int32_t>(p);
+        const auto current = std::ranges::find(field.enum_values, value, &engine::EnumValue::value);
+        const auto preview = current == field.enum_values.end() ? fmt::format("<{}>", value) : current->name;
+        bool changed = false;
+        if (ImGui::BeginCombo(label, preview.c_str()))
+        {
+            for (const auto& v : field.enum_values)
+            {
+                if (ImGui::Selectable(v.name.c_str(), v.value == value) && v.value != value)
+                {
+                    std::memcpy(p, &v.value, sizeof(v.value));
+                    changed = true;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        return changed;
+    }
+
+    // "name #persistent ID"; a game object without a persistent ID (transient) isn't saved, so references to it aren't
+    std::string game_object_label(entt::entity e) const
+    {
+        const auto name = scene_->has_component<engine_name_component_t>(e) ? std::string(scene_->get_component<engine_name_component_t>(e)->name) : std::string("game object");
+        const auto id = scene_->get_persistent_id(e);
+        return id == engine::EntityIdRegistry::INVALID_ID ? fmt::format("{} (transient)", name) : fmt::format("{} #{}", name, id);
+    }
+
+    // the referenced game object by name and persistent ID, picked from the named game objects which are saved
+    bool draw_game_object(std::byte* p, const char* label)
+    {
+        const auto go = read<engine_game_object_t>(p);
+        const auto entity = static_cast<entt::entity>(go);
+        const auto preview = go == ENGINE_INVALID_GAME_OBJECT_ID ? std::string("None")
+            : !scene_->is_valid_entity(entity) ? fmt::format("<destroyed {}>", go) : game_object_label(entity);
+        bool changed = false;
+        if (ImGui::BeginCombo(label, preview.c_str()))
+        {
+            const auto select = [&](engine_game_object_t candidate, const std::string& text)
+            {
+                if (ImGui::Selectable(text.c_str(), candidate == go) && candidate != go)
+                {
+                    std::memcpy(p, &candidate, sizeof(candidate));
+                    changed = true;
+                }
+            };
+            select(ENGINE_INVALID_GAME_OBJECT_ID, "None");
+            for (const auto e : scene_->get_all_entities())
+            {
+                if (scene_->has_component<engine_name_component_t>(e) && scene_->get_persistent_id(e) != engine::EntityIdRegistry::INVALID_ID)
+                {
+                    ImGui::PushID(static_cast<int>(e));
+                    select(static_cast<engine_game_object_t>(e), game_object_label(e));
+                    ImGui::PopID();
+                }
+            }
+            ImGui::EndCombo();
+        }
+        return changed;
+    }
+
+    const engine::Scene* scene_;
+};
+
+// display_component for a component known only by its type description, drawn by the TypeInspector
+void display_typed_component(const engine::TypeInfo& type, engine::Scene* scene, engine::CommandManager& commands, entt::entity entity)
+{
+    ENGINE_PROFILE_SECTION_N("editor-display_typed_component");
+    ImGui::PushID(type.name.c_str());
+    const bool has_component = scene->has_component(type, entity);
+    if (!has_component)
+    {
+        ImGui::BeginDisabled();
+    }
+    if (ImGui::CollapsingHeader(type.name.c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_AllowItemOverlap))
+    {
+        if (has_component)
+        {
+            engine::ValueBuffer value(type.size);
+            scene->get_component(type, entity, value.get());
+            if (TypeInspector(scene).draw_struct(type, value.get()))
+            {
+                commands.execute_command(std::make_unique<engine::CommandUpdateTypedComponent>(*scene, entity, type, value.get()));
+            }
+        }
+    }
+    else
+    {
+        ImGui::SameLine();
+    }
+    if (!has_component)
+    {
+        ImGui::EndDisabled();
+    }
+    if (ImGui::Button(has_component ? "Remove" : "Add"))
+    {
+        has_component ? scene->remove_component(type, entity) : scene->add_component(type, entity);
+    }
+    ImGui::PopID();
+}
+
 bool display_transform_component(const engine::Scene* /*scene*/, engine_transform_component_t& c)
 {
     const float v_speed = 0.1f;
@@ -1101,6 +1343,14 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
             scene->build_nav_mesh();
         }
         display_component<engine_nav_modifier_component_t>("Nav Modifier", scene, commands_, selected, display_nav_modifier_component);
+        // the game's components have no hand-written panel: drawn from their type descriptions
+        for (const auto* type : get_type_registry().get_components())
+        {
+            if (type->game_defined)
+            {
+                display_typed_component(*type, scene, commands_, selected);
+            }
+        }
     }
     else
     {
