@@ -115,7 +115,7 @@ private:
     };
 
     // Environment traversal (climbing walls, vaulting through windows, mantling onto roofs).
-    // While traversing the player is kinematic: rigid body is removed so gravity does not fight the scripted motion.
+    // While traversing the player is kinematic, so gravity does not fight the scripted motion.
     enum class TraversalState
     {
         eNone,

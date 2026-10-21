@@ -98,9 +98,9 @@ In more detail:
 ### Physics while traversing
 
 The player is normally a dynamic rigid body moved by setting its transform. While traversing that doesn't work - gravity
-keeps accumulating velocity and pulls the player off the wall. `set_kinematic(true)` therefore **removes the rigid body
-component**: the collider becomes a static body that only follows the transform. `stop_traversal` adds the rigid body
-back, which creates a fresh body with zero velocity. If the player dies on a wall, traversal is stopped and they fall.
+keeps accumulating velocity and pulls the player off the wall. `set_kinematic(true)` therefore switches the rigid body to
+**kinematic**: it only follows the transform, and enemy hitboxes still detect it. `stop_traversal` switches it back to
+dynamic, which creates a fresh body with zero velocity. If the player dies on a wall, traversal is stopped and they fall.
 
 ### Animations
 

@@ -46,12 +46,17 @@ public:
      */
     void collect_debug_lines(std::vector<DebugLineGpuData>& out_lines);
 
+    enum class BodyType
+    {
+        eStatic,
+        eKinematic,
+        eDynamic,
+    };
     // A body at the world transform of its game object: translation and rotation place the body, the scale scales its
-    // collision shape. Without mass it is static, or kinematic when `kinematic` (it is going to be moved).
-    physcic_internal_component_t create_rigid_body(const engine_collider_component_t& collider,
-        const engine_rigid_body_component_t& rigid_body, const glm::mat4& local_to_world, bool kinematic, std::int32_t body_index);
-    // turns a static body (no mass) into a kinematic one, before it is moved; no-op for other bodies
-    void make_kinematic(btRigidBody* rigid_body);
+    // collision shape. The mass is only used by dynamic bodies.
+    physcic_internal_component_t create_rigid_body(const engine_collider_component_t& collider, BodyType type, float mass,
+        const glm::mat4& local_to_world, std::int32_t body_index);
+    static BodyType get_body_type(const btRigidBody* rigid_body);
 
     void remove_rigid_body(entt::basic_registry<entt::entity>& reg, entt::entity entt)
     {
@@ -80,7 +85,6 @@ public:
     engine_ray_hit_info_t raycast(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance);
 
 private:
-    void set_kinematic_flags(btRigidBody* rigid_body);
     // adds the body to the world with the broadphase filter of its type
     void add_to_world(btRigidBody* rigid_body);
 

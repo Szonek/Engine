@@ -1103,18 +1103,12 @@ bool project_c::Player::start_dodge(const glm::vec2& move_input, const glm::quat
 
 void project_c::Player::set_kinematic(bool kinematic)
 {
-    // Rigid body removed -> collider becomes static and is moved only by the transform (no gravity).
-    // Rigid body added back -> fresh dynamic body, so no velocity accumulated while traversing is applied.
-    if (kinematic && engineGameObjectHasRigidBodyComponent(go_))
-    {
-        engineGameObjectRemoveRigidBodyComponent(go_);
-    }
-    else if (!kinematic && !engineGameObjectHasRigidBodyComponent(go_))
-    {
-        auto rbc = engineGameObjectAddRigidBodyComponent(go_);
-        rbc.mass = PLAYER_MASS;
-        engineGameObjectUpdateRigidBodyComponent(go_, &rbc);
-    }
+    // Kinematic -> moved only by the transform (no gravity). Dynamic again -> the body is created again, so no
+    // velocity accumulated before traversing is applied.
+    auto rbc = engineGameObjectHasRigidBodyComponent(go_) ? engineGameObjectGetRigidBodyComponent(go_) : engineGameObjectAddRigidBodyComponent(go_);
+    rbc.type = kinematic ? ENGINE_RIGID_BODY_TYPE_KINEMATIC : ENGINE_RIGID_BODY_TYPE_DYNAMIC;
+    rbc.mass = PLAYER_MASS;
+    engineGameObjectUpdateRigidBodyComponent(go_, &rbc);
 }
 
 void project_c::Player::set_position_and_yaw(const glm::vec3& position, float yaw)

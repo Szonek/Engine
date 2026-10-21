@@ -6,6 +6,8 @@
 
 #include <glm/glm.hpp>
 
+#include <optional>
+
 // Engine physics seen through the game: colliders follow their game objects (including children) on the frame
 // the objects move, not a frame later. Transforms are local to the parent, bodies are in world space.
 namespace
@@ -85,6 +87,13 @@ void set_mass(engine_game_object_t go, float mass)
     engineGameObjectUpdateRigidBodyComponent(go, &rb);
 }
 
+void set_body_type(engine_game_object_t go, engine_rigid_body_type_t type)
+{
+    auto rb = engineGameObjectHasRigidBodyComponent(go) ? engineGameObjectGetRigidBodyComponent(go) : engineGameObjectAddRigidBodyComponent(go);
+    rb.type = type;
+    engineGameObjectUpdateRigidBodyComponent(go, &rb);
+}
+
 // whether the physics reported a collision between a and b in the last frame
 bool collided(engine_game_object_t a, engine_game_object_t b)
 {
@@ -110,7 +119,39 @@ engine_game_object_t collider_below(float x, float z)
     return enginePhysicsRayCast(nullptr, 0, &ray, 20.0f).go;
 }
 
-using PhysicsTest = scenario::ScenarioTest;
+class PhysicsTest : public scenario::ScenarioTest
+{
+protected:
+    // a trigger (hitbox) 1 m to the right of a parent which is moved toward `target`: whether they collided on the way
+    bool hitbox_detects(engine_game_object_t target, std::optional<engine_rigid_body_type_t> hitbox_type = std::nullopt)
+    {
+        const auto parent = create_object(0.0f, 0.0f, 0.0f);
+        const auto hitbox = create_object(1.0f, 0.0f, 0.0f);
+        set_parent(hitbox, parent);
+        add_box_collider(hitbox);
+        auto collider = engineGameObjectGetColliderComponent(hitbox);
+        collider.is_trigger = true;
+        engineGameObjectUpdateColliderComponent(hitbox, &collider);
+        if (hitbox_type)
+        {
+            set_body_type(hitbox, *hitbox_type);
+        }
+        step();
+
+        for (int i = 1; i <= 30; i++)
+        {
+            move_to(parent, i * 0.1f, 0.0f);
+            // the target moves too (by its transform), like the climbing player
+            move_to(target, 4.0f, i * 0.001f);
+            step();
+            if (collided(hitbox, target))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+};
 
 TEST_F(PhysicsTest, ChildColliderIsAtItsWorldPositionOnItsFirstFrame)
 {
@@ -230,32 +271,51 @@ TEST_F(PhysicsTest, ChildColliderFollowsAScaleChangeOfItsParent)
     EXPECT_EQ(collider_below(1.2f, 0.0f), ENGINE_INVALID_GAME_OBJECT_ID);
 }
 
-// hitboxes (triggers following a parent) detect colliders moved by their transform, e.g. the climbing player whose
-// rigid body is removed: both are kinematic
-TEST_F(PhysicsTest, TriggerFollowingItsParentDetectsAColliderMovedByItsTransform)
+// hitboxes (colliders following a parent are kinematic) detect kinematic bodies, e.g. the climbing player
+TEST_F(PhysicsTest, HitboxDetectsAKinematicBody)
 {
     load_scene<PhysicsScene>();
-    const auto parent = create_object(0.0f, 0.0f, 0.0f);
-    const auto trigger = create_object(1.0f, 0.0f, 0.0f);
-    set_parent(trigger, parent);
-    add_box_collider(trigger);
-    auto trigger_collider = engineGameObjectGetColliderComponent(trigger);
-    trigger_collider.is_trigger = true;
-    engineGameObjectUpdateColliderComponent(trigger, &trigger_collider);
     const auto target = create_object(4.0f, 0.0f, 0.0f);
     add_box_collider(target);
-    step();
+    set_body_type(target, ENGINE_RIGID_BODY_TYPE_KINEMATIC);
 
-    bool detected = false;
-    for (int i = 1; i <= 30 && !detected; i++)
-    {
-        move_to(parent, i * 0.1f, 0.0f);
-        move_to(target, 4.0f, i * 0.001f);
-        step();
-        detected = collided(trigger, target);
-    }
+    EXPECT_TRUE(hitbox_detects(target));
+}
 
-    EXPECT_TRUE(detected);
+// the engine doesn't infer a type from movement: a collider alone moved by its transform stays static
+TEST_F(PhysicsTest, ColliderMovedByItsTransformStaysStatic)
+{
+    load_scene<PhysicsScene>();
+    const auto target = create_object(4.0f, 0.0f, 0.0f);
+    add_box_collider(target);
+
+    EXPECT_FALSE(hitbox_detects(target));
+}
+
+TEST_F(PhysicsTest, ExplicitTypeWinsOverTheParent)
+{
+    load_scene<PhysicsScene>();
+    const auto target = create_object(4.0f, 0.0f, 0.0f);
+    add_box_collider(target);
+    set_body_type(target, ENGINE_RIGID_BODY_TYPE_KINEMATIC);
+
+    // a static hitbox doesn't pair with a kinematic body
+    EXPECT_FALSE(hitbox_detects(target, ENGINE_RIGID_BODY_TYPE_STATIC));
+}
+
+TEST_F(PhysicsTest, KinematicBodyIsNotMovedByGravity)
+{
+    load_scene<PhysicsScene>();
+    const auto go = create_object(0.0f, 5.0f, 0.0f);
+    add_box_collider(go);
+    auto rb = engineGameObjectAddRigidBodyComponent(go);
+    rb.type = ENGINE_RIGID_BODY_TYPE_KINEMATIC;
+    rb.mass = 1.0f;
+    engineGameObjectUpdateRigidBodyComponent(go, &rb);
+
+    step(30);
+
+    EXPECT_NEAR(world_position(go).y, 5.0f, 1e-4f);
 }
 
 TEST_F(PhysicsTest, UpdatedMassOfARigidBodyTakesEffect)

@@ -737,8 +737,18 @@ bool display_collider_component(const engine::Scene* scene, engine_collider_comp
 
 bool display_rigidbody_component(const engine::Scene* scene, engine_rigid_body_component_t& c)
 {
-    bool requires_update = ImGui::SliderFloat("Mass", &c.mass, 0.0f, 100.0f);
-
+    const char* types[] = { "Dynamic", "Kinematic", "Static" };
+    std::int32_t type = c.type;
+    bool requires_update = false;
+    if (ImGui::Combo("Type##rigid_body", &type, types, static_cast<int>(std::size(types))))
+    {
+        c.type = static_cast<engine_rigid_body_type_t>(type);
+        requires_update = true;
+    }
+    if (c.type == ENGINE_RIGID_BODY_TYPE_DYNAMIC)
+    {
+        requires_update |= ImGui::SliderFloat("Mass", &c.mass, 0.0f, 100.0f);
+    }
     return requires_update;
 }
 

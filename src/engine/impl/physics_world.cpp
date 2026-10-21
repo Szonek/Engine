@@ -108,9 +108,13 @@ void engine::PhysicsWorld::collect_debug_lines(std::vector<DebugLineGpuData>& ou
     }
 }
 
-engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, const engine_rigid_body_component_t& rigid_body, const glm::mat4& local_to_world, bool kinematic, std::int32_t body_index)
+engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, BodyType type, float mass, const glm::mat4& local_to_world, std::int32_t body_index)
 {
     physcic_internal_component_t ret{};
+    if (type != BodyType::eDynamic)
+    {
+        mass = 0.0f;
+    }
     // a world transform with a zero scale (e.g. a joint scaled to zero by an animation) can't place a body: it starts at
     // the origin and gets its transform and scale when it is moved to a valid one
     const auto pose = to_body_pose(local_to_world).value_or(BodyPose{ btTransform::getIdentity(), btVector3(1.0f, 1.0f, 1.0f) });
@@ -163,16 +167,16 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
 
     ret.collision_shape->setLocalScaling(pose.scale);
     btVector3 local_inertia(0, 0, 0);
-    if (rigid_body.mass)
+    if (mass > 0.0f)
     {
-        ret.collision_shape->calculateLocalInertia(rigid_body.mass, local_inertia);
+        ret.collision_shape->calculateLocalInertia(mass, local_inertia);
     }
 
 
     //using motionstate is optional, it provides interpolation capabilities, and only synchronizes 'active' objects
     //ToDo: Validate if motion state should be used instead?
     btDefaultMotionState* my_motion_state = nullptr;// new btDefaultMotionState(transform_init);
-    btRigidBody::btRigidBodyConstructionInfo rbInfo(rigid_body.mass, my_motion_state, ret.collision_shape, local_inertia);
+    btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, my_motion_state, ret.collision_shape, local_inertia);
     ret.rigid_body = new btRigidBody(rbInfo);
     ret.rigid_body->setFriction(collider.friction_static);
     ret.rigid_body->setRestitution(collider.bounciness);
@@ -183,31 +187,23 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
         ret.rigid_body->setCollisionFlags(ret.rigid_body->getCollisionFlags() | btCollisionObject::CF_NO_CONTACT_RESPONSE);
     }
     ret.rigid_body->setUserIndex(body_index);
-    if (kinematic && ret.rigid_body->isStaticObject())
+    if (type == BodyType::eKinematic)
     {
-        set_kinematic_flags(ret.rigid_body);
+        ret.rigid_body->setCollisionFlags(ret.rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+        // Bullet computes a kinematic body's velocity from its moves, only while it is awake
+        ret.rigid_body->setActivationState(DISABLE_DEACTIVATION);
     }
     add_to_world(ret.rigid_body);
     return ret;
 }
 
-void engine::PhysicsWorld::make_kinematic(btRigidBody* rigid_body)
+engine::PhysicsWorld::BodyType engine::PhysicsWorld::get_body_type(const btRigidBody* rigid_body)
 {
-    if (!rigid_body->isStaticObject() || rigid_body->isKinematicObject())
+    if (rigid_body->isKinematicObject())
     {
-        return;
+        return BodyType::eKinematic;
     }
-    // the broadphase filter is chosen when a body is added
-    dynamics_world_->removeRigidBody(rigid_body);
-    set_kinematic_flags(rigid_body);
-    add_to_world(rigid_body);
-}
-
-void engine::PhysicsWorld::set_kinematic_flags(btRigidBody* rigid_body)
-{
-    rigid_body->setCollisionFlags(rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-    // Bullet computes a kinematic body's velocity from its moves, only while it is awake
-    rigid_body->setActivationState(DISABLE_DEACTIVATION);
+    return rigid_body->isStaticObject() ? BodyType::eStatic : BodyType::eDynamic;
 }
 
 void engine::PhysicsWorld::add_to_world(btRigidBody* rigid_body)

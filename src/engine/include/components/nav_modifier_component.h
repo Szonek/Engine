@@ -18,7 +18,7 @@ typedef enum _engine_nav_modifier_type_t
 
 // How the colliders of a game object and its children (unless they have a modifier of their own) contribute to the nav
 // mesh. Without a modifier, a static collider is included and its slope decides what on it is walkable. Colliders of
-// rigid bodies with mass and triggers are never included. A new modifier is ENGINE_NAV_MODIFIER_TYPE_WALKABLE, so it
+// kinematic rigid bodies, dynamic rigid bodies with mass and triggers are never included. A new modifier is ENGINE_NAV_MODIFIER_TYPE_WALKABLE, so it
 // changes nothing until another type is picked.
 typedef struct _engine_nav_modifier_component_t
 {
