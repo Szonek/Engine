@@ -119,12 +119,12 @@ CommandSetPhysicsDebugDraw::CommandSetPhysicsDebugDraw(Scene& sc, bool flag)
 
 void CommandSetPhysicsDebugDraw::execute()
 {
-    scene_.enable_physics_debug_draw(flag_);
+    scene_.physics().enable_debug_draw(flag_);
 }
 
 void CommandSetPhysicsDebugDraw::undo()
 {
-    scene_.enable_physics_debug_draw(!flag_);
+    scene_.physics().enable_debug_draw(!flag_);
 }
 
 } // namespace engine

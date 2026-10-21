@@ -2,18 +2,15 @@
 #include <engine.h>
 #include "graphics.h"
 
-#include "physics_world.h"
+#include "physics_system.h"
 #include "entity_id_registry.h"
 
 #include "render/render_scene_data.h"
 
 #include <entt/entt.hpp>
 
-#include <array>
-#include <deque>
 #include <optional>
 #include <span>
-#include <tuple>
 
 namespace engine
 {
@@ -34,9 +31,10 @@ public:
     ~Scene();
 
     Application* get_application() const;
+    // the scene's bodies, physics queries and character controllers
+    PhysicsSystem& physics();
+    const PhysicsSystem& physics() const;
 
-    void enable_physics_debug_draw(bool enable);
-    bool is_physics_debug_draw_enabled() const;
     void enable_nav_mesh_debug_draw(bool enable);
     bool is_nav_mesh_debug_draw_enabled() const;
     engine_result_code_t update(float dt);
@@ -54,9 +52,6 @@ public:
 
     // the space the entity's transform is local to (parent world * joint), see engine::get_parent_space_matrix
     glm::mat4 get_parent_space_matrix(entt::entity entity) const;
-
-    // see engineCharacterControllerMove; dt in milliseconds
-    engine_result_code_t move_character_controller(entt::entity entity, const glm::vec3& velocity, float dt, engine_character_controller_move_result_t& out_result);
 
     // the entities whose parent component points at `entity`, in the order they were parented; invalidated by any
     // change of the hierarchy
@@ -135,37 +130,12 @@ public:
     // the nav mesh of the scene's nav surface, or nullptr when it hasn't been built
     const NavMesh* get_nav_mesh() const;
 
-    void set_physcis_gravity(std::array<float, 3> g);
-    const std::vector<CollisionDesc>& get_physcis_collisions() const;
-
-    engine_ray_hit_info_t raycast_into_physics_world(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance);
-    bool add_force_to_physics_entity(entt::entity entity, std::array<float, 3> force, engine_force_type_t type);
-
     glm::vec3 convert_world_point_to_screen_point(const glm::vec3& world_point, engine_game_object_t camera_go);
     glm::vec3 convert_screen_point_to_world_point(glm::vec3 screen_point, engine_game_object_t camera_go);
     glm::mat4 get_camera_view(entt::entity camera_go);
     glm::mat4 get_camera_projection(entt::entity camera_go);
 
 private:
-    engine_result_code_t physics_update(float dt);
-    // true when the entity's world transform depends on other game objects (a parent or joint attachment)
-    bool follows_other_game_objects(entt::entity entity) const;
-    // the type of the entity's body: its rigid body's, or its collider's alone
-    PhysicsWorld::BodyType get_body_type(entt::entity entity) const;
-    // a collider without a rigid body: kinematic when it follows other game objects, otherwise static
-    PhysicsWorld::BodyType get_collider_body_type(entt::entity entity) const;
-    // (re)creates the entity's body (character controller, or collider with its rigid body) at its current world
-    // transform (none without a transform); the flags leave out a component which is being removed
-    void create_body(entt::entity entity, bool without_rigid_body = false, bool without_character_controller = false);
-    void on_body_component_changed(entt::registry& registry, entt::entity entity);
-    void on_rigid_body_removed(entt::registry& registry, entt::entity entity);
-    void on_character_controller_removed(entt::registry& registry, entt::entity entity);
-    void on_transforms_changed(entt::registry& registry, entt::entity entity);
-    // moves the bodies to their game objects' current world transforms; without `force` only when a transform, parent or
-    // joint attachment changed since the last sync (before physics queries)
-    void sync_bodies_to_transforms(bool force);
-    // the entity's world matrix from the current transforms (the world transform components are from the last update)
-    glm::mat4 get_world_matrix(entt::entity entity) const;
     // the world_transform_internal_component_t of every transform, see engine::update_world_transforms
     void update_world_transforms();
     // the model matrix of the attachment's joint in its skin instance, nullopt (logged) when it has none
@@ -187,15 +157,10 @@ private:
     entt::registry entity_registry_;
     // declared after the registry: it disconnects from the registry's signals when destroyed
     EntityIdRegistry entity_ids_;
+    // declared after the registry too; constructed before the constructor connects the component initializers
+    PhysicsSystem physics_;
     entt::observer mesh_update_observer;
-    entt::observer transform_update_collider_observer;
-    // reported moves of static bodies skip these: being placed in the frame they were created is no move
-    std::vector<entt::entity> bodies_created_this_frame_;
-    // a transform, parent or joint attachment changed since the bodies were last synced to the transforms
-    bool transforms_changed_ = false;
 
-    PhysicsWorld physics_world_;
     bool nav_mesh_debug_draw_ = false;
-    std::deque<std::tuple<entt::entity, std::array<float, 3>, engine_force_type_t>> forces_to_apply_;
 };
 }  // namespace engine

@@ -1089,13 +1089,11 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
         commands_.execute_command(std::make_unique<CommandAddEntity>(*scene));
     }
 
-    bool phys_debug_draw_check = scene->is_physics_debug_draw_enabled();
+    bool phys_debug_draw_check = scene->physics().is_debug_draw_enabled();
     if (ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check))
     {
         commands_.execute_command(std::make_unique<CommandSetPhysicsDebugDraw>(*scene, phys_debug_draw_check));
     }
-
-    //scene->enable_physics_debug_draw(phys_debug_draw_check);
 
     bool nav_mesh_debug_draw_check = scene->is_nav_mesh_debug_draw_enabled();
     if (ImGui::Checkbox("Nav mesh debug draw", &nav_mesh_debug_draw_check))
