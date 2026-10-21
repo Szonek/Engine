@@ -517,8 +517,8 @@ ENGINE_API void engineSceneDestroy(engine_scene_t scene);
 ENGINE_API engine_result_code_t engineSceneSetActive(engine_scene_t handle);
 // Scene files (JSON) hold the authored content of a scene: every game object with a persistent ID (transient ones are
 // never saved) and its components which hold authored data (name, folder, transform, parent, mesh, material, light,
-// nav surface and modifier, rigid body, collider, character controller), with assets referenced by asset ID and game
-// objects by persistent ID. A path is relative to assets/scenes, or absolute.
+// nav surface and modifier, rigid body, collider, character controller, and the game-defined components, see
+// engineComponentTypeRegister), with assets referenced by asset ID and game objects by persistent ID. A path is relative to assets/scenes, or absolute.
 // Saves the active scene; fails when the file can't be written.
 ENGINE_API engine_result_code_t engineSceneSave(const char* path);
 // Adds the game objects of a scene file to the active scene, with the IDs of the file (one whose ID is used already
@@ -526,6 +526,105 @@ ENGINE_API engine_result_code_t engineSceneSave(const char* path);
 // Fails, without changing the scene, when the file can't be read or isn't a scene file this engine can read; problems
 // inside a scene file (an unknown component, a missing asset, ...) are logged and the rest is loaded.
 ENGINE_API engine_result_code_t engineSceneLoad(const char* path);
+
+// Game-defined components: plain C structs the game describes field by field (like the engine's own components), so
+// scene files save them and the editor shows and edits them without code for them. Register a type once, after the
+// application is created and before a scene file holding it is loaded; types can't be unregistered. A type is a
+// trivially copyable C struct: no pointers, no std::string (a fixed char array instead), handles of game objects and
+// assets as their fields (they are translated to persistent IDs / asset IDs in a file).
+typedef uint32_t engine_component_type_t;  // ENGINE_INVALID_OBJECT_HANDLE for none
+
+typedef enum _engine_field_kind_t
+{
+    ENGINE_FIELD_KIND_BOOL = 0,
+    ENGINE_FIELD_KIND_INT32,
+    ENGINE_FIELD_KIND_UINT32,
+    ENGINE_FIELD_KIND_FLOAT,
+    // a char array of `count` chars, null terminated
+    ENGINE_FIELD_KIND_STRING,
+    // a C enum (int sized), saved by the name of its value (enum_values)
+    ENGINE_FIELD_KIND_ENUM,
+    // a struct of the type `type_name`, registered before with engineStructTypeRegister
+    ENGINE_FIELD_KIND_STRUCT,
+    // a union whose case is selected by the enum field `union_tag` described before it; only the active case is saved
+    ENGINE_FIELD_KIND_UNION,
+    // an engine_geometry_t / engine_texture2d_t, saved as its asset ID
+    ENGINE_FIELD_KIND_GEOMETRY,
+    ENGINE_FIELD_KIND_TEXTURE,
+    // an engine_game_object_t, saved as the persistent ID of the game object
+    ENGINE_FIELD_KIND_GAME_OBJECT,
+    ENGINE_FIELD_KIND_COUNT
+} engine_field_kind_t;
+
+typedef struct _engine_enum_value_desc_t
+{
+    const char* name;
+    int32_t value;
+} engine_enum_value_desc_t;
+
+typedef struct _engine_union_case_desc_t
+{
+    // the value of the union's tag selecting this case
+    int32_t tag;
+    // a struct type registered before with engineStructTypeRegister
+    const char* type_name;
+} engine_union_case_desc_t;
+
+typedef struct _engine_field_desc_t
+{
+    const char* name;
+    engine_field_kind_t kind;
+    // offsetof(the struct, the field)
+    uint32_t offset;
+    // 0 for one value, N for a fixed size array (float[3]) saved as a JSON array; for ENGINE_FIELD_KIND_STRING the size
+    // of the char array (terminator included)
+    uint32_t count;
+    // ENGINE_FIELD_KIND_ENUM
+    const engine_enum_value_desc_t* enum_values;
+    uint32_t enum_values_count;
+    // ENGINE_FIELD_KIND_STRUCT
+    const char* type_name;
+    // ENGINE_FIELD_KIND_UNION: the union's size is the size of its biggest case
+    const char* union_tag;
+    const engine_union_case_desc_t* union_cases;
+    uint32_t union_cases_count;
+} engine_field_desc_t;
+
+typedef struct _engine_type_desc_t
+{
+    // unique among all types, the engine's included (e.g. "enemy_config"); the name scene files use
+    const char* name;
+    // saved in scene files; a file holding a newer version than the registered one doesn't load the component. 0 is 1.
+    uint32_t version;
+    // sizeof / alignof the struct; a component is at most ENGINE_COMPONENT_TYPE_MAX_SIZE bytes, aligned to at most 16
+    uint32_t size;
+    uint32_t alignment;
+    // the value a new component gets (engineGameObjectAddDataComponent with no value, fields missing in a file), or
+    // NULL for zeroes; not used by struct types
+    const void* default_value;
+    // every field: a field left out is never saved or shown
+    const engine_field_desc_t* fields;
+    uint32_t fields_count;
+} engine_type_desc_t;
+
+#define ENGINE_COMPONENT_TYPE_MAX_SIZE 256
+
+// Registers a component type. Fails (logged) when the description has a mistake: a name used already, a field outside
+// the struct, overlapping or misaligned fields, an unknown struct type, ...
+ENGINE_API engine_result_code_t engineComponentTypeRegister(const engine_type_desc_t* desc, engine_component_type_t* out);
+// Registers a struct type used inside components (ENGINE_FIELD_KIND_STRUCT, union cases), not a component itself.
+ENGINE_API engine_result_code_t engineStructTypeRegister(const engine_type_desc_t* desc);
+// the component type with this name, also one of the engine's (e.g. "transform"); ENGINE_INVALID_OBJECT_HANDLE when none
+ENGINE_API engine_component_type_t engineComponentTypeGetByName(const char* name);
+// Components of a registered type on game objects of the active scene. Values are copies of the whole struct (`size`
+// bytes of the type), like the engine's components: changes take effect with Update. Add fails when the game object
+// has the component already, Get / Update when it doesn't have it.
+// value: the component's value, or NULL for the type's default value
+ENGINE_API engine_result_code_t engineGameObjectAddDataComponent(engine_game_object_t game_object, engine_component_type_t type, const void* value);
+ENGINE_API engine_result_code_t engineGameObjectGetDataComponent(engine_game_object_t game_object, engine_component_type_t type, void* out);
+ENGINE_API engine_result_code_t engineGameObjectUpdateDataComponent(engine_game_object_t game_object, engine_component_type_t type, const void* value);
+ENGINE_API void engineGameObjectRemoveDataComponent(engine_game_object_t game_object, engine_component_type_t type);
+ENGINE_API bool engineGameObjectHasDataComponent(engine_game_object_t game_object, engine_component_type_t type);
 
 // game objects in scene
 ENGINE_API engine_game_object_t engineGameObjectCreate();

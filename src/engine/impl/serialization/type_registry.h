@@ -90,12 +90,15 @@ struct ComponentStorage
     std::function<void(entt::registry&, entt::entity)> add;
     std::function<void(const entt::registry&, entt::entity, void*)> get;
     std::function<void(entt::registry&, entt::entity, const void*)> update;
+    std::function<void(entt::registry&, entt::entity)> remove;
 };
 
 // Describes a C struct field by field, so that values of it can be saved and loaded (and later edited) without code
 // for the type. A component is a type with storage; the other types are only used inside components.
 struct TypeInfo
 {
+    // its index in the registry, the engine_component_type_t of the C API
+    std::uint32_t handle = 0;
     std::string name;
     // of the components: a scene file stores the version each component was saved with
     std::uint32_t version = 1;
@@ -103,6 +106,8 @@ struct TypeInfo
     std::size_t alignment = 0;
     std::vector<FieldInfo> fields;
     std::unique_ptr<ComponentStorage> storage;
+    // registered by the game through the C API (see game_types.h), not by the engine; the editor has no panel for it
+    bool game_defined = false;
 
     bool is_component() const { return storage != nullptr; }
     const FieldInfo* find_field(std::string_view field_name) const
@@ -125,6 +130,8 @@ public:
     // nullptr (logged) when the name is empty or registered already
     const TypeInfo* add(TypeInfo&& type);
     const TypeInfo* find(std::string_view name) const;
+    // nullptr when no type has the handle
+    const TypeInfo* get(std::uint32_t handle) const;
     // in registration order
     std::vector<const TypeInfo*> get_components() const;
     std::vector<const TypeInfo*> get_types() const;
@@ -277,6 +284,7 @@ public:
         storage->add = [](entt::registry& r, entt::entity e) { r.emplace<T>(e); };
         storage->get = [](const entt::registry& r, entt::entity e, void* out) { *static_cast<T*>(out) = r.get<T>(e); };
         storage->update = [](entt::registry& r, entt::entity e, const void* value) { r.replace<T>(e, *static_cast<const T*>(value)); };
+        storage->remove = [](entt::registry& r, entt::entity e) { r.remove<T>(e); };
         type_.storage = std::move(storage);
         return finish();
     }

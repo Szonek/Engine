@@ -1,4 +1,5 @@
 #include "serialization/builtin_types.h"
+#include "serialization/game_types.h"
 #include "serialization/scene_serializer.h"
 #include "test_logger.h"
 
@@ -6,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstddef>
 #include <cstring>
 #include <limits>
 #include <map>
@@ -476,5 +478,208 @@ TEST_F(SceneFileTest, ComponentSavedByANewerEngineIsSkipped)
     EXPECT_FALSE(w.registry.all_of<engine_transform_component_t>(w.find(1)));
     EXPECT_STREQ(w.get<engine_name_component_t>(1).name, "kept");
     EXPECT_TRUE(test_logger::logged("component transform was saved in version 2"));
+}
+// -- game-defined components ----------------------------------------------------------------------------------------
+
+enum Stance { STANCE_IDLE = 0, STANCE_GUARD = 2 };
+
+struct Ring
+{
+    float radius;
+};
+
+// a component the game registers through the C API
+struct PatrolConfig
+{
+    float speed;
+    char label[12];
+    Stance stance;
+    engine_game_object_t target;
+    engine_geometry_t marker;
+    engine_texture2d_t icon;
+    float points[4];
+    Ring ring;
+    bool loop;
+};
+
+class GameComponentFileTest : public SceneFileTest
+{
+protected:
+    void SetUp() override
+    {
+        SceneFileTest::SetUp();
+        register_patrol_config(types_);
+    }
+
+    static engine_field_desc_t field(const char* name, engine_field_kind_t kind, std::size_t offset, std::uint32_t count = 0)
+    {
+        engine_field_desc_t f{};
+        f.name = name;
+        f.kind = kind;
+        f.offset = static_cast<std::uint32_t>(offset);
+        f.count = count;
+        return f;
+    }
+
+    static void register_patrol_config(engine::TypeRegistry& types)
+    {
+        const engine_field_desc_t ring_fields[] = { field("radius", ENGINE_FIELD_KIND_FLOAT, offsetof(Ring, radius)) };
+        engine_type_desc_t ring{ "ring", 1, sizeof(Ring), alignof(Ring), nullptr, ring_fields, 1 };
+        ASSERT_NE(engine::register_game_type(types, ring, false), nullptr);
+
+        static const engine_enum_value_desc_t stances[] = { { "idle", STANCE_IDLE }, { "guard", STANCE_GUARD } };
+        auto stance = field("stance", ENGINE_FIELD_KIND_ENUM, offsetof(PatrolConfig, stance));
+        stance.enum_values = stances;
+        stance.enum_values_count = 2;
+        auto ring_field = field("ring", ENGINE_FIELD_KIND_STRUCT, offsetof(PatrolConfig, ring));
+        ring_field.type_name = "ring";
+        const engine_field_desc_t fields[] = {
+            field("speed", ENGINE_FIELD_KIND_FLOAT, offsetof(PatrolConfig, speed)),
+            field("label", ENGINE_FIELD_KIND_STRING, offsetof(PatrolConfig, label), sizeof(PatrolConfig::label)),
+            stance,
+            field("target", ENGINE_FIELD_KIND_GAME_OBJECT, offsetof(PatrolConfig, target)),
+            field("marker", ENGINE_FIELD_KIND_GEOMETRY, offsetof(PatrolConfig, marker)),
+            field("icon", ENGINE_FIELD_KIND_TEXTURE, offsetof(PatrolConfig, icon)),
+            field("points", ENGINE_FIELD_KIND_FLOAT, offsetof(PatrolConfig, points), 4),
+            ring_field,
+            field("loop", ENGINE_FIELD_KIND_BOOL, offsetof(PatrolConfig, loop)),
+        };
+        PatrolConfig defaults{};
+        defaults.speed = 3.0f;
+        std::strcpy(defaults.label, "patrol");
+        defaults.stance = STANCE_GUARD;
+        defaults.marker = ENGINE_INVALID_OBJECT_HANDLE;
+        defaults.icon = ENGINE_INVALID_OBJECT_HANDLE;
+        defaults.ring.radius = 1.5f;
+        defaults.loop = true;
+        engine_type_desc_t desc{ "patrol_config", 1, sizeof(PatrolConfig), alignof(PatrolConfig), &defaults, fields, 9 };
+        ASSERT_NE(engine::register_game_type(types, desc, true), nullptr);
+    }
+
+    const engine::TypeInfo& patrol_config() const { return *types_.find("patrol_config"); }
+
+    PatrolConfig get_patrol(const World& w, std::uint64_t id) const
+    {
+        PatrolConfig value{};
+        patrol_config().storage->get(w.registry, w.find(id), &value);
+        return value;
+    }
+
+    // the full scene, and a patrol config on the crate (1) targeting its child (2)
+    void build_scene_with_patrol(World& w)
+    {
+        build_full_scene(w);
+        PatrolConfig patrol{};
+        patrol.speed = 0.1f;
+        std::strcpy(patrol.label, "north gate");
+        patrol.stance = STANCE_IDLE;
+        patrol.target = static_cast<engine_game_object_t>(w.find(2));
+        patrol.marker = 7;
+        patrol.icon = 4;
+        patrol.points[0] = -1.0f;
+        patrol.points[3] = 1e-7f;
+        patrol.ring.radius = 4.0f;
+        patrol.loop = false;
+        patrol_config().storage->add(w.registry, w.find(1));
+        patrol_config().storage->update(w.registry, w.find(1), &patrol);
+    }
+};
+
+TEST_F(GameComponentFileTest, SaveLoadSaveGivesTheSameFile)
+{
+    World original;
+    build_scene_with_patrol(original);
+    const auto file = save(original);
+
+    World loaded;
+    ASSERT_TRUE(load(loaded, file));
+    EXPECT_EQ(save(loaded), file);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(GameComponentFileTest, LoadedComponentHasTheSavedValues)
+{
+    World original;
+    build_scene_with_patrol(original);
+    World loaded;
+    ASSERT_TRUE(load(loaded, save(original)));
+
+    const auto patrol = get_patrol(loaded, 1);
+    const auto expected = get_patrol(original, 1);
+    EXPECT_EQ(patrol.speed, 0.1f);
+    EXPECT_STREQ(patrol.label, "north gate");
+    EXPECT_EQ(patrol.stance, STANCE_IDLE);
+    // the reference points at the loaded game object with the saved ID
+    EXPECT_EQ(patrol.target, static_cast<engine_game_object_t>(loaded.find(2)));
+    EXPECT_EQ(patrol.marker, 7u);
+    EXPECT_EQ(patrol.icon, 4u);
+    EXPECT_TRUE(same_bytes(patrol.points, expected.points));
+    EXPECT_EQ(patrol.ring.radius, 4.0f);
+    EXPECT_FALSE(patrol.loop);
+}
+
+TEST_F(GameComponentFileTest, FileIsReadable)
+{
+    World w;
+    build_scene_with_patrol(w);
+    const auto file = save(w);
+    EXPECT_NE(file.find(R"("patrol_config": 1)"), std::string::npos) << file;
+    EXPECT_NE(file.find(R"("label": "north gate")"), std::string::npos);
+    EXPECT_NE(file.find(R"("stance": "idle")"), std::string::npos);
+    EXPECT_NE(file.find(R"("target": 2)"), std::string::npos);
+    EXPECT_NE(file.find(R"("marker": "models/crate.gltf#Cube")"), std::string::npos);
+    EXPECT_NE(file.find(R"("points": [-1, 0, 0, 1e-07])"), std::string::npos);
+    EXPECT_NE(file.find(R"("ring": {)"), std::string::npos);
+    // after the engine's components: they are loaded first
+    EXPECT_LT(file.find(R"("collider": {)"), file.find(R"("patrol_config": {)"));
+}
+
+TEST_F(GameComponentFileTest, MissingFieldsGetTheTypesDefaultValue)
+{
+    World w;
+    ASSERT_TRUE(load(w, R"({ "version": 1, "entities": [ { "id": 1, "components": {
+        "patrol_config": { "speed": 0.5, "ring": {} } } } ] })"));
+    const auto patrol = get_patrol(w, 1);
+    EXPECT_EQ(patrol.speed, 0.5f);
+    EXPECT_STREQ(patrol.label, "patrol");
+    EXPECT_EQ(patrol.stance, STANCE_GUARD);
+    EXPECT_EQ(patrol.marker, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(patrol.ring.radius, 1.5f);
+    EXPECT_TRUE(patrol.loop);
+    EXPECT_TRUE(test_logger::messages().empty());
+}
+
+TEST_F(GameComponentFileTest, WrongValuesKeepTheDefault)
+{
+    World w;
+    ASSERT_TRUE(load(w, R"({ "version": 1, "entities": [ { "id": 1, "components": {
+        "patrol_config": { "stance": "asleep", "label": "a label longer than eleven", "target": 99, "unknown": 1 } } } ] })"));
+    const auto patrol = get_patrol(w, 1);
+    EXPECT_EQ(patrol.stance, STANCE_GUARD);
+    EXPECT_STREQ(patrol.label, "a label lon");
+    EXPECT_EQ(patrol.target, ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_TRUE(test_logger::logged("patrol_config.stance has an unknown value \"asleep\""));
+    EXPECT_TRUE(test_logger::logged("patrol_config.label is longer than 11 characters"));
+    EXPECT_TRUE(test_logger::logged("patrol_config.target references the game object 99 which isn't in the file"));
+    EXPECT_TRUE(test_logger::logged("unknown field \"unknown\""));
+}
+
+TEST_F(SceneFileTest, GameComponentWhichIsNotRegisteredIsIgnored)
+{
+    // the game didn't register it (e.g. a file from another game, or the type was renamed)
+    World w;
+    ASSERT_TRUE(load(w, R"({ "version": 1, "types": { "patrol_config": 1 }, "entities": [ { "id": 1, "components": {
+        "patrol_config": { "speed": 0.5 }, "name": { "name": "kept" } } } ] })"));
+    EXPECT_STREQ(w.get<engine_name_component_t>(1).name, "kept");
+    EXPECT_TRUE(test_logger::logged("unknown component patrol_config"));
+}
+
+TEST_F(GameComponentFileTest, GameComponentSavedInANewerVersionIsSkipped)
+{
+    World w;
+    ASSERT_TRUE(load(w, R"({ "version": 1, "types": { "patrol_config": 2 }, "entities": [ { "id": 1, "components": {
+        "patrol_config": { "speed": 0.5 } } } ] })"));
+    EXPECT_FALSE(patrol_config().storage->has(w.registry, w.find(1)));
+    EXPECT_TRUE(test_logger::logged("component patrol_config was saved in version 2"));
 }
 }  // namespace

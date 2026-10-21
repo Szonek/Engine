@@ -86,6 +86,8 @@ public:
 
     // the types scene files hold (see serialization/scene_serializer.h)
     const TypeRegistry& get_type_registry() const { return types_; }
+    // a type the game describes, see register_game_type; nullptr (logged) when the description has a mistake
+    const TypeInfo* register_game_type(const engine_type_desc_t& desc, bool component);
 
     virtual UiDocument load_ui_document(std::string_view file_name);
     virtual UiDataHandle create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
