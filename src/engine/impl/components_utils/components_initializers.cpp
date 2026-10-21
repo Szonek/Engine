@@ -15,7 +15,7 @@ T& get_zero_init_component(entt::registry& registry, entt::entity entity)
 
 void engine::initialize_transform_component(entt::registry& registry, entt::entity entity)
 {
-    auto& comp = get_zero_init_component<engine_tranform_component_t>(registry, entity);
+    auto& comp = get_zero_init_component<engine_transform_component_t>(registry, entity);
     comp.scale[0] = 1.0f;
     comp.scale[1] = 1.0f;
     comp.scale[2] = 1.0f;
@@ -78,6 +78,16 @@ void engine::initialize_nav_modifier_component(entt::registry& registry, entt::e
     // like no modifier, until a type is picked
     auto& comp = get_zero_init_component<engine_nav_modifier_component_t>(registry, entity);
     comp.type = ENGINE_NAV_MODIFIER_TYPE_WALKABLE;
+}
+
+void engine::initialize_character_controller_component(entt::registry& registry, entt::entity entity)
+{
+    // Unity's CharacterController defaults: a 2 m tall human
+    auto& comp = get_zero_init_component<engine_character_controller_component_t>(registry, entity);
+    comp.radius = 0.5f;
+    comp.height = 2.0f;
+    comp.step_height = 0.3f;
+    comp.max_slope = 45.0f;
 }
 
 

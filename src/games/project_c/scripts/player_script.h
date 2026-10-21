@@ -115,7 +115,7 @@ private:
     };
 
     // Environment traversal (climbing walls, vaulting through windows, mantling onto roofs).
-    // While traversing the player is kinematic: rigid body is removed so gravity does not fight the scripted motion.
+    // While traversing the player's transform is set by the traversal code; its character controller doesn't move it.
     enum class TraversalState
     {
         eNone,
@@ -246,7 +246,6 @@ private:
     void stop_traversal(float regrab_cooldown);
     void create_traversal_marker();
     void update_traversal_marker(const TraversalPlan& plan, float delta_seconds);
-    void set_kinematic(bool kinematic);
     void set_position_and_yaw(const glm::vec3& position, float yaw);
 };
 } //namespace project_c

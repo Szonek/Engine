@@ -2,6 +2,7 @@
 
 #include "scene.h"
 #include "math_helpers.h"
+#include "world_transform.h"
 #include "logger.h"
 #include "profiler.h"
 #include "animation_controller.h"
@@ -447,7 +448,7 @@ bool display_texture_combo(const engine::Scene* scene, const char* label, std::u
     return display_asset_combo(label, texture, app->get_texture_name(texture), app->get_texture_names());
 }
 
-bool display_transform_component(const engine::Scene* scene, engine_tranform_component_t& c)
+bool display_transform_component(const engine::Scene* scene, engine_transform_component_t& c)
 {
     const float v_speed = 0.1f;
     bool requires_update = ImGui::DragFloat3("Position##transform", c.position, v_speed);
@@ -737,9 +738,29 @@ bool display_collider_component(const engine::Scene* scene, engine_collider_comp
 
 bool display_rigidbody_component(const engine::Scene* scene, engine_rigid_body_component_t& c)
 {
-    bool requires_update = ImGui::SliderFloat("Mass", &c.mass, 0.0f, 100.0f);
-
+    const char* types[] = { "Dynamic", "Kinematic", "Static" };
+    std::int32_t type = c.type;
+    bool requires_update = false;
+    if (ImGui::Combo("Type##rigid_body", &type, types, static_cast<int>(std::size(types))))
+    {
+        c.type = static_cast<engine_rigid_body_type_t>(type);
+        requires_update = true;
+    }
+    if (c.type == ENGINE_RIGID_BODY_TYPE_DYNAMIC)
+    {
+        requires_update |= ImGui::SliderFloat("Mass", &c.mass, 0.0f, 100.0f);
+    }
     return requires_update;
+}
+
+bool display_character_controller_component(const engine::Scene* scene, engine_character_controller_component_t& c)
+{
+    bool changed = false;
+    changed |= ImGui::DragFloat("Radius##character_controller", &c.radius, 0.01f, 0.01f, 10.0f);
+    changed |= ImGui::DragFloat("Height##character_controller", &c.height, 0.01f, 0.01f, 20.0f);
+    changed |= ImGui::DragFloat("Step height##character_controller", &c.step_height, 0.01f, 0.0f, 10.0f);
+    changed |= ImGui::DragFloat("Max slope##character_controller", &c.max_slope, 0.5f, 0.0f, 90.0f);
+    return changed;
 }
 
 bool display_nav_surface_component(const engine::Scene* scene, engine_nav_surface_component_t& c)
@@ -1136,7 +1157,7 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
     {
         const auto selected = scene_hierarchy_context_.get_selected_entity();
         display_component<engine_folder_component_t>("Folder", scene, commands_, selected, display_folder_component);
-        display_component<engine_tranform_component_t>("Transform", scene, commands_, selected, display_transform_component);
+        display_component<engine_transform_component_t>("Transform", scene, commands_, selected, display_transform_component);
         display_component<engine_light_component_t>("Light", scene, commands_, selected, display_light_component);
         display_component<engine_camera_component_t>("Camera", scene, commands_, selected, display_camera_component);
         display_component<engine_mesh_component_t>("Mesh", scene, commands_, selected, display_mesh_component);
@@ -1147,6 +1168,7 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
         display_component<engine_material_component_t>("Material", scene, commands_, selected, display_material_component);
         display_component<engine_collider_component_t>("Collider", scene, commands_, selected, display_collider_component);
         display_component<engine_rigid_body_component_t>("Rigid Body", scene, commands_, selected, display_rigidbody_component);
+        display_component<engine_character_controller_component_t>("Character Controller", scene, commands_, selected, display_character_controller_component);
         display_component<engine_nav_surface_component_t>("Nav Surface", scene, commands_, selected, display_nav_surface_component);
         // like a bake: nothing rebuilds the nav mesh automatically, so after editing the nav surface, nav modifiers or
         // static colliders, build it again to see (and play with) the result
@@ -1301,13 +1323,12 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
         const auto camera_projection = scene->get_camera_projection(camera_entity);
 
         auto gizmo_view = scene->create_runtime_view();
-        scene->attach_component_to_runtime_view<engine_tranform_component_t>(gizmo_view);
+        scene->attach_component_to_runtime_view<engine_transform_component_t>(gizmo_view);
         scene->attach_component_to_runtime_view<engine::guizmo_component_t>(gizmo_view);
         for (const auto& entity : gizmo_view)
         {
-            const auto transform_component = *scene->get_component<engine_tranform_component_t>(entity);
-            // ImGuizmo manipulation
-            auto model_matrix = glm::make_mat4x4(transform_component.local_to_world);
+            // ImGuizmo manipulates the world matrix, the transform component is local to the parent space
+            auto model_matrix = scene->get_component<engine::world_transform_internal_component_t>(entity)->local_to_world;
 
             ImGuizmo::SetOrthographic(camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC); // Set the projection mode to perspective
             ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection),
@@ -1317,25 +1338,11 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
 
             if (ImGuizmo::IsUsing())
             {
-                glm::vec3 translation{};
-                glm::vec3 scale{};
-                glm::vec3 rotation{};
-                ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(model_matrix), glm::value_ptr(translation), glm::value_ptr(rotation), glm::value_ptr(scale));
-
-                engine_tranform_component_t c{};
-                std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
-                const glm::quat rot = glm::quat(glm::radians(rotation));
-                std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
-                std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
-                commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_tranform_component_t>>(*scene, entity, c));
-
-                //scene->patch_component<engine_tranform_component_t>(entity, [&](engine_tranform_component_t& c)
-                //    {
-                //        std::memcpy(c.position, glm::value_ptr(translation), sizeof(translation));
-                //        const glm::quat rot = glm::quat(glm::radians(rotation));
-                //        std::memcpy(c.rotation, glm::value_ptr(rot), sizeof(rot));
-                //        std::memcpy(c.scale, glm::value_ptr(scale), sizeof(scale));
-                //    });
+                auto c = *scene->get_component<engine_transform_component_t>(entity);
+                if (engine::local_transform_from_world(scene->get_parent_space_matrix(entity), model_matrix, c))
+                {
+                    commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, c));
+                }
             }
         }
     }
@@ -1422,8 +1429,8 @@ engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
             c.target[2] = 0.2f;
         });
 
-    auto camera_transform_comp = scene->add_component<engine_tranform_component_t>(go_);
-    scene->patch_component<engine_tranform_component_t>(go_, [](engine_tranform_component_t& c)
+    auto camera_transform_comp = scene->add_component<engine_transform_component_t>(go_);
+    scene->patch_component<engine_transform_component_t>(go_, [](engine_transform_component_t& c)
         {
             c.position[0] = -1.0f;
             c.position[1] = 1.7f;
@@ -1505,9 +1512,9 @@ void engine::CameraScript::translate(const glm::vec3& delta)
     sc_[0] = std::max(sc_[0], 0.1f);
     // Update the camera's position based on the new spherical coordinates
     const auto new_position = get_cartesian_coordinates(sc_);
-    auto tc = my_scene_->get_component<engine_tranform_component_t>(go_);
+    auto tc = my_scene_->get_component<engine_transform_component_t>(go_);
     auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
-    my_scene_->patch_component<engine_tranform_component_t>(go_, [tc, new_position, cc](engine_tranform_component_t& c)
+    my_scene_->patch_component<engine_transform_component_t>(go_, [tc, new_position, cc](engine_transform_component_t& c)
         {
             c.position[0] = new_position[0] + cc->target[0];
             c.position[1] = new_position[1] + cc->target[1];
@@ -1520,7 +1527,7 @@ void engine::CameraScript::rotate(const glm::vec2 delta)
     // https://nerdhut.de/2020/05/09/unity-arcball-camera-spherical-coordinates/
     if (delta.x != 0 || delta.y != 0)
     {
-        auto tc = my_scene_->get_component<engine_tranform_component_t>(go_);
+        auto tc = my_scene_->get_component<engine_transform_component_t>(go_);
         // Rotate the camera left and right
         sc_[1] += delta.x;
 
@@ -1531,7 +1538,7 @@ void engine::CameraScript::rotate(const glm::vec2 delta)
         const auto new_position = get_cartesian_coordinates(sc_);
         auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
 
-        my_scene_->patch_component<engine_tranform_component_t>(go_, [tc, new_position, cc](engine_tranform_component_t& c)
+        my_scene_->patch_component<engine_transform_component_t>(go_, [tc, new_position, cc](engine_transform_component_t& c)
             {
                 c.position[0] = new_position[0] + cc->target[0];
                 c.position[1] = new_position[1] + cc->target[1];
@@ -1543,7 +1550,7 @@ void engine::CameraScript::rotate(const glm::vec2 delta)
 void engine::CameraScript::strafe(float delta_x, float delta_y)
 {
     // Get the current camera orientation
-    auto tc = *my_scene_->get_component<engine_tranform_component_t>(go_);
+    auto tc = *my_scene_->get_component<engine_transform_component_t>(go_);
     auto cc = *my_scene_->get_component<engine_camera_component_t>(go_);
 
     // Compute the right vector from the camera's orientation
@@ -1562,7 +1569,7 @@ void engine::CameraScript::strafe(float delta_x, float delta_y)
     cc.target[2] += delta_x * right.z;
 
     // Update the transform and camera components
-    my_scene_->update_component<engine_tranform_component_t>(go_, tc);
+    my_scene_->update_component<engine_transform_component_t>(go_, tc);
     my_scene_->update_component<engine_camera_component_t>(go_, cc);
 }
 

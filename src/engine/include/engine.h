@@ -16,6 +16,7 @@
 #include "components/sprite_component.h"
 #include "components/skin_component.h"
 #include "components/animation_controller_component.h"
+#include "components/character_controller_component.h"
 
 #include "engine_string.h"
 #include "engine_vector.h"
@@ -90,6 +91,9 @@ typedef struct _engine_application_create_desc_t
     bool enable_editor;
     // create the window hidden (e.g. automated tests); frames still render but are never presented
     bool hidden_window;
+    // the longest frame time engineFrameBegin reports, in milliseconds (like Unity's Maximum Allowed Timestep): after a
+    // long frame (loading, a breakpoint) the game runs slower instead of jumping ahead. 0 means 1000 / 3.
+    float max_delta_time;
 } engine_application_create_desc_t;
 
 typedef struct _engine_scene_create_desc_t
@@ -107,6 +111,7 @@ typedef uint32_t engine_begin_frame_events_mask_t;
 
 typedef struct _engine_application_frame_begine_info_t
 {
+    // milliseconds since the last frame began, at most engine_application_create_desc_t::max_delta_time
     float delta_time;
     engine_begin_frame_events_mask_t events;
 } engine_application_frame_begine_info_t;
@@ -607,11 +612,15 @@ ENGINE_API void engineGameObjectRemoveFolderComponent(engine_game_object_t game_
 ENGINE_API bool engineGameObjectHasFolderComponent(engine_game_object_t game_object);
 
 // transform component
-ENGINE_API engine_tranform_component_t engineGameObjectAddTransformComponent(engine_game_object_t game_object);
-ENGINE_API engine_tranform_component_t engineGameObjectGetTransformComponent(engine_game_object_t game_object);
-ENGINE_API void engineGameObjectUpdateTransformComponent(engine_game_object_t game_object, const engine_tranform_component_t* comp);
+ENGINE_API engine_transform_component_t engineGameObjectAddTransformComponent(engine_game_object_t game_object);
+ENGINE_API engine_transform_component_t engineGameObjectGetTransformComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateTransformComponent(engine_game_object_t game_object, const engine_transform_component_t* comp);
 ENGINE_API void engineGameObjectRemoveTransformComponent(engine_game_object_t game_object);
 ENGINE_API bool engineGameObjectHasTransformComponent(engine_game_object_t game_object);
+// The game object's local-to-world matrix (column-major): its transform, joint attachment and parents. Derived by the
+// scene and read-only, valid after the last scene update (engineFrameSceneUpdate): changes made since then show up after the next one.
+// Fails when the game object has no transform component.
+ENGINE_API engine_result_code_t engineGameObjectGetWorldTransform(engine_game_object_t game_object, float out_matrix[16]);
 
 // light component
 ENGINE_API engine_light_component_t engineGameObjectAddLightComponent(engine_game_object_t game_object);
@@ -685,6 +694,19 @@ ENGINE_API engine_rigid_body_component_t engineGameObjectGetRigidBodyComponent(e
 ENGINE_API void engineGameObjectUpdateRigidBodyComponent(engine_game_object_t game_object, const engine_rigid_body_component_t* comp);
 ENGINE_API void engineGameObjectRemoveRigidBodyComponent(engine_game_object_t game_object);
 ENGINE_API bool engineGameObjectHasRigidBodyComponent(engine_game_object_t game_object);
+
+// character controller component (see engine_character_controller_component_t)
+ENGINE_API engine_character_controller_component_t engineGameObjectAddCharacterControllerComponent(engine_game_object_t game_object);
+ENGINE_API engine_character_controller_component_t engineGameObjectGetCharacterControllerComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateCharacterControllerComponent(engine_game_object_t game_object, const engine_character_controller_component_t* comp);
+ENGINE_API void engineGameObjectRemoveCharacterControllerComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasCharacterControllerComponent(engine_game_object_t game_object);
+// Moves a character by velocity * delta_time (m/s, all three axes, e.g. a jump) plus its fall: it keeps a vertical speed
+// from the physics' gravity between moves, which it loses on walkable ground or under a ceiling. The capsule collides
+// with static and kinematic bodies (see engine_character_controller_component_t); the transform component is updated
+// right away. Call it once per frame while the character walks or falls; while it doesn't (e.g. a scripted climb), its
+// transform moves it. Fails without the component or for a game object with a parent. out_result may be NULL.
+ENGINE_API engine_result_code_t engineCharacterControllerMove(engine_game_object_t game_object, const float velocity[3], float delta_time, engine_character_controller_move_result_t* out_result);
 
 // collider component
 ENGINE_API engine_collider_component_t engineGameObjectAddColliderComponent(engine_game_object_t game_object);

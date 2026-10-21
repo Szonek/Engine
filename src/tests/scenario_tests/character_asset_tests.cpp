@@ -41,8 +41,8 @@ TEST_F(CharacterAssetTest, PlayerWeaponHasItsSizeFromTheFirstFrame)
     // the weapon hangs off the hand joint, which the player's first animation (a cross-fade) moves
     const auto world_scale = [go = weapon->get_game_object()]()
     {
-        const auto transform = engineGameObjectGetTransformComponent(go);
-        const auto& matrix = transform.local_to_world;
+        float matrix[16]{};
+        EXPECT_EQ(engineGameObjectGetWorldTransform(go, matrix), ENGINE_RESULT_CODE_OK);
         return std::sqrt(matrix[0] * matrix[0] + matrix[1] * matrix[1] + matrix[2] * matrix[2]);
     };
     std::vector<float> spawn_scales;

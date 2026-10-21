@@ -21,6 +21,11 @@
 
 namespace
 {
+// the scale of the enemy's model; its weapon inherits it, so the weapon's hitbox is in the model's units
+constexpr float ENEMY_SCALE = 0.35f;
+// in m/s
+constexpr float ENEMY_MOVE_SPEED = 2.0f;
+
 struct EnemyAttackAnimation
 {
     const char* name;
@@ -99,11 +104,12 @@ project_c::EnemyWeapon::EnemyWeapon(engine::IScene* my_scene, engine_game_object
     cc.is_trigger = true;
     auto& hitbox = cc.collider.compound.children[0];
     hitbox.type = ENGINE_COLLIDER_TYPE_BOX;
+    // sized in meters, in the weapon's space which has the enemy's scale
     hitbox.transform[0] = 0.0f;
-    hitbox.transform[1] = 0.15f;
+    hitbox.transform[1] = 0.15f / ENEMY_SCALE;
     hitbox.transform[2] = 0.0f;
     hitbox.rotation_quaternion[3] = 1.0f;
-    set_c_array(hitbox.collider.box.size, std::array<float, 3>{ 0.10f, 0.26f, 0.045f });
+    set_c_array(hitbox.collider.box.size, std::array<float, 3>{ 0.10f / ENEMY_SCALE, 0.26f / ENEMY_SCALE, 0.045f / ENEMY_SCALE });
     engineGameObjectUpdateColliderComponent(go_, &cc);
 }
 
@@ -145,31 +151,20 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, float 
     tc.position[1] += 0.25f;
     tc.position[2] = offset_z;
 
-    tc.scale[0] = 0.35f;
-    tc.scale[1] = 0.35f;
-    tc.scale[2] = 0.35f;
+    tc.scale[0] = ENEMY_SCALE;
+    tc.scale[1] = ENEMY_SCALE;
+    tc.scale[2] = ENEMY_SCALE;
 
     engineGameObjectUpdateTransformComponent(go_, &tc);
     collect_hit_flash_materials(go_);
 
-    // physics
-    auto cc = engineGameObjectAddColliderComponent(go_);
-    cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
-    auto& child_c = cc.collider.compound.children[0];
-    {
-        child_c.type = ENGINE_COLLIDER_TYPE_BOX;
-        child_c.transform[0] = 0.0f;
-        child_c.transform[1] = 1.0f;
-        child_c.transform[2] = 0.0f;
-        child_c.rotation_quaternion[3] = 1.0f;
-        set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.7f, 1.0f, 0.5f});
-    }
-    engineGameObjectUpdateColliderComponent(go_, &cc);
-
-    //rb
-    auto rbc = engineGameObjectAddRigidBodyComponent(go_);
-    rbc.mass = 100000.0f;
-    engineGameObjectUpdateRigidBodyComponent(go_, &rbc);
+    // physics: moved by its character controller (sizes in meters, in the enemy's scaled space)
+    auto character = engineGameObjectAddCharacterControllerComponent(go_);
+    character.radius = 0.18f / ENEMY_SCALE;
+    character.height = 0.7f / ENEMY_SCALE;
+    character.step_height = 0.15f / ENEMY_SCALE;
+    character.max_slope = 45.0f;
+    engineGameObjectUpdateCharacterControllerComponent(go_, &character);
 
     auto* app = reinterpret_cast<AppProjectC*>(my_scene_->get_app());
     if (app->is_prefab_available(PREFAB_TYPE_SKELETON_BLADE))
@@ -306,8 +301,8 @@ void project_c::Enemy::update(float dt)
         {
             engineLog("Failed to play enemy death animation.\n");
         }
-        // remove collider so enemy will not be hit by players attacks
-        engineGameObjectRemoveColliderComponent(go_);
+        // remove its body so the enemy will not be hit by players attacks (nor block anyone)
+        engineGameObjectRemoveCharacterControllerComponent(go_);
         if (reinterpret_cast<AppProjectC*>(my_scene_->get_app())->is_prefab_available(project_c::PrefabType::PREFAB_TYPE_COIN_GOLD))
         {
             auto coin = my_scene_->register_script<project_c::Coin>(reinterpret_cast<AppProjectC*>(my_scene_->get_app())->instantiate_prefab(project_c::PREFAB_TYPE_COIN_GOLD).go);
@@ -321,6 +316,8 @@ void project_c::Enemy::update(float dt)
         return;
     }
 
+    // horizontal velocity of this frame; the character controller adds falling and collisions
+    glm::vec3 velocity(0.0f);
     switch (state_)
     {
     case States::DECISION_MAKE:
@@ -431,13 +428,9 @@ void project_c::Enemy::update(float dt)
         //auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
         quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
         std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
-        const float speed_cooef = 0.002f;
-        const float speed = speed_cooef * dt;
-        const glm::vec3 forward = glm::normalize(quat * glm::vec3(0.0f, 0.0f, 1.0f));
-        tc.position[0] += forward.x * speed;
-        //tc.position[1] += forward.y * speed;
-        tc.position[2] += forward.z * speed;
         engineGameObjectUpdateTransformComponent(go_, &tc);
+        const glm::vec3 forward = glm::normalize(quat * glm::vec3(0.0f, 0.0f, 1.0f));
+        velocity = glm::vec3(forward.x, 0.0f, forward.z) * ENEMY_MOVE_SPEED;
         //state_ = States::DECISION_MAKE;
         break;
     }
@@ -446,6 +439,10 @@ void project_c::Enemy::update(float dt)
         engineLog("Unknown enemy state\n");
         break;
     }
+    }
+    if (state_ != States::DIE && engineCharacterControllerMove(go_, glm::value_ptr(velocity), dt, nullptr) != ENGINE_RESULT_CODE_OK)
+    {
+        engineLog("Failed to move the enemy.\n");
     }
 }
 

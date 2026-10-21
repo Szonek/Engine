@@ -4,6 +4,7 @@
 #include "application_editor.h"
 #include "scene.h"
 #include "nav_mesh.h"
+#include "world_transform.h"
 #include "asset_store.h"
 #include "ui_document.h"
 #include "collision_desc.h"
@@ -960,29 +961,50 @@ bool engineGameObjectHasFolderComponent(engine_game_object_t game_object)
     return has_component<engine_folder_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_tranform_component_t engineGameObjectAddTransformComponent(engine_game_object_t game_object)
+engine_transform_component_t engineGameObjectAddTransformComponent(engine_game_object_t game_object)
 {
-    return add_component<engine_tranform_component_t>(G_ACTIVE_SCENE, game_object);
+    return add_component<engine_transform_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-engine_tranform_component_t engineGameObjectGetTransformComponent(engine_game_object_t game_object)
+engine_transform_component_t engineGameObjectGetTransformComponent(engine_game_object_t game_object)
 {
-    return get_component<engine_tranform_component_t>(G_ACTIVE_SCENE, game_object);
+    return get_component<engine_transform_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
-void engineGameObjectUpdateTransformComponent(engine_game_object_t game_object, const engine_tranform_component_t* comp)
+void engineGameObjectUpdateTransformComponent(engine_game_object_t game_object, const engine_transform_component_t* comp)
 {
     update_component(G_ACTIVE_SCENE, game_object, comp);
 }
 
 void engineGameObjectRemoveTransformComponent(engine_game_object_t game_object)
 {
-    remove_component<engine_tranform_component_t>(G_ACTIVE_SCENE, game_object);
+    remove_component<engine_transform_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
 bool engineGameObjectHasTransformComponent(engine_game_object_t game_object)
 {
-    return has_component<engine_tranform_component_t>(G_ACTIVE_SCENE, game_object);
+    return has_component<engine_transform_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_result_code_t engineGameObjectGetWorldTransform(engine_game_object_t game_object, float out_matrix[16])
+{
+    if (!out_matrix)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    if (!G_ACTIVE_SCENE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const auto* scene = api_cast(G_ACTIVE_SCENE);
+    const auto entity = api_cast(game_object);
+    if (!scene->is_valid_entity(entity) || !scene->has_component<engine::world_transform_internal_component_t>(entity))
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const auto& local_to_world = scene->get_component<engine::world_transform_internal_component_t>(entity)->local_to_world;
+    std::memcpy(out_matrix, glm::value_ptr(local_to_world), sizeof(float) * 16);
+    return ENGINE_RESULT_CODE_OK;
 }
 
 engine_mesh_component_t engineGameObjectAddMeshComponent(engine_game_object_t game_object)
@@ -1259,6 +1281,56 @@ void engineGameObjectUpdateRigidBodyComponent(engine_game_object_t game_object, 
 void engineGameObjectRemoveRigidBodyComponent(engine_game_object_t game_object)
 {
     remove_component<engine_rigid_body_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_character_controller_component_t engineGameObjectAddCharacterControllerComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_character_controller_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_character_controller_component_t engineGameObjectGetCharacterControllerComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_character_controller_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+void engineGameObjectUpdateCharacterControllerComponent(engine_game_object_t game_object, const engine_character_controller_component_t* comp)
+{
+    update_component(G_ACTIVE_SCENE, game_object, comp);
+}
+
+void engineGameObjectRemoveCharacterControllerComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_character_controller_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+bool engineGameObjectHasCharacterControllerComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_character_controller_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_result_code_t engineCharacterControllerMove(engine_game_object_t game_object, const float velocity[3], float delta_time, engine_character_controller_move_result_t* out_result)
+{
+    if (!velocity)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    if (!G_ACTIVE_SCENE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    auto* scene = api_cast(G_ACTIVE_SCENE);
+    const auto entity = api_cast(game_object);
+    if (!scene->is_valid_entity(entity))
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    engine_character_controller_move_result_t result{};
+    const auto code = scene->move_character_controller(entity, glm::make_vec3(velocity), delta_time, result);
+    if (out_result)
+    {
+        *out_result = result;
+    }
+    return code;
 }
 
 bool engineGameObjectHasRigidBodyComponent(engine_game_object_t game_object)

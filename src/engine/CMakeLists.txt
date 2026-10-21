@@ -72,6 +72,8 @@ set(ENGINE_SOURCES
 
 	${ENGINE_SOURCES_DIR}/nav_mesh.h
 	${ENGINE_SOURCES_DIR}/nav_mesh.cpp
+	${ENGINE_SOURCES_DIR}/world_transform.h
+	${ENGINE_SOURCES_DIR}/world_transform.cpp
 	${ENGINE_SOURCES_DIR}/nav_mesh_debug_draw.h
 	${ENGINE_SOURCES_DIR}/nav_mesh_debug_draw.cpp
 	
@@ -92,6 +94,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/components_internals/prefab_instance_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/children_internal_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/nav_mesh_internal_component.h
+	${ENGINE_SOURCES_DIR}/components_internals/character_controller_internal_component.h
 	
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.h
 	${ENGINE_SOURCES_DIR}/RmlUI_backend/RmlUi_Platform_SDL.cpp
