@@ -528,11 +528,6 @@ std::string engine::Application::get_shader_name(std::uint32_t idx) const
     return shader_atlas_.get_object_name(idx);
 }
 
-std::vector<std::pair<std::uint32_t, std::string>> engine::Application::get_shader_names() const
-{
-    return shader_atlas_.get_object_names();
-}
-
 void engine::Application::release_shader(std::uint32_t idx)
 {
     shader_atlas_.release(idx);

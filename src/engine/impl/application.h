@@ -77,7 +77,6 @@ public:
     virtual std::uint32_t add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name);
     virtual std::uint32_t get_shader(std::string_view name) const;
     virtual std::string get_shader_name(std::uint32_t idx) const;
-    virtual std::vector<std::pair<std::uint32_t, std::string>> get_shader_names() const;
     virtual void release_shader(std::uint32_t idx);
 
     virtual UiDocument load_ui_document(std::string_view file_name);
