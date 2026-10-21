@@ -565,7 +565,7 @@ engine_game_object_t engineGameObjectCreate()
 {
     if (!G_ACTIVE_SCENE)
     {
-        return ENGINE_RESULT_CODE_FAIL;
+        return ENGINE_INVALID_GAME_OBJECT_ID;
     }
     auto sc = api_cast(G_ACTIVE_SCENE);
     auto new_entity = sc->create_new_entity();
@@ -583,8 +583,7 @@ engine_game_object_t engineGameObjectCreateTransient()
 
 bool engineGameObjectIsTransient(engine_game_object_t game_object)
 {
-    // the scene's first entity has the value of ENGINE_INVALID_GAME_OBJECT_ID and gets no persistent ID either
-    if (!G_ACTIVE_SCENE || game_object == ENGINE_INVALID_GAME_OBJECT_ID)
+    if (!G_ACTIVE_SCENE)
     {
         return false;
     }

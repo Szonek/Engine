@@ -39,7 +39,11 @@ public:
     bool is_nav_mesh_debug_draw_enabled() const;
     engine_result_code_t update(float dt);
 
-    // every entity gets a persistent ID (see EntityIdRegistry), except the reserved ENGINE_INVALID_GAME_OBJECT_ID one
+    // Entity 0 has the value of ENGINE_INVALID_GAME_OBJECT_ID, so every scene reserves it when created: it has no
+    // components, is never destroyed and is not valid for anyone (is_valid_entity, the C API, the editor).
+    static constexpr entt::entity RESERVED_ENTITY{ ENGINE_INVALID_GAME_OBJECT_ID };
+
+    // every entity gets a persistent ID (see EntityIdRegistry)
     entt::entity create_new_entity();
     // restores an entity with the given persistent ID (e.g. undo of a destroy), or without one when it is
     // EntityIdRegistry::INVALID_ID (the entity was transient); the hint is the entt value to reuse if possible

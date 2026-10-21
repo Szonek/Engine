@@ -138,7 +138,7 @@ void project_c::CameraScript::snap_to_player()
 
 bool project_c::CameraScript::find_player()
 {
-    if (player_go_ != ENGINE_INVALID_GAME_OBJECT_ID && engineGameObjectIsValid(player_go_))
+    if (engineGameObjectIsValid(player_go_))
     {
         return true;
     }
