@@ -382,8 +382,8 @@ bool engine::AnimationController::add_layer(std::size_t id, float weight, LayerB
     {
         return false;
     }
-    layers_[id] = AnimationLayer(id, weight, skin_->get_skeleton().num_joints(), mode);
-    layers_[id].looping = looping;
+    auto& layer = layers_.emplace(id, AnimationLayer(id, weight, skin_->get_skeleton(), mode)).first->second;
+    layer.looping = looping;
     return true;
 }
 
@@ -616,9 +616,9 @@ bool engine::AnimationController::remove_event(const std::string& animation_name
     return erased_count > 0;
 }
 
-engine::SamplingJob::SamplingJob(std::size_t num_joints)
-    : context_(ozz::make_unique<ozz::animation::SamplingJob::Context>(num_joints))
-    , output_((num_joints + 3)/4)  // ToDo: just call get_num_soa_joints from skeeleton?
+engine::SamplingJob::SamplingJob(const ozz::animation::Skeleton& skeleton)
+    : context_(ozz::make_unique<ozz::animation::SamplingJob::Context>(skeleton.num_joints()))
+    , output_(skeleton.joint_rest_poses().begin(), skeleton.joint_rest_poses().end())
 {
 }
 

@@ -5,6 +5,9 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <vector>
+
 // The game's characters use the engine's assets as intended: their weapons are textured, and their scripts drive the
 // animation controller of their own game object. These run on the game's real prefabs and test the scripts; the
 // engine's behaviour has its own tests on generated models (prefab_tests, asset_name_tests, animation_controller_tests).
@@ -24,6 +27,36 @@ TEST_F(CharacterAssetTest, PlayerWeaponUsesTheRogueTexture)
     const auto material = engineGameObjectGetMaterialComponent(weapon->get_game_object());
     EXPECT_EQ(material.data.pong.diffuse_texture, engineTextured2DGetByName("Rogue.glb#rogue_texture"));
     EXPECT_NE(material.data.pong.diffuse_texture, ENGINE_INVALID_OBJECT_HANDLE);
+}
+
+TEST_F(CharacterAssetTest, PlayerWeaponHasItsSizeFromTheFirstFrame)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-1.0f, -1.0f, 1.0f, 1.0f);
+    scene->build().player(0.0f, 0.0f);
+    step();
+    const auto* weapon = scene->find_script<project_c::Weapon>();
+    ASSERT_NE(weapon, nullptr);
+
+    // the weapon hangs off the hand joint, which the player's first animation (a cross-fade) moves
+    const auto world_scale = [go = weapon->get_game_object()]()
+    {
+        const auto transform = engineGameObjectGetTransformComponent(go);
+        const auto& matrix = transform.local_to_world;
+        return std::sqrt(matrix[0] * matrix[0] + matrix[1] * matrix[1] + matrix[2] * matrix[2]);
+    };
+    std::vector<float> spawn_scales;
+    for (int frame = 0; frame < 15; frame++)
+    {
+        spawn_scales.push_back(world_scale());
+        step();
+    }
+    const float settled_scale = world_scale();
+    ASSERT_GT(settled_scale, 0.0f);
+    for (const float scale : spawn_scales)
+    {
+        EXPECT_NEAR(scale, settled_scale, settled_scale * 0.01f);
+    }
 }
 
 TEST_F(CharacterAssetTest, EnemiesAnimateThroughTheirGameObject)

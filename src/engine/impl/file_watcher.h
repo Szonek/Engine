@@ -1,6 +1,7 @@
 #pragma once
 #include "logger.h"
 
+#include <atomic>
 #include <filesystem>
 #include <string>
 #include <unordered_map>
@@ -28,23 +29,26 @@ public:
     FileWatcher& operator=(const FileWatcher&) = delete;
     FileWatcher& operator=(FileWatcher&&) = delete;
 
+    // files can be registered whether or not the watcher runs; their callbacks are only called while it does
     void register_callback(const std::filesystem::path& path, const std::function<void()>& callback);
     void unregister_callback(const std::filesystem::path& path);
 
-private:
+    // starts the background thread checking the registered files (off by default: only the editor needs it)
     void start();
-    void stop();
 
 private:
-    FileWatcher()
-        : background_thread_(&FileWatcher::start, this)
-    {
-    }
+    void run();
+
+private:
+    FileWatcher() = default;
 
     ~FileWatcher()
     {
-        stop();
-        background_thread_.join();
+        running_ = false;
+        if (background_thread_.joinable())
+        {
+            background_thread_.join();
+        }
     }
 
 private:
@@ -55,10 +59,10 @@ private:
     };
 
 private:
-    std::thread background_thread_;
     std::mutex mutex_;
-    bool running_ = true;
+    std::atomic<bool> running_ = false;
     std::unordered_map<std::filesystem::path, FileInfo> files_;  // map file_name -> last time was modified
+    std::thread background_thread_;  // last: the thread uses the members above
 };
 
 }
