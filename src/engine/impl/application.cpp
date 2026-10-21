@@ -5,6 +5,7 @@
 #include "logger.h"
 #include "gltf_parser.h"
 #include "ui_document.h"
+#include "serialization/builtin_types.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -139,6 +140,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     {
         max_delta_time_ = desc.max_delta_time;
     }
+    register_builtin_types(types_);
     renderer_.add_feature(std::make_shared<CallbackRenderFeature>("UI", [this](FrameContext& frame)
         {
             add_overlay_pass(frame, "UI", frame.scene_output, [this](rg::PassContext&)
@@ -331,6 +333,32 @@ std::uint32_t engine::Application::add_texture(const TextureDesc& desc)
 std::uint32_t engine::Application::add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t /*color_space*/)
 {
 	return textures_atlas_.add_object(texture_name, Texture2D(file_name, true));
+}
+
+std::uint32_t engine::Application::load_texture_file(std::string_view path)
+{
+    const auto name = std::filesystem::path(path).lexically_normal().generic_string();
+    if (const auto loaded = get_texture(name); loaded != ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return acquire_texture(loaded) ? loaded : ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    const auto file_path = AssetStore::get_instance().get_models_base_path() / name;
+    const TextureAssetContext image(file_path);
+    const std::array layouts = { DataLayout::eR_U8, DataLayout::eCount, DataLayout::eRGB_U8, DataLayout::eRGBA_U8 };
+    const auto channels = image.get_channels();
+    if (!image.get_data_ptr() || channels < 1 || channels > 4 || layouts[channels - 1] == DataLayout::eCount)
+    {
+        log::log(log::LogLevel::eError, fmt::format("Failed loading image file {}: it can't be read or has {} channels.\n", file_path.string(), channels));
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    TextureDesc desc{};
+    desc.name = name;
+    desc.width = static_cast<std::uint32_t>(image.get_width());
+    desc.height = static_cast<std::uint32_t>(image.get_height());
+    desc.layout = layouts[channels - 1];
+    const auto* data = reinterpret_cast<const std::byte*>(image.get_data_ptr());
+    desc.data.assign(data, data + desc.width * desc.height * channels);
+    return add_texture(desc);
 }
 
 std::uint32_t engine::Application::get_texture(std::string_view name) const

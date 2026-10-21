@@ -136,6 +136,11 @@ std::filesystem::path engine::AssetStore::get_models_base_path() const
     return models_assets_path;
 }
 
+std::filesystem::path engine::AssetStore::get_scenes_base_path() const
+{
+    return base_path_ / "scenes";
+}
+
 engine::TextureAssetContext engine::AssetStore::get_texture_data(std::string_view name) const
 {
 	const auto full_path = get_textures_base_path() / name.data();

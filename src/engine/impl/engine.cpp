@@ -17,6 +17,8 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <optional>
 #include <utility>
 
@@ -558,6 +560,49 @@ engine_result_code_t engineSceneSetActive(engine_scene_t handle)
     }
     G_ACTIVE_SCENE = handle;
     return ENGINE_RESULT_CODE_OK;
+}
+
+namespace
+{
+std::filesystem::path scene_file_path(const char* path)
+{
+    const std::filesystem::path p(path);
+    return p.is_absolute() ? p : engine::AssetStore::get_instance().get_scenes_base_path() / p;
+}
+}  // namespace
+
+engine_result_code_t engineSceneSave(const char* path)
+{
+    if (!G_ACTIVE_SCENE || !path)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const auto file_path = scene_file_path(path);
+    const auto content = api_cast(G_ACTIVE_SCENE)->save();
+    std::ofstream file(file_path, std::ios::binary | std::ios::trunc);
+    if (!file || !file.write(content.data(), static_cast<std::streamsize>(content.size())))
+    {
+        engine::log::log(engine::log::LogLevel::eError, fmt::format("Scene save: can't write {}.\n", file_path.string()));
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t engineSceneLoad(const char* path)
+{
+    if (!G_ACTIVE_SCENE || !path)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const auto file_path = scene_file_path(path);
+    std::ifstream file(file_path, std::ios::binary);
+    if (!file)
+    {
+        engine::log::log(engine::log::LogLevel::eError, fmt::format("Scene load: can't read {}.\n", file_path.string()));
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    return api_cast(G_ACTIVE_SCENE)->load(content, path) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
 

@@ -508,6 +508,17 @@ ENGINE_API bool engineEditorIsGameView();
 ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_create_desc_t desc, engine_scene_t* out);
 ENGINE_API void engineSceneDestroy(engine_scene_t scene);
 ENGINE_API engine_result_code_t engineSceneSetActive(engine_scene_t handle);
+// Scene files (JSON) hold the authored content of a scene: every game object with a persistent ID (transient ones are
+// never saved) and its components which hold authored data (name, folder, transform, parent, mesh, material, light,
+// nav surface and modifier, rigid body, collider, character controller), with assets referenced by asset ID and game
+// objects by persistent ID. A path is relative to assets/scenes, or absolute.
+// Saves the active scene; fails when the file can't be written.
+ENGINE_API engine_result_code_t engineSceneSave(const char* path);
+// Adds the game objects of a scene file to the active scene, with the IDs of the file (one whose ID is used already
+// gets a new one). The models and images it references are loaded when needed and live at least as long as the scene.
+// Fails, without changing the scene, when the file can't be read or isn't a scene file this engine can read; problems
+// inside a scene file (an unknown component, a missing asset, ...) are logged and the rest is loaded.
+ENGINE_API engine_result_code_t engineSceneLoad(const char* path);
 
 // game objects in scene
 ENGINE_API engine_game_object_t engineGameObjectCreate();
