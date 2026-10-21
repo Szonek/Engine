@@ -14,21 +14,21 @@ TEST_F(AssetNameTest, GeometriesAreQualifiedByTheirModelFile)
 {
     const TestModel crate("crate.gltf");
     ASSERT_TRUE(crate.loaded());
-    EXPECT_NE(engineGeometryGetByName("crate.gltf#Plate"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_NE(engineGeometryGetByName("test_fixtures/crate.gltf#Plate"), ENGINE_INVALID_OBJECT_HANDLE);
     // the bare mesh name is not an asset ID: several models have a mesh with the same name
     EXPECT_EQ(engineGeometryGetByName("Plate"), ENGINE_INVALID_OBJECT_HANDLE);
 
     const TestModel arm("skinned_arm.gltf");
     ASSERT_TRUE(arm.loaded());
-    EXPECT_NE(engineGeometryGetByName("skinned_arm.gltf#Arm"), ENGINE_INVALID_OBJECT_HANDLE);
-    EXPECT_NE(engineGeometryGetByName("skinned_arm.gltf#Sword"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_NE(engineGeometryGetByName("test_fixtures/skinned_arm.gltf#Arm"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_NE(engineGeometryGetByName("test_fixtures/skinned_arm.gltf#Sword"), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
 TEST_F(AssetNameTest, EmbeddedTexturesAreQualifiedByTheirModelFile)
 {
     const TestModel model("embedded_texture.gltf");
     ASSERT_TRUE(model.loaded());
-    EXPECT_NE(engineTextured2DGetByName("embedded_texture.gltf#checker"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_NE(engineTextured2DGetByName("test_fixtures/embedded_texture.gltf#checker"), ENGINE_INVALID_OBJECT_HANDLE);
     // the bare glTF image name is not an asset ID: several models embed an image with the same name
     EXPECT_EQ(engineTextured2DGetByName("checker"), ENGINE_INVALID_OBJECT_HANDLE);
 }
@@ -38,15 +38,15 @@ TEST_F(AssetNameTest, TextureInItsOwnFileIsNamedByItsPath)
     const TestModel model("textured_a.gltf");
     ASSERT_TRUE(model.loaded());
     EXPECT_NE(engineTextured2DGetByName("test_fixtures/test_texture.png"), ENGINE_INVALID_OBJECT_HANDLE);
-    EXPECT_EQ(engineTextured2DGetByName("textured_a.gltf#test_texture.png"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(engineTextured2DGetByName("test_fixtures/textured_a.gltf#test_texture.png"), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
 TEST_F(AssetNameTest, SkinAndAnimationSetAreQualifiedByTheirModelFile)
 {
     const TestModel arm("skinned_arm.gltf");
     ASSERT_TRUE(arm.loaded());
-    EXPECT_NE(engineSkinGetByName("skinned_arm.gltf#Rig"), ENGINE_INVALID_OBJECT_HANDLE);
-    EXPECT_NE(engineAnimationSetGetByName("skinned_arm.gltf#animations"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_NE(engineSkinGetByName("test_fixtures/skinned_arm.gltf#Rig"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_NE(engineAnimationSetGetByName("test_fixtures/skinned_arm.gltf#animations"), ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(engineSkinGetByName("Rig"), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
@@ -58,7 +58,7 @@ TEST_F(AssetNameTest, SkinnedInstancesShareOneSkinAsset)
     const auto second = arm.instantiate();
     step();
 
-    const auto skin = engineSkinGetByName("skinned_arm.gltf#Rig");
+    const auto skin = engineSkinGetByName("test_fixtures/skinned_arm.gltf#Rig");
     ASSERT_NE(skin, ENGINE_INVALID_OBJECT_HANDLE);
     // each instance owns its own pose of the one skin asset
     ASSERT_TRUE(engineGameObjectHasSkinComponent(first));

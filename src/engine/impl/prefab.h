@@ -13,9 +13,9 @@ namespace engine
 class Application;
 class Scene;
 
-// A model (glTF) loaded into an application, named by its file ("Rogue.glb").
+// A model (glTF) loaded into an application, named by its path relative to the models folder ("characters/Rogue.glb").
 // It holds a reference to each asset created from the model's data (geometries, textures, skin, animation set; the
-// model's asset IDs are "<file>#<name>", see asset_id.h) and releases them when destroyed, so they live as long as the
+// model's asset IDs are "<path>#<name>", see asset_id.h) and releases them when destroyed, so they live as long as the
 // prefab. An image in its own file is an asset of its own which other models (or the game) may use too: the prefab
 // only holds one reference to it. instantiate() stamps out the model's node hierarchy as game objects that use the
 // assets.

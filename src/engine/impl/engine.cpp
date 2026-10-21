@@ -441,19 +441,19 @@ void engineTexture2DRelease(engine_texture2d_t tex2d)
     api_cast(G_ACTIVE_APP)->release_texture(tex2d);
 }
 
-engine_result_code_t enginePrefabLoad(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_prefab_t* out)
+engine_result_code_t enginePrefabLoad(engine_model_specification_t spec, const char* path, engine_prefab_t* out)
 {
-    if (!G_ACTIVE_APP || !file_name || !base_dir || !out || spec != ENGINE_MODEL_SPECIFICATION_GLTF_2)
+    if (!G_ACTIVE_APP || !path || !out || spec != ENGINE_MODEL_SPECIFICATION_GLTF_2)
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
-    const auto ret = api_cast(G_ACTIVE_APP)->load_prefab(file_name, base_dir);
+    const auto ret = api_cast(G_ACTIVE_APP)->load_prefab(path);
     if (ret == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
     *out = ret;
-    engineLog(fmt::format("Loaded prefab: {}, with id: {}\n", file_name, ret).c_str());
+    engineLog(fmt::format("Loaded prefab: {}, with id: {}\n", path, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 

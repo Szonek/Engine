@@ -462,25 +462,27 @@ void engine::Application::release_animation_set(std::uint32_t idx)
     animation_sets_atlas_.release(idx);
 }
 
-std::uint32_t engine::Application::load_prefab(std::string_view file_name, std::string_view base_dir)
+std::uint32_t engine::Application::load_prefab(std::string_view path)
 {
+    // the asset ID: the same file is always named the same way
+    const auto name = std::filesystem::path(path).lexically_normal().generic_string();
     // a prefab is named by its model file: that file is loaded already
-    if (const auto loaded = get_prefab(file_name); loaded != ENGINE_INVALID_OBJECT_HANDLE)
+    if (const auto loaded = get_prefab(name); loaded != ENGINE_INVALID_OBJECT_HANDLE)
     {
         return acquire_prefab(loaded) ? loaded : ENGINE_INVALID_OBJECT_HANDLE;
     }
 
-    const auto assets_dir = AssetStore::get_instance().get_models_base_path() / base_dir;
-    const auto file_data = AssetStore::get_instance().get_raw_data_content(assets_dir / file_name);
+    const auto file_path = AssetStore::get_instance().get_models_base_path() / name;
+    const auto file_data = AssetStore::get_instance().get_raw_data_content(file_path);
     if (file_data.get_size() == 0)
     {
-        log::log(log::LogLevel::eError, fmt::format("Failed loading model file: {}\n", (assets_dir / file_name).string()));
+        log::log(log::LogLevel::eError, fmt::format("Failed loading model file: {}\n", file_path.string()));
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
-    auto model = parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string(), std::string(file_name));
+    auto model = parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, file_path.parent_path().string(), name);
     if (model.nodes.empty())
     {
-        log::log(log::LogLevel::eError, fmt::format("Model file {} has no nodes, it is not a usable glTF file.\n", (assets_dir / file_name).string()));
+        log::log(log::LogLevel::eError, fmt::format("Model file {} has no nodes, it is not a usable glTF file.\n", file_path.string()));
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
     auto prefab = Prefab::create(*this, std::move(model));
@@ -489,7 +491,7 @@ std::uint32_t engine::Application::load_prefab(std::string_view file_name, std::
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
     // when it isn't added, the prefab is destroyed here and releases its assets
-    return prefabs_atlas_.add_object(file_name, std::move(prefab));
+    return prefabs_atlas_.add_object(name, std::move(prefab));
 }
 
 std::uint32_t engine::Application::get_prefab(std::string_view name) const

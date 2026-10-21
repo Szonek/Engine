@@ -383,16 +383,18 @@ typedef enum _engine_model_specification_t
     ENGINE_MODEL_SPECIFICATION_GLTF_2
 } engine_model_specification_t;
 
-// Prefab: an asset built from a model file, named by the file ("Rogue.glb"). Loading it also creates the model's
-// geometries, textures, skin and animation set as assets named "<file>#<name>" (e.g. "Rogue.glb#Rig", the skin and
-// "Rogue.glb#animations", the animation set); they live as long as the prefab. An image in its own file is shared with
+// Prefab: an asset built from a model file, named by the file's path relative to the models folder, with '/'
+// separators ("characters/Rogue.glb"); the path is its asset ID, so a scene file can load it. Loading it also creates
+// the model's geometries, textures, skin and animation set as assets named "<path>#<name>" (e.g.
+// "characters/Rogue.glb#Rig", the skin and "characters/Rogue.glb#animations", the animation set); they live as long
+// as the prefab. An image in its own file is shared with
 // the other models (and textures of the game) using it and lives as long as the last of them.
 // Prefabs are reference counted: loading gives the caller a reference to the prefab (loading a model which is loaded
 // already returns the same prefab), every instance holds one until it is destroyed, and the prefab is destroyed with
 // its assets when the last reference is released. Instantiating it creates the model's game objects in the active
 // scene. Components store asset handles without holding references: a game object using a model's asset (e.g. its
 // geometry) needs someone to hold the prefab, like the game or an instance.
-ENGINE_API engine_result_code_t enginePrefabLoad(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_prefab_t* out);
+ENGINE_API engine_result_code_t enginePrefabLoad(engine_model_specification_t spec, const char* path, engine_prefab_t* out);
 ENGINE_API engine_prefab_t enginePrefabGetByName(const char* name);
 // Returns the root game object of the new instance, or ENGINE_INVALID_GAME_OBJECT_ID. The root is the parent of all the
 // other game objects of the instance.
@@ -404,12 +406,12 @@ ENGINE_API engine_prefab_t enginePrefabInstanceGetPrefab(engine_game_object_t ga
 ENGINE_API void enginePrefabRelease(engine_prefab_t prefab);
 
 // Skin: an asset shared by every instance of a skinned model (the skeleton and its binding to the mesh), created with
-// the model's prefab and named "<model file>#<skin name>". Each instance's pose belongs to the game object with the
+// the model's prefab and named "<model path>#<skin name>". Each instance's pose belongs to the game object with the
 // skin component.
 ENGINE_API engine_skin_t engineSkinGetByName(const char* name);
 
 // Animation set: an asset with a model's animation clips compiled for its skin, created with the model's prefab, named
-// "<model file>#animations" and shared by every controller of that skin.
+// "<model path>#animations" and shared by every controller of that skin.
 ENGINE_API engine_animation_set_t engineAnimationSetGetByName(const char* name);
 
 // Animation controller: the runtime part of a game object's animation controller component, created and owned by the

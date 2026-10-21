@@ -28,25 +28,25 @@ project_c::PrefabsData project_c::default_prefabs_data()
     return
     {
         // player
-        { project_c::PREFAB_TYPE_ROGUE,         { "Rogue.glb", "KayKit_Adventurers_1.0_FREE/Characters/gltf" }},
+        { project_c::PREFAB_TYPE_ROGUE,         "KayKit_Adventurers_1.0_FREE/Characters/gltf/Rogue.glb" },
 
         // enemies
-        { project_c::PREFAB_TYPE_SKELETON_WARRIOR, { "Skeleton_Warrior.glb", "KayKit_Skeletons_1.0_FREE/characters/gltf" }},
-        { project_c::PREFAB_TYPE_SKELETON_BLADE, { "Skeleton_Blade.gltf", "KayKit_Skeletons_1.0_FREE/assets/gltf" }},
+        { project_c::PREFAB_TYPE_SKELETON_WARRIOR, "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb" },
+        { project_c::PREFAB_TYPE_SKELETON_BLADE, "KayKit_Skeletons_1.0_FREE/assets/gltf/Skeleton_Blade.gltf" },
 
         // scene assets
-        { project_c::PREFAB_TYPE_FLOOR,          { "Floor_Prototype.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-        //{ project_c::PREFAB_FLOOR_OUTSIDE_REGION, { "Floor.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
+        { project_c::PREFAB_TYPE_FLOOR,          "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/Floor_Prototype.gltf" },
+        //{ project_c::PREFAB_FLOOR_OUTSIDE_REGION, "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/Floor.gltf" },
 
-        //{ project_c::PREFAB_TYPE_WALL,      { "Wall.gltf",   "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-        { project_c::PREFAB_TYPE_BOX,       { "Box_B.gltf",  "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-        { project_c::PREFAB_TYPE_COIN_GOLD, { "Coin_A.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
+        //{ project_c::PREFAB_TYPE_WALL,      "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/Wall.gltf" },
+        { project_c::PREFAB_TYPE_BOX,       "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/Box_B.gltf" },
+        { project_c::PREFAB_TYPE_COIN_GOLD, "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/Coin_A.gltf" },
 
         // building pieces
-        { project_c::PREFAB_TYPE_BUILDING_WALL,   { "Primitive_Wall.gltf",   "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-        { project_c::PREFAB_TYPE_BUILDING_WINDOW, { "Primitive_Window.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-        { project_c::PREFAB_TYPE_BUILDING_ROOF,   { "Primitive_Floor.gltf",  "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
-        { project_c::PREFAB_TYPE_TRAVERSAL_MARKER, { "Primitive_Cube_Small.gltf", "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf" }},
+        { project_c::PREFAB_TYPE_BUILDING_WALL,   "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/Primitive_Wall.gltf" },
+        { project_c::PREFAB_TYPE_BUILDING_WINDOW, "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/Primitive_Window.gltf" },
+        { project_c::PREFAB_TYPE_BUILDING_ROOF,   "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/Primitive_Floor.gltf" },
+        { project_c::PREFAB_TYPE_TRAVERSAL_MARKER, "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/Primitive_Cube_Small.gltf" },
     };
 }
 
@@ -62,10 +62,10 @@ project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppCo
         return;
     }
 
-    for (const auto& [type, file_and_basedir] : prefabs_data)
+    for (const auto& [type, path] : prefabs_data)
     {
-        const auto& [model_file_name, base_dir] = file_and_basedir;
-        if (enginePrefabLoad(ENGINE_MODEL_SPECIFICATION_GLTF_2, model_file_name.c_str(), base_dir.c_str(), &prefabs_[type]) != ENGINE_RESULT_CODE_OK)
+        prefab_paths_[type] = path;
+        if (enginePrefabLoad(ENGINE_MODEL_SPECIFICATION_GLTF_2, path.c_str(), &prefabs_[type]) != ENGINE_RESULT_CODE_OK)
         {
             log(fmt::format("Failed loading prefab: {}\n", type));
         }
@@ -117,6 +117,11 @@ bool project_c::AppProjectC::is_valid_prefab_type(PrefabType type) const
 bool project_c::AppProjectC::is_prefab_available(PrefabType type) const
 {
     return prefabs_[type] != ENGINE_INVALID_OBJECT_HANDLE;
+}
+
+std::string project_c::AppProjectC::model_asset_id(PrefabType type, std::string_view name) const
+{
+    return fmt::format("{}#{}", prefab_paths_[type], name);
 }
 
 void project_c::AppProjectC::update(float dt)

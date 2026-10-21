@@ -16,8 +16,8 @@
 
 namespace project_c
 {
-// prefab type -> { model file, base dir under assets/models }
-using PrefabsData = std::unordered_map<PrefabType, std::pair<std::string, std::string>>;
+// prefab type -> path of the model file under assets/models (the prefab's asset ID)
+using PrefabsData = std::unordered_map<PrefabType, std::string>;
 // the models the game loads at startup
 PrefabsData default_prefabs_data();
 
@@ -41,6 +41,8 @@ public:
     // a transient instance (never saved, no persistent IDs): scripts spawn these at runtime
     PrefabResult spawn_prefab(PrefabType type);
     bool is_prefab_available(PrefabType type) const;
+    // the asset ID of an asset of the type's model, e.g. one of its meshes: "<model path>#<name>"
+    std::string model_asset_id(PrefabType type, std::string_view name) const;
     // One frame of the game (dt in milliseconds): updates the scenes, then applies scene changes they requested.
     // The caller owns the loop and calls it between engineFrameBegin() and engineFrameEnd() (main.cpp, tests).
     void update(float dt);
@@ -67,6 +69,7 @@ private:
 
     // the engine prefab assets of the models loaded at startup, ENGINE_INVALID_OBJECT_HANDLE for a model which failed loading
     std::array<engine_prefab_t, PREFAB_TYPE_COUNT> prefabs_;
+    std::array<std::string, PREFAB_TYPE_COUNT> prefab_paths_;
     PlayerInput player_input_{};
     std::function<void()> pending_scene_change_;
 };
