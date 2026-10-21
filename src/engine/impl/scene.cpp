@@ -120,6 +120,9 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
         [this]() { const auto* editor = dynamic_cast<const ApplicationEditor*>(app_); return editor && !editor->is_playing(); })
     , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
 {
+    // the first entity EnTT creates is 0: reserve it, so that no game object has the value of ENGINE_INVALID_GAME_OBJECT_ID
+    [[maybe_unused]] const auto reserved = entity_registry_.create();
+    assert(reserved == RESERVED_ENTITY);
     // basic initalizers
     entity_registry_.on_construct<engine_transform_component_t>().connect<&initialize_transform_component>();
     entity_registry_.on_construct<engine_transform_component_t>().connect<&entt::registry::emplace<world_transform_internal_component_t>>();
@@ -644,10 +647,7 @@ entt::entity engine::Scene::create_new_entity()
 {
     ENGINE_PROFILE_SECTION;
     const auto entity = entity_registry_.create();
-    if (static_cast<std::uint32_t>(entity) != ENGINE_INVALID_GAME_OBJECT_ID)
-    {
-        entity_ids_.assign_next(entity);
-    }
+    entity_ids_.assign_next(entity);
     return entity;
 }
 
@@ -672,6 +672,10 @@ entt::entity engine::Scene::create_transient_entity()
 void engine::Scene::destroy_entity(entt::entity entity)
 {
     ENGINE_PROFILE_SECTION;
+    if (!is_valid_entity(entity))
+    {
+        return;
+    }
     // a copy: destroying a child removes it from the list
     const auto children_view = get_children(entity);
     const std::vector<entt::entity> children(children_view.begin(), children_view.end());
@@ -685,7 +689,7 @@ void engine::Scene::destroy_entity(entt::entity entity)
 bool engine::Scene::is_valid_entity(entt::entity entity) const
 {
     ENGINE_PROFILE_SECTION;
-    return entity_registry_.valid(entity);
+    return entity != RESERVED_ENTITY && entity_registry_.valid(entity);
 }
 
 std::uint64_t engine::Scene::get_persistent_id(entt::entity entity) const
@@ -705,7 +709,7 @@ std::vector<entt::entity> engine::Scene::get_all_entities() const
     std::vector<entt::entity> entities;
     for (const auto entity : entity_registry_.view<entt::entity>())
     {
-        if (static_cast<std::uint32_t>(entity) != ENGINE_INVALID_GAME_OBJECT_ID)
+        if (entity != RESERVED_ENTITY)
         {
             entities.push_back(entity);
         }

@@ -3,6 +3,8 @@
 #include "../player_input.h"
 
 #include <array>
+#include <optional>
+#include <string>
 #include <chrono>
 #include <unordered_set>
 
@@ -31,8 +33,10 @@ private:
 class Weapon : public BaseNode
 {
 public:
-    Weapon(engine::IScene* my_scene);
+    Weapon(engine::IScene* my_scene, engine_game_object_t go);
     ~Weapon();
+
+    void on_start() override;
 
     void attach_to_game_object(engine_game_object_t parent, std::string_view joint_name, std::optional<glm::vec3> position, std::optional<glm::quat> rotation);
     void attach_offhand_to_game_object(engine_game_object_t parent, std::string_view joint_name);
@@ -44,10 +48,19 @@ public:
     bool is_on_ground() const;
 
 private:
-    // second dagger: visual only, follows main dagger when it is not held
+    struct OffhandHolder
+    {
+        engine_game_object_t parent;
+        std::string joint_name;
+    };
+
+    // second dagger: visual only, follows main dagger when it is not held; created in on_start (a runtime object)
     engine_game_object_t offhand_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    // where the second dagger is held, nullopt when it lies next to the main dagger
+    std::optional<OffhandHolder> offhand_holder_;
 
     void attach_offhand_to_main();
+    void place_offhand();
 };
 
 class Player : public BaseNode
@@ -168,6 +181,7 @@ private:
 public:
     Player(engine::IScene* my_scene, const PrefabResult& pr);
 
+    void on_start() override;
     void update(float dt);
     void on_confirmed_attack_hit(float hit_stop_seconds);
     bool receive_damage(std::uint32_t damage, const glm::vec3& source_position);

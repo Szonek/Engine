@@ -1,5 +1,6 @@
 #include "building_script.h"
 #include "scripts_utils.h"
+#include "player_script.h"
 
 #include "../app.h"
 #include "iscene.h"
@@ -113,81 +114,30 @@ void project_c::BuildingPart::set_hidden(bool hidden, bool affect_collider)
     }
 }
 
-project_c::House::House(engine::IScene* my_scene, AppProjectC& app, const glm::vec2& center, float ground_y)
+project_c::House::House(engine::IScene* my_scene, const glm::vec2& center, float ground_y)
     : BaseNode(my_scene, "house")
     , center_(center)
     , ground_y_(ground_y)
 {
-    const glm::vec3 long_wall_scale(LONG_WALL_X_SCALE, PIECE_SCALE, PIECE_SCALE);
-    const glm::vec3 short_wall_scale(PIECE_SCALE);
-    const float long_wall_offset = half_size * LONG_WALL_X_SCALE / PIECE_SCALE * 0.5f;  // center of each half of the long wall
-    const float short_wall_offset = half_size * 0.5f;
-
-    // north (back) wall
-    add_wall(app, { center_.x - long_wall_offset, ground_y_, center_.y - half_size }, 0.0f, long_wall_scale, false);
-    add_wall(app, { center_.x + long_wall_offset, ground_y_, center_.y - half_size }, 0.0f, long_wall_scale, false);
-    // south (front, camera facing) wall with the window
-    add_window_wall(app, { center_.x - long_wall_offset, ground_y_, center_.y + half_size }, 0.0f, long_wall_scale, true);
-    add_wall(app, { center_.x + long_wall_offset, ground_y_, center_.y + half_size }, 0.0f, long_wall_scale, true);
-    // west and east walls
-    add_wall(app, { center_.x - half_size, ground_y_, center_.y - short_wall_offset }, 90.0f, short_wall_scale, false);
-    add_wall(app, { center_.x - half_size, ground_y_, center_.y + short_wall_offset }, 90.0f, short_wall_scale, false);
-    add_wall(app, { center_.x + half_size, ground_y_, center_.y - short_wall_offset }, 90.0f, short_wall_scale, false);
-    add_wall(app, { center_.x + half_size, ground_y_, center_.y + short_wall_offset }, 90.0f, short_wall_scale, false);
-
-    add_roof(app);
+    // the parts are children placed in world space (build_house), so the house itself stays at the origin
+    auto tc = engineGameObjectAddTransformComponent(go_);
+    engineGameObjectUpdateTransformComponent(go_, &tc);
 }
 
-void project_c::House::add_wall(AppProjectC& app, const glm::vec3& position, float y_rotation_degrees, const glm::vec3& scale, bool camera_facing)
+void project_c::House::on_start()
 {
-    if (!app.is_prefab_available(PREFAB_TYPE_BUILDING_WALL))
+    if (const auto* player = my_scene_->find_script<Player>())
     {
-        return;
+        player_go_ = player->get_game_object();
     }
-    auto part = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WALL).go,
-        "house-wall", position, y_rotation_degrees, scale, WALL_BOX, true);
-    part->set_climbable_away_from({ center_.x, ground_y_, center_.y });
-    if (camera_facing)
+    for (const auto child : utils::get_children(go_))
     {
-        camera_occluders_.push_back(part);
+        auto* part = my_scene_->get_script<BuildingPart>(child);
+        if (part && part->get_hide_when_inside() != BuildingPart::HideWhenInside::eNever)
+        {
+            hidden_when_inside_.push_back(part);
+        }
     }
-}
-
-void project_c::House::add_window_wall(AppProjectC& app, const glm::vec3& position, float y_rotation_degrees, const glm::vec3& scale, bool camera_facing)
-{
-    if (!app.is_prefab_available(PREFAB_TYPE_BUILDING_WINDOW))
-    {
-        return;
-    }
-    // visible piece, without collider
-    auto part = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WINDOW).go,
-        "house-window", position, y_rotation_degrees, scale, std::nullopt, false);
-    if (camera_facing)
-    {
-        camera_occluders_.push_back(part);
-    }
-
-    // invisible collision frame around the opening
-    for (const auto& box : WINDOW_FRAME_BOXES)
-    {
-        auto frame = my_scene_->register_script<BuildingPart>(engineGameObjectCreate(), "house-window-frame", position, y_rotation_degrees, scale, box, true);
-        frame->set_alignment_point(position);
-        frame->set_climbable_away_from({ center_.x, ground_y_, center_.y });
-    }
-}
-
-void project_c::House::add_roof(AppProjectC& app)
-{
-    if (!app.is_prefab_available(PREFAB_TYPE_BUILDING_ROOF))
-    {
-        return;
-    }
-    // roof covers walls fully, so its edge is flush with the outer face of the walls
-    const float roof_xz_scale = (half_size + wall_thickness * 0.5f) / 2.0f;
-    const float roof_y_scale = roof_thickness / (ROOF_BOX.half_extents.y * 2.0f);
-    roof_ = my_scene_->register_script<BuildingPart>(app.instantiate_prefab(PREFAB_TYPE_BUILDING_ROOF).go,
-        "house-roof", glm::vec3(center_.x, ground_y_ + wall_height, center_.y), 0.0f, glm::vec3(roof_xz_scale, roof_y_scale, roof_xz_scale),
-        ROOF_BOX, false);
 }
 
 bool project_c::House::is_inside(const glm::vec3& p) const
@@ -200,14 +150,10 @@ bool project_c::House::is_inside(const glm::vec3& p) const
 
 void project_c::House::update(float dt)
 {
+    // a scene without a player (e.g. a test scene)
     if (player_go_ == ENGINE_INVALID_GAME_OBJECT_ID)
     {
-        const auto players = utils::get_game_objects_with_name("player");
-        if (players.empty())
-        {
-            return;
-        }
-        player_go_ = players.front();
+        return;
     }
 
     const auto ptc = engineGameObjectGetTransformComponent(player_go_);
@@ -219,14 +165,9 @@ void project_c::House::update(float dt)
     player_inside_ = inside;
 
     // classic ARPG "cut away": hide what blocks the view of the room from the top-down camera
-    // roof collider is removed as well, so mouse aiming/picking hits the room floor instead of the roof
-    if (roof_)
+    for (auto* part : hidden_when_inside_)
     {
-        roof_->set_hidden(inside, true);
-    }
-    for (auto* occluder : camera_occluders_)
-    {
-        occluder->set_hidden(inside, false);
+        part->set_hidden(inside, part->get_hide_when_inside() == BuildingPart::HideWhenInside::eMeshAndCollider);
     }
     for (const auto prop : roof_props_)
     {
@@ -237,4 +178,77 @@ void project_c::House::update(float dt)
             engineGameObjectUpdateMeshComponent(prop, &mc);
         }
     }
+}
+
+project_c::House* project_c::build_house(engine::IScene& scene, AppProjectC& app, const glm::vec2& center, float ground_y)
+{
+    auto* house = scene.register_script<House>(center, ground_y);
+    const glm::vec3 house_center(center.x, ground_y, center.y);
+
+    auto add_part = [&](engine_game_object_t go, std::string_view name, const glm::vec3& position, float y_rotation_degrees,
+        const glm::vec3& scale, std::optional<BuildingPart::Box> collider, bool climbable, BuildingPart::HideWhenInside hide)
+        {
+            auto pc = engineGameObjectAddParentComponent(go);
+            pc.parent = house->get_game_object();
+            engineGameObjectUpdateParentComponent(go, &pc);
+            auto* part = scene.register_script<BuildingPart>(go, name, position, y_rotation_degrees, scale, collider, climbable);
+            part->set_hide_when_inside(hide);
+            return part;
+        };
+    auto add_wall = [&](const glm::vec3& position, float y_rotation_degrees, const glm::vec3& scale, bool camera_facing)
+        {
+            if (!app.is_prefab_available(PREFAB_TYPE_BUILDING_WALL))
+            {
+                return;
+            }
+            auto* part = add_part(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WALL).go, "house-wall", position, y_rotation_degrees, scale, WALL_BOX, true,
+                camera_facing ? BuildingPart::HideWhenInside::eMesh : BuildingPart::HideWhenInside::eNever);
+            part->set_climbable_away_from(house_center);
+        };
+    auto add_window_wall = [&](const glm::vec3& position, float y_rotation_degrees, const glm::vec3& scale, bool camera_facing)
+        {
+            if (!app.is_prefab_available(PREFAB_TYPE_BUILDING_WINDOW))
+            {
+                return;
+            }
+            // visible piece, without collider
+            add_part(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WINDOW).go, "house-window", position, y_rotation_degrees, scale, std::nullopt, false,
+                camera_facing ? BuildingPart::HideWhenInside::eMesh : BuildingPart::HideWhenInside::eNever);
+
+            // invisible collision frame around the opening
+            for (const auto& box : WINDOW_FRAME_BOXES)
+            {
+                auto* frame = add_part(engineGameObjectCreate(), "house-window-frame", position, y_rotation_degrees, scale, box, true, BuildingPart::HideWhenInside::eNever);
+                frame->set_alignment_point(position);
+                frame->set_climbable_away_from(house_center);
+            }
+        };
+
+    const glm::vec3 long_wall_scale(LONG_WALL_X_SCALE, PIECE_SCALE, PIECE_SCALE);
+    const glm::vec3 short_wall_scale(PIECE_SCALE);
+    const float long_wall_offset = House::half_size * LONG_WALL_X_SCALE / PIECE_SCALE * 0.5f;  // center of each half of the long wall
+    const float short_wall_offset = House::half_size * 0.5f;
+
+    // north (back) wall
+    add_wall({ center.x - long_wall_offset, ground_y, center.y - House::half_size }, 0.0f, long_wall_scale, false);
+    add_wall({ center.x + long_wall_offset, ground_y, center.y - House::half_size }, 0.0f, long_wall_scale, false);
+    // south (front, camera facing) wall with the window
+    add_window_wall({ center.x - long_wall_offset, ground_y, center.y + House::half_size }, 0.0f, long_wall_scale, true);
+    add_wall({ center.x + long_wall_offset, ground_y, center.y + House::half_size }, 0.0f, long_wall_scale, true);
+    // west and east walls
+    add_wall({ center.x - House::half_size, ground_y, center.y - short_wall_offset }, 90.0f, short_wall_scale, false);
+    add_wall({ center.x - House::half_size, ground_y, center.y + short_wall_offset }, 90.0f, short_wall_scale, false);
+    add_wall({ center.x + House::half_size, ground_y, center.y - short_wall_offset }, 90.0f, short_wall_scale, false);
+    add_wall({ center.x + House::half_size, ground_y, center.y + short_wall_offset }, 90.0f, short_wall_scale, false);
+
+    if (app.is_prefab_available(PREFAB_TYPE_BUILDING_ROOF))
+    {
+        // roof covers walls fully, so its edge is flush with the outer face of the walls
+        const float roof_xz_scale = (House::half_size + House::wall_thickness * 0.5f) / 2.0f;
+        const float roof_y_scale = House::roof_thickness / (ROOF_BOX.half_extents.y * 2.0f);
+        // its collider goes too, so mouse aiming/picking hits the room floor instead of the roof
+        add_part(app.instantiate_prefab(PREFAB_TYPE_BUILDING_ROOF).go, "house-roof", glm::vec3(center.x, ground_y + House::wall_height, center.y), 0.0f,
+            glm::vec3(roof_xz_scale, roof_y_scale, roof_xz_scale), ROOF_BOX, false, BuildingPart::HideWhenInside::eMeshAndCollider);
+    }
+    return house;
 }

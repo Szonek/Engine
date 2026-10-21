@@ -208,7 +208,8 @@ inline void generate_scene(std::string_view scene_str, project_c::AppProjectC& a
             min_cell = glm::min(min_cell, glm::vec2(cell.x, cell.y));
             max_cell = glm::max(max_cell, glm::vec2(cell.x, cell.y));
         }
-        auto house = scene.register_script<project_c::House>(app, (min_cell + max_cell) * 0.5f, FLOOR_TOP_Y);
+        const auto center = (min_cell + max_cell) * 0.5f;
+        auto* house = builder.house(center.x, center.y, FLOOR_TOP_Y);
         // same height offset relative to the ground as chests placed on the floor
         const auto roof = house->get_roof_center();
         if (auto* c = builder.chest(roof.x + 0.5f, roof.y - (FLOOR_TOP_Y - 0.1f), roof.z - 0.5f))
@@ -238,7 +239,7 @@ inline void generate_scene(std::string_view scene_str, project_c::AppProjectC& a
 project_c::TestScene::TestScene(engine::IApplication* app)
     : IScene(app)
 {
-    auto camera_script = register_script<CameraScript>();
+    register_script<CameraScript>();
     register_script<Encounter>();
     hud_ = register_script<GameplayHud>();
 
@@ -262,7 +263,6 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     register_script<MainLight>();
     auto typed_app = static_cast<AppProjectC*>(app);
     generate_scene(scene_str, *typed_app, *this);
-    camera_script->snap_to_player();
 }
 
 void project_c::TestScene::activate()

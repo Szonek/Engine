@@ -28,6 +28,46 @@ std::vector<engine_game_object_t> children_of(engine_game_object_t go)
     return ret;
 }
 
+// ENGINE_INVALID_GAME_OBJECT_ID is 0, the value of the first entity of a scene: the engine reserves it, so the scene's
+// first game object is an ordinary one (the empty scene makes the test's object the first)
+using GameObjectTest = scenario::ScenarioTest;
+
+TEST_F(GameObjectTest, InvalidIdIsNeverAGameObject)
+{
+    load_scene<scenario::EmptyScene>();
+    const auto first = engineGameObjectCreate();
+    EXPECT_NE(first, ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_TRUE(engineGameObjectIsValid(first));
+    EXPECT_FALSE(engineGameObjectIsValid(ENGINE_INVALID_GAME_OBJECT_ID));
+    EXPECT_FALSE(engineGameObjectIsTransient(ENGINE_INVALID_GAME_OBJECT_ID));
+}
+
+TEST_F(GameObjectTest, FirstGameObjectIsSceneContent)
+{
+    load_scene<scenario::EmptyScene>();
+    // it gets a persistent ID like every other game object
+    EXPECT_FALSE(engineGameObjectIsTransient(engineGameObjectCreate()));
+}
+
+TEST_F(GameObjectTest, FirstGameObjectCanBeAParent)
+{
+    load_scene<scenario::EmptyScene>();
+    const auto first = engineGameObjectCreate();
+    const auto child = engineGameObjectCreate();
+    set_parent(child, first);
+    ASSERT_EQ(engineGameObjectGetChildrenCount(first), 1u);
+    EXPECT_EQ(engineGameObjectGetChild(first, 0), child);
+}
+
+TEST_F(GameObjectTest, DestroyingTheInvalidIdDoesNothing)
+{
+    load_scene<scenario::EmptyScene>();
+    const auto first = engineGameObjectCreate();
+    engineGameObjectDestroy(ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_TRUE(engineGameObjectIsValid(first));
+    EXPECT_NE(engineGameObjectCreate(), ENGINE_INVALID_GAME_OBJECT_ID);
+}
+
 TEST_F(HierarchyTest, ParentCanHaveMoreChildrenThanTheOldFixedLimit)
 {
     load_sandbox_scene();

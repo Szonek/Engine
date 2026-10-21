@@ -397,6 +397,8 @@ ENGINE_API engine_prefab_t enginePrefabGetByName(const char* name);
 // Returns the root game object of the new instance, or ENGINE_INVALID_GAME_OBJECT_ID. The root is the parent of all the
 // other game objects of the instance.
 ENGINE_API engine_game_object_t enginePrefabInstantiate(engine_prefab_t prefab);
+// Like enginePrefabInstantiate, but every game object of the instance is transient (see engineGameObjectCreateTransient).
+ENGINE_API engine_game_object_t enginePrefabInstantiateTransient(engine_prefab_t prefab);
 // The prefab the game object is the root of an instance of, or ENGINE_INVALID_OBJECT_HANDLE.
 ENGINE_API engine_prefab_t enginePrefabInstanceGetPrefab(engine_game_object_t game_object);
 ENGINE_API void enginePrefabRelease(engine_prefab_t prefab);
@@ -507,6 +509,11 @@ ENGINE_API engine_result_code_t engineSceneSetActive(engine_scene_t handle);
 
 // game objects in scene
 ENGINE_API engine_game_object_t engineGameObjectCreate();
+// A game object which is not part of the scene's content: it gets no persistent ID (so it doesn't shift the IDs of the
+// others) and is never saved. For objects spawned at runtime, e.g. by a script.
+ENGINE_API engine_game_object_t engineGameObjectCreateTransient();
+// false for an invalid game object
+ENGINE_API bool                 engineGameObjectIsTransient(engine_game_object_t game_object);
 // destroys the game object and its children (with theirs); reparent a child first to keep it
 ENGINE_API void                 engineGameObjectDestroy(engine_game_object_t game_object);
 ENGINE_API bool                 engineGameObjectIsValid(engine_game_object_t game_object);

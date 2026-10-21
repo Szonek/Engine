@@ -34,10 +34,16 @@ public:
 
     const std::string& get_name() const { return model_.source_name; }
 
+    enum class Instance
+    {
+        ePersistent,  // every game object gets a persistent ID
+        eTransient    // no game object gets one (Scene::create_transient_entity)
+    };
+
     // Creates the game objects of the model in `scene` and returns the root one (the model's node without a parent).
     // The root is the parent of all the others, so the model's hierarchy is flat. The nodes which are joints of the
     // skin are not created: the skin owner game object carries the skin, and nodes attached to a joint follow it.
-    entt::entity instantiate(Scene& scene) const;
+    entt::entity instantiate(Scene& scene, Instance instance) const;
 
 private:
     Prefab(Application& app, ModelDesc&& model);

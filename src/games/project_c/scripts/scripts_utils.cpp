@@ -46,35 +46,6 @@ std::vector<engine_game_object_t> project_c::utils::get_active_camera_game_objec
     return ret;
 }
 
-std::vector<engine_game_object_t> project_c::utils::get_game_objects_with_name(std::string_view name)
-{
-    engine::ScopedProfiler prof("project_c::utils::get_game_objects_with_name");
-    engine_component_view_t cv{};
-    engineComponentViewCreate(&cv);
-    engineComponentViewAttachNameComponent(cv);
-
-    engine_component_iterator_t begin{};
-    engine_component_iterator_t end{};
-    engineComponentViewCreateBeginComponentIterator(cv, &begin);
-    engineComponentViewCreateEndComponentIterator(cv, &end);
-
-    std::vector<engine_game_object_t> ret{};
-    while (!engineComponentIteratorCheckEqual(begin, end))
-    {
-        auto go_it = engineComponentIteratorGetGameObject(begin);
-        if (engineGameObjectHasNameComponent(go_it))
-        {
-            if (0 == std::strcmp(engineGameObjectGetNameComponent(go_it).name, name.data()))
-            {
-                ret.push_back(go_it);
-            }
-        }
-        engineComponentIteratorNext(begin);
-    }
-    engineComponentViewDestroy(cv);
-    return ret;
-}
-
 glm::quat project_c::utils::rotate_toward(glm::vec3 origin, glm::vec3 target)
 {
     const auto dir = glm::normalize(target - origin);

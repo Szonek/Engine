@@ -34,6 +34,19 @@ private:
 };
 
 class IApplication;
+
+// Owns one engine scene and the scripts of its game objects (one script per game object).
+//
+// Script lifecycle (Unity Awake/Start, Godot _init/_ready, Unreal constructor/BeginPlay):
+// 1. constructor: register_script<T>(...) creates the script, which sets up only its own game object. It waits in the
+//    register queue until the next update; until then its creator may configure it (setters, its own game object).
+// 2. on_start: at the start of update, all queued scripts are added to the scene first (so scripts registered in the
+//    same frame can find each other), then each gets on_start, in registration order. Scripts registered in on_start
+//    start in the same frame, before any update. While gameplay is paused (editor) scripts are added but start only
+//    once it plays; a script whose game object was destroyed before it started never starts.
+// 3. update, late_update, on_collision: every playing frame, once started.
+// The load order this enables: create all game objects and components -> fix references between them -> create the
+// scripts -> on_start for all of them.
 class ENGINE_APP_TOOLKIT_API IScene
 {
 public:
@@ -132,12 +145,19 @@ protected:
     virtual void update_hook_begin() {}
     virtual void update_hook_end() {}
 
+private:
+    // adds the queued scripts to scripts_ and, when playing, starts every script not started yet (including the ones
+    // registered by on_start)
+    void flush_register_queue(bool playing);
+
 protected:
     IApplication* app_ = nullptr;
     engine_scene_t scene_{};
 
     ScriptsMap scripts_{};
     ScriptsQueue scripts_register_queue_{};
+    // game objects of the scripts added to scripts_ which haven't started yet, in registration order
+    std::vector<engine_game_object_t> scripts_to_start_{};
     ScriptsQueue scripts_unregister_queue_{};
     UserEventSystem user_event_system_;
     bool is_activate_ = true;
