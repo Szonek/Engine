@@ -752,6 +752,16 @@ bool display_rigidbody_component(const engine::Scene* scene, engine_rigid_body_c
     return requires_update;
 }
 
+bool display_character_controller_component(const engine::Scene* scene, engine_character_controller_component_t& c)
+{
+    bool changed = false;
+    changed |= ImGui::DragFloat("Radius##character_controller", &c.radius, 0.01f, 0.01f, 10.0f);
+    changed |= ImGui::DragFloat("Height##character_controller", &c.height, 0.01f, 0.01f, 20.0f);
+    changed |= ImGui::DragFloat("Step height##character_controller", &c.step_height, 0.01f, 0.0f, 10.0f);
+    changed |= ImGui::DragFloat("Max slope##character_controller", &c.max_slope, 0.5f, 0.0f, 90.0f);
+    return changed;
+}
+
 bool display_nav_surface_component(const engine::Scene* scene, engine_nav_surface_component_t& c)
 {
     // takes effect with the next nav mesh build ("Build nav mesh" below the component)
@@ -1154,6 +1164,7 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
         display_component<engine_material_component_t>("Material", scene, commands_, selected, display_material_component);
         display_component<engine_collider_component_t>("Collider", scene, commands_, selected, display_collider_component);
         display_component<engine_rigid_body_component_t>("Rigid Body", scene, commands_, selected, display_rigidbody_component);
+        display_component<engine_character_controller_component_t>("Character Controller", scene, commands_, selected, display_character_controller_component);
         display_component<engine_nav_surface_component_t>("Nav Surface", scene, commands_, selected, display_nav_surface_component);
         // like a bake: nothing rebuilds the nav mesh automatically, so after editing the nav surface, nav modifiers or
         // static colliders, build it again to see (and play with) the result

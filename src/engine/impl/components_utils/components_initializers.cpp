@@ -80,6 +80,16 @@ void engine::initialize_nav_modifier_component(entt::registry& registry, entt::e
     comp.type = ENGINE_NAV_MODIFIER_TYPE_WALKABLE;
 }
 
+void engine::initialize_character_controller_component(entt::registry& registry, entt::entity entity)
+{
+    // Unity's CharacterController defaults: a 2 m tall human
+    auto& comp = get_zero_init_component<engine_character_controller_component_t>(registry, entity);
+    comp.radius = 0.5f;
+    comp.height = 2.0f;
+    comp.step_height = 0.3f;
+    comp.max_slope = 45.0f;
+}
+
 
 void engine::initialize_material_component(entt::registry& registry, entt::entity entity)
 {

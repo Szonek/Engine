@@ -104,8 +104,8 @@ TEST_F(MovementTest, PlayerAtWorldOriginLands)
     EXPECT_FALSE(player->is_dead());
 }
 
-// known bug: the player bounces off colliders instead of sliding along them; enable once fixed
-TEST_F(MovementTest, DISABLED_WalkingDiagonallyIntoWallSlidesAlongIt)
+// the player used to bounce off colliders instead of sliding along them (a dynamic body moved by its transform)
+TEST_F(MovementTest, WalkingDiagonallyIntoWallSlidesAlongIt)
 {
     auto* scene = load_sandbox_scene();
     scene->build().floor_area(-6.0f, -6.0f, 6.0f, 6.0f);
@@ -136,8 +136,8 @@ TEST_F(MovementTest, DISABLED_WalkingDiagonallyIntoWallSlidesAlongIt)
     }
     const auto end = position_of(player->get_game_object());
 
-    // never inside the wall: the player's box is 0.35 x 0.28 m and turns with its facing, so its center stays
-    // at least 0.1 m from the wall surface
+    // never inside the wall: the player's capsule has a radius of 0.15 m, so its center stays at least 0.1 m from the
+    // wall surface
     EXPECT_LT(max_x, wall_surface_x - 0.1f);
     // no bounce: it stays against the wall once it got there
     EXPECT_LT(max_x - min_x_after_contact, 0.1f);

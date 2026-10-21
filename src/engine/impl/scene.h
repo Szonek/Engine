@@ -55,6 +55,9 @@ public:
     // the space the entity's transform is local to (parent world * joint), see engine::get_parent_space_matrix
     glm::mat4 get_parent_space_matrix(entt::entity entity) const;
 
+    // see engineCharacterControllerMove; dt in milliseconds
+    engine_result_code_t move_character_controller(entt::entity entity, const glm::vec3& velocity, float dt, engine_character_controller_move_result_t& out_result);
+
     // the entities whose parent component points at `entity`, in the order they were parented; invalidated by any
     // change of the hierarchy
     std::span<const entt::entity> get_children(entt::entity entity) const;
@@ -176,6 +179,8 @@ private:
     entt::observer transform_update_collider_observer;
     entt::observer rigid_body_create_observer;
     entt::observer rigid_body_update_observer;
+    entt::observer character_controller_create_observer;
+    entt::observer character_controller_update_observer;
 
     PhysicsWorld physics_world_;
     bool nav_mesh_debug_draw_ = false;

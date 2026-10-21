@@ -16,6 +16,7 @@
 #include "components/sprite_component.h"
 #include "components/skin_component.h"
 #include "components/animation_controller_component.h"
+#include "components/character_controller_component.h"
 
 #include "engine_string.h"
 #include "engine_vector.h"
@@ -689,6 +690,19 @@ ENGINE_API engine_rigid_body_component_t engineGameObjectGetRigidBodyComponent(e
 ENGINE_API void engineGameObjectUpdateRigidBodyComponent(engine_game_object_t game_object, const engine_rigid_body_component_t* comp);
 ENGINE_API void engineGameObjectRemoveRigidBodyComponent(engine_game_object_t game_object);
 ENGINE_API bool engineGameObjectHasRigidBodyComponent(engine_game_object_t game_object);
+
+// character controller component (see engine_character_controller_component_t)
+ENGINE_API engine_character_controller_component_t engineGameObjectAddCharacterControllerComponent(engine_game_object_t game_object);
+ENGINE_API engine_character_controller_component_t engineGameObjectGetCharacterControllerComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateCharacterControllerComponent(engine_game_object_t game_object, const engine_character_controller_component_t* comp);
+ENGINE_API void engineGameObjectRemoveCharacterControllerComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasCharacterControllerComponent(engine_game_object_t game_object);
+// Moves a character by velocity * delta_time (m/s, all three axes, e.g. a jump) plus its fall: it keeps a vertical speed
+// from the physics' gravity between moves, which it loses on walkable ground or under a ceiling. The capsule collides
+// with static and kinematic bodies (see engine_character_controller_component_t); the transform component is updated
+// right away. Call it once per frame while the character walks or falls; while it doesn't (e.g. a scripted climb), its
+// transform moves it. Fails without the component or for a game object with a parent. out_result may be NULL.
+ENGINE_API engine_result_code_t engineCharacterControllerMove(engine_game_object_t game_object, const float velocity[3], float delta_time, engine_character_controller_move_result_t* out_result);
 
 // collider component
 ENGINE_API engine_collider_component_t engineGameObjectAddColliderComponent(engine_game_object_t game_object);

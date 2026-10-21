@@ -57,6 +57,23 @@ public:
     physcic_internal_component_t create_rigid_body(const engine_collider_component_t& collider, BodyType type, float mass,
         const glm::mat4& local_to_world, std::int32_t body_index);
     static BodyType get_body_type(const btRigidBody* rigid_body);
+    // A character controller's body: a kinematic capsule standing on the origin of local_to_world, scaled by its scale.
+    physcic_internal_component_t create_character_body(float radius, float height, const glm::mat4& local_to_world, std::int32_t body_index);
+
+    struct CharacterMoveResult
+    {
+        glm::vec3 position;  // of the feet, in world space
+        bool grounded = false;
+        // stands on something, walkable or not (an edge, a too steep slope)
+        bool blocked_below = false;
+        bool hit_wall = false;
+        bool hit_ceiling = false;
+    };
+    // Sweeps the capsule of a character body from `feet` by `motion` (world space): steps up, slides along what blocks it,
+    // steps down and snaps to walkable ground within step_height. Static and kinematic bodies block (not triggers);
+    // dynamic bodies don't, the kinematic body pushes them. Moving out of an overlap is never blocked.
+    CharacterMoveResult move_character(const btRigidBody* body, const glm::vec3& feet, const glm::vec3& motion, float step_height, float max_slope_degrees) const;
+    glm::vec3 get_gravity() const;
 
     void remove_rigid_body(entt::basic_registry<entt::entity>& reg, entt::entity entt)
     {

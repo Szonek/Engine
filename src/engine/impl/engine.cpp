@@ -1283,6 +1283,56 @@ void engineGameObjectRemoveRigidBodyComponent(engine_game_object_t game_object)
     remove_component<engine_rigid_body_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
+engine_character_controller_component_t engineGameObjectAddCharacterControllerComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_character_controller_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_character_controller_component_t engineGameObjectGetCharacterControllerComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_character_controller_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+void engineGameObjectUpdateCharacterControllerComponent(engine_game_object_t game_object, const engine_character_controller_component_t* comp)
+{
+    update_component(G_ACTIVE_SCENE, game_object, comp);
+}
+
+void engineGameObjectRemoveCharacterControllerComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_character_controller_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+bool engineGameObjectHasCharacterControllerComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_character_controller_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_result_code_t engineCharacterControllerMove(engine_game_object_t game_object, const float velocity[3], float delta_time, engine_character_controller_move_result_t* out_result)
+{
+    if (!velocity)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    if (!G_ACTIVE_SCENE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    auto* scene = api_cast(G_ACTIVE_SCENE);
+    const auto entity = api_cast(game_object);
+    if (!scene->is_valid_entity(entity))
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    engine_character_controller_move_result_t result{};
+    const auto code = scene->move_character_controller(entity, glm::make_vec3(velocity), delta_time, result);
+    if (out_result)
+    {
+        *out_result = result;
+    }
+    return code;
+}
+
 bool engineGameObjectHasRigidBodyComponent(engine_game_object_t game_object)
 {
     return has_component<engine_rigid_body_component_t>(G_ACTIVE_SCENE, game_object);

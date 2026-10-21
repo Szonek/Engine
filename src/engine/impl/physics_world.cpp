@@ -14,6 +14,7 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <optional>
@@ -195,6 +196,241 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
     }
     add_to_world(ret.rigid_body);
     return ret;
+}
+
+engine::physcic_internal_component_t engine::PhysicsWorld::create_character_body(float radius, float height, const glm::mat4& local_to_world, std::int32_t body_index)
+{
+    physcic_internal_component_t ret{};
+    const auto pose = to_body_pose(local_to_world).value_or(BodyPose{ btTransform::getIdentity(), btVector3(1.0f, 1.0f, 1.0f) });
+    // the capsule stands on the origin: its center is half its height above
+    auto* capsule = new btCapsuleShape(radius, std::max(0.0f, height - 2.0f * radius));
+    auto* shape = new btCompoundShape();
+    btTransform capsule_transform;
+    capsule_transform.setIdentity();
+    capsule_transform.setOrigin(btVector3(0.0f, std::max(height, 2.0f * radius) * 0.5f, 0.0f));
+    shape->addChildShape(capsule_transform, capsule);
+    shape->setLocalScaling(pose.scale);
+    ret.collision_shape = shape;
+
+    btRigidBody::btRigidBodyConstructionInfo info(0.0f, nullptr, ret.collision_shape, btVector3(0.0f, 0.0f, 0.0f));
+    ret.rigid_body = new btRigidBody(info);
+    ret.rigid_body->setWorldTransform(pose.transform);
+    ret.rigid_body->setUserIndex(body_index);
+    ret.rigid_body->setCollisionFlags(ret.rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+    ret.rigid_body->setActivationState(DISABLE_DEACTIVATION);
+    add_to_world(ret.rigid_body);
+    return ret;
+}
+
+namespace
+{
+// the closest blocking hit of a character's capsule swept along a direction
+class CharacterSweepCallback : public btCollisionWorld::ClosestConvexResultCallback
+{
+public:
+    CharacterSweepCallback(const btCollisionObject* self, const btVector3& from, const btVector3& to)
+        : ClosestConvexResultCallback(from, to)
+        , self_(self)
+        , direction_((to - from).normalized())
+    {
+    }
+
+    bool needsCollision(btBroadphaseProxy* proxy) const override
+    {
+        if (!ClosestConvexResultCallback::needsCollision(proxy))
+        {
+            return false;
+        }
+        const auto* object = static_cast<const btCollisionObject*>(proxy->m_clientObject);
+        // triggers don't block, dynamic bodies are pushed by the character's kinematic body instead
+        return object != self_ && object->hasContactResponse() && object->isStaticOrKinematicObject();
+    }
+
+    btScalar addSingleResult(btCollisionWorld::LocalConvexResult& result, bool normal_in_world_space) override
+    {
+        const btVector3 normal = normal_in_world_space
+            ? result.m_hitNormalLocal
+            : result.m_hitCollisionObject->getWorldTransform().getBasis() * result.m_hitNormalLocal;
+        // moving away from it (e.g. out of an overlap) is never blocked
+        if (normal.dot(direction_) >= -1e-4f)
+        {
+            return btScalar(1.0f);
+        }
+        return ClosestConvexResultCallback::addSingleResult(result, normal_in_world_space);
+    }
+
+private:
+    const btCollisionObject* self_;
+    btVector3 direction_;
+};
+
+// the closest blocking surface along a ray, for a character (the same bodies block as for its sweeps)
+class CharacterRayCallback : public btCollisionWorld::ClosestRayResultCallback
+{
+public:
+    CharacterRayCallback(const btCollisionObject* self, const btVector3& from, const btVector3& to)
+        : ClosestRayResultCallback(from, to)
+        , self_(self)
+    {
+    }
+
+    bool needsCollision(btBroadphaseProxy* proxy) const override
+    {
+        if (!ClosestRayResultCallback::needsCollision(proxy))
+        {
+            return false;
+        }
+        const auto* object = static_cast<const btCollisionObject*>(proxy->m_clientObject);
+        return object != self_ && object->hasContactResponse() && object->isStaticOrKinematicObject();
+    }
+
+private:
+    const btCollisionObject* self_;
+};
+}  // namespace
+
+engine::PhysicsWorld::CharacterMoveResult engine::PhysicsWorld::move_character(const btRigidBody* body, const glm::vec3& feet, const glm::vec3& motion, float step_height, float max_slope_degrees) const
+{
+    const auto* compound = static_cast<const btCompoundShape*>(body->getCollisionShape());
+    const auto* capsule = static_cast<const btConvexShape*>(compound->getChildShape(0));
+    // the capsule's center above the feet (scaled); the capsule is symmetric around the vertical axis
+    const auto center_offset = compound->getChildTransform(0).getOrigin().getY();
+    // kept between the capsule and what it touches, so the next sweep doesn't start in contact
+    constexpr float skin = 0.005f;
+    const float min_walkable_normal_y = std::cos(glm::radians(max_slope_degrees));
+
+    // how far the capsule can move from `from` by `delta` before something blocks it, and the blocking normal
+    struct Sweep
+    {
+        float distance;
+        bool hit;
+        btVector3 normal;
+        btVector3 point;
+    };
+    const auto sweep = [&](const btVector3& from, const btVector3& delta) -> Sweep
+        {
+            const auto length = delta.length();
+            if (length < 1e-6f)
+            {
+                return { 0.0f, false, btVector3(0.0f, 0.0f, 0.0f), from };
+            }
+            btTransform start;
+            start.setIdentity();
+            start.setOrigin(from);
+            // a skin further: what the move would end touching blocks it a skin before, so the next sweep doesn't start
+            // in contact (where it can't be told from an overlap being left)
+            const auto extended = delta * ((length + skin) / length);
+            btTransform end;
+            end.setIdentity();
+            end.setOrigin(from + extended);
+            CharacterSweepCallback callback(body, from, from + extended);
+            dynamics_world_->convexSweepTest(capsule, start, end, callback);
+            if (!callback.hasHit())
+            {
+                return { length, false, btVector3(0.0f, 0.0f, 0.0f), from + delta };
+            }
+            return { std::max(0.0f, (length + skin) * callback.m_closestHitFraction - skin), true, callback.m_hitNormalWorld.normalized(), callback.m_hitPointWorld };
+        };
+    // Whether a hit below is walkable ground. The capsule's round bottom touches the edge of a step or ledge with a slanted
+    // normal: it stands on that edge when the surface just inside it is walkable and within step_height of the feet
+    // (otherwise the corner of a high ledge under it would be climbed).
+    const auto supports = [&](const Sweep& hit) -> bool
+        {
+            if (hit.normal.getY() >= min_walkable_normal_y)
+            {
+                return true;
+            }
+            btVector3 inward(-hit.normal.getX(), 0.0f, -hit.normal.getZ());
+            if (inward.length2() < 1e-8f || hit.point.getY() > feet.y + step_height + skin)
+            {
+                return false;
+            }
+            inward = inward.normalized() * 0.01f;
+            const btVector3 from(hit.point.getX() + inward.getX(), hit.point.getY() + 0.05f, hit.point.getZ() + inward.getZ());
+            const btVector3 to(from.getX(), hit.point.getY() - 0.05f, from.getZ());
+            CharacterRayCallback callback(body, from, to);
+            dynamics_world_->rayTest(from, to, callback);
+            return callback.hasHit() && callback.m_hitNormalWorld.normalized().getY() >= min_walkable_normal_y;
+        };
+
+    const float vertical = motion.y;
+    // the move, stepping up by step_up first (when not moving up)
+    const auto attempt = [&](float step_up) -> CharacterMoveResult
+        {
+            CharacterMoveResult result{};
+            btVector3 center(feet.x, feet.y + center_offset, feet.z);
+
+            // 1. up: by the upward part of the motion, or by the step height to walk over small ledges
+            const float up = vertical > 0.0f ? vertical : step_up;
+            const auto up_sweep = sweep(center, btVector3(0.0f, up, 0.0f));
+            center.setY(center.getY() + up_sweep.distance);
+            result.hit_ceiling = vertical > 0.0f && up_sweep.hit;
+
+            // 2. horizontally, sliding along what blocks it. Everything is slid along horizontally, never climbed: the
+            // capsule's round bottom makes ledge edges look like slopes. Heights change only by the step up and down,
+            // which walks up ramps rising less than step_height per move.
+            btVector3 remaining(motion.x, 0.0f, motion.z);
+            for (int i = 0; i < 4 && remaining.length2() > 1e-12f; i++)
+            {
+                const auto horizontal_sweep = sweep(center, remaining);
+                const auto direction = remaining.normalized();
+                center += direction * horizontal_sweep.distance;
+                if (!horizontal_sweep.hit)
+                {
+                    break;
+                }
+                result.hit_wall = true;
+                auto normal = horizontal_sweep.normal;
+                normal.setY(0.0f);
+                if (normal.length2() < 1e-8f)
+                {
+                    break;
+                }
+                normal.normalize();
+                const auto rest = remaining - direction * horizontal_sweep.distance;
+                remaining = rest - normal * rest.dot(normal);
+            }
+
+            // 3. down: back down the step, by the downward part of the motion, and further by the step height to stick to
+            // walkable ground (walking down slopes and steps)
+            if (vertical <= 0.0f)
+            {
+                const float real_drop = up_sweep.distance - vertical;
+                const auto down_sweep = sweep(center, btVector3(0.0f, -(real_drop + step_height), 0.0f));
+                const bool walkable = down_sweep.hit && supports(down_sweep);
+                if (down_sweep.hit && (walkable || down_sweep.distance <= real_drop))
+                {
+                    center.setY(center.getY() - down_sweep.distance);
+                    result.grounded = walkable;
+                    result.blocked_below = true;
+                }
+                else
+                {
+                    center.setY(center.getY() - real_drop);
+                }
+            }
+            result.position = glm::vec3(center.getX(), center.getY() - center_offset, center.getZ());
+            return result;
+        };
+
+    if (vertical > 0.0f || step_height <= 0.0f)
+    {
+        return attempt(0.0f);
+    }
+    // a step up only counts when it ends on walkable ground: stepping down onto the top edge of something higher (its
+    // corner under the capsule's round bottom) would climb it bit by bit. Then the move is made without stepping.
+    const auto stepped = attempt(step_height);
+    if (!stepped.grounded && stepped.position.y > feet.y + 1e-3f)
+    {
+        return attempt(0.0f);
+    }
+    return stepped;
+}
+
+glm::vec3 engine::PhysicsWorld::get_gravity() const
+{
+    const auto gravity = dynamics_world_->getGravity();
+    return glm::vec3(gravity.getX(), gravity.getY(), gravity.getZ());
 }
 
 engine::PhysicsWorld::BodyType engine::PhysicsWorld::get_body_type(const btRigidBody* rigid_body)

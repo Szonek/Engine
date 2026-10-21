@@ -15,6 +15,7 @@
 #include "components_internals/animation_controller_internal_component.h"
 #include "components_internals/children_internal_component.h"
 #include "components_internals/nav_mesh_internal_component.h"
+#include "components_internals/character_controller_internal_component.h"
 #include "profiler.h"
 #include "engine_vector_impl_def.h"
 #include "skin.h"
@@ -74,6 +75,28 @@ static inline void destroy_children_component(entt::registry& registry, entt::en
     }
 }
 
+// the body of a collider or character controller (a game object should have one of them)
+static inline void add_physics_internal_component(entt::registry& registry, entt::entity entity)
+{
+    registry.get_or_emplace<engine::physcic_internal_component_t>(entity);
+}
+
+static inline void remove_physics_internal_component_of_collider(entt::registry& registry, entt::entity entity)
+{
+    if (!registry.any_of<engine_character_controller_component_t>(entity))
+    {
+        registry.remove<engine::physcic_internal_component_t>(entity);
+    }
+}
+
+static inline void remove_physics_internal_component_of_character_controller(entt::registry& registry, entt::entity entity)
+{
+    if (!registry.any_of<engine_collider_component_t>(entity))
+    {
+        registry.remove<engine::physcic_internal_component_t>(entity);
+    }
+}
+
 static inline void destroy_joint_attachment(entt::registry& registry, entt::entity entity)
 {
     auto& comp = registry.get<engine_joint_attachment_component_t>(entity);
@@ -120,6 +143,8 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
     , rigid_body_create_observer(entity_registry_, entt::collector.group<engine_rigid_body_component_t, engine_transform_component_t, engine_collider_component_t>())
     , rigid_body_update_observer(entity_registry_, entt::collector.update<engine_rigid_body_component_t>().where<engine_transform_component_t, engine_collider_component_t>())
+    , character_controller_create_observer(entity_registry_, entt::collector.group<engine_transform_component_t, engine_character_controller_component_t>())
+    , character_controller_update_observer(entity_registry_, entt::collector.update<engine_character_controller_component_t>().where<engine_transform_component_t>())
 {
     // basic initalizers
     entity_registry_.on_construct<engine_transform_component_t>().connect<&initialize_transform_component>();
@@ -156,8 +181,13 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     entity_registry_.on_destroy<engine_parent_component_t>().connect<&destroy_parent_component>();
     entity_registry_.on_destroy<children_internal_component_t>().connect<&destroy_children_component>();
 
-    entity_registry_.on_construct<engine_collider_component_t>().connect<&entt::registry::emplace<physcic_internal_component_t>>();
-    entity_registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<physcic_internal_component_t>>();
+    entity_registry_.on_construct<engine_collider_component_t>().connect<&add_physics_internal_component>();
+    entity_registry_.on_destroy<engine_collider_component_t>().connect<&remove_physics_internal_component_of_collider>();
+    entity_registry_.on_construct<engine_character_controller_component_t>().connect<&initialize_character_controller_component>();
+    entity_registry_.on_construct<engine_character_controller_component_t>().connect<&add_physics_internal_component>();
+    entity_registry_.on_construct<engine_character_controller_component_t>().connect<&entt::registry::emplace<character_controller_internal_component_t>>();
+    entity_registry_.on_destroy<engine_character_controller_component_t>().connect<&remove_physics_internal_component_of_character_controller>();
+    entity_registry_.on_destroy<engine_character_controller_component_t>().connect<&entt::registry::remove<character_controller_internal_component_t>>();
     entity_registry_.on_destroy<physcic_internal_component_t>().connect<&PhysicsWorld::remove_rigid_body>(&physics_world_);
 
     out_code = ENGINE_RESULT_CODE_OK;
@@ -288,6 +318,10 @@ bool engine::Scene::follows_other_game_objects(entt::entity entity) const
 
 engine::PhysicsWorld::BodyType engine::Scene::get_body_type(entt::entity entity) const
 {
+    if (has_component<engine_character_controller_component_t>(entity))
+    {
+        return PhysicsWorld::BodyType::eKinematic;
+    }
     if (const auto* rigid_body = entity_registry_.try_get<engine_rigid_body_component_t>(entity))
     {
         switch (rigid_body->type)
@@ -312,11 +346,22 @@ engine_result_code_t engine::Scene::physics_update(float dt)
     const auto create_body = [this, &created_bodies](entt::entity entity)
         {
             physics_world_.remove_rigid_body(entity_registry_, entity);
-            const auto* rigid_body = entity_registry_.try_get<engine_rigid_body_component_t>(entity);
-            const auto& collider_component = *get_component<engine_collider_component_t>(entity);
             const auto& world = *get_component<world_transform_internal_component_t>(entity);
-            const auto physcics_component = physics_world_.create_rigid_body(collider_component, get_body_type(entity),
-                rigid_body ? rigid_body->mass : 0.0f, world.local_to_world, static_cast<std::int32_t>(entity));
+            physcic_internal_component_t physcics_component{};
+            if (const auto* character = entity_registry_.try_get<engine_character_controller_component_t>(entity))
+            {
+                if (has_component<engine_collider_component_t>(entity))
+                {
+                    log::log(log::LogLevel::eError, fmt::format("[Entity: {}] has a collider and a character controller, the collider is ignored.\n", static_cast<std::uint32_t>(entity)));
+                }
+                physcics_component = physics_world_.create_character_body(character->radius, character->height, world.local_to_world, static_cast<std::int32_t>(entity));
+            }
+            else
+            {
+                const auto* rigid_body = entity_registry_.try_get<engine_rigid_body_component_t>(entity);
+                physcics_component = physics_world_.create_rigid_body(*get_component<engine_collider_component_t>(entity), get_body_type(entity),
+                    rigid_body ? rigid_body->mass : 0.0f, world.local_to_world, static_cast<std::int32_t>(entity));
+            }
             update_component(entity, physcics_component);
             created_bodies.push_back(entity);
         };
@@ -343,6 +388,17 @@ engine_result_code_t engine::Scene::physics_update(float dt)
         create_body(entity);
     }
     collider_update_observer.clear();
+    // character controller added or updated
+    for (const auto entity : character_controller_create_observer)
+    {
+        create_body(entity);
+    }
+    character_controller_create_observer.clear();
+    for (const auto entity : character_controller_update_observer)
+    {
+        create_body(entity);
+    }
+    character_controller_update_observer.clear();
 
     // move the bodies to their game objects' world transforms. As a rule of thumb: if rigid body has mass (is dynamic)
     // than it cant be moved by transform component.
@@ -455,6 +511,49 @@ engine_result_code_t engine::Scene::physics_update(float dt)
             update_component(entity, transform);
         }
     );
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t engine::Scene::move_character_controller(entt::entity entity, const glm::vec3& velocity, float dt, engine_character_controller_move_result_t& out_result)
+{
+    const auto* character = entity_registry_.try_get<engine_character_controller_component_t>(entity);
+    auto* transform = entity_registry_.try_get<engine_transform_component_t>(entity);
+    if (!character || !transform)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    if (follows_other_game_objects(entity))
+    {
+        log::log(log::LogLevel::eError, fmt::format("[Entity: {}] A character controller can't move a game object with a parent or joint attachment.\n", static_cast<std::uint32_t>(entity)));
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    // the transform is the world transform (no parent); this frame's, the world transform component is from the last update
+    const auto local_to_world = compute_local_matrix(*transform);
+    auto& physcics_component = *get_component<physcic_internal_component_t>(entity);
+    if (!physcics_component.rigid_body)
+    {
+        // added this frame: its body is needed for its capsule now
+        physics_world_.remove_rigid_body(entity_registry_, entity);
+        update_component(entity, physics_world_.create_character_body(character->radius, character->height, local_to_world, static_cast<std::int32_t>(entity)));
+    }
+    auto& state = *get_component<character_controller_internal_component_t>(entity);
+    const float dt_seconds = dt / 1000.0f;
+    state.vertical_speed += physics_world_.get_gravity().y * dt_seconds;
+    const auto motion = velocity * dt_seconds + glm::vec3(0.0f, state.vertical_speed * dt_seconds, 0.0f);
+    const float step_height = character->step_height * glm::length(glm::vec3(local_to_world[1]));
+    const auto result = physics_world_.move_character(get_component<physcic_internal_component_t>(entity)->rigid_body, glm::make_vec3(transform->position),
+        motion, step_height, character->max_slope);
+    if ((result.blocked_below && state.vertical_speed < 0.0f) || (result.hit_ceiling && state.vertical_speed > 0.0f))
+    {
+        state.vertical_speed = 0.0f;
+    }
+    // re-fetched: creating the body above may have moved components in their pools
+    auto updated = *get_component<engine_transform_component_t>(entity);
+    std::memcpy(updated.position, glm::value_ptr(result.position), sizeof(updated.position));
+    update_component(entity, updated);
+    out_result.grounded = result.grounded;
+    out_result.hit_wall = result.hit_wall;
+    out_result.hit_ceiling = result.hit_ceiling;
     return ENGINE_RESULT_CODE_OK;
 }
 

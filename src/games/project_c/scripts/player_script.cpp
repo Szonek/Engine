@@ -44,7 +44,6 @@ constexpr float DODGE_COOLDOWN_SECONDS = 0.65f;
 constexpr float DODGE_SPEED = 4.0f;
 constexpr float PLAYER_HIT_STUN_SECONDS = 0.0f;
 constexpr float PLAYER_KNOCKBACK_SPEED = 2.5f;
-constexpr float PLAYER_MASS = 100000.0f;
 
 // Traversal. Heights are measured from the player's feet (transform origin), player is ~0.85 tall.
 constexpr float PLAYER_HEIGHT = 0.85f;
@@ -410,21 +409,13 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     tc.scale[2] = PLAYER_SCALE;
     engineGameObjectUpdateTransformComponent(go_, &tc);
 
-    // physics
-    auto cc = engineGameObjectAddColliderComponent(go_);
-    cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
-    cc.is_trigger = false;
-    auto& cc_child = cc.collider.compound.children[0];
-    cc_child.transform[0] = 0.0f;
-    cc_child.transform[1] = 1.0f;
-    cc_child.transform[2] = 0.0f;
-    cc_child.rotation_quaternion[3] = 1.0f;
-    cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
-    set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.5f, 1.0f, 0.4f});
-    engineGameObjectUpdateColliderComponent(go_, &cc);
-
-    //rb
-    set_kinematic(false);
+    // physics: moved by its character controller (sizes in meters, in the player's scaled space)
+    auto character = engineGameObjectAddCharacterControllerComponent(go_);
+    character.radius = 0.15f / PLAYER_SCALE;
+    character.height = 0.7f / PLAYER_SCALE;
+    character.step_height = 0.15f / PLAYER_SCALE;
+    character.max_slope = 45.0f;
+    engineGameObjectUpdateCharacterControllerComponent(go_, &character);
 
     create_traversal_marker();
 
@@ -514,6 +505,11 @@ void project_c::Player::update(float dt)
         };
     if (check_state_bit(States::DEAD))
     {
+        // still falls, e.g. when it died on a wall
+        if (!engineGameObjectHasCharacterControllerComponent(go_) || engineCharacterControllerMove(go_, glm::value_ptr(glm::vec3(0.0f)), dt, nullptr) != ENGINE_RESULT_CODE_OK)
+        {
+            engineLog("Failed to move the dead player.\n");
+        }
         return;
     }
     dodge_cooldown_remaining_seconds_ = std::max(0.0f, dodge_cooldown_remaining_seconds_ - dt / 1000.0f);
@@ -652,15 +648,15 @@ void project_c::Player::update(float dt)
         start_dodge(move_input, rotation);
     }
 
-    auto movement_transform = engineGameObjectGetTransformComponent(go_);
     const float delta_seconds = dt / 1000.0f;
     bool dodging_this_frame = dodge_remaining_seconds_ > 0.0f;
     float movement_speed = 0.0f;
+    // horizontal velocity of this frame; the character controller adds falling and collisions
+    glm::vec3 velocity(0.0f);
     if (dodging_this_frame)
     {
         movement_velocity_ = glm::vec2(0.0f);
-        movement_transform.position[0] += dodge_direction_.x * DODGE_SPEED * delta_seconds;
-        movement_transform.position[2] += dodge_direction_.z * DODGE_SPEED * delta_seconds;
+        velocity = glm::vec3(dodge_direction_.x, 0.0f, dodge_direction_.z) * DODGE_SPEED;
         dodge_remaining_seconds_ = std::max(0.0f, dodge_remaining_seconds_ - delta_seconds);
         dodge_invulnerability_remaining_seconds_ = std::max(0.0f, dodge_invulnerability_remaining_seconds_ - delta_seconds);
         if (dodge_remaining_seconds_ <= 0.0f)
@@ -673,8 +669,7 @@ void project_c::Player::update(float dt)
     else if (hit_stun_remaining_seconds_ > 0.0f)
     {
         movement_velocity_ = glm::vec2(0.0f);
-        movement_transform.position[0] += knockback_velocity_.x * delta_seconds;
-        movement_transform.position[2] += knockback_velocity_.z * delta_seconds;
+        velocity = glm::vec3(knockback_velocity_.x, 0.0f, knockback_velocity_.z);
         knockback_velocity_ *= std::exp(-10.0f * delta_seconds);
         hit_stun_remaining_seconds_ = std::max(0.0f, hit_stun_remaining_seconds_ - delta_seconds);
     }
@@ -700,10 +695,12 @@ void project_c::Player::update(float dt)
             movement_velocity_ = glm::vec2(0.0f);
             movement_speed = 0.0f;
         }
-        movement_transform.position[0] += movement_velocity_.x * delta_seconds;
-        movement_transform.position[2] += movement_velocity_.y * delta_seconds;
+        velocity = glm::vec3(movement_velocity_.x, 0.0f, movement_velocity_.y);
     }
-    engineGameObjectUpdateTransformComponent(go_, &movement_transform);
+    if (engineCharacterControllerMove(go_, glm::value_ptr(velocity), dt, nullptr) != ENGINE_RESULT_CODE_OK)
+    {
+        engineLog("Failed to move the player.\n");
+    }
 
     if (!dodging_this_frame && movement_speed > PLAYER_IDLE_SPEED_THRESHOLD)
     {
@@ -1101,16 +1098,6 @@ bool project_c::Player::start_dodge(const glm::vec2& move_input, const glm::quat
     return true;
 }
 
-void project_c::Player::set_kinematic(bool kinematic)
-{
-    // Kinematic -> moved only by the transform (no gravity). Dynamic again -> the body is created again, so no
-    // velocity accumulated before traversing is applied.
-    auto rbc = engineGameObjectHasRigidBodyComponent(go_) ? engineGameObjectGetRigidBodyComponent(go_) : engineGameObjectAddRigidBodyComponent(go_);
-    rbc.type = kinematic ? ENGINE_RIGID_BODY_TYPE_KINEMATIC : ENGINE_RIGID_BODY_TYPE_DYNAMIC;
-    rbc.mass = PLAYER_MASS;
-    engineGameObjectUpdateRigidBodyComponent(go_, &rbc);
-}
-
 void project_c::Player::set_position_and_yaw(const glm::vec3& position, float yaw)
 {
     auto tc = engineGameObjectGetTransformComponent(go_);
@@ -1381,7 +1368,6 @@ void project_c::Player::start_climbing(const glm::vec3& wall_normal, const glm::
 {
     if (traversal_state_ == TraversalState::eNone)
     {
-        set_kinematic(true);
         engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 0.0f);
     }
     traversal_state_ = TraversalState::eClimbing;
@@ -1400,7 +1386,6 @@ void project_c::Player::start_traversal_move(const TraversalMove& move, const ch
 {
     if (traversal_state_ == TraversalState::eNone)
     {
-        set_kinematic(true);
         engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 0.0f);
     }
     traversal_state_ = TraversalState::eScriptedMove;
@@ -1429,7 +1414,6 @@ void project_c::Player::stop_traversal(float regrab_cooldown)
     traversal_state_ = TraversalState::eNone;
     // player usually still holds the direction toward the wall, do not grab it again right away
     traversal_regrab_cooldown_ = regrab_cooldown;
-    set_kinematic(false);
     // locomotion code picks idle/run animation in the next update
     engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
     engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);

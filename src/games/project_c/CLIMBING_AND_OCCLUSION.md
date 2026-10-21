@@ -97,10 +97,10 @@ In more detail:
 
 ### Physics while traversing
 
-The player is normally a dynamic rigid body moved by setting its transform. While traversing that doesn't work - gravity
-keeps accumulating velocity and pulls the player off the wall. `set_kinematic(true)` therefore switches the rigid body to
-**kinematic**: it only follows the transform, and enemy hitboxes still detect it. `stop_traversal` switches it back to
-dynamic, which creates a fresh body with zero velocity. If the player dies on a wall, traversal is stopped and they fall.
+The player walks with the engine's character controller (`engineCharacterControllerMove`, which also applies gravity).
+While traversing, the traversal code sets the player's transform and doesn't call the controller, so nothing pulls the
+player off the wall; its capsule is kinematic and follows the transform, so enemy hitboxes still detect it. Walking and
+falling resume with the next move after `stop_traversal`. If the player dies on a wall, traversal is stopped and they fall.
 
 ### Animations
 
