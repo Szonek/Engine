@@ -11,6 +11,7 @@
 #include "components_internals/prefab_instance_component.h"
 #include "animation_controller.h"
 #include "profiler.h"
+#include "engine_string_impl_def.h"
 
 #include "logger.h"
 
@@ -612,6 +613,26 @@ engine_result_code_t engineSceneLoad(const char* path)
     }
     const std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     return api_cast(G_ACTIVE_SCENE)->load(content, path) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engineSceneSaveToMemory(engine_string_t* out)
+{
+    if (!G_ACTIVE_SCENE || !out)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    out->str = api_cast(G_ACTIVE_SCENE)->save();
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t engineSceneLoadFromMemory(const char* data, size_t size, const char* name)
+{
+    if (!G_ACTIVE_SCENE || (!data && size > 0))
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const std::string_view content = data ? std::string_view(data, size) : std::string_view();
+    return api_cast(G_ACTIVE_SCENE)->load(content, name ? name : "memory") ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
 
