@@ -5,6 +5,8 @@
 set(ENGINE_LOGIC_TESTS_NAME "engine_logic_tests")
 set(ENGINE_IMPL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/impl)
 add_executable(${ENGINE_LOGIC_TESTS_NAME}
+	test_logger.cpp
+	test_logger.h
 	render_graph_tests.cpp
 	shadows_tests.cpp
 	atlas_tests.cpp
@@ -13,11 +15,13 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	skin_tests.cpp
 	nav_mesh_tests.cpp
 	world_transform_tests.cpp
+	type_registry_tests.cpp
+	scene_serializer_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
 	${ENGINE_IMPL_DIR}/render/shadows.h
-	# header-only; atlas_tests.cpp provides the logger it uses
+	# header-only; test_logger.cpp provides the logger the engine sources use
 	${ENGINE_IMPL_DIR}/named_atlas.h
 	# header-only
 	${ENGINE_IMPL_DIR}/entity_id_registry.h
@@ -33,8 +37,15 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	# local TRS -> world matrices (EnTT registry only)
 	${ENGINE_IMPL_DIR}/world_transform.cpp
 	${ENGINE_IMPL_DIR}/world_transform.h
+	# type registry, the engine's component descriptions and scene files (EnTT registry + rapidjson)
+	${ENGINE_IMPL_DIR}/serialization/type_registry.cpp
+	${ENGINE_IMPL_DIR}/serialization/type_registry.h
+	${ENGINE_IMPL_DIR}/serialization/builtin_types.cpp
+	${ENGINE_IMPL_DIR}/serialization/builtin_types.h
+	${ENGINE_IMPL_DIR}/serialization/scene_serializer.cpp
+	${ENGINE_IMPL_DIR}/serialization/scene_serializer.h
 )
-target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/include)
+target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/include ${RAPIDJSON_INCLUDE_DIR})
 # profiler.h includes Tracy and RmlUi headers: only their headers, without TRACY_ENABLE the profiling macros are empty
 target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE
 	$<TARGET_PROPERTY:TracyClient,INTERFACE_INCLUDE_DIRECTORIES>

@@ -113,6 +113,7 @@ static inline void calculate_camera_view_and_projection(std::size_t view_width, 
 engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
     : app_(app)
     , renderer_(renderer)
+    , assets_(*app)
     , entity_ids_(entity_registry_)
     // connects its listeners before the initializers below: EnTT calls them last-connected first, so its listeners run after them
     , physics_(entity_registry_,
@@ -701,6 +702,18 @@ entt::runtime_view engine::Scene::create_runtime_view()
 {
     ENGINE_PROFILE_SECTION;
     return entt::runtime_view{};
+}
+
+std::string engine::Scene::save() const
+{
+    ENGINE_PROFILE_SECTION;
+    return save_scene(app_->get_type_registry(), entity_registry_, entity_ids_, assets_);
+}
+
+bool engine::Scene::load(std::string_view json, std::string_view file_name)
+{
+    ENGINE_PROFILE_SECTION;
+    return load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_);
 }
 
 std::vector<entt::entity> engine::Scene::get_all_entities() const

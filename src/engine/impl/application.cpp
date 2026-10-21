@@ -5,6 +5,7 @@
 #include "logger.h"
 #include "gltf_parser.h"
 #include "ui_document.h"
+#include "serialization/builtin_types.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -139,6 +140,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, e
     {
         max_delta_time_ = desc.max_delta_time;
     }
+    register_builtin_types(types_);
     renderer_.add_feature(std::make_shared<CallbackRenderFeature>("UI", [this](FrameContext& frame)
         {
             add_overlay_pass(frame, "UI", frame.scene_output, [this](rg::PassContext&)
@@ -180,8 +182,6 @@ engine::Scene* engine::Application::allocate_scene(const engine_scene_create_des
         delete ret;
         return nullptr;
     }
-    const auto invalid_entity_id = ret->create_new_entity();
-    assert(ENGINE_INVALID_OBJECT_HANDLE != static_cast<std::uint32_t>(invalid_entity_id)); // add invalid game object id
     on_scene_create(ret);
     return ret;
 }
@@ -335,6 +335,32 @@ std::uint32_t engine::Application::add_texture_from_file(std::string_view file_n
 	return textures_atlas_.add_object(texture_name, Texture2D(file_name, true));
 }
 
+std::uint32_t engine::Application::load_texture_file(std::string_view path)
+{
+    const auto name = std::filesystem::path(path).lexically_normal().generic_string();
+    if (const auto loaded = get_texture(name); loaded != ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return acquire_texture(loaded) ? loaded : ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    const auto file_path = AssetStore::get_instance().get_models_base_path() / name;
+    const TextureAssetContext image(file_path);
+    const std::array layouts = { DataLayout::eR_U8, DataLayout::eCount, DataLayout::eRGB_U8, DataLayout::eRGBA_U8 };
+    const auto channels = image.get_channels();
+    if (!image.get_data_ptr() || channels < 1 || channels > 4 || layouts[channels - 1] == DataLayout::eCount)
+    {
+        log::log(log::LogLevel::eError, fmt::format("Failed loading image file {}: it can't be read or has {} channels.\n", file_path.string(), channels));
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    TextureDesc desc{};
+    desc.name = name;
+    desc.width = static_cast<std::uint32_t>(image.get_width());
+    desc.height = static_cast<std::uint32_t>(image.get_height());
+    desc.layout = layouts[channels - 1];
+    const auto* data = reinterpret_cast<const std::byte*>(image.get_data_ptr());
+    desc.data.assign(data, data + desc.width * desc.height * channels);
+    return add_texture(desc);
+}
+
 std::uint32_t engine::Application::get_texture(std::string_view name) const
 {
     const auto ret = textures_atlas_.get_object(name);
@@ -462,25 +488,27 @@ void engine::Application::release_animation_set(std::uint32_t idx)
     animation_sets_atlas_.release(idx);
 }
 
-std::uint32_t engine::Application::load_prefab(std::string_view file_name, std::string_view base_dir)
+std::uint32_t engine::Application::load_prefab(std::string_view path)
 {
+    // the asset ID: the same file is always named the same way
+    const auto name = std::filesystem::path(path).lexically_normal().generic_string();
     // a prefab is named by its model file: that file is loaded already
-    if (const auto loaded = get_prefab(file_name); loaded != ENGINE_INVALID_OBJECT_HANDLE)
+    if (const auto loaded = get_prefab(name); loaded != ENGINE_INVALID_OBJECT_HANDLE)
     {
         return acquire_prefab(loaded) ? loaded : ENGINE_INVALID_OBJECT_HANDLE;
     }
 
-    const auto assets_dir = AssetStore::get_instance().get_models_base_path() / base_dir;
-    const auto file_data = AssetStore::get_instance().get_raw_data_content(assets_dir / file_name);
+    const auto file_path = AssetStore::get_instance().get_models_base_path() / name;
+    const auto file_data = AssetStore::get_instance().get_raw_data_content(file_path);
     if (file_data.get_size() == 0)
     {
-        log::log(log::LogLevel::eError, fmt::format("Failed loading model file: {}\n", (assets_dir / file_name).string()));
+        log::log(log::LogLevel::eError, fmt::format("Failed loading model file: {}\n", file_path.string()));
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
-    auto model = parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, assets_dir.string(), std::string(file_name));
+    auto model = parse_gltf_data_from_memory({ file_data.get_data_ptr(), file_data.get_size() }, file_path.parent_path().string(), name);
     if (model.nodes.empty())
     {
-        log::log(log::LogLevel::eError, fmt::format("Model file {} has no nodes, it is not a usable glTF file.\n", (assets_dir / file_name).string()));
+        log::log(log::LogLevel::eError, fmt::format("Model file {} has no nodes, it is not a usable glTF file.\n", file_path.string()));
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
     auto prefab = Prefab::create(*this, std::move(model));
@@ -489,7 +517,7 @@ std::uint32_t engine::Application::load_prefab(std::string_view file_name, std::
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
     // when it isn't added, the prefab is destroyed here and releases its assets
-    return prefabs_atlas_.add_object(file_name, std::move(prefab));
+    return prefabs_atlas_.add_object(name, std::move(prefab));
 }
 
 std::uint32_t engine::Application::get_prefab(std::string_view name) const
@@ -526,11 +554,6 @@ std::uint32_t engine::Application::get_shader(std::string_view name) const
 std::string engine::Application::get_shader_name(std::uint32_t idx) const
 {
     return shader_atlas_.get_object_name(idx);
-}
-
-std::vector<std::pair<std::uint32_t, std::string>> engine::Application::get_shader_names() const
-{
-    return shader_atlas_.get_object_names();
 }
 
 void engine::Application::release_shader(std::uint32_t idx)

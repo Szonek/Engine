@@ -4,6 +4,7 @@
 
 #include "physics_system.h"
 #include "entity_id_registry.h"
+#include "serialization/scene_assets.h"
 
 #include "render/render_scene_data.h"
 
@@ -66,6 +67,12 @@ public:
 
     // EntityIdRegistry::INVALID_ID for an entity without a persistent ID
     std::uint64_t get_persistent_id(entt::entity entity) const;
+
+    // the scene as a scene file, see engine::save_scene
+    std::string save() const;
+    // adds the game objects of a scene file to the scene, see engine::load_scene; the assets it uses live as long as
+    // the scene (SceneAssets)
+    bool load(std::string_view json, std::string_view file_name);
 
     entt::runtime_view create_runtime_view();
 
@@ -158,6 +165,8 @@ private:
 private:
     Application* app_;
     Renderer& renderer_;
+    // declared before the registry: the assets scene files loaded are released after the game objects using them
+    SceneAssets assets_;
     entt::registry entity_registry_;
     // declared after the registry: it disconnects from the registry's signals when destroyed
     EntityIdRegistry entity_ids_;

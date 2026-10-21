@@ -19,7 +19,7 @@ TEST_F(PrefabTest, PrefabIsNamedByItsModelFile)
 {
     const TestModel crate("crate.gltf");
     ASSERT_TRUE(crate.loaded());
-    EXPECT_EQ(enginePrefabGetByName("crate.gltf"), crate.prefab());
+    EXPECT_EQ(enginePrefabGetByName("test_fixtures/crate.gltf"), crate.prefab());
     EXPECT_EQ(enginePrefabGetByName("crate"), ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(enginePrefabGetByName(crate.asset("Plate").c_str()), ENGINE_INVALID_OBJECT_HANDLE);
 }
@@ -183,10 +183,10 @@ TEST_F(PrefabTest, LoadingAModelTwiceReturnsTheSamePrefab)
 
     // each load is a reference: the prefab and its assets stay until both are released
     first.reset();
-    EXPECT_EQ(enginePrefabGetByName("crate.gltf"), second->prefab());
+    EXPECT_EQ(enginePrefabGetByName("test_fixtures/crate.gltf"), second->prefab());
     EXPECT_EQ(engineGeometryGetByName(geometry_id.c_str()), geometry);
     second.reset();
-    EXPECT_EQ(enginePrefabGetByName("crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(enginePrefabGetByName("test_fixtures/crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(engineGeometryGetByName(geometry_id.c_str()), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
@@ -202,7 +202,7 @@ TEST_F(PrefabTest, InstanceKeepsItsPrefabLoaded)
 
     // the game is done with the prefab, its instance isn't
     crate.reset();
-    EXPECT_EQ(enginePrefabGetByName("crate.gltf"), prefab);
+    EXPECT_EQ(enginePrefabGetByName("test_fixtures/crate.gltf"), prefab);
     EXPECT_EQ(enginePrefabInstanceGetPrefab(root), prefab);
     EXPECT_NE(engineGeometryGetByName(geometry_id.c_str()), ENGINE_INVALID_OBJECT_HANDLE);
 
@@ -212,7 +212,7 @@ TEST_F(PrefabTest, InstanceKeepsItsPrefabLoaded)
     {
         EXPECT_FALSE(engineGameObjectIsValid(child));
     }
-    EXPECT_EQ(enginePrefabGetByName("crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(enginePrefabGetByName("test_fixtures/crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(engineGeometryGetByName(geometry_id.c_str()), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
@@ -223,11 +223,11 @@ TEST_F(PrefabTest, SceneReleasesThePrefabsOfItsInstances)
     crate->instantiate();
     crate->instantiate();
     crate.reset();
-    ASSERT_NE(enginePrefabGetByName("crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
+    ASSERT_NE(enginePrefabGetByName("test_fixtures/crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
 
     // the scene is destroyed with its game objects
     TearDown();
-    EXPECT_EQ(enginePrefabGetByName("crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(enginePrefabGetByName("test_fixtures/crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
 TEST_F(PrefabTest, ModelWhichCanNotBeUsedFailsToLoad)
@@ -238,12 +238,12 @@ TEST_F(PrefabTest, ModelWhichCanNotBeUsedFailsToLoad)
 
     const TestModel not_gltf("not_a_model.gltf");
     EXPECT_FALSE(not_gltf.loaded());
-    EXPECT_EQ(enginePrefabGetByName("not_a_model.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(enginePrefabGetByName("test_fixtures/not_a_model.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
 
     // a model has at most one skin
     const TestModel two_skins("two_skins.gltf");
     EXPECT_FALSE(two_skins.loaded());
-    EXPECT_EQ(enginePrefabGetByName("two_skins.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(enginePrefabGetByName("test_fixtures/two_skins.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
 TEST_F(PrefabTest, FailedLoadLeavesNoAssetsBehind)
@@ -270,7 +270,7 @@ TEST_F(PrefabTest, ReleasingAPrefabDestroysItsAssets)
     EXPECT_GT(engineGeometryGetAttributeLimits(geometry, ENGINE_VERTEX_ATTRIBUTE_TYPE_POSITION).elements_count, 0);
 
     crate.reset();
-    EXPECT_EQ(enginePrefabGetByName("crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(enginePrefabGetByName("test_fixtures/crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(engineGeometryGetByName(geometry_id.c_str()), ENGINE_INVALID_OBJECT_HANDLE);
 
     // the names are free again

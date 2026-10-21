@@ -17,6 +17,8 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <optional>
 #include <utility>
 
@@ -441,19 +443,19 @@ void engineTexture2DRelease(engine_texture2d_t tex2d)
     api_cast(G_ACTIVE_APP)->release_texture(tex2d);
 }
 
-engine_result_code_t enginePrefabLoad(engine_model_specification_t spec, const char* file_name, const char* base_dir, engine_prefab_t* out)
+engine_result_code_t enginePrefabLoad(engine_model_specification_t spec, const char* path, engine_prefab_t* out)
 {
-    if (!G_ACTIVE_APP || !file_name || !base_dir || !out || spec != ENGINE_MODEL_SPECIFICATION_GLTF_2)
+    if (!G_ACTIVE_APP || !path || !out || spec != ENGINE_MODEL_SPECIFICATION_GLTF_2)
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
-    const auto ret = api_cast(G_ACTIVE_APP)->load_prefab(file_name, base_dir);
+    const auto ret = api_cast(G_ACTIVE_APP)->load_prefab(path);
     if (ret == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
     *out = ret;
-    engineLog(fmt::format("Loaded prefab: {}, with id: {}\n", file_name, ret).c_str());
+    engineLog(fmt::format("Loaded prefab: {}, with id: {}\n", path, ret).c_str());
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -558,6 +560,49 @@ engine_result_code_t engineSceneSetActive(engine_scene_t handle)
     }
     G_ACTIVE_SCENE = handle;
     return ENGINE_RESULT_CODE_OK;
+}
+
+namespace
+{
+std::filesystem::path scene_file_path(const char* path)
+{
+    const std::filesystem::path p(path);
+    return p.is_absolute() ? p : engine::AssetStore::get_instance().get_scenes_base_path() / p;
+}
+}  // namespace
+
+engine_result_code_t engineSceneSave(const char* path)
+{
+    if (!G_ACTIVE_SCENE || !path)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const auto file_path = scene_file_path(path);
+    const auto content = api_cast(G_ACTIVE_SCENE)->save();
+    std::ofstream file(file_path, std::ios::binary | std::ios::trunc);
+    if (!file || !file.write(content.data(), static_cast<std::streamsize>(content.size())))
+    {
+        engine::log::log(engine::log::LogLevel::eError, fmt::format("Scene save: can't write {}.\n", file_path.string()));
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t engineSceneLoad(const char* path)
+{
+    if (!G_ACTIVE_SCENE || !path)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const auto file_path = scene_file_path(path);
+    std::ifstream file(file_path, std::ios::binary);
+    if (!file)
+    {
+        engine::log::log(engine::log::LogLevel::eError, fmt::format("Scene load: can't read {}.\n", file_path.string()));
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    return api_cast(G_ACTIVE_SCENE)->load(content, path) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
 

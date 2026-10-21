@@ -83,6 +83,14 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/skin.cpp
 	${ENGINE_SOURCES_DIR}/prefab.h
 	${ENGINE_SOURCES_DIR}/prefab.cpp
+	${ENGINE_SOURCES_DIR}/serialization/type_registry.h
+	${ENGINE_SOURCES_DIR}/serialization/type_registry.cpp
+	${ENGINE_SOURCES_DIR}/serialization/builtin_types.h
+	${ENGINE_SOURCES_DIR}/serialization/builtin_types.cpp
+	${ENGINE_SOURCES_DIR}/serialization/scene_serializer.h
+	${ENGINE_SOURCES_DIR}/serialization/scene_serializer.cpp
+	${ENGINE_SOURCES_DIR}/serialization/scene_assets.h
+	${ENGINE_SOURCES_DIR}/serialization/scene_assets.cpp
 	
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.h
 	${ENGINE_SOURCES_DIR}/components_utils/components_initializers.cpp
@@ -154,7 +162,7 @@ set(ENGINE_ALL_SOURCES ${ENGINE_SOURCES} ${ENGINE_API_SOURCES})
 
 add_library(${ENGINE} SHARED ${ENGINE_ALL_SOURCES})
 
-target_include_directories(${ENGINE} PUBLIC ${ENGINE_API} PRIVATE ${BULLET_INCLUDE_DIRS} ${ENGINE_SOURCES_DIR}/imgui)
+target_include_directories(${ENGINE} PUBLIC ${ENGINE_API} PRIVATE ${BULLET_INCLUDE_DIRS} ${ENGINE_SOURCES_DIR}/imgui ${RAPIDJSON_INCLUDE_DIR})
 target_link_libraries(${ENGINE} PRIVATE stb tinygltf glad glm EnTT::EnTT SDL3::SDL3-static fmt::fmt-header-only Freetype::Freetype RmlUi::RmlUi RmlUi::Debugger TracyClient ozz_animation ozz_animation_offline RecastNavigation::Recast RecastNavigation::Detour RecastNavigation::DebugUtils ${BULLET_LIBRARIES})
 target_compile_definitions(${ENGINE} PUBLIC GLM_FORCE_QUAT_DATA_XYZW GLM_ENABLE_EXPERIMENTAL PRIVATE RMLUI_SDL_VERSION_MAJOR=3 BT_NO_SIMD_OPERATOR_OVERLOADS=1)
 

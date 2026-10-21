@@ -10,6 +10,7 @@
 #include "skin.h"
 #include "animation_controller.h"
 #include "prefab.h"
+#include "serialization/type_registry.h"
 #include "render/renderer.h"
 
 
@@ -34,6 +35,9 @@ public:
 
     virtual std::uint32_t add_texture(const TextureDesc& desc);
     virtual std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
+    // An image in its own file under assets/models, named by its path there (like the image files of models).
+    // Loading an image which is loaded already returns it with one more reference.
+    virtual std::uint32_t load_texture_file(std::string_view path);
     virtual std::uint32_t get_texture(std::string_view name) const;
     virtual const Texture2D* get_texture(std::uint32_t idx) const;
     // asset ID of the texture, "" for ENGINE_INVALID_OBJECT_HANDLE
@@ -66,9 +70,9 @@ public:
     virtual std::string get_animation_set_name(std::uint32_t idx) const;
     virtual void release_animation_set(std::uint32_t idx);
 
-    // prefab assets: a model file with the assets created from it, named by the file ("Rogue.glb")
-    // Loading a model which is loaded already returns its prefab with one more reference.
-    virtual std::uint32_t load_prefab(std::string_view file_name, std::string_view base_dir);
+    // prefab assets: a model file with the assets created from it, named by its path relative to the models folder
+    // ("characters/Rogue.glb"). Loading a model which is loaded already returns its prefab with one more reference.
+    virtual std::uint32_t load_prefab(std::string_view path);
     virtual bool acquire_prefab(std::uint32_t idx);
     virtual void release_prefab(std::uint32_t idx);
     virtual std::uint32_t get_prefab(std::string_view name) const;
@@ -77,8 +81,10 @@ public:
     virtual std::uint32_t add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name);
     virtual std::uint32_t get_shader(std::string_view name) const;
     virtual std::string get_shader_name(std::uint32_t idx) const;
-    virtual std::vector<std::pair<std::uint32_t, std::string>> get_shader_names() const;
     virtual void release_shader(std::uint32_t idx);
+
+    // the types scene files hold (see serialization/scene_serializer.h)
+    const TypeRegistry& get_type_registry() const { return types_; }
 
     virtual UiDocument load_ui_document(std::string_view file_name);
     virtual UiDataHandle create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);
@@ -123,6 +129,7 @@ protected:
     Atlas<std::shared_ptr<const AnimationLibrary>> animation_sets_atlas_;
     Atlas<std::unique_ptr<Prefab>> prefabs_atlas_;
     Atlas<Shader> shader_atlas_;
+    TypeRegistry types_;
 
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;

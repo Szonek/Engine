@@ -114,7 +114,8 @@ void attack_window_close_callback(const engine_animation_event_info_t* info, voi
 project_c::Weapon::Weapon(engine::IScene* my_scene, engine_game_object_t go)
     : BaseNode(my_scene, go, "weapon-daggers")
 {
-    const auto dagger_texture = engineTextured2DGetByName("Rogue.glb#rogue_texture");
+    const auto* app = static_cast<const AppProjectC*>(my_scene_->get_app());
+    const auto dagger_texture = engineTextured2DGetByName(app->model_asset_id(PREFAB_TYPE_ROGUE, "rogue_texture").c_str());
 
     // transform
     auto tc = engineGameObjectAddTransformComponent(go_);
@@ -125,7 +126,7 @@ project_c::Weapon::Weapon(engine::IScene* my_scene, engine_game_object_t go)
 
     // mesh
     auto mc = engineGameObjectAddMeshComponent(go_);
-    mc.geometry = engineGeometryGetByName("Rogue.glb#Cylinder.008");
+    mc.geometry = engineGeometryGetByName(app->model_asset_id(PREFAB_TYPE_ROGUE, "Cylinder.008").c_str());
     assert(mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
     engineGameObjectUpdateMeshComponent(go_, &mc);
 
@@ -210,7 +211,7 @@ void project_c::Weapon::on_start()
     engineGameObjectUpdateTransformComponent(offhand_go_, &offhand_tc);
 
     auto offhand_mc = engineGameObjectAddMeshComponent(offhand_go_);
-    offhand_mc.geometry = engineGeometryGetByName("Rogue.glb#Cylinder.002");
+    offhand_mc.geometry = engineGeometryGetByName(static_cast<const AppProjectC*>(my_scene_->get_app())->model_asset_id(PREFAB_TYPE_ROGUE, "Cylinder.002").c_str());
     assert(offhand_mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
     engineGameObjectUpdateMeshComponent(offhand_go_, &offhand_mc);
 

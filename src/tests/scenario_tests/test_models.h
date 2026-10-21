@@ -15,9 +15,9 @@ inline constexpr const char* TEST_MODELS_DIR = "test_fixtures";
 class TestModel
 {
 public:
-    explicit TestModel(const char* file_name) : file_name_(file_name)
+    explicit TestModel(const char* file_name) : path_(std::string(TEST_MODELS_DIR) + "/" + file_name)
     {
-        result_ = enginePrefabLoad(ENGINE_MODEL_SPECIFICATION_GLTF_2, file_name, TEST_MODELS_DIR, &prefab_);
+        result_ = enginePrefabLoad(ENGINE_MODEL_SPECIFICATION_GLTF_2, path_.c_str(), &prefab_);
     }
     TestModel(const TestModel&) = delete;
     TestModel& operator=(const TestModel&) = delete;
@@ -32,13 +32,15 @@ public:
     bool loaded() const { return result_ == ENGINE_RESULT_CODE_OK; }
     engine_result_code_t result() const { return result_; }
     engine_prefab_t prefab() const { return prefab_; }
-    // the ID of an asset inside the model: "<file>#<name>"
-    std::string asset(const char* name) const { return file_name_ + "#" + name; }
+    // the prefab's asset ID: the model's path under assets/models
+    const std::string& path() const { return path_; }
+    // the ID of an asset inside the model: "<path>#<name>"
+    std::string asset(const char* name) const { return path_ + "#" + name; }
     engine_game_object_t instantiate() const { return enginePrefabInstantiate(prefab_); }
     engine_game_object_t instantiate_transient() const { return enginePrefabInstantiateTransient(prefab_); }
 
 private:
-    std::string file_name_;
+    std::string path_;
     engine_result_code_t result_ = ENGINE_RESULT_CODE_FAIL;
     engine_prefab_t prefab_ = ENGINE_INVALID_OBJECT_HANDLE;
 };
