@@ -68,11 +68,16 @@ set(RECASTNAVIGATION_TESTS OFF CACHE BOOL "")
 set(RECASTNAVIGATION_EXAMPLES OFF CACHE BOOL "")
 add_subdirectory(recastnavigation)
 
-#freetype prebuilt
+#freetype: prebuilt on Windows, the system package elsewhere
+if(WIN32)
 add_library(Freetype::Freetype STATIC IMPORTED GLOBAL)
 set_property(TARGET Freetype::Freetype PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/freetype/include)
 set_property(TARGET Freetype::Freetype PROPERTY IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_SOURCE_DIR}/freetype/DebugStatic/freetype.lib)
 set_property(TARGET Freetype::Freetype PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/freetype/ReleaseStatic/freetype.lib)
+else()
+find_package(Freetype REQUIRED)
+set_target_properties(Freetype::Freetype PROPERTIES IMPORTED_GLOBAL TRUE)
+endif()
 
 #RML UI 
 set(RMLUI_SAMPLES ON CACHE BOOL "Build samples of RmlUI thirdparty")

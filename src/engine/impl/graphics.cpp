@@ -976,8 +976,8 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     const auto set_swap_result = SDL_GL_SetSwapInterval(1);
     if (!set_swap_result)
     {
-        log::log(log::LogLevel::eCritical, "Failed to set swap interval\n");
-        return;
+        // not supported everywhere (e.g. a virtual X server); frames are then just not synced
+        log::log(log::LogLevel::eError, fmt::format("Failed to enable vsync: {}\n", SDL_GetError()));
     }
 
 #if defined(GLAD_GLES2_IMPLEMENTATION)

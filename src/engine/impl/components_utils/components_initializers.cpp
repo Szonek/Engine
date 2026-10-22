@@ -1,5 +1,7 @@
 #include "components_initializers.h"
 #include "engine.h"
+
+#include <cstring>
 #include "../nav_mesh.h"
 
 namespace

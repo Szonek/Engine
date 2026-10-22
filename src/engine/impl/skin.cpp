@@ -36,11 +36,12 @@ namespace
 {
 glm::mat4 to_glm(const ozz::math::Float4x4& m)
 {
-    return glm::mat4(
-        m.cols[0].m128_f32[0], m.cols[0].m128_f32[1], m.cols[0].m128_f32[2], m.cols[0].m128_f32[3],
-        m.cols[1].m128_f32[0], m.cols[1].m128_f32[1], m.cols[1].m128_f32[2], m.cols[1].m128_f32[3],
-        m.cols[2].m128_f32[0], m.cols[2].m128_f32[1], m.cols[2].m128_f32[2], m.cols[2].m128_f32[3],
-        m.cols[3].m128_f32[0], m.cols[3].m128_f32[1], m.cols[3].m128_f32[2], m.cols[3].m128_f32[3]);
+    glm::mat4 result;
+    for (int i = 0; i < 4; ++i)
+    {
+        ozz::math::StorePtrU(m.cols[i], &result[i][0]);
+    }
+    return result;
 }
 }  // namespace
 
