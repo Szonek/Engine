@@ -134,6 +134,14 @@ public:
         return entity_registry_.any_of<T>(entity);
     }
 
+    // Components of a registered type without knowing it (game-defined components, the editor's generic inspector),
+    // through its ComponentStorage: values are pointers to a value of the type, added with its defaults.
+    bool has_component(const TypeInfo& type, entt::entity entity) const { return type.storage->has(entity_registry_, entity); }
+    void add_component(const TypeInfo& type, entt::entity entity) { type.storage->add(entity_registry_, entity); }
+    void get_component(const TypeInfo& type, entt::entity entity, void* out) const { type.storage->get(entity_registry_, entity, out); }
+    void update_component(const TypeInfo& type, entt::entity entity, const void* value) { type.storage->update(entity_registry_, entity, value); }
+    void remove_component(const TypeInfo& type, entt::entity entity) { type.storage->remove(entity_registry_, entity); }
+
     // (Re)builds the nav mesh from the static colliders (see engine_nav_modifier_component_t) with the settings of the
     // scene's nav surface component, and keeps it on that game object. Fails when there is no nav surface or nothing
     // is walkable (the previous nav mesh is dropped then).

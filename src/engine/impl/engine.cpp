@@ -614,6 +614,121 @@ engine_result_code_t engineSceneLoad(const char* path)
     return api_cast(G_ACTIVE_SCENE)->load(content, path) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
+engine_result_code_t engineComponentTypeRegister(const engine_type_desc_t* desc, engine_component_type_t* out)
+{
+    if (!G_ACTIVE_APP || !desc || !out)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const auto* type = api_cast(G_ACTIVE_APP)->register_game_type(*desc, true);
+    *out = type ? type->handle : ENGINE_INVALID_OBJECT_HANDLE;
+    return type ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engineStructTypeRegister(const engine_type_desc_t* desc)
+{
+    if (!G_ACTIVE_APP || !desc)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    return api_cast(G_ACTIVE_APP)->register_game_type(*desc, false) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_component_type_t engineComponentTypeGetByName(const char* name)
+{
+    if (!G_ACTIVE_APP || !name)
+    {
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    const auto* type = api_cast(G_ACTIVE_APP)->get_type_registry().find(name);
+    return type && type->is_component() && type->game_defined ? type->handle : ENGINE_INVALID_OBJECT_HANDLE;
+}
+
+namespace
+{
+// the game-defined component type and the entity of a data component call, or {nullptr, null} when either isn't valid;
+// the type is the one of the registry the scene's components are saved with
+std::pair<const engine::TypeInfo*, entt::entity> data_component_target(engine_game_object_t game_object, engine_component_type_t type)
+{
+    if (!G_ACTIVE_SCENE || !api_cast(G_ACTIVE_SCENE)->is_valid_entity(api_cast(game_object)))
+    {
+        return { nullptr, entt::null };
+    }
+    const auto* info = api_cast(G_ACTIVE_SCENE)->get_application()->get_type_registry().get(type);
+    if (!info || !info->is_component() || !info->game_defined)
+    {
+        return { nullptr, entt::null };
+    }
+    return { info, api_cast(game_object) };
+}
+}  // namespace
+
+engine_result_code_t engineGameObjectAddDataComponent(engine_game_object_t game_object, engine_component_type_t type, const void* value)
+{
+    const auto [info, entity] = data_component_target(game_object, type);
+    if (!info)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    auto* scene = api_cast(G_ACTIVE_SCENE);
+    if (scene->has_component(*info, entity))
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    scene->add_component(*info, entity);
+    if (value)
+    {
+        scene->update_component(*info, entity, value);
+    }
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t engineGameObjectGetDataComponent(engine_game_object_t game_object, engine_component_type_t type, void* out)
+{
+    const auto [info, entity] = data_component_target(game_object, type);
+    if (!info || !out)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const auto* scene = api_cast(G_ACTIVE_SCENE);
+    if (!scene->has_component(*info, entity))
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    scene->get_component(*info, entity, out);
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t engineGameObjectUpdateDataComponent(engine_game_object_t game_object, engine_component_type_t type, const void* value)
+{
+    const auto [info, entity] = data_component_target(game_object, type);
+    if (!info || !value)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    auto* scene = api_cast(G_ACTIVE_SCENE);
+    if (!scene->has_component(*info, entity))
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    scene->update_component(*info, entity, value);
+    return ENGINE_RESULT_CODE_OK;
+}
+
+void engineGameObjectRemoveDataComponent(engine_game_object_t game_object, engine_component_type_t type)
+{
+    const auto [info, entity] = data_component_target(game_object, type);
+    if (info)
+    {
+        api_cast(G_ACTIVE_SCENE)->remove_component(*info, entity);
+    }
+}
+
+bool engineGameObjectHasDataComponent(engine_game_object_t game_object, engine_component_type_t type)
+{
+    const auto [info, entity] = data_component_target(game_object, type);
+    return info && api_cast(G_ACTIVE_SCENE)->has_component(*info, entity);
+}
 
 engine_game_object_t engineGameObjectCreate()
 {

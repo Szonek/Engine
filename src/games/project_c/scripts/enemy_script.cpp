@@ -498,16 +498,13 @@ void project_c::Enemy::collect_hit_flash_materials(engine_game_object_t game_obj
     if (engineGameObjectHasMaterialComponent(game_object))
     {
         const auto material = engineGameObjectGetMaterialComponent(game_object);
-        if (material.type == ENGINE_MATERIAL_TYPE_PONG)
-        {
-            HitFlashMaterial entry{};
-            entry.game_object = game_object;
-            std::copy(
-                std::begin(material.data.pong.diffuse_color),
-                std::end(material.data.pong.diffuse_color),
-                entry.original_diffuse_color.begin());
-            hit_flash_materials_.push_back(entry);
-        }
+        HitFlashMaterial entry{};
+        entry.game_object = game_object;
+        std::copy(
+            std::begin(material.diffuse_color),
+            std::end(material.diffuse_color),
+            entry.original_diffuse_color.begin());
+        hit_flash_materials_.push_back(entry);
     }
 
     for (const auto child : utils::get_children(game_object))
@@ -529,15 +526,10 @@ void project_c::Enemy::update_hit_flash(float strength)
         }
 
         auto material = engineGameObjectGetMaterialComponent(entry.game_object);
-        if (material.type != ENGINE_MATERIAL_TYPE_PONG)
-        {
-            continue;
-        }
-
         for (std::size_t channel = 0; channel < hit_color.size(); ++channel)
         {
             const float original = entry.original_diffuse_color[channel];
-            material.data.pong.diffuse_color[channel] = original + (hit_color[channel] - original) * strength;
+            material.diffuse_color[channel] = original + (hit_color[channel] - original) * strength;
         }
         engineGameObjectUpdateMaterialComponent(entry.game_object, &material);
     }

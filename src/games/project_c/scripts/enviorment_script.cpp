@@ -249,7 +249,7 @@ project_c::DebugPathNode::DebugPathNode(engine::IScene* my_scene, engine_game_ob
 
     // and basic material
     auto mat = engineGameObjectAddMaterialComponent(go_);
-    set_c_array(mat.data.pong.diffuse_color, std::array<float, 4>{1.0f, 0.0f, 0.0f, 0.0f});
+    set_c_array(mat.diffuse_color, std::array<float, 4>{1.0f, 0.0f, 0.0f, 0.0f});
     engineGameObjectUpdateMaterialComponent(go_, &mat);
 }
 

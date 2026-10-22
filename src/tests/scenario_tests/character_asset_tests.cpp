@@ -25,8 +25,8 @@ TEST_F(CharacterAssetTest, PlayerWeaponUsesTheRogueTexture)
     const auto* weapon = scene->find_script<project_c::Weapon>();
     ASSERT_NE(weapon, nullptr);
     const auto material = engineGameObjectGetMaterialComponent(weapon->get_game_object());
-    EXPECT_EQ(material.data.pong.diffuse_texture, engineTextured2DGetByName(scenario::app().model_asset_id(project_c::PREFAB_TYPE_ROGUE, "rogue_texture").c_str()));
-    EXPECT_NE(material.data.pong.diffuse_texture, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(material.diffuse_texture, engineTextured2DGetByName(scenario::app().model_asset_id(project_c::PREFAB_TYPE_ROGUE, "rogue_texture").c_str()));
+    EXPECT_NE(material.diffuse_texture, ENGINE_INVALID_OBJECT_HANDLE);
 }
 
 TEST_F(CharacterAssetTest, PlayerWeaponHasItsSizeFromTheFirstFrame)

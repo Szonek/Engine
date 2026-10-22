@@ -17,6 +17,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	world_transform_tests.cpp
 	type_registry_tests.cpp
 	scene_serializer_tests.cpp
+	game_types_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
@@ -37,11 +38,13 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	# local TRS -> world matrices (EnTT registry only)
 	${ENGINE_IMPL_DIR}/world_transform.cpp
 	${ENGINE_IMPL_DIR}/world_transform.h
-	# type registry, the engine's component descriptions and scene files (EnTT registry + rapidjson)
+	# type registry, the engine's component descriptions, game-defined types and scene files (EnTT registry + rapidjson)
 	${ENGINE_IMPL_DIR}/serialization/type_registry.cpp
 	${ENGINE_IMPL_DIR}/serialization/type_registry.h
 	${ENGINE_IMPL_DIR}/serialization/builtin_types.cpp
 	${ENGINE_IMPL_DIR}/serialization/builtin_types.h
+	${ENGINE_IMPL_DIR}/serialization/game_types.cpp
+	${ENGINE_IMPL_DIR}/serialization/game_types.h
 	${ENGINE_IMPL_DIR}/serialization/scene_serializer.cpp
 	${ENGINE_IMPL_DIR}/serialization/scene_serializer.h
 )

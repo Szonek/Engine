@@ -71,11 +71,10 @@ TEST_F(PrefabTest, InstanceIsTheModelsNodesUnderTheRoot)
         EXPECT_EQ(engineGameObjectGetParentComponent(child).parent, root);
         EXPECT_EQ(engineGameObjectGetMeshComponent(child).geometry, geometry);
         const auto material = engineGameObjectGetMaterialComponent(child);
-        EXPECT_EQ(material.type, ENGINE_MATERIAL_TYPE_PONG);
-        EXPECT_NEAR(material.data.pong.diffuse_color[0], 0.6f, TOLERANCE);
-        EXPECT_NEAR(material.data.pong.diffuse_color[1], 0.4f, TOLERANCE);
-        EXPECT_NEAR(material.data.pong.diffuse_color[2], 0.2f, TOLERANCE);
-        EXPECT_NEAR(material.data.pong.diffuse_color[3], 1.0f, TOLERANCE);
+        EXPECT_NEAR(material.diffuse_color[0], 0.6f, TOLERANCE);
+        EXPECT_NEAR(material.diffuse_color[1], 0.4f, TOLERANCE);
+        EXPECT_NEAR(material.diffuse_color[2], 0.2f, TOLERANCE);
+        EXPECT_NEAR(material.diffuse_color[3], 1.0f, TOLERANCE);
     }
     // the node's own transform
     EXPECT_NEAR(engineGameObjectGetTransformComponent(lid).position[1], 1.0f, TOLERANCE);
@@ -113,7 +112,7 @@ TEST_F(PrefabTest, InstancesAreEditedIndependently)
 
     // one copy gets another colour, another place and no mesh on its base
     auto material = engineGameObjectGetMaterialComponent(edited_lid);
-    material.data.pong.diffuse_color[0] = 1.0f;
+    material.diffuse_color[0] = 1.0f;
     engineGameObjectUpdateMaterialComponent(edited_lid, &material);
     auto transform = engineGameObjectGetTransformComponent(edited);
     transform.position[0] = 5.0f;
@@ -122,10 +121,10 @@ TEST_F(PrefabTest, InstancesAreEditedIndependently)
     mesh.disable = true;
     engineGameObjectUpdateMeshComponent(edited_base, &mesh);
 
-    EXPECT_NEAR(engineGameObjectGetMaterialComponent(edited_lid).data.pong.diffuse_color[0], 1.0f, TOLERANCE);
+    EXPECT_NEAR(engineGameObjectGetMaterialComponent(edited_lid).diffuse_color[0], 1.0f, TOLERANCE);
     EXPECT_TRUE(engineGameObjectGetMeshComponent(edited_base).disable);
     // the other copy and the shared mesh are unchanged
-    EXPECT_NEAR(engineGameObjectGetMaterialComponent(untouched_lid).data.pong.diffuse_color[0], 0.6f, TOLERANCE);
+    EXPECT_NEAR(engineGameObjectGetMaterialComponent(untouched_lid).diffuse_color[0], 0.6f, TOLERANCE);
     EXPECT_NEAR(engineGameObjectGetTransformComponent(untouched).position[0], 0.0f, TOLERANCE);
     EXPECT_FALSE(engineGameObjectGetMeshComponent(untouched_base).disable);
     EXPECT_EQ(engineGameObjectGetMeshComponent(edited_lid).geometry, engineGameObjectGetMeshComponent(untouched_lid).geometry);
@@ -306,7 +305,7 @@ TEST_F(PrefabTest, TextureInItsOwnFileIsSharedByTheModelsUsingIt)
     for (const auto* model : { first.get(), second.get() })
     {
         const auto instance = model->instantiate();
-        EXPECT_EQ(engineGameObjectGetMaterialComponent(instance).data.pong.diffuse_texture, texture);
+        EXPECT_EQ(engineGameObjectGetMaterialComponent(instance).diffuse_texture, texture);
         engineGameObjectDestroy(instance);
     }
 
@@ -331,7 +330,7 @@ TEST_F(PrefabTest, TextureCreatedByTheGameIsSharedWithTheModelsUsingIt)
         auto model = std::make_unique<TestModel>("textured_a.gltf");
         ASSERT_TRUE(model->loaded());
         const auto instance = model->instantiate();
-        EXPECT_EQ(engineGameObjectGetMaterialComponent(instance).data.pong.diffuse_texture, existing);
+        EXPECT_EQ(engineGameObjectGetMaterialComponent(instance).diffuse_texture, existing);
         engineGameObjectDestroy(instance);
 
         if (game_releases_first)

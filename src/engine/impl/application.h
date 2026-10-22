@@ -41,6 +41,8 @@ public:
     virtual std::uint32_t load_texture_file(std::string_view path);
     virtual std::uint32_t get_texture(std::string_view name) const;
     virtual const Texture2D* get_texture(std::uint32_t idx) const;
+    // the white texture drawn for a material without one
+    engine_texture2d_t get_default_texture() const { return default_texture_idx_; }
     // asset ID of the texture, "" for ENGINE_INVALID_OBJECT_HANDLE
     virtual std::string get_texture_name(std::uint32_t idx) const;
     virtual std::vector<std::pair<std::uint32_t, std::string>> get_texture_names() const;
@@ -86,6 +88,8 @@ public:
 
     // the types scene files hold (see serialization/scene_serializer.h)
     const TypeRegistry& get_type_registry() const { return types_; }
+    // a type the game describes, see register_game_type; nullptr (logged) when the description has a mistake
+    const TypeInfo* register_game_type(const engine_type_desc_t& desc, bool component);
 
     virtual UiDocument load_ui_document(std::string_view file_name);
     virtual UiDataHandle create_ui_document_data_handle(std::string_view name, std::span<const engine_ui_document_data_binding_t> bindings);

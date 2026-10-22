@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstddef>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -77,6 +78,31 @@ protected:
     std::filesystem::path file_ = std::filesystem::temp_directory_path() / "project_c_scene_file_test.json";
 };
 
+// a game-defined component; types can't be unregistered, so it is registered once for the whole run
+struct ScenarioTag
+{
+    float weight;
+    engine_game_object_t buddy;
+    char label[8];
+};
+
+engine_component_type_t scenario_tag_type()
+{
+    static const engine_component_type_t type = []
+    {
+        engine_field_desc_t fields[3]{};
+        fields[0] = { "weight", ENGINE_FIELD_KIND_FLOAT, offsetof(ScenarioTag, weight) };
+        fields[1] = { "buddy", ENGINE_FIELD_KIND_GAME_OBJECT, offsetof(ScenarioTag, buddy) };
+        fields[2] = { "label", ENGINE_FIELD_KIND_STRING, offsetof(ScenarioTag, label), sizeof(ScenarioTag::label) };
+        const ScenarioTag defaults{ 2.0f, ENGINE_INVALID_GAME_OBJECT_ID, "tag" };
+        const engine_type_desc_t desc{ "scenario_tag", 1, sizeof(ScenarioTag), alignof(ScenarioTag), &defaults, fields, 3 };
+        engine_component_type_t out = ENGINE_INVALID_OBJECT_HANDLE;
+        engineComponentTypeRegister(&desc, &out);
+        return out;
+    }();
+    return type;
+}
+
 TEST_F(SceneFileTest, ModelNobodyLoadedIsLoadedAndHeldByTheScene)
 {
     ASSERT_EQ(enginePrefabGetByName("test_fixtures/crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
@@ -113,10 +139,10 @@ TEST_F(SceneFileTest, ImageFileIsLoadedAndHeldByTheScene)
 {
     create_file_scene();
     ASSERT_EQ(engineSceneLoad(write_file(R"({ "version": 1, "entities": [ { "id": 1, "components": {
-        "material": { "type": "pong", "pong": { "diffuse_texture": "test_fixtures/test_texture.png" } } } } ] })").c_str()), ENGINE_RESULT_CODE_OK);
+        "material": { "diffuse_texture": "test_fixtures/test_texture.png" } } } ] })").c_str()), ENGINE_RESULT_CODE_OK);
     const auto go = find_with(engineGameObjectHasMaterialComponent);
     ASSERT_NE(go, ENGINE_INVALID_GAME_OBJECT_ID);
-    const auto texture = engineGameObjectGetMaterialComponent(go).data.pong.diffuse_texture;
+    const auto texture = engineGameObjectGetMaterialComponent(go).diffuse_texture;
     EXPECT_NE(texture, ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(texture, engineTextured2DGetByName("test_fixtures/test_texture.png"));
 
@@ -205,5 +231,84 @@ TEST_F(SceneFileTest, SavedSceneLoadsBackToTheSameFile)
     resaved_file.close();
     std::filesystem::remove(resaved);
     EXPECT_EQ(again, saved);
+}
+
+TEST_F(SceneFileTest, GameComponentWorksLikeTheEngineComponents)
+{
+    const auto type = scenario_tag_type();
+    ASSERT_NE(type, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(engineComponentTypeGetByName("scenario_tag"), type);
+    // the engine's components have their own functions
+    EXPECT_EQ(engineComponentTypeGetByName("transform"), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(engineComponentTypeGetByName("no_such_type"), ENGINE_INVALID_OBJECT_HANDLE);
+
+    const auto go = engineGameObjectCreate();
+    ScenarioTag tag{};
+    EXPECT_FALSE(engineGameObjectHasDataComponent(go, type));
+    EXPECT_EQ(engineGameObjectGetDataComponent(go, type, &tag), ENGINE_RESULT_CODE_FAIL);
+    // added with the type's default value
+    ASSERT_EQ(engineGameObjectAddDataComponent(go, type, nullptr), ENGINE_RESULT_CODE_OK);
+    EXPECT_EQ(engineGameObjectAddDataComponent(go, type, nullptr), ENGINE_RESULT_CODE_FAIL);
+    ASSERT_EQ(engineGameObjectGetDataComponent(go, type, &tag), ENGINE_RESULT_CODE_OK);
+    EXPECT_EQ(tag.weight, 2.0f);
+    EXPECT_STREQ(tag.label, "tag");
+
+    tag.weight = 5.0f;
+    ASSERT_EQ(engineGameObjectUpdateDataComponent(go, type, &tag), ENGINE_RESULT_CODE_OK);
+    ScenarioTag read{};
+    engineGameObjectGetDataComponent(go, type, &read);
+    EXPECT_EQ(read.weight, 5.0f);
+
+    engineGameObjectRemoveDataComponent(go, type);
+    EXPECT_FALSE(engineGameObjectHasDataComponent(go, type));
+    EXPECT_EQ(engineGameObjectUpdateDataComponent(go, type, &tag), ENGINE_RESULT_CODE_FAIL);
+    EXPECT_EQ(engineGameObjectAddDataComponent(go, ENGINE_INVALID_OBJECT_HANDLE, nullptr), ENGINE_RESULT_CODE_INVALID_ARG);
+    EXPECT_EQ(engineGameObjectAddDataComponent(ENGINE_INVALID_GAME_OBJECT_ID, type, nullptr), ENGINE_RESULT_CODE_INVALID_ARG);
+
+    // destroyed with its game object
+    engineGameObjectAddDataComponent(go, type, &tag);
+    engineGameObjectDestroy(go);
+    EXPECT_FALSE(engineGameObjectHasDataComponent(go, type));
+}
+
+TEST_F(SceneFileTest, BadComponentTypeIsNotRegistered)
+{
+    // the field is outside the struct
+    const engine_field_desc_t field{ "weight", ENGINE_FIELD_KIND_FLOAT, sizeof(ScenarioTag) };
+    const engine_type_desc_t desc{ "scenario_bad_tag", 1, sizeof(ScenarioTag), alignof(ScenarioTag), nullptr, &field, 1 };
+    engine_component_type_t out = 0;
+    EXPECT_EQ(engineComponentTypeRegister(&desc, &out), ENGINE_RESULT_CODE_FAIL);
+    EXPECT_EQ(out, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(engineComponentTypeGetByName("scenario_bad_tag"), ENGINE_INVALID_OBJECT_HANDLE);
+}
+
+TEST_F(SceneFileTest, GameComponentIsSavedAndLoaded)
+{
+    const auto type = scenario_tag_type();
+    const auto buddy = engineGameObjectCreate();
+    engineGameObjectAddTransformComponent(buddy);
+    const auto go = engineGameObjectCreate();
+    const ScenarioTag tag{ 0.25f, buddy, "saved" };
+    ASSERT_EQ(engineGameObjectAddDataComponent(go, type, &tag), ENGINE_RESULT_CODE_OK);
+    ASSERT_EQ(engineSceneSave(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+
+    create_file_scene();
+    ASSERT_EQ(engineSceneLoad(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+    engine_game_object_t loaded = ENGINE_INVALID_GAME_OBJECT_ID;
+    for (engine_game_object_t candidate = 1; candidate < 64; candidate++)
+    {
+        if (engineGameObjectIsValid(candidate) && engineGameObjectHasDataComponent(candidate, type))
+        {
+            loaded = candidate;
+        }
+    }
+    ASSERT_NE(loaded, ENGINE_INVALID_GAME_OBJECT_ID);
+    ScenarioTag read{};
+    ASSERT_EQ(engineGameObjectGetDataComponent(loaded, type, &read), ENGINE_RESULT_CODE_OK);
+    EXPECT_EQ(read.weight, 0.25f);
+    EXPECT_STREQ(read.label, "saved");
+    // the reference points at the loaded buddy
+    ASSERT_TRUE(engineGameObjectIsValid(read.buddy));
+    EXPECT_TRUE(engineGameObjectHasTransformComponent(read.buddy));
 }
 }  // namespace

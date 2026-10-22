@@ -6,6 +6,7 @@
 #include "gltf_parser.h"
 #include "ui_document.h"
 #include "serialization/builtin_types.h"
+#include "serialization/game_types.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -619,4 +620,9 @@ bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
 std::array<engine_finger_info_t, 10> engine::Application::get_finger_info_events() const
 {
 	return finger_info_buffer;
+}
+
+const engine::TypeInfo* engine::Application::register_game_type(const engine_type_desc_t& desc, bool component)
+{
+    return engine::register_game_type(types_, desc, component);
 }

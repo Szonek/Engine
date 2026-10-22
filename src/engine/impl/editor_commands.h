@@ -104,6 +104,57 @@ private:
     const TComp new_;
 };
 
+// Like CommandUpdateComponent, for a component known only by its type description (game-defined components).
+class CommandUpdateTypedComponent : public ICommand
+{
+public:
+    CommandUpdateTypedComponent(Scene& sc, entt::entity e, const TypeInfo& type, const void* new_value);
+
+    void execute() override;
+    void undo() override;
+
+private:
+    // nothing happens when the component was removed meanwhile
+    void apply(const ValueBuffer& value);
+
+    Scene& sc_;
+    entt::entity e_;
+    const TypeInfo& type_;
+    ValueBuffer prev_;
+    ValueBuffer new_;
+};
+
+// Adds a component known only by its type description, with its default value; undo removes it.
+class CommandAddTypedComponent : public ICommand
+{
+public:
+    CommandAddTypedComponent(Scene& sc, entt::entity e, const TypeInfo& type);
+
+    void execute() override;
+    void undo() override;
+
+private:
+    Scene& sc_;
+    entt::entity e_;
+    const TypeInfo& type_;
+};
+
+// Removes a component known only by its type description; undo adds it back with the value it had.
+class CommandRemoveTypedComponent : public ICommand
+{
+public:
+    CommandRemoveTypedComponent(Scene& sc, entt::entity e, const TypeInfo& type);
+
+    void execute() override;
+    void undo() override;
+
+private:
+    Scene& sc_;
+    entt::entity e_;
+    const TypeInfo& type_;
+    ValueBuffer value_;
+};
+
 class CommandSetSelectedEntity : public ICommand
 {
 public:

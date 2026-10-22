@@ -20,6 +20,7 @@
 #include <fmt/format.h>
 
 #include <array>
+#include <functional>
 #include <cstring>
 #include <string>
 #include <string_view>
@@ -373,8 +374,9 @@ inline void display_component(std::string_view name, engine::Scene* scene, engin
 }
 
 // Combo box picking a resource by its asset ID (atlas name) instead of typing its index; "None" selects
-// ENGINE_INVALID_OBJECT_HANDLE. Returns true when the selection changed.
-bool display_asset_combo(const char* label, std::uint32_t& handle, std::string_view current_name, const std::vector<std::pair<std::uint32_t, std::string>>& assets)
+// ENGINE_INVALID_OBJECT_HANDLE. The list of assets is only built while the combo is open. Returns true when the
+// selection changed.
+bool display_asset_combo(const char* label, std::uint32_t& handle, std::string_view current_name, const std::function<std::vector<std::pair<std::uint32_t, std::string>>()>& get_assets)
 {
     const auto preview = handle == ENGINE_INVALID_OBJECT_HANDLE ? std::string("None")
         : current_name.empty() ? fmt::format("<missing #{}>", handle) : std::string(current_name);
@@ -386,7 +388,7 @@ bool display_asset_combo(const char* label, std::uint32_t& handle, std::string_v
             changed = handle != ENGINE_INVALID_OBJECT_HANDLE;
             handle = ENGINE_INVALID_OBJECT_HANDLE;
         }
-        for (const auto& [idx, name] : assets)
+        for (const auto& [idx, name] : get_assets())
         {
             const auto selected = idx == handle;
             if (ImGui::Selectable(name.c_str(), selected))
@@ -407,13 +409,233 @@ bool display_asset_combo(const char* label, std::uint32_t& handle, std::string_v
 bool display_geometry_combo(const engine::Scene* scene, std::uint32_t& geometry)
 {
     const auto* app = scene->get_application();
-    return display_asset_combo("Geometry", geometry, app->get_geometry_name(geometry), app->get_geometry_names());
+    return display_asset_combo("Geometry", geometry, app->get_geometry_name(geometry), [app] { return app->get_geometry_names(); });
 }
 
 bool display_texture_combo(const engine::Scene* scene, const char* label, std::uint32_t& texture)
 {
     const auto* app = scene->get_application();
-    return display_asset_combo(label, texture, app->get_texture_name(texture), app->get_texture_names());
+    return display_asset_combo(label, texture, app->get_texture_name(texture), [app] { return app->get_texture_names(); });
+}
+
+// Draws a value of a game-defined type from its description, a widget per field kind (game types have no unions; the
+// engine's components have hand-written panels). Edits the value in place and returns true when a field changed.
+class TypeInspector
+{
+public:
+    explicit TypeInspector(const engine::Scene* scene) : scene_(scene) {}
+
+    bool draw_struct(const engine::TypeInfo& type, std::byte* value)
+    {
+        bool changed = false;
+        for (const auto& field : type.fields)
+        {
+            ImGui::PushID(field.name.c_str());
+            changed |= draw_field(field, value + field.offset);
+            ImGui::PopID();
+        }
+        return changed;
+    }
+
+private:
+    bool draw_field(const engine::FieldInfo& field, std::byte* p)
+    {
+        using engine::FieldKind;
+        if (!field.is_array)
+        {
+            return draw_element(field, p, field.name.c_str());
+        }
+        // short arrays of numbers (vectors, colours) on one line
+        const auto count = static_cast<int>(field.count);
+        if (count <= 4 && field.kind == FieldKind::eFloat)
+        {
+            return ImGui::DragScalarN(field.name.c_str(), ImGuiDataType_Float, p, count, 0.1f);
+        }
+        if (count <= 4 && (field.kind == FieldKind::eInt32 || field.kind == FieldKind::eUint32))
+        {
+            return ImGui::DragScalarN(field.name.c_str(), field.kind == FieldKind::eInt32 ? ImGuiDataType_S32 : ImGuiDataType_U32, p, count, 1.0f);
+        }
+        bool changed = false;
+        if (ImGui::TreeNode(fmt::format("{} [{}]", field.name, field.count).c_str()))
+        {
+            for (std::size_t i = 0; i < field.count; i++)
+            {
+                ImGui::PushID(static_cast<int>(i));
+                changed |= draw_element(field, p + i * field.size, fmt::format("[{}]", i).c_str());
+                ImGui::PopID();
+            }
+            ImGui::TreePop();
+        }
+        return changed;
+    }
+
+    bool draw_element(const engine::FieldInfo& field, std::byte* p, const char* label)
+    {
+        using engine::FieldKind;
+        switch (field.kind)
+        {
+        case FieldKind::eBool: return ImGui::Checkbox(label, reinterpret_cast<bool*>(p));
+        case FieldKind::eInt32: return ImGui::DragScalar(label, ImGuiDataType_S32, p, 1.0f);
+        case FieldKind::eUint32: return ImGui::DragScalar(label, ImGuiDataType_U32, p, 1.0f);
+        case FieldKind::eFloat: return ImGui::DragScalar(label, ImGuiDataType_Float, p, 0.1f);
+        case FieldKind::eString: return draw_string(field, p, label);
+        case FieldKind::eEnum: return draw_enum(field, p, label);
+        case FieldKind::eStruct:
+        {
+            bool changed = false;
+            if (ImGui::TreeNodeEx(label, ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                changed = draw_struct(*field.struct_type, p);
+                ImGui::TreePop();
+            }
+            return changed;
+        }
+        case FieldKind::eUnion: return false;  // game types have no unions (the engine's components have their own panels)
+        case FieldKind::eAsset:
+        {
+            auto handle = read<std::uint32_t>(p);
+            const auto* app = scene_->get_application();
+            const bool changed = field.asset_kind == engine::AssetKind::eGeometry
+                ? display_asset_combo(label, handle, app->get_geometry_name(handle), [app] { return app->get_geometry_names(); })
+                : display_asset_combo(label, handle, app->get_texture_name(handle), [app] { return app->get_texture_names(); });
+            std::memcpy(p, &handle, sizeof(handle));
+            return changed;
+        }
+        case FieldKind::eGameObject: return draw_game_object(p, label);
+        }
+        return false;
+    }
+
+    template<typename T>
+    static T read(const std::byte* p)
+    {
+        T value;
+        std::memcpy(&value, p, sizeof(T));
+        return value;
+    }
+
+    // A char array needn't hold its terminator (a full one is saved as it is), so it is edited in a terminated copy,
+    // written back when it changed (at most size - 1 chars and the terminator).
+    static bool draw_string(const engine::FieldInfo& field, std::byte* p, const char* label)
+    {
+        const auto* chars = reinterpret_cast<const char*>(p);
+        std::vector<char> text(field.size + 1, '\0');
+        std::memcpy(text.data(), chars, strnlen(chars, field.size - 1));
+        if (!ImGui::InputText(label, text.data(), field.size))
+        {
+            return false;
+        }
+        std::memcpy(p, text.data(), field.size);
+        return true;
+    }
+
+    static bool draw_enum(const engine::FieldInfo& field, std::byte* p, const char* label)
+    {
+        const auto value = read<std::int32_t>(p);
+        const auto current = std::ranges::find(field.enum_values, value, &engine::EnumValue::value);
+        const auto preview = current == field.enum_values.end() ? fmt::format("<{}>", value) : current->name;
+        bool changed = false;
+        if (ImGui::BeginCombo(label, preview.c_str()))
+        {
+            for (const auto& v : field.enum_values)
+            {
+                if (ImGui::Selectable(v.name.c_str(), v.value == value) && v.value != value)
+                {
+                    std::memcpy(p, &v.value, sizeof(v.value));
+                    changed = true;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        return changed;
+    }
+
+    // "name #persistent ID"; a game object without a persistent ID (transient) isn't saved, so references to it aren't
+    std::string game_object_label(entt::entity e) const
+    {
+        const auto name = scene_->has_component<engine_name_component_t>(e) ? std::string(scene_->get_component<engine_name_component_t>(e)->name) : std::string("game object");
+        const auto id = scene_->get_persistent_id(e);
+        return id == engine::EntityIdRegistry::INVALID_ID ? fmt::format("{} (transient)", name) : fmt::format("{} #{}", name, id);
+    }
+
+    // the referenced game object by name and persistent ID, picked from the named game objects which are saved
+    bool draw_game_object(std::byte* p, const char* label)
+    {
+        const auto go = read<engine_game_object_t>(p);
+        const auto entity = static_cast<entt::entity>(go);
+        const auto preview = go == ENGINE_INVALID_GAME_OBJECT_ID ? std::string("None")
+            : !scene_->is_valid_entity(entity) ? fmt::format("<destroyed {}>", go) : game_object_label(entity);
+        bool changed = false;
+        if (ImGui::BeginCombo(label, preview.c_str()))
+        {
+            const auto select = [&](engine_game_object_t candidate, const std::string& text)
+            {
+                if (ImGui::Selectable(text.c_str(), candidate == go) && candidate != go)
+                {
+                    std::memcpy(p, &candidate, sizeof(candidate));
+                    changed = true;
+                }
+            };
+            select(ENGINE_INVALID_GAME_OBJECT_ID, "None");
+            for (const auto e : scene_->get_all_entities())
+            {
+                if (scene_->has_component<engine_name_component_t>(e) && scene_->get_persistent_id(e) != engine::EntityIdRegistry::INVALID_ID)
+                {
+                    ImGui::PushID(static_cast<int>(e));
+                    select(static_cast<engine_game_object_t>(e), game_object_label(e));
+                    ImGui::PopID();
+                }
+            }
+            ImGui::EndCombo();
+        }
+        return changed;
+    }
+
+    const engine::Scene* scene_;
+};
+
+// display_component for a component known only by its type description, drawn by the TypeInspector
+void display_typed_component(const engine::TypeInfo& type, engine::Scene* scene, engine::CommandManager& commands, entt::entity entity)
+{
+    ENGINE_PROFILE_SECTION_N("editor-display_typed_component");
+    ImGui::PushID(type.name.c_str());
+    const bool has_component = scene->has_component(type, entity);
+    if (!has_component)
+    {
+        ImGui::BeginDisabled();
+    }
+    if (ImGui::CollapsingHeader(type.name.c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_AllowItemOverlap))
+    {
+        if (has_component)
+        {
+            engine::ValueBuffer value(type.size);
+            scene->get_component(type, entity, value.get());
+            if (TypeInspector(scene).draw_struct(type, value.get()))
+            {
+                commands.execute_command(std::make_unique<engine::CommandUpdateTypedComponent>(*scene, entity, type, value.get()));
+            }
+        }
+    }
+    else
+    {
+        ImGui::SameLine();
+    }
+    if (!has_component)
+    {
+        ImGui::EndDisabled();
+    }
+    if (ImGui::Button(has_component ? "Remove" : "Add"))
+    {
+        if (has_component)
+        {
+            commands.execute_command(std::make_unique<engine::CommandRemoveTypedComponent>(*scene, entity, type));
+        }
+        else
+        {
+            commands.execute_command(std::make_unique<engine::CommandAddTypedComponent>(*scene, entity, type));
+        }
+    }
+    ImGui::PopID();
 }
 
 bool display_transform_component(const engine::Scene* /*scene*/, engine_transform_component_t& c)
@@ -575,10 +797,10 @@ bool display_material_component(const engine::Scene* scene, engine_material_comp
 {
     // pong is the only material type
     bool requires_component_updated = false;
-    requires_component_updated |= ImGui::ColorEdit4("Diffuse Color", c.data.pong.diffuse_color);
-    requires_component_updated |= ImGui::SliderFloat("Shininess", &c.data.pong.shininess, 0.0f, 128.0f);
-    requires_component_updated |= display_texture_combo(scene, "Diffuse Texture", c.data.pong.diffuse_texture);
-    requires_component_updated |= display_texture_combo(scene, "Specular Texture", c.data.pong.specular_texture);
+    requires_component_updated |= ImGui::ColorEdit4("Diffuse Color", c.diffuse_color);
+    requires_component_updated |= ImGui::SliderFloat("Shininess", &c.shininess, 0.0f, 128.0f);
+    requires_component_updated |= display_texture_combo(scene, "Diffuse Texture", c.diffuse_texture);
+    requires_component_updated |= display_texture_combo(scene, "Specular Texture", c.specular_texture);
     return requires_component_updated;
 }
 
@@ -1101,6 +1323,14 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
             scene->build_nav_mesh();
         }
         display_component<engine_nav_modifier_component_t>("Nav Modifier", scene, commands_, selected, display_nav_modifier_component);
+        // the game's components have no hand-written panel: drawn from their type descriptions
+        for (const auto* type : get_type_registry().get_components())
+        {
+            if (type->game_defined)
+            {
+                display_typed_component(*type, scene, commands_, selected);
+            }
+        }
     }
     else
     {

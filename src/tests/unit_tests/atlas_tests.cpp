@@ -115,6 +115,23 @@ TEST_F(AtlasTest, ReleasedHandleStaysInvalidWhenItsSlotIsReused)
     }
 }
 
+TEST_F(AtlasTest, NoHandleIsZero)
+{
+    // 0 is ENGINE_INVALID_OBJECT_HANDLE, so a zeroed struct references no asset: also not the first one, nor one in a
+    // reused slot
+    TestAtlas atlas;
+    const auto first = atlas.add_object("first", 1);
+    EXPECT_NE(first, 0u);
+    EXPECT_EQ(atlas.get_object(0), nullptr);
+    atlas.release(first);
+    for (int i = 0; i < 8; i++)
+    {
+        const auto handle = atlas.add_object("o" + std::to_string(i), int(i));
+        EXPECT_NE(handle, 0u);
+        atlas.release(handle);
+    }
+}
+
 TEST_F(AtlasTest, ReleasedSlotIsReusedLast)
 {
     // a handle released by mistake isn't followed by a new object in its slot right away
@@ -142,15 +159,6 @@ TEST_F(AtlasTest, InvalidHandleCanNotBeAcquiredOrReleased)
     EXPECT_EQ(atlas.get_reference_count(b), 1u);
     EXPECT_EQ(*atlas.get_object(b), 2);
     atlas.release(b);
-}
-
-TEST_F(AtlasTest, FirstObjectsHandleIsZero)
-{
-    // the application's default texture is the first one added and materials refer to it as 0
-    TestAtlas atlas;
-    const auto a = atlas.add_object("a", 1);
-    EXPECT_EQ(a, 0u);
-    atlas.release(a);
 }
 
 TEST_F(AtlasTest, FreeSlotIsNotFound)

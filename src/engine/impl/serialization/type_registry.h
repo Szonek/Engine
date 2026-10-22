@@ -1,4 +1,6 @@
 #pragma once
+#include <engine.h>
+
 #include <entt/entt.hpp>
 #include <fmt/format.h>
 
@@ -90,19 +92,33 @@ struct ComponentStorage
     std::function<void(entt::registry&, entt::entity)> add;
     std::function<void(const entt::registry&, entt::entity, void*)> get;
     std::function<void(entt::registry&, entt::entity, const void*)> update;
+    std::function<void(entt::registry&, entt::entity)> remove;
 };
+
+// A type's handle (the engine_component_type_t of the C API) is its index in the registry plus this, so no type has
+// ENGINE_INVALID_OBJECT_HANDLE (0).
+inline constexpr std::uint32_t FIRST_TYPE_HANDLE = ENGINE_INVALID_OBJECT_HANDLE + 1;
+static_assert(FIRST_TYPE_HANDLE != ENGINE_INVALID_OBJECT_HANDLE);
+
+// The version a type starts at; it goes up when the type's layout changes, and a scene file stores the version each
+// component was saved with.
+inline constexpr std::uint32_t FIRST_TYPE_VERSION = 1;
 
 // Describes a C struct field by field, so that values of it can be saved and loaded (and later edited) without code
 // for the type. A component is a type with storage; the other types are only used inside components.
 struct TypeInfo
 {
+    // set by the registry (FIRST_TYPE_HANDLE and up); ENGINE_INVALID_OBJECT_HANDLE until the type is registered
+    std::uint32_t handle = ENGINE_INVALID_OBJECT_HANDLE;
     std::string name;
     // of the components: a scene file stores the version each component was saved with
-    std::uint32_t version = 1;
+    std::uint32_t version = FIRST_TYPE_VERSION;
     std::size_t size = 0;
     std::size_t alignment = 0;
     std::vector<FieldInfo> fields;
     std::unique_ptr<ComponentStorage> storage;
+    // registered by the game through the C API (see game_types.h), not by the engine; the editor has no panel for it
+    bool game_defined = false;
 
     bool is_component() const { return storage != nullptr; }
     const FieldInfo* find_field(std::string_view field_name) const
@@ -110,6 +126,23 @@ struct TypeInfo
         const auto it = std::ranges::find(fields, field_name, &FieldInfo::name);
         return it == fields.end() ? nullptr : &*it;
     }
+};
+
+// A buffer for one value of a registered type, aligned for any of them (C structs, aligned to at most
+// ENGINE_COMPONENT_TYPE_MAX_ALIGNMENT, the engine's like the game's).
+class ValueBuffer
+{
+public:
+    explicit ValueBuffer(std::size_t size) : data_((size + sizeof(Chunk) - 1) / sizeof(Chunk)) {}
+    std::byte* get() { return data_.empty() ? nullptr : data_.front().bytes; }
+    const std::byte* get() const { return data_.empty() ? nullptr : data_.front().bytes; }
+
+private:
+    struct alignas(ENGINE_COMPONENT_TYPE_MAX_ALIGNMENT) Chunk
+    {
+        std::byte bytes[ENGINE_COMPONENT_TYPE_MAX_ALIGNMENT];
+    };
+    std::vector<Chunk> data_;
 };
 
 // The types the engine can save, by name. Components keep the order they were registered in: scenes are saved and
@@ -125,13 +158,24 @@ public:
     // nullptr (logged) when the name is empty or registered already
     const TypeInfo* add(TypeInfo&& type);
     const TypeInfo* find(std::string_view name) const;
+    // nullptr when no type has the handle
+    const TypeInfo* get(std::uint32_t handle) const;
     // in registration order
-    std::vector<const TypeInfo*> get_components() const;
+    const std::vector<const TypeInfo*>& get_components() const { return components_; }
     std::vector<const TypeInfo*> get_types() const;
 
 private:
     std::vector<std::unique_ptr<TypeInfo>> types_;
+    std::vector<const TypeInfo*> components_;
 };
+
+// The case of the union `union_field` (of `type`) its tag selects in `value`, or nullptr when the tag's value has none.
+const UnionCase* find_active_case(const TypeInfo& type, const FieldInfo& union_field, const std::byte* value);
+
+// Clears the union `union_field` of `value` when its tag selected another case (a file or the editor changed it): the
+// bytes of the old case are no value of the new one, which starts zeroed (holding nothing: no asset or game object
+// has the handle 0).
+void clear_union(const FieldInfo& union_field, std::byte* value);
 
 namespace type_builder_detail
 {
@@ -140,6 +184,15 @@ template<typename T, std::size_t N> struct array_traits<T[N]> { using element = 
 
 // logs a mistake in a type description
 void report_error(std::string_view type_name, std::string_view message);
+
+// Adds the case of `union_field` for the value `value` of its enum tag `tag`: the registered type `type_name`, at most
+// `max_size` bytes. Returns what is wrong when it can't be one (unknown type, too big, no such value of the tag, a case
+// for the value already), or an empty string.
+std::string add_union_case(const TypeRegistry& registry, const FieldInfo& tag, std::int32_t value, std::string_view type_name, std::size_t max_size, FieldInfo& union_field);
+
+// What makes two fields of the type written under the same key (a field and a union case named alike, or two unions
+// with a case of the same name), or an empty string. A union is written under its active case's name.
+std::string find_duplicate_key(const TypeInfo& type);
 }  // namespace type_builder_detail
 
 // Offset of a member in a C struct (standard layout), from a member pointer: what offsetof gives, also for the
@@ -166,7 +219,7 @@ class TypeBuilder
     static_assert(std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T>, "only C structs can be described");
 
 public:
-    TypeBuilder(TypeRegistry& registry, std::string_view name, std::uint32_t version = 1)
+    TypeBuilder(TypeRegistry& registry, std::string_view name, std::uint32_t version = FIRST_TYPE_VERSION)
         : registry_(registry)
     {
         type_.name = std::string(name);
@@ -277,6 +330,7 @@ public:
         storage->add = [](entt::registry& r, entt::entity e) { r.emplace<T>(e); };
         storage->get = [](const entt::registry& r, entt::entity e, void* out) { *static_cast<T*>(out) = r.get<T>(e); };
         storage->update = [](entt::registry& r, entt::entity e, const void* value) { r.replace<T>(e, *static_cast<const T*>(value)); };
+        storage->remove = [](entt::registry& r, entt::entity e) { r.remove<T>(e); };
         type_.storage = std::move(storage);
         return finish();
     }
@@ -313,15 +367,10 @@ private:
         }
         for (const auto& [value, type_name] : cases)
         {
-            const auto* case_type = registry_.find(type_name);
-            // the case is written under the name of its tag value: "type": "box", "box": { ... }
-            const auto tag_value = std::ranges::find(tag_field->enum_values, value, &EnumValue::value);
-            if (!case_type || case_type->size > size || tag_value == tag_field->enum_values.end())
+            if (const auto problem = type_builder_detail::add_union_case(registry_, *tag_field, value, type_name, size, f); !problem.empty())
             {
-                error(fmt::format("union {}: case {} is not a registered type which fits in it, for a value of the tag", name, type_name));
-                continue;
+                error(fmt::format("union {}: {}", name, problem));
             }
-            f.union_cases.push_back({ value, tag_value->name, case_type });
         }
         return push(std::move(f));
     }
@@ -344,6 +393,10 @@ private:
 
     const TypeInfo* finish()
     {
+        if (const auto problem = type_builder_detail::find_duplicate_key(type_); !problem.empty())
+        {
+            error(problem);
+        }
         return failed_ ? nullptr : registry_.add(std::move(type_));
     }
 

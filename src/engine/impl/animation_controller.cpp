@@ -589,19 +589,16 @@ std::pair<bool, std::uint32_t> engine::AnimationController::add_event(const std:
     if (it == animations_.end())
     {
         log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
-        return { false, -1 };
+        return { false, ENGINE_INVALID_OBJECT_HANDLE };
     }
-    static std::uint32_t uuid = 0; // ToDo: this id mechanism is not ideal, improve it
     AnimationEvent new_ev{};
-    new_ev.id = uuid;
+    new_ev.id = next_event_id_++;
     new_ev.ev = ev;
 
     //ToDo: just use std map/multimap? we could avoid sorting
     auto& timeline = it->second.timeline;
     timeline.push_back(new_ev);
     std::sort(timeline.begin(), timeline.end());
-    // bump id so each event has unique value
-    uuid++;
     return { true, new_ev.id };
 }
 

@@ -24,17 +24,6 @@ namespace
 using Writer = rapidjson::PrettyWriter<rapidjson::StringBuffer>;
 using Json = rapidjson::Value;
 
-// A buffer for one value of a registered type, aligned for any of them (they are C structs).
-class ValueBuffer
-{
-public:
-    explicit ValueBuffer(std::size_t size) : data_((size + sizeof(std::max_align_t) - 1) / sizeof(std::max_align_t)) {}
-    std::byte* get() { return reinterpret_cast<std::byte*>(data_.data()); }
-
-private:
-    std::vector<std::max_align_t> data_;
-};
-
 template<typename T>
 T read_as(const std::byte* p)
 {
@@ -47,14 +36,6 @@ template<typename T>
 void write_as(std::byte* p, T value)
 {
     std::memcpy(p, &value, sizeof(T));
-}
-
-const engine::UnionCase* find_active_case(const engine::TypeInfo& type, const engine::FieldInfo& union_field, const std::byte* value)
-{
-    const auto* tag = type.find_field(union_field.union_tag);
-    const auto tag_value = read_as<std::int32_t>(value + tag->offset);
-    const auto it = std::ranges::find(union_field.union_cases, tag_value, &engine::UnionCase::tag);
-    return it == union_field.union_cases.end() ? nullptr : &*it;
 }
 
 void log_error(std::string_view message)
@@ -87,7 +68,7 @@ public:
             if (field.kind == engine::FieldKind::eUnion)
             {
                 // only the active case has data; a tag value without a case has none
-                if (const auto* active = find_active_case(type, field, value))
+                if (const auto* active = engine::find_active_case(type, field, value))
                 {
                     key(active->name);
                     write_struct(*active->type, value + field.offset, fmt::format("{}.{}", path, active->name));
@@ -252,7 +233,7 @@ public:
         {
             if (field.kind == engine::FieldKind::eUnion)
             {
-                default_cases.push_back(find_active_case(type, field, value));
+                default_cases.push_back(engine::find_active_case(type, field, value));
             }
         }
 
@@ -279,11 +260,11 @@ public:
             {
                 continue;
             }
-            const auto* active = find_active_case(type, field, value);
+            const auto* active = engine::find_active_case(type, field, value);
             if (active != default_cases[union_index++])
             {
                 // another case than the default one: the defaults in the union are another case's, so it starts zeroed
-                std::memset(value + field.offset, 0, field.size);
+                engine::clear_union(field, value);
             }
             if (!active)
             {
@@ -498,7 +479,7 @@ std::string engine::save_scene(const TypeRegistry& types, const entt::registry& 
             {
                 continue;
             }
-            ValueBuffer value(type->size);
+            engine::ValueBuffer value(type->size);
             type->storage->get(registry, entity, value.get());
             w.Key(type->name.c_str());
             out.write_struct(*type, value.get(), fmt::format("game object {}: {}", id, type->name));
@@ -639,7 +620,7 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
             {
                 type->storage->add(registry, entity);
             }
-            ValueBuffer value(type->size);
+            engine::ValueBuffer value(type->size);
             type->storage->get(registry, entity, value.get());
             reader.read_struct(*type, it->value, value.get(), type->name);
             type->storage->update(registry, entity, value.get());

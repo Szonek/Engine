@@ -87,6 +87,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/serialization/type_registry.cpp
 	${ENGINE_SOURCES_DIR}/serialization/builtin_types.h
 	${ENGINE_SOURCES_DIR}/serialization/builtin_types.cpp
+	${ENGINE_SOURCES_DIR}/serialization/game_types.h
+	${ENGINE_SOURCES_DIR}/serialization/game_types.cpp
 	${ENGINE_SOURCES_DIR}/serialization/scene_serializer.h
 	${ENGINE_SOURCES_DIR}/serialization/scene_serializer.cpp
 	${ENGINE_SOURCES_DIR}/serialization/scene_assets.h

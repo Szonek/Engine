@@ -132,9 +132,9 @@ project_c::Weapon::Weapon(engine::IScene* my_scene, engine_game_object_t go)
 
     // material
     auto matc = engineGameObjectAddMaterialComponent(go_);
-    set_c_array(matc.data.pong.diffuse_color, std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f});
-    matc.data.pong.shininess = 32.0f;
-    matc.data.pong.diffuse_texture = dagger_texture;
+    set_c_array(matc.diffuse_color, std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f});
+    matc.shininess = 32.0f;
+    matc.diffuse_texture = dagger_texture;
     engineGameObjectUpdateMaterialComponent(go_, &matc);
 
     // physics
@@ -1607,8 +1607,8 @@ void project_c::Player::create_traversal_marker()
     auto mat = engineGameObjectHasMaterialComponent(traversal_marker_)
         ? engineGameObjectGetMaterialComponent(traversal_marker_)
         : engineGameObjectAddMaterialComponent(traversal_marker_);
-    mat.data.pong.diffuse_texture = ENGINE_INVALID_OBJECT_HANDLE;
-    mat.data.pong.specular_texture = ENGINE_INVALID_OBJECT_HANDLE;
+    mat.diffuse_texture = ENGINE_INVALID_OBJECT_HANDLE;
+    mat.specular_texture = ENGINE_INVALID_OBJECT_HANDLE;
     engineGameObjectUpdateMaterialComponent(traversal_marker_, &mat);
 
     auto mc = engineGameObjectGetMeshComponent(traversal_marker_);
@@ -1651,7 +1651,7 @@ void project_c::Player::update_traversal_marker(const TraversalPlan& plan, float
             color = { 0.2f, 0.8f, 1.0f, 1.0f };
         }
         auto mat = engineGameObjectGetMaterialComponent(traversal_marker_);
-        set_c_array(mat.data.pong.diffuse_color, color);
+        set_c_array(mat.diffuse_color, color);
         engineGameObjectUpdateMaterialComponent(traversal_marker_, &mat);
     }
 
