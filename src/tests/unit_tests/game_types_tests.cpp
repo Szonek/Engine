@@ -354,7 +354,7 @@ TEST_F(GameTypesTest, ComponentIsAddedWithItsDefaultValue)
     EXPECT_EQ(std::memcmp(&value, &defaults, sizeof(EnemyConfig)), 0);
 }
 
-TEST_F(GameTypesTest, ComponentWithoutDefaultValueHoldsNothing)
+TEST_F(GameTypesTest, ComponentWithoutDefaultValueIsZeroedAndReferencesNothing)
 {
     const auto* type = register_enemy_config();
     const auto e = registry_.create();
@@ -362,11 +362,11 @@ TEST_F(GameTypesTest, ComponentWithoutDefaultValueHoldsNothing)
     EnemyConfig value;
     std::memset(&value, 0xff, sizeof(value));
     type->storage->get(registry_, e, &value);
-    // zeroes, but no asset: a handle of 0 is the first asset of its atlas
-    EnemyConfig expected{};
-    expected.weapon = ENGINE_INVALID_OBJECT_HANDLE;
-    expected.skin = ENGINE_INVALID_OBJECT_HANDLE;
-    EXPECT_EQ(std::memcmp(&value, &expected, sizeof(EnemyConfig)), 0);
+    const EnemyConfig zero{};
+    EXPECT_EQ(std::memcmp(&value, &zero, sizeof(EnemyConfig)), 0);
+    // no asset or game object has the handle 0
+    EXPECT_EQ(value.weapon, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(value.skin, ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(value.target, ENGINE_INVALID_GAME_OBJECT_ID);
 }
 

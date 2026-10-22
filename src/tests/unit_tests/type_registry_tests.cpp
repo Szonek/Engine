@@ -200,31 +200,9 @@ TEST_F(TypeRegistryTest, AUnionCaseNamedLikeAFieldIsRejected)
     EXPECT_TRUE(test_logger::logged("written under the key of another field"));
 }
 
-// -- values holding nothing -----------------------------------------------------------------------------------------
+// -- unions whose tag changed ---------------------------------------------------------------------------------------
 
-TEST_F(TypeRegistryTest, ClearedValueHasNoAssets)
-{
-    // assets none (a handle of 0 is an asset), also in nested structs and the case a zero tag selects
-    engine::register_builtin_types(types_);
-    const auto& material = *types_.find("material");
-    engine_material_component_t value;
-    std::memset(&value, 0x5a, sizeof(value));
-    engine::clear_value(material, reinterpret_cast<std::byte*>(&value));
-    EXPECT_EQ(value.type, ENGINE_MATERIAL_TYPE_PONG);
-    EXPECT_EQ(value.data.pong.diffuse_texture, ENGINE_INVALID_OBJECT_HANDLE);
-    EXPECT_EQ(value.data.pong.specular_texture, ENGINE_INVALID_OBJECT_HANDLE);
-    EXPECT_EQ(value.data.pong.shininess, 0.0f);
-    EXPECT_EQ(value.data.pong.diffuse_color[0], 0.0f);
-
-    const auto& mesh = *types_.find("mesh");
-    engine_mesh_component_t m;
-    std::memset(&m, 0x5a, sizeof(m));
-    engine::clear_value(mesh, reinterpret_cast<std::byte*>(&m));
-    EXPECT_EQ(m.geometry, ENGINE_INVALID_OBJECT_HANDLE);
-    EXPECT_FALSE(m.disable);
-}
-
-TEST_F(TypeRegistryTest, ClearedUnionHoldsTheNewCaseEmpty)
+TEST_F(TypeRegistryTest, ClearedUnionHoldsTheNewCaseZeroed)
 {
     engine::register_builtin_types(types_);
     const auto& collider = *types_.find("collider");
@@ -235,7 +213,7 @@ TEST_F(TypeRegistryTest, ClearedUnionHoldsTheNewCaseEmpty)
     value.bounciness = 0.5f;
     // the tag changed: the box's bytes are no sphere
     value.type = ENGINE_COLLIDER_TYPE_SPHERE;
-    engine::clear_union(collider, *union_field, reinterpret_cast<std::byte*>(&value));
+    engine::clear_union(*union_field, reinterpret_cast<std::byte*>(&value));
     EXPECT_EQ(value.collider.sphere.radius, 0.0f);
     EXPECT_EQ(value.collider.box.size[0], 0.0f);
     // the rest of the struct is kept

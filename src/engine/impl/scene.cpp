@@ -465,7 +465,7 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
                     return false;
                 }
 
-                const auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? 0 : material_component.data.pong.diffuse_texture;
+                const auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? get_application()->get_default_texture() : material_component.data.pong.diffuse_texture;
                 // ToDo: specular texture is not used here yet, diffuse one is used for both (that's how it was always working)
                 item.entity_id = static_cast<std::uint32_t>(entity);
                 item.geometry = get_application()->get_geometry(geometry);

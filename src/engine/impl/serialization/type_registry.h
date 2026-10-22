@@ -97,7 +97,7 @@ struct ComponentStorage
 // for the type. A component is a type with storage; the other types are only used inside components.
 struct TypeInfo
 {
-    // its index in the registry, the engine_component_type_t of the C API
+    // the engine_component_type_t of the C API: its index in the registry + 1 (0 is ENGINE_INVALID_OBJECT_HANDLE)
     std::uint32_t handle = 0;
     std::string name;
     // of the components: a scene file stores the version each component was saved with
@@ -160,13 +160,10 @@ private:
 // The case of the union `union_field` (of `type`) its tag selects in `value`, or nullptr when the tag's value has none.
 const UnionCase* find_active_case(const TypeInfo& type, const FieldInfo& union_field, const std::byte* value);
 
-// Makes `value` a value of `type` holding nothing: zeroes, except asset references, which are none
-// (ENGINE_INVALID_OBJECT_HANDLE: a zero handle is an asset), also inside structs and the union cases zero tags select.
-void clear_value(const TypeInfo& type, std::byte* value);
-
-// Clears the union `union_field` of `value` for the case its tag selects now: the bytes of another case are no value
-// of this one (a file or the editor changed the tag).
-void clear_union(const TypeInfo& type, const FieldInfo& union_field, std::byte* value);
+// Clears the union `union_field` of `value` when its tag selected another case (a file or the editor changed it): the
+// bytes of the old case are no value of the new one, which starts zeroed (holding nothing: no asset or game object
+// has the handle 0).
+void clear_union(const FieldInfo& union_field, std::byte* value);
 
 namespace type_builder_detail
 {

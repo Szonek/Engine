@@ -263,8 +263,8 @@ public:
             const auto* active = engine::find_active_case(type, field, value);
             if (active != default_cases[union_index++])
             {
-                // another case than the default one: the defaults in the union are another case's, so it starts empty
-                engine::clear_union(type, field, value);
+                // another case than the default one: the defaults in the union are another case's, so it starts zeroed
+                engine::clear_union(field, value);
             }
             if (!active)
             {

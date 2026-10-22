@@ -1,8 +1,6 @@
 #include "type_registry.h"
 #include "../logger.h"
 
-#include <engine.h>
-
 #include <cstring>
 #include <set>
 
@@ -18,7 +16,7 @@ const engine::TypeInfo* engine::TypeRegistry::add(TypeInfo&& type)
         log::log(log::LogLevel::eError, fmt::format("Type registry: a type needs a unique name, \"{}\" is empty or registered already.\n", type.name));
         return nullptr;
     }
-    type.handle = static_cast<std::uint32_t>(types_.size());
+    type.handle = static_cast<std::uint32_t>(types_.size()) + 1;
     types_.push_back(std::make_unique<TypeInfo>(std::move(type)));
     if (types_.back()->is_component())
     {
@@ -35,7 +33,7 @@ const engine::TypeInfo* engine::TypeRegistry::find(std::string_view name) const
 
 const engine::TypeInfo* engine::TypeRegistry::get(std::uint32_t handle) const
 {
-    return handle < types_.size() ? types_[handle].get() : nullptr;
+    return handle > 0 && handle <= types_.size() ? types_[handle - 1].get() : nullptr;
 }
 
 std::vector<const engine::TypeInfo*> engine::TypeRegistry::get_types() const
@@ -95,36 +93,7 @@ const engine::UnionCase* engine::find_active_case(const TypeInfo& type, const Fi
     return it == union_field.union_cases.end() ? nullptr : &*it;
 }
 
-void engine::clear_value(const TypeInfo& type, std::byte* value)
-{
-    std::memset(value, 0, type.size);
-    for (const auto& field : type.fields)
-    {
-        for (std::size_t i = 0; i < field.count; i++)
-        {
-            auto* p = value + field.offset + i * field.size;
-            if (field.kind == FieldKind::eAsset)
-            {
-                const auto none = static_cast<std::uint32_t>(ENGINE_INVALID_OBJECT_HANDLE);
-                std::memcpy(p, &none, sizeof(none));
-            }
-            else if (field.kind == FieldKind::eStruct)
-            {
-                clear_value(*field.struct_type, p);
-            }
-        }
-        if (field.kind == FieldKind::eUnion)
-        {
-            clear_union(type, field, value);
-        }
-    }
-}
-
-void engine::clear_union(const TypeInfo& type, const FieldInfo& union_field, std::byte* value)
+void engine::clear_union(const FieldInfo& union_field, std::byte* value)
 {
     std::memset(value + union_field.offset, 0, union_field.size);
-    if (const auto* active = find_active_case(type, union_field, value))
-    {
-        clear_value(*active->type, value + union_field.offset);
-    }
 }

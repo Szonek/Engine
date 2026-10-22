@@ -589,9 +589,10 @@ std::pair<bool, std::uint32_t> engine::AnimationController::add_event(const std:
     if (it == animations_.end())
     {
         log::log(log::LogLevel::eError, std::format("Animation '{}' not found in the controller.\n", animation_name).c_str());
-        return { false, -1 };
+        return { false, ENGINE_INVALID_OBJECT_HANDLE };
     }
-    static std::uint32_t uuid = 0; // ToDo: this id mechanism is not ideal, improve it
+    // starts at 1: 0 is ENGINE_INVALID_OBJECT_HANDLE
+    static std::uint32_t uuid = 1; // ToDo: this id mechanism is not ideal, improve it
     AnimationEvent new_ev{};
     new_ev.id = uuid;
     new_ev.ev = ev;

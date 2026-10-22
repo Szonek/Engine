@@ -444,11 +444,11 @@ public:
             ImGui::PushID(field.name.c_str());
             if (field.kind == engine::FieldKind::eUnion)
             {
-                // the tag selected another case: its bytes are the old case's, so the new one starts empty (like a
+                // the tag selected another case: its bytes are the old case's, so the new one starts zeroed (like a
                 // loaded file) before it is drawn
                 if (engine::find_active_case(type, field, value) != cases_before[union_index++])
                 {
-                    engine::clear_union(type, field, value);
+                    engine::clear_union(field, value);
                 }
                 changed |= draw_union(type, field, value);
             }

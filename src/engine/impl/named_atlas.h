@@ -20,7 +20,8 @@ namespace engine
 // Fixed-size storage of reference counted objects addressed by handle or by name.
 // Names are unique and non-empty, so a name identifies exactly one object.
 // A handle is the object's slot and the slot's generation, which changes whenever the slot is freed: a handle to an
-// object which was released is never valid again, even after its slot is reused (lookups return nothing).
+// object which was released is never valid again, even after its slot is reused (lookups return nothing). Generations
+// start at 1, so no handle is 0 (ENGINE_INVALID_OBJECT_HANDLE).
 // An object is added with one reference, acquire() adds one and release() drops one; the last release destroys it.
 template<typename T, std::size_t SIZE = 1024>
 class Atlas
@@ -28,14 +29,16 @@ class Atlas
     static_assert(std::has_single_bit(SIZE), "the slot is the low bits of a handle");
     static constexpr std::uint32_t SLOT_BITS = static_cast<std::uint32_t>(std::bit_width(SIZE - 1));
     static constexpr std::uint32_t SLOT_MASK = static_cast<std::uint32_t>(SIZE - 1);
-    // the generation which would make the last slot's handle ENGINE_INVALID_OBJECT_HANDLE is never used
-    static constexpr std::uint32_t GENERATION_LIMIT = static_cast<std::uint32_t>(ENGINE_INVALID_OBJECT_HANDLE) >> SLOT_BITS;
+    // the generations the high bits of a handle hold; 0 is never used
+    static constexpr std::uint64_t GENERATION_COUNT = std::uint64_t{ 1 } << (32 - SLOT_BITS);
+    static_assert(ENGINE_INVALID_OBJECT_HANDLE == 0, "a handle with a generation of at least 1 is never the invalid one");
 
 public:
     Atlas()
     {
         free_slots_.resize(SIZE);
         std::generate(free_slots_.begin(), free_slots_.end(), [n = 0]() mutable { return n++; });
+        generations_.fill(1);
     }
     Atlas(const Atlas& rhs) = delete;
     Atlas(Atlas&& rhs) = delete;
@@ -119,7 +122,7 @@ public:
         objects_[*slot] = T{};
         names_[*slot].clear();
         occupied_[*slot] = false;
-        generations_[*slot] = (generations_[*slot] + 1) % GENERATION_LIMIT;
+        generations_[*slot] = generations_[*slot] + 1 == GENERATION_COUNT ? 1 : generations_[*slot] + 1;
         free_slots_.push_back(*slot);
     }
 
@@ -196,7 +199,7 @@ private:
     std::array<std::string, SIZE> names_;
     std::array<bool, SIZE> occupied_{};
     std::array<std::uint32_t, SIZE> references_{};
-    std::array<std::uint32_t, SIZE> generations_{};
+    std::array<std::uint32_t, SIZE> generations_;
     std::deque<std::uint32_t> free_slots_;
 };
 }

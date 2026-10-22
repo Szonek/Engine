@@ -34,8 +34,9 @@ typedef uint32_t engine_game_object_t;
 #define ENGINE_INVALID_GAME_OBJECT_ID 0
 // Asset handles (textures, geometries, prefabs, ...) are not reused: a handle to an asset which was destroyed stays
 // invalid (lookups with it find nothing) when other assets are created afterwards, until its slot has been reused about
-// four million times.
-#define ENGINE_INVALID_OBJECT_HANDLE (UINT_MAX)
+// four million times. No asset has the handle 0, so a zeroed struct (like a zeroed game object) references nothing; the
+// same goes for the other handles and ids of the API (component types, animation events).
+#define ENGINE_INVALID_OBJECT_HANDLE 0
 typedef struct _engine_application_t* engine_application_t;
 typedef struct _engine_scene_t* engine_scene_t;
 typedef struct _engine_component_view_t* engine_component_view_t;
@@ -605,8 +606,7 @@ typedef struct _engine_type_desc_t
     uint32_t size;
     uint32_t alignment;
     // the value a new component gets (engineGameObjectAddDataComponent with no value, fields missing in a file), or
-    // NULL for a value holding nothing: zeroes, with geometries and textures ENGINE_INVALID_OBJECT_HANDLE (a handle of 0
-    // is an asset); not used by struct types
+    // NULL for zeroes (which reference no asset or game object); not used by struct types
     const void* default_value;
     // every field: a field left out is never saved or shown
     const engine_field_desc_t* fields;

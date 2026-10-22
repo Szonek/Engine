@@ -124,10 +124,8 @@ public:
         }
         if (component)
         {
-            // no default value is a value holding nothing (assets none, not the asset with handle 0)
-            engine::ValueBuffer value(type_.size);
-            engine::clear_value(type_, value.get());
-            std::vector<std::byte> default_value(value.get(), value.get() + type_.size);
+            // no default value is zeroes: a value holding nothing (no asset or game object has the handle 0)
+            std::vector<std::byte> default_value(type_.size);
             if (desc_.default_value)
             {
                 std::memcpy(default_value.data(), desc_.default_value, type_.size);
