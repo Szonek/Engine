@@ -147,12 +147,12 @@ engine_result_code_t engine::PhysicsSystem::move_character(entt::entity entity, 
     return ENGINE_RESULT_CODE_OK;
 }
 
-engine_ray_hit_info_t engine::PhysicsSystem::raycast(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance)
+bool engine::PhysicsSystem::raycast(const glm::vec3& origin, const glm::vec3& direction, float max_distance, std::span<const engine_game_object_t> ignore_list, bool hit_triggers, engine_ray_hit_t& out_hit)
 {
     ENGINE_PROFILE_SECTION;
     // what scripts moved earlier this frame is hit where it is now
     sync_bodies_to_transforms(false);
-    return world_.raycast(ray, ignore_list, max_distance);
+    return world_.raycast(origin, direction, max_distance, ignore_list, hit_triggers, out_hit);
 }
 
 bool engine::PhysicsSystem::add_force(entt::entity entity, std::array<float, 3> force, engine_force_type_t type)

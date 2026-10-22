@@ -208,4 +208,50 @@ TEST_F(HierarchyTest, FolderDoesNotMakeAParent)
     engineGameObjectUpdateFolderComponent(go, &folder);
     EXPECT_FALSE(engineGameObjectHasParentComponent(go));
 }
+
+// the joint name is the engine's string: set in place, or copied from another string passed in an update
+TEST_F(HierarchyTest, JointAttachmentKeepsItsOwnJointName)
+{
+    load_sandbox_scene();
+    const auto go = engineGameObjectCreate();
+    auto jac = engineGameObjectAddJointAttachmentComponent(go);
+    const auto* engine_name = jac.joint_name;
+    ASSERT_NE(engine_name, nullptr);
+    EXPECT_STREQ(engineStringCStr(engine_name), "");
+
+    engineStringSet(jac.joint_name, "hand");
+    engineGameObjectUpdateJointAttachmentComponent(go, &jac);
+    EXPECT_STREQ(engineStringCStr(engineGameObjectGetJointAttachmentComponent(go).joint_name), "hand");
+
+    // the caller's string is copied, not taken over: the caller still destroys it
+    auto* callers_name = engineStringCreate("tip");
+    jac.joint_name = callers_name;
+    engineGameObjectUpdateJointAttachmentComponent(go, &jac);
+    engineStringDestroy(callers_name);
+    jac = engineGameObjectGetJointAttachmentComponent(go);
+    EXPECT_EQ(jac.joint_name, engine_name);
+    EXPECT_STREQ(engineStringCStr(jac.joint_name), "tip");
+
+    // no string keeps the name
+    jac.joint_name = nullptr;
+    engineGameObjectUpdateJointAttachmentComponent(go, &jac);
+    jac = engineGameObjectGetJointAttachmentComponent(go);
+    EXPECT_EQ(jac.joint_name, engine_name);
+    EXPECT_STREQ(engineStringCStr(jac.joint_name), "tip");
+}
+
+TEST_F(HierarchyTest, JointAttachmentAddedAgainHasANewEmptyJointName)
+{
+    load_sandbox_scene();
+    const auto go = engineGameObjectCreate();
+    auto jac = engineGameObjectAddJointAttachmentComponent(go);
+    engineStringSet(jac.joint_name, "hand");
+    engineGameObjectUpdateJointAttachmentComponent(go, &jac);
+
+    engineGameObjectRemoveJointAttachmentComponent(go);
+    const auto added_again = engineGameObjectAddJointAttachmentComponent(go);
+
+    ASSERT_NE(added_again.joint_name, nullptr);
+    EXPECT_STREQ(engineStringCStr(added_again.joint_name), "");
+}
 }  // namespace

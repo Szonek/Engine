@@ -75,7 +75,7 @@ private:
 
     struct GlobalStateData
     {
-        engine_ray_hit_info_t last_mouse_hit = {};
+        engine_ray_hit_t last_mouse_hit = {};
     };
 
     struct MoveStateData

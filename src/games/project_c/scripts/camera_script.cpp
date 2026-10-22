@@ -152,9 +152,8 @@ glm::vec3 project_c::CameraScript::compute_look_ahead(const glm::vec3& player_po
 {
     // cursor on the ground plane at the player's height
     const auto ray = utils::get_ray_from_cursor(go_, static_cast<const AppProjectC*>(my_scene_->get_app())->player_input().cursor);
-    const glm::vec3 ray_from(ray.origin.x, ray.origin.y, ray.origin.z);
-    const glm::vec3 ray_to(ray.direction.x, ray.direction.y, ray.direction.z);
-    const glm::vec3 ray_direction = ray_to - ray_from;
+    const glm::vec3 ray_from = ray.origin;
+    const glm::vec3 ray_direction = ray.direction;
     if (std::abs(ray_direction.y) < 0.0001f)
     {
         return glm::vec3(0.0f);

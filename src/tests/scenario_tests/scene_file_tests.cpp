@@ -169,11 +169,12 @@ TEST_F(SceneFileTest, LoadedColliderIsHitAtItsWorldPosition)
 
     create_file_scene();
     ASSERT_EQ(engineSceneLoad(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
-    // a ray along x hits the box's near face at 4.5, not one at the origin (the ray's direction is its end point)
-    const engine_ray_t ray{ { -10.0f, 0.0f, 0.0f }, { 10.0f, 0.0f, 0.0f } };
-    const auto hit = enginePhysicsRayCast(nullptr, 0, &ray, 100.0f);
-    ASSERT_NE(hit.go, ENGINE_INVALID_GAME_OBJECT_ID);
-    EXPECT_NEAR(hit.position.x, 4.5f, 1e-3f);
+    // a ray along x hits the box's near face at 4.5, not one at the origin
+    const float origin[3] = { -10.0f, 0.0f, 0.0f };
+    const float along_x[3] = { 1.0f, 0.0f, 0.0f };
+    engine_ray_hit_t hit{};
+    ASSERT_TRUE(enginePhysicsRayCast(origin, along_x, 100.0f, nullptr, &hit));
+    EXPECT_NEAR(hit.position[0], 4.5f, 1e-3f);
     EXPECT_TRUE(engineGameObjectHasParentComponent(hit.go));
 }
 

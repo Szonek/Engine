@@ -554,10 +554,11 @@ void project_c::Player::update(float dt)
         set_world_position( 0.0f, 1.0f, 0.0f );
     }
 
-    const std::array<engine_game_object_t, 1> raycast_ignore_list = { attack_trigger_->get_game_object() };
+    // what is under the cursor (triggers, like the attack trigger, are skipped)
     const auto active_camera_go = utils::get_active_camera_game_objects()[0];
     const auto ray = utils::get_ray_from_cursor(active_camera_go, input().cursor);
-    const auto hit_info = enginePhysicsRayCast(raycast_ignore_list.data(), raycast_ignore_list.size(), &ray, 1000000.0f);
+    engine_ray_hit_t hit_info{};
+    const bool cursor_hit = enginePhysicsRayCast(glm::value_ptr(ray.origin), glm::value_ptr(ray.direction), glm::length(ray.direction), nullptr, &hit_info);
 
     const auto lmb = input().interact;
     const bool attack_pressed = std::exchange(attack_press_pending_, false);
@@ -585,13 +586,13 @@ void project_c::Player::update(float dt)
         }
     }
 
-    if (hit_info.go != ENGINE_INVALID_GAME_OBJECT_ID && lmb)
+    if (cursor_hit && lmb)
     {
         if (auto* interactable = my_scene_->get_script<Interactable>(hit_info.go))
         {
             // check distance and interface if close enough
             const auto tc = engineGameObjectGetTransformComponent(go_);
-            const float distance = glm::distance(glm::vec3(hit_info.position.x, hit_info.position.y, hit_info.position.z), glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
+            const float distance = glm::distance(glm::make_vec3(hit_info.position), glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
             if (distance < 1.0f)
             {
                 interactable->interact();
@@ -810,11 +811,11 @@ void project_c::Player::update(float dt)
         }
     }
 
-    if (attack_phase_ != AttackPhase::eActive && !dodging_this_frame && hit_stun_remaining_seconds_ <= 0.0f)
+    if (cursor_hit && attack_phase_ != AttackPhase::eActive && !dodging_this_frame && hit_stun_remaining_seconds_ <= 0.0f)
     {
         auto facing_transform = engineGameObjectGetTransformComponent(go_);
         const glm::vec3 origin(facing_transform.position[0], facing_transform.position[1], facing_transform.position[2]);
-        const glm::vec3 target(hit_info.position.x, hit_info.position.y, hit_info.position.z);
+        const glm::vec3 target = glm::make_vec3(hit_info.position);
         const glm::vec3 target_direction(target.x - origin.x, 0.0f, target.z - origin.z);
         if (glm::dot(target_direction, target_direction) > 0.000001f)
         {
@@ -1117,27 +1118,27 @@ void project_c::Player::set_position_and_yaw(const glm::vec3& position, float ya
 
 project_c::Player::ProbeHit project_c::Player::probe(const glm::vec3& from, const glm::vec3& to) const
 {
-    std::array<engine_game_object_t, 3> ignore_list = { go_, attack_trigger_->get_game_object(), ENGINE_INVALID_GAME_OBJECT_ID };
+    // triggers (the attack trigger) are skipped anyway
+    std::array<engine_game_object_t, 2> ignore_list = { go_, ENGINE_INVALID_GAME_OBJECT_ID };
     if (weapon_)
     {
-        ignore_list[2] = weapon_->get_game_object();
+        ignore_list[1] = weapon_->get_game_object();
     }
+    engine_ray_cast_filter_t filter{};
+    filter.ignore = ignore_list.data();
+    filter.ignore_count = ignore_list.size();
 
-    // note: engine ray "direction" is the end point of the ray
-    engine_ray_t ray{};
-    ray.origin = { from.x, from.y, from.z };
-    ray.direction = { to.x, to.y, to.z };
-    const auto hit_info = enginePhysicsRayCast(ignore_list.data(), ignore_list.size(), &ray, glm::distance(from, to));
-
+    const glm::vec3 direction = to - from;
+    engine_ray_hit_t hit_info{};
     ProbeHit ret{};
-    if (hit_info.go == ENGINE_INVALID_GAME_OBJECT_ID)
+    if (!enginePhysicsRayCast(glm::value_ptr(from), glm::value_ptr(direction), glm::length(direction), &filter, &hit_info))
     {
         return ret;
     }
     ret.hit = true;
     ret.go = hit_info.go;
-    ret.position = glm::vec3(hit_info.position.x, hit_info.position.y, hit_info.position.z);
-    ret.normal = glm::vec3(hit_info.normal.x, hit_info.normal.y, hit_info.normal.z);
+    ret.position = glm::make_vec3(hit_info.position);
+    ret.normal = glm::make_vec3(hit_info.normal);
     if (const auto* part = my_scene_->get_script<BuildingPart>(hit_info.go))
     {
         ret.building = true;

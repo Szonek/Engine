@@ -165,7 +165,7 @@ void engine::initialize_joint_attachment_component(entt::registry& registry, ent
 {
     auto& comp = get_zero_init_component<engine_joint_attachment_component_t>(registry, entity);
     comp.skin = ENGINE_INVALID_GAME_OBJECT_ID;
-    comp.joint_name = engineStringCreate("");
+    // joint_name: the engine's string, set by the scene (joint_attachment_internal_component_t)
 }
 
 void engine::initialize_animation_controller_component(entt::registry& registry, entt::entity entity)

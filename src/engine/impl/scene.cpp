@@ -14,6 +14,7 @@
 #include "components_internals/skin_pose_component.h"
 #include "components_internals/animation_controller_internal_component.h"
 #include "components_internals/children_internal_component.h"
+#include "components_internals/joint_attachment_internal_component.h"
 #include "components_internals/nav_mesh_internal_component.h"
 #include "profiler.h"
 #include "engine_vector_impl_def.h"
@@ -74,6 +75,28 @@ static inline void destroy_children_component(entt::registry& registry, entt::en
     }
 }
 
+// the joint name string is the engine's: the internal component owns it and the component points at it
+static inline void construct_joint_attachment(entt::registry& registry, entt::entity entity)
+{
+    engine::initialize_joint_attachment_component(registry, entity);
+    auto& owned = registry.emplace<engine::joint_attachment_internal_component_t>(entity);
+    registry.get<engine_joint_attachment_component_t>(entity).joint_name = owned.joint_name.get();
+}
+
+// an update carrying another string (or none) keeps the engine's: its value is copied, the caller keeps its string
+static inline void update_joint_attachment(entt::registry& registry, entt::entity entity)
+{
+    auto& comp = registry.get<engine_joint_attachment_component_t>(entity);
+    auto* owned = registry.get<engine::joint_attachment_internal_component_t>(entity).joint_name.get();
+    if (comp.joint_name != owned)
+    {
+        if (comp.joint_name)
+        {
+            owned->str = comp.joint_name->str;
+        }
+        comp.joint_name = owned;
+    }
+}
 
 static inline void calculate_camera_view_and_projection(std::size_t view_width, std::size_t view_height, const glm::vec3& eye_position, const engine_camera_component_t& camera, engine::camera_internal_component_t& camera_internal)
 {
@@ -140,7 +163,9 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     entity_registry_.on_update<engine_animation_controller_component_t>().connect<&Scene::on_animation_controller_component_changed>(*this);
     entity_registry_.on_destroy<engine_animation_controller_component_t>().connect<&entt::registry::remove<animation_controller_internal_component_t>>();
     entity_registry_.on_destroy<engine_skin_component_t>().connect<&entt::registry::remove<animation_controller_internal_component_t>>();
-    entity_registry_.on_construct<engine_joint_attachment_component_t>().connect<&initialize_joint_attachment_component>();
+    entity_registry_.on_construct<engine_joint_attachment_component_t>().connect<&construct_joint_attachment>();
+    entity_registry_.on_update<engine_joint_attachment_component_t>().connect<&update_joint_attachment>();
+    entity_registry_.on_destroy<engine_joint_attachment_component_t>().connect<&entt::registry::remove<joint_attachment_internal_component_t>>();
     entity_registry_.on_construct<engine_animation_controller_component_t>().connect<&initialize_animation_controller_component>();
     entity_registry_.on_construct<engine_light_component_t>().connect<&initialize_light_component>();
     entity_registry_.on_construct<engine_sprite_component_t>().connect<&initialize_sprite_component>();
