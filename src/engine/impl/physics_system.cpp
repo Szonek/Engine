@@ -42,8 +42,9 @@ engine::PhysicsSystem::PhysicsSystem(entt::registry& registry, JointMatrixFuncti
     : registry_(registry)
     , joint_matrix_(std::move(joint_matrix))
     , is_editing_(std::move(is_editing))
-    , moved_bodies_observer_(registry, entt::collector.update<engine_transform_component_t>().where<physcic_internal_component_t>())
+    , moved_bodies_(registry.storage<entt::reactive>(entt::hashed_string{"engine::moved_bodies"}))
 {
+    moved_bodies_.on_update<engine_transform_component_t>();
     // Bodies are created as soon as their components exist (like Unity and Unreal) and created again when they change:
     // physics queries during the scripts' update see game objects created earlier in the frame.
     // EnTT calls listeners last-connected first, so these run after the component setup connected below (and after the
@@ -308,14 +309,15 @@ void engine::PhysicsSystem::sync_bodies_to_transforms(bool force)
         move_body(entity, false);
     }
     // the others when their transform changed
-    for (const auto entity : moved_bodies_observer_)
+    // destroyed game objects and those without a body are filtered out by the view
+    for (const auto entity : moved_bodies_.view<physcic_internal_component_t>())
     {
         if (!follows_other_game_objects(entity))
         {
             move_body(entity, true);
         }
     }
-    moved_bodies_observer_.clear();
+    moved_bodies_.clear();
 }
 
 void engine::PhysicsSystem::apply_forces()

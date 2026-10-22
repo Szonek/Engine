@@ -77,8 +77,9 @@ private:
     JointMatrixFunction joint_matrix_;
     std::function<bool()> is_editing_;
     PhysicsWorld world_;
-    // bodies whose game object's transform changed since the last sync
-    entt::observer moved_bodies_observer_;
+    // game objects whose transform changed since the last sync (a reactive storage: owned by the registry, so destroyed
+    // game objects leave it; a standalone one would keep their stale entities)
+    entt::storage_for_t<entt::reactive>& moved_bodies_;
     // reported moves of static bodies skip these: being placed in the frame they were created is no move
     std::vector<entt::entity> bodies_created_this_frame_;
     // a transform, parent or joint attachment changed since the bodies were last synced to the transforms
