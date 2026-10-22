@@ -31,11 +31,21 @@ jobs:
       with:
         arch: x64
 
+    # ccache doesn't cache MSVC well, sccache does (Release has no /Zi, so every object is cacheable)
+    - name: Setup sccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        variant: sccache
+        key: windows-release
+
+    # Ninja (part of the runner image) compiles in parallel, NMake one file at a time
     - name: Configure CMake
-      run: cmake -G "NMake Makefiles" -B ${{github.workspace}}/buildtree -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      run: >
+        cmake -G Ninja -B ${{github.workspace}}/buildtree -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+        -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 
     - name: Build
-      run: cmake --build ${{github.workspace}}/buildtree --config ${{env.BUILD_TYPE}}
+      run: cmake --build ${{github.workspace}}/buildtree
 
     - name: Test
       # only tests labelled "ci" (no GPU on the runner); see src/tests/unit_tests/CMakeLists.txt
