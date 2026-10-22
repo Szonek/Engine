@@ -16,7 +16,7 @@ const engine::TypeInfo* engine::TypeRegistry::add(TypeInfo&& type)
         log::log(log::LogLevel::eError, fmt::format("Type registry: a type needs a unique name, \"{}\" is empty or registered already.\n", type.name));
         return nullptr;
     }
-    type.handle = static_cast<std::uint32_t>(types_.size()) + 1;
+    type.handle = static_cast<std::uint32_t>(types_.size()) + FIRST_TYPE_HANDLE;
     types_.push_back(std::make_unique<TypeInfo>(std::move(type)));
     if (types_.back()->is_component())
     {
@@ -33,7 +33,7 @@ const engine::TypeInfo* engine::TypeRegistry::find(std::string_view name) const
 
 const engine::TypeInfo* engine::TypeRegistry::get(std::uint32_t handle) const
 {
-    return handle > 0 && handle <= types_.size() ? types_[handle - 1].get() : nullptr;
+    return handle >= FIRST_TYPE_HANDLE && handle - FIRST_TYPE_HANDLE < types_.size() ? types_[handle - FIRST_TYPE_HANDLE].get() : nullptr;
 }
 
 std::vector<const engine::TypeInfo*> engine::TypeRegistry::get_types() const

@@ -29,16 +29,18 @@ class Atlas
     static_assert(std::has_single_bit(SIZE), "the slot is the low bits of a handle");
     static constexpr std::uint32_t SLOT_BITS = static_cast<std::uint32_t>(std::bit_width(SIZE - 1));
     static constexpr std::uint32_t SLOT_MASK = static_cast<std::uint32_t>(SIZE - 1);
-    // the generations the high bits of a handle hold; 0 is never used
+    // the generations the high bits of a handle hold; generations go from FIRST_GENERATION to GENERATION_COUNT - 1
+    // and wrap back, so a handle is never 0
     static constexpr std::uint64_t GENERATION_COUNT = std::uint64_t{ 1 } << (32 - SLOT_BITS);
-    static_assert(ENGINE_INVALID_OBJECT_HANDLE == 0, "a handle with a generation of at least 1 is never the invalid one");
+    static constexpr std::uint32_t FIRST_GENERATION = 1;
+    static_assert(ENGINE_INVALID_OBJECT_HANDLE == 0 && FIRST_GENERATION > 0, "a handle with a generation of FIRST_GENERATION or more is never the invalid one");
 
 public:
     Atlas()
     {
         free_slots_.resize(SIZE);
         std::generate(free_slots_.begin(), free_slots_.end(), [n = 0]() mutable { return n++; });
-        generations_.fill(1);
+        generations_.fill(FIRST_GENERATION);
     }
     Atlas(const Atlas& rhs) = delete;
     Atlas(Atlas&& rhs) = delete;
@@ -122,7 +124,7 @@ public:
         objects_[*slot] = T{};
         names_[*slot].clear();
         occupied_[*slot] = false;
-        generations_[*slot] = generations_[*slot] + 1 == GENERATION_COUNT ? 1 : generations_[*slot] + 1;
+        generations_[*slot] = generations_[*slot] + 1 == GENERATION_COUNT ? FIRST_GENERATION : generations_[*slot] + 1;
         free_slots_.push_back(*slot);
     }
 

@@ -15,11 +15,15 @@ namespace engine
 // observers wouldn't see these storages anyway, only the storages' own signals would).
 const TypeInfo* register_game_type(TypeRegistry& registry, const engine_type_desc_t& desc, bool component);
 
-// The slot a game component of `size` bytes is stored in: the next multiple of 16 (slots are 16-byte aligned), so a
-// component wastes at most 15 bytes. An EnTT storage holds one compile-time type, so there is one slot type per size up
-// to ENGINE_COMPONENT_TYPE_MAX_SIZE.
+// The alignment of the slots game components are stored in: the most a game type may ask for.
+inline constexpr std::size_t DATA_SLOT_ALIGNMENT = ENGINE_COMPONENT_TYPE_MAX_ALIGNMENT;
+static_assert(ENGINE_COMPONENT_TYPE_MAX_SIZE % DATA_SLOT_ALIGNMENT == 0);
+
+// The slot a game component of `size` bytes is stored in: the next multiple of DATA_SLOT_ALIGNMENT, so a component
+// wastes less than one alignment. An EnTT storage holds one compile-time type, so there is one slot type per size up to
+// ENGINE_COMPONENT_TYPE_MAX_SIZE.
 constexpr std::size_t data_slot_size(std::size_t size)
 {
-    return (size + 15) / 16 * 16;
+    return (size + DATA_SLOT_ALIGNMENT - 1) / DATA_SLOT_ALIGNMENT * DATA_SLOT_ALIGNMENT;
 }
 }  // namespace engine

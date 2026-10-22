@@ -18,11 +18,10 @@ using engine::TypeInfo;
 
 // the value of a game-defined component; each type has a storage of these under its own id, sized for it
 template<std::size_t N>
-struct alignas(16) DataBlob
+struct alignas(engine::DATA_SLOT_ALIGNMENT) DataBlob
 {
     std::byte bytes[N];
 };
-static_assert(ENGINE_COMPONENT_TYPE_MAX_SIZE % 16 == 0);
 
 template<std::size_t N>
 std::unique_ptr<engine::ComponentStorage> make_storage(entt::id_type id, std::vector<std::byte> default_value)
@@ -59,12 +58,14 @@ std::unique_ptr<engine::ComponentStorage> make_storage(entt::id_type id, std::ve
     return s;
 }
 
-// make_storage for the slot size `slot` (a multiple of 16 up to ENGINE_COMPONENT_TYPE_MAX_SIZE), chosen at runtime
+// make_storage for the slot size `slot` (one of the data_slot_size values), chosen at runtime: the I-th slot type holds
+// I + 1 alignments
 template<std::size_t... I>
 std::unique_ptr<engine::ComponentStorage> make_storage_for_slot(std::size_t slot, entt::id_type id, std::vector<std::byte> default_value, std::index_sequence<I...>)
 {
+    using engine::DATA_SLOT_ALIGNMENT;
     std::unique_ptr<engine::ComponentStorage> storage;
-    ((slot == (I + 1) * 16 ? (storage = make_storage<(I + 1) * 16>(id, std::move(default_value)), true) : false) || ...);
+    ((slot == (I + 1) * DATA_SLOT_ALIGNMENT ? (storage = make_storage<(I + 1) * DATA_SLOT_ALIGNMENT>(id, std::move(default_value)), true) : false) || ...);
     return storage;
 }
 
@@ -80,7 +81,8 @@ public:
         : registry_(registry), desc_(desc)
     {
         type_.name = std::string(text(desc.name));
-        type_.version = desc.version == 0 ? 1 : desc.version;
+        // 0 is "not given" (a zeroed description)
+        type_.version = desc.version == 0 ? engine::FIRST_TYPE_VERSION : desc.version;
         type_.size = desc.size;
         type_.alignment = desc.alignment;
         type_.game_defined = true;
@@ -92,9 +94,9 @@ public:
         {
             error("it has no name");
         }
-        if (desc_.size == 0 || desc_.alignment == 0 || !std::has_single_bit(desc_.alignment) || desc_.alignment > 16 || desc_.size % desc_.alignment != 0)
+        if (desc_.size == 0 || desc_.alignment == 0 || !std::has_single_bit(desc_.alignment) || desc_.alignment > engine::DATA_SLOT_ALIGNMENT || desc_.size % desc_.alignment != 0)
         {
-            error(fmt::format("size {} and alignment {} aren't the size and alignment of a struct (aligned to at most 16)", desc_.size, desc_.alignment));
+            error(fmt::format("size {} and alignment {} aren't the size and alignment of a struct (aligned to at most {})", desc_.size, desc_.alignment, engine::DATA_SLOT_ALIGNMENT));
         }
         if (component && desc_.size > ENGINE_COMPONENT_TYPE_MAX_SIZE)
         {
@@ -137,7 +139,7 @@ public:
                 std::memcpy(default_value.data(), desc_.default_value, type_.size);
             }
             type_.storage = make_storage_for_slot(engine::data_slot_size(type_.size), id, std::move(default_value),
-                std::make_index_sequence<ENGINE_COMPONENT_TYPE_MAX_SIZE / 16>{});
+                std::make_index_sequence<ENGINE_COMPONENT_TYPE_MAX_SIZE / engine::DATA_SLOT_ALIGNMENT>{});
         }
         return registry_.add(std::move(type_));
     }

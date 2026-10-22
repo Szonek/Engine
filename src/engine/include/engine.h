@@ -583,7 +583,8 @@ typedef struct _engine_type_desc_t
     const char* name;
     // saved in scene files; a file holding a newer version than the registered one doesn't load the component. 0 is 1.
     uint32_t version;
-    // sizeof / alignof the struct; a component is at most ENGINE_COMPONENT_TYPE_MAX_SIZE bytes, aligned to at most 16
+    // sizeof / alignof the struct; a component is at most ENGINE_COMPONENT_TYPE_MAX_SIZE bytes, aligned to at most
+    // ENGINE_COMPONENT_TYPE_MAX_ALIGNMENT
     uint32_t size;
     uint32_t alignment;
     // the value a new component gets (engineGameObjectAddDataComponent with no value, fields missing in a file), or
@@ -595,6 +596,7 @@ typedef struct _engine_type_desc_t
 } engine_type_desc_t;
 
 #define ENGINE_COMPONENT_TYPE_MAX_SIZE 256
+#define ENGINE_COMPONENT_TYPE_MAX_ALIGNMENT 16
 
 // Registers a component type. Fails (logged) when the description has a mistake: a name used already, a field outside
 // the struct, overlapping or misaligned fields (or aligned more than the struct), an unknown struct type, ...

@@ -1,4 +1,6 @@
 #pragma once
+#include <engine.h>
+
 #include <entt/entt.hpp>
 #include <fmt/format.h>
 
@@ -93,15 +95,24 @@ struct ComponentStorage
     std::function<void(entt::registry&, entt::entity)> remove;
 };
 
+// A type's handle (the engine_component_type_t of the C API) is its index in the registry plus this, so no type has
+// ENGINE_INVALID_OBJECT_HANDLE (0).
+inline constexpr std::uint32_t FIRST_TYPE_HANDLE = ENGINE_INVALID_OBJECT_HANDLE + 1;
+static_assert(FIRST_TYPE_HANDLE != ENGINE_INVALID_OBJECT_HANDLE);
+
+// The version a type starts at; it goes up when the type's layout changes, and a scene file stores the version each
+// component was saved with.
+inline constexpr std::uint32_t FIRST_TYPE_VERSION = 1;
+
 // Describes a C struct field by field, so that values of it can be saved and loaded (and later edited) without code
 // for the type. A component is a type with storage; the other types are only used inside components.
 struct TypeInfo
 {
-    // the engine_component_type_t of the C API: its index in the registry + 1 (0 is ENGINE_INVALID_OBJECT_HANDLE)
-    std::uint32_t handle = 0;
+    // set by the registry (FIRST_TYPE_HANDLE and up); ENGINE_INVALID_OBJECT_HANDLE until the type is registered
+    std::uint32_t handle = ENGINE_INVALID_OBJECT_HANDLE;
     std::string name;
     // of the components: a scene file stores the version each component was saved with
-    std::uint32_t version = 1;
+    std::uint32_t version = FIRST_TYPE_VERSION;
     std::size_t size = 0;
     std::size_t alignment = 0;
     std::vector<FieldInfo> fields;
@@ -117,7 +128,8 @@ struct TypeInfo
     }
 };
 
-// A buffer for one value of a registered type, aligned for any of them (C structs, aligned to at most 16).
+// A buffer for one value of a registered type, aligned for any of them (C structs, aligned to at most
+// ENGINE_COMPONENT_TYPE_MAX_ALIGNMENT, the engine's like the game's).
 class ValueBuffer
 {
 public:
@@ -126,9 +138,9 @@ public:
     const std::byte* get() const { return data_.empty() ? nullptr : data_.front().bytes; }
 
 private:
-    struct alignas(16) Chunk
+    struct alignas(ENGINE_COMPONENT_TYPE_MAX_ALIGNMENT) Chunk
     {
-        std::byte bytes[16];
+        std::byte bytes[ENGINE_COMPONENT_TYPE_MAX_ALIGNMENT];
     };
     std::vector<Chunk> data_;
 };
@@ -207,7 +219,7 @@ class TypeBuilder
     static_assert(std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T>, "only C structs can be described");
 
 public:
-    TypeBuilder(TypeRegistry& registry, std::string_view name, std::uint32_t version = 1)
+    TypeBuilder(TypeRegistry& registry, std::string_view name, std::uint32_t version = FIRST_TYPE_VERSION)
         : registry_(registry)
     {
         type_.name = std::string(name);
