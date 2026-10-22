@@ -85,7 +85,10 @@ set(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath CACHE STRING "Inc
 set(RECASTNAVIGATION_DEMO OFF CACHE BOOL "")
 set(RECASTNAVIGATION_TESTS OFF CACHE BOOL "")
 set(RECASTNAVIGATION_EXAMPLES OFF CACHE BOOL "")
+# its cmake_minimum_required(VERSION 3.1) is below what CMake 4 still accepts (3.5); older CMake ignores this
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 add_subdirectory(recastnavigation)
+unset(CMAKE_POLICY_VERSION_MINIMUM)
 
 #freetype: prebuilt on Windows, the system package elsewhere
 if(WIN32)
