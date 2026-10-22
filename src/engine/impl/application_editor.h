@@ -3,12 +3,14 @@
 #include "file_watcher.h"
 #include "editor_commands.h"
 #include "editor_camera.h"
+#include "editor_modal_transform.h"
 #include "render/outline_feature.h"
 #include "render/grid_feature.h"
 
 #include <entt/entt.hpp>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 namespace engine
@@ -22,8 +24,9 @@ public:
 
     void enable();
     void disable();
-    // `selected` is what F frames (entt::null: nothing)
-    void update(float dt, entt::entity selected);
+    // `selected` is what F frames (entt::null: nothing); without `accepts_input` the mouse and keys belong to something
+    // else (the modal transform)
+    void update(float dt, entt::entity selected, bool accepts_input);
 
     entt::entity get_entity() const { return go_; }
     EditorCamera& get_camera() { return camera_; }
@@ -100,6 +103,10 @@ private:
     void render_debug_panel(class Scene* scene, float dt);
     void render_guizmo(class Scene* scene);
     void handle_mouse_picking(class Scene* scene);
+    // Blender's G / R / S on the selected game object: starts, follows the mouse, confirms (one undo step) or cancels
+    void handle_modal_transform(class Scene* scene);
+    void draw_modal_transform(class Scene* scene);
+    void cancel_modal_transform(class Scene* scene);
 
 private:
     class CameraContext
@@ -107,10 +114,11 @@ private:
     public:
         void attach_scene(Scene* scene, ApplicationEditor* app);
         void detach_scene(Scene* scene);
-        void on_scene_update_pre(Scene* scene, float dt, entt::entity selected);
+        void on_scene_update_pre(Scene* scene, float dt, entt::entity selected, bool accepts_input);
         void on_scene_update_post(Scene* scene, float dt);
         bool is_enabled(engine::Scene* scene) const;
         EditorCamera* get_camera(engine::Scene* scene);
+        entt::entity get_camera_entity(engine::Scene* scene) const;
 
     private:
         struct camera_data_t
@@ -158,6 +166,11 @@ private:
 
 private:
     CameraContext camera_context_;
+    std::optional<ModalTransform> modal_transform_;
+    entt::entity modal_transform_entity_ = entt::null;
+    engine_transform_component_t modal_transform_original_{};
+    // the click that confirmed or cancelled a modal transform doesn't pick, orbit or fly until it is released
+    bool mouse_consumed_ = false;
     EditorView editor_view_ = EditorView::eGame;
     EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;

@@ -16,6 +16,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/application_editor.h
 	${ENGINE_SOURCES_DIR}/editor_camera.cpp
 	${ENGINE_SOURCES_DIR}/editor_camera.h
+	${ENGINE_SOURCES_DIR}/editor_modal_transform.cpp
+	${ENGINE_SOURCES_DIR}/editor_modal_transform.h
 	${ENGINE_SOURCES_DIR}/editor_commands.cpp
 	${ENGINE_SOURCES_DIR}/editor_commands.h
 	${ENGINE_SOURCES_DIR}/copy_name.h

@@ -1121,7 +1121,13 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_pre");
     if (editor_view_ == EditorView::eEditor)
     {
-        camera_context_.on_scene_update_pre(scene, is_playing_ ? delta_time : frame_delta_time_, scene_hierarchy_context_.get_selected_entity());
+        const auto& io = ImGui::GetIO();
+        if (mouse_consumed_ && !io.MouseDown[ImGuiMouseButton_Left] && !io.MouseDown[ImGuiMouseButton_Right] && !io.MouseDown[ImGuiMouseButton_Middle])
+        {
+            mouse_consumed_ = false;
+        }
+        const bool camera_accepts_input = !modal_transform_ && !mouse_consumed_;
+        camera_context_.on_scene_update_pre(scene, is_playing_ ? delta_time : frame_delta_time_, scene_hierarchy_context_.get_selected_entity(), camera_accepts_input);
     }
 }
 
@@ -1137,10 +1143,23 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
 
     if (editor_view_ == EditorView::eEditor)
     {
-        render_guizmo(scene);
-        handle_mouse_picking(scene);
+        handle_modal_transform(scene);
+        if (modal_transform_)
+        {
+            draw_modal_transform(scene);
+        }
+        else if (!mouse_consumed_)
+        {
+            render_guizmo(scene);
+            handle_mouse_picking(scene);
+        }
     }
-    const auto lctrl = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL);
+    else if (modal_transform_)
+    {
+        cancel_modal_transform(scene);
+    }
+    // while a modal transform runs, Ctrl snaps and Z picks the axis
+    const auto lctrl = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL) && !modal_transform_;
     const auto lshift = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LSHIFT);
     const auto z = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_Z);
     static bool ctrl_shift_z_prev = lctrl && lshift && z;
@@ -1607,7 +1626,7 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
 void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
 {
     // a click on the gizmo moves the object, it doesn't pick what is under it
-    if (!is_mouse_over_scene() || ImGuizmo::IsUsingAny())
+    if (!is_mouse_over_scene() || ImGuizmo::IsUsingAny() || mouse_consumed_)
     {
         return;
     }
@@ -1635,6 +1654,148 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
         scene_hierarchy_context_.set_selected_entity(scene, entity_id, commands_);
         scene_hierarchy_context_.set_forced_open_selected_parents(true);
     }
+}
+
+void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
+{
+    const auto& io = ImGui::GetIO();
+    const auto viewport = get_scene_viewport();
+    const glm::vec2 mouse(io.MousePos.x - static_cast<float>(viewport.x), io.MousePos.y - static_cast<float>(viewport.y));
+
+    const auto pressed_mode = []() -> std::optional<ModalTransformMode>
+    {
+        if (ImGui::IsKeyPressed(ImGuiKey_G, false)) return ModalTransformMode::eGrab;
+        if (ImGui::IsKeyPressed(ImGuiKey_R, false)) return ModalTransformMode::eRotate;
+        if (ImGui::IsKeyPressed(ImGuiKey_S, false)) return ModalTransformMode::eScale;
+        return std::nullopt;
+    };
+
+    if (!modal_transform_)
+    {
+        // like Blender: the keys act on the view under the mouse; Ctrl / Alt combinations are left for other shortcuts
+        const bool any_button_down = io.MouseDown[ImGuiMouseButton_Left] || io.MouseDown[ImGuiMouseButton_Right] || io.MouseDown[ImGuiMouseButton_Middle];
+        if (!is_mouse_over_scene() || io.WantTextInput || io.KeyCtrl || io.KeyAlt || any_button_down || ImGuizmo::IsUsingAny())
+        {
+            return;
+        }
+        const auto mode = pressed_mode();
+        const auto entity = scene_hierarchy_context_.get_selected_entity();
+        const auto camera_entity = camera_context_.get_camera_entity(scene);
+        if (!mode || entity == entt::null || camera_entity == entt::null || !scene->is_valid_entity(entity)
+            || !scene->has_component<engine_transform_component_t>(entity) || !scene->has_component<world_transform_internal_component_t>(entity))
+        {
+            return;
+        }
+        const modal_transform_view_t view{ scene->get_camera_view(camera_entity), scene->get_camera_projection(camera_entity),
+            glm::vec2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)) };
+        modal_transform_.emplace(*mode, scene->get_component<world_transform_internal_component_t>(entity)->local_to_world, mouse, view);
+        modal_transform_entity_ = entity;
+        modal_transform_original_ = *scene->get_component<engine_transform_component_t>(entity);
+        return;
+    }
+
+    const auto entity = modal_transform_entity_;
+    if (!scene->is_valid_entity(entity) || !scene->has_component<engine_transform_component_t>(entity))
+    {
+        modal_transform_.reset();
+        return;
+    }
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+    {
+        mouse_consumed_ = ImGui::IsMouseClicked(ImGuiMouseButton_Right);
+        cancel_modal_transform(scene);
+        return;
+    }
+
+    if (const auto mode = pressed_mode())
+    {
+        modal_transform_->set_mode(*mode, mouse);
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_X, false)) modal_transform_->toggle_axis(ModalTransformAxis::eX);
+    if (ImGui::IsKeyPressed(ImGuiKey_Y, false)) modal_transform_->toggle_axis(ModalTransformAxis::eY);
+    if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) modal_transform_->toggle_axis(ModalTransformAxis::eZ);
+
+    // previewed on the component itself, so physics, children and the render see it; only the result is a command
+    const auto world = modal_transform_->update(mouse, io.KeyCtrl);
+    auto transform = *scene->get_component<engine_transform_component_t>(entity);
+    if (local_transform_from_world(scene->get_parent_space_matrix(entity), world, transform))
+    {
+        scene->update_component<engine_transform_component_t>(entity, transform);
+    }
+
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false))
+    {
+        mouse_consumed_ = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+        auto result = *scene->get_component<engine_transform_component_t>(entity);
+        // the command records the transform from before the preview, so undo goes back there
+        scene->update_component<engine_transform_component_t>(entity, modal_transform_original_);
+        commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, result));
+        modal_transform_.reset();
+    }
+}
+
+void engine::ApplicationEditor::cancel_modal_transform(Scene* scene)
+{
+    if (scene->is_valid_entity(modal_transform_entity_) && scene->has_component<engine_transform_component_t>(modal_transform_entity_))
+    {
+        scene->update_component<engine_transform_component_t>(modal_transform_entity_, modal_transform_original_);
+    }
+    modal_transform_.reset();
+}
+
+void engine::ApplicationEditor::draw_modal_transform(Scene* /*scene*/)
+{
+    const auto& transform = *modal_transform_;
+    const auto viewport = get_scene_viewport();
+    const ImVec2 offset(static_cast<float>(viewport.x), static_cast<float>(viewport.y));
+    const auto to_screen = [&offset](const glm::vec2& p) { return ImVec2(p.x + offset.x, p.y + offset.y); };
+
+    ImGui::Begin(editor_windows_context_.get_window_scene());
+    auto* draw_list = ImGui::GetWindowDrawList();
+    const auto center = transform.get_center_on_screen();
+
+    static constexpr std::array<ImU32, 3> axis_colors = { IM_COL32(230, 70, 70, 255), IM_COL32(110, 200, 60, 255), IM_COL32(70, 130, 240, 255) };
+    static constexpr std::array<const char*, 3> axis_names = { "X", "Y", "Z" };
+    const auto axis = transform.get_axis();
+    if (axis != ModalTransformAxis::eNone)
+    {
+        // the axis through the object, across the whole view
+        const auto index = static_cast<std::size_t>(axis) - 1;
+        auto direction = transform.project(transform.get_origin() + transform.get_axis_direction()) - center;
+        if (glm::length(direction) > 1e-3f)
+        {
+            direction = glm::normalize(direction) * static_cast<float>(viewport.width + viewport.height);
+            draw_list->AddLine(to_screen(center - direction), to_screen(center + direction), axis_colors[index], 1.5f);
+        }
+    }
+    const auto& io = ImGui::GetIO();
+    if (transform.get_mode() != ModalTransformMode::eGrab)
+    {
+        draw_list->AddLine(to_screen(center), io.MousePos, IM_COL32(255, 255, 255, 160), 1.0f);
+    }
+    draw_list->AddCircleFilled(to_screen(center), 3.0f, IM_COL32(255, 255, 255, 220));
+
+    // the header, like Blender's
+    std::string text;
+    const auto value = transform.get_value();
+    switch (transform.get_mode())
+    {
+    case ModalTransformMode::eGrab: text = fmt::format("Move  {:.2f}, {:.2f}, {:.2f}", value.x, value.y, value.z); break;
+    case ModalTransformMode::eRotate: text = fmt::format("Rotate  {:.1f} deg", value.x); break;
+    case ModalTransformMode::eScale: text = fmt::format("Scale  {:.3f}", value.x); break;
+    }
+    if (axis != ModalTransformAxis::eNone)
+    {
+        text += fmt::format("  along {} ({})", axis_names[static_cast<std::size_t>(axis) - 1], transform.is_local() ? "local" : "global");
+    }
+    const char* help = "LMB / Enter: confirm   RMB / Esc: cancel   X Y Z: axis (twice: local)   Ctrl: snap   G R S: switch";
+    const ImVec2 text_pos(offset.x + 8.0f, offset.y + 8.0f);
+    const auto line_height = ImGui::GetTextLineHeightWithSpacing();
+    const auto help_size = ImGui::CalcTextSize(help);
+    draw_list->AddRectFilled(ImVec2(text_pos.x - 4.0f, text_pos.y - 4.0f), ImVec2(text_pos.x + help_size.x + 4.0f, text_pos.y + 2.0f * line_height + 2.0f), IM_COL32(0, 0, 0, 160), 3.0f);
+    draw_list->AddText(text_pos, IM_COL32(255, 255, 255, 255), text.c_str());
+    draw_list->AddText(ImVec2(text_pos.x, text_pos.y + line_height), IM_COL32(200, 200, 200, 255), help);
+    ImGui::End();
 }
 
 bool engine::ApplicationEditor::is_mouse_enabled()
@@ -1707,7 +1868,7 @@ void engine::CameraScript::disable()
         });
 }
 
-void engine::CameraScript::update(float dt, entt::entity selected)
+void engine::CameraScript::update(float dt, entt::entity selected, bool accepts_input)
 {
     //if not enabled - do nothing
     auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
@@ -1718,7 +1879,7 @@ void engine::CameraScript::update(float dt, entt::entity selected)
 
     // the mouse belongs to another panel, or to the gizmo
     const auto& io = ImGui::GetIO();
-    if (app_->is_mouse_over_scene() && !ImGuizmo::IsUsingAny())
+    if (accepts_input && app_->is_mouse_over_scene() && !ImGuizmo::IsUsingAny())
     {
         editor_camera_input_t input{};
         if (ImGui::IsMousePosValid() && ImGui::IsMousePosValid(&io.MousePosPrev))
@@ -1840,7 +2001,7 @@ void engine::ApplicationEditor::CameraContext::detach_scene(Scene* scene)
     }
 }
 
-void engine::ApplicationEditor::CameraContext::on_scene_update_pre(Scene* scene, float dt, entt::entity selected)
+void engine::ApplicationEditor::CameraContext::on_scene_update_pre(Scene* scene, float dt, entt::entity selected, bool accepts_input)
 {
     auto& camera_data = cameras_[scene];
     if (camera_data.is_enabled)
@@ -1859,7 +2020,7 @@ void engine::ApplicationEditor::CameraContext::on_scene_update_pre(Scene* scene,
             });
         // enable and update the editor camera
         camera_data.camera.enable();
-        camera_data.camera.update(dt, selected);
+        camera_data.camera.update(dt, selected, accepts_input);
     }
 }
 
@@ -1881,6 +2042,12 @@ void engine::ApplicationEditor::CameraContext::on_scene_update_post(Scene* scene
 bool engine::ApplicationEditor::CameraContext::is_enabled(engine::Scene* scene) const
 {
     return cameras_.at(scene).is_enabled;
+}
+
+entt::entity engine::ApplicationEditor::CameraContext::get_camera_entity(engine::Scene* scene) const
+{
+    const auto it = cameras_.find(scene);
+    return it == cameras_.end() ? entt::null : it->second.camera.get_entity();
 }
 
 engine::EditorCamera* engine::ApplicationEditor::CameraContext::get_camera(engine::Scene* scene)
