@@ -7,6 +7,7 @@
 #include <cstring>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -21,6 +22,7 @@ struct alignas(16) DataBlob
 {
     std::byte bytes[N];
 };
+static_assert(ENGINE_COMPONENT_TYPE_MAX_SIZE % 16 == 0);
 
 template<std::size_t N>
 std::unique_ptr<engine::ComponentStorage> make_storage(entt::id_type id, std::vector<std::byte> default_value)
@@ -55,6 +57,15 @@ std::unique_ptr<engine::ComponentStorage> make_storage(entt::id_type id, std::ve
         }
     };
     return s;
+}
+
+// make_storage for the slot size `slot` (a multiple of 16 up to ENGINE_COMPONENT_TYPE_MAX_SIZE), chosen at runtime
+template<std::size_t... I>
+std::unique_ptr<engine::ComponentStorage> make_storage_for_slot(std::size_t slot, entt::id_type id, std::vector<std::byte> default_value, std::index_sequence<I...>)
+{
+    std::unique_ptr<engine::ComponentStorage> storage;
+    ((slot == (I + 1) * 16 ? (storage = make_storage<(I + 1) * 16>(id, std::move(default_value)), true) : false) || ...);
+    return storage;
 }
 
 std::string_view text(const char* s)
@@ -125,9 +136,8 @@ public:
             {
                 std::memcpy(default_value.data(), desc_.default_value, type_.size);
             }
-            type_.storage = type_.size <= 16 ? make_storage<16>(id, std::move(default_value))
-                : type_.size <= 64 ? make_storage<64>(id, std::move(default_value))
-                : make_storage<ENGINE_COMPONENT_TYPE_MAX_SIZE>(id, std::move(default_value));
+            type_.storage = make_storage_for_slot(engine::data_slot_size(type_.size), id, std::move(default_value),
+                std::make_index_sequence<ENGINE_COMPONENT_TYPE_MAX_SIZE / 16>{});
         }
         return registry_.add(std::move(type_));
     }

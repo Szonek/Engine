@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <cstring>
+#include <string>
 #include <vector>
 
 // Types the game registers through the C API (engineComponentTypeRegister): how a description becomes a TypeInfo, the
@@ -402,5 +403,63 @@ TEST_F(GameTypesTest, RegistryWithoutAnyComponentOfTheTypeHasNone)
     EXPECT_FALSE(type->storage->has(registry_, e));
     type->storage->remove(registry_, e);
     EXPECT_FALSE(type->storage->has(registry_, e));
+}
+
+// N floats, for components of different sizes
+template<std::size_t N>
+struct Floats
+{
+    float values[N];
+};
+
+template<std::size_t N>
+void expect_round_trip(engine::TypeRegistry& types, entt::registry& registry)
+{
+    const std::vector<engine_field_desc_t> fields = { field("values", ENGINE_FIELD_KIND_FLOAT, 0, N) };
+    engine_type_desc_t d{};
+    const auto name = "floats_" + std::to_string(N);
+    d.name = name.c_str();
+    d.size = sizeof(Floats<N>);
+    d.alignment = alignof(Floats<N>);
+    d.fields = fields.data();
+    d.fields_count = 1;
+    const auto* type = engine::register_game_type(types, d, true);
+    ASSERT_NE(type, nullptr) << N;
+
+    Floats<N> value{};
+    for (std::size_t i = 0; i < N; i++)
+    {
+        value.values[i] = static_cast<float>(i) + 0.5f;
+    }
+    const auto e = registry.create();
+    type->storage->add(registry, e);
+    type->storage->update(registry, e, &value);
+    // a value read back is the value written, and nothing after it is touched
+    struct { Floats<N> value; std::uint32_t canary; } out{ {}, 0xdeadbeef };
+    type->storage->get(registry, e, &out.value);
+    EXPECT_EQ(std::memcmp(&out.value, &value, sizeof(value)), 0) << N;
+    EXPECT_EQ(out.canary, 0xdeadbeefu) << N;
+}
+
+TEST_F(GameTypesTest, SlotIsTheSizeRoundedUpTo16Bytes)
+{
+    EXPECT_EQ(engine::data_slot_size(1), 16u);
+    EXPECT_EQ(engine::data_slot_size(16), 16u);
+    EXPECT_EQ(engine::data_slot_size(17), 32u);
+    EXPECT_EQ(engine::data_slot_size(20), 32u);
+    EXPECT_EQ(engine::data_slot_size(70), 80u);
+    EXPECT_EQ(engine::data_slot_size(ENGINE_COMPONENT_TYPE_MAX_SIZE), static_cast<std::size_t>(ENGINE_COMPONENT_TYPE_MAX_SIZE));
+    static_assert(sizeof(EnemyConfig) <= ENGINE_COMPONENT_TYPE_MAX_SIZE);
+}
+
+TEST_F(GameTypesTest, ComponentsOfEverySizeKeepTheirValues)
+{
+    // one per slot size range: 16, 32, 80, 128, 256 bytes
+    expect_round_trip<1>(types_, registry_);
+    expect_round_trip<5>(types_, registry_);
+    expect_round_trip<17>(types_, registry_);
+    expect_round_trip<32>(types_, registry_);
+    expect_round_trip<ENGINE_COMPONENT_TYPE_MAX_SIZE / 4>(types_, registry_);
+    EXPECT_TRUE(test_logger::messages().empty());
 }
 }  // namespace
