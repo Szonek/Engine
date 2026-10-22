@@ -238,7 +238,8 @@ TEST_F(SceneFileTest, GameComponentWorksLikeTheEngineComponents)
     const auto type = scenario_tag_type();
     ASSERT_NE(type, ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(engineComponentTypeGetByName("scenario_tag"), type);
-    EXPECT_NE(engineComponentTypeGetByName("transform"), ENGINE_INVALID_OBJECT_HANDLE);
+    // the engine's components have their own functions
+    EXPECT_EQ(engineComponentTypeGetByName("transform"), ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(engineComponentTypeGetByName("no_such_type"), ENGINE_INVALID_OBJECT_HANDLE);
 
     const auto go = engineGameObjectCreate();

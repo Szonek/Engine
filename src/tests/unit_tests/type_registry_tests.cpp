@@ -2,9 +2,13 @@
 #include "serialization/type_registry.h"
 #include "test_logger.h"
 
+#include <engine.h>
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cstddef>
+#include <cstring>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -174,5 +178,68 @@ TEST_F(TypeRegistryTest, AStructFieldNeedsItsTypeRegistered)
     struct Line { Point a; Point b; };
     EXPECT_EQ(TypeBuilder<Line>(types_, "line").structure("a", &Line::a, "point").structure("b", &Line::b, "point").structure(), nullptr);
     EXPECT_TRUE(test_logger::logged("is not a registered type"));
+}
+
+TEST_F(TypeRegistryTest, AUnionCaseNamedLikeAFieldIsRejected)
+{
+    enum Kind { KIND_POINT, KIND_RADIUS };
+    struct Tagged
+    {
+        Kind kind;
+        Point point;
+        union { Point point; float radius; } data;
+    };
+    TypeBuilder<Point>(types_, "point").field("x", &Point::x).field("y", &Point::y).structure();
+    // the case for "point" is written under the key of the field point
+    const auto* tagged = TypeBuilder<Tagged>(types_, "tagged")
+        .enumeration("kind", &Tagged::kind, { { "point", KIND_POINT }, { "radius", KIND_RADIUS } })
+        .structure("point", &Tagged::point, "point")
+        .tagged_union("data", &Tagged::data, "kind", { { KIND_POINT, "point" } })
+        .component();
+    EXPECT_EQ(tagged, nullptr);
+    EXPECT_TRUE(test_logger::logged("written under the key of another field"));
+}
+
+// -- values holding nothing -----------------------------------------------------------------------------------------
+
+TEST_F(TypeRegistryTest, ClearedValueHasNoAssets)
+{
+    // assets none (a handle of 0 is an asset), also in nested structs and the case a zero tag selects
+    engine::register_builtin_types(types_);
+    const auto& material = *types_.find("material");
+    engine_material_component_t value;
+    std::memset(&value, 0x5a, sizeof(value));
+    engine::clear_value(material, reinterpret_cast<std::byte*>(&value));
+    EXPECT_EQ(value.type, ENGINE_MATERIAL_TYPE_PONG);
+    EXPECT_EQ(value.data.pong.diffuse_texture, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(value.data.pong.specular_texture, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(value.data.pong.shininess, 0.0f);
+    EXPECT_EQ(value.data.pong.diffuse_color[0], 0.0f);
+
+    const auto& mesh = *types_.find("mesh");
+    engine_mesh_component_t m;
+    std::memset(&m, 0x5a, sizeof(m));
+    engine::clear_value(mesh, reinterpret_cast<std::byte*>(&m));
+    EXPECT_EQ(m.geometry, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_FALSE(m.disable);
+}
+
+TEST_F(TypeRegistryTest, ClearedUnionHoldsTheNewCaseEmpty)
+{
+    engine::register_builtin_types(types_);
+    const auto& collider = *types_.find("collider");
+    const auto* union_field = collider.find_field("collider");
+    engine_collider_component_t value{};
+    value.type = ENGINE_COLLIDER_TYPE_BOX;
+    value.collider.box.size[0] = 3.0f;
+    value.bounciness = 0.5f;
+    // the tag changed: the box's bytes are no sphere
+    value.type = ENGINE_COLLIDER_TYPE_SPHERE;
+    engine::clear_union(collider, *union_field, reinterpret_cast<std::byte*>(&value));
+    EXPECT_EQ(value.collider.sphere.radius, 0.0f);
+    EXPECT_EQ(value.collider.box.size[0], 0.0f);
+    // the rest of the struct is kept
+    EXPECT_EQ(value.bounciness, 0.5f);
+    EXPECT_EQ(engine::find_active_case(collider, *union_field, reinterpret_cast<const std::byte*>(&value))->name, "sphere");
 }
 }  // namespace

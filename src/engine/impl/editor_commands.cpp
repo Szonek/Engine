@@ -120,6 +120,55 @@ void CommandUpdateTypedComponent::apply(const ValueBuffer& value)
     }
 }
 
+CommandAddTypedComponent::CommandAddTypedComponent(Scene& sc, entt::entity e, const TypeInfo& type)
+    : sc_(sc)
+    , e_(e)
+    , type_(type)
+{
+}
+
+void CommandAddTypedComponent::execute()
+{
+    if (sc_.is_valid_entity(e_) && !sc_.has_component(type_, e_))
+    {
+        sc_.add_component(type_, e_);
+    }
+}
+
+void CommandAddTypedComponent::undo()
+{
+    if (sc_.is_valid_entity(e_))
+    {
+        sc_.remove_component(type_, e_);
+    }
+}
+
+CommandRemoveTypedComponent::CommandRemoveTypedComponent(Scene& sc, entt::entity e, const TypeInfo& type)
+    : sc_(sc)
+    , e_(e)
+    , type_(type)
+    , value_(type.size)
+{
+    sc_.get_component(type_, e_, value_.get());
+}
+
+void CommandRemoveTypedComponent::execute()
+{
+    if (sc_.is_valid_entity(e_))
+    {
+        sc_.remove_component(type_, e_);
+    }
+}
+
+void CommandRemoveTypedComponent::undo()
+{
+    if (sc_.is_valid_entity(e_) && !sc_.has_component(type_, e_))
+    {
+        sc_.add_component(type_, e_);
+        sc_.update_component(type_, e_, value_.get());
+    }
+}
+
 CommandDestroyEntity::CommandDestroyEntity(Scene& sc, entt::entity e)
     : scene_(sc)
     , e_(e)

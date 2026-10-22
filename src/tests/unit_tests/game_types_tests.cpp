@@ -284,7 +284,43 @@ TEST_F(GameTypesTest, UnionNeedsAnEnumTagBeforeItAndKnownCases)
     area_kind.enum_values = AREA_KINDS;
     area_kind.enum_values_count = 2;  // none, circle
     EXPECT_FALSE(registers({ area_kind, area }));
-    EXPECT_TRUE(test_logger::logged("is not a registered type for a value of the tag"));
+    EXPECT_TRUE(test_logger::logged("is not a registered type which fits in it, for a value of the tag"));
+}
+
+TEST_F(GameTypesTest, FieldNamedLikeAUnionCaseIsRejected)
+{
+    // "box" would be written twice: the float[2] field and the union's case for the tag value "box"
+    register_struct_types();
+    auto area_kind = field("area_kind", ENGINE_FIELD_KIND_ENUM, offsetof(EnemyConfig, area_kind));
+    area_kind.enum_values = AREA_KINDS;
+    area_kind.enum_values_count = 3;
+    auto area = field("area", ENGINE_FIELD_KIND_UNION, offsetof(EnemyConfig, area));
+    area.union_tag = "area_kind";
+    area.union_cases = AREA_CASES;
+    area.union_cases_count = 2;
+    EXPECT_FALSE(registers({ area_kind, area, field("box", ENGINE_FIELD_KIND_FLOAT, offsetof(EnemyConfig, offset), 2) }));
+    EXPECT_TRUE(test_logger::logged("written under the key of another field"));
+}
+
+TEST_F(GameTypesTest, FieldAlignedMoreThanTheStructIsRejected)
+{
+    // a struct claiming alignment 1 while holding a float: a field of it could be placed at any offset
+    const std::vector<engine_field_desc_t> fields = { field("radius", ENGINE_FIELD_KIND_FLOAT, 0) };
+    auto d = desc<Circle>("packed", fields);
+    d.alignment = 1;
+    EXPECT_EQ(engine::register_game_type(types_, d, false), nullptr);
+    EXPECT_TRUE(test_logger::logged("more than the struct's alignment"));
+}
+
+TEST_F(GameTypesTest, NamesSharingAStorageIdAreRejected)
+{
+    // these two hash to the same id ("game_component/<name>", FNV-1a): they would share one storage
+    const std::vector<engine_field_desc_t> fields = { field("radius", ENGINE_FIELD_KIND_FLOAT, 0) };
+    ASSERT_NE(engine::register_game_type(types_, desc<Circle>("t981798", fields), true), nullptr);
+    EXPECT_EQ(engine::register_game_type(types_, desc<Circle>("t1049482", fields), true), nullptr);
+    EXPECT_TRUE(test_logger::logged("its storage id is the one of t981798"));
+    // a struct type has no storage
+    EXPECT_NE(engine::register_game_type(types_, desc<Circle>("t1049482", fields), false), nullptr);
 }
 
 TEST_F(GameTypesTest, VersionZeroIsOne)
@@ -318,7 +354,7 @@ TEST_F(GameTypesTest, ComponentIsAddedWithItsDefaultValue)
     EXPECT_EQ(std::memcmp(&value, &defaults, sizeof(EnemyConfig)), 0);
 }
 
-TEST_F(GameTypesTest, ComponentWithoutDefaultValueIsZeroed)
+TEST_F(GameTypesTest, ComponentWithoutDefaultValueHoldsNothing)
 {
     const auto* type = register_enemy_config();
     const auto e = registry_.create();
@@ -326,8 +362,12 @@ TEST_F(GameTypesTest, ComponentWithoutDefaultValueIsZeroed)
     EnemyConfig value;
     std::memset(&value, 0xff, sizeof(value));
     type->storage->get(registry_, e, &value);
-    const EnemyConfig zero{};
-    EXPECT_EQ(std::memcmp(&value, &zero, sizeof(EnemyConfig)), 0);
+    // zeroes, but no asset: a handle of 0 is the first asset of its atlas
+    EnemyConfig expected{};
+    expected.weapon = ENGINE_INVALID_OBJECT_HANDLE;
+    expected.skin = ENGINE_INVALID_OBJECT_HANDLE;
+    EXPECT_EQ(std::memcmp(&value, &expected, sizeof(EnemyConfig)), 0);
+    EXPECT_EQ(value.target, ENGINE_INVALID_GAME_OBJECT_ID);
 }
 
 TEST_F(GameTypesTest, UpdateChangesTheValue)

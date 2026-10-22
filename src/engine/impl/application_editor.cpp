@@ -20,6 +20,7 @@
 #include <fmt/format.h>
 
 #include <array>
+#include <functional>
 #include <cstring>
 #include <string>
 #include <string_view>
@@ -373,8 +374,9 @@ inline void display_component(std::string_view name, engine::Scene* scene, engin
 }
 
 // Combo box picking a resource by its asset ID (atlas name) instead of typing its index; "None" selects
-// ENGINE_INVALID_OBJECT_HANDLE. Returns true when the selection changed.
-bool display_asset_combo(const char* label, std::uint32_t& handle, std::string_view current_name, const std::vector<std::pair<std::uint32_t, std::string>>& assets)
+// ENGINE_INVALID_OBJECT_HANDLE. The list of assets is only built while the combo is open. Returns true when the
+// selection changed.
+bool display_asset_combo(const char* label, std::uint32_t& handle, std::string_view current_name, const std::function<std::vector<std::pair<std::uint32_t, std::string>>()>& get_assets)
 {
     const auto preview = handle == ENGINE_INVALID_OBJECT_HANDLE ? std::string("None")
         : current_name.empty() ? fmt::format("<missing #{}>", handle) : std::string(current_name);
@@ -386,7 +388,7 @@ bool display_asset_combo(const char* label, std::uint32_t& handle, std::string_v
             changed = handle != ENGINE_INVALID_OBJECT_HANDLE;
             handle = ENGINE_INVALID_OBJECT_HANDLE;
         }
-        for (const auto& [idx, name] : assets)
+        for (const auto& [idx, name] : get_assets())
         {
             const auto selected = idx == handle;
             if (ImGui::Selectable(name.c_str(), selected))
@@ -407,13 +409,13 @@ bool display_asset_combo(const char* label, std::uint32_t& handle, std::string_v
 bool display_geometry_combo(const engine::Scene* scene, std::uint32_t& geometry)
 {
     const auto* app = scene->get_application();
-    return display_asset_combo("Geometry", geometry, app->get_geometry_name(geometry), app->get_geometry_names());
+    return display_asset_combo("Geometry", geometry, app->get_geometry_name(geometry), [app] { return app->get_geometry_names(); });
 }
 
 bool display_texture_combo(const engine::Scene* scene, const char* label, std::uint32_t& texture)
 {
     const auto* app = scene->get_application();
-    return display_asset_combo(label, texture, app->get_texture_name(texture), app->get_texture_names());
+    return display_asset_combo(label, texture, app->get_texture_name(texture), [app] { return app->get_texture_names(); });
 }
 
 // Draws a value of a registered type from its description, a widget per field kind; for the components without a
@@ -425,56 +427,53 @@ public:
 
     bool draw_struct(const engine::TypeInfo& type, std::byte* value)
     {
-        // a union's data belongs to the case its tag selected: another case starts zeroed (like a loaded file)
-        std::vector<std::int32_t> tags_before;
+        // the case each union holds before its tag (drawn before it) is edited
+        std::vector<const engine::UnionCase*> cases_before;
         for (const auto& field : type.fields)
         {
             if (field.kind == engine::FieldKind::eUnion)
             {
-                tags_before.push_back(read_tag(type, field, value));
+                cases_before.push_back(engine::find_active_case(type, field, value));
             }
         }
 
         bool changed = false;
-        for (const auto& field : type.fields)
-        {
-            ImGui::PushID(field.name.c_str());
-            changed |= field.kind == engine::FieldKind::eUnion ? draw_union(type, field, value) : draw_field(field, value + field.offset);
-            ImGui::PopID();
-        }
-
         std::size_t union_index = 0;
         for (const auto& field : type.fields)
         {
-            if (field.kind == engine::FieldKind::eUnion && read_tag(type, field, value) != tags_before[union_index++])
+            ImGui::PushID(field.name.c_str());
+            if (field.kind == engine::FieldKind::eUnion)
             {
-                std::memset(value + field.offset, 0, field.size);
+                // the tag selected another case: its bytes are the old case's, so the new one starts empty (like a
+                // loaded file) before it is drawn
+                if (engine::find_active_case(type, field, value) != cases_before[union_index++])
+                {
+                    engine::clear_union(type, field, value);
+                }
+                changed |= draw_union(type, field, value);
             }
+            else
+            {
+                changed |= draw_field(field, value + field.offset);
+            }
+            ImGui::PopID();
         }
         return changed;
     }
 
 private:
-    static std::int32_t read_tag(const engine::TypeInfo& type, const engine::FieldInfo& union_field, const std::byte* value)
-    {
-        std::int32_t tag = 0;
-        std::memcpy(&tag, value + type.find_field(union_field.union_tag)->offset, sizeof(tag));
-        return tag;
-    }
-
     bool draw_union(const engine::TypeInfo& type, const engine::FieldInfo& field, std::byte* value)
     {
-        const auto tag = read_tag(type, field, value);
-        const auto it = std::ranges::find(field.union_cases, tag, &engine::UnionCase::tag);
-        if (it == field.union_cases.end())
+        const auto* active = engine::find_active_case(type, field, value);
+        if (!active)
         {
             ImGui::TextDisabled("%s: no data for this %s", field.name.c_str(), field.union_tag.c_str());
             return false;
         }
         bool changed = false;
-        if (ImGui::TreeNodeEx(fmt::format("{} ({})", field.name, it->name).c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::TreeNodeEx(fmt::format("{} ({})", field.name, active->name).c_str(), ImGuiTreeNodeFlags_DefaultOpen))
         {
-            changed = draw_struct(*it->type, value + field.offset);
+            changed = draw_struct(*active->type, value + field.offset);
             ImGui::TreePop();
         }
         return changed;
@@ -520,7 +519,7 @@ private:
         case FieldKind::eInt32: return ImGui::DragScalar(label, ImGuiDataType_S32, p, 1.0f);
         case FieldKind::eUint32: return ImGui::DragScalar(label, ImGuiDataType_U32, p, 1.0f);
         case FieldKind::eFloat: return ImGui::DragScalar(label, ImGuiDataType_Float, p, 0.1f);
-        case FieldKind::eString: return ImGui::InputText(label, reinterpret_cast<char*>(p), field.size);
+        case FieldKind::eString: return draw_string(field, p, label);
         case FieldKind::eEnum: return draw_enum(field, p, label);
         case FieldKind::eStruct:
         {
@@ -538,8 +537,8 @@ private:
             auto handle = read<std::uint32_t>(p);
             const auto* app = scene_->get_application();
             const bool changed = field.asset_kind == engine::AssetKind::eGeometry
-                ? display_asset_combo(label, handle, app->get_geometry_name(handle), app->get_geometry_names())
-                : display_asset_combo(label, handle, app->get_texture_name(handle), app->get_texture_names());
+                ? display_asset_combo(label, handle, app->get_geometry_name(handle), [app] { return app->get_geometry_names(); })
+                : display_asset_combo(label, handle, app->get_texture_name(handle), [app] { return app->get_texture_names(); });
             std::memcpy(p, &handle, sizeof(handle));
             return changed;
         }
@@ -554,6 +553,21 @@ private:
         T value;
         std::memcpy(&value, p, sizeof(T));
         return value;
+    }
+
+    // A char array needn't hold its terminator (a full one is saved as it is), so it is edited in a terminated copy,
+    // written back when it changed (at most size - 1 chars and the terminator).
+    static bool draw_string(const engine::FieldInfo& field, std::byte* p, const char* label)
+    {
+        const auto* chars = reinterpret_cast<const char*>(p);
+        std::vector<char> text(field.size + 1, '\0');
+        std::memcpy(text.data(), chars, strnlen(chars, field.size - 1));
+        if (!ImGui::InputText(label, text.data(), field.size))
+        {
+            return false;
+        }
+        std::memcpy(p, text.data(), field.size);
+        return true;
     }
 
     static bool draw_enum(const engine::FieldInfo& field, std::byte* p, const char* label)
@@ -653,7 +667,14 @@ void display_typed_component(const engine::TypeInfo& type, engine::Scene* scene,
     }
     if (ImGui::Button(has_component ? "Remove" : "Add"))
     {
-        has_component ? scene->remove_component(type, entity) : scene->add_component(type, entity);
+        if (has_component)
+        {
+            commands.execute_command(std::make_unique<engine::CommandRemoveTypedComponent>(*scene, entity, type));
+        }
+        else
+        {
+            commands.execute_command(std::make_unique<engine::CommandAddTypedComponent>(*scene, entity, type));
+        }
     }
     ImGui::PopID();
 }

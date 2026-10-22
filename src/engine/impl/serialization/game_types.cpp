@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <bit>
+#include <cstdint>
 #include <cstring>
 #include <set>
 #include <string>
@@ -101,18 +102,36 @@ public:
             }
         }
         check_overlaps();
+        if (const auto problem = engine::type_builder_detail::find_duplicate_key(type_); !problem.empty())
+        {
+            error(problem);
+        }
+        const auto id = storage_id(type_.name);
+        if (component)
+        {
+            // two names with the same hash would share a storage (of another size)
+            for (const auto* other : registry_.get_components())
+            {
+                if (other->game_defined && storage_id(other->name) == id)
+                {
+                    error(fmt::format("its storage id is the one of {}, rename one of them", other->name));
+                }
+            }
+        }
         if (failed_)
         {
             return nullptr;
         }
         if (component)
         {
-            std::vector<std::byte> default_value(type_.size);
+            // no default value is a value holding nothing (assets none, not the asset with handle 0)
+            engine::ValueBuffer value(type_.size);
+            engine::clear_value(type_, value.get());
+            std::vector<std::byte> default_value(value.get(), value.get() + type_.size);
             if (desc_.default_value)
             {
                 std::memcpy(default_value.data(), desc_.default_value, type_.size);
             }
-            const auto id = entt::hashed_string::value(("game_component/" + type_.name).c_str());
             type_.storage = type_.size <= 16 ? make_storage<16>(id, std::move(default_value))
                 : type_.size <= 64 ? make_storage<64>(id, std::move(default_value))
                 : make_storage<ENGINE_COMPONENT_TYPE_MAX_SIZE>(id, std::move(default_value));
@@ -121,6 +140,11 @@ public:
     }
 
 private:
+    static entt::id_type storage_id(const std::string& name)
+    {
+        return entt::hashed_string::value(("game_component/" + name).c_str());
+    }
+
     void add_field(const engine_field_desc_t& d)
     {
         const auto name = text(d.name);
@@ -187,6 +211,10 @@ private:
         default:
             return error(fmt::format("field {} has an unknown kind {}", name, static_cast<int>(d.kind)));
         }
+        if (f.alignment > type_.alignment)
+        {
+            return error(fmt::format("field {} is aligned to {}, more than the struct's alignment {}", name, f.alignment, type_.alignment));
+        }
         if (f.offset % f.alignment != 0)
         {
             return error(fmt::format("field {}: offset {} is not aligned for its kind (to {})", name, f.offset, f.alignment));
@@ -246,18 +274,15 @@ private:
         f.alignment = 1;
         for (std::uint32_t i = 0; i < d.union_cases_count; i++)
         {
+            // the union is as big as its biggest case
             const auto& c = d.union_cases[i];
-            const auto* case_type = registry_.find(text(c.type_name));
-            const auto tag_value = std::ranges::find(tag->enum_values, c.tag, &engine::EnumValue::value);
-            if (!case_type || tag_value == tag->enum_values.end() || std::ranges::find(f.union_cases, c.tag, &engine::UnionCase::tag) != f.union_cases.end())
+            if (const auto problem = engine::type_builder_detail::add_union_case(registry_, *tag, c.tag, text(c.type_name), SIZE_MAX, f); !problem.empty())
             {
-                error(fmt::format("union {}: case \"{}\" is not a registered type for a value of the tag (once per value)", f.name, text(c.type_name)));
+                error(fmt::format("union {}: {}", f.name, problem));
                 return false;
             }
-            // the case is saved under the name of its tag value: "shape": "circle", "circle": { ... }
-            f.union_cases.push_back({ c.tag, tag_value->name, case_type });
-            f.size = std::max(f.size, case_type->size);
-            f.alignment = std::max(f.alignment, case_type->alignment);
+            f.size = std::max(f.size, f.union_cases.back().type->size);
+            f.alignment = std::max(f.alignment, f.union_cases.back().type->alignment);
         }
         return true;
     }

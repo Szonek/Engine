@@ -149,12 +149,24 @@ public:
     // nullptr when no type has the handle
     const TypeInfo* get(std::uint32_t handle) const;
     // in registration order
-    std::vector<const TypeInfo*> get_components() const;
+    const std::vector<const TypeInfo*>& get_components() const { return components_; }
     std::vector<const TypeInfo*> get_types() const;
 
 private:
     std::vector<std::unique_ptr<TypeInfo>> types_;
+    std::vector<const TypeInfo*> components_;
 };
+
+// The case of the union `union_field` (of `type`) its tag selects in `value`, or nullptr when the tag's value has none.
+const UnionCase* find_active_case(const TypeInfo& type, const FieldInfo& union_field, const std::byte* value);
+
+// Makes `value` a value of `type` holding nothing: zeroes, except asset references, which are none
+// (ENGINE_INVALID_OBJECT_HANDLE: a zero handle is an asset), also inside structs and the union cases zero tags select.
+void clear_value(const TypeInfo& type, std::byte* value);
+
+// Clears the union `union_field` of `value` for the case its tag selects now: the bytes of another case are no value
+// of this one (a file or the editor changed the tag).
+void clear_union(const TypeInfo& type, const FieldInfo& union_field, std::byte* value);
 
 namespace type_builder_detail
 {
@@ -163,6 +175,15 @@ template<typename T, std::size_t N> struct array_traits<T[N]> { using element = 
 
 // logs a mistake in a type description
 void report_error(std::string_view type_name, std::string_view message);
+
+// Adds the case of `union_field` for the value `value` of its enum tag `tag`: the registered type `type_name`, at most
+// `max_size` bytes. Returns what is wrong when it can't be one (unknown type, too big, no such value of the tag, a case
+// for the value already), or an empty string.
+std::string add_union_case(const TypeRegistry& registry, const FieldInfo& tag, std::int32_t value, std::string_view type_name, std::size_t max_size, FieldInfo& union_field);
+
+// What makes two fields of the type written under the same key (a field and a union case named alike, or two unions
+// with a case of the same name), or an empty string. A union is written under its active case's name.
+std::string find_duplicate_key(const TypeInfo& type);
 }  // namespace type_builder_detail
 
 // Offset of a member in a C struct (standard layout), from a member pointer: what offsetof gives, also for the
@@ -337,15 +358,10 @@ private:
         }
         for (const auto& [value, type_name] : cases)
         {
-            const auto* case_type = registry_.find(type_name);
-            // the case is written under the name of its tag value: "type": "box", "box": { ... }
-            const auto tag_value = std::ranges::find(tag_field->enum_values, value, &EnumValue::value);
-            if (!case_type || case_type->size > size || tag_value == tag_field->enum_values.end())
+            if (const auto problem = type_builder_detail::add_union_case(registry_, *tag_field, value, type_name, size, f); !problem.empty())
             {
-                error(fmt::format("union {}: case {} is not a registered type which fits in it, for a value of the tag", name, type_name));
-                continue;
+                error(fmt::format("union {}: {}", name, problem));
             }
-            f.union_cases.push_back({ value, tag_value->name, case_type });
         }
         return push(std::move(f));
     }
@@ -368,6 +384,10 @@ private:
 
     const TypeInfo* finish()
     {
+        if (const auto problem = type_builder_detail::find_duplicate_key(type_); !problem.empty())
+        {
+            error(problem);
+        }
         return failed_ ? nullptr : registry_.add(std::move(type_));
     }
 

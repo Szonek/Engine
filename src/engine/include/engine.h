@@ -605,7 +605,8 @@ typedef struct _engine_type_desc_t
     uint32_t size;
     uint32_t alignment;
     // the value a new component gets (engineGameObjectAddDataComponent with no value, fields missing in a file), or
-    // NULL for zeroes; not used by struct types
+    // NULL for a value holding nothing: zeroes, with geometries and textures ENGINE_INVALID_OBJECT_HANDLE (a handle of 0
+    // is an asset); not used by struct types
     const void* default_value;
     // every field: a field left out is never saved or shown
     const engine_field_desc_t* fields;
@@ -615,13 +616,15 @@ typedef struct _engine_type_desc_t
 #define ENGINE_COMPONENT_TYPE_MAX_SIZE 256
 
 // Registers a component type. Fails (logged) when the description has a mistake: a name used already, a field outside
-// the struct, overlapping or misaligned fields, an unknown struct type, ...
+// the struct, overlapping or misaligned fields (or aligned more than the struct), an unknown struct type, two fields
+// saved under the same name (a field named like a union case), ...
 ENGINE_API engine_result_code_t engineComponentTypeRegister(const engine_type_desc_t* desc, engine_component_type_t* out);
 // Registers a struct type used inside components (ENGINE_FIELD_KIND_STRUCT, union cases), not a component itself.
 ENGINE_API engine_result_code_t engineStructTypeRegister(const engine_type_desc_t* desc);
-// the component type with this name, also one of the engine's (e.g. "transform"); ENGINE_INVALID_OBJECT_HANDLE when none
+// the component type the game registered with this name; ENGINE_INVALID_OBJECT_HANDLE when none (the engine's own
+// components have their own functions)
 ENGINE_API engine_component_type_t engineComponentTypeGetByName(const char* name);
-// Components of a registered type on game objects of the active scene. Values are copies of the whole struct (`size`
+// Components of a type the game registered, on game objects of the active scene. Values are copies of the whole struct (`size`
 // bytes of the type), like the engine's components: changes take effect with Update. Add fails when the game object
 // has the component already, Get / Update when it doesn't have it.
 // value: the component's value, or NULL for the type's default value

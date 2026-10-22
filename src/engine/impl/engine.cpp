@@ -663,20 +663,21 @@ engine_component_type_t engineComponentTypeGetByName(const char* name)
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
     const auto* type = api_cast(G_ACTIVE_APP)->get_type_registry().find(name);
-    return type && type->is_component() ? type->handle : ENGINE_INVALID_OBJECT_HANDLE;
+    return type && type->is_component() && type->game_defined ? type->handle : ENGINE_INVALID_OBJECT_HANDLE;
 }
 
 namespace
 {
-// the component type and the entity of a data component call, or {nullptr, null} when either isn't valid
+// the game-defined component type and the entity of a data component call, or {nullptr, null} when either isn't valid;
+// the type is the one of the registry the scene's components are saved with
 std::pair<const engine::TypeInfo*, entt::entity> data_component_target(engine_game_object_t game_object, engine_component_type_t type)
 {
-    if (!G_ACTIVE_APP || !G_ACTIVE_SCENE || !api_cast(G_ACTIVE_SCENE)->is_valid_entity(api_cast(game_object)))
+    if (!G_ACTIVE_SCENE || !api_cast(G_ACTIVE_SCENE)->is_valid_entity(api_cast(game_object)))
     {
         return { nullptr, entt::null };
     }
-    const auto* info = api_cast(G_ACTIVE_APP)->get_type_registry().get(type);
-    if (!info || !info->is_component())
+    const auto* info = api_cast(G_ACTIVE_SCENE)->get_application()->get_type_registry().get(type);
+    if (!info || !info->is_component() || !info->game_defined)
     {
         return { nullptr, entt::null };
     }
