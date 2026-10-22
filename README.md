@@ -81,28 +81,34 @@ To get started with Engine, follow these steps:
 
 ## Usage
 
-To build and run the engine:
+Windows (MSVC) and Linux (GCC or Clang) are supported. On Windows, FreeType comes prebuilt from `thirdparty/freetype`; on Linux, install the dependencies first (Ubuntu 24.04):
 
-1. **Create a build directory**:
+```bash
+sudo apt-get install ninja-build libfreetype-dev libgl-dev libegl-dev libx11-dev libxext-dev libxrandr-dev \
+  libxcursor-dev libxi-dev libxss-dev libxtst-dev libxkbcommon-dev libwayland-dev wayland-protocols \
+  libdecor-0-dev libdrm-dev libgbm-dev libasound2-dev libpulse-dev
+```
+
+1. **Configure the project using CMake**:
     ```bash
-    mkdir buildtree
-    cd buildtree
+    cmake -S . -B buildtree -DCMAKE_BUILD_TYPE=Release
     ```
 
-2. **Configure the project using CMake**:
+2. **Build the project**:
     ```bash
-    cmake .. -DCMAKE_BUILD_TYPE=Release
+    cmake --build buildtree --config Release
     ```
 
-3. **Build the project**:
+3. **Run the "Project C" game**:
     ```bash
-    cmake --build . --config Release
+    buildtree/bin/project_c_game        # Windows: buildtree\bin\project_c_game.exe (bin\Release\ with a Visual Studio generator)
     ```
 
-4. **Run the "Project C" game**:
+4. **Run the tests**:
     ```bash
-    ./project_c_game.exe
+    ctest --test-dir buildtree -C Release
     ```
+    The scenario tests (label `gpu`) need an OpenGL 4.5 context. Without a GPU, Linux can run them on a virtual X server with Mesa's software renderer: `LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir buildtree -L gpu`.
 
 ## Dependencies
 
@@ -119,10 +125,12 @@ Here is a list of the main dependencies used in Engine and their purposes:
 - **googletest**: A testing framework for writing C++ tests.
 - **imgui**: A bloat-free graphical user interface library for C++.
 - **imguizmo**: A small library that allow you to manipulate 4x4 float matrices.
+- **ozz-animation**: Skeletal animation runtime and offline tools.
 - **rapidjson**: A fast JSON parser and generator for C++.
+- **recastnavigation**: Navigation mesh generation (Recast) and path finding (Detour).
 - **stb**: A set of single-file public domain (or MIT licensed) libraries for C/C++.
 - **tinygltf**: A header-only C++ library for parsing glTF files.
-- **tracy-0.10**: A real-time, nanosecond resolution, remote telemetry, hybrid frame and sampling profiler.
+- **tracy-0.12.1**: A real-time, nanosecond resolution, remote telemetry, hybrid frame and sampling profiler.
 
 ## Contribution
 

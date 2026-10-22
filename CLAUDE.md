@@ -8,24 +8,33 @@ A hobby C++20 game engine ("Engine") plus the ARPG prototype built on it ("Proje
 
 ## Build, run, test
 
-Windows + MSVC is the only maintained desktop configuration (FreeType is linked from prebuilt `.lib` files in `thirdparty/freetype`). Dependencies are git submodules: `git submodule update --init --recursive`.
+Windows + MSVC and Linux + GCC/Clang are the maintained desktop configurations. FreeType is linked from prebuilt `.lib` files in `thirdparty/freetype` on Windows and from the system (`find_package(Freetype)`) elsewhere; the Linux packages to install are listed in the README and in the Linux CI job. Dependencies are git submodules: `git submodule update --init --recursive`. Only their libraries are built: every dependency's samples, examples, tests and tools are turned off in `thirdparty/CMakeLists.txt`.
 
 The local build tree is `build/` (Visual Studio 17 2022, x64, multi-config). CI and the README use `buildtree/` with NMake. Both are gitignored.
 
 ```powershell
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64          # configure
 cmake --build build --config Debug --target project_c_game     # build the game (+ engine, toolkit)
-cmake --build build --config Debug                             # build everything, including all thirdparty samples (slow)
+cmake --build build --config Debug                             # build everything: the game and the tests
 build\bin\Debug\project_c_game.exe                             # run
 
 cmake --build build --config Debug --target engine_logic_tests scenario_tests
 ctest --test-dir build -C Debug                                # all tests
 ctest --test-dir build -C Debug -L ci                          # only the tests CI runs
-ctest --test-dir build -C Debug -L gpu --output-on-failure     # scenario tests (real game code, needs a GPU)
+ctest --test-dir build -C Debug -L gpu --output-on-failure     # scenario tests (real game code, needs a GL 4.5 context)
 build\bin\Debug\engine_logic_tests.exe --gtest_filter=Suite.Name   # single test
 ```
 
 Binaries land in `build/bin/<Config>/`, libraries in `build/lib/<Config>/`.
+
+On Linux (single-config, e.g. Ninja; binaries in `build/bin/`):
+
+```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
+ctest --test-dir build -L ci
+LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build -L gpu --output-on-failure   # scenario tests without a GPU: Mesa's software GL on a virtual X server
+```
 
 Things that will trip you up:
 
@@ -34,8 +43,8 @@ Things that will trip you up:
 - **With the editor enabled** (`enable_editor = true` in `app.cpp`) the game starts in Play mode; the Pause button stops it. Scripts only tick while the editor is in Play mode — see `IScene::update`.
 - `engine_logic_tests` (in `src/tests/unit_tests`) compiles the engine sources under test (render graph, shadow maths, the header-only resource atlas and ID registry, skins and the animation controller, the nav mesh build and queries, the type registry and scene files, with a stub logger that records what was logged, `test_logger.h`; Tracy/RmlUi only as headers, so the profiling macros are empty) directly and needs neither GL nor the engine DLL. **Add new GL-free tests to it** instead of creating another executable; tests that need a GL context belong in `scenario_tests`.
 - **Scenario tests** (`src/tests/scenario_tests`) run real gameplay code: the game is built as the static library `project_c_lib` (everything but `main.cpp`), which the test links. One `AppProjectC` is created for the whole run (`AppConfig` in `app.h`: hidden window, editor off so gameplay is never paused; no level is registered). A test derives from `scenario::ScenarioTest`, loads its own `IScene` with `load_scene<T>()` and advances it with `step(frames)`: every frame simulates exactly `FIXED_DT_MS` (1/60 s) whatever the real frame time, so runs are deterministic. Input: gameplay scripts read `project_c::PlayerInput` (`player_input.h`: move directions, attack, dodge, interact, drop weapon, cursor) from `AppProjectC::player_input()`, never the keyboard/mouse directly; `read_player_input_from_devices` is the only place that reads them. Whoever drives the frames sets it: the game's main loop fills it from the devices each frame (the key bindings live in `read_player_input_from_devices`), scenario tests set it with `set_input(...)`, which holds until changed. Delta times are in **milliseconds** throughout the engine and scripts; `engineFrameBegin` caps the frame time at the app's `max_delta_time` (1/3 s by default, like Unity's Maximum Allowed Timestep), so the long first frame after loading doesn't throw the game forward. Frames still render (in a 320x180 window) but are never presented, so a frame costs well under 1 ms; most of the suite's time in Debug is loading the prefabs once (~7 s). Gameplay scenarios use `scenario::SandboxScene` (`sandbox_scene.h`: camera, light, `Encounter`, no HUD) and place only what they need with `scene->build()` (the game's `LevelBuilder`); `GameplayTest::step_aiming` points the cursor at a world position. **Tests of the engine itself (prefabs, asset IDs, animation controllers) never use the game's models**, which will be replaced: they load the generated glTF models in `assets/models/test_fixtures` (`test_models.h`: `TestModel` loads one as a prefab and releases it with the test, `ModelTest` is the fixture with an empty scene). Add a model to `generate_test_models.py` (standard library only, deterministic output) and regenerate instead of editing the files; its docstring lists them. Tests of game scripts (`character_asset_tests.cpp`, gameplay, level) use the game's prefabs and should assert outcomes, not model details.
-- There is no linter or formatter config. `-Werror` is only applied to the engine on non-MSVC compilers.
-- CI (`.github/workflows/cmake-single-platform.yml`) builds Release on Windows and runs the tests labelled `ci` (`set_tests_properties(... LABELS ci)`). The runner has no GPU, so GL-dependent tests must not get the label. Release compiles out `assert`, so tests must check return values or state, not rely on an assert firing.
+- There is no linter or formatter config. `-Werror` is only applied to the engine on non-MSVC compilers (GCC on Linux CI, Clang on Android), so code MSVC accepts can still fail there: include what you use (MSVC pulls in `<cstdint>`/`<cstring>` transitively), no MSVC-only extensions (e.g. `__m128::m128_f32`), and a `.cpp` must be valid UTF-8 for Clang. Third-party headers are included as SYSTEM so their warnings don't count.
+- CI (`.github/workflows/cmake-single-platform.yml`) has two jobs. Windows builds Release and runs the tests labelled `ci` (`set_tests_properties(... LABELS ci)`); the runner has no GPU, so GL-dependent tests must not get that label. Release compiles out `assert`, so tests must check return values or state, not rely on an assert firing. Linux builds Debug with GCC and runs the `ci` tests and the `gpu` scenario tests on Mesa's software renderer under Xvfb (GL 4.5 core, so a scenario run takes ~2 min there; the test's timeout is a hang guard).
 
 Android: `android-project/` is a Gradle wrapper around the root `CMakeLists.txt` (arm64-v8a); the game is built as a shared library there. `K_IS_ANDROID` in the toolkit's `utils.h` gates platform differences.
 
