@@ -220,4 +220,55 @@ TEST_F(TypeRegistryTest, ClearedUnionHoldsTheNewCaseZeroed)
     EXPECT_EQ(value.bounciness, 0.5f);
     EXPECT_EQ(engine::find_active_case(collider, *union_field, reinterpret_cast<const std::byte*>(&value))->name, "sphere");
 }
+
+// -- comparing values --------------------------------------------------------------------------------------------------
+
+template<typename T>
+bool equal(const engine::TypeInfo& type, const T& a, const T& b)
+{
+    return engine::equal_values(type, reinterpret_cast<const std::byte*>(&a), reinterpret_cast<const std::byte*>(&b));
+}
+
+TEST_F(TypeRegistryTest, ValuesCompareFieldByField)
+{
+    engine::register_builtin_types(types_);
+    const auto& transform = *types_.find("transform");
+    engine_transform_component_t a{ { 1.0f, 2.0f, 3.0f }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f, 1.0f } };
+    auto b = a;
+    EXPECT_TRUE(equal(transform, a, b));
+    b.scale[2] = 2.0f;
+    EXPECT_FALSE(equal(transform, a, b));
+}
+
+TEST_F(TypeRegistryTest, BytesAfterAStringsTerminatorDontCount)
+{
+    engine::register_builtin_types(types_);
+    const auto& name = *types_.find("name");
+    engine_name_component_t a{};
+    engine_name_component_t b{};
+    std::strcpy(a.name, "crate");
+    std::memset(b.name, 'x', sizeof(b.name));
+    std::strcpy(b.name, "crate");
+    EXPECT_TRUE(equal(name, a, b));
+    std::strcpy(b.name, "crates");
+    EXPECT_FALSE(equal(name, a, b));
+}
+
+TEST_F(TypeRegistryTest, OnlyTheActiveUnionCaseIsCompared)
+{
+    engine::register_builtin_types(types_);
+    const auto& collider = *types_.find("collider");
+    engine_collider_component_t a{};
+    a.type = ENGINE_COLLIDER_TYPE_SPHERE;
+    a.collider.sphere.radius = 0.5f;
+    auto b = a;
+    // bytes of the union the sphere doesn't use
+    b.collider.box.size[2] = 7.0f;
+    EXPECT_TRUE(equal(collider, a, b));
+    b.collider.sphere.radius = 0.25f;
+    EXPECT_FALSE(equal(collider, a, b));
+    b = a;
+    b.type = ENGINE_COLLIDER_TYPE_BOX;
+    EXPECT_FALSE(equal(collider, a, b));
+}
 }  // namespace

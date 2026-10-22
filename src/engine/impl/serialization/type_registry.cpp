@@ -97,3 +97,51 @@ void engine::clear_union(const FieldInfo& union_field, std::byte* value)
 {
     std::memset(value + union_field.offset, 0, union_field.size);
 }
+
+namespace
+{
+bool equal_elements(const engine::FieldInfo& field, const std::byte* a, const std::byte* b)
+{
+    using engine::FieldKind;
+    switch (field.kind)
+    {
+    case FieldKind::eString:
+    {
+        // the bytes after the terminator are no part of the value
+        const auto* sa = reinterpret_cast<const char*>(a);
+        const auto* sb = reinterpret_cast<const char*>(b);
+        const auto length = strnlen(sa, field.size);
+        return length == strnlen(sb, field.size) && std::memcmp(sa, sb, length) == 0;
+    }
+    case FieldKind::eStruct: return engine::equal_values(*field.struct_type, a, b);
+    case FieldKind::eUnion: return true;  // compared by equal_values
+    default: return std::memcmp(a, b, field.size) == 0;
+    }
+}
+}  // namespace
+
+bool engine::equal_values(const TypeInfo& type, const std::byte* a, const std::byte* b)
+{
+    for (const auto& field : type.fields)
+    {
+        if (field.kind == FieldKind::eUnion)
+        {
+            // the tags are fields of their own: equal tags select the same case
+            const auto* active = find_active_case(type, field, a);
+            if (active && !equal_values(*active->type, a + field.offset, b + field.offset))
+            {
+                return false;
+            }
+            continue;
+        }
+        for (std::size_t i = 0; i < field.count; i++)
+        {
+            const auto offset = field.offset + i * field.size;
+            if (!equal_elements(field, a + offset, b + offset))
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
