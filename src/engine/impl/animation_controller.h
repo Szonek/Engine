@@ -121,6 +121,8 @@ public:
     bool is_playing(const std::string& animation_name, std::size_t layer_id) const;
     float get_duration(const std::string& animation_name) const;
 
+    // The event's id is unique in this controller (never ENGINE_INVALID_OBJECT_HANDLE); removing takes it with the
+    // animation's name.
     std::pair<bool, std::uint32_t> add_event(const std::string& animation_name, const engine_animation_event_t& ev);
     bool remove_event(const std::string& animation_name, std::uint32_t id);
 
@@ -165,6 +167,8 @@ private:
     const Skin* skin_ = nullptr;
     bool paused_ = false;
     std::unordered_map<std::string, AnimationData> animations_;
+    // the id of the next event added to this controller; event ids are never ENGINE_INVALID_OBJECT_HANDLE
+    std::uint32_t next_event_id_ = ENGINE_INVALID_OBJECT_HANDLE + 1;
 
     std::unordered_map<std::size_t, AnimationLayer> layers_;
 };

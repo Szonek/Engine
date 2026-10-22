@@ -221,6 +221,32 @@ TEST_F(SkinTest, ReconfiguringLayersKeepsAnimationEvents)
     EXPECT_EQ(fired, 1);
 }
 
+TEST_F(SkinTest, EventIdsBelongToTheirController)
+{
+    // ids are unique in a controller and never the invalid handle; another controller numbers its own events, so
+    // the ids don't depend on what else added events before
+    const engine::Skin skin(desc_, root_);
+    engine::AnimationController first(&skin, animation_set(skin, raise_hand_clip(3.0f)));
+    engine::AnimationController second(&skin, animation_set(skin, raise_hand_clip(3.0f)));
+    engine_animation_event_t ev{};
+    ev.trigger_time = 0.1f;
+    ev.fn_ptr = [](const engine_animation_event_info_t*, void*) {};
+
+    const auto [a_added, a] = first.add_event("raise_hand", ev);
+    const auto [b_added, b] = first.add_event("raise_hand", ev);
+    const auto [c_added, c] = second.add_event("raise_hand", ev);
+    ASSERT_TRUE(a_added && b_added && c_added);
+    EXPECT_NE(a, static_cast<std::uint32_t>(ENGINE_INVALID_OBJECT_HANDLE));
+    EXPECT_NE(a, b);
+    EXPECT_EQ(c, a);
+
+    // an id removes its own event once
+    EXPECT_TRUE(first.remove_event("raise_hand", a));
+    EXPECT_FALSE(first.remove_event("raise_hand", a));
+    EXPECT_TRUE(first.remove_event("raise_hand", b));
+    EXPECT_FALSE(first.add_event("missing", ev).first);
+}
+
 TEST_F(SkinTest, CrossFadeOnAnIdleLayerStartsFromTheRestPose)
 {
     // e.g. a character's first animation: there is nothing to fade from, so the fade starts at the rest pose,
