@@ -32,6 +32,8 @@ set(ENTT_BUILD_EXAMPLE OFF CACHE BOOL "")
 set(ENTT_BUILD_BENCHMARK OFF CACHE BOOL "")
 set(ENTT_BUILD_TOOLS OFF CACHE BOOL "")
 set(ENTT_BUILD_DOCS OFF CACHE BOOL "")
+# readable entities, registries and storages in the Visual Studio debugger (MSVC only)
+set(ENTT_INCLUDE_NATVIS ON CACHE BOOL "")
 add_subdirectory(entt)
 
 # profiler
