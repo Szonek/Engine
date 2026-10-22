@@ -2,6 +2,7 @@
 #include "asset_store.h"
 #include "file_watcher.h"
 #include "editor_commands.h"
+#include "editor_camera.h"
 #include "render/outline_feature.h"
 #include "render/grid_feature.h"
 
@@ -21,21 +22,22 @@ public:
 
     void enable();
     void disable();
-    void update(float dt);
+    // `selected` is what F frames (entt::null: nothing)
+    void update(float dt, entt::entity selected);
 
     entt::entity get_entity() const { return go_; }
+    EditorCamera& get_camera() { return camera_; }
 
 private:
-    void translate(const glm::vec3& delta);
-    void rotate(const glm::vec2 delta);
-    void strafe(float delta_x, float delta_y);
+    // the bounding sphere of the entity and its children: their origins, at least about their size
+    bool frame_entity(entt::entity entity);
+    float get_fov_y() const;
 
 private:
     Scene* my_scene_ = nullptr;
     ApplicationEditor* app_ = nullptr;
     entt::entity go_ = entt::null;
-    std::array<float, 3> sc_;  // {radius, phi, theta}
-    engine_fvec2_t mouse_coords_prev_{};
+    EditorCamera camera_{ glm::vec3(-1.0f, 1.7f, 5.0f), glm::vec3(-2.0f, 0.1f, 0.2f) };
 };
 
 class SceneHierarchyContext
@@ -105,9 +107,10 @@ private:
     public:
         void attach_scene(Scene* scene, ApplicationEditor* app);
         void detach_scene(Scene* scene);
-        void on_scene_update_pre(Scene* scene, float dt);
+        void on_scene_update_pre(Scene* scene, float dt, entt::entity selected);
         void on_scene_update_post(Scene* scene, float dt);
         bool is_enabled(engine::Scene* scene) const;
+        EditorCamera* get_camera(engine::Scene* scene);
 
     private:
         struct camera_data_t
