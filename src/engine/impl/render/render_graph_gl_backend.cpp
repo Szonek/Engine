@@ -58,7 +58,7 @@ void engine::GlGraphBackend::begin_pass(const rg::PassBeginInfo& info)
         }
         render_targets_.set_depth_stencil_attachment(info.depth_attachment ? info.depth_attachment->texture : nullptr);
         render_targets_.apply_draw_buffers();
-#if _DEBUG
+#ifndef NDEBUG
         if (!render_targets_.is_complete())
         {
             log::log(log::LogLevel::eCritical, "Render graph: framebuffer is not complete for pass: " + std::string(info.name) + "\n");

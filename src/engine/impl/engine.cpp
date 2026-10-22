@@ -160,13 +160,22 @@ engine_result_code_t engineApplicationCreate(engine_application_t* handle, engin
     }
 	engine_result_code_t ret = ENGINE_RESULT_CODE_FAIL;
 
+    // the window and GL context first: everything else in the application needs them
+    engine::RenderContext rdx(create_desc.name, { 0, 0, create_desc.width, create_desc.height }, create_desc.fullscreen, create_desc.hidden_window);
+    if (!rdx.is_valid())
+    {
+        // the reason was logged
+        *handle = nullptr;
+        return ret;
+    }
+
     if (create_desc.enable_editor)
     {
-        *handle = reinterpret_cast<engine_application_t>(new engine::ApplicationEditor(create_desc, ret));
+        *handle = reinterpret_cast<engine_application_t>(new engine::ApplicationEditor(create_desc, std::move(rdx), ret));
     }
     else
     {
-        *handle = reinterpret_cast<engine_application_t>(new engine::Application(create_desc, ret));
+        *handle = reinterpret_cast<engine_application_t>(new engine::Application(create_desc, std::move(rdx), ret));
     }
 
 	return ret;

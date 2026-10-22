@@ -19,7 +19,8 @@ namespace engine
 class Application
 {
 public:
-    Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code);
+    // rdx must be valid (RenderContext::is_valid)
+    Application(const engine_application_create_desc_t& desc, RenderContext&& rdx, engine_result_code_t& out_code);
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
     Application(Application&&) = delete;

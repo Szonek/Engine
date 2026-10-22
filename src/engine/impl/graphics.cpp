@@ -880,13 +880,10 @@ message_callback(GLenum /*source*/,
 engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen, bool hidden)
     : hidden_(hidden)
 {
-    std::int32_t result_code = 0;
-    result_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
-
-    if(result_code < 0)
+    if(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
     {
         const auto err_msg = SDL_GetError();
-        log::log(log::LogLevel::eCritical, fmt::format("Cant init sdl: %s\n", err_msg));
+        log::log(log::LogLevel::eCritical, fmt::format("Cant init sdl: {}\n", err_msg));
         return;
     }
 
@@ -917,7 +914,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     if(displays.empty())
     {
         const auto err_msg = SDL_GetError();
-        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: %s\n", err_msg));
+        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: {}\n", err_msg));
         return;
     }
 
@@ -925,7 +922,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     if(!display_mode)
     {
         const auto err_msg = SDL_GetError();
-        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: %s\n", err_msg));
+        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: {}\n", err_msg));
         return;
     }
 
@@ -949,19 +946,17 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     if(!window_)
     {
         const auto err_msg = SDL_GetError();
-        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: %s\n", err_msg));
+        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: {}\n", err_msg));
         return;
     }
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
-#if _DEBUG
-    result_code = SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
-
-    if (result_code < 0)
+#ifndef NDEBUG
+    if (!SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG))
     {
         const auto err_msg = SDL_GetError();
-        log::log(log::LogLevel::eCritical, fmt::format("Cant init sdl: %s\n", err_msg));
+        log::log(log::LogLevel::eCritical, fmt::format("Cant init sdl: {}\n", err_msg));
         return;
     }
 #endif
@@ -998,7 +993,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 
     std::int32_t gl_context_flags;
     glGetIntegerv(GL_CONTEXT_FLAGS, &gl_context_flags);
-#if _DEBUG
+#ifndef NDEBUG
     if (gl_context_flags & GL_CONTEXT_FLAG_DEBUG_BIT)
     {
         log::log(log::LogLevel::eCritical, "[INFO] Debug build. Building with debug context.\n");
@@ -1278,7 +1273,7 @@ void engine::RenderContext::end_frame()
     }
     ENGINE_PROFILER_GPU_SWAP_WINDOW;
 	// process errors
-#if _DEBUG
+#ifndef NDEBUG
 	//GLenum err;
 	//while ((err = glGetError()) != GL_NO_ERROR)
 	//{

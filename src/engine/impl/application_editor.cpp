@@ -765,8 +765,8 @@ bool display_camera_component(const engine::Scene* /*scene*/, engine_camera_comp
 } // namespace anonymous
 
 
-engine::ApplicationEditor::ApplicationEditor(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
-    : Application(desc, out_code)
+engine::ApplicationEditor::ApplicationEditor(const engine_application_create_desc_t& desc, RenderContext&& rdx, engine_result_code_t& out_code)
+    : Application(desc, std::move(rdx), out_code)
 {
     // hot reload of edited shaders
     FileWatcher::get_instance().start();
