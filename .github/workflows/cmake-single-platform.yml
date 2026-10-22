@@ -40,3 +40,43 @@ jobs:
     - name: Test
       # only tests labelled "ci" (no GPU on the runner); see src/tests/unit_tests/CMakeLists.txt
       run: ctest --test-dir ${{github.workspace}}/buildtree -C ${{env.BUILD_TYPE}} -L ci --output-on-failure
+
+  # Debug (asserts and GL debug output on) with GCC, which complements the Windows Release build,
+  # and the only job that runs the scenario tests: on a virtual X server with Mesa's software GL renderer
+  build-linux:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: "recursive"
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          ninja-build ccache xvfb libfreetype-dev \
+          libgl-dev libegl-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxtst-dev libxkbcommon-dev \
+          libwayland-dev wayland-protocols libdecor-0-dev libdrm-dev libgbm-dev libasound2-dev libpulse-dev \
+          libgl1-mesa-dri
+
+    - name: Setup ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: linux-debug
+
+    - name: Configure CMake
+      run: >
+        cmake -G Ninja -B ${{github.workspace}}/buildtree -DCMAKE_BUILD_TYPE=Debug
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/buildtree
+
+    - name: Test
+      run: ctest --test-dir ${{github.workspace}}/buildtree -L ci --output-on-failure
+
+    - name: Scenario tests (software GL)
+      env:
+        LIBGL_ALWAYS_SOFTWARE: 1
+      run: xvfb-run -a -s "-screen 0 1280x720x24" ctest --test-dir ${{github.workspace}}/buildtree -L gpu --output-on-failure

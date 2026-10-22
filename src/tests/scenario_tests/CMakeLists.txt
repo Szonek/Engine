@@ -27,4 +27,5 @@ set_property(TARGET ${SCENARIO_TESTS_NAME} PROPERTY CXX_STANDARD 20)
 target_compile_definitions(${SCENARIO_TESTS_NAME} PRIVATE TEST_ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets")
 target_link_libraries(${SCENARIO_TESTS_NAME} GTest::gtest project_c_lib)
 add_test(NAME ${SCENARIO_TESTS_NAME} COMMAND ${SCENARIO_TESTS_NAME})
-set_tests_properties(${SCENARIO_TESTS_NAME} PROPERTIES LABELS gpu TIMEOUT 120)
+# the timeout guards against hangs; a Debug run on a software GL renderer (Linux CI) takes ~2 min
+set_tests_properties(${SCENARIO_TESTS_NAME} PROPERTIES LABELS gpu TIMEOUT 600)
