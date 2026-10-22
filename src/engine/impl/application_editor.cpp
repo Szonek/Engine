@@ -797,10 +797,10 @@ bool display_material_component(const engine::Scene* scene, engine_material_comp
 {
     // pong is the only material type
     bool requires_component_updated = false;
-    requires_component_updated |= ImGui::ColorEdit4("Diffuse Color", c.data.pong.diffuse_color);
-    requires_component_updated |= ImGui::SliderFloat("Shininess", &c.data.pong.shininess, 0.0f, 128.0f);
-    requires_component_updated |= display_texture_combo(scene, "Diffuse Texture", c.data.pong.diffuse_texture);
-    requires_component_updated |= display_texture_combo(scene, "Specular Texture", c.data.pong.specular_texture);
+    requires_component_updated |= ImGui::ColorEdit4("Diffuse Color", c.diffuse_color);
+    requires_component_updated |= ImGui::SliderFloat("Shininess", &c.shininess, 0.0f, 128.0f);
+    requires_component_updated |= display_texture_combo(scene, "Diffuse Texture", c.diffuse_texture);
+    requires_component_updated |= display_texture_combo(scene, "Specular Texture", c.specular_texture);
     return requires_component_updated;
 }
 

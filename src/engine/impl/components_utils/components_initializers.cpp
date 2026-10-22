@@ -96,13 +96,12 @@ void engine::initialize_character_controller_component(entt::registry& registry,
 void engine::initialize_material_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_material_component_t>(registry, entity);
-    comp.type = ENGINE_MATERIAL_TYPE_PONG;
-    for (std::size_t i = 0; i < std::size(comp.data.pong.diffuse_color); i++)
+    for (std::size_t i = 0; i < std::size(comp.diffuse_color); i++)
     {
-        comp.data.pong.diffuse_color[i] = 0.0f;
+        comp.diffuse_color[i] = 0.0f;
     }
-    comp.data.pong.diffuse_texture = ENGINE_INVALID_OBJECT_HANDLE;
-    comp.data.pong.specular_texture = ENGINE_INVALID_OBJECT_HANDLE;
+    comp.diffuse_texture = ENGINE_INVALID_OBJECT_HANDLE;
+    comp.specular_texture = ENGINE_INVALID_OBJECT_HANDLE;
 }
 
 void engine::initialize_parent_component(entt::registry& registry, entt::entity entity)

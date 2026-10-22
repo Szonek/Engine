@@ -139,10 +139,10 @@ TEST_F(SceneFileTest, ImageFileIsLoadedAndHeldByTheScene)
 {
     create_file_scene();
     ASSERT_EQ(engineSceneLoad(write_file(R"({ "version": 1, "entities": [ { "id": 1, "components": {
-        "material": { "type": "pong", "pong": { "diffuse_texture": "test_fixtures/test_texture.png" } } } } ] })").c_str()), ENGINE_RESULT_CODE_OK);
+        "material": { "diffuse_texture": "test_fixtures/test_texture.png" } } } ] })").c_str()), ENGINE_RESULT_CODE_OK);
     const auto go = find_with(engineGameObjectHasMaterialComponent);
     ASSERT_NE(go, ENGINE_INVALID_GAME_OBJECT_ID);
-    const auto texture = engineGameObjectGetMaterialComponent(go).data.pong.diffuse_texture;
+    const auto texture = engineGameObjectGetMaterialComponent(go).diffuse_texture;
     EXPECT_NE(texture, ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(texture, engineTextured2DGetByName("test_fixtures/test_texture.png"));
 

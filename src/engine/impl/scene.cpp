@@ -465,13 +465,13 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
                     return false;
                 }
 
-                const auto texture_diffuse_idx = material_component.data.pong.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? get_application()->get_default_texture() : material_component.data.pong.diffuse_texture;
+                const auto texture_diffuse_idx = material_component.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? get_application()->get_default_texture() : material_component.diffuse_texture;
                 // ToDo: specular texture is not used here yet, diffuse one is used for both (that's how it was always working)
                 item.entity_id = static_cast<std::uint32_t>(entity);
                 item.geometry = get_application()->get_geometry(geometry);
                 item.model = world.local_to_world;
-                item.diffuse_color = glm::make_vec4(material_component.data.pong.diffuse_color);
-                item.shininess = static_cast<float>(material_component.data.pong.shininess);
+                item.diffuse_color = glm::make_vec4(material_component.diffuse_color);
+                item.shininess = static_cast<float>(material_component.shininess);
                 item.texture_diffuse = get_application()->get_texture(texture_diffuse_idx);
                 item.texture_specular = get_application()->get_texture(texture_diffuse_idx);
                 // a handle to an asset which was released (e.g. with the prefab of its model) finds nothing
@@ -522,13 +522,8 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
             }
         );
 
-        sprite_renderer.each([&](const world_transform_internal_component_t& world, const engine_material_component_t& material_component, const engine_sprite_component_t& /*sprite_component*/)
+        sprite_renderer.each([&](const world_transform_internal_component_t& world, const engine_material_component_t& /*material_component*/, const engine_sprite_component_t& /*sprite_component*/)
             {
-                if (material_component.type != ENGINE_MATERIAL_TYPE_PONG)
-                {
-                    assert(false);
-                    return;
-                }
                 glm::vec3 scale;
                 glm::quat rotation;
                 glm::vec3 translation;

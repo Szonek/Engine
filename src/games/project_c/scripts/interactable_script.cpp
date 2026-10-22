@@ -40,7 +40,7 @@ void project_c::Chest::interact()
         coin->push_force(0.0f, 20.0f, 150.0f, ENGINE_FORCE_TYPE_IMPLUSE);
         // update chest to dark color to simulate opened chest
         auto mat = engineGameObjectGetMaterialComponent(go_);
-        set_c_array(mat.data.pong.diffuse_color, std::array<float, 4>{ 0.3f, 0.3f, 0.3f, 1.0f });
+        set_c_array(mat.diffuse_color, std::array<float, 4>{ 0.3f, 0.3f, 0.3f, 1.0f });
         engineGameObjectUpdateMaterialComponent(go_, &mat);
         was_interacted_ = true;
     }

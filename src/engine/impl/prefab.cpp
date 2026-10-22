@@ -125,16 +125,15 @@ void engine::Prefab::create_materials()
     {
         const auto& material_desc = model_.materials[i];
         auto& material = materials_[i];
-        material.type = ENGINE_MATERIAL_TYPE_PONG;
-        material.data.pong.diffuse_color[0] = material_desc.diffuse_factor.r;
-        material.data.pong.diffuse_color[1] = material_desc.diffuse_factor.g;
-        material.data.pong.diffuse_color[2] = material_desc.diffuse_factor.b;
-        material.data.pong.diffuse_color[3] = material_desc.diffuse_factor.a;
+        material.diffuse_color[0] = material_desc.diffuse_factor.r;
+        material.diffuse_color[1] = material_desc.diffuse_factor.g;
+        material.diffuse_color[2] = material_desc.diffuse_factor.b;
+        material.diffuse_color[3] = material_desc.diffuse_factor.a;
         if (material_desc.diffuse_texture != INVALID_VALUE)
         {
-            material.data.pong.diffuse_texture = textures_.at(material_desc.diffuse_texture);
+            material.diffuse_texture = textures_.at(material_desc.diffuse_texture);
         }
-        material.data.pong.shininess = 32;
+        material.shininess = 32;
     }
 }
 

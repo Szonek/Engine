@@ -128,8 +128,7 @@ protected:
         w.put<engine_transform_component_t>(root, engine_transform_component_t{ { 0.1f, -2.5f, 1e-7f }, { 2.0f, 2.0f, 0.5f }, { 0.0f, 0.70710677f, 0.0f, 0.70710677f } });
         w.put<engine_mesh_component_t>(root, engine_mesh_component_t{ 7, true });
         engine_material_component_t material{};
-        material.type = ENGINE_MATERIAL_TYPE_PONG;
-        material.data.pong = { { 0.2f, 0.4f, 0.6f, 1.0f }, 3, 32.0f, 4 };
+        material = { { 0.2f, 0.4f, 0.6f, 1.0f }, 3, 32.0f, 4 };
         w.put<engine_material_component_t>(root, material);
         w.put<engine_rigid_body_component_t>(root, engine_rigid_body_component_t{ ENGINE_RIGID_BODY_TYPE_DYNAMIC, 12.5f });
         engine_collider_component_t collider{};
@@ -215,7 +214,7 @@ TEST_F(SceneFileTest, LoadedComponentsHaveTheSavedValues)
     EXPECT_EQ(mesh.geometry, 7u);
     EXPECT_TRUE(mesh.disable);
     const auto& material = loaded.get<engine_material_component_t>(1);
-    EXPECT_TRUE(same_bytes(material.data.pong, original.get<engine_material_component_t>(1).data.pong));
+    EXPECT_TRUE(same_bytes(material, original.get<engine_material_component_t>(1)));
     const auto& body = loaded.get<engine_rigid_body_component_t>(1);
     EXPECT_EQ(body.type, ENGINE_RIGID_BODY_TYPE_DYNAMIC);
     EXPECT_EQ(body.mass, 12.5f);
@@ -412,10 +411,10 @@ TEST_F(SceneFileTest, AssetsAreResolvedByTheirId)
     World w;
     ASSERT_TRUE(load(w, R"({ "version": 1, "entities": [ { "id": 1, "components": {
         "mesh": { "geometry": "models/crate.gltf#Cube" },
-        "material": { "type": "pong", "pong": { "diffuse_texture": "models/crate.gltf#wood", "specular_texture": null } } } } ] })"));
+        "material": { "diffuse_texture": "models/crate.gltf#wood", "specular_texture": null } } } ] })"));
     EXPECT_EQ(w.get<engine_mesh_component_t>(1).geometry, 7u);
-    EXPECT_EQ(w.get<engine_material_component_t>(1).data.pong.diffuse_texture, 3u);
-    EXPECT_EQ(w.get<engine_material_component_t>(1).data.pong.specular_texture, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(w.get<engine_material_component_t>(1).diffuse_texture, 3u);
+    EXPECT_EQ(w.get<engine_material_component_t>(1).specular_texture, ENGINE_INVALID_OBJECT_HANDLE);
 }
 
 TEST_F(SceneFileTest, AssetWhichCantBeFoundIsNone)

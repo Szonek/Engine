@@ -86,23 +86,6 @@ void register_collider(engine::TypeRegistry& registry)
         .field("friction_static", &T::friction_static)
         .component();
 }
-
-void register_material(engine::TypeRegistry& registry)
-{
-    using namespace engine;
-    TypeBuilder<engine_material_pong_t>(registry, "pong_material")
-        .field("diffuse_color", &engine_material_pong_t::diffuse_color)
-        .asset("diffuse_texture", &engine_material_pong_t::diffuse_texture, AssetKind::eTexture)
-        .field("shininess", &engine_material_pong_t::shininess)
-        .asset("specular_texture", &engine_material_pong_t::specular_texture, AssetKind::eTexture)
-        .structure();
-
-    using T = engine_material_component_t;
-    TypeBuilder<T>(registry, "material")
-        .enumeration("type", &T::type, { { "pong", ENGINE_MATERIAL_TYPE_PONG } })
-        .tagged_union("data", &T::data, "type", { { ENGINE_MATERIAL_TYPE_PONG, "pong_material" } })
-        .component();
-}
 }  // namespace
 
 void engine::register_builtin_types(TypeRegistry& registry)
@@ -129,7 +112,12 @@ void engine::register_builtin_types(TypeRegistry& registry)
         .asset("geometry", &engine_mesh_component_t::geometry, AssetKind::eGeometry)
         .field("disable", &engine_mesh_component_t::disable)
         .component();
-    register_material(registry);
+    TypeBuilder<engine_material_component_t>(registry, "material")
+        .field("diffuse_color", &engine_material_component_t::diffuse_color)
+        .asset("diffuse_texture", &engine_material_component_t::diffuse_texture, AssetKind::eTexture)
+        .field("shininess", &engine_material_component_t::shininess)
+        .asset("specular_texture", &engine_material_component_t::specular_texture, AssetKind::eTexture)
+        .component();
     register_light(registry);
 
     // navigation
