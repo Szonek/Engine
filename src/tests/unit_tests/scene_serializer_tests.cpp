@@ -68,7 +68,8 @@ struct World
 {
     World()
     {
-        registry.create();
+        // entity 0, like the scene's reserved one
+        [[maybe_unused]] const auto reserved = registry.create();
         registry.on_construct<engine_transform_component_t>().connect<&init_transform>();
         registry.on_construct<engine_light_component_t>().connect<&init_light>();
     }
