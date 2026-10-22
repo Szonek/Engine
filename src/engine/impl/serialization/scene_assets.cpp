@@ -48,17 +48,23 @@ std::uint32_t engine::SceneAssets::resolve(AssetKind kind, std::string_view asse
     return ENGINE_INVALID_OBJECT_HANDLE;
 }
 
+std::uint32_t engine::SceneAssets::resolve_prefab(std::string_view model_path)
+{
+    auto it = prefabs_.find(model_path);
+    if (it == prefabs_.end())
+    {
+        // logs why when it fails
+        it = prefabs_.emplace(model_path, app_.load_prefab(model_path)).first;
+    }
+    return it->second;
+}
+
 void engine::SceneAssets::hold_source_file(AssetKind kind, std::string_view asset_id)
 {
     // an asset of a model: "<model path>#<name>"
     if (const auto separator = asset_id.find('#'); separator != std::string_view::npos)
     {
-        const auto model = asset_id.substr(0, separator);
-        if (!prefabs_.contains(model))
-        {
-            // logs why when it fails
-            prefabs_.emplace(model, app_.load_prefab(model));
-        }
+        resolve_prefab(asset_id.substr(0, separator));
         return;
     }
     // an image in its own file, named by its path under assets/models

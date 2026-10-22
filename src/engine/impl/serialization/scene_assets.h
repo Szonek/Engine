@@ -25,6 +25,9 @@ public:
 
     std::string get_asset_id(AssetKind kind, std::uint32_t handle) const override;
     std::uint32_t resolve(AssetKind kind, std::string_view asset_id) override;
+    // the prefab of a model (its asset ID is the model's path), loaded when needed; ENGINE_INVALID_OBJECT_HANDLE when
+    // it can't be loaded (logged)
+    std::uint32_t resolve_prefab(std::string_view model_path);
 
 private:
     // holds a reference to the file the asset comes from, loading it when needed

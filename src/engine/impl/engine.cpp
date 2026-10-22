@@ -483,20 +483,8 @@ static engine_game_object_t instantiate_prefab(engine_prefab_t prefab, engine::P
     {
         return ENGINE_INVALID_GAME_OBJECT_ID;
     }
-    const auto* typed_prefab = api_cast(G_ACTIVE_APP)->get_prefab(prefab);
-    if (!typed_prefab)
-    {
-        engineLog(fmt::format("Can't instantiate prefab {}: it doesn't exist.\n", prefab).c_str());
-        return ENGINE_INVALID_GAME_OBJECT_ID;
-    }
-    auto* scene = api_cast(G_ACTIVE_SCENE);
-    const auto root = typed_prefab->instantiate(*scene, instance);
-    if (static_cast<engine_game_object_t>(root) == ENGINE_INVALID_GAME_OBJECT_ID)
-    {
-        return ENGINE_INVALID_GAME_OBJECT_ID;
-    }
-    scene->add_component(root, engine::prefab_instance_internal_component_t(*api_cast(G_ACTIVE_APP), prefab));
-    return static_cast<engine_game_object_t>(root);
+    const auto root = api_cast(G_ACTIVE_SCENE)->instantiate_prefab(prefab, instance);
+    return root == entt::null ? ENGINE_INVALID_GAME_OBJECT_ID : static_cast<engine_game_object_t>(root);
 }
 
 engine_game_object_t enginePrefabInstantiate(engine_prefab_t prefab)

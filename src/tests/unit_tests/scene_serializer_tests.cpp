@@ -5,13 +5,16 @@
 
 #include <engine.h>
 
+#include <fmt/format.h>
 #include <gtest/gtest.h>
+#include <rapidjson/document.h>
 
 #include <cstddef>
 #include <cstring>
 #include <limits>
 #include <map>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace
@@ -65,6 +68,76 @@ void init_light(entt::registry& registry, entt::entity entity)
     l.point.quadratic = 0.032f;
 }
 
+// Prefab instances without an application: the model "models/arm.gltf" has a root node and the nodes "Upper" and
+// "Upper/Hand" (with a mesh); each node gets a name and a transform, the others are children of the root, like a
+// prefab's instance.
+class FakePrefabs : public engine::IPrefabInstances
+{
+public:
+    static constexpr const char* ARM = "models/arm.gltf";
+
+    FakePrefabs(entt::registry& registry, EntityIdRegistry& ids) : registry_(registry), ids_(ids) {}
+
+    const engine::PrefabInstanceInfo* find_instance(entt::entity root) const override
+    {
+        const auto it = instances_.find(root);
+        return it == instances_.end() ? nullptr : &it->second;
+    }
+
+    const engine::PrefabInstanceInfo* instantiate(std::string_view prefab_asset_id, entt::entity root) override
+    {
+        if (prefab_asset_id != ARM)
+        {
+            return nullptr;
+        }
+        engine::PrefabInstanceInfo info{ ARM, {} };
+        const auto root_id = ids_.get_id(root);
+        for (const std::string path : { "", "Upper", "Upper/Hand" })
+        {
+            auto entity = root;
+            if (!path.empty())
+            {
+                entity = registry_.create();
+                if (!ids_.assign(entity, EntityIdRegistry::hashed_id(root_id, path)))
+                {
+                    ids_.assign_next(entity);
+                }
+                registry_.emplace<engine_parent_component_t>(entity, static_cast<engine_game_object_t>(root));
+            }
+            engine_name_component_t name{};
+            std::strcpy(name.name, path.empty() ? "Arm" : path.substr(path.rfind('/') + 1).c_str());
+            registry_.emplace_or_replace<engine_name_component_t>(entity, name);
+            registry_.emplace_or_replace<engine_transform_component_t>(entity);
+            if (path == "Upper/Hand")
+            {
+                registry_.emplace<engine_mesh_component_t>(entity, engine_mesh_component_t{ 7, true });
+            }
+            info.nodes.push_back({ path, entity, {} });
+        }
+        engine::capture_prefab_components(*types, registry_, info);
+        return &instances_.insert_or_assign(root, std::move(info)).first->second;
+    }
+
+    entt::entity node(entt::entity root, std::string_view path) const
+    {
+        for (const auto& n : instances_.at(root).nodes)
+        {
+            if (n.path == path)
+            {
+                return n.entity;
+            }
+        }
+        return entt::null;
+    }
+
+    const engine::TypeRegistry* types = nullptr;
+
+private:
+    entt::registry& registry_;
+    EntityIdRegistry& ids_;
+    std::map<entt::entity, engine::PrefabInstanceInfo> instances_;
+};
+
 // a registry set up like a scene's: entity 0 reserved, persistent IDs, the initializers above
 struct World
 {
@@ -98,6 +171,7 @@ struct World
 
     entt::registry registry;
     EntityIdRegistry ids{ registry };
+    FakePrefabs prefabs{ registry, ids };
 };
 
 class SceneFileTest : public ::testing::Test
@@ -112,8 +186,24 @@ protected:
         assets_.add(AssetKind::eTexture, "textures/stone.png", 4);
     }
 
-    std::string save(const World& world) { return engine::save_scene(types_, world.registry, world.ids, assets_); }
-    bool load(World& world, std::string_view json) { return engine::load_scene(json, "test.json", types_, world.registry, world.ids, assets_); }
+    std::string save(World& world)
+    {
+        world.prefabs.types = &types_;
+        return engine::save_scene(types_, world.registry, world.ids, assets_, world.prefabs);
+    }
+    bool load(World& world, std::string_view json)
+    {
+        world.prefabs.types = &types_;
+        return engine::load_scene(json, "test.json", types_, world.registry, world.ids, assets_, world.prefabs);
+    }
+    // an instance of FakePrefabs::ARM, its root with the next persistent ID
+    entt::entity instantiate_arm(World& world)
+    {
+        world.prefabs.types = &types_;
+        const auto root = world.create();
+        world.prefabs.instantiate(FakePrefabs::ARM, root);
+        return root;
+    }
 
     // a game object with every saved component, all values different from the defaults
     void build_full_scene(World& w)
@@ -404,6 +494,146 @@ TEST_F(SceneFileTest, UsedIdGetsANewOneAndReferencesFollowIt)
     EXPECT_GT(w.ids.get_id(child_parent), 2u);
 }
 
+// -- prefab instances ------------------------------------------------------------------------------------------------
+
+TEST_F(SceneFileTest, InstanceIsSavedAsItsPrefabAndWhatWasAddedToIt)
+{
+    World w;
+    const auto root = instantiate_arm(w);
+    w.registry.replace<engine_transform_component_t>(root, engine_transform_component_t{ { 3.0f, 0.0f, -1.5f }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f, 1.0f } });
+    engine_collider_component_t collider{};
+    collider.type = ENGINE_COLLIDER_TYPE_SPHERE;
+    collider.collider.sphere.radius = 0.2f;
+    w.put<engine_collider_component_t>(w.prefabs.node(root, "Upper/Hand"), collider);
+
+    const auto file = save(w);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+    rapidjson::Document doc;
+    doc.Parse(file.c_str());
+    ASSERT_TRUE(doc.IsObject());
+    // one game object: the root; the prefab creates the others
+    ASSERT_EQ(doc["entities"].Size(), 1u);
+    const auto& saved = doc["entities"][0];
+    EXPECT_STREQ(saved["prefab"].GetString(), FakePrefabs::ARM);
+    // only the root's transform: its name comes from the prefab
+    EXPECT_TRUE(saved["components"].HasMember("transform"));
+    EXPECT_EQ(saved["components"].MemberCount(), 1u);
+    ASSERT_TRUE(saved["nodes"].HasMember("Upper/Hand"));
+    EXPECT_TRUE(saved["nodes"]["Upper/Hand"].HasMember("collider"));
+    EXPECT_EQ(saved["nodes"]["Upper/Hand"].MemberCount(), 1u);
+    EXPECT_FALSE(saved["nodes"].HasMember("Upper"));
+}
+
+TEST_F(SceneFileTest, InstanceRoundTripsWithItsAddedComponents)
+{
+    World original;
+    const auto root = instantiate_arm(original);
+    original.registry.replace<engine_transform_component_t>(root, engine_transform_component_t{ { 3.0f, 0.0f, -1.5f }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f, 1.0f } });
+    engine_light_component_t light{};
+    light.type = ENGINE_LIGHT_TYPE_POINT;
+    light.point.constant = 2.0f;
+    original.put<engine_light_component_t>(original.prefabs.node(root, "Upper"), light);
+    const auto file = save(original);
+
+    World loaded;
+    ASSERT_TRUE(load(loaded, file));
+    EXPECT_EQ(save(loaded), file);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+
+    const auto loaded_root = loaded.find(original.ids.get_id(root));
+    ASSERT_NE(loaded_root, entt::entity{ entt::null });
+    EXPECT_FLOAT_EQ(loaded.registry.get<engine_transform_component_t>(loaded_root).position[0], 3.0f);
+    const auto upper = loaded.prefabs.node(loaded_root, "Upper");
+    EXPECT_TRUE(loaded.registry.all_of<engine_light_component_t>(upper));
+    // the game objects of the instance have the hashed IDs of their node paths
+    EXPECT_EQ(loaded.ids.get_id(upper), EntityIdRegistry::hashed_id(original.ids.get_id(root), "Upper"));
+}
+
+TEST_F(SceneFileTest, ReferenceIntoAnInstanceResolvesWhateverWasCreatedBefore)
+{
+    World original;
+    const auto root = instantiate_arm(original);
+    const auto holder = original.create();
+    engine_name_component_t holder_name{};
+    std::strcpy(holder_name.name, "holder");
+    original.put<engine_name_component_t>(holder, holder_name);
+    original.put<engine_parent_component_t>(holder, engine_parent_component_t{ static_cast<engine_game_object_t>(original.prefabs.node(root, "Upper/Hand")) });
+    const auto file = save(original);
+
+    // the scene the file is loaded into has game objects already, which have the IDs of the file's game objects
+    World loaded;
+    for (int i = 0; i < 5; i++)
+    {
+        loaded.create();
+    }
+    ASSERT_TRUE(load(loaded, file));
+    auto loaded_holder = entt::entity{ entt::null };
+    for (const auto [entity, name] : loaded.registry.view<const engine_name_component_t>().each())
+    {
+        if (std::string_view(name.name) == "holder")
+        {
+            loaded_holder = entity;
+        }
+    }
+    ASSERT_NE(loaded_holder, entt::entity{ entt::null });
+    // the hand of the loaded instance
+    const auto hand = static_cast<entt::entity>(loaded.registry.get<engine_parent_component_t>(loaded_holder).parent);
+    ASSERT_TRUE(loaded.registry.valid(hand));
+    EXPECT_STREQ(loaded.registry.get<engine_name_component_t>(hand).name, "Hand");
+    const auto loaded_root = static_cast<entt::entity>(loaded.registry.get<engine_parent_component_t>(hand).parent);
+    EXPECT_EQ(loaded.prefabs.node(loaded_root, "Upper/Hand"), hand);
+}
+
+TEST_F(SceneFileTest, ReferenceToANodeTheModelDoesntHaveIsNone)
+{
+    World w;
+    const auto gone = EntityIdRegistry::hashed_id(1, "Upper/Gone");
+    ASSERT_TRUE(load(w, fmt::format(R"({{ "version": 1, "entities": [
+        {{ "id": 1, "prefab": "models/arm.gltf", "components": {{}}, "nodes": {{ "Upper/Gone": {{ "name": {{ "name": "x" }} }} }} }},
+        {{ "id": 2, "components": {{ "parent": {{ "parent": {} }} }} }} ] }})", gone)));
+    EXPECT_EQ(w.get<engine_parent_component_t>(2).parent, ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_TRUE(test_logger::logged("its prefab models/arm.gltf has no node Upper/Gone, the node's components are ignored"));
+    EXPECT_TRUE(test_logger::logged(fmt::format("references the game object {} which isn't in the file", gone)));
+    // the rest of the instance is there
+    EXPECT_NE(w.prefabs.node(w.find(1), "Upper/Hand"), entt::entity{ entt::null });
+}
+
+TEST_F(SceneFileTest, InstanceWhosePrefabCantBeFoundLoadsItsRoot)
+{
+    World w;
+    ASSERT_TRUE(load(w, R"({ "version": 1, "entities": [
+        { "id": 1, "prefab": "models/missing.gltf", "components": { "transform": { "position": [1, 2, 3] } }, "nodes": { "Upper": { "name": { "name": "x" } } } } ] })"));
+    EXPECT_TRUE(test_logger::logged("its prefab models/missing.gltf can't be instantiated"));
+    EXPECT_FLOAT_EQ(w.get<engine_transform_component_t>(1).position[2], 3.0f);
+    EXPECT_EQ(count_entities(w.registry), 2u);  // the reserved entity and the root
+}
+
+TEST_F(SceneFileTest, ChangesToWhatThePrefabCreatedAreLoggedAndNotSaved)
+{
+    World w;
+    const auto root = instantiate_arm(w);
+    engine_name_component_t name{};
+    std::strcpy(name.name, "Renamed");
+    w.registry.replace<engine_name_component_t>(w.prefabs.node(root, "Upper"), name);
+    w.registry.remove<engine_mesh_component_t>(w.prefabs.node(root, "Upper/Hand"));
+
+    const auto file = save(w);
+    EXPECT_TRUE(test_logger::logged(fmt::format("game object {} is an instance of models/arm.gltf; changes to what its prefab created aren't saved: "
+        "node Upper: its name changed, node Upper/Hand lost its mesh", w.ids.get_id(root))));
+    EXPECT_EQ(file.find("Renamed"), std::string::npos);
+}
+
+TEST_F(SceneFileTest, UnchangedInstanceSavesWithoutWarnings)
+{
+    World w;
+    const auto root = instantiate_arm(w);
+    // a value written again unchanged, from a struct with other padding bytes, is no change
+    auto mesh = w.registry.get<engine_mesh_component_t>(w.prefabs.node(root, "Upper/Hand"));
+    w.registry.replace<engine_mesh_component_t>(w.prefabs.node(root, "Upper/Hand"), mesh);
+    save(w);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
 // -- assets ----------------------------------------------------------------------------------------------------------
 
 TEST_F(SceneFileTest, AssetsAreResolvedByTheirId)
@@ -593,6 +823,30 @@ TEST_F(GameComponentFileTest, SaveLoadSaveGivesTheSameFile)
     World loaded;
     ASSERT_TRUE(load(loaded, file));
     EXPECT_EQ(save(loaded), file);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(GameComponentFileTest, GameComponentOnAGameObjectOfAnInstanceSurvivesSaveAndLoad)
+{
+    World original;
+    const auto root = instantiate_arm(original);
+    PatrolConfig patrol{};
+    patrol.speed = 3.5f;
+    patrol.target = static_cast<engine_game_object_t>(root);
+    const auto hand = original.prefabs.node(root, "Upper/Hand");
+    patrol_config().storage->add(original.registry, hand);
+    patrol_config().storage->update(original.registry, hand, &patrol);
+    const auto file = save(original);
+
+    World loaded;
+    ASSERT_TRUE(load(loaded, file));
+    EXPECT_EQ(save(loaded), file);
+    const auto loaded_hand = loaded.find(original.ids.get_id(hand));
+    ASSERT_NE(loaded_hand, entt::entity{ entt::null });
+    PatrolConfig value{};
+    patrol_config().storage->get(loaded.registry, loaded_hand, &value);
+    EXPECT_FLOAT_EQ(value.speed, 3.5f);
+    EXPECT_EQ(value.target, static_cast<engine_game_object_t>(loaded.find(original.ids.get_id(root))));
     EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
 }
 

@@ -45,6 +45,12 @@ protected:
         return file_.string();
     }
 
+    static std::string read_file(const std::filesystem::path& path)
+    {
+        std::ifstream file(path, std::ios::binary);
+        return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    }
+
     void create_file_scene()
     {
         scenario::app().register_scene<FileScene>()->activate();
@@ -231,6 +237,92 @@ TEST_F(SceneFileTest, SavedSceneLoadsBackToTheSameFile)
     resaved_file.close();
     std::filesystem::remove(resaved);
     EXPECT_EQ(again, saved);
+}
+
+TEST_F(SceneFileTest, PrefabInstanceIsSavedAsItsPrefabAndLoadsBack)
+{
+    TestModel crate("crate.gltf");
+    ASSERT_TRUE(crate.loaded());
+    const auto root = crate.instantiate();
+    auto tc = engineGameObjectGetTransformComponent(root);
+    tc.position[0] = 5.0f;
+    engineGameObjectUpdateTransformComponent(root, &tc);
+    // a collider added to a game object of the instance
+    const auto lid = child_named(root, "Lid");
+    ASSERT_NE(lid, ENGINE_INVALID_GAME_OBJECT_ID);
+    auto cc = engineGameObjectAddColliderComponent(lid);
+    cc.type = ENGINE_COLLIDER_TYPE_BOX;
+    cc.collider.box.size[0] = cc.collider.box.size[1] = cc.collider.box.size[2] = 0.5f;
+    engineGameObjectUpdateColliderComponent(lid, &cc);
+    ASSERT_EQ(engineSceneSave(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+    const auto saved = read_file(file_);
+    EXPECT_NE(saved.find(R"("prefab": "test_fixtures/crate.gltf")"), std::string::npos);
+    // what the prefab created isn't saved
+    EXPECT_EQ(saved.find("Base"), std::string::npos);
+    EXPECT_EQ(saved.find("mesh"), std::string::npos);
+
+    create_file_scene();
+    ASSERT_EQ(engineSceneLoad(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+    const auto loaded = find_with([](engine_game_object_t go) { return enginePrefabInstanceGetPrefab(go) != ENGINE_INVALID_OBJECT_HANDLE; });
+    ASSERT_NE(loaded, ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_EQ(engineGameObjectGetTransformComponent(loaded).position[0], 5.0f);
+    EXPECT_NE(child_named(loaded, "Base"), ENGINE_INVALID_GAME_OBJECT_ID);
+    const auto loaded_lid = child_named(loaded, "Lid");
+    ASSERT_NE(loaded_lid, ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_TRUE(engineGameObjectHasMeshComponent(loaded_lid));
+    EXPECT_TRUE(engineGameObjectHasColliderComponent(loaded_lid));
+
+    // the lid's collider is in the physics world where the moved instance put it
+    const auto lid_tc = engineGameObjectGetTransformComponent(loaded_lid);
+    const float origin[3] = { -10.0f, lid_tc.position[1], lid_tc.position[2] };
+    const float along_x[3] = { 1.0f, 0.0f, 0.0f };
+    engine_ray_hit_t hit{};
+    ASSERT_TRUE(enginePhysicsRayCast(origin, along_x, 100.0f, nullptr, &hit));
+    EXPECT_EQ(hit.go, loaded_lid);
+    EXPECT_GT(hit.position[0], 3.0f);
+
+    const auto resaved = file_.string() + ".resaved";
+    ASSERT_EQ(engineSceneSave(resaved.c_str()), ENGINE_RESULT_CODE_OK);
+    const auto again = read_file(resaved);
+    std::filesystem::remove(resaved);
+    EXPECT_EQ(again, saved);
+}
+
+TEST_F(SceneFileTest, GameObjectAttachedInsideAnInstanceIsAttachedAgain)
+{
+    TestModel arm("skinned_arm.gltf");
+    ASSERT_TRUE(arm.loaded());
+    const auto root = arm.instantiate();
+    const auto sword = child_named(root, "sword");
+    ASSERT_NE(sword, ENGINE_INVALID_GAME_OBJECT_ID);
+    // created after the instance: its ID comes after the instance's root
+    const auto gem = engineGameObjectCreate();
+    auto nc = engineGameObjectAddNameComponent(gem);
+    std::strcpy(nc.name, "gem");
+    engineGameObjectUpdateNameComponent(gem, &nc);
+    auto pc = engineGameObjectAddParentComponent(gem);
+    pc.parent = sword;
+    engineGameObjectUpdateParentComponent(gem, &pc);
+    ASSERT_EQ(engineSceneSave(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+
+    // loaded into a scene which has game objects already, with the IDs the file uses
+    create_file_scene();
+    for (int i = 0; i < 4; i++)
+    {
+        engineGameObjectCreate();
+    }
+    ASSERT_EQ(engineSceneLoad(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+    const auto loaded_gem = find_with([](engine_game_object_t go) {
+        return engineGameObjectHasNameComponent(go) && std::strcmp(engineGameObjectGetNameComponent(go).name, "gem") == 0;
+    });
+    ASSERT_NE(loaded_gem, ENGINE_INVALID_GAME_OBJECT_ID);
+    const auto parent = engineGameObjectGetParentComponent(loaded_gem).parent;
+    ASSERT_TRUE(engineGameObjectIsValid(parent));
+    EXPECT_STREQ(engineGameObjectGetNameComponent(parent).name, "sword");
+    // the sword of the loaded instance, attached to its skin's joint
+    EXPECT_TRUE(engineGameObjectHasJointAttachmentComponent(parent));
+    const auto loaded_root = engineGameObjectGetParentComponent(parent).parent;
+    EXPECT_NE(enginePrefabInstanceGetPrefab(loaded_root), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
 TEST_F(SceneFileTest, GameComponentWorksLikeTheEngineComponents)

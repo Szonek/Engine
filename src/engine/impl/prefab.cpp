@@ -14,6 +14,7 @@
 #include <cassert>
 #include <cstring>
 #include <map>
+#include <set>
 #include <utility>
 
 namespace
@@ -54,6 +55,40 @@ engine::Prefab::Prefab(Application& app, ModelDesc&& model)
     : app_(app)
     , model_(std::move(model))
 {
+    // Each node's path: the names from the root down. A name which is empty or used by a sibling before it gets its
+    // position among the siblings ("Arm#1"), so every path is unique and the same in every run.
+    const auto add_paths = [this](const auto& self, const std::vector<ModelNodeDesc*>& siblings, const std::string& parent_path) -> void {
+        std::set<std::string> used;
+        for (std::size_t i = 0; i < siblings.size(); i++)
+        {
+            const auto* node = siblings[i];
+            auto name = node->name;
+            if (name.empty() || !used.insert(name).second)
+            {
+                name = fmt::format("{}#{}", node->name, i);
+            }
+            const auto path = parent_path.empty() ? name : fmt::format("{}/{}", parent_path, name);
+            node_paths_[node->index] = path;
+            self(self, node->children, path);
+        }
+    };
+    // the paths start below the root (the root is ""); a model with more nodes without a parent names them from there
+    std::vector<ModelNodeDesc*> top_level;
+    for (const auto& node : model_.nodes)
+    {
+        if (!node->parent)
+        {
+            top_level.push_back(node.get());
+        }
+    }
+    if (!top_level.empty())
+    {
+        const auto* root = top_level.back();
+        top_level.pop_back();
+        node_paths_[root->index] = "";
+        add_paths(add_paths, root->children, "");
+        add_paths(add_paths, top_level, "");
+    }
 }
 
 engine::Prefab::~Prefab()
@@ -196,18 +231,48 @@ const engine::ModelNodeDesc* engine::Prefab::find_node(const std::string& name) 
     return it != model_.nodes.end() ? it->get() : nullptr;
 }
 
-entt::entity engine::Prefab::instantiate(Scene& scene, Instance instance) const
+std::vector<engine::PrefabInstanceNode> engine::Prefab::instantiate(Scene& scene, Instance instance, entt::entity root) const
 {
     const SkinDesc* skin_desc = model_.skins.empty() ? nullptr : &model_.skins.front();
     // the game object owning this instance's skin (and its pose); skinned meshes and joint attachments point at it
     auto skin_owner = NO_ENTITY;
     std::vector<entt::entity> skinned_meshes;
-    auto root = NO_ENTITY;
+
+    // the root first: the IDs of the other game objects are made from its ID
+    const ModelNodeDesc* root_node = nullptr;
+    for (const auto& node : model_.nodes)
+    {
+        if (!node->parent)
+        {
+            root_node = node.get();
+        }
+    }
+    if (!root_node)
+    {
+        log::log(LogLevel::eError, fmt::format("Prefab {}: the model has no root node.\n", get_name()));
+        return {};
+    }
+    if (root == entt::null)
+    {
+        root = instance == Instance::eTransient ? scene.create_transient_entity() : scene.create_new_entity();
+    }
+    const auto root_id = scene.get_persistent_id(root);
+    const auto create_entity = [&](const ModelNodeDesc& node) {
+        if (&node == root_node)
+        {
+            return root;
+        }
+        if (instance == Instance::eTransient || root_id == EntityIdRegistry::INVALID_ID)
+        {
+            return scene.create_transient_entity();
+        }
+        return scene.create_prefab_node_entity(root_id, node_paths_.at(node.index));
+    };
 
     std::map<std::int32_t, entt::entity> node_index_to_entity;
     for (const auto& node : model_.nodes)
     {
-        const auto entity = instance == Instance::eTransient ? scene.create_transient_entity() : scene.create_new_entity();
+        const auto entity = create_entity(*node);
         node_index_to_entity[node->index] = entity;
 
         engine_name_component_t name{};
@@ -262,20 +327,6 @@ entt::entity engine::Prefab::instantiate(Scene& scene, Instance instance) const
         {
             set_component(scene, entity, materials_.at(node->material));
         }
-
-        if (!node->parent)
-        {
-            root = entity;
-        }
-    }
-    if (root == NO_ENTITY)
-    {
-        log::log(LogLevel::eError, fmt::format("Prefab {}: the model has no root node.\n", get_name()));
-        for (const auto& [index, entity] : node_index_to_entity)
-        {
-            scene.destroy_entity(entity);
-        }
-        return root;
     }
 
     for (const auto entity : skinned_meshes)
@@ -314,6 +365,8 @@ entt::entity engine::Prefab::instantiate(Scene& scene, Instance instance) const
     }
 
     // all objects are children of the root
+    std::vector<PrefabInstanceNode> nodes;
+    nodes.push_back({ "", root, {} });
     for (const auto& [index, entity] : node_index_to_entity)
     {
         if (entity != root)
@@ -321,14 +374,16 @@ entt::entity engine::Prefab::instantiate(Scene& scene, Instance instance) const
             engine_parent_component_t parent{};
             parent.parent = static_cast<engine_game_object_t>(root);
             set_component(scene, entity, parent);
+            nodes.push_back({ node_paths_.at(index), entity, {} });
         }
     }
-    return root;
+    return nodes;
 }
 
-engine::prefab_instance_internal_component_t::prefab_instance_internal_component_t(Application& app, std::uint32_t prefab)
+engine::prefab_instance_internal_component_t::prefab_instance_internal_component_t(Application& app, std::uint32_t prefab, PrefabInstanceInfo&& info)
     : app_(&app)
     , prefab_(prefab)
+    , info_(std::move(info))
 {
     const auto acquired = app_->acquire_prefab(prefab_);
     assert(acquired && "the prefab of an instance must be valid");
@@ -341,6 +396,7 @@ engine::prefab_instance_internal_component_t::prefab_instance_internal_component
 engine::prefab_instance_internal_component_t::prefab_instance_internal_component_t(prefab_instance_internal_component_t&& rhs) noexcept
     : app_(std::exchange(rhs.app_, nullptr))
     , prefab_(rhs.prefab_)
+    , info_(std::move(rhs.info_))
 {
 }
 
@@ -351,6 +407,7 @@ engine::prefab_instance_internal_component_t& engine::prefab_instance_internal_c
         release();
         app_ = std::exchange(rhs.app_, nullptr);
         prefab_ = rhs.prefab_;
+        info_ = std::move(rhs.info_);
     }
     return *this;
 }
