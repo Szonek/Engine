@@ -22,7 +22,9 @@ typedef struct _engine_joint_attachment_component_t
 {
     // the game object with the skin component whose pose the joint is read from
     engine_game_object_t skin;
-    engine_string_t* joint_name; // name of the joint to attach to, memory owned by engine, do not deallocate!
+    // name of the joint to attach to: the engine's string, valid while the component exists (do not destroy it). Change it
+    // with engineStringSet; an update carrying another string copies its value and keeps pointing at the engine's.
+    engine_string_t* joint_name;
 } engine_joint_attachment_component_t;
 
 #ifdef __cplusplus

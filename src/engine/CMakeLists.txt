@@ -103,6 +103,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/components_internals/animation_controller_internal_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/prefab_instance_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/children_internal_component.h
+	${ENGINE_SOURCES_DIR}/components_internals/joint_attachment_internal_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/nav_mesh_internal_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/character_controller_internal_component.h
 	

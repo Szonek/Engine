@@ -226,18 +226,22 @@ typedef enum _engine_texture_color_space_t
     ENGINE_TEXTURE_COLOR_SPACE_LINEAR,
 } engine_texture_color_space_t;
 
-typedef struct _engine_ray_t
-{
-    engine_fvec3_t origin;
-    engine_fvec3_t direction;
-} engine_ray_t;
-
-typedef struct _engine_ray_hit_info_t
+// the closest hit of enginePhysicsRayCast
+typedef struct _engine_ray_hit_t
 {
     engine_game_object_t go;
-    engine_fvec3_t position;
-    engine_fvec3_t normal;
-} engine_ray_hit_info_t;
+    float position[3];
+    float normal[3];
+    float distance;  // from the ray's origin
+} engine_ray_hit_t;
+
+// what enginePhysicsRayCast skips; a zero-initialized filter (or none) hits everything but triggers
+typedef struct _engine_ray_cast_filter_t
+{
+    const engine_game_object_t* ignore;  // game objects whose colliders the ray passes through
+    size_t ignore_count;
+    bool hit_triggers;                   // false: triggers (hitboxes, pickups) are skipped
+} engine_ray_cast_filter_t;
 
 typedef enum _engine_ui_event_type_t
 {
@@ -571,7 +575,10 @@ ENGINE_API void engineTexture2DRelease(engine_texture2d_t tex2d);
 ENGINE_API void enginePhysicsSetGravityVector(const float gravity[3]);
 ENGINE_API size_t enginePhysicsGetNumCollisions();
 ENGINE_API const engine_collision_desc_t* enginePhysicsGetCollisionDesc(size_t idx);
-ENGINE_API engine_ray_hit_info_t enginePhysicsRayCast(const engine_game_object_t* ignore_list, size_t ignore_list_count, const engine_ray_t* ray, float max_distance);
+// The closest collider hit along origin + direction * t, t in [0, max_distance] (direction need not be normalized; for a
+// segment from a to b pass b - a and its length). Sees this frame's state, like every physics query. filter may be NULL
+// (everything but triggers). Returns true and fills out_hit on a hit; false on a miss, for an empty ray or no active scene.
+ENGINE_API bool enginePhysicsRayCast(const float origin[3], const float direction[3], float max_distance, const engine_ray_cast_filter_t* filter, engine_ray_hit_t* out_hit);
 ENGINE_API bool enginePhysicsAddForce(engine_game_object_t go, const float force[3], engine_force_type_t type);
 
 // navigation: the scene's nav mesh is built from its static colliders with the settings of its nav surface component

@@ -99,7 +99,9 @@ public:
 
     void set_gravity(std::span<const float> g);
 
-    engine_ray_hit_info_t raycast(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance);
+    // the closest hit along origin + direction * t, t in [0, max_distance] (direction need not be normalized), skipping the
+    // ignored game objects and, unless hit_triggers, triggers. False without a hit or for an empty ray.
+    bool raycast(const glm::vec3& origin, const glm::vec3& direction, float max_distance, std::span<const engine_game_object_t> ignore_list, bool hit_triggers, engine_ray_hit_t& out_hit);
 
 private:
     static constexpr float FIXED_TIME_STEP = 1.0f / 60.0f;

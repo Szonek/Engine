@@ -549,87 +549,63 @@ void engine::PhysicsWorld::set_gravity(std::span<const float> g)
     dynamics_world_->setGravity(btVector3(g[0], g[1], g[2]));
 }
 
-engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float /*max_distance*/)
+bool engine::PhysicsWorld::raycast(const glm::vec3& origin, const glm::vec3& direction, float max_distance, std::span<const engine_game_object_t> ignore_list, bool hit_triggers, engine_ray_hit_t& out_hit)
 {
-    struct RayWithIgnoreResultCallbackClosestHit : public btCollisionWorld::ClosestRayResultCallback
+    struct ClosestHitWithFilter : public btCollisionWorld::ClosestRayResultCallback
     {
-        RayWithIgnoreResultCallbackClosestHit(const btVector3& rayFromWorld, const btVector3& rayToWorld, std::span<const engine_game_object_t>& ignore_list)
-            : btCollisionWorld::ClosestRayResultCallback(rayFromWorld, rayToWorld)
+        ClosestHitWithFilter(const btVector3& ray_from, const btVector3& ray_to, std::span<const engine_game_object_t> ignore_list, bool hit_triggers)
+            : btCollisionWorld::ClosestRayResultCallback(ray_from, ray_to)
             , ignore_list_(ignore_list)
+            , hit_triggers_(hit_triggers)
         {
         }
 
-
-        virtual btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace)
+        bool needsCollision(btBroadphaseProxy* proxy) const override
         {
-            for(const auto& go : ignore_list_)
+            const auto* object = static_cast<const btCollisionObject*>(proxy->m_clientObject);
+            if (!hit_triggers_ && (object->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE))
             {
-                if (rayResult.m_collisionObject->getUserIndex() == static_cast<int>(go))
-                    return 1.0;
+                return false;
             }
-
-            return ClosestRayResultCallback::addSingleResult(rayResult, normalInWorldSpace);
+            for (const auto go : ignore_list_)
+            {
+                if (object->getUserIndex() == static_cast<int>(go))
+                {
+                    return false;
+                }
+            }
+            return ClosestRayResultCallback::needsCollision(proxy);
         }
 
-    protected:
-        std::span<const engine_game_object_t>& ignore_list_;
+    private:
+        std::span<const engine_game_object_t> ignore_list_;
+        bool hit_triggers_;
     };
 
-    struct RayWithIgnoreResultCallbackAllHits : public btCollisionWorld::AllHitsRayResultCallback
+    const float length = glm::length(direction);
+    if (!(length > 0.0f) || !(max_distance > 0.0f))
     {
-        RayWithIgnoreResultCallbackAllHits(const btVector3& rayFromWorld, const btVector3& rayToWorld, std::span<const engine_game_object_t>& ignore_list)
-            : btCollisionWorld::AllHitsRayResultCallback(rayFromWorld, rayToWorld)
-            , ignore_list_(ignore_list)
-        {
-        }
-
-
-        virtual btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace)
-        {
-            for (const auto& go : ignore_list_)
-            {
-                if (rayResult.m_collisionObject->getUserIndex() == static_cast<int>(go))
-                    return 1.0;
-            }
-
-            return AllHitsRayResultCallback::addSingleResult(rayResult, normalInWorldSpace);
-        }
-
-    protected:
-        std::span<const engine_game_object_t>& ignore_list_;
-    };
-
-    //RayWithIgnoreResultCallbackAllHits all_hits_result(
-    //    btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
-    //    btVector3(ray.direction[0], ray.direction[1], ray.direction[2]),
-    //    ignore_list);
-    //dynamics_world_->rayTest(
-    //    btVector3(ray.origin[0], ray.origin[1], ray.origin[2]),
-    //    btVector3(ray.direction[0], ray.direction[1], ray.direction[2]),
-    //    all_hits_result
-    //);
-
-    RayWithIgnoreResultCallbackClosestHit closest_result(
-        btVector3(ray.origin.x, ray.origin.y, ray.origin.z),
-        btVector3(ray.direction.x, ray.direction.y, ray.direction.z),
-        ignore_list);
-    dynamics_world_->rayTest(
-        btVector3(ray.origin.x, ray.origin.y, ray.origin.z),
-        btVector3(ray.direction.x, ray.direction.y, ray.direction.z),
-        closest_result
-    );
-    engine_ray_hit_info_t ret{};
-    if (closest_result.hasHit())
-    {
-        ret.go = closest_result.m_collisionObject->getUserIndex();
-        ret.position.x = closest_result.m_hitPointWorld.getX();
-        ret.position.y = closest_result.m_hitPointWorld.getY();
-        ret.position.z = closest_result.m_hitPointWorld.getZ();
-        ret.normal.x = closest_result.m_hitNormalWorld.getX();
-        ret.normal.y = closest_result.m_hitNormalWorld.getY();
-        ret.normal.z = closest_result.m_hitNormalWorld.getZ();
+        return false;
     }
-    return ret;
+    const glm::vec3 end = origin + direction * (max_distance / length);
+    const btVector3 bt_from(origin.x, origin.y, origin.z);
+    const btVector3 bt_to(end.x, end.y, end.z);
+    ClosestHitWithFilter closest_hit(bt_from, bt_to, ignore_list, hit_triggers);
+    dynamics_world_->rayTest(bt_from, bt_to, closest_hit);
+    if (!closest_hit.hasHit())
+    {
+        return false;
+    }
+    out_hit.go = closest_hit.m_collisionObject->getUserIndex();
+    out_hit.position[0] = closest_hit.m_hitPointWorld.getX();
+    out_hit.position[1] = closest_hit.m_hitPointWorld.getY();
+    out_hit.position[2] = closest_hit.m_hitPointWorld.getZ();
+    const btVector3 normal = closest_hit.m_hitNormalWorld.normalized();
+    out_hit.normal[0] = normal.getX();
+    out_hit.normal[1] = normal.getY();
+    out_hit.normal[2] = normal.getZ();
+    out_hit.distance = closest_hit.m_closestHitFraction * max_distance;
+    return true;
 }
 
 void engine::PhysicsWorld::DebugDrawer::drawLine(const btVector3& from, const btVector3& to, const btVector3& color)

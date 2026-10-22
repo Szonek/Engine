@@ -110,13 +110,28 @@ bool collided(engine_game_object_t a, engine_game_object_t b)
     return false;
 }
 
+void make_trigger(engine_game_object_t go)
+{
+    auto cc = engineGameObjectGetColliderComponent(go);
+    cc.is_trigger = true;
+    engineGameObjectUpdateColliderComponent(go, &cc);
+}
+
 // game object whose collider a vertical ray at (x, z) hits first, or ENGINE_INVALID_GAME_OBJECT_ID
 engine_game_object_t collider_below(float x, float z)
 {
-    engine_ray_t ray{};
-    ray.origin = { x, 10.0f, z };
-    ray.direction = { x, -10.0f, z };  // the end point of the ray
-    return enginePhysicsRayCast(nullptr, 0, &ray, 20.0f).go;
+    const float origin[3] = { x, 10.0f, z };
+    const float down[3] = { 0.0f, -1.0f, 0.0f };
+    engine_ray_hit_t hit{};
+    return enginePhysicsRayCast(origin, down, 20.0f, nullptr, &hit) ? hit.go : ENGINE_INVALID_GAME_OBJECT_ID;
+}
+
+// a ray from x = -10 along +x (direction of length 2, not normalized) at y = z = 0
+bool cast_along_x(float max_distance, const engine_ray_cast_filter_t* filter, engine_ray_hit_t& hit)
+{
+    const float origin[3] = { -10.0f, 0.0f, 0.0f };
+    const float direction[3] = { 2.0f, 0.0f, 0.0f };
+    return enginePhysicsRayCast(origin, direction, max_distance, filter, &hit);
 }
 
 class PhysicsTest : public scenario::ScenarioTest
@@ -356,6 +371,84 @@ TEST_F(PhysicsTest, RayCastHitsAChildWhereItsParentWasMovedInTheSameFrame)
 
     EXPECT_EQ(collider_below(1.0f, 4.0f), child);
     EXPECT_EQ(collider_below(1.0f, 0.0f), ENGINE_INVALID_GAME_OBJECT_ID);
+}
+
+TEST_F(PhysicsTest, RayCastReportsTheClosestHitWithItsDistanceAndNormal)
+{
+    load_scene<PhysicsScene>();
+    const auto near_box = create_object(0.0f, 0.0f, 0.0f);
+    add_box_collider(near_box);
+    const auto far_box = create_object(5.0f, 0.0f, 0.0f);
+    add_box_collider(far_box);
+
+    engine_ray_hit_t hit{};
+    ASSERT_TRUE(cast_along_x(100.0f, nullptr, hit));
+
+    EXPECT_EQ(hit.go, near_box);
+    // the near face of the 0.5 m box at the origin, 9.75 m from x = -10 (the direction's length doesn't scale it)
+    EXPECT_NEAR(hit.position[0], -0.25f, 1e-3f);
+    EXPECT_NEAR(hit.distance, 9.75f, 1e-3f);
+    EXPECT_NEAR(hit.normal[0], -1.0f, 1e-3f);
+}
+
+TEST_F(PhysicsTest, RayCastEndsAtItsMaxDistance)
+{
+    load_scene<PhysicsScene>();
+    const auto box = create_object(0.0f, 0.0f, 0.0f);
+    add_box_collider(box);
+
+    engine_ray_hit_t hit{};
+    EXPECT_FALSE(cast_along_x(9.5f, nullptr, hit));
+    ASSERT_TRUE(cast_along_x(10.0f, nullptr, hit));
+    EXPECT_EQ(hit.go, box);
+}
+
+TEST_F(PhysicsTest, RayCastWithAnEmptyRayHitsNothing)
+{
+    load_scene<PhysicsScene>();
+    add_box_collider(create_object(0.0f, 0.0f, 0.0f));
+
+    const float origin[3] = { -10.0f, 0.0f, 0.0f };
+    const float zero[3] = { 0.0f, 0.0f, 0.0f };
+    const float along_x[3] = { 1.0f, 0.0f, 0.0f };
+    engine_ray_hit_t hit{};
+    EXPECT_FALSE(enginePhysicsRayCast(origin, zero, 100.0f, nullptr, &hit));
+    EXPECT_FALSE(enginePhysicsRayCast(origin, along_x, 0.0f, nullptr, &hit));
+}
+
+TEST_F(PhysicsTest, RayCastSkipsTriggersUnlessAsked)
+{
+    load_scene<PhysicsScene>();
+    const auto trigger = create_object(0.0f, 0.0f, 0.0f);
+    add_box_collider(trigger);
+    make_trigger(trigger);
+    const auto wall = create_object(5.0f, 0.0f, 0.0f);
+    add_box_collider(wall);
+
+    engine_ray_hit_t hit{};
+    ASSERT_TRUE(cast_along_x(100.0f, nullptr, hit));
+    EXPECT_EQ(hit.go, wall);
+
+    engine_ray_cast_filter_t filter{};
+    filter.hit_triggers = true;
+    ASSERT_TRUE(cast_along_x(100.0f, &filter, hit));
+    EXPECT_EQ(hit.go, trigger);
+}
+
+TEST_F(PhysicsTest, RayCastPassesThroughIgnoredGameObjects)
+{
+    load_scene<PhysicsScene>();
+    const auto near_box = create_object(0.0f, 0.0f, 0.0f);
+    add_box_collider(near_box);
+    const auto far_box = create_object(5.0f, 0.0f, 0.0f);
+    add_box_collider(far_box);
+
+    engine_ray_cast_filter_t filter{};
+    filter.ignore = &near_box;
+    filter.ignore_count = 1;
+    engine_ray_hit_t hit{};
+    ASSERT_TRUE(cast_along_x(100.0f, &filter, hit));
+    EXPECT_EQ(hit.go, far_box);
 }
 
 TEST_F(PhysicsTest, UpdatedMassOfARigidBodyTakesEffect)
