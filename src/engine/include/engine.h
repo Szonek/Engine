@@ -527,11 +527,6 @@ ENGINE_API engine_result_code_t engineSceneSave(const char* path);
 // Fails, without changing the scene, when the file can't be read or isn't a scene file this engine can read; problems
 // inside a scene file (an unknown component, a missing asset, ...) are logged and the rest is loaded.
 ENGINE_API engine_result_code_t engineSceneLoad(const char* path);
-// The same in memory, for snapshots of a scene (e.g. restoring it after playing in the editor): saves the active scene
-// into `out` (its content is replaced), and adds the game objects of `size` bytes of scene file content to the active
-// scene. `name` names the content in log messages, NULL for "memory".
-ENGINE_API engine_result_code_t engineSceneSaveToMemory(engine_string_t* out);
-ENGINE_API engine_result_code_t engineSceneLoadFromMemory(const char* data, size_t size, const char* name);
 
 // Game-defined components: plain C structs the game describes field by field (like the engine's own components), so
 // scene files save them and the editor shows and edits them without code for them. Register a type once, after the

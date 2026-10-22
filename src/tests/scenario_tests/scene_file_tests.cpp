@@ -311,36 +311,4 @@ TEST_F(SceneFileTest, GameComponentIsSavedAndLoaded)
     ASSERT_TRUE(engineGameObjectIsValid(read.buddy));
     EXPECT_TRUE(engineGameObjectHasTransformComponent(read.buddy));
 }
-
-TEST_F(SceneFileTest, SceneSavedToMemoryLoadsBackToTheSameContent)
-{
-    const auto go = engineGameObjectCreate();
-    auto nc = engineGameObjectAddNameComponent(go);
-    std::strcpy(nc.name, "snapshot");
-    engineGameObjectUpdateNameComponent(go, &nc);
-    const ScenarioTag tag{ 1.5f, go, "self" };
-    ASSERT_EQ(engineGameObjectAddDataComponent(go, scenario_tag_type(), &tag), ENGINE_RESULT_CODE_OK);
-    auto* saved = engineStringCreate("");
-    ASSERT_EQ(engineSceneSaveToMemory(saved), ENGINE_RESULT_CODE_OK);
-    const std::string content = engineStringCStr(saved);
-    EXPECT_NE(content.find(R"("snapshot")"), std::string::npos);
-    EXPECT_NE(content.find(R"("scenario_tag")"), std::string::npos);
-
-    create_file_scene();
-    ASSERT_EQ(engineSceneLoadFromMemory(content.data(), content.size(), "snapshot"), ENGINE_RESULT_CODE_OK);
-    // the content is replaced, not appended to
-    engineStringSet(saved, "old content");
-    ASSERT_EQ(engineSceneSaveToMemory(saved), ENGINE_RESULT_CODE_OK);
-    EXPECT_EQ(std::string(engineStringCStr(saved)), content);
-    engineStringDestroy(saved);
-}
-
-TEST_F(SceneFileTest, ContentWhichIsNotASceneFailsTheLoadFromMemory)
-{
-    const std::string content = "not a scene";
-    EXPECT_EQ(engineSceneLoadFromMemory(content.data(), content.size(), nullptr), ENGINE_RESULT_CODE_FAIL);
-    EXPECT_EQ(engineSceneLoadFromMemory(nullptr, 0, nullptr), ENGINE_RESULT_CODE_FAIL);
-    EXPECT_EQ(engineSceneLoadFromMemory(nullptr, 4, nullptr), ENGINE_RESULT_CODE_INVALID_ARG);
-    EXPECT_EQ(engineSceneSaveToMemory(nullptr), ENGINE_RESULT_CODE_INVALID_ARG);
-}
 }  // namespace
