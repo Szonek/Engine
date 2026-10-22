@@ -13,10 +13,6 @@
 #pragma warning(default: 4127) // enable warning back
 #endif
 
-#if __ANDROID__
-#include <android/log.h>
-#endif
-
 struct LogLevelTraits
 {
     const char* name;
@@ -50,9 +46,5 @@ void engine::log::log(LogLevel level, std::string_view msg)
 {
     const auto log_level_trait = LOG_LEVEL_LUT[level];
     const auto printable_str = fmt::format("[{}][{}]: {}", std::chrono::system_clock::now(), log_level_trait.name, msg);
-#if __ANDROID__
-    __android_log_print(ANDROID_LOG_ERROR, "", "%s", printable_str.data());
-#else
     fmt::print(fmt::fg(log_level_trait.color), "{}", printable_str);
-#endif
 }

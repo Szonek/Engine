@@ -3,10 +3,8 @@
 
 #sdl
 set(SDL_STATIC ON CACHE BOOL "")
-# the engine links the static library; only Android loads the shared one (libSDL3.so, see SDLActivity.getLibraries)
-if(NOT ANDROID)
+# the engine links the static library
 set(SDL_SHARED OFF CACHE BOOL "")
-endif()
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "")
 set(SDL_TESTS OFF CACHE BOOL "")
 set(SDL_EXAMPLES OFF CACHE BOOL "")
