@@ -418,8 +418,8 @@ bool display_texture_combo(const engine::Scene* scene, const char* label, std::u
     return display_asset_combo(label, texture, app->get_texture_name(texture), [app] { return app->get_texture_names(); });
 }
 
-// Draws a value of a registered type from its description, a widget per field kind; for the components without a
-// hand-written panel (game-defined components). Edits the value in place and returns true when a field changed.
+// Draws a value of a game-defined type from its description, a widget per field kind (game types have no unions; the
+// engine's components have hand-written panels). Edits the value in place and returns true when a field changed.
 class TypeInspector
 {
 public:
@@ -427,58 +427,17 @@ public:
 
     bool draw_struct(const engine::TypeInfo& type, std::byte* value)
     {
-        // the case each union holds before its tag (drawn before it) is edited
-        std::vector<const engine::UnionCase*> cases_before;
-        for (const auto& field : type.fields)
-        {
-            if (field.kind == engine::FieldKind::eUnion)
-            {
-                cases_before.push_back(engine::find_active_case(type, field, value));
-            }
-        }
-
         bool changed = false;
-        std::size_t union_index = 0;
         for (const auto& field : type.fields)
         {
             ImGui::PushID(field.name.c_str());
-            if (field.kind == engine::FieldKind::eUnion)
-            {
-                // the tag selected another case: its bytes are the old case's, so the new one starts zeroed (like a
-                // loaded file) before it is drawn
-                if (engine::find_active_case(type, field, value) != cases_before[union_index++])
-                {
-                    engine::clear_union(field, value);
-                }
-                changed |= draw_union(type, field, value);
-            }
-            else
-            {
-                changed |= draw_field(field, value + field.offset);
-            }
+            changed |= draw_field(field, value + field.offset);
             ImGui::PopID();
         }
         return changed;
     }
 
 private:
-    bool draw_union(const engine::TypeInfo& type, const engine::FieldInfo& field, std::byte* value)
-    {
-        const auto* active = engine::find_active_case(type, field, value);
-        if (!active)
-        {
-            ImGui::TextDisabled("%s: no data for this %s", field.name.c_str(), field.union_tag.c_str());
-            return false;
-        }
-        bool changed = false;
-        if (ImGui::TreeNodeEx(fmt::format("{} ({})", field.name, active->name).c_str(), ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            changed = draw_struct(*active->type, value + field.offset);
-            ImGui::TreePop();
-        }
-        return changed;
-    }
-
     bool draw_field(const engine::FieldInfo& field, std::byte* p)
     {
         using engine::FieldKind;
@@ -531,7 +490,7 @@ private:
             }
             return changed;
         }
-        case FieldKind::eUnion: return false;  // drawn by draw_struct, which knows the tag
+        case FieldKind::eUnion: return false;  // game types have no unions (the engine's components have their own panels)
         case FieldKind::eAsset:
         {
             auto handle = read<std::uint32_t>(p);

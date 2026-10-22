@@ -18,7 +18,6 @@ using engine::FieldKind;
 using engine::TypeInfo;
 
 enum Mood { MOOD_CALM = 0, MOOD_ANGRY = 3 };
-enum AreaKind { AREA_NONE = 0, AREA_CIRCLE = 1, AREA_BOX = 2 };
 
 struct Circle
 {
@@ -44,12 +43,7 @@ struct EnemyConfig
     engine_texture2d_t skin;
     float offset[3];
     Circle aura;
-    AreaKind area_kind;
-    union
-    {
-        Circle circle;
-        Box box;
-    } area;
+    Box zone;
 };
 
 engine_field_desc_t field(const char* name, engine_field_kind_t kind, std::size_t offset, std::uint32_t count = 0)
@@ -63,8 +57,6 @@ engine_field_desc_t field(const char* name, engine_field_kind_t kind, std::size_
 }
 
 const engine_enum_value_desc_t MOODS[] = { { "calm", MOOD_CALM }, { "angry", MOOD_ANGRY } };
-const engine_enum_value_desc_t AREA_KINDS[] = { { "none", AREA_NONE }, { "circle", AREA_CIRCLE }, { "box", AREA_BOX } };
-const engine_union_case_desc_t AREA_CASES[] = { { AREA_CIRCLE, "circle" }, { AREA_BOX, "box" } };
 
 class GameTypesTest : public ::testing::Test
 {
@@ -104,13 +96,8 @@ protected:
         mood.enum_values_count = 2;
         auto aura = field("aura", ENGINE_FIELD_KIND_STRUCT, offsetof(EnemyConfig, aura));
         aura.type_name = "circle";
-        auto area_kind = field("area_kind", ENGINE_FIELD_KIND_ENUM, offsetof(EnemyConfig, area_kind));
-        area_kind.enum_values = AREA_KINDS;
-        area_kind.enum_values_count = 3;
-        auto area = field("area", ENGINE_FIELD_KIND_UNION, offsetof(EnemyConfig, area));
-        area.union_tag = "area_kind";
-        area.union_cases = AREA_CASES;
-        area.union_cases_count = 2;
+        auto zone = field("zone", ENGINE_FIELD_KIND_STRUCT, offsetof(EnemyConfig, zone));
+        zone.type_name = "box";
         return {
             field("max_hp", ENGINE_FIELD_KIND_FLOAT, offsetof(EnemyConfig, max_hp)),
             field("level", ENGINE_FIELD_KIND_INT32, offsetof(EnemyConfig, level)),
@@ -123,8 +110,7 @@ protected:
             field("skin", ENGINE_FIELD_KIND_TEXTURE, offsetof(EnemyConfig, skin)),
             field("offset", ENGINE_FIELD_KIND_FLOAT, offsetof(EnemyConfig, offset), 3),
             aura,
-            area_kind,
-            area,
+            zone,
         };
     }
 
@@ -161,7 +147,7 @@ TEST_F(GameTypesTest, DescriptionBecomesATypeWithEveryField)
     EXPECT_EQ(type->size, sizeof(EnemyConfig));
     EXPECT_EQ(types_.find("enemy_config"), type);
     EXPECT_EQ(types_.get(type->handle), type);
-    ASSERT_EQ(type->fields.size(), 13u);
+    ASSERT_EQ(type->fields.size(), 12u);
 
     const auto* title = type->find_field("title");
     EXPECT_EQ(title->kind, FieldKind::eString);
@@ -178,13 +164,7 @@ TEST_F(GameTypesTest, DescriptionBecomesATypeWithEveryField)
     EXPECT_EQ(type->find_field("skin")->asset_kind, engine::AssetKind::eTexture);
     EXPECT_EQ(type->find_field("target")->kind, FieldKind::eGameObject);
     EXPECT_EQ(type->find_field("aura")->struct_type, types_.find("circle"));
-
-    const auto* area = type->find_field("area");
-    EXPECT_EQ(area->kind, FieldKind::eUnion);
-    EXPECT_EQ(area->size, sizeof(EnemyConfig::area));
-    ASSERT_EQ(area->union_cases.size(), 2u);
-    EXPECT_EQ(area->union_cases[0].name, "circle");
-    EXPECT_EQ(area->union_cases[1].type, types_.find("box"));
+    EXPECT_EQ(type->find_field("zone")->struct_type, types_.find("box"));
 }
 
 TEST_F(GameTypesTest, StructTypesHaveNoStorage)
@@ -260,46 +240,21 @@ TEST_F(GameTypesTest, EnumNeedsUniqueNamedValues)
     EXPECT_TRUE(test_logger::logged("names and values are unique"));
 }
 
-TEST_F(GameTypesTest, StructFieldNeedsItsTypeRegistered)
+TEST_F(GameTypesTest, StructFieldNeedsAStructTypeOfTheGame)
 {
     auto aura = field("aura", ENGINE_FIELD_KIND_STRUCT, offsetof(EnemyConfig, aura));
     aura.type_name = "circle";
     EXPECT_FALSE(registers({ aura }));
-    EXPECT_TRUE(test_logger::logged("is not a registered type"));
-}
+    EXPECT_TRUE(test_logger::logged("is not a struct type registered by the game"));
 
-TEST_F(GameTypesTest, UnionNeedsAnEnumTagBeforeItAndKnownCases)
-{
-    register_struct_types();
-    auto area = field("area", ENGINE_FIELD_KIND_UNION, offsetof(EnemyConfig, area));
-    area.union_tag = "area_kind";
-    area.union_cases = AREA_CASES;
-    area.union_cases_count = 2;
-    // no tag field
-    EXPECT_FALSE(registers({ area }));
-    EXPECT_TRUE(test_logger::logged("is not an enum field described before it"));
-
-    // a case for a value the tag doesn't have
-    auto area_kind = field("area_kind", ENGINE_FIELD_KIND_ENUM, offsetof(EnemyConfig, area_kind));
-    area_kind.enum_values = AREA_KINDS;
-    area_kind.enum_values_count = 2;  // none, circle
-    EXPECT_FALSE(registers({ area_kind, area }));
-    EXPECT_TRUE(test_logger::logged("is not a registered type which fits in it, for a value of the tag"));
-}
-
-TEST_F(GameTypesTest, FieldNamedLikeAUnionCaseIsRejected)
-{
-    // "box" would be written twice: the float[2] field and the union's case for the tag value "box"
-    register_struct_types();
-    auto area_kind = field("area_kind", ENGINE_FIELD_KIND_ENUM, offsetof(EnemyConfig, area_kind));
-    area_kind.enum_values = AREA_KINDS;
-    area_kind.enum_values_count = 3;
-    auto area = field("area", ENGINE_FIELD_KIND_UNION, offsetof(EnemyConfig, area));
-    area.union_tag = "area_kind";
-    area.union_cases = AREA_CASES;
-    area.union_cases_count = 2;
-    EXPECT_FALSE(registers({ area_kind, area, field("box", ENGINE_FIELD_KIND_FLOAT, offsetof(EnemyConfig, offset), 2) }));
-    EXPECT_TRUE(test_logger::logged("written under the key of another field"));
+    // the engine's struct types may hold unions, which game types don't support; a component isn't a struct type
+    engine::register_builtin_types(types_);
+    aura.type_name = "sphere_collider";
+    EXPECT_FALSE(registers({ aura }));
+    const std::vector<engine_field_desc_t> ring = { field("radius", ENGINE_FIELD_KIND_FLOAT, 0) };
+    ASSERT_NE(engine::register_game_type(types_, desc<Circle>("ring", ring), true), nullptr);
+    aura.type_name = "ring";
+    EXPECT_FALSE(registers({ aura }));
 }
 
 TEST_F(GameTypesTest, FieldAlignedMoreThanTheStructIsRejected)

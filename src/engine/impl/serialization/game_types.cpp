@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <bit>
-#include <cstdint>
 #include <cstring>
 #include <set>
 #include <string>
@@ -102,10 +101,6 @@ public:
             }
         }
         check_overlaps();
-        if (const auto problem = engine::type_builder_detail::find_duplicate_key(type_); !problem.empty())
-        {
-            error(problem);
-        }
         const auto id = storage_id(type_.name);
         if (component)
         {
@@ -188,21 +183,16 @@ private:
         case ENGINE_FIELD_KIND_STRUCT:
         {
             f.kind = FieldKind::eStruct;
+            // a struct type of the game: the engine's may hold unions, which game types don't support
             f.struct_type = registry_.find(text(d.type_name));
-            if (!f.struct_type)
+            if (!f.struct_type || !f.struct_type->game_defined || f.struct_type->is_component())
             {
-                return error(fmt::format("field {}: \"{}\" is not a registered type", name, text(d.type_name)));
+                return error(fmt::format("field {}: \"{}\" is not a struct type registered by the game", name, text(d.type_name)));
             }
             f.size = f.struct_type->size;
             f.alignment = f.struct_type->alignment;
             break;
         }
-        case ENGINE_FIELD_KIND_UNION:
-            if (!read_union(d, f))
-            {
-                return;
-            }
-            break;
         case ENGINE_FIELD_KIND_GEOMETRY: f.kind = FieldKind::eAsset; f.asset_kind = engine::AssetKind::eGeometry; break;
         case ENGINE_FIELD_KIND_TEXTURE: f.kind = FieldKind::eAsset; f.asset_kind = engine::AssetKind::eTexture; break;
         case ENGINE_FIELD_KIND_GAME_OBJECT: f.kind = FieldKind::eGameObject; break;
@@ -244,43 +234,6 @@ private:
                 return false;
             }
             f.enum_values.push_back({ std::string(value_name), value });
-        }
-        return true;
-    }
-
-    bool read_union(const engine_field_desc_t& d, FieldInfo& f)
-    {
-        f.kind = FieldKind::eUnion;
-        f.union_tag = std::string(text(d.union_tag));
-        if (d.count > 0)
-        {
-            error(fmt::format("union {}: a union can't be an array", f.name));
-            return false;
-        }
-        const auto* tag = type_.find_field(f.union_tag);
-        if (!tag || tag->kind != FieldKind::eEnum || tag->is_array)
-        {
-            error(fmt::format("union {}: its tag \"{}\" is not an enum field described before it", f.name, f.union_tag));
-            return false;
-        }
-        if (d.union_cases_count == 0 || !d.union_cases)
-        {
-            error(fmt::format("union {} has no cases", f.name));
-            return false;
-        }
-        f.size = 0;
-        f.alignment = 1;
-        for (std::uint32_t i = 0; i < d.union_cases_count; i++)
-        {
-            // the union is as big as its biggest case
-            const auto& c = d.union_cases[i];
-            if (const auto problem = engine::type_builder_detail::add_union_case(registry_, *tag, c.tag, text(c.type_name), SIZE_MAX, f); !problem.empty())
-            {
-                error(fmt::format("union {}: {}", f.name, problem));
-                return false;
-            }
-            f.size = std::max(f.size, f.union_cases.back().type->size);
-            f.alignment = std::max(f.alignment, f.union_cases.back().type->alignment);
         }
         return true;
     }

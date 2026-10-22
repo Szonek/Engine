@@ -552,8 +552,6 @@ typedef enum _engine_field_kind_t
     ENGINE_FIELD_KIND_ENUM,
     // a struct of the type `type_name`, registered before with engineStructTypeRegister
     ENGINE_FIELD_KIND_STRUCT,
-    // a union whose case is selected by the enum field `union_tag` described before it; only the active case is saved
-    ENGINE_FIELD_KIND_UNION,
     // an engine_geometry_t / engine_texture2d_t, saved as its asset ID
     ENGINE_FIELD_KIND_GEOMETRY,
     ENGINE_FIELD_KIND_TEXTURE,
@@ -567,14 +565,6 @@ typedef struct _engine_enum_value_desc_t
     const char* name;
     int32_t value;
 } engine_enum_value_desc_t;
-
-typedef struct _engine_union_case_desc_t
-{
-    // the value of the union's tag selecting this case
-    int32_t tag;
-    // a struct type registered before with engineStructTypeRegister
-    const char* type_name;
-} engine_union_case_desc_t;
 
 typedef struct _engine_field_desc_t
 {
@@ -590,10 +580,6 @@ typedef struct _engine_field_desc_t
     uint32_t enum_values_count;
     // ENGINE_FIELD_KIND_STRUCT
     const char* type_name;
-    // ENGINE_FIELD_KIND_UNION: the union's size is the size of its biggest case
-    const char* union_tag;
-    const engine_union_case_desc_t* union_cases;
-    uint32_t union_cases_count;
 } engine_field_desc_t;
 
 typedef struct _engine_type_desc_t
@@ -616,10 +602,10 @@ typedef struct _engine_type_desc_t
 #define ENGINE_COMPONENT_TYPE_MAX_SIZE 256
 
 // Registers a component type. Fails (logged) when the description has a mistake: a name used already, a field outside
-// the struct, overlapping or misaligned fields (or aligned more than the struct), an unknown struct type, two fields
-// saved under the same name (a field named like a union case), ...
+// the struct, overlapping or misaligned fields (or aligned more than the struct), an unknown struct type, ...
+// Unions aren't supported (unlike in the engine's own components): describe each case as its own field or component.
 ENGINE_API engine_result_code_t engineComponentTypeRegister(const engine_type_desc_t* desc, engine_component_type_t* out);
-// Registers a struct type used inside components (ENGINE_FIELD_KIND_STRUCT, union cases), not a component itself.
+// Registers a struct type used inside components (ENGINE_FIELD_KIND_STRUCT), not a component itself.
 ENGINE_API engine_result_code_t engineStructTypeRegister(const engine_type_desc_t* desc);
 // the component type the game registered with this name; ENGINE_INVALID_OBJECT_HANDLE when none (the engine's own
 // components have their own functions)
