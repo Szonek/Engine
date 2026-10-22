@@ -120,17 +120,51 @@ TEST_F(EntityIdRegistryTest, AssignRejectsInvalidUsedOrDoubleIds)
     EXPECT_EQ(ids_.find(8), entt::entity{ entt::null });
 }
 
-TEST_F(EntityIdRegistryTest, LargestIdIsRejectedSoTheCounterNeverWraps)
+TEST_F(EntityIdRegistryTest, LargestIdIsRejected)
 {
     const auto a = registry_.create();
     EXPECT_FALSE(ids_.assign(a, std::numeric_limits<std::uint64_t>::max()));
-    ASSERT_TRUE(ids_.assign(a, EntityIdRegistry::MAX_ID));
+    EXPECT_TRUE(ids_.assign(a, EntityIdRegistry::MAX_ID));
+}
 
-    // the counter is past the last valid ID: no more IDs, and never the reserved 0
+TEST_F(EntityIdRegistryTest, CounterStopsBeforeTheHashedIds)
+{
+    const auto a = registry_.create();
+    ASSERT_TRUE(ids_.assign(a, EntityIdRegistry::MAX_COUNTER_ID));
+
+    // the counter is past the last counter ID: no more IDs, never a hashed one and never the reserved 0
     const auto b = registry_.create();
     EXPECT_EQ(ids_.assign_next(b), EntityIdRegistry::INVALID_ID);
     EXPECT_EQ(ids_.get_id(b), EntityIdRegistry::INVALID_ID);
+    EXPECT_EQ(ids_.find(EntityIdRegistry::FIRST_HASHED_ID), entt::entity{ entt::null });
     EXPECT_EQ(ids_.find(EntityIdRegistry::INVALID_ID), entt::entity{ entt::null });
+}
+
+TEST_F(EntityIdRegistryTest, HashedIdsDontMoveTheCounter)
+{
+    const auto node = registry_.create();
+    ASSERT_TRUE(ids_.assign(node, EntityIdRegistry::hashed_id(1, "arm/hand")));
+    EXPECT_EQ(ids_.assign_next(registry_.create()), 1u);
+    EXPECT_EQ(ids_.assign_next(registry_.create()), 2u);
+}
+
+TEST(EntityIdHashTest, HashedIdsAreStableAndAboveTheCounterIds)
+{
+    const auto id = EntityIdRegistry::hashed_id(42, "Body/Arm.L");
+    // the same in every run and on every platform: files store it
+    EXPECT_EQ(id, EntityIdRegistry::hashed_id(42, "Body/Arm.L"));
+    EXPECT_EQ(id, 0x96fcfd8ae4b6b5e8ull);
+    EXPECT_TRUE(EntityIdRegistry::is_hashed_id(id));
+    EXPECT_LE(id, EntityIdRegistry::MAX_ID);
+    EXPECT_FALSE(EntityIdRegistry::is_hashed_id(EntityIdRegistry::MAX_COUNTER_ID));
+}
+
+TEST(EntityIdHashTest, HashedIdsDependOnTheRootAndThePath)
+{
+    const auto id = EntityIdRegistry::hashed_id(42, "Body/Arm.L");
+    EXPECT_NE(id, EntityIdRegistry::hashed_id(43, "Body/Arm.L"));
+    EXPECT_NE(id, EntityIdRegistry::hashed_id(42, "Body/Arm.R"));
+    EXPECT_NE(EntityIdRegistry::hashed_id(42, ""), EntityIdRegistry::hashed_id(42, "Body"));
 }
 
 TEST_F(EntityIdRegistryTest, AssignNextFailsForEntityThatCantTakeAnId)
