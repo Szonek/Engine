@@ -4,13 +4,8 @@
 #include "logger.h"
 #include "shaders_binding_slots.h"
 
-#if __ANDROID__
-#define GLAD_GLES2_IMPLEMENTATION
-#include <glad/gles2.h>
-#else
 #define GLAD_GL_IMPLEMENTATION
 #include <glad/gl.h>
-#endif
 #include "profiler.h"
 
 #include "tracy/TracyOpenGL.hpp"
@@ -148,9 +143,7 @@ inline std::uint32_t to_ogl_texture_border_clamp_mode(engine::TextureAddressClam
 {
     switch (mode)
     {
-#if defined(GL_CLAMP_TO_BORDER)
     case engine::TextureAddressClampMode::eClampToBorder: return GL_CLAMP_TO_BORDER;
-#endif
     case engine::TextureAddressClampMode::eClampToEdge: return GL_CLAMP_TO_EDGE;
     default:
         assert(false && "Unknown TextureAddressClampMode!");
@@ -832,7 +825,6 @@ engine::Geometry::vertex_attribute_t engine::Geometry::get_vertex_attribute(std:
 {
     return attribs_.at(idx);
 }
-#if defined(GLAD_GL_IMPLEMENTATION)
 inline void GLAPIENTRY
 message_callback(GLenum /*source*/,
 	GLenum type,
@@ -875,7 +867,6 @@ message_callback(GLenum /*source*/,
 	engine::log::log(engine::log::LogLevel::eCritical, fmt::format("[OpenGL] Type: {}, severity: {}, message: {} \n",
 		type_str, severity_str, message));
 }
-#endif
 
 engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen, bool hidden)
     : hidden_(hidden)
@@ -891,12 +882,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     // we need 4.4 for glClearTexImage
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
-#if __ANDROID__
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-    SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, 0);
-#else
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-#endif 
 
     const auto displays = []()
     {
@@ -975,11 +961,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
         log::log(log::LogLevel::eError, fmt::format("Failed to enable vsync: {}\n", SDL_GetError()));
     }
 
-#if defined(GLAD_GLES2_IMPLEMENTATION)
-    const auto gl_version = gladLoadGLES2(SDL_GL_GetProcAddress);
-#elif defined(GLAD_GL_IMPLEMENTATION)
     const auto gl_version = gladLoadGL(SDL_GL_GetProcAddress);
-#endif
 	if (gl_version == 0)
 	{
         log::log(log::LogLevel::eCritical, "Failed to initialize GLAD\n");
@@ -1162,7 +1144,6 @@ void engine::RenderContext::end_debug_group()
 
 void engine::RenderContext::set_polygon_mode(PolygonFaceType face, PolygonMode mode)
 {
-#if defined(GLAD_GL_IMPLEMENTATION)
 	std::uint32_t gl_face = 0;
 	switch (face)
 	{
@@ -1190,7 +1171,6 @@ void engine::RenderContext::set_polygon_mode(PolygonFaceType face, PolygonMode m
 	}
 
 	glPolygonMode(gl_face, gl_mode);
-#endif
 }
 
 void engine::RenderContext::set_blend_mode(bool enable, BlendFactor src_rgb, BlendFactor dst_rgb, BlendFactor src_a, BlendFactor dst_a)

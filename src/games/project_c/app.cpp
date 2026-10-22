@@ -14,9 +14,8 @@ inline engine_application_create_desc_t app_cd(const project_c::AppConfig& confi
     app_cd.name = "Project_C";
     // assets of the source tree this binary was built from (set by CMake), so worktrees/branches use matching shaders
     app_cd.asset_store_path = PROJECT_C_ASSETS_DIR;
-    app_cd.width = K_IS_ANDROID ? 0 : (config.window_width ? config.window_width : 2280 / 2);
-    app_cd.height = K_IS_ANDROID ? 0 : (config.window_height ? config.window_height : 1080 / 2);
-    app_cd.fullscreen = K_IS_ANDROID;
+    app_cd.width = config.window_width ? config.window_width : 2280 / 2;
+    app_cd.height = config.window_height ? config.window_height : 1080 / 2;
     app_cd.enable_editor = config.enable_editor;
     app_cd.hidden_window = config.hidden_window;
     return app_cd;

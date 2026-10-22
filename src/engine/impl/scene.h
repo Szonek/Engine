@@ -172,7 +172,6 @@ private:
     EntityIdRegistry entity_ids_;
     // declared after the registry too; constructed before the constructor connects the component initializers
     PhysicsSystem physics_;
-    entt::observer mesh_update_observer;
 
     bool nav_mesh_debug_draw_ = false;
 };

@@ -55,18 +55,7 @@ target_compile_definitions(${LIB_NAME} PUBLIC GLM_FORCE_QUAT_DATA_XYZW)
 target_compile_definitions(${LIB_NAME} PRIVATE PROJECT_C_ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${LIB_SOURCES})
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Android")
-    find_library(log-lib log)
-
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
-
-    add_library(${APP_NAME} SHARED ${APP_SOURCES})
-    target_link_libraries(${APP_NAME}
-            android
-            ${log-lib})
-else ()
-    add_executable(${APP_NAME} ${APP_SOURCES})
-endif()
+add_executable(${APP_NAME} ${APP_SOURCES})
 set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 20)
 target_link_libraries(${APP_NAME} ${LIB_NAME})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${APP_SOURCES})

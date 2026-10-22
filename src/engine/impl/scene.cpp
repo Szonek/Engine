@@ -137,7 +137,6 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     , physics_(entity_registry_,
         [this](const engine_joint_attachment_component_t& joint_attachment) { return get_joint_matrix(joint_attachment); },
         [this]() { const auto* editor = dynamic_cast<const ApplicationEditor*>(app_); return editor && !editor->is_playing(); })
-    , mesh_update_observer(entity_registry_, entt::collector.update<engine_mesh_component_t>())
 {
     // the first entity EnTT creates is 0: reserve it, so that no game object has the value of ENGINE_INVALID_GAME_OBJECT_ID
     [[maybe_unused]] const auto reserved = entity_registry_.create();

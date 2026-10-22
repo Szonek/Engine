@@ -3,10 +3,8 @@
 
 #sdl
 set(SDL_STATIC ON CACHE BOOL "")
-# the engine links the static library; only Android loads the shared one (libSDL3.so, see SDLActivity.getLibraries)
-if(NOT ANDROID)
+# the engine links the static library
 set(SDL_SHARED OFF CACHE BOOL "")
-endif()
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "")
 set(SDL_TESTS OFF CACHE BOOL "")
 set(SDL_EXAMPLES OFF CACHE BOOL "")
@@ -34,6 +32,8 @@ set(ENTT_BUILD_EXAMPLE OFF CACHE BOOL "")
 set(ENTT_BUILD_BENCHMARK OFF CACHE BOOL "")
 set(ENTT_BUILD_TOOLS OFF CACHE BOOL "")
 set(ENTT_BUILD_DOCS OFF CACHE BOOL "")
+# readable entities, registries and storages in the Visual Studio debugger (MSVC only)
+set(ENTT_INCLUDE_NATVIS ON CACHE BOOL "")
 add_subdirectory(entt)
 
 # profiler
