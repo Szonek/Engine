@@ -98,6 +98,7 @@ typedef struct _engine_application_create_desc_t
 
 typedef struct _engine_scene_create_desc_t
 {
+    uint32_t reserved;  // no options yet; C has no empty structs
 } engine_scene_create_desc_t;
 
 typedef enum _engine_begin_frame_event_flags_t
@@ -279,6 +280,8 @@ typedef struct _engine_ui_data_variant_t
         uint32_t u32;
     } arg;
 } engine_ui_data_variant_t;
+// holds the variants by value, so it is declared where the type is complete
+ENGINE_DECLARE_VECTOR_TYPE(EngineUiDataVariant, engine_ui_data_variant, engine_ui_data_variant_t);
 
 typedef struct _engine_ui_document_data_binding_event_callback_t
 {

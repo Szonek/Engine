@@ -108,7 +108,7 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layou
     auto to_range_vector = [](const float* data, const auto size)
     {
         std::vector<float> ret(size);
-        for (auto i = 0; i < ret.size(); i++)
+        for (std::size_t i = 0; i < ret.size(); i++)
         {
             ret.at(i) = data[i];
         }
@@ -116,7 +116,7 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layou
     };
 
     std::vector<vertex_attribute_simple_t> vertex_layout_simple;
-    for (auto i = 0; i < std::size(verts_layout.attributes); i++)
+    for (std::size_t i = 0; i < std::size(verts_layout.attributes); i++)
     {
         const auto& attr = verts_layout.attributes[i];
         if (attr.elements_count == 0)
@@ -131,9 +131,9 @@ inline std::vector<engine::Geometry::vertex_attribute_t> create_engine_api_layou
 }  // namespace annoymous
 
 engine::Application::Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
-    : rdx_(std::move(RenderContext(desc.name, { 0, 0, desc.width, desc.height }, desc.fullscreen, desc.hidden_window)))
-    , ui_manager_(rdx_)
+    : rdx_(RenderContext(desc.name, { 0, 0, desc.width, desc.height }, desc.fullscreen, desc.hidden_window))
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
+    , ui_manager_(rdx_)
     , renderer_(rdx_)
 {
     if (desc.max_delta_time > 0.0f)
@@ -401,7 +401,7 @@ bool engine::Application::add_font_from_file(std::string_view file_name, std::st
 std::uint32_t engine::Application::add_geometry(const engine_vertex_attributes_layout_t& api_verts_layout, std::int32_t vertex_count, std::span<const std::byte> verts_data, std::span<const uint32_t> inds, std::string_view name)
 {
 	const auto vertex_layout = create_engine_api_layout(api_verts_layout);
-	return geometries_atlas_.add_object(name, std::move(Geometry(vertex_layout, verts_data, vertex_count, inds)));
+	return geometries_atlas_.add_object(name, Geometry(vertex_layout, verts_data, vertex_count, inds));
 }
 
 std::uint32_t engine::Application::get_geometry(std::string_view name) const

@@ -43,11 +43,11 @@ struct FrameContext
     std::uint32_t width = 0;
     std::uint32_t height = 0;
 
-    rg::TextureHandle scene_color;   // what is displayed on the screen (RGBA8)
-    rg::TextureHandle entity_id;     // entity id of the geometry under each pixel (R32UI), used for picking
-    rg::TextureHandle scene_depth;
-    rg::TextureHandle scene_output;  // the presented scene image: the backbuffer, or the texture the editor shows in its scene panel
-    rg::TextureHandle backbuffer;    // the screen, window sized
+    rg::TextureHandle scene_color{};   // what is displayed on the screen (RGBA8)
+    rg::TextureHandle entity_id{};     // entity id of the geometry under each pixel (R32UI), used for picking
+    rg::TextureHandle scene_depth{};
+    rg::TextureHandle scene_output{};  // the presented scene image: the backbuffer, or the texture the editor shows in its scene panel
+    rg::TextureHandle backbuffer{};    // the screen, window sized
 
     std::span<const FrameView> views;
 

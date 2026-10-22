@@ -226,7 +226,7 @@ engine::UiDataHandle::UiDataHandle(Rml::Context* ctx, std::string_view name, std
         }
         case ENGINE_UI_DATA_TYPE_EVENT_CALLBACK:
         {
-            constructor.BindEventCallback(bind.name, [this, bind](Rml::DataModelHandle data_model, Rml::Event& ev, const Rml::VariantList& args)
+            constructor.BindEventCallback(bind.name, [this, bind](Rml::DataModelHandle /*data_model*/, Rml::Event& ev, const Rml::VariantList& args)
                 {
                     engine_vector_engine_ui_data_variant_t var_list = nullptr;
                     if (!args.empty())

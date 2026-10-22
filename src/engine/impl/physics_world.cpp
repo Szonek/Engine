@@ -549,7 +549,7 @@ void engine::PhysicsWorld::set_gravity(std::span<const float> g)
     dynamics_world_->setGravity(btVector3(g[0], g[1], g[2]));
 }
 
-engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float max_distance)
+engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, std::span<const engine_game_object_t> ignore_list, float /*max_distance*/)
 {
     struct RayWithIgnoreResultCallbackClosestHit : public btCollisionWorld::ClosestRayResultCallback
     {
@@ -564,7 +564,7 @@ engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, std
         {
             for(const auto& go : ignore_list_)
             {
-                if (rayResult.m_collisionObject->getUserIndex() == go)
+                if (rayResult.m_collisionObject->getUserIndex() == static_cast<int>(go))
                     return 1.0;
             }
 
@@ -588,7 +588,7 @@ engine_ray_hit_info_t engine::PhysicsWorld::raycast(const engine_ray_t& ray, std
         {
             for (const auto& go : ignore_list_)
             {
-                if (rayResult.m_collisionObject->getUserIndex() == go)
+                if (rayResult.m_collisionObject->getUserIndex() == static_cast<int>(go))
                     return 1.0;
             }
 
@@ -642,7 +642,7 @@ void engine::PhysicsWorld::DebugDrawer::drawLine(const btVector3& from, const bt
     //engine::log::log(engine::log::LogLevel::eTrace, fmt::format("[Bullet] draw line \n"));
 }
 
-void engine::PhysicsWorld::DebugDrawer::drawContactPoint(const btVector3& point_on_B, const btVector3& normal_on_B, btScalar distance, int life_time, const btVector3& color)
+void engine::PhysicsWorld::DebugDrawer::drawContactPoint(const btVector3& point_on_B, const btVector3& normal_on_B, btScalar distance, int /*life_time*/, const btVector3& color)
 {
     // Calculate the start and end points of the line segment
     btVector3 from = point_on_B;

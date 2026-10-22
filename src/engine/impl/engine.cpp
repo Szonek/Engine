@@ -399,7 +399,7 @@ engine_geometry_attribute_limit_t engineGeometryGetAttributeLimits(engine_geomet
     }
     const auto attrib = geometry_obj->get_vertex_attribute(type);
     ret.elements_count = attrib.range_max.size();
-    for (auto i = 0; i < ret.elements_count; i++)
+    for (std::size_t i = 0; i < ret.elements_count; i++)
     {
         ret.max[i] = attrib.range_max[i];
         ret.min[i] = attrib.range_min[i];

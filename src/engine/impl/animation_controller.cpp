@@ -127,6 +127,10 @@ bool engine::AnimationLibrary::add_animation(const AnimationClipDesc& animation_
                 }
                 break;
             }
+            case AnimationChannelType::eUnknown:
+            {
+                break;
+            }
         }
     }
 

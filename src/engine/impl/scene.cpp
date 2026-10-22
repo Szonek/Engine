@@ -74,11 +74,6 @@ static inline void destroy_children_component(entt::registry& registry, entt::en
     }
 }
 
-static inline void destroy_joint_attachment(entt::registry& registry, entt::entity entity)
-{
-    auto& comp = registry.get<engine_joint_attachment_component_t>(entity);
-    engineStringDestroy(comp.joint_name);
-}
 
 static inline void calculate_camera_view_and_projection(std::size_t view_width, std::size_t view_height, const glm::vec3& eye_position, const engine_camera_component_t& camera, engine::camera_internal_component_t& camera_internal)
 {
@@ -110,7 +105,7 @@ static inline void calculate_camera_view_and_projection(std::size_t view_width, 
     }
 }
 
-engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_create_desc_t& config, engine_result_code_t& out_code)
+engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_create_desc_t& /*config*/, engine_result_code_t& out_code)
     : app_(app)
     , renderer_(renderer)
     , assets_(*app)
@@ -361,9 +356,9 @@ engine_result_code_t engine::Scene::update(float dt)
             const auto total_lights = directional_light_count + point_light_count + spot_light_count;
             render_data.lights.assign(total_lights, LightGpuData{});
             auto* light_gpu_data_ptr = render_data.lights.data();
-            std::int32_t dir_idx = 0;
-            std::int32_t point_idx = directional_light_count;
-            std::int32_t spot_idx = directional_light_count + point_light_count;
+            std::uint32_t dir_idx = 0;
+            std::uint32_t point_idx = directional_light_count;
+            std::uint32_t spot_idx = directional_light_count + point_light_count;
             lights_view.each([&light_gpu_data_ptr, &dir_idx, &point_idx, &spot_idx](const world_transform_internal_component_t& world, const engine_light_component_t& light)
                 {
                     LightGpuData* light_data_ptr = light_gpu_data_ptr;
