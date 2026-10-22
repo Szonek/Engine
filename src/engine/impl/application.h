@@ -19,7 +19,8 @@ namespace engine
 class Application
 {
 public:
-    Application(const engine_application_create_desc_t& desc, engine_result_code_t& out_code);
+    // rdx must be valid (RenderContext::is_valid)
+    Application(const engine_application_create_desc_t& desc, RenderContext&& rdx, engine_result_code_t& out_code);
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
     Application(Application&&) = delete;
@@ -108,12 +109,12 @@ public:
 
 protected:
     virtual void on_frame_begine(const engine_application_frame_begine_info_t&) {}
-    virtual void on_sdl_event(SDL_Event e) {}
+    virtual void on_sdl_event(SDL_Event /*e*/) {}
     virtual void on_frame_end() {}
-    virtual void on_scene_create(class Scene* scene) {}
-    virtual void on_scene_release(class Scene* scene) {}
-    virtual void on_scene_update_pre(class Scene* scene, float delta_time) {}
-    virtual void on_scene_update_post(class Scene* scene, float delta_time) {}
+    virtual void on_scene_create(class Scene* /*scene*/) {}
+    virtual void on_scene_release(class Scene* /*scene*/) {}
+    virtual void on_scene_update_pre(class Scene* /*scene*/, float /*delta_time*/) {}
+    virtual void on_scene_update_post(class Scene* /*scene*/, float /*delta_time*/) {}
 
 protected:
     RenderContext rdx_;

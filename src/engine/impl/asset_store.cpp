@@ -33,12 +33,11 @@ T load_data_from_file(std::string_view path)
             
 			if(bytes_read == 0)
 			{
-				// end of file
-				break;
-			}
-			else if (bytes_read < 0)
-			{
-				engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Error parsing file: {}. Error msg: {}\n", path, SDL_GetError()));
+				// end of file, or an error
+				if (SDL_GetIOStatus(file_handle) == SDL_IO_STATUS_ERROR)
+				{
+					engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Error parsing file: {}. Error msg: {}\n", path, SDL_GetError()));
+				}
 				break;
 			}
 			ret.insert(ret.end(), buffer.begin(), buffer.begin() + bytes_read);
@@ -56,8 +55,8 @@ engine::TextureAssetContext::TextureAssetContext(const std::filesystem::path& fi
 	: width_(0)
 	, height_(0)
 	, channels_(0)
-	, data_(nullptr)
 	, type_(TextureAssetDataType::eCount)
+	, data_(nullptr)
 {
 	//stbi_set_flip_vertically_on_load(true);
 	data_ = stbi_load(file_path.string().c_str(), &width_, &height_, &channels_, 0);
@@ -69,8 +68,8 @@ engine::TextureAssetContext::TextureAssetContext(TextureAssetContext&& rhs)
 	: width_(rhs.width_)
 	, height_(rhs.height_)
 	, channels_(rhs.channels_)
-	, data_(rhs.data_)
 	, type_(rhs.type_)
+	, data_(rhs.data_)
 { 
 
 	rhs.width_ = 0;

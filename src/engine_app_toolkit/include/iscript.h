@@ -1,6 +1,7 @@
 #pragma once
 #include "engine.h"
 #include "utils.h"
+#include <cstdint>
 #include <vector>
 
 namespace engine

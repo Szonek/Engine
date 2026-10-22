@@ -1,5 +1,7 @@
 #include "components_initializers.h"
 #include "engine.h"
+
+#include <cstring>
 #include "../nav_mesh.h"
 
 namespace
@@ -58,7 +60,7 @@ void engine::initialize_light_component(entt::registry& registry, entt::entity e
 
 void engine::initialize_sprite_component(entt::registry& registry, entt::entity entity)
 {
-    auto& comp = get_zero_init_component<engine_sprite_component_t>(registry, entity);
+    get_zero_init_component<engine_sprite_component_t>(registry, entity);
 }
 
 void engine::initialize_nav_surface_component(entt::registry& registry, entt::entity entity)
@@ -95,7 +97,7 @@ void engine::initialize_material_component(entt::registry& registry, entt::entit
 {
     auto& comp = get_zero_init_component<engine_material_component_t>(registry, entity);
     comp.type = ENGINE_MATERIAL_TYPE_PONG;
-    for (auto i = 0; i < std::size(comp.data.pong.diffuse_color); i++)
+    for (std::size_t i = 0; i < std::size(comp.data.pong.diffuse_color); i++)
     {
         comp.data.pong.diffuse_color[i] = 0.0f;
     }
@@ -111,7 +113,7 @@ void engine::initialize_parent_component(entt::registry& registry, entt::entity 
 
 void engine::initialize_name_component(entt::registry& registry, entt::entity entity)
 {
-    auto& comp = get_zero_init_component<engine_name_component_t>(registry, entity);
+    get_zero_init_component<engine_name_component_t>(registry, entity);
 }
 
 void engine::initialize_folder_component(entt::registry& registry, entt::entity entity)
@@ -143,7 +145,7 @@ void engine::initialize_camera_component(entt::registry& registry, entt::entity 
 
 void engine::initialize_rigidbody_component(entt::registry& registry, entt::entity entity)
 {
-    auto& comp = get_zero_init_component<engine_rigid_body_component_t>(registry, entity);
+    get_zero_init_component<engine_rigid_body_component_t>(registry, entity);
 }
 
 void engine::initialize_collider_component(entt::registry& registry, entt::entity entity)

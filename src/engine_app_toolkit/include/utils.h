@@ -5,6 +5,7 @@
 #include <span>
 #include <string_view>
 #include <cassert>
+#include <cstring>
 
 
 #if __ANDROID__

@@ -16,7 +16,7 @@ public:
     virtual ~ICommand() = default;
     virtual void execute() = 0;
     virtual void undo() = 0;
-    virtual bool merge_with(const ICommand* other)
+    virtual bool merge_with(const ICommand* /*other*/)
     {
         return false;
     }
@@ -82,8 +82,8 @@ public:
     CommandUpdateComponent(Scene& sc, entt::entity e, TComp& new_comp)
         : sc_(sc)
         , e_(e)
-        , new_(new_comp)
         , prev_(*sc.get_component<TComp>(e_))
+        , new_(new_comp)
     {
     }
 

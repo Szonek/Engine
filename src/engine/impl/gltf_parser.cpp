@@ -140,7 +140,7 @@ inline engine::GeometryDesc parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
         // Fill missing gaps  <- because we are using common shader
         // ToDo: remove this and make shaders detect attributs components (should have better performance)
         // This approach will have gaps in buffer -> waste of memory and performance
-        for (auto i = 0; i < attribs.size(); i++)
+        for (std::size_t i = 0; i < attribs.size(); i++)
         {
             auto& attrib = attribs[i];
             if (attrib.data)
@@ -204,11 +204,11 @@ inline engine::GeometryDesc parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
         // copy data into buffer returned to user
         ret.vertex_data.resize(total_verts_buffer_size, std::byte(0));    
         auto* verts_ptr = ret.vertex_data.data();
-        for (auto i = 0; i < position_data.count; i++)
+        for (std::size_t i = 0; i < position_data.count; i++)
         {
             const std::size_t vertex_offset = i * single_vertex_size;
             std::size_t attrib_offset = 0;
-            for (auto j = 0; j < attribs.size(); j++)
+            for (std::size_t j = 0; j < attribs.size(); j++)
             {
                 const auto& attrib = attribs[j];
                 const auto attrib_packed_stride = attrib.num_components * tinygltf::GetComponentSizeInBytes(attrib.param_type);
@@ -226,7 +226,7 @@ inline engine::GeometryDesc parse_mesh(const tinygltf::Mesh& mesh, const tinyglt
         // inds
         auto copy_inds_data = [](auto& out, const auto out_base_offset, const auto& typed_gltf_buffer)
         {
-            for (auto i = 0; i < out.size() - out_base_offset; i++)
+            for (std::size_t i = 0; i < out.size() - out_base_offset; i++)
             {
                 out[i + out_base_offset] = typed_gltf_buffer[i];
             }
@@ -326,7 +326,7 @@ inline engine::SkinDesc parse_skin(const tinygltf::Skin& skin, const tinygltf::M
         const auto join_name = model.nodes[node_id].name;
         /*
             https://lisyarus.github.io/blog/graphics/2023/07/03/gltf-animation.html
-            However, the vertices of the model are in, well, the model’s coordinate system (that’s the definition of this coordinate system).
+            However, the vertices of the model are in, well, the model's coordinate system (that's the definition of this coordinate system).
             So, we need a way to transform the vertices into the local coordinate system of the bone first.
             This is called an inverse bind matrix, because it sounds really cool.
         */
@@ -557,7 +557,7 @@ engine::ModelDesc engine::parse_gltf_data_from_memory(std::span<const std::uint8
     }
 
     // skins
-    std::for_each(model.skins.begin(), model.skins.end(), [&out, &model, &nodes](const auto& skin)
+    std::for_each(model.skins.begin(), model.skins.end(), [&out, &model](const auto& skin)
         {
             out.skins.push_back(parse_skin(skin, model));
         });

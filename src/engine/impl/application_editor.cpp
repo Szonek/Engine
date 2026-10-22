@@ -32,30 +32,6 @@ namespace
 {
 constexpr const engine_keyboard_keys_t G_MOUSE_SELECT_KEYBOARD_KEY = engine_keyboard_keys_t::ENGINE_KEYBOARD_KEY_LCTRL;
 
-struct FileEntry
-{
-    bool is_directory = false;
-    std::filesystem::path path;
-};
-
-inline std::vector<FileEntry> get_files_in_directory(const std::filesystem::path& dir_path, std::vector<std::string> file_exts = {})
-{
-    std::vector<FileEntry> files{};
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(dir_path))
-    {
-
-        const auto file_has_supported_extensions = file_exts.empty() ? true : std::find(file_exts.begin(), file_exts.end(), entry.path().extension()) != file_exts.end();
-        if (file_has_supported_extensions)
-        {
-            FileEntry ret{};
-            ret.is_directory = entry.is_directory();
-            ret.path = entry.path();
-            files.push_back(ret);
-        }
-    }
-    return files;
-}
-
 inline auto get_spherical_coordinates(const auto& cartesian)
 {
     const float r = std::sqrt(
@@ -99,14 +75,6 @@ struct entity_node_t
 
 };
 
-inline void traverse_hierarchy(entity_node_t* node, std::function<void(entity_node_t*)> fn)
-{
-    for (auto& child : node->children)
-    {
-        traverse_hierarchy(child, fn);
-    }
-    fn(node);
-}
 
 inline bool is_entity_parent_of(entt::entity parent, entt::entity child, engine::Scene* scene)
 {
@@ -448,7 +416,7 @@ bool display_texture_combo(const engine::Scene* scene, const char* label, std::u
     return display_asset_combo(label, texture, app->get_texture_name(texture), app->get_texture_names());
 }
 
-bool display_transform_component(const engine::Scene* scene, engine_transform_component_t& c)
+bool display_transform_component(const engine::Scene* /*scene*/, engine_transform_component_t& c)
 {
     const float v_speed = 0.1f;
     bool requires_update = ImGui::DragFloat3("Position##transform", c.position, v_speed);
@@ -506,7 +474,7 @@ bool display_skin_component(const engine::Scene* scene, engine_skin_component_t&
     return false;
 }
 
-bool display_folder_component(const engine::Scene* scene, engine_folder_component_t& c)
+bool display_folder_component(const engine::Scene* /*scene*/, engine_folder_component_t& c)
 {
     return ImGui::InputText("Path##folder", c.path, ENGINE_FOLDER_PATH_MAX_LENGTH);
 }
@@ -553,7 +521,7 @@ bool display_animation_controller_component(const engine::Scene* scene, engine_a
 }
 
 
-bool display_light_component(const engine::Scene* scene, engine_light_component_t& c)
+bool display_light_component(const engine::Scene* /*scene*/, engine_light_component_t& c)
 {
     bool requires_update = false;
     // intensity
@@ -614,19 +582,9 @@ bool display_material_component(const engine::Scene* scene, engine_material_comp
     return requires_component_updated;
 }
 
-bool display_collider_component(const engine::Scene* scene, engine_collider_component_t& c)
+bool display_collider_component(const engine::Scene* /*scene*/, engine_collider_component_t& c)
 {
-    auto print_collider_type = [](engine_collider_type_t type)
-     {
-        switch (type)
-        {
-            case ENGINE_COLLIDER_TYPE_BOX: return "Box";
-            case ENGINE_COLLIDER_TYPE_SPHERE: return "Sphere";
-            case ENGINE_COLLIDER_TYPE_COMPOUND: return "Compound";
-            default: return "Unknown";
-        }
-    };
-     bool requires_component_updated = false;
+    bool requires_component_updated = false;
     // list of types
     const char* items[] = { "Box", "Sphere", "Compound" };
     std::int32_t selected_type = c.type;
@@ -674,7 +632,7 @@ bool display_collider_component(const engine::Scene* scene, engine_collider_comp
         for (std::size_t i = 0; i < ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS; i++)
         {
             auto& child = c.collider.compound.children[i];
-            ImGui::Text("Child %d", i);
+            ImGui::Text("Child %zu", i);
             std::int32_t child_selected_type = child.type;
             const char* items_child[] = { "Box", "Sphere" };
             if (ImGui::ListBox("Child Type", &child_selected_type, items_child, std::size(items_child)))
@@ -710,7 +668,7 @@ bool display_collider_component(const engine::Scene* scene, engine_collider_comp
     return requires_component_updated;
 }
 
-bool display_rigidbody_component(const engine::Scene* scene, engine_rigid_body_component_t& c)
+bool display_rigidbody_component(const engine::Scene* /*scene*/, engine_rigid_body_component_t& c)
 {
     const char* types[] = { "Dynamic", "Kinematic", "Static" };
     std::int32_t type = c.type;
@@ -727,7 +685,7 @@ bool display_rigidbody_component(const engine::Scene* scene, engine_rigid_body_c
     return requires_update;
 }
 
-bool display_character_controller_component(const engine::Scene* scene, engine_character_controller_component_t& c)
+bool display_character_controller_component(const engine::Scene* /*scene*/, engine_character_controller_component_t& c)
 {
     bool changed = false;
     changed |= ImGui::DragFloat("Radius##character_controller", &c.radius, 0.01f, 0.01f, 10.0f);
@@ -737,7 +695,7 @@ bool display_character_controller_component(const engine::Scene* scene, engine_c
     return changed;
 }
 
-bool display_nav_surface_component(const engine::Scene* scene, engine_nav_surface_component_t& c)
+bool display_nav_surface_component(const engine::Scene* /*scene*/, engine_nav_surface_component_t& c)
 {
     // takes effect with the next nav mesh build ("Build nav mesh" below the component)
     bool changed = false;
@@ -750,7 +708,7 @@ bool display_nav_surface_component(const engine::Scene* scene, engine_nav_surfac
     return changed;
 }
 
-bool display_nav_modifier_component(const engine::Scene* scene, engine_nav_modifier_component_t& c)
+bool display_nav_modifier_component(const engine::Scene* /*scene*/, engine_nav_modifier_component_t& c)
 {
     const char* types[] = { "Walkable", "Not walkable", "Ignore" };
     std::int32_t type = c.type;
@@ -762,7 +720,7 @@ bool display_nav_modifier_component(const engine::Scene* scene, engine_nav_modif
     return false;
 }
 
-bool display_camera_component(const engine::Scene* scene, engine_camera_component_t& c)
+bool display_camera_component(const engine::Scene* /*scene*/, engine_camera_component_t& c)
 {
     bool update_required = false;
     // is it enabled?
@@ -807,8 +765,8 @@ bool display_camera_component(const engine::Scene* scene, engine_camera_componen
 } // namespace anonymous
 
 
-engine::ApplicationEditor::ApplicationEditor(const engine_application_create_desc_t& desc, engine_result_code_t& out_code)
-    : Application(desc, out_code)
+engine::ApplicationEditor::ApplicationEditor(const engine_application_create_desc_t& desc, RenderContext&& rdx, engine_result_code_t& out_code)
+    : Application(desc, std::move(rdx), out_code)
 {
     // hot reload of edited shaders
     FileWatcher::get_instance().start();
@@ -909,7 +867,6 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
 void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
-    const auto viewport = rdx_.get_window_size_in_pixels();
     const float editor_delta_time = frame_delta_time_;
 
     render_editor_controls(scene, editor_delta_time);
@@ -1001,15 +958,10 @@ engine::viewport_t engine::ApplicationEditor::get_scene_viewport() const
     return scene_view_rect_;
 }
 
-void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float dt)
+void engine::ApplicationEditor::render_editor_controls(class Scene* /*scene*/, float /*dt*/)
 {
     ImGui::Begin(editor_windows_context_.get_window_up());
 
-    const auto ww = ImGui::GetWindowWidth();
-    const auto wh = ImGui::GetWindowHeight();
-    const auto pos = ImGui::GetWindowPos();
-
-    static std::uint32_t selected = 0;
     if (ImGui::Selectable("Scene", editor_view_ == EditorView::eGame, ImGuiSelectableFlags_None, ImVec2(50, 0)))
     {
         editor_view_ = EditorView::eGame;
@@ -1027,7 +979,7 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float
     ImGui::End();
 }
 
-void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float dt)
+void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float /*dt*/)
 {
     ENGINE_PROFILE_SECTION_N("editor-render_scene_hierarchy_panel");
     // build memory with all the entites
@@ -1040,7 +992,7 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
             const auto nc = scene->get_component<engine_name_component_t>(e);
             name = nc->name;
         }
-        entity_map.insert({ e, entity_node_t{ e, name } });
+        entity_map.insert({ e, entity_node_t{ e, name, nullptr, {} } });
     }
 
     for (auto& [e, node] : entity_map)
@@ -1116,7 +1068,7 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
     ImGui::End(); // scene panel
 }
 
-void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scene, float dt)
+void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scene, float /*dt*/)
 {
     /*
     here all components should be visible
@@ -1157,7 +1109,7 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
     ImGui::End();
 }
 
-void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
+void engine::ApplicationEditor::render_debug_panel(class Scene* /*scene*/, float dt)
 {
     ImGui::Begin(editor_windows_context_.get_window_down_right());
     ImGui::SeparatorText("Debug options");
@@ -1178,7 +1130,6 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
         ui_manager_.enable_ui_document_debugger(!is_rml_ui_debugger_enabled);
     }
     assert(dt > 0.0f);
-    static float avg_fps = 0;
     static std::vector<float> fps_values(60);
     static std::size_t fps_idx = 0;
     fps_values[fps_idx % fps_values.size()] = 1000.0f / dt;
@@ -1381,15 +1332,15 @@ engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
     , app_(app)
     , go_(scene->create_transient_entity())
 {
-    auto nc = scene->add_component<engine_name_component_t>(go_);
-    scene->patch_component<engine_name_component_t>(go_, [nc](engine_name_component_t& c)
+    scene->add_component<engine_name_component_t>(go_);
+    scene->patch_component<engine_name_component_t>(go_, [](engine_name_component_t& c)
         {   
             constexpr const char* editor_camera_name = "__engine_editor_camera__";
             std::memcpy(c.name, editor_camera_name, std::strlen(editor_camera_name));
         });
 
-    auto camera_comp = scene->add_component<engine_camera_component_t>(go_);
-    scene->patch_component<engine_camera_component_t>(go_, [camera_comp](engine_camera_component_t& c)
+    scene->add_component<engine_camera_component_t>(go_);
+    scene->patch_component<engine_camera_component_t>(go_, [](engine_camera_component_t& c)
         {
             c.enabled = true;
             c.clip_plane_near = 0.1f;
@@ -1484,9 +1435,8 @@ void engine::CameraScript::translate(const glm::vec3& delta)
     sc_[0] = std::max(sc_[0], 0.1f);
     // Update the camera's position based on the new spherical coordinates
     const auto new_position = get_cartesian_coordinates(sc_);
-    auto tc = my_scene_->get_component<engine_transform_component_t>(go_);
     auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
-    my_scene_->patch_component<engine_transform_component_t>(go_, [tc, new_position, cc](engine_transform_component_t& c)
+    my_scene_->patch_component<engine_transform_component_t>(go_, [new_position, cc](engine_transform_component_t& c)
         {
             c.position[0] = new_position[0] + cc->target[0];
             c.position[1] = new_position[1] + cc->target[1];
@@ -1499,7 +1449,6 @@ void engine::CameraScript::rotate(const glm::vec2 delta)
     // https://nerdhut.de/2020/05/09/unity-arcball-camera-spherical-coordinates/
     if (delta.x != 0 || delta.y != 0)
     {
-        auto tc = my_scene_->get_component<engine_transform_component_t>(go_);
         // Rotate the camera left and right
         sc_[1] += delta.x;
 
@@ -1510,7 +1459,7 @@ void engine::CameraScript::rotate(const glm::vec2 delta)
         const auto new_position = get_cartesian_coordinates(sc_);
         auto cc = my_scene_->get_component<engine_camera_component_t>(go_);
 
-        my_scene_->patch_component<engine_transform_component_t>(go_, [tc, new_position, cc](engine_transform_component_t& c)
+        my_scene_->patch_component<engine_transform_component_t>(go_, [new_position, cc](engine_transform_component_t& c)
             {
                 c.position[0] = new_position[0] + cc->target[0];
                 c.position[1] = new_position[1] + cc->target[1];
@@ -1577,7 +1526,7 @@ void engine::ApplicationEditor::CameraContext::on_scene_update_pre(Scene* scene,
         // disable all active scene cameras
         auto view = scene->create_runtime_view();
         scene->attach_component_to_runtime_view<engine_camera_component_t>(view);
-        view.each([scene, this, &camera_data](const auto& entity)
+        view.each([scene, &camera_data](const auto& entity)
             {
                 const auto cc = scene->get_component<engine_camera_component_t>(entity);
                 if (cc->enabled)
@@ -1592,7 +1541,7 @@ void engine::ApplicationEditor::CameraContext::on_scene_update_pre(Scene* scene,
     }
 }
 
-void engine::ApplicationEditor::CameraContext::on_scene_update_post(Scene* scene, float dt)
+void engine::ApplicationEditor::CameraContext::on_scene_update_post(Scene* scene, float /*dt*/)
 {
     ENGINE_PROFILE_SECTION;
     for (auto& [script, camera_data] : cameras_)

@@ -2,6 +2,7 @@
 #include "base_script.h"
 
 #include <array>
+#include <cstdint>
 #include <vector>
 
 namespace project_c

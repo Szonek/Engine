@@ -67,7 +67,7 @@ project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppCo
         prefab_paths_[type] = path;
         if (enginePrefabLoad(ENGINE_MODEL_SPECIFICATION_GLTF_2, path.c_str(), &prefabs_[type]) != ENGINE_RESULT_CODE_OK)
         {
-            log(fmt::format("Failed loading prefab: {}\n", type));
+            log(fmt::format("Failed loading prefab: {}\n", path));
         }
     }
 
@@ -102,13 +102,13 @@ bool project_c::AppProjectC::is_valid_prefab_type(PrefabType type) const
 {
     if (type >= PREFAB_TYPE_COUNT)
     {
-        log(fmt::format("Invalid prefab type: {}\n", type));
+        log(fmt::format("Invalid prefab type: {}\n", fmt::underlying(type)));
         return false;
     }
 
     if (!is_prefab_available(type))
     {
-        log(fmt::format("Prefab: {} is not valid\n", type));
+        log(fmt::format("Prefab: {} is not valid\n", fmt::underlying(type)));
         return false;
     }
     return true;

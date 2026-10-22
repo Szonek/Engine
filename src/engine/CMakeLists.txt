@@ -169,6 +169,14 @@ target_compile_definitions(${ENGINE} PUBLIC GLM_FORCE_QUAT_DATA_XYZW GLM_ENABLE_
 target_compile_options(${ENGINE} PRIVATE
   #$<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Werror>
+  # GCC: containers of ozz::math::SimdFloat4 (__m128) drop its alignment attribute, which is harmless
+  $<$<CXX_COMPILER_ID:GNU>:-Wno-ignored-attributes>
 )
+
+# vendored third party code: its warnings are not ours to fix
+set_source_files_properties(${ENGINE_SOURCES_DIR}/imgui/imgui.cpp ${ENGINE_SOURCES_DIR}/imgui/imgui_demo.cpp ${ENGINE_SOURCES_DIR}/imgui/imgui_draw.cpp
+  ${ENGINE_SOURCES_DIR}/imgui/imgui_tables.cpp ${ENGINE_SOURCES_DIR}/imgui/imgui_widgets.cpp ${ENGINE_SOURCES_DIR}/imgui/imgui_impl_opengl3.cpp
+  ${ENGINE_SOURCES_DIR}/imgui/imgui_impl_sdl3.cpp ${ENGINE_SOURCES_DIR}/imguizmo/ImGuizmo.cpp
+  PROPERTIES COMPILE_OPTIONS $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_ALL_SOURCES})

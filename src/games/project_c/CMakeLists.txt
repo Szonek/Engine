@@ -49,7 +49,7 @@ set(APP_SOURCES
 add_library(${LIB_NAME} STATIC ${LIB_SOURCES})
 set_target_properties(${LIB_NAME} PROPERTIES CXX_STANDARD 20 POSITION_INDEPENDENT_CODE ON)
 target_include_directories(${LIB_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(${LIB_NAME} PUBLIC engine fmt::fmt-header-only SDL3::SDL3-static glm engine_app_toolkit RapidJSON)
+target_link_libraries(${LIB_NAME} PUBLIC engine fmt::fmt-header-only glm engine_app_toolkit RapidJSON)
 target_compile_definitions(${LIB_NAME} PUBLIC GLM_FORCE_QUAT_DATA_XYZW)
 # runtime asset directory: the assets folder of this source tree
 target_compile_definitions(${LIB_NAME} PRIVATE PROJECT_C_ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets")

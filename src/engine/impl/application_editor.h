@@ -57,7 +57,7 @@ private:
 class ApplicationEditor : public Application
 {
 public:
-    ApplicationEditor(const engine_application_create_desc_t& desc, engine_result_code_t& out_code);
+    ApplicationEditor(const engine_application_create_desc_t& desc, RenderContext&& rdx, engine_result_code_t& out_code);
     ApplicationEditor(const ApplicationEditor&) = delete;
     ApplicationEditor& operator=(const ApplicationEditor&) = delete;
     ApplicationEditor(ApplicationEditor&&) = delete;

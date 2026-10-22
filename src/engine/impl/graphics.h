@@ -503,6 +503,8 @@ public:
 
     SDL_Window* get_sdl_window() { return window_; }
     SDL_GLContext get_sdl_gl_context() { return context_; }
+    // the window, the GL context and the UI renderer were all created (the UI renderer is the last step)
+    bool is_valid() const { return ui_rml_gl3_renderer_ != nullptr; }
 
     const limits_t& get_limits() const { return limits_; }
 

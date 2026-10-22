@@ -350,7 +350,7 @@ void engine::ShaderBase::set_uniform_ui(std::string_view name, const std::uint32
 void engine::ShaderBase::set_uniform_block(std::string_view name, const UniformBuffer* buffer, std::uint32_t bind_index) const
 {
     const auto block_index = glGetUniformBlockIndex(program_, name.data());
-    if (block_index != -1)
+    if (block_index != GL_INVALID_INDEX)
     {
         //assert(block_index != -1 && "[ERROR] Cant find uniform block index in the shader.");
         glUniformBlockBinding(program_, block_index, bind_index);
@@ -388,7 +388,7 @@ std::int32_t engine::ShaderBase::get_resource_location(std::string_view name, st
 {
     // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glGetProgramResourceIndex.xhtml
     const auto location = glGetProgramResourceIndex(program_, resource_interface, name.data());
-	assert(location != -1 && "[ERROR] Cant find uniform location in the shader.");
+	assert(location != GL_INVALID_INDEX && "[ERROR] Cant find uniform location in the shader.");
 	return location;
 }
 
@@ -536,7 +536,7 @@ engine::Texture2D engine::Texture2D::create_and_attach_to_frame_buffer(std::uint
     glBindTexture(GL_TEXTURE_2D, ret.texture_);
     glFramebufferTexture2D(GL_FRAMEBUFFER, attachment_idx, GL_TEXTURE_2D, ret.texture_, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
-    return std::move(ret);
+    return ret;
 }
 
 engine::Texture2D::Texture2D(Texture2D&& rhs) noexcept
@@ -638,8 +638,8 @@ void engine::Texture2D::copy_from_active_fbo(std::uint32_t x, std::uint32_t y, s
 
 engine::Geometry::Geometry(std::span<const vertex_attribute_t> vertex_layout, std::span<const std::byte> vertex_data, std::int32_t vertex_count, std::span<const std::uint32_t> index_data)
 	: vbo_(0)
-	, vao_(0)
 	, ibo_(0)
+	, vao_(0)
 	, vertex_count_(vertex_count)
 	, index_count_(0)
 {
@@ -880,13 +880,10 @@ message_callback(GLenum /*source*/,
 engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen, bool hidden)
     : hidden_(hidden)
 {
-    std::int32_t result_code = 0;
-    result_code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
-
-    if(result_code < 0)
+    if(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
     {
         const auto err_msg = SDL_GetError();
-        log::log(log::LogLevel::eCritical, fmt::format("Cant init sdl: %s\n", err_msg));
+        log::log(log::LogLevel::eCritical, fmt::format("Cant init sdl: {}\n", err_msg));
         return;
     }
 
@@ -917,7 +914,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     if(displays.empty())
     {
         const auto err_msg = SDL_GetError();
-        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: %s\n", err_msg));
+        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: {}\n", err_msg));
         return;
     }
 
@@ -925,7 +922,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     if(!display_mode)
     {
         const auto err_msg = SDL_GetError();
-        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: %s\n", err_msg));
+        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: {}\n", err_msg));
         return;
     }
 
@@ -949,19 +946,17 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     if(!window_)
     {
         const auto err_msg = SDL_GetError();
-        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: %s\n", err_msg));
+        log::log(log::LogLevel::eCritical, fmt::format("Cant create sdl window: {}\n", err_msg));
         return;
     }
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
-#if _DEBUG
-    result_code = SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
-
-    if (result_code < 0)
+#ifndef NDEBUG
+    if (!SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG))
     {
         const auto err_msg = SDL_GetError();
-        log::log(log::LogLevel::eCritical, fmt::format("Cant init sdl: %s\n", err_msg));
+        log::log(log::LogLevel::eCritical, fmt::format("Cant init sdl: {}\n", err_msg));
         return;
     }
 #endif
@@ -976,8 +971,8 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
     const auto set_swap_result = SDL_GL_SetSwapInterval(1);
     if (!set_swap_result)
     {
-        log::log(log::LogLevel::eCritical, "Failed to set swap interval\n");
-        return;
+        // not supported everywhere (e.g. a virtual X server); frames are then just not synced
+        log::log(log::LogLevel::eError, fmt::format("Failed to enable vsync: {}\n", SDL_GetError()));
     }
 
 #if defined(GLAD_GLES2_IMPLEMENTATION)
@@ -998,7 +993,7 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
 
     std::int32_t gl_context_flags;
     glGetIntegerv(GL_CONTEXT_FLAGS, &gl_context_flags);
-#if _DEBUG
+#ifndef NDEBUG
     if (gl_context_flags & GL_CONTEXT_FLAG_DEBUG_BIT)
     {
         log::log(log::LogLevel::eCritical, "[INFO] Debug build. Building with debug context.\n");
@@ -1278,7 +1273,7 @@ void engine::RenderContext::end_frame()
     }
     ENGINE_PROFILER_GPU_SWAP_WINDOW;
 	// process errors
-#if _DEBUG
+#ifndef NDEBUG
 	//GLenum err;
 	//while ((err = glGetError()) != GL_NO_ERROR)
 	//{
@@ -1305,9 +1300,9 @@ void engine::RenderContext::end_frame_ui_rendering()
 
 engine::Framebuffer::Framebuffer(std::uint32_t width, std::uint32_t height, std::vector<DataLayout> color_attachment_layouts, bool has_depth_attachment)
     : fbo_(0)
-    , depth_attachment_()
-    , color_attachments_()
     , color_attachment_layouts_(color_attachment_layouts)
+    , color_attachments_()
+    , depth_attachment_()
     , width_(width)
     , height_(height)
 {
@@ -1333,16 +1328,17 @@ engine::Framebuffer::Framebuffer(std::uint32_t width, std::uint32_t height, std:
 
 engine::Framebuffer::Framebuffer(Framebuffer&& rhs) noexcept
     : fbo_(rhs.fbo_)
-    , depth_attachment_(std::move(rhs.depth_attachment_))
+    , color_attachment_layouts_(std::move(rhs.color_attachment_layouts_))
     , color_attachments_(std::move(rhs.color_attachments_))
-    , height_(rhs.height_)
+    , depth_attachment_(std::move(rhs.depth_attachment_))
     , width_(rhs.width_)
+    , height_(rhs.height_)
 {
     rhs.fbo_ = 0;
     rhs.width_ = 0;
     rhs.height_ = 0;
     rhs.depth_attachment_ = Texture2D();
-    color_attachments_.clear();
+    rhs.color_attachments_.clear();
 }
 
 engine::Framebuffer& engine::Framebuffer::operator=(Framebuffer&& rhs) noexcept
@@ -1387,9 +1383,9 @@ void engine::Framebuffer::bind(AccessType type)
 
     std::vector<GLenum> attachments;
     attachments.reserve(color_attachments_.size());
-    for (auto i = 0; i < color_attachments_.size(); i++)
+    for (std::size_t i = 0; i < color_attachments_.size(); i++)
     {
-        attachments.push_back(GL_COLOR_ATTACHMENT0 + i);
+        attachments.push_back(static_cast<GLenum>(GL_COLOR_ATTACHMENT0 + i));
     }
     glDrawBuffers(static_cast<std::int32_t>(attachments.size()), attachments.data());
 }

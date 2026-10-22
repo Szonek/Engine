@@ -25,8 +25,6 @@ ENGINE_DECLARE_VECTOR_TYPE(Uint32, uint32, uint32_t);
 ENGINE_DECLARE_VECTOR_TYPE(Bool, bool, bool);
 typedef struct engine_string_t engine_string_t;
 ENGINE_DECLARE_VECTOR_TYPE(EngineString, engine_string, engine_string_t*);
-typedef struct _engine_ui_data_variant_t engine_ui_data_variant_t;
-ENGINE_DECLARE_VECTOR_TYPE(EngineUiDataVariant, engine_ui_data_variant, engine_ui_data_variant_t);
 typedef struct _engine_joint_desc_t engine_joint_desc_t;
 ENGINE_DECLARE_VECTOR_TYPE(EngineJointDesc, engine_joint_desc, engine_joint_desc_t*);
 #ifdef __cplusplus

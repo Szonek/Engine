@@ -135,7 +135,7 @@ void engine::MaterialSkinnedGeometryUnlit::draw(const Geometry& geometry, const 
     shader_.set_uniform_f4("diffuse_color", { ctx.color_diffuse, 4 });
     shader_.set_texture_with_sampler("texture_diffuse", &ctx.texture_diffuse);
 
-    for (auto i = 0; i < ctx.bone_transforms.size(); i++)
+    for (std::size_t i = 0; i < ctx.bone_transforms.size(); i++)
     {
         const auto& per_bone_final_transform = ctx.bone_transforms.at(i);
         const auto uniform_name = "global_bone_transform[" + std::to_string(i) + "]";

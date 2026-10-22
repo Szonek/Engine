@@ -1,8 +1,16 @@
+# Only the libraries are built: every dependency's samples, examples, tests,
+# benchmarks, tools and docs are turned off.
+
 #sdl
-set(SDL_STATIC ON CACH BOOL "")
+set(SDL_STATIC ON CACHE BOOL "")
+set(SDL_TEST_LIBRARY OFF CACHE BOOL "")
+set(SDL_TESTS OFF CACHE BOOL "")
+set(SDL_EXAMPLES OFF CACHE BOOL "")
 add_subdirectory(SDL)
 
 #fmt
+set(FMT_TEST OFF CACHE BOOL "")
+set(FMT_DOC OFF CACHE BOOL "")
 add_subdirectory(fmt)
 
 # glad
@@ -13,21 +21,29 @@ add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE "stb")
 
 # glm
+set(GLM_BUILD_TESTS OFF CACHE BOOL "")
 add_subdirectory(glm)
 
 # entt
+set(ENTT_BUILD_TESTING OFF CACHE BOOL "")
+set(ENTT_BUILD_EXAMPLE OFF CACHE BOOL "")
+set(ENTT_BUILD_BENCHMARK OFF CACHE BOOL "")
+set(ENTT_BUILD_TOOLS OFF CACHE BOOL "")
+set(ENTT_BUILD_DOCS OFF CACHE BOOL "")
 add_subdirectory(entt)
 
 # profiler
 add_subdirectory(tracy-0.12.1)
 
-# gtests
+# gtests (the framework of our own tests)
+set(INSTALL_GTEST OFF CACHE BOOL "")
+set(BUILD_GMOCK OFF CACHE BOOL "")
 add_subdirectory(googletest)
 
 # skeleton animations
 set(ozz_build_tools OFF CACHE BOOL "")
 set(ozz_build_fbx OFF CACHE BOOL "")
-set(ozz_build_gltf ON CACHE BOOL "")
+set(ozz_build_gltf OFF CACHE BOOL "")
 set(ozz_build_samples OFF CACHE BOOL "")
 set(ozz_build_howtos OFF CACHE BOOL "")
 set(ozz_build_tests OFF CACHE BOOL "")
@@ -37,6 +53,7 @@ add_subdirectory(ozz-animation)
 # rapidJson
 set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "")
 set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "")
+set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "")
 add_subdirectory(rapidjson)
 # header-only, without a target
 set(RAPIDJSON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rapidjson/include CACHE INTERNAL "")
@@ -58,6 +75,8 @@ set(BUILD_UNIT_TESTS OFF CACHE BOOL "")
 set(BUILD_ENET OFF CACHE BOOL "")
 set(BUILD_CLSOCKET OFF CACHE BOOL "")
 set(BUILD_EXTRAS OFF CACHE BOOL "")
+set(BUILD_PYBULLET OFF CACHE BOOL "")
+set(USE_GRAPHICAL_BENCHMARK OFF CACHE BOOL "")
 add_subdirectory(bullet3)
 set(BULLET_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/bullet3/src  CACHE STRING "Include headers of bullet dependency")
 set(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath CACHE STRING "Include libraries of bullet dependency")
@@ -68,16 +87,20 @@ set(RECASTNAVIGATION_TESTS OFF CACHE BOOL "")
 set(RECASTNAVIGATION_EXAMPLES OFF CACHE BOOL "")
 add_subdirectory(recastnavigation)
 
-#freetype prebuilt
+#freetype: prebuilt on Windows, the system package elsewhere
+if(WIN32)
 add_library(Freetype::Freetype STATIC IMPORTED GLOBAL)
 set_property(TARGET Freetype::Freetype PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/freetype/include)
 set_property(TARGET Freetype::Freetype PROPERTY IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_SOURCE_DIR}/freetype/DebugStatic/freetype.lib)
 set_property(TARGET Freetype::Freetype PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/freetype/ReleaseStatic/freetype.lib)
+else()
+find_package(Freetype REQUIRED)
+set_target_properties(Freetype::Freetype PROPERTIES IMPORTED_GLOBAL TRUE)
+endif()
 
-#RML UI 
-set(RMLUI_SAMPLES ON CACHE BOOL "Build samples of RmlUI thirdparty")
-set(RMLUI_BACKEND Win32_GL2 CACHE STRING "")
-set(BUILD_TESTING OFF CACHE BOOL "Build tests of RmlUI thirdparty")
+#RML UI (the engine has its own backend, impl/RmlUI_backend)
+set(RMLUI_SAMPLES OFF CACHE BOOL "")
+set(BUILD_TESTING OFF CACHE BOOL "")
 set(NO_FONT_INTERFACE_DEFAULT OFF CACHE BOOL "Do not include default font interface for RmUI thirdparty.")
 add_subdirectory(RmlUi)
 
@@ -86,3 +109,6 @@ set_target_properties(tinygltf PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $
 set_target_properties(glad PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:glad,INTERFACE_INCLUDE_DIRECTORIES>)
 set_target_properties(glm PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:glm,INTERFACE_INCLUDE_DIRECTORIES>)
 set_target_properties(stb PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:stb,INTERFACE_INCLUDE_DIRECTORIES>)
+foreach(dep EnTT fmt-header-only ozz_base ozz_animation ozz_animation_offline)
+  set_target_properties(${dep} PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${dep},INTERFACE_INCLUDE_DIRECTORIES>)
+endforeach()
