@@ -588,7 +588,7 @@ std::string engine::save_scene(const TypeRegistry& types, const entt::registry& 
         {
             continue;
         }
-        EntityToWrite e{ id, entity };
+        EntityToWrite e{ id, entity, {}, nullptr, {} };
         e.instance = prefabs.find_instance(entity);
         if (!e.instance)
         {
@@ -739,7 +739,7 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
             log_error(fmt::format("Scene {}: the persistent ID {} is used twice, the second game object is not loaded.\n", file_name, id));
             continue;
         }
-        FileEntity file_entity{ id, nullptr };
+        FileEntity file_entity{ id, nullptr, {}, nullptr };
         if (e.HasMember("components"))
         {
             if (!e["components"].IsObject())
