@@ -672,18 +672,6 @@ entt::entity engine::Scene::create_new_entity()
     return entity;
 }
 
-entt::entity engine::Scene::create_new_entity(entt::entity hint, std::uint64_t persistent_id)
-{
-    ENGINE_PROFILE_SECTION;
-    const auto entity = entity_registry_.create(hint);
-    // an entity that had no persistent ID (a transient one) is restored without one
-    if (persistent_id != EntityIdRegistry::INVALID_ID && !entity_ids_.assign(entity, persistent_id))
-    {
-        log::log(log::LogLevel::eError, fmt::format("Scene: can't restore entity with persistent ID {}, it is invalid or already used.\n", persistent_id));
-    }
-    return entity;
-}
-
 entt::entity engine::Scene::create_transient_entity()
 {
     ENGINE_PROFILE_SECTION;
@@ -744,10 +732,16 @@ std::string engine::Scene::save() const
     return save_scene(app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_);
 }
 
-bool engine::Scene::load(std::string_view json, std::string_view file_name)
+std::string engine::Scene::save(std::span<const entt::entity> roots) const
 {
     ENGINE_PROFILE_SECTION;
-    return load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_);
+    return save_game_objects(app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_, roots);
+}
+
+bool engine::Scene::load(std::string_view json, std::string_view file_name, const SceneLoadOptions& options)
+{
+    ENGINE_PROFILE_SECTION;
+    return load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_, options);
 }
 
 std::vector<entt::entity> engine::Scene::get_all_entities() const

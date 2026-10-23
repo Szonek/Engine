@@ -172,20 +172,42 @@ void CommandRemoveTypedComponent::undo()
 CommandDestroyEntity::CommandDestroyEntity(Scene& sc, entt::entity e)
     : scene_(sc)
     , e_(e)
-    , persistent_id_(sc.get_persistent_id(e))
 {
     assert(e_ != entt::null);
 }
 
 void CommandDestroyEntity::execute()
 {
+    handles_.clear();
+    saved_.clear();
+    if (!scene_.is_valid_entity(e_))
+    {
+        return;
+    }
+    std::vector<entt::entity> to_visit{ e_ };
+    while (!to_visit.empty())
+    {
+        const auto entity = to_visit.back();
+        to_visit.pop_back();
+        if (const auto id = scene_.get_persistent_id(entity); id != EntityIdRegistry::INVALID_ID)
+        {
+            handles_[id] = entity;
+        }
+        const auto children = scene_.get_children(entity);
+        to_visit.insert(to_visit.end(), children.begin(), children.end());
+    }
+    saved_ = scene_.save(std::span(&e_, 1));
     scene_.destroy_entity(e_);
 }
 
 void CommandDestroyEntity::undo()
 {
-    const auto new_entt = scene_.create_new_entity(e_, persistent_id_);
-    assert(new_entt == e_);
+    if (saved_.empty())
+    {
+        return;
+    }
+    // the parent (and anything else outside of what was destroyed) is referenced by persistent ID
+    scene_.load(saved_, "undo of a destroy", SceneLoadOptions{ handles_, true });
 }
 
 

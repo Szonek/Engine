@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <memory>
+#include <string>
+#include <unordered_map>
 
 #include "components_internals/guizmo_component.h"
 #include "components_internals/outline_component.h"
@@ -197,6 +199,9 @@ private:
     entt::entity e_ = entt::null;
 };
 
+// Destroys the game object and everything parented under it. They are saved first and loaded back on undo, with
+// their persistent IDs and handles, so references to them find them again. Transient game objects aren't saved, so
+// they don't come back.
 class CommandDestroyEntity : public ICommand
 {
 public:
@@ -208,7 +213,8 @@ public:
 private:
     Scene& scene_;
     const entt::entity e_;
-    std::uint64_t persistent_id_;
+    std::string saved_;
+    std::unordered_map<std::uint64_t, entt::entity> handles_;
 };
 
 class CommandSetPhysicsDebugDraw: public ICommand

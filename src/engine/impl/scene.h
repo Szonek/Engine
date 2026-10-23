@@ -6,6 +6,7 @@
 #include "entity_id_registry.h"
 #include "prefab_system.h"
 #include "serialization/scene_assets.h"
+#include "serialization/scene_serializer.h"
 
 #include "render/render_scene_data.h"
 
@@ -49,9 +50,6 @@ public:
 
     // every entity gets a persistent ID (see EntityIdRegistry)
     entt::entity create_new_entity();
-    // restores an entity with the given persistent ID (e.g. undo of a destroy), or without one when it is
-    // EntityIdRegistry::INVALID_ID (the entity was transient); the hint is the entt value to reuse if possible
-    entt::entity create_new_entity(entt::entity hint, std::uint64_t persistent_id);
     // an entity without a persistent ID, for objects that are not part of the scene content (e.g. the editor camera)
     entt::entity create_transient_entity();
     // a game object of a prefab instance whose root has the persistent ID `root_id`: it gets the hashed ID of its node
@@ -76,9 +74,11 @@ public:
 
     // the scene as a scene file, see engine::save_scene
     std::string save() const;
+    // these entities and everything parented under them as a scene file, see engine::save_game_objects
+    std::string save(std::span<const entt::entity> roots) const;
     // adds the game objects of a scene file to the scene, see engine::load_scene; the assets it uses live as long as
     // the scene (SceneAssets)
-    bool load(std::string_view json, std::string_view file_name);
+    bool load(std::string_view json, std::string_view file_name, const SceneLoadOptions& options = {});
 
     entt::runtime_view create_runtime_view();
 
