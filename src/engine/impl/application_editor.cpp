@@ -33,8 +33,10 @@
 
 namespace
 {
-// Alt + left mouse button orbits the editor camera instead of picking
-constexpr const engine_keyboard_keys_t G_CAMERA_ORBIT_KEYBOARD_KEY = engine_keyboard_keys_t::ENGINE_KEYBOARD_KEY_LALT;
+bool any_mouse_button_down(const ImGuiIO& io)
+{
+    return io.MouseDown[ImGuiMouseButton_Left] || io.MouseDown[ImGuiMouseButton_Right] || io.MouseDown[ImGuiMouseButton_Middle];
+}
 
 struct entity_node_t
 {
@@ -1119,15 +1121,20 @@ void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
 void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_pre");
+    if (mouse_consumed_ && !any_mouse_button_down(ImGui::GetIO()))
+    {
+        mouse_consumed_ = false;
+    }
     if (editor_view_ == EditorView::eEditor)
     {
-        const auto& io = ImGui::GetIO();
-        if (mouse_consumed_ && !io.MouseDown[ImGuiMouseButton_Left] && !io.MouseDown[ImGuiMouseButton_Right] && !io.MouseDown[ImGuiMouseButton_Middle])
-        {
-            mouse_consumed_ = false;
-        }
+        // before the scene update, so this frame renders the preview
+        handle_modal_transform(scene);
         const bool camera_accepts_input = !modal_transform_ && !mouse_consumed_;
         camera_context_.on_scene_update_pre(scene, is_playing_ ? delta_time : frame_delta_time_, scene_hierarchy_context_.get_selected_entity(), camera_accepts_input);
+    }
+    else if (modal_transform_)
+    {
+        cancel_modal_transform(scene);
     }
 }
 
@@ -1136,14 +1143,16 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
     const float editor_delta_time = frame_delta_time_;
 
+    // a modal transform owns the mouse, wherever it is clicked: the click that ends it doesn't reach the panels either
+    ImGui::BeginDisabled(modal_transform_.has_value() || mouse_consumed_);
     render_editor_controls(scene, editor_delta_time);
     render_scene_hierarchy_panel(scene, editor_delta_time);
     render_entity_properties_panel(scene, editor_delta_time);
     render_debug_panel(scene, editor_delta_time);
+    ImGui::EndDisabled();
 
     if (editor_view_ == EditorView::eEditor)
     {
-        handle_modal_transform(scene);
         if (modal_transform_)
         {
             draw_modal_transform(scene);
@@ -1154,17 +1163,14 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
             handle_mouse_picking(scene);
         }
     }
-    else if (modal_transform_)
-    {
-        cancel_modal_transform(scene);
-    }
-    // while a modal transform runs, Ctrl snaps and Z picks the axis
-    const auto lctrl = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL) && !modal_transform_;
+    // while a modal transform runs, Ctrl snaps and Z picks the axis: a combination pressed then (or still held when it
+    // ends) isn't a new press
+    const auto lctrl = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL);
     const auto lshift = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LSHIFT);
     const auto z = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_Z);
     static bool ctrl_shift_z_prev = lctrl && lshift && z;
     const auto ctrl_shift_z_curr = lctrl && lshift && z;
-    if (ctrl_shift_z_prev && !ctrl_shift_z_curr)
+    if (ctrl_shift_z_prev && !ctrl_shift_z_curr && !modal_transform_)
     {
         commands_.redo();
         scene_hierarchy_context_.sync_selected_from_scene(scene);
@@ -1173,7 +1179,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
 
     static bool ctrl_z_prev = lctrl && !lshift && z;
     const auto ctrl_z_curr = lctrl && !lshift && z;
-    if (ctrl_z_curr && !ctrl_z_prev)
+    if (ctrl_z_curr && !ctrl_z_prev && !modal_transform_)
     {
         commands_.undo();
         scene_hierarchy_context_.sync_selected_from_scene(scene);
@@ -1217,13 +1223,12 @@ void engine::ApplicationEditor::render_scene_view()
     // The mouse stays with the scene while a button pressed over it is held.
     const bool hovered = ImGui::IsWindowHovered();
     const auto& io = ImGui::GetIO();
-    const bool any_button_down = io.MouseDown[ImGuiMouseButton_Left] || io.MouseDown[ImGuiMouseButton_Right] || io.MouseDown[ImGuiMouseButton_Middle];
     const bool any_button_clicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right) || ImGui::IsMouseClicked(ImGuiMouseButton_Middle);
     if (hovered && any_button_clicked)
     {
         scene_view_mouse_held_ = true;
     }
-    else if (!any_button_down)
+    else if (!any_mouse_button_down(io))
     {
         scene_view_mouse_held_ = false;
     }
@@ -1630,7 +1635,8 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
     {
         return;
     }
-    if (mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT) && !keyboard_is_key_down(G_CAMERA_ORBIT_KEYBOARD_KEY))
+    // Alt + left mouse button orbits the editor camera instead (either Alt, like the camera reads it)
+    if (mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT) && !ImGui::GetIO().KeyAlt)
     {
         const auto scene_viewport = get_scene_viewport();
         const auto mouse_coords = mouse_get_coords();
@@ -1673,8 +1679,7 @@ void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
     if (!modal_transform_)
     {
         // like Blender: the keys act on the view under the mouse; Ctrl / Alt combinations are left for other shortcuts
-        const bool any_button_down = io.MouseDown[ImGuiMouseButton_Left] || io.MouseDown[ImGuiMouseButton_Right] || io.MouseDown[ImGuiMouseButton_Middle];
-        if (!is_mouse_over_scene() || io.WantTextInput || io.KeyCtrl || io.KeyAlt || any_button_down || ImGuizmo::IsUsingAny())
+        if (!is_mouse_over_scene() || io.WantTextInput || io.KeyCtrl || io.KeyAlt || any_mouse_button_down(io) || ImGuizmo::IsUsingAny())
         {
             return;
         }
@@ -1838,7 +1843,7 @@ engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
         {
             c.enabled = true;
             c.clip_plane_near = 0.1f;
-            c.clip_plane_far = 1000.0f;
+            c.clip_plane_far = 2.0f * EditorCamera::MAX_DISTANCE;
             c.type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
             c.type_union.perspective_fov = 45.0f;
             std::memcpy(c.target, glm::value_ptr(pivot), sizeof(c.target));
@@ -1930,16 +1935,23 @@ void engine::CameraScript::update(float dt, entt::entity selected, bool accepts_
         camera_.update(editor_camera_input_t{}, dt, static_cast<float>(app_->get_scene_viewport().height), get_fov_y());
     }
 
+    // only when the camera moved: a transform update is synced to physics and recomputes the world transforms
     const auto eye = camera_.get_eye();
     const auto pivot = camera_.get_pivot();
-    my_scene_->patch_component<engine_transform_component_t>(go_, [eye](engine_transform_component_t& c)
-        {
-            std::memcpy(c.position, glm::value_ptr(eye), sizeof(c.position));
-        });
-    my_scene_->patch_component<engine_camera_component_t>(go_, [pivot](engine_camera_component_t& c)
-        {
-            std::memcpy(c.target, glm::value_ptr(pivot), sizeof(c.target));
-        });
+    if (glm::make_vec3(my_scene_->get_component<engine_transform_component_t>(go_)->position) != eye)
+    {
+        my_scene_->patch_component<engine_transform_component_t>(go_, [eye](engine_transform_component_t& c)
+            {
+                std::memcpy(c.position, glm::value_ptr(eye), sizeof(c.position));
+            });
+    }
+    if (glm::make_vec3(cc->target) != pivot)
+    {
+        my_scene_->patch_component<engine_camera_component_t>(go_, [pivot](engine_camera_component_t& c)
+            {
+                std::memcpy(c.target, glm::value_ptr(pivot), sizeof(c.target));
+            });
+    }
 }
 
 bool engine::CameraScript::frame_entity(entt::entity entity)
