@@ -26,7 +26,7 @@ class Weapon;
 // the player, enemies, chests, weapons, the house, and the Encounter and GameplayHud scripts. Each object gets its
 // components (name, transform, colliders, its config component with the default values) and, when it has behaviour,
 // its script as data (IScene::attach_script: a `script` component naming it), so the scene is what a scene file of it
-// would load. The level (TestScene's ASCII map) and the scenario tests both build with it. The nav mesh is built from the
+// would load. Levels made in code (the scenario tests' scenes) build with it; LevelScene uses it to spawn the player. The nav mesh is built from the
 // static colliders with engineNavMeshBuild() once everything is placed.
 // x/z are world positions in metres; floor tiles sit on the 1 m grid. Objects whose prefab failed to load are skipped
 // (nullptr / no-op), like the level always did.

@@ -2,7 +2,9 @@
 
 #include "app.h"
 #include "player_input.h"
-#include "scenes/scene_test.h"
+#include "scenes/level_scene.h"
+
+#include <string_view>
 
 namespace
 {
@@ -54,14 +56,33 @@ void run(project_c::AppProjectC& app)
         }
     }
 }
+
+// the options of the command line: --level <path> (a level file, relative to assets/scenes or absolute)
+project_c::AppConfig read_options(int argc, char** argv)
+{
+    project_c::AppConfig config{};
+    for (int i = 1; i < argc; i++)
+    {
+        const std::string_view option = argv[i];
+        if (option == "--level" && i + 1 < argc)
+        {
+            config.level_path = argv[++i];
+        }
+        else
+        {
+            log(fmt::format("Unknown option {} (the options: --level <path>).\n", option));
+        }
+    }
+    return config;
+}
 }  // namespace
 
 int main(int argc, char** argv)
 {
     try
     {
-        project_c::AppProjectC app_project_c(project_c::default_prefabs_data());
-        app_project_c.register_scene<project_c::TestScene>()->activate();
+        project_c::AppProjectC app_project_c(project_c::default_prefabs_data(), read_options(argc, argv));
+        app_project_c.register_scene<project_c::LevelScene>()->activate();
         run(app_project_c);
 
         return 0;

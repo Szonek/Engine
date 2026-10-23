@@ -29,6 +29,8 @@ struct AppConfig
     // window size in pixels; 0 = the game's default
     std::uint32_t window_width = 0;
     std::uint32_t window_height = 0;
+    // the level file LevelScene loads, relative to assets/scenes or absolute
+    std::string level_path = "test_level.json";
 };
 
 class AppProjectC : public engine::IApplication
@@ -47,6 +49,9 @@ public:
     // One frame of the game (dt in milliseconds): updates the scenes, then applies scene changes they requested.
     // The caller owns the loop and calls it between engineFrameBegin() and engineFrameEnd() (main.cpp, tests).
     void update(float dt);
+
+    // the level file LevelScene loads (AppConfig::level_path)
+    const std::string& get_level_path() const { return level_path_; }
 
     // what gameplay scripts read as this frame's player input; whoever drives the frames sets it before update()
     const PlayerInput& player_input() const { return player_input_; }
@@ -73,6 +78,7 @@ private:
     // the engine prefab assets of the models loaded at startup, ENGINE_INVALID_OBJECT_HANDLE for a model which failed loading
     std::array<engine_prefab_t, PREFAB_TYPE_COUNT> prefabs_;
     std::array<std::string, PREFAB_TYPE_COUNT> prefab_paths_;
+    std::string level_path_;
     PlayerInput player_input_{};
     std::function<void()> pending_scene_change_;
 };

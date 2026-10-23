@@ -60,6 +60,7 @@ project_c::PrefabsData project_c::default_prefabs_data()
 
 project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppConfig& config)
     : engine::IApplication(app_cd(config))
+    , level_path_(config.level_path)
 {
     register_script_types();
     prefabs_.fill(ENGINE_INVALID_OBJECT_HANDLE);
