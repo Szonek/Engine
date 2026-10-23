@@ -506,4 +506,71 @@ TEST_F(GameTypesTest, EngineTypesHaveNoPoolOrCount)
     EXPECT_FALSE(types_.find("transform")->storage->pool);
     EXPECT_FALSE(types_.find("transform")->storage->change_count);
 }
+
+// -- editor hints ----------------------------------------------------------------------------------------------------
+
+struct Tint
+{
+    float color[4];
+    float light[3];
+    float speed;
+    std::uint32_t count;
+};
+
+TEST_F(GameTypesTest, HintsAreKeptForTheEditor)
+{
+    auto color = field("color", ENGINE_FIELD_KIND_COLOR, offsetof(Tint, color), 4);
+    auto light = field("light", ENGINE_FIELD_KIND_COLOR, offsetof(Tint, light), 3);
+    auto speed = field("speed", ENGINE_FIELD_KIND_FLOAT, offsetof(Tint, speed));
+    speed.flags = ENGINE_FIELD_FLAG_RANGE;
+    speed.range_min = 0.5f;
+    speed.range_max = 4.0f;
+    speed.tooltip = "metres per second";
+    auto count = field("count", ENGINE_FIELD_KIND_UINT32, offsetof(Tint, count));
+    count.flags = ENGINE_FIELD_FLAG_READ_ONLY | ENGINE_FIELD_FLAG_HIDDEN;
+    const std::vector<engine_field_desc_t> fields = { color, light, speed, count };
+    const auto* type = engine::register_game_type(types_, desc<Tint>("tint", fields), true);
+    ASSERT_NE(type, nullptr);
+
+    // a colour is saved as its floats
+    EXPECT_EQ(type->fields[0].kind, FieldKind::eFloat);
+    EXPECT_EQ(type->fields[0].count, 4u);
+    EXPECT_TRUE(type->fields[0].hints.color);
+    EXPECT_EQ(type->fields[1].count, 3u);
+    EXPECT_TRUE(type->fields[1].hints.color);
+    ASSERT_TRUE(type->fields[2].hints.range.has_value());
+    EXPECT_EQ(type->fields[2].hints.range->first, 0.5f);
+    EXPECT_EQ(type->fields[2].hints.range->second, 4.0f);
+    EXPECT_EQ(type->fields[2].hints.tooltip, "metres per second");
+    EXPECT_FALSE(type->fields[2].hints.read_only);
+    EXPECT_TRUE(type->fields[3].hints.read_only);
+    EXPECT_TRUE(type->fields[3].hints.hidden);
+}
+
+TEST_F(GameTypesTest, WrongHintsAreRejected)
+{
+    const auto try_field = [this](engine_field_desc_t f) {
+        const std::vector<engine_field_desc_t> fields = { f };
+        return engine::register_game_type(types_, desc<Tint>("tint", fields), true) != nullptr;
+    };
+    // a colour has 3 or 4 floats
+    EXPECT_FALSE(try_field(field("color", ENGINE_FIELD_KIND_COLOR, offsetof(Tint, color), 2)));
+    EXPECT_FALSE(try_field(field("color", ENGINE_FIELD_KIND_COLOR, offsetof(Tint, color))));
+    // a range is for numbers, min <= max
+    auto inverted = field("speed", ENGINE_FIELD_KIND_FLOAT, offsetof(Tint, speed));
+    inverted.flags = ENGINE_FIELD_FLAG_RANGE;
+    inverted.range_min = 2.0f;
+    inverted.range_max = 1.0f;
+    EXPECT_FALSE(try_field(inverted));
+    auto colour_range = field("color", ENGINE_FIELD_KIND_COLOR, offsetof(Tint, color), 4);
+    colour_range.flags = ENGINE_FIELD_FLAG_RANGE;
+    EXPECT_FALSE(try_field(colour_range));
+    // unknown flags
+    auto unknown = field("speed", ENGINE_FIELD_KIND_FLOAT, offsetof(Tint, speed));
+    unknown.flags = 1u << 20;
+    EXPECT_FALSE(try_field(unknown));
+    EXPECT_TRUE(test_logger::logged("a colour is a float[3] or float[4]"));
+    EXPECT_TRUE(test_logger::logged("a range is for a number"));
+    EXPECT_TRUE(test_logger::logged("unknown flags"));
+}
 }  // namespace

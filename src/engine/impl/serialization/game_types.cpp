@@ -240,8 +240,20 @@ private:
         case ENGINE_FIELD_KIND_GEOMETRY: f.kind = FieldKind::eAsset; f.asset_kind = engine::AssetKind::eGeometry; break;
         case ENGINE_FIELD_KIND_TEXTURE: f.kind = FieldKind::eAsset; f.asset_kind = engine::AssetKind::eTexture; break;
         case ENGINE_FIELD_KIND_GAME_OBJECT: f.kind = FieldKind::eGameObject; break;
+        case ENGINE_FIELD_KIND_COLOR:
+            if (d.count != 3 && d.count != 4)
+            {
+                return error(fmt::format("field {}: a colour is a float[3] or float[4], its count is {}", name, d.count));
+            }
+            f.kind = FieldKind::eFloat;
+            f.hints.color = true;
+            break;
         default:
             return error(fmt::format("field {} has an unknown kind {}", name, static_cast<int>(d.kind)));
+        }
+        if (!read_hints(d, f))
+        {
+            return;
         }
         if (f.alignment > type_.alignment)
         {
@@ -256,6 +268,30 @@ private:
             return error(fmt::format("field {}: bytes {} to {} are outside the struct of {} bytes", name, f.offset, f.offset + f.byte_size(), type_.size));
         }
         type_.fields.push_back(std::move(f));
+    }
+
+    bool read_hints(const engine_field_desc_t& d, FieldInfo& f)
+    {
+        constexpr std::uint32_t known_flags = ENGINE_FIELD_FLAG_READ_ONLY | ENGINE_FIELD_FLAG_HIDDEN | ENGINE_FIELD_FLAG_RANGE;
+        if ((d.flags & ~known_flags) != 0)
+        {
+            error(fmt::format("field {} has unknown flags {:#x}", f.name, d.flags & ~known_flags));
+            return false;
+        }
+        f.hints.read_only = (d.flags & ENGINE_FIELD_FLAG_READ_ONLY) != 0;
+        f.hints.hidden = (d.flags & ENGINE_FIELD_FLAG_HIDDEN) != 0;
+        f.hints.tooltip = std::string(text(d.tooltip));
+        if ((d.flags & ENGINE_FIELD_FLAG_RANGE) != 0)
+        {
+            const bool number = !f.hints.color && (f.kind == FieldKind::eInt32 || f.kind == FieldKind::eUint32 || f.kind == FieldKind::eFloat);
+            if (!number || !(d.range_min <= d.range_max))
+            {
+                error(fmt::format("field {}: a range is for a number, with its minimum not above its maximum", f.name));
+                return false;
+            }
+            f.hints.range = std::make_pair(d.range_min, d.range_max);
+        }
+        return true;
     }
 
     bool read_enum_values(const engine_field_desc_t& d, FieldInfo& f)

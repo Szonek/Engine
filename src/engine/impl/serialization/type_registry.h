@@ -9,9 +9,11 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace engine
@@ -61,6 +63,18 @@ struct UnionCase
     const TypeInfo* type;
 };
 
+// How the editor shows a field (game-defined types, engine_field_flags_t); they never change what is saved.
+struct FieldHints
+{
+    bool read_only = false;
+    bool hidden = false;
+    // a float[3] / float[4] colour
+    bool color = false;
+    // numbers: the editor keeps the value in [min, max]
+    std::optional<std::pair<float, float>> range;
+    std::string tooltip;
+};
+
 struct FieldInfo
 {
     std::string name;
@@ -78,6 +92,7 @@ struct FieldInfo
     std::string union_tag;                             // eUnion: the enum field (before it) selecting the case
     std::vector<UnionCase> union_cases;                // eUnion: a tag value without a case has no data
     AssetKind asset_kind = AssetKind::eGeometry;       // eAsset
+    FieldHints hints;
 
     // bytes the field covers in its struct
     std::size_t byte_size() const { return size * count; }

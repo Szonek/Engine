@@ -552,8 +552,23 @@ typedef enum _engine_field_kind_t
     ENGINE_FIELD_KIND_TEXTURE,
     // an engine_game_object_t, saved as the persistent ID of the game object
     ENGINE_FIELD_KIND_GAME_OBJECT,
+    // a colour: a float[3] (RGB, `count` 3) or float[4] (RGBA, `count` 4), saved as its floats; the editor shows a
+    // colour picker
+    ENGINE_FIELD_KIND_COLOR,
     ENGINE_FIELD_KIND_COUNT
 } engine_field_kind_t;
+
+// How the editor shows a field (engine_field_desc_t::flags, combined with |); they never change what is saved.
+typedef enum _engine_field_flags_t
+{
+    ENGINE_FIELD_FLAG_NONE = 0,
+    // shown, but not editable (e.g. a value a tool computes)
+    ENGINE_FIELD_FLAG_READ_ONLY = 1 << 0,
+    // not shown (still saved and loaded)
+    ENGINE_FIELD_FLAG_HIDDEN = 1 << 1,
+    // a number (int32, uint32, float) the editor keeps in [range_min, range_max]
+    ENGINE_FIELD_FLAG_RANGE = 1 << 2,
+} engine_field_flags_t;
 
 typedef struct _engine_enum_value_desc_t
 {
@@ -575,6 +590,12 @@ typedef struct _engine_field_desc_t
     uint32_t enum_values_count;
     // ENGINE_FIELD_KIND_STRUCT
     const char* type_name;
+    // editor hints, zero for none: engine_field_flags_t, the range of ENGINE_FIELD_FLAG_RANGE, and a tooltip (or NULL)
+    // shown over the field
+    uint32_t flags;
+    float range_min;
+    float range_max;
+    const char* tooltip;
 } engine_field_desc_t;
 
 typedef struct _engine_type_desc_t

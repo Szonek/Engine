@@ -430,8 +430,18 @@ public:
         bool changed = false;
         for (const auto& field : type.fields)
         {
+            if (field.hints.hidden)
+            {
+                continue;
+            }
             ImGui::PushID(field.name.c_str());
+            ImGui::BeginDisabled(field.hints.read_only);
             changed |= draw_field(field, value + field.offset);
+            ImGui::EndDisabled();
+            if (!field.hints.tooltip.empty())
+            {
+                ImGui::SetItemTooltip("%s", field.hints.tooltip.c_str());
+            }
             ImGui::PopID();
         }
         return changed;
@@ -445,15 +455,16 @@ private:
         {
             return draw_element(field, p, field.name.c_str());
         }
-        // short arrays of numbers (vectors, colours) on one line
         const auto count = static_cast<int>(field.count);
-        if (count <= 4 && field.kind == FieldKind::eFloat)
+        if (field.hints.color)
         {
-            return ImGui::DragScalarN(field.name.c_str(), ImGuiDataType_Float, p, count, 0.1f);
+            auto* rgba = reinterpret_cast<float*>(p);
+            return count == 4 ? ImGui::ColorEdit4(field.name.c_str(), rgba) : ImGui::ColorEdit3(field.name.c_str(), rgba);
         }
-        if (count <= 4 && (field.kind == FieldKind::eInt32 || field.kind == FieldKind::eUint32))
+        // short arrays of numbers (vectors) on one line
+        if (count <= 4 && is_number(field.kind))
         {
-            return ImGui::DragScalarN(field.name.c_str(), field.kind == FieldKind::eInt32 ? ImGuiDataType_S32 : ImGuiDataType_U32, p, count, 1.0f);
+            return draw_numbers(field, p, field.name.c_str(), count);
         }
         bool changed = false;
         if (ImGui::TreeNode(fmt::format("{} [{}]", field.name, field.count).c_str()))
@@ -475,9 +486,9 @@ private:
         switch (field.kind)
         {
         case FieldKind::eBool: return ImGui::Checkbox(label, reinterpret_cast<bool*>(p));
-        case FieldKind::eInt32: return ImGui::DragScalar(label, ImGuiDataType_S32, p, 1.0f);
-        case FieldKind::eUint32: return ImGui::DragScalar(label, ImGuiDataType_U32, p, 1.0f);
-        case FieldKind::eFloat: return ImGui::DragScalar(label, ImGuiDataType_Float, p, 0.1f);
+        case FieldKind::eInt32:
+        case FieldKind::eUint32:
+        case FieldKind::eFloat: return draw_numbers(field, p, label, 1);
         case FieldKind::eString: return draw_string(field, p, label);
         case FieldKind::eEnum: return draw_enum(field, p, label);
         case FieldKind::eStruct:
@@ -504,6 +515,30 @@ private:
         case FieldKind::eGameObject: return draw_game_object(p, label);
         }
         return false;
+    }
+
+    static bool is_number(engine::FieldKind kind)
+    {
+        return kind == engine::FieldKind::eInt32 || kind == engine::FieldKind::eUint32 || kind == engine::FieldKind::eFloat;
+    }
+
+    // `count` numbers on one line, kept in the field's range when it has one
+    static bool draw_numbers(const engine::FieldInfo& field, std::byte* p, const char* label, int count)
+    {
+        using engine::FieldKind;
+        const auto data_type = field.kind == FieldKind::eInt32 ? ImGuiDataType_S32 : field.kind == FieldKind::eUint32 ? ImGuiDataType_U32 : ImGuiDataType_Float;
+        const float speed = field.kind == FieldKind::eFloat ? 0.1f : 1.0f;
+        if (!field.hints.range)
+        {
+            return ImGui::DragScalarN(label, data_type, p, count, speed);
+        }
+        // the limits in the field's own type
+        const auto [min_value, max_value] = *field.hints.range;
+        std::int32_t min_i = static_cast<std::int32_t>(min_value), max_i = static_cast<std::int32_t>(max_value);
+        std::uint32_t min_u = static_cast<std::uint32_t>(std::max(min_value, 0.0f)), max_u = static_cast<std::uint32_t>(std::max(max_value, 0.0f));
+        const void* min_p = field.kind == FieldKind::eInt32 ? static_cast<const void*>(&min_i) : field.kind == FieldKind::eUint32 ? static_cast<const void*>(&min_u) : &min_value;
+        const void* max_p = field.kind == FieldKind::eInt32 ? static_cast<const void*>(&max_i) : field.kind == FieldKind::eUint32 ? static_cast<const void*>(&max_u) : &max_value;
+        return ImGui::DragScalarN(label, data_type, p, count, speed, min_p, max_p, nullptr, ImGuiSliderFlags_AlwaysClamp);
     }
 
     template<typename T>
