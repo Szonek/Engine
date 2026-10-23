@@ -9,6 +9,7 @@
 #include <rapidjson/stringbuffer.h>
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 
 #include <algorithm>
 #include <charconv>
@@ -403,7 +404,7 @@ private:
             const auto it = entities_.find(id);
             if (it == entities_.end())
             {
-                error(path, fmt::format("references the game object {} which isn't in the file, it references none", id));
+                error(path, fmt::format("references the game object {} which isn't in the file (or no node of a prefab instance in it), it references none", id));
                 write_as(p, static_cast<std::uint32_t>(ENGINE_INVALID_GAME_OBJECT_ID));
                 return;
             }
@@ -434,10 +435,133 @@ struct FileEntity
 {
     std::uint64_t id;
     const Json* components;
+    // an instance root: its prefab's asset ID, and node path -> the components added to that game object
+    std::string_view prefab;
+    const Json* nodes = nullptr;
 };
+
+// the components of one game object in the file, and the game object they go to
+struct FileComponents
+{
+    std::uint64_t id;
+    std::string_view node_path;
+    const Json* components;
+    entt::entity entity;
+};
+
+void check_components(const Json& components, std::string_view file_name, const engine::TypeRegistry& types, std::set<std::string_view>& unknown_components)
+{
+    for (const auto& c : components.GetObject())
+    {
+        const std::string_view name(c.name.GetString(), c.name.GetStringLength());
+        const auto* type = types.find(name);
+        if ((!type || !type->is_component()) && unknown_components.insert(name).second)
+        {
+            log_error(fmt::format("Scene {}: unknown component {}, it is ignored.\n", file_name, name));
+        }
+    }
+}
 }  // namespace
 
-std::string engine::save_scene(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets)
+void engine::capture_prefab_components(const TypeRegistry& types, const entt::registry& registry, PrefabInstanceInfo& instance)
+{
+    for (auto& node : instance.nodes)
+    {
+        node.created.clear();
+        for (const auto* type : types.get_components())
+        {
+            if (registry.valid(node.entity) && type->storage->has(registry, node.entity))
+            {
+                PrefabComponentValue created{ type, ValueBuffer(type->size) };
+                type->storage->get(registry, node.entity, created.value.get());
+                node.created.push_back(std::move(created));
+            }
+        }
+    }
+}
+
+namespace
+{
+// A game object as it is written: its components, and for the root of a prefab instance the components added to the
+// instance's other game objects.
+struct EntityToWrite
+{
+    std::uint64_t id;
+    entt::entity entity;
+    std::vector<const engine::TypeInfo*> components;
+    const engine::PrefabInstanceInfo* instance = nullptr;
+    std::vector<std::pair<const engine::PrefabInstanceNode*, std::vector<const engine::TypeInfo*>>> nodes;
+};
+
+const engine::PrefabComponentValue* find_created(const engine::PrefabInstanceNode& node, const engine::TypeInfo* type)
+{
+    const auto it = std::ranges::find(node.created, type, &engine::PrefabComponentValue::type);
+    return it == node.created.end() ? nullptr : &*it;
+}
+
+// The root's components which are always saved, like Unity saves an instance root's name and transform: what the
+// level does with every instance (place it, name it).
+bool is_root_override(const engine::TypeInfo& type)
+{
+    return type.name == "name" || type.name == "transform";
+}
+
+// The components of a game object of an instance which its prefab didn't give it, and the root's name and transform.
+// Adds to `changes` what changed in the other ones the prefab gave it: scene files can't save that yet.
+std::vector<const engine::TypeInfo*> added_components(const std::vector<const engine::TypeInfo*>& components, const entt::registry& registry,
+    const engine::PrefabInstanceNode& node, bool is_root, std::vector<std::string>& changes)
+{
+    const auto node_name = is_root ? std::string("the root") : fmt::format("node {}", node.path);
+    std::vector<const engine::TypeInfo*> added;
+    if (!registry.valid(node.entity))
+    {
+        changes.push_back(fmt::format("{} was destroyed", node_name));
+        return added;
+    }
+    for (const auto* type : components)
+    {
+        const auto has = type->storage->has(registry, node.entity);
+        const auto* created = find_created(node, type);
+        if (!created || (is_root && is_root_override(*type)))
+        {
+            if (has)
+            {
+                added.push_back(type);
+            }
+            continue;
+        }
+        if (!has)
+        {
+            changes.push_back(fmt::format("{} lost its {}", node_name, type->name));
+            continue;
+        }
+        engine::ValueBuffer value(type->size);
+        type->storage->get(registry, node.entity, value.get());
+        if (!engine::equal_values(*type, created->value.get(), value.get()))
+        {
+            changes.push_back(fmt::format("{}: its {} changed", node_name, type->name));
+        }
+    }
+    return added;
+}
+
+void write_components(SceneWriter& out, const entt::registry& registry, entt::entity entity, const std::vector<const engine::TypeInfo*>& components, std::string_view path)
+{
+    auto& w = out.writer();
+    w.StartObject();
+    for (const auto* type : components)
+    {
+        engine::ValueBuffer value(type->size);
+        type->storage->get(registry, entity, value.get());
+        w.Key(type->name.c_str());
+        out.write_struct(*type, value.get(), fmt::format("{}: {}", path, type->name));
+    }
+    w.EndObject();
+}
+}  // namespace
+
+std::string engine::save_scene(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
+    const IPrefabInstances& prefabs)
 {
     std::vector<std::pair<std::uint64_t, entt::entity>> entities;
     for (const auto [entity, id] : registry.view<const entity_id_component_t>().each())
@@ -445,7 +569,68 @@ std::string engine::save_scene(const TypeRegistry& types, const entt::registry& 
         entities.emplace_back(id.id, entity);
     }
     std::ranges::sort(entities);
-    const auto components = types.get_components();
+    const auto& components = types.get_components();
+
+    // the game objects of an instance (but its root) are made by its prefab: only their added components are saved,
+    // with the root
+    std::set<entt::entity> instance_nodes;
+    for (const auto& [id, entity] : entities)
+    {
+        if (const auto* instance = prefabs.find_instance(entity))
+        {
+            for (const auto& node : instance->nodes)
+            {
+                if (node.entity != entity)
+                {
+                    instance_nodes.insert(node.entity);
+                }
+            }
+        }
+    }
+
+    std::vector<EntityToWrite> to_write;
+    for (const auto& [id, entity] : entities)
+    {
+        if (instance_nodes.contains(entity))
+        {
+            continue;
+        }
+        EntityToWrite e{ id, entity, {}, nullptr, {} };
+        e.instance = prefabs.find_instance(entity);
+        if (!e.instance)
+        {
+            for (const auto* type : components)
+            {
+                if (type->storage->has(registry, entity))
+                {
+                    e.components.push_back(type);
+                }
+            }
+            to_write.push_back(std::move(e));
+            continue;
+        }
+        std::vector<std::string> changes;
+        for (const auto& node : e.instance->nodes)
+        {
+            const auto is_root = node.entity == entity;
+            auto added = added_components(components, registry, node, is_root, changes);
+            if (is_root)
+            {
+                e.components = std::move(added);
+            }
+            else if (!added.empty())
+            {
+                e.nodes.emplace_back(&node, std::move(added));
+            }
+        }
+        if (!changes.empty())
+        {
+            log_error(fmt::format("Scene save: game object {} is an instance of {}; changes to what its prefab created aren't saved: {}.\n", id,
+                e.instance->prefab, fmt::join(changes, ", ")));
+        }
+        std::ranges::sort(e.nodes, {}, [](const auto& n) { return std::string_view(n.first->path); });
+        to_write.push_back(std::move(e));
+    }
 
     SceneWriter out(ids, assets);
     auto& w = out.writer();
@@ -456,7 +641,10 @@ std::string engine::save_scene(const TypeRegistry& types, const entt::registry& 
     w.StartObject();
     for (const auto* type : components)
     {
-        const auto used = std::ranges::any_of(entities, [&](const auto& e) { return type->storage->has(registry, e.second); });
+        const auto written = [type](const std::vector<const TypeInfo*>& list) { return std::ranges::find(list, type) != list.end(); };
+        const auto used = std::ranges::any_of(to_write, [&](const EntityToWrite& e) {
+            return written(e.components) || std::ranges::any_of(e.nodes, [&](const auto& n) { return written(n.second); });
+        });
         if (used)
         {
             w.Key(type->name.c_str());
@@ -466,25 +654,30 @@ std::string engine::save_scene(const TypeRegistry& types, const entt::registry& 
     w.EndObject();
     w.Key("entities");
     w.StartArray();
-    for (const auto& [id, entity] : entities)
+    for (const auto& e : to_write)
     {
+        const auto path = fmt::format("game object {}", e.id);
         w.StartObject();
         w.Key("id");
-        w.Uint64(id);
-        w.Key("components");
-        w.StartObject();
-        for (const auto* type : components)
+        w.Uint64(e.id);
+        if (e.instance)
         {
-            if (!type->storage->has(registry, entity))
-            {
-                continue;
-            }
-            engine::ValueBuffer value(type->size);
-            type->storage->get(registry, entity, value.get());
-            w.Key(type->name.c_str());
-            out.write_struct(*type, value.get(), fmt::format("game object {}: {}", id, type->name));
+            w.Key("prefab");
+            w.String(e.instance->prefab.c_str(), static_cast<rapidjson::SizeType>(e.instance->prefab.size()));
         }
-        w.EndObject();
+        w.Key("components");
+        write_components(out, registry, e.entity, e.components, path);
+        if (!e.nodes.empty())
+        {
+            w.Key("nodes");
+            w.StartObject();
+            for (const auto& [node, added] : e.nodes)
+            {
+                w.Key(node->path.c_str(), static_cast<rapidjson::SizeType>(node->path.size()));
+                write_components(out, registry, node->entity, added, fmt::format("{}, node {}", path, node->path));
+            }
+            w.EndObject();
+        }
         w.EndObject();
     }
     w.EndArray();
@@ -492,7 +685,8 @@ std::string engine::save_scene(const TypeRegistry& types, const entt::registry& 
     return out.result() + "\n";
 }
 
-bool engine::load_scene(std::string_view json, std::string_view file_name, const TypeRegistry& types, entt::registry& registry, EntityIdRegistry& ids, IAssetResolver& assets)
+bool engine::load_scene(std::string_view json, std::string_view file_name, const TypeRegistry& types, entt::registry& registry, EntityIdRegistry& ids, IAssetResolver& assets,
+    IPrefabInstances& prefabs)
 {
     // 1. read and check the file; nothing in the registry changes until it can be used
     rapidjson::Document doc;
@@ -552,7 +746,7 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
             log_error(fmt::format("Scene {}: the persistent ID {} is used twice, the second game object is not loaded.\n", file_name, id));
             continue;
         }
-        const Json* components = nullptr;
+        FileEntity file_entity{ id, nullptr, {}, nullptr };
         if (e.HasMember("components"))
         {
             if (!e["components"].IsObject())
@@ -561,19 +755,40 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
             }
             else
             {
-                components = &e["components"];
-                for (const auto& c : components->GetObject())
+                file_entity.components = &e["components"];
+                check_components(*file_entity.components, file_name, types, unknown_components);
+            }
+        }
+        if (e.HasMember("prefab"))
+        {
+            if (!e["prefab"].IsString())
+            {
+                log_error(fmt::format("Scene {}, game object {}: its prefab is not an asset ID, it is loaded as a game object of its own.\n", file_name, id));
+            }
+            else
+            {
+                file_entity.prefab = std::string_view(e["prefab"].GetString(), e["prefab"].GetStringLength());
+            }
+        }
+        if (e.HasMember("nodes"))
+        {
+            if (file_entity.prefab.empty() || !e["nodes"].IsObject())
+            {
+                log_error(fmt::format("Scene {}, game object {}: its nodes are not an object of a prefab instance, they are ignored.\n", file_name, id));
+            }
+            else
+            {
+                file_entity.nodes = &e["nodes"];
+                for (const auto& node : file_entity.nodes->GetObject())
                 {
-                    const std::string_view name(c.name.GetString(), c.name.GetStringLength());
-                    const auto* type = types.find(name);
-                    if ((!type || !type->is_component()) && unknown_components.insert(name).second)
+                    if (node.value.IsObject())
                     {
-                        log_error(fmt::format("Scene {}: unknown component {}, it is ignored.\n", file_name, name));
+                        check_components(node.value, file_name, types, unknown_components);
                     }
                 }
             }
         }
-        file_entities.push_back({ id, components });
+        file_entities.push_back(file_entity);
     }
 
     // 2. every game object exists before any reference to one is read
@@ -595,6 +810,60 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
         log_error(fmt::format("Scene {}: the persistent ID {} is used already, its game object gets {}.\n", file_name, id, new_id));
     }
 
+    // the prefab instances: the file references the game objects of an instance by the IDs they had when it was saved,
+    // the hashed IDs of the file's root ID (they are new ones when the root got a new ID)
+    std::vector<FileComponents> file_components;
+    for (const auto& e : file_entities)
+    {
+        const auto root = entities.at(e.id);
+        file_components.push_back({ e.id, {}, e.components, root });
+        if (e.prefab.empty())
+        {
+            continue;
+        }
+        const auto* instance = prefabs.instantiate(e.prefab, root);
+        if (!instance)
+        {
+            log_error(fmt::format("Scene {}, game object {}: its prefab {} can't be instantiated, it is loaded without it.\n", file_name, e.id, e.prefab));
+        }
+        else
+        {
+            for (const auto& node : instance->nodes)
+            {
+                if (node.entity != root && !entities.emplace(EntityIdRegistry::hashed_id(e.id, node.path), node.entity).second)
+                {
+                    log_error(fmt::format("Scene {}, game object {}: the ID of its node {} is used by another game object of the file, references to "
+                        "the node find the other one.\n", file_name, e.id, node.path));
+                }
+            }
+        }
+        if (!e.nodes)
+        {
+            continue;
+        }
+        for (const auto& node : e.nodes->GetObject())
+        {
+            const std::string_view path(node.name.GetString(), node.name.GetStringLength());
+            const PrefabInstanceNode* found = nullptr;
+            if (instance && !path.empty())
+            {
+                const auto it = std::ranges::find(instance->nodes, path, &PrefabInstanceNode::path);
+                found = it == instance->nodes.end() ? nullptr : &*it;
+            }
+            if (!found)
+            {
+                log_error(fmt::format("Scene {}, game object {}: its prefab {} has no node {}, the node's components are ignored.\n", file_name, e.id, e.prefab, path));
+                continue;
+            }
+            if (!node.value.IsObject())
+            {
+                log_error(fmt::format("Scene {}, game object {}: the components of its node {} are not an object, they are ignored.\n", file_name, e.id, path));
+                continue;
+            }
+            file_components.push_back({ e.id, path, &node.value, found->entity });
+        }
+    }
+
     // 3. the components, one type after the other: the listeners of a type see the components registered before it
     SceneReader reader(file_name, entities, assets);
     for (const auto* type : types.get_components())
@@ -603,7 +872,7 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
         {
             continue;
         }
-        for (const auto& e : file_entities)
+        for (const auto& e : file_components)
         {
             if (!e.components)
             {
@@ -614,16 +883,15 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
             {
                 continue;
             }
-            const auto entity = entities.at(e.id);
             reader.set_entity(e.id);
-            if (!type->storage->has(registry, entity))
+            if (!type->storage->has(registry, e.entity))
             {
-                type->storage->add(registry, entity);
+                type->storage->add(registry, e.entity);
             }
             engine::ValueBuffer value(type->size);
-            type->storage->get(registry, entity, value.get());
-            reader.read_struct(*type, it->value, value.get(), type->name);
-            type->storage->update(registry, entity, value.get());
+            type->storage->get(registry, e.entity, value.get());
+            reader.read_struct(*type, it->value, value.get(), e.node_path.empty() ? type->name : fmt::format("node {}: {}", e.node_path, type->name));
+            type->storage->update(registry, e.entity, value.get());
         }
     }
     return true;

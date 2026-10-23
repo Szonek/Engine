@@ -47,6 +47,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/serialization/game_types.h
 	${ENGINE_IMPL_DIR}/serialization/scene_serializer.cpp
 	${ENGINE_IMPL_DIR}/serialization/scene_serializer.h
+	${ENGINE_IMPL_DIR}/serialization/prefab_instances.h
 )
 target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/include ${RAPIDJSON_INCLUDE_DIR})
 # profiler.h includes Tracy and RmlUi headers: only their headers, without TRACY_ENABLE the profiling macros are empty

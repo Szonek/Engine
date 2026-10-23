@@ -83,12 +83,15 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/skin.cpp
 	${ENGINE_SOURCES_DIR}/prefab.h
 	${ENGINE_SOURCES_DIR}/prefab.cpp
+	${ENGINE_SOURCES_DIR}/prefab_system.h
+	${ENGINE_SOURCES_DIR}/prefab_system.cpp
 	${ENGINE_SOURCES_DIR}/serialization/type_registry.h
 	${ENGINE_SOURCES_DIR}/serialization/type_registry.cpp
 	${ENGINE_SOURCES_DIR}/serialization/builtin_types.h
 	${ENGINE_SOURCES_DIR}/serialization/builtin_types.cpp
 	${ENGINE_SOURCES_DIR}/serialization/game_types.h
 	${ENGINE_SOURCES_DIR}/serialization/game_types.cpp
+	${ENGINE_SOURCES_DIR}/serialization/prefab_instances.h
 	${ENGINE_SOURCES_DIR}/serialization/scene_serializer.h
 	${ENGINE_SOURCES_DIR}/serialization/scene_serializer.cpp
 	${ENGINE_SOURCES_DIR}/serialization/scene_assets.h

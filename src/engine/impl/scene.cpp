@@ -137,6 +137,7 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     , physics_(entity_registry_,
         [this](const engine_joint_attachment_component_t& joint_attachment) { return get_joint_matrix(joint_attachment); },
         [this]() { const auto* editor = dynamic_cast<const ApplicationEditor*>(app_); return editor && !editor->is_playing(); })
+    , prefabs_(*app, *this, entity_registry_, assets_)
 {
     // the first entity EnTT creates is 0: reserve it, so that no game object has the value of ENGINE_INVALID_GAME_OBJECT_ID
     [[maybe_unused]] const auto reserved = entity_registry_.create();
@@ -186,6 +187,11 @@ engine::Scene::~Scene()
 engine::Application* engine::Scene::get_application() const
 {
     return app_;
+}
+
+engine::PrefabSystem& engine::Scene::prefabs()
+{
+    return prefabs_;
 }
 
 engine::PhysicsSystem& engine::Scene::physics()
@@ -684,6 +690,20 @@ entt::entity engine::Scene::create_transient_entity()
     return entity_registry_.create();
 }
 
+entt::entity engine::Scene::create_prefab_node_entity(std::uint64_t root_id, std::string_view node_path)
+{
+    ENGINE_PROFILE_SECTION;
+    const auto entity = entity_registry_.create();
+    const auto id = EntityIdRegistry::hashed_id(root_id, node_path);
+    if (!entity_ids_.assign(entity, id))
+    {
+        const auto new_id = entity_ids_.assign_next(entity);
+        log::log(log::LogLevel::eError, fmt::format("Scene: node {} of the prefab instance {} gets the ID {}, its hashed ID {} is used already.\n",
+            node_path, root_id, new_id, id));
+    }
+    return entity;
+}
+
 void engine::Scene::destroy_entity(entt::entity entity)
 {
     ENGINE_PROFILE_SECTION;
@@ -721,13 +741,13 @@ entt::runtime_view engine::Scene::create_runtime_view()
 std::string engine::Scene::save() const
 {
     ENGINE_PROFILE_SECTION;
-    return save_scene(app_->get_type_registry(), entity_registry_, entity_ids_, assets_);
+    return save_scene(app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_);
 }
 
 bool engine::Scene::load(std::string_view json, std::string_view file_name)
 {
     ENGINE_PROFILE_SECTION;
-    return load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_);
+    return load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_);
 }
 
 std::vector<entt::entity> engine::Scene::get_all_entities() const

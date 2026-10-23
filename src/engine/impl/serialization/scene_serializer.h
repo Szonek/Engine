@@ -1,4 +1,5 @@
 #pragma once
+#include "prefab_instances.h"
 #include "type_registry.h"
 #include "../entity_id_registry.h"
 
@@ -24,6 +25,12 @@ public:
 // Scene files hold authored data only: every game object with a persistent ID and its components which have a type
 // in the registry (internal components, derived data, are never registered), as JSON:
 //   { "version": 1, "types": { "transform": 1, ... }, "entities": [ { "id": 3, "components": { "transform": { ... } } } ] }
+// A prefab instance is saved as its root with the prefab's asset ID, the root's name and transform and the components
+// added to the instance after it was created, on the root or on its other game objects (under their node paths); the
+// rest of what its prefab created is not written, the prefab creates it again when the file is loaded:
+//   { "id": 4, "prefab": "characters/Rogue.glb", "components": { "name": { ... }, "transform": { ... } }, "nodes": { "Body/Hand": { "collider": { ... } } } }
+// The other game objects of an instance have the hashed IDs of their node paths (EntityIdRegistry::hashed_id), which
+// references to them use.
 // Game objects are sorted by persistent ID, components are in registration order and fields in description order,
 // so saving the same scene gives the same bytes. Every field is written, defaults too: a file doesn't change meaning
 // when a default changes. Enums are written by name, asset references as asset IDs, game object references as
@@ -31,7 +38,9 @@ public:
 inline constexpr std::uint32_t SCENE_FILE_VERSION = 1;
 
 // The scene as a scene file. Transient game objects aren't saved, so a reference to one is saved as null (logged).
-std::string save_scene(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets);
+// Changes to the components a prefab created on its instance can't be saved yet: they are logged, once per instance.
+std::string save_scene(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
+    const IPrefabInstances& prefabs);
 
 // Adds the game objects of a scene file to the registry. The file is read and checked first: when it can't be used
 // (not JSON, no version or a newer one than this engine's, no entity list) the load fails and the registry is not
@@ -40,7 +49,11 @@ std::string save_scene(const TypeRegistry& types, const entt::registry& registry
 // keeps the component's default, a string too long is cut, a reference to a game object which isn't in the file is
 // none, an asset which can't be found is none.
 // Game objects keep the persistent IDs of the file; one whose ID is used already gets a new one (references in the
-// file still point at it). Components are added the way the C API does (add with their defaults, then update with the
-// file's values), so the scene's listeners run, one component type after the other in registration order.
-bool load_scene(std::string_view json, std::string_view file_name, const TypeRegistry& types, entt::registry& registry, EntityIdRegistry& ids, IAssetResolver& assets);
+// file still point at it). Prefab instances are instantiated once every game object of the file exists; a prefab which
+// can't be found leaves its root without the prefab's game objects, and the components of a node its model doesn't
+// have (any more) are ignored, as are references to it. Components are added the way the C API does (add with their
+// defaults, then update with the file's values), so the scene's listeners run, one component type after the other in
+// registration order.
+bool load_scene(std::string_view json, std::string_view file_name, const TypeRegistry& types, entt::registry& registry, EntityIdRegistry& ids, IAssetResolver& assets,
+    IPrefabInstances& prefabs);
 }  // namespace engine

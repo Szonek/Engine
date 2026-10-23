@@ -1,9 +1,11 @@
 #pragma once
 #include "mesh_defs.h"
+#include "serialization/prefab_instances.h"
 
 #include <entt/entt.hpp>
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -40,10 +42,15 @@ public:
         eTransient    // no game object gets one (Scene::create_transient_entity)
     };
 
-    // Creates the game objects of the model in `scene` and returns the root one (the model's node without a parent).
-    // The root is the parent of all the others, so the model's hierarchy is flat. The nodes which are joints of the
-    // skin are not created: the skin owner game object carries the skin, and nodes attached to a joint follow it.
-    entt::entity instantiate(Scene& scene, Instance instance) const;
+    // Creates the game objects of the model in `scene` and returns them with their node paths, the root first (the
+    // model's node without a parent; its path is ""), or nothing (logged) when the model has no root. The root is the
+    // parent of all the others, so the model's hierarchy is flat. The nodes which are joints of the skin are not
+    // created: the skin owner game object carries the skin, and nodes attached to a joint follow it.
+    // `root`, when given, is the game object which becomes the root (a scene file's, with the ID of the file). In a
+    // persistent instance the other game objects get the hashed IDs of their node paths (EntityIdRegistry::hashed_id):
+    // a node's path is the names of the nodes from the root down, joined by '/'; a name which is empty or used by a
+    // sibling before it gets the node's position among its siblings ("Arm#1").
+    std::vector<PrefabInstanceNode> instantiate(Scene& scene, Instance instance, entt::entity root = entt::null) const;
 
 private:
     Prefab(Application& app, ModelDesc&& model);
@@ -64,5 +71,7 @@ private:
     // a model has at most one skin
     std::uint32_t skin_ = ENGINE_INVALID_OBJECT_HANDLE;
     std::uint32_t animation_set_ = ENGINE_INVALID_OBJECT_HANDLE;
+    // node index -> its path
+    std::map<std::int32_t, std::string> node_paths_;
 };
 }  // namespace engine

@@ -4,6 +4,7 @@
 
 #include "physics_system.h"
 #include "entity_id_registry.h"
+#include "prefab_system.h"
 #include "serialization/scene_assets.h"
 
 #include "render/render_scene_data.h"
@@ -35,6 +36,8 @@ public:
     // the scene's bodies, physics queries and character controllers
     PhysicsSystem& physics();
     const PhysicsSystem& physics() const;
+    // instantiates prefabs and knows the scene's prefab instances
+    PrefabSystem& prefabs();
 
     void enable_nav_mesh_debug_draw(bool enable);
     bool is_nav_mesh_debug_draw_enabled() const;
@@ -51,6 +54,9 @@ public:
     entt::entity create_new_entity(entt::entity hint, std::uint64_t persistent_id);
     // an entity without a persistent ID, for objects that are not part of the scene content (e.g. the editor camera)
     entt::entity create_transient_entity();
+    // a game object of a prefab instance whose root has the persistent ID `root_id`: it gets the hashed ID of its node
+    // path (EntityIdRegistry::hashed_id), or a new counter ID (logged) when another game object has that one
+    entt::entity create_prefab_node_entity(std::uint64_t root_id, std::string_view node_path);
     // destroys the entity and its children, with theirs
     void destroy_entity(entt::entity entity);
     bool is_valid_entity(entt::entity entity) const;
@@ -180,6 +186,7 @@ private:
     EntityIdRegistry entity_ids_;
     // declared after the registry too; constructed before the constructor connects the component initializers
     PhysicsSystem physics_;
+    PrefabSystem prefabs_;
 
     bool nav_mesh_debug_draw_ = false;
 };

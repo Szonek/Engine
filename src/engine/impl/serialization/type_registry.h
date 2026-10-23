@@ -177,6 +177,10 @@ const UnionCase* find_active_case(const TypeInfo& type, const FieldInfo& union_f
 // has the handle 0).
 void clear_union(const FieldInfo& union_field, std::byte* value);
 
+// Whether two values of `type` are the same field by field: padding and the bytes after a string's terminator don't
+// count, and a union compares only its active case.
+bool equal_values(const TypeInfo& type, const std::byte* a, const std::byte* b);
+
 namespace type_builder_detail
 {
 template<typename T> struct array_traits { using element = T; static constexpr bool is_array = false; static constexpr std::size_t count = 1; };
