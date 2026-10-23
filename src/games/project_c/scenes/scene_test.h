@@ -22,7 +22,9 @@ public:
     static constexpr const char* get_name() { return "TestScene"; }
 
 private:
-    GameplayHud* hud_ = nullptr;
+    // the HUD by game object, its script looked up on use (its script component can be removed in the editor)
+    GameplayHud* hud();
+    engine_game_object_t hud_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
     bool restart_was_down_ = false;
 };
 

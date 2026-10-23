@@ -225,7 +225,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     LevelBuilder builder(*static_cast<AppProjectC*>(app), *this);
     builder.camera();
     builder.encounter();
-    hud_ = builder.hud();
+    hud_go_ = builder.hud()->get_game_object();
     builder.main_light();
 
     // h - house footprint (house is built over it), B - chest inside the house
@@ -247,21 +247,26 @@ project_c::TestScene::TestScene(engine::IApplication* app)
     generate_scene(scene_str, builder);
 }
 
+project_c::GameplayHud* project_c::TestScene::hud()
+{
+    return get_script<GameplayHud>(hud_go_);
+}
+
 void project_c::TestScene::activate()
 {
     IScene::activate();
-    if (hud_)
+    if (auto* hud = this->hud())
     {
-        hud_->set_visible(engineEditorIsGameView());
+        hud->set_visible(engineEditorIsGameView());
     }
 }
 
 void project_c::TestScene::deactivate()
 {
     IScene::deactivate();
-    if (hud_)
+    if (auto* hud = this->hud())
     {
-        hud_->set_visible(false);
+        hud->set_visible(false);
     }
 }
 
@@ -270,7 +275,10 @@ engine_result_code_t project_c::TestScene::update(float dt)
     const auto result = IScene::update(dt);
 
     // the gameplay UI follows the editor's game/editor view (always the game view without the editor)
-    hud_->set_visible(engineEditorIsGameView());
+    if (auto* hud = this->hud())
+    {
+        hud->set_visible(engineEditorIsGameView());
+    }
 
     // once the encounter is over (cleared or player dead), restart starts the level again
     auto* app = static_cast<AppProjectC*>(get_app());

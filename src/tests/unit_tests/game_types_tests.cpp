@@ -483,6 +483,12 @@ TEST_F(GameTypesTest, ChangeCountGrowsWithEveryAddUpdateAndRemove)
     // removing what isn't there changes nothing
     type->storage->remove(registry_, a);
     EXPECT_EQ(type->storage->change_count(registry_), 4u);
+    // a component destroyed with its game object is removed too
+    registry_.destroy(b);
+    EXPECT_EQ(type->storage->change_count(registry_), 5u);
+    // destroying a game object without one changes nothing
+    registry_.destroy(a);
+    EXPECT_EQ(type->storage->change_count(registry_), 5u);
     // each registry (scene) counts its own
     entt::registry other;
     EXPECT_EQ(type->storage->change_count(other), 0u);
@@ -572,5 +578,29 @@ TEST_F(GameTypesTest, WrongHintsAreRejected)
     EXPECT_TRUE(test_logger::logged("a colour is a float[3] or float[4]"));
     EXPECT_TRUE(test_logger::logged("a range is for a number"));
     EXPECT_TRUE(test_logger::logged("unknown flags"));
+}
+
+TEST_F(GameTypesTest, IntegerRangesFitTheirType)
+{
+    int registered = 0;
+    const auto try_range = [this, &registered](engine_field_kind_t kind, float min_value, float max_value) {
+        auto count = field("count", kind, offsetof(Tint, count));
+        count.flags = ENGINE_FIELD_FLAG_RANGE;
+        count.range_min = min_value;
+        count.range_max = max_value;
+        const std::vector<engine_field_desc_t> fields = { count };
+        // a new name each time: an accepted type stays registered
+        const auto name = "ranged_" + std::to_string(registered++);
+        return engine::register_game_type(types_, desc<Tint>(name.c_str(), fields), true) != nullptr;
+    };
+    // the editor clamps in the field's own type, so the limits must be values of it
+    EXPECT_TRUE(try_range(ENGINE_FIELD_KIND_INT32, -100.0f, 100.0f));
+    EXPECT_TRUE(try_range(ENGINE_FIELD_KIND_UINT32, 0.0f, 1000.0f));
+    EXPECT_TRUE(try_range(ENGINE_FIELD_KIND_FLOAT, -1e10f, 1e10f));
+    EXPECT_FALSE(try_range(ENGINE_FIELD_KIND_INT32, -1e10f, 0.0f));
+    EXPECT_FALSE(try_range(ENGINE_FIELD_KIND_INT32, 0.0f, 1e10f));
+    EXPECT_FALSE(try_range(ENGINE_FIELD_KIND_UINT32, -1.0f, 10.0f));
+    EXPECT_FALSE(try_range(ENGINE_FIELD_KIND_UINT32, 0.0f, 5e9f));
+    EXPECT_TRUE(test_logger::logged("doesn't fit its number type"));
 }
 }  // namespace

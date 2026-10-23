@@ -139,11 +139,13 @@ modifier, so the nav mesh leaves them out and enemies don't walk into it. Enemie
 The only occlusion handling is the classic ARPG cutaway of the house, all in `House::update`:
 
 * `House::is_inside` checks the player against the interior of the house (below the roof).
-* When the player enters, the roof is hidden (`mesh_and_collider`: mesh disabled, collider removed, so mouse aiming
-  hits the room floor instead of the roof) together with the props standing on it (the `roof_props` of the house's
+* When the player enters, the roof is hidden (`mesh_and_collider`: mesh disabled, collider made a trigger, so mouse
+  aiming hits the room floor instead of the roof; the collider stays, so a scene saved meanwhile keeps it) together with the props standing on it (the `roof_props` of the house's
   `house_config`, `House::add_roof_prop`), and the camera facing wall pieces are hidden (`mesh`: their colliders stay, so
   the walls still block movement and can be vaulted through).
-* When the player leaves, everything is shown again.
+* When the player leaves, everything is shown again. The house looks at its parts' components, not at what it did
+  before: a scene saved while the player was inside loads with the parts hidden, and the house's first update shows
+  them (or keeps them hidden). A part whose script is replaced or removed is shown again.
 
 Outside the house nothing reacts: a player behind the house or climbing its back wall is hidden by it. That was a
 deliberate choice for the POC - fading or lowering occluders was tried (see the PR history) and dropped for now. The
@@ -152,8 +154,8 @@ render feature.
 
 ## Adding things
 
-* **A new climbable object**: give it a `BuildingPart` script (collider in mesh space through `BuildingPart::Box`,
-  `climbable = true`). Vault/mantle need a flat top (normal up) and enough room above it for the player.
+* **A new climbable object**: give it a collider and a `BuildingPart` script, with `climbable` set in its
+  `building_part_config`. Vault/mantle need a flat top (normal up) and enough room above it for the player.
 
 ## Known limitations
 

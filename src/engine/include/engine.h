@@ -566,7 +566,7 @@ typedef enum _engine_field_flags_t
     ENGINE_FIELD_FLAG_READ_ONLY = 1 << 0,
     // not shown (still saved and loaded)
     ENGINE_FIELD_FLAG_HIDDEN = 1 << 1,
-    // a number (int32, uint32, float) the editor keeps in [range_min, range_max]
+    // a number (int32, uint32, float) the editor keeps in [range_min, range_max]; the limits must fit its type
     ENGINE_FIELD_FLAG_RANGE = 1 << 2,
 } engine_field_flags_t;
 

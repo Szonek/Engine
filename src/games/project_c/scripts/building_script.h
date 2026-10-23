@@ -3,7 +3,6 @@
 #include "game_components.h"
 
 #include <optional>
-#include <vector>
 
 #include <glm/glm.hpp>
 
@@ -18,6 +17,8 @@ class BuildingPart : public BaseNode
 {
 public:
     BuildingPart(engine::IScene* my_scene, engine_game_object_t go);
+    // shows the part again when the house hid it
+    ~BuildingPart();
 
     // its designer-set values (the building_part_config component), read on every use
     BuildingPartConfig config() const;
@@ -28,13 +29,8 @@ public:
     std::optional<glm::vec3> get_alignment_point() const;
     BuildingPartHide get_hide_when_inside() const { return config().hide_when_inside; }
 
-    // Hides mesh, and optionally removes the collider (so mouse picking goes through hidden roofs).
+    // Hides the mesh, and optionally makes the collider a trigger (so mouse picking goes through hidden roofs).
     void set_hidden(bool hidden, bool affect_collider);
-
-private:
-    bool hidden_ = false;
-    // the collider while it is removed, to add it back
-    std::optional<engine_collider_component_t> removed_collider_;
 };
 
 // Small, single room house: 4 walls (one with an open window), walkable roof. The house's game object stands at the
@@ -66,10 +62,9 @@ private:
     bool is_inside(const glm::vec3& p) const;
 
 private:
-    bool player_inside_ = false;
+    // nullopt until the first update
+    std::optional<bool> player_inside_;
     engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
-    // child parts with a hide_when_inside other than never, found in on_start
-    std::vector<BuildingPart*> hidden_when_inside_;
 };
 
 // A house centered on `center` (x, z) standing on ground_y, with its parts; parts whose prefab failed to load are skipped.

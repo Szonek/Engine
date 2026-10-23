@@ -46,6 +46,16 @@ project_c::BuildingPart::BuildingPart(engine::IScene* my_scene, engine_game_obje
 {
 }
 
+project_c::BuildingPart::~BuildingPart()
+{
+    // a part the house hid (its script replaced or removed while the player is inside) is shown again
+    const auto hide = get_hide_when_inside();
+    if (hide != BUILDING_PART_HIDE_NEVER)
+    {
+        set_hidden(false, hide == BUILDING_PART_HIDE_MESH_AND_COLLIDER);
+    }
+}
+
 project_c::BuildingPartConfig project_c::BuildingPart::config() const
 {
     return get_game_component(go_, game_components().building_part_config, default_building_part_config());
@@ -77,28 +87,26 @@ std::optional<glm::vec3> project_c::BuildingPart::get_alignment_point() const
 
 void project_c::BuildingPart::set_hidden(bool hidden, bool affect_collider)
 {
-    if (hidden_ != hidden && engineGameObjectHasMeshComponent(go_))
+    // Read from the components, not remembered: they are saved, so a scene saved while the part was hidden loads hidden,
+    // and the house shows it again. The collider stays (a trigger while hidden: ray casts and characters go through
+    // it), so it is saved whatever the part's state.
+    if (engineGameObjectHasMeshComponent(go_))
     {
         auto mc = engineGameObjectGetMeshComponent(go_);
-        mc.disable = hidden;
-        engineGameObjectUpdateMeshComponent(go_, &mc);
+        if (mc.disable != hidden)
+        {
+            mc.disable = hidden;
+            engineGameObjectUpdateMeshComponent(go_, &mc);
+        }
     }
-    hidden_ = hidden;
-
-    if (!affect_collider)
+    if (affect_collider && engineGameObjectHasColliderComponent(go_))
     {
-        return;
-    }
-    if (hidden && !removed_collider_ && engineGameObjectHasColliderComponent(go_))
-    {
-        removed_collider_ = engineGameObjectGetColliderComponent(go_);
-        engineGameObjectRemoveColliderComponent(go_);
-    }
-    else if (!hidden && removed_collider_)
-    {
-        engineGameObjectAddColliderComponent(go_);
-        engineGameObjectUpdateColliderComponent(go_, &removed_collider_.value());
-        removed_collider_.reset();
+        auto cc = engineGameObjectGetColliderComponent(go_);
+        if (cc.is_trigger != hidden)
+        {
+            cc.is_trigger = hidden;
+            engineGameObjectUpdateColliderComponent(go_, &cc);
+        }
     }
 }
 
@@ -144,14 +152,6 @@ void project_c::House::on_start()
     {
         player_go_ = player->get_game_object();
     }
-    for (const auto child : utils::get_children(go_))
-    {
-        auto* part = my_scene_->get_script<BuildingPart>(child);
-        if (part && part->get_hide_when_inside() != BUILDING_PART_HIDE_NEVER)
-        {
-            hidden_when_inside_.push_back(part);
-        }
-    }
 }
 
 bool project_c::House::is_inside(const glm::vec3& p) const
@@ -173,16 +173,22 @@ void project_c::House::update(float dt)
 
     const auto ptc = engineGameObjectGetTransformComponent(player_go_);
     const bool inside = is_inside({ ptc.position[0], ptc.position[1], ptc.position[2] });
-    if (inside == player_inside_)
+    if (player_inside_ == inside)
     {
         return;
     }
+    // the first update applies the state too: a scene saved while the player was inside loads with the parts hidden
     player_inside_ = inside;
 
-    // classic ARPG "cut away": hide what blocks the view of the room from the top-down camera
-    for (auto* part : hidden_when_inside_)
+    // classic ARPG "cut away": hide what blocks the view of the room from the top-down camera. The parts are its
+    // children's BuildingPart scripts, looked up now: a part's script can be replaced while its game object stays.
+    for (const auto child : utils::get_children(go_))
     {
-        part->set_hidden(inside, part->get_hide_when_inside() == BUILDING_PART_HIDE_MESH_AND_COLLIDER);
+        auto* part = my_scene_->get_script<BuildingPart>(child);
+        if (part && part->get_hide_when_inside() != BUILDING_PART_HIDE_NEVER)
+        {
+            part->set_hidden(inside, part->get_hide_when_inside() == BUILDING_PART_HIDE_MESH_AND_COLLIDER);
+        }
     }
     const auto cfg = get_game_component(go_, game_components().house_config, default_house_config());
     for (const auto prop : cfg.roof_props)

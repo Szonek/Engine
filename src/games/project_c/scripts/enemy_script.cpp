@@ -71,11 +71,10 @@ void enemy_attack_window_close_callback(const engine_animation_event_info_t* inf
 }
 } // namespace
 
-project_c::EnemyWeapon::EnemyWeapon(engine::IScene* my_scene, engine_game_object_t go, Enemy* enemy)
+project_c::EnemyWeapon::EnemyWeapon(engine::IScene* my_scene, engine_game_object_t go, engine_game_object_t enemy)
     : BaseNode(my_scene, go, "enemy-weapon")
-    , enemy_(enemy)
+    , enemy_go_(enemy)
 {
-    assert(enemy_);
 
     auto tc = engineGameObjectGetTransformComponent(go_);
     tc.position[0] = 0.0f;
@@ -87,7 +86,7 @@ project_c::EnemyWeapon::EnemyWeapon(engine::IScene* my_scene, engine_game_object
     engineGameObjectUpdateTransformComponent(go_, &tc);
 
     auto pc = engineGameObjectAddParentComponent(go_);
-    pc.parent = enemy_->get_game_object();
+    pc.parent = enemy_go_;
     engineGameObjectUpdateParentComponent(go_, &pc);
 
     auto jac = engineGameObjectAddJointAttachmentComponent(go_);
@@ -134,7 +133,10 @@ void project_c::EnemyWeapon::on_collision(const collision_t& info)
     }
 
     hit_player_this_swing_ = true;
-    enemy_->on_weapon_hit_player(info.other);
+    if (auto* enemy = my_scene_->get_script<Enemy>(enemy_go_))
+    {
+        enemy->on_weapon_hit_player(info.other);
+    }
 }
 
 project_c::Enemy::Enemy(engine::IScene* my_scene, engine_game_object_t go)
@@ -164,6 +166,10 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, engine_game_object_t go)
         {
             engineLog("Failed to add enemy attack opening event.\n");
         }
+        else
+        {
+            animation_events_.emplace_back(animation_name, event_id);
+        }
 
         engine_animation_event_t close_event{};
         close_event.trigger_time = attack_animation.active_end * duration;
@@ -175,7 +181,29 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, engine_game_object_t go)
         {
             engineLog("Failed to add enemy attack closing event.\n");
         }
+        else
+        {
+            animation_events_.emplace_back(animation_name, event_id);
+        }
     }
+}
+
+project_c::Enemy::~Enemy()
+{
+    for (const auto& [animation, id] : animation_events_)
+    {
+        engineAnimationControllerAnimationRemoveEvent(go_, animation, id);
+    }
+    // its blade, a runtime object; the blade's script goes with it
+    if (engineGameObjectIsValid(weapon_go_))
+    {
+        engineGameObjectDestroy(weapon_go_);
+    }
+}
+
+project_c::EnemyWeapon* project_c::Enemy::weapon() const
+{
+    return my_scene_->get_script<EnemyWeapon>(weapon_go_);
 }
 
 project_c::EnemyConfig project_c::Enemy::config() const
@@ -198,7 +226,8 @@ void project_c::Enemy::on_start()
         const auto blade = app->spawn_prefab(PREFAB_TYPE_SKELETON_BLADE);
         if (blade.go != ENGINE_INVALID_GAME_OBJECT_ID)
         {
-            weapon_ = my_scene_->register_script<EnemyWeapon>(blade.go, this);
+            my_scene_->register_script<EnemyWeapon>(blade.go, go_);
+            weapon_go_ = blade.go;
         }
     }
     else
@@ -314,9 +343,9 @@ void project_c::Enemy::update(float dt)
         if (distance_to_player <= cfg.attack_range && attack_cooldown_remaining_seconds_ <= 0.0f)
         {
             state_ = States::ATTACK;
-            if (weapon_)
+            if (auto* blade = weapon())
             {
-                weapon_->begin_swing();
+                blade->begin_swing();
             }
             if (!engineAnimationControllerLayerSetLooping(go_, 0, false))
             {
@@ -437,9 +466,9 @@ void project_c::Enemy::update(float dt)
 
 void project_c::Enemy::set_attack_window_active(bool active)
 {
-    if (weapon_)
+    if (auto* blade = weapon())
     {
-        weapon_->set_attack_window_active(active);
+        blade->set_attack_window_active(active);
     }
 }
 

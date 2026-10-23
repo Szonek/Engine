@@ -15,8 +15,9 @@ namespace utils
 std::vector<engine_game_object_t> get_children(engine_game_object_t go);
 // gives the game object a name component with this name (cut to its length)
 void set_name(engine_game_object_t go, std::string_view name);
-// the game object's position in the world, as of the last scene update (engineGameObjectGetWorldTransform); the
-// origin when it has no transform
+// The game object's position in the world from its transform and its parents' (joint attachments aren't followed), so
+// it is current also before this frame's scene update, unlike engineGameObjectGetWorldTransform; the origin when it
+// has no transform.
 glm::vec3 get_world_position(engine_game_object_t go);
 std::vector<engine_game_object_t> get_active_camera_game_objects();
 glm::quat rotate_toward(glm::vec3 origin, glm::vec3 target);

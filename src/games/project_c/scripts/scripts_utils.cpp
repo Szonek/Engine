@@ -29,13 +29,24 @@ void project_c::utils::set_name(engine_game_object_t go, std::string_view name)
 
 glm::vec3 project_c::utils::get_world_position(engine_game_object_t go)
 {
-    float world[16] = {};
-    if (engineGameObjectGetWorldTransform(go, world) != ENGINE_RESULT_CODE_OK)
+    if (!engineGameObjectHasTransformComponent(go))
     {
         return glm::vec3(0.0f);
     }
-    // column-major: the translation is the last column
-    return { world[12], world[13], world[14] };
+    auto tc = engineGameObjectGetTransformComponent(go);
+    glm::vec3 position = glm::make_vec3(tc.position);
+    // through the parents' transforms: the world transform component is only computed by the scene update
+    for (auto parent = go; engineGameObjectHasParentComponent(parent);)
+    {
+        parent = engineGameObjectGetParentComponent(parent).parent;
+        if (!engineGameObjectHasTransformComponent(parent))
+        {
+            break;
+        }
+        tc = engineGameObjectGetTransformComponent(parent);
+        position = glm::make_vec3(tc.position) + glm::make_quat(tc.rotation) * (glm::make_vec3(tc.scale) * position);
+    }
+    return position;
 }
 
 std::vector<engine_game_object_t> project_c::utils::get_active_camera_game_objects()

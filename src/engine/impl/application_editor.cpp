@@ -532,10 +532,10 @@ private:
         {
             return ImGui::DragScalarN(label, data_type, p, count, speed);
         }
-        // the limits in the field's own type
+        // the limits in the field's own type (they fit it: the type's description was checked)
         const auto [min_value, max_value] = *field.hints.range;
         std::int32_t min_i = static_cast<std::int32_t>(min_value), max_i = static_cast<std::int32_t>(max_value);
-        std::uint32_t min_u = static_cast<std::uint32_t>(std::max(min_value, 0.0f)), max_u = static_cast<std::uint32_t>(std::max(max_value, 0.0f));
+        std::uint32_t min_u = static_cast<std::uint32_t>(min_value), max_u = static_cast<std::uint32_t>(max_value);
         const void* min_p = field.kind == FieldKind::eInt32 ? static_cast<const void*>(&min_i) : field.kind == FieldKind::eUint32 ? static_cast<const void*>(&min_u) : &min_value;
         const void* max_p = field.kind == FieldKind::eInt32 ? static_cast<const void*>(&max_i) : field.kind == FieldKind::eUint32 ? static_cast<const void*>(&max_u) : &max_value;
         return ImGui::DragScalarN(label, data_type, p, count, speed, min_p, max_p, nullptr, ImGuiSliderFlags_AlwaysClamp);

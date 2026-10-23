@@ -8,6 +8,8 @@
 #include <string>
 #include <chrono>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include <glm/glm.hpp>
 
@@ -19,7 +21,8 @@ class Player;
 class AttackTrigger : public BaseNode
 {
 public:
-    AttackTrigger(engine::IScene* my_scene, engine_game_object_t go, Player* player);
+    // `player`: the game object of the Player it belongs to
+    AttackTrigger(engine::IScene* my_scene, engine_game_object_t go, engine_game_object_t player);
 
     void begin_swing();
     void activate();
@@ -28,7 +31,8 @@ public:
 
 private:
     bool is_active_ = false;
-    Player* player_ = nullptr;
+    // its Player is looked up on each hit: the script can go while its game object stays
+    engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
     std::unordered_set<engine_game_object_t> hit_enemies_;
 };
 
@@ -191,6 +195,9 @@ public:
     static constexpr float MODEL_SCALE = 0.35f;
 
     Player(engine::IScene* my_scene, engine_game_object_t go);
+    // removes its animation events and the runtime objects it spawned (also when its script component is removed and
+    // its game object stays)
+    ~Player();
 
     // its designer-set values (the player_config component), read on every use
     PlayerConfig config() const;
@@ -204,6 +211,8 @@ public:
     bool is_dead() const { return hp_ == 0; }
 
     bool equip_waepon(Weapon* sword);
+    // the hit window of the current swing opened or closed (animation events)
+    void set_attack_window_active(bool active);
 
     void add_coin(std::uint64_t amount);
 
@@ -243,10 +252,16 @@ private:
     glm::vec3 dodge_direction_{ 0.0f, 0.0f, 1.0f };
     glm::vec3 knockback_velocity_{ 0.0f };
 
-    AttackTrigger* attack_trigger_;
+    // Its attack trigger and its weapon by game object, their scripts looked up on use: a script can go while its game
+    // object stays (its script component removed in the editor), so no pointer to another script is kept.
+    AttackTrigger* attack_trigger() const;
+    Weapon* weapon() const;
+    engine_game_object_t attack_trigger_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    // the animation events calling it (removed with it), by animation
+    std::vector<std::pair<const char*, engine_animation_event_id_t>> animation_events_;
 
     // inventory
-    Weapon* weapon_;
+    engine_game_object_t weapon_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
     std::uint64_t coins_ = 0;
 
     bool start_attack(std::size_t combo_index);

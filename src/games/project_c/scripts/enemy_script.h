@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace project_c
@@ -13,14 +14,16 @@ class Enemy;
 class EnemyWeapon : public BaseNode
 {
 public:
-    EnemyWeapon(engine::IScene* my_scene, engine_game_object_t go, Enemy* enemy);
+    // `enemy`: the game object of the Enemy holding it
+    EnemyWeapon(engine::IScene* my_scene, engine_game_object_t go, engine_game_object_t enemy);
 
     void begin_swing();
     void set_attack_window_active(bool active);
     void on_collision(const collision_t& info) override;
 
 private:
-    Enemy* enemy_ = nullptr;
+    // its Enemy is looked up on each hit: the script can go while its game object stays
+    engine_game_object_t enemy_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
     bool attack_window_active_ = false;
     bool hit_player_this_swing_ = false;
 };
@@ -57,6 +60,8 @@ public:
     std::uint32_t hp = 0;
 
     Enemy(engine::IScene* my_scene, engine_game_object_t go);
+    // removes its animation events and its blade (also when its script component is removed and its game object stays)
+    ~Enemy();
 
     // its designer-set values (the enemy_config component), read on every use
     EnemyConfig config() const;
@@ -85,7 +90,12 @@ private:
     AttackStateData attack_data_;
     std::vector<IScript*> debug_scripts_;
     std::vector<HitFlashMaterial> hit_flash_materials_;
-    EnemyWeapon* weapon_ = nullptr;
+    // the blade by game object, its script looked up on use: a script can go while its game object stays (its script
+    // component removed in the editor), so no pointer to another script is kept
+    EnemyWeapon* weapon() const;
+    engine_game_object_t weapon_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    // the animation events calling it (removed with it), by animation
+    std::vector<std::pair<const char*, engine_animation_event_id_t>> animation_events_;
     engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;  // found in on_start
     float hit_flash_remaining_seconds_ = 0.0f;
     float hit_stop_remaining_seconds_ = 0.0f;

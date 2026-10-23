@@ -26,20 +26,33 @@ struct alignas(engine::DATA_SLOT_ALIGNMENT) DataBlob
 };
 
 // how many times components of each game type were added, updated or removed in a registry (kept in its context), by
-// storage id
+// storage id; the counters' addresses are stable (map nodes), the storages' destroy signals hold them
 struct DataComponentChangeCounts
 {
     std::unordered_map<entt::id_type, std::uint64_t> counts;
 };
 
-void count_change(entt::registry& r, entt::id_type id)
+void count_destroyed(std::uint64_t& count, entt::registry&, entt::entity)
+{
+    count++;
+}
+
+// The type's counter in the registry. Removals are counted by the storage's destroy signal, connected with the counter,
+// so a component destroyed with its game object counts too.
+template<typename Blob>
+std::uint64_t& change_counter(entt::registry& r, entt::id_type id)
 {
     auto* changes = r.ctx().find<DataComponentChangeCounts>();
     if (!changes)
     {
         changes = &r.ctx().emplace<DataComponentChangeCounts>();
     }
-    changes->counts[id]++;
+    const auto [it, inserted] = changes->counts.try_emplace(id, 0);
+    if (inserted)
+    {
+        r.storage<Blob>(id).on_destroy().template connect<&count_destroyed>(it->second);
+    }
+    return it->second;
 }
 
 template<std::size_t N>
@@ -57,8 +70,9 @@ std::unique_ptr<engine::ComponentStorage> make_storage(entt::id_type id, std::ve
     {
         Blob blob{};
         std::memcpy(blob.bytes, default_value.data(), default_value.size());
+        auto& count = change_counter<Blob>(r, id);
         r.storage<Blob>(id).emplace(e, blob);
-        count_change(r, id);
+        count++;
     };
     s->get = [id, size](const entt::registry& r, entt::entity e, void* out)
     {
@@ -67,13 +81,14 @@ std::unique_ptr<engine::ComponentStorage> make_storage(entt::id_type id, std::ve
     s->update = [id, size](entt::registry& r, entt::entity e, const void* value)
     {
         r.storage<Blob>(id).patch(e, [value, size](Blob& blob) { std::memcpy(blob.bytes, value, size); });
-        count_change(r, id);
+        change_counter<Blob>(r, id)++;
     };
+    // counted by the destroy signal (see change_counter)
     s->remove = [id](entt::registry& r, entt::entity e)
     {
-        if (auto* pool = r.storage(id); pool && pool->remove(e))
+        if (auto* pool = r.storage(id))
         {
-            count_change(r, id);
+            pool->remove(e);
         }
     };
     s->pool = [id](entt::registry& r) -> entt::sparse_set& { return r.storage<Blob>(id); };
@@ -287,6 +302,15 @@ private:
             if (!number || !(d.range_min <= d.range_max))
             {
                 error(fmt::format("field {}: a range is for a number, with its minimum not above its maximum", f.name));
+                return false;
+            }
+            // the editor clamps in the field's own type, so integer limits must be integers of it
+            const bool fits = f.kind == FieldKind::eFloat
+                || (f.kind == FieldKind::eInt32 && d.range_min >= -2147483648.0f && d.range_max < 2147483648.0f)
+                || (f.kind == FieldKind::eUint32 && d.range_min >= 0.0f && d.range_max < 4294967296.0f);
+            if (!fits)
+            {
+                error(fmt::format("field {}: its range [{}, {}] doesn't fit its number type", f.name, d.range_min, d.range_max));
                 return false;
             }
             f.hints.range = std::make_pair(d.range_min, d.range_max);

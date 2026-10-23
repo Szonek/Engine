@@ -32,8 +32,9 @@ engine_result_code_t propagate_collisions_events(engine::IScene::ScriptsMap& scr
             collision.contact_points[j].point_on_b = engineCollisionContactPointDescGetPointOnObjectB(cp);
         }
 
+        // a game object destroyed since the physics step (its script goes at the end of this update) gets no events
         collision.other = obj_b;
-        if (scripts.find(obj_a) != scripts.end())
+        if (engineGameObjectIsValid(obj_a) && scripts.find(obj_a) != scripts.end())
         {
             scripts[obj_a]->on_collision(collision);
         }
@@ -43,7 +44,7 @@ engine_result_code_t propagate_collisions_events(engine::IScene::ScriptsMap& scr
         }
 
         collision.other = obj_a;
-        if (scripts.find(obj_b) != scripts.end())
+        if (engineGameObjectIsValid(obj_b) && scripts.find(obj_b) != scripts.end())
         {
             scripts[obj_b]->on_collision(collision);
         }
@@ -238,6 +239,8 @@ bool engine::IScene::has_script(engine_game_object_t go) const
 void engine::IScene::remove_script_keep_game_object(engine_game_object_t go)
 {
     component_scripts_.erase(go);
+    // a script which hasn't started yet: its replacement is queued to start once
+    std::erase(scripts_to_start_, go);
     // at once, not through the unregister queue: a new script for the same game object may be registered right after
     if (const auto it = scripts_.find(go); it != scripts_.end())
     {
@@ -371,6 +374,7 @@ engine_result_code_t engine::IScene::update(float dt)
 
     for (auto& srq : scripts_unregister_queue_)
     {
+        component_scripts_.erase(srq->get_game_object());
         scripts_.erase(srq->get_game_object());
     }
     scripts_unregister_queue_.clear();

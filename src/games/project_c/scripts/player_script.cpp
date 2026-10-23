@@ -101,14 +101,14 @@ void attack_window_open_callback(const engine_animation_event_info_t* info, void
 {
     assert(info);
     assert(user_data);
-    static_cast<project_c::AttackTrigger*>(user_data)->activate();
+    static_cast<project_c::Player*>(user_data)->set_attack_window_active(true);
 }
 
 void attack_window_close_callback(const engine_animation_event_info_t* info, void* user_data)
 {
     assert(info);
     assert(user_data);
-    static_cast<project_c::AttackTrigger*>(user_data)->deactivate();
+    static_cast<project_c::Player*>(user_data)->set_attack_window_active(false);
 }
 } // namespace anonymous
 
@@ -348,11 +348,10 @@ bool project_c::Weapon::is_on_ground() const
     return !engineGameObjectHasParentComponent(go_);
 }
 
-project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_object_t go, Player* player)
+project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_object_t go, engine_game_object_t player)
     : BaseNode(my_scene, go, "attack-trigger")
-    , player_(player)
+    , player_go_(player)
 {
-    assert(player_);
     // transform
     auto tc = engineGameObjectAddTransformComponent(go_);
     tc.position[0] = 0.0f;
@@ -375,19 +374,20 @@ project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_ob
 
     // follows the player
     auto pc = engineGameObjectAddParentComponent(go_);
-    pc.parent = player_->get_game_object();
+    pc.parent = player_go_;
     engineGameObjectUpdateParentComponent(go_, &pc);
 }
 
 void project_c::AttackTrigger::on_collision(const collision_t& info)
 {
-    if (is_active_ && !hit_enemies_.contains(info.other))
+    auto* player = my_scene_->get_script<Player>(player_go_);
+    if (player && is_active_ && !hit_enemies_.contains(info.other))
     {
         if (auto* enemy = my_scene_->get_script<Enemy>(info.other))
         {
             hit_enemies_.insert(info.other);
-            enemy->receive_attack_hit(player_->config().attack_damage, HIT_STOP_DURATION_SECONDS);
-            player_->on_confirmed_attack_hit(HIT_STOP_DURATION_SECONDS);
+            enemy->receive_attack_hit(player->config().attack_damage, HIT_STOP_DURATION_SECONDS);
+            player->on_confirmed_attack_hit(HIT_STOP_DURATION_SECONDS);
         }
     }
 }
@@ -412,9 +412,7 @@ void project_c::AttackTrigger::deactivate()
 
 project_c::Player::Player(engine::IScene* my_scene, engine_game_object_t go)
     : BaseNode(my_scene, go)
-    , weapon_(nullptr)
     , state_(States::IDLE)
-    , attack_trigger_(nullptr)
 {
     // the model's own weapons aren't used: the player equips a Weapon
     constexpr std::array<const char*, 5> unused_model_parts = { "Knife", "Knife_Offhand", "1H_Crossbow", "2H_Crossbow", "Throwable" };
@@ -460,6 +458,42 @@ project_c::Player::Player(engine::IScene* my_scene, engine_game_object_t go)
     }
 }
 
+project_c::Player::~Player()
+{
+    for (const auto& [animation, id] : animation_events_)
+    {
+        engineAnimationControllerAnimationRemoveEvent(go_, animation, id);
+    }
+    // its runtime parts and the weapon it spawned; their scripts go with their game objects. A weapon of the level it
+    // holds stays.
+    const bool spawned_weapon = engineGameObjectIsValid(weapon_go_) && engineGameObjectIsTransient(weapon_go_);
+    for (const auto runtime_go : { attack_trigger_go_, traversal_marker_, spawned_weapon ? weapon_go_ : ENGINE_INVALID_GAME_OBJECT_ID })
+    {
+        if (engineGameObjectIsValid(runtime_go))
+        {
+            engineGameObjectDestroy(runtime_go);
+        }
+    }
+}
+
+project_c::AttackTrigger* project_c::Player::attack_trigger() const
+{
+    return my_scene_->get_script<AttackTrigger>(attack_trigger_go_);
+}
+
+project_c::Weapon* project_c::Player::weapon() const
+{
+    return my_scene_->get_script<Weapon>(weapon_go_);
+}
+
+void project_c::Player::set_attack_window_active(bool active)
+{
+    if (auto* trigger = attack_trigger())
+    {
+        active ? trigger->activate() : trigger->deactivate();
+    }
+}
+
 project_c::PlayerConfig project_c::Player::config() const
 {
     return get_game_component(go_, game_components().player_config, default_player_config());
@@ -469,7 +503,7 @@ void project_c::Player::on_start()
 {
     hp_ = config().max_hp;
     // runtime parts of the player, never saved: the attack trigger, the traversal marker and the starting weapon
-    attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreateTransient(), this);
+    attack_trigger_go_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreateTransient(), go_)->get_game_object();
     create_traversal_marker();
     const auto weapon_go = engineGameObjectCreateTransient();
     Weapon::add_components(weapon_go, *static_cast<const AppProjectC*>(my_scene_->get_app()));
@@ -489,19 +523,21 @@ void project_c::Player::on_start()
 
             engine_animation_event_t open_event{};
             open_event.trigger_time = window.start;
-            open_event.user_data = attack_trigger_;
+            open_event.user_data = this;
             open_event.fn_ptr = attack_window_open_callback;
             engine_animation_event_id_t open_event_id = ENGINE_INVALID_OBJECT_HANDLE;
             const auto open_result = engineAnimationControllerAnimationAddEvent(go_, attack.animation_name, open_event, &open_event_id);
             assert(open_result == ENGINE_RESULT_CODE_OK && open_event_id != ENGINE_INVALID_OBJECT_HANDLE);
+            animation_events_.emplace_back(attack.animation_name, open_event_id);
 
             engine_animation_event_t close_event{};
             close_event.trigger_time = window.end;
-            close_event.user_data = attack_trigger_;
+            close_event.user_data = this;
             close_event.fn_ptr = attack_window_close_callback;
             engine_animation_event_id_t close_event_id = ENGINE_INVALID_OBJECT_HANDLE;
             const auto close_result = engineAnimationControllerAnimationAddEvent(go_, attack.animation_name, close_event, &close_event_id);
             assert(close_result == ENGINE_RESULT_CODE_OK && close_event_id != ENGINE_INVALID_OBJECT_HANDLE);
+            animation_events_.emplace_back(attack.animation_name, close_event_id);
         }
     }
 }
@@ -581,7 +617,7 @@ void project_c::Player::update(float dt)
         return;
     }
 
-    if (weapon_ && attack_pressed && !dodge_pressed && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
+    if (weapon() && attack_pressed && !dodge_pressed && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
     {
         if (!check_state_bit(States::ATTACK))
         {
@@ -612,12 +648,12 @@ void project_c::Player::update(float dt)
     const auto button_W = input().forward;
     const auto button_D = input().right;
     const auto button_S = input().back;
-    if (weapon_ && input().drop_weapon)
+    if (auto* held = weapon(); held && input().drop_weapon)
     {
         // drop weapon
         const auto tc = engineGameObjectGetTransformComponent(go_);
-        weapon_->drop_on_ground({ tc.position[0], tc.position[1], tc.position[2] });
-        weapon_ = nullptr;
+        held->drop_on_ground({ tc.position[0], tc.position[1], tc.position[2] });
+        weapon_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
     }
 
     const auto tc = engineGameObjectGetTransformComponent(go_);
@@ -802,7 +838,7 @@ void project_c::Player::update(float dt)
             {
                 clear_state_bit(States::ATTACK);
                 attack_phase_ = AttackPhase::eIdle;
-                attack_trigger_->deactivate();
+                set_attack_window_active(false);
                 attack_buffered_ = false;
                 const bool combat_rate_reset = engineAnimationControllerLayerSetPlaybackRate(go_, COMBAT_LAYER_ID, 1.0f);
                 assert(combat_rate_reset);
@@ -848,11 +884,11 @@ const project_c::PlayerInput& project_c::Player::input() const
 
 bool project_c::Player::equip_waepon(Weapon* sword)
 {
-    if (!weapon_ && sword)
+    if (!weapon() && sword)
     {
-        weapon_ = sword;
-        weapon_->attach_to_game_object(go_, "handslot.r", glm::vec3(0.0f, 0.0f, 0.0f), glm::angleAxis(glm::radians(-180.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
-        weapon_->attach_offhand_to_game_object(go_, "handslot.l");
+        weapon_go_ = sword->get_game_object();
+        sword->attach_to_game_object(go_, "handslot.r", glm::vec3(0.0f, 0.0f, 0.0f), glm::angleAxis(glm::radians(-180.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
+        sword->attach_offhand_to_game_object(go_, "handslot.l");
         return true;
     }
     return false;
@@ -908,7 +944,7 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
         state_ |= States::DEAD;
         movement_velocity_ = glm::vec2(0.0f);
         knockback_velocity_ = glm::vec3(0.0f);
-        attack_trigger_->deactivate();
+        set_attack_window_active(false);
         if (!engineAnimationControllerSetPaused(go_, false))
         {
             engineLog("Failed to resume player animation before death.\n");
@@ -931,7 +967,7 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
                 state_ &= ~States::ATTACK;
                 attack_phase_ = AttackPhase::eIdle;
                 attack_buffered_ = false;
-                attack_trigger_->deactivate();
+                set_attack_window_active(false);
                 engineAnimationControllerLayerSetPlaybackRate(go_, COMBAT_LAYER_ID, 1.0f);
                 if (!engineAnimationControllerAnimationCrossFade(go_, "Unarmed_Idle", COMBAT_LAYER_ID, 0.08f))
                 {
@@ -1055,7 +1091,10 @@ bool project_c::Player::start_attack(std::size_t combo_index)
     const bool combat_rate_set = engineAnimationControllerLayerSetPlaybackRate(go_, COMBAT_LAYER_ID, ATTACK_PLAYBACK_RATE);
     assert(combat_layer_stopped_looping && combat_rate_set);
 
-    attack_trigger_->begin_swing();
+    if (auto* trigger = attack_trigger())
+    {
+        trigger->begin_swing();
+    }
     attack_combo_index_ = combo_index;
     attack_elapsed_ = 0.0f;
     attack_phase_ = AttackPhase::eWindup;
@@ -1128,9 +1167,9 @@ project_c::Player::ProbeHit project_c::Player::probe(const glm::vec3& from, cons
 {
     // triggers (the attack trigger) are skipped anyway
     std::array<engine_game_object_t, 2> ignore_list = { go_, ENGINE_INVALID_GAME_OBJECT_ID };
-    if (weapon_)
+    if (engineGameObjectIsValid(weapon_go_))
     {
-        ignore_list[1] = weapon_->get_game_object();
+        ignore_list[1] = weapon_go_;
     }
     engine_ray_cast_filter_t filter{};
     filter.ignore = ignore_list.data();
