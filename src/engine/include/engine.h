@@ -616,6 +616,14 @@ ENGINE_API engine_result_code_t engineGameObjectGetDataComponent(engine_game_obj
 ENGINE_API engine_result_code_t engineGameObjectUpdateDataComponent(engine_game_object_t game_object, engine_component_type_t type, const void* value);
 ENGINE_API void engineGameObjectRemoveDataComponent(engine_game_object_t game_object, engine_component_type_t type);
 ENGINE_API bool engineGameObjectHasDataComponent(engine_game_object_t game_object, engine_component_type_t type);
+// How many times a component of this game-defined type was added, updated or removed in the active scene, ever (loaded
+// from a scene file and edited in the editor too). It only grows: compare it with the value seen last to know that
+// something changed without iterating the game objects every frame (like Flecs' OnAdd / OnSet / OnRemove observers).
+// 0 for a type which isn't game-defined or without a scene.
+ENGINE_API uint64_t engineDataComponentGetChangeCount(engine_component_type_t type);
+// Adds the game objects with the game-defined component to the view (see engineComponentViewCreate); a type which
+// isn't game-defined adds nothing.
+ENGINE_API void engineComponentViewAttachDataComponent(engine_component_view_t view, engine_component_type_t type);
 
 // game objects in scene
 ENGINE_API engine_game_object_t engineGameObjectCreate();

@@ -462,4 +462,48 @@ TEST_F(GameTypesTest, ComponentsOfEverySizeKeepTheirValues)
     expect_round_trip<ENGINE_COMPONENT_TYPE_MAX_SIZE / 4>(types_, registry_);
     EXPECT_TRUE(test_logger::messages().empty());
 }
+
+// -- finding the components ------------------------------------------------------------------------------------------
+
+TEST_F(GameTypesTest, ChangeCountGrowsWithEveryAddUpdateAndRemove)
+{
+    const auto* type = register_enemy_config();
+    ASSERT_NE(type, nullptr);
+    EXPECT_EQ(type->storage->change_count(registry_), 0u);
+    const auto a = registry_.create();
+    const auto b = registry_.create();
+    type->storage->add(registry_, a);
+    type->storage->add(registry_, b);
+    EXPECT_EQ(type->storage->change_count(registry_), 2u);
+    EnemyConfig value{};
+    type->storage->update(registry_, a, &value);
+    EXPECT_EQ(type->storage->change_count(registry_), 3u);
+    type->storage->remove(registry_, a);
+    EXPECT_EQ(type->storage->change_count(registry_), 4u);
+    // removing what isn't there changes nothing
+    type->storage->remove(registry_, a);
+    EXPECT_EQ(type->storage->change_count(registry_), 4u);
+    // each registry (scene) counts its own
+    entt::registry other;
+    EXPECT_EQ(type->storage->change_count(other), 0u);
+}
+
+TEST_F(GameTypesTest, PoolHoldsTheGameObjectsWithTheComponent)
+{
+    const auto* type = register_enemy_config();
+    const auto with = registry_.create();
+    const auto without = registry_.create();
+    type->storage->add(registry_, with);
+    const auto& pool = type->storage->pool(registry_);
+    EXPECT_TRUE(pool.contains(with));
+    EXPECT_FALSE(pool.contains(without));
+    EXPECT_EQ(pool.size(), 1u);
+}
+
+TEST_F(GameTypesTest, EngineTypesHaveNoPoolOrCount)
+{
+    engine::register_builtin_types(types_);
+    EXPECT_FALSE(types_.find("transform")->storage->pool);
+    EXPECT_FALSE(types_.find("transform")->storage->change_count);
+}
 }  // namespace

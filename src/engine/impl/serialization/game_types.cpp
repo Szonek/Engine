@@ -4,9 +4,11 @@
 
 #include <algorithm>
 #include <bit>
+#include <cstdint>
 #include <cstring>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -22,6 +24,23 @@ struct alignas(engine::DATA_SLOT_ALIGNMENT) DataBlob
 {
     std::byte bytes[N];
 };
+
+// how many times components of each game type were added, updated or removed in a registry (kept in its context), by
+// storage id
+struct DataComponentChangeCounts
+{
+    std::unordered_map<entt::id_type, std::uint64_t> counts;
+};
+
+void count_change(entt::registry& r, entt::id_type id)
+{
+    auto* changes = r.ctx().find<DataComponentChangeCounts>();
+    if (!changes)
+    {
+        changes = &r.ctx().emplace<DataComponentChangeCounts>();
+    }
+    changes->counts[id]++;
+}
 
 template<std::size_t N>
 std::unique_ptr<engine::ComponentStorage> make_storage(entt::id_type id, std::vector<std::byte> default_value)
@@ -39,6 +58,7 @@ std::unique_ptr<engine::ComponentStorage> make_storage(entt::id_type id, std::ve
         Blob blob{};
         std::memcpy(blob.bytes, default_value.data(), default_value.size());
         r.storage<Blob>(id).emplace(e, blob);
+        count_change(r, id);
     };
     s->get = [id, size](const entt::registry& r, entt::entity e, void* out)
     {
@@ -47,13 +67,25 @@ std::unique_ptr<engine::ComponentStorage> make_storage(entt::id_type id, std::ve
     s->update = [id, size](entt::registry& r, entt::entity e, const void* value)
     {
         r.storage<Blob>(id).patch(e, [value, size](Blob& blob) { std::memcpy(blob.bytes, value, size); });
+        count_change(r, id);
     };
     s->remove = [id](entt::registry& r, entt::entity e)
     {
-        if (auto* pool = r.storage(id))
+        if (auto* pool = r.storage(id); pool && pool->remove(e))
         {
-            pool->remove(e);
+            count_change(r, id);
         }
+    };
+    s->pool = [id](entt::registry& r) -> entt::sparse_set& { return r.storage<Blob>(id); };
+    s->change_count = [id](const entt::registry& r) -> std::uint64_t
+    {
+        const auto* changes = r.ctx().find<DataComponentChangeCounts>();
+        if (!changes)
+        {
+            return 0;
+        }
+        const auto it = changes->counts.find(id);
+        return it == changes->counts.end() ? 0 : it->second;
     };
     return s;
 }

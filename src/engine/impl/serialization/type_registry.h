@@ -93,6 +93,12 @@ struct ComponentStorage
     std::function<void(const entt::registry&, entt::entity, void*)> get;
     std::function<void(entt::registry&, entt::entity, const void*)> update;
     std::function<void(entt::registry&, entt::entity)> remove;
+
+    // Game-defined types only (empty for the engine's): the type's storage in the registry, created when needed (to
+    // iterate the game objects which have the component), and how many times a component of the type was added,
+    // updated or removed in the registry, ever (to see that something changed without iterating them).
+    std::function<entt::sparse_set&(entt::registry&)> pool;
+    std::function<std::uint64_t(const entt::registry&)> change_count;
 };
 
 // A type's handle (the engine_component_type_t of the C API) is its index in the registry plus this, so no type has

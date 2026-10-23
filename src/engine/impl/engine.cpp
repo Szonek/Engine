@@ -718,6 +718,26 @@ bool engineGameObjectHasDataComponent(engine_game_object_t game_object, engine_c
     return info && api_cast(G_ACTIVE_SCENE)->has_component(*info, entity);
 }
 
+uint64_t engineDataComponentGetChangeCount(engine_component_type_t type)
+{
+    const auto* info = G_ACTIVE_SCENE ? api_cast(G_ACTIVE_SCENE)->get_application()->get_type_registry().get(type) : nullptr;
+    if (!info || !info->is_component() || !info->game_defined)
+    {
+        return 0;
+    }
+    return api_cast(G_ACTIVE_SCENE)->get_change_count(*info);
+}
+
+void engineComponentViewAttachDataComponent(engine_component_view_t view, engine_component_type_t type)
+{
+    const auto* info = G_ACTIVE_SCENE ? api_cast(G_ACTIVE_SCENE)->get_application()->get_type_registry().get(type) : nullptr;
+    if (!view || !info || !info->is_component() || !info->game_defined)
+    {
+        return;
+    }
+    api_cast(G_ACTIVE_SCENE)->attach_component_to_runtime_view(*info, *api_cast(view));
+}
+
 engine_game_object_t engineGameObjectCreate()
 {
     if (!G_ACTIVE_SCENE)
