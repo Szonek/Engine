@@ -1,37 +1,19 @@
 #include "base_script.h"
 #include "iscene.h"
+#include "scripts_utils.h"
 #include "../app.h"
 
-namespace
-{
-inline void set_name(engine_game_object_t go, const char* name)
-{
-    engine_name_component_t nc{};
-    if (!engineGameObjectHasNameComponent(go))
-    {
-        engineGameObjectAddNameComponent(go);
-    }
-    std::strncpy(nc.name, name, strlen(name));
-    engineGameObjectUpdateNameComponent(go, &nc);
-}
-} // namespace anonymous
 
+
+project_c::BaseNode::BaseNode(engine::IScene* my_scene, engine_game_object_t go)
+    : engine::IScript(my_scene, go)
+{
+}
 
 project_c::BaseNode::BaseNode(engine::IScene* my_scene, engine_game_object_t go, std::string_view name)
     : engine::IScript(my_scene, go)
 {
-    set_name(go_, name.data());
-}
-
-project_c::BaseNode::BaseNode(engine::IScene* my_scene, std::string_view name)
-    : BaseNode(my_scene, engineGameObjectCreate(), name)
-{
-}
-
-project_c::BaseNode::BaseNode(engine::IScene* my_scene, const PrefabResult& pr, std::string_view name)
-    : BaseNode(my_scene, pr.go, name)
-{
-
+    utils::set_name(go_, name);
 }
 
 void project_c::BaseNode::set_world_position(float x, float y, float z)

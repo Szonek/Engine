@@ -11,8 +11,9 @@ namespace engine
 // nullptr when the description has a mistake (each one is logged). A component is stored by its name, in a storage of
 // the registry holding untyped values in slots of data_slot_size bytes (DataBlob: one storage per type, a packed array
 // like the engine's components), so it works like the engine's components: added with its default value, read and
-// updated as a copy, destroyed with its game object. Nothing in the engine reacts to them: no listener is connected to
-// these storages' signals (and a reactive storage would have to watch each type's storage by its id).
+// updated as a copy, destroyed with its game object. Nothing in the engine reacts to them: the only listener connected to
+// these storages' signals is the change count's (their destroy signal, so a component destroyed with its game object
+// counts as removed).
 const TypeInfo* register_game_type(TypeRegistry& registry, const engine_type_desc_t& desc, bool component);
 
 // The alignment of the slots game components are stored in: the most a game type may ask for.

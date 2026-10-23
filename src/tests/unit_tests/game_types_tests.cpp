@@ -462,4 +462,145 @@ TEST_F(GameTypesTest, ComponentsOfEverySizeKeepTheirValues)
     expect_round_trip<ENGINE_COMPONENT_TYPE_MAX_SIZE / 4>(types_, registry_);
     EXPECT_TRUE(test_logger::messages().empty());
 }
+
+// -- finding the components ------------------------------------------------------------------------------------------
+
+TEST_F(GameTypesTest, ChangeCountGrowsWithEveryAddUpdateAndRemove)
+{
+    const auto* type = register_enemy_config();
+    ASSERT_NE(type, nullptr);
+    EXPECT_EQ(type->storage->change_count(registry_), 0u);
+    const auto a = registry_.create();
+    const auto b = registry_.create();
+    type->storage->add(registry_, a);
+    type->storage->add(registry_, b);
+    EXPECT_EQ(type->storage->change_count(registry_), 2u);
+    EnemyConfig value{};
+    type->storage->update(registry_, a, &value);
+    EXPECT_EQ(type->storage->change_count(registry_), 3u);
+    type->storage->remove(registry_, a);
+    EXPECT_EQ(type->storage->change_count(registry_), 4u);
+    // removing what isn't there changes nothing
+    type->storage->remove(registry_, a);
+    EXPECT_EQ(type->storage->change_count(registry_), 4u);
+    // a component destroyed with its game object is removed too
+    registry_.destroy(b);
+    EXPECT_EQ(type->storage->change_count(registry_), 5u);
+    // destroying a game object without one changes nothing
+    registry_.destroy(a);
+    EXPECT_EQ(type->storage->change_count(registry_), 5u);
+    // each registry (scene) counts its own
+    entt::registry other;
+    EXPECT_EQ(type->storage->change_count(other), 0u);
+}
+
+TEST_F(GameTypesTest, PoolHoldsTheGameObjectsWithTheComponent)
+{
+    const auto* type = register_enemy_config();
+    const auto with = registry_.create();
+    const auto without = registry_.create();
+    type->storage->add(registry_, with);
+    const auto& pool = type->storage->pool(registry_);
+    EXPECT_TRUE(pool.contains(with));
+    EXPECT_FALSE(pool.contains(without));
+    EXPECT_EQ(pool.size(), 1u);
+}
+
+TEST_F(GameTypesTest, EngineTypesHaveNoPoolOrCount)
+{
+    engine::register_builtin_types(types_);
+    EXPECT_FALSE(types_.find("transform")->storage->pool);
+    EXPECT_FALSE(types_.find("transform")->storage->change_count);
+}
+
+// -- editor hints ----------------------------------------------------------------------------------------------------
+
+struct Tint
+{
+    float color[4];
+    float light[3];
+    float speed;
+    std::uint32_t count;
+};
+
+TEST_F(GameTypesTest, HintsAreKeptForTheEditor)
+{
+    auto color = field("color", ENGINE_FIELD_KIND_COLOR, offsetof(Tint, color), 4);
+    auto light = field("light", ENGINE_FIELD_KIND_COLOR, offsetof(Tint, light), 3);
+    auto speed = field("speed", ENGINE_FIELD_KIND_FLOAT, offsetof(Tint, speed));
+    speed.flags = ENGINE_FIELD_FLAG_RANGE;
+    speed.range_min = 0.5f;
+    speed.range_max = 4.0f;
+    speed.tooltip = "metres per second";
+    auto count = field("count", ENGINE_FIELD_KIND_UINT32, offsetof(Tint, count));
+    count.flags = ENGINE_FIELD_FLAG_READ_ONLY | ENGINE_FIELD_FLAG_HIDDEN;
+    const std::vector<engine_field_desc_t> fields = { color, light, speed, count };
+    const auto* type = engine::register_game_type(types_, desc<Tint>("tint", fields), true);
+    ASSERT_NE(type, nullptr);
+
+    // a colour is saved as its floats
+    EXPECT_EQ(type->fields[0].kind, FieldKind::eFloat);
+    EXPECT_EQ(type->fields[0].count, 4u);
+    EXPECT_TRUE(type->fields[0].hints.color);
+    EXPECT_EQ(type->fields[1].count, 3u);
+    EXPECT_TRUE(type->fields[1].hints.color);
+    ASSERT_TRUE(type->fields[2].hints.range.has_value());
+    EXPECT_EQ(type->fields[2].hints.range->first, 0.5f);
+    EXPECT_EQ(type->fields[2].hints.range->second, 4.0f);
+    EXPECT_EQ(type->fields[2].hints.tooltip, "metres per second");
+    EXPECT_FALSE(type->fields[2].hints.read_only);
+    EXPECT_TRUE(type->fields[3].hints.read_only);
+    EXPECT_TRUE(type->fields[3].hints.hidden);
+}
+
+TEST_F(GameTypesTest, WrongHintsAreRejected)
+{
+    const auto try_field = [this](engine_field_desc_t f) {
+        const std::vector<engine_field_desc_t> fields = { f };
+        return engine::register_game_type(types_, desc<Tint>("tint", fields), true) != nullptr;
+    };
+    // a colour has 3 or 4 floats
+    EXPECT_FALSE(try_field(field("color", ENGINE_FIELD_KIND_COLOR, offsetof(Tint, color), 2)));
+    EXPECT_FALSE(try_field(field("color", ENGINE_FIELD_KIND_COLOR, offsetof(Tint, color))));
+    // a range is for numbers, min <= max
+    auto inverted = field("speed", ENGINE_FIELD_KIND_FLOAT, offsetof(Tint, speed));
+    inverted.flags = ENGINE_FIELD_FLAG_RANGE;
+    inverted.range_min = 2.0f;
+    inverted.range_max = 1.0f;
+    EXPECT_FALSE(try_field(inverted));
+    auto colour_range = field("color", ENGINE_FIELD_KIND_COLOR, offsetof(Tint, color), 4);
+    colour_range.flags = ENGINE_FIELD_FLAG_RANGE;
+    EXPECT_FALSE(try_field(colour_range));
+    // unknown flags
+    auto unknown = field("speed", ENGINE_FIELD_KIND_FLOAT, offsetof(Tint, speed));
+    unknown.flags = 1u << 20;
+    EXPECT_FALSE(try_field(unknown));
+    EXPECT_TRUE(test_logger::logged("a colour is a float[3] or float[4]"));
+    EXPECT_TRUE(test_logger::logged("a range is for a number"));
+    EXPECT_TRUE(test_logger::logged("unknown flags"));
+}
+
+TEST_F(GameTypesTest, IntegerRangesFitTheirType)
+{
+    int registered = 0;
+    const auto try_range = [this, &registered](engine_field_kind_t kind, float min_value, float max_value) {
+        auto count = field("count", kind, offsetof(Tint, count));
+        count.flags = ENGINE_FIELD_FLAG_RANGE;
+        count.range_min = min_value;
+        count.range_max = max_value;
+        const std::vector<engine_field_desc_t> fields = { count };
+        // a new name each time: an accepted type stays registered
+        const auto name = "ranged_" + std::to_string(registered++);
+        return engine::register_game_type(types_, desc<Tint>(name.c_str(), fields), true) != nullptr;
+    };
+    // the editor clamps in the field's own type, so the limits must be values of it
+    EXPECT_TRUE(try_range(ENGINE_FIELD_KIND_INT32, -100.0f, 100.0f));
+    EXPECT_TRUE(try_range(ENGINE_FIELD_KIND_UINT32, 0.0f, 1000.0f));
+    EXPECT_TRUE(try_range(ENGINE_FIELD_KIND_FLOAT, -1e10f, 1e10f));
+    EXPECT_FALSE(try_range(ENGINE_FIELD_KIND_INT32, -1e10f, 0.0f));
+    EXPECT_FALSE(try_range(ENGINE_FIELD_KIND_INT32, 0.0f, 1e10f));
+    EXPECT_FALSE(try_range(ENGINE_FIELD_KIND_UINT32, -1.0f, 10.0f));
+    EXPECT_FALSE(try_range(ENGINE_FIELD_KIND_UINT32, 0.0f, 5e9f));
+    EXPECT_TRUE(test_logger::logged("doesn't fit its number type"));
+}
 }  // namespace

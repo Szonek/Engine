@@ -4,9 +4,11 @@
 
 #include <algorithm>
 #include <bit>
+#include <cstdint>
 #include <cstring>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -23,6 +25,36 @@ struct alignas(engine::DATA_SLOT_ALIGNMENT) DataBlob
     std::byte bytes[N];
 };
 
+// how many times components of each game type were added, updated or removed in a registry (kept in its context), by
+// storage id; the counters' addresses are stable (map nodes), the storages' destroy signals hold them
+struct DataComponentChangeCounts
+{
+    std::unordered_map<entt::id_type, std::uint64_t> counts;
+};
+
+void count_destroyed(std::uint64_t& count, entt::registry&, entt::entity)
+{
+    count++;
+}
+
+// The type's counter in the registry. Removals are counted by the storage's destroy signal, connected with the counter,
+// so a component destroyed with its game object counts too.
+template<typename Blob>
+std::uint64_t& change_counter(entt::registry& r, entt::id_type id)
+{
+    auto* changes = r.ctx().find<DataComponentChangeCounts>();
+    if (!changes)
+    {
+        changes = &r.ctx().emplace<DataComponentChangeCounts>();
+    }
+    const auto [it, inserted] = changes->counts.try_emplace(id, 0);
+    if (inserted)
+    {
+        r.storage<Blob>(id).on_destroy().template connect<&count_destroyed>(it->second);
+    }
+    return it->second;
+}
+
 template<std::size_t N>
 std::unique_ptr<engine::ComponentStorage> make_storage(entt::id_type id, std::vector<std::byte> default_value)
 {
@@ -38,7 +70,9 @@ std::unique_ptr<engine::ComponentStorage> make_storage(entt::id_type id, std::ve
     {
         Blob blob{};
         std::memcpy(blob.bytes, default_value.data(), default_value.size());
+        auto& count = change_counter<Blob>(r, id);
         r.storage<Blob>(id).emplace(e, blob);
+        count++;
     };
     s->get = [id, size](const entt::registry& r, entt::entity e, void* out)
     {
@@ -47,13 +81,26 @@ std::unique_ptr<engine::ComponentStorage> make_storage(entt::id_type id, std::ve
     s->update = [id, size](entt::registry& r, entt::entity e, const void* value)
     {
         r.storage<Blob>(id).patch(e, [value, size](Blob& blob) { std::memcpy(blob.bytes, value, size); });
+        change_counter<Blob>(r, id)++;
     };
+    // counted by the destroy signal (see change_counter)
     s->remove = [id](entt::registry& r, entt::entity e)
     {
         if (auto* pool = r.storage(id))
         {
             pool->remove(e);
         }
+    };
+    s->pool = [id](entt::registry& r) -> entt::sparse_set& { return r.storage<Blob>(id); };
+    s->change_count = [id](const entt::registry& r) -> std::uint64_t
+    {
+        const auto* changes = r.ctx().find<DataComponentChangeCounts>();
+        if (!changes)
+        {
+            return 0;
+        }
+        const auto it = changes->counts.find(id);
+        return it == changes->counts.end() ? 0 : it->second;
     };
     return s;
 }
@@ -208,8 +255,20 @@ private:
         case ENGINE_FIELD_KIND_GEOMETRY: f.kind = FieldKind::eAsset; f.asset_kind = engine::AssetKind::eGeometry; break;
         case ENGINE_FIELD_KIND_TEXTURE: f.kind = FieldKind::eAsset; f.asset_kind = engine::AssetKind::eTexture; break;
         case ENGINE_FIELD_KIND_GAME_OBJECT: f.kind = FieldKind::eGameObject; break;
+        case ENGINE_FIELD_KIND_COLOR:
+            if (d.count != 3 && d.count != 4)
+            {
+                return error(fmt::format("field {}: a colour is a float[3] or float[4], its count is {}", name, d.count));
+            }
+            f.kind = FieldKind::eFloat;
+            f.hints.color = true;
+            break;
         default:
             return error(fmt::format("field {} has an unknown kind {}", name, static_cast<int>(d.kind)));
+        }
+        if (!read_hints(d, f))
+        {
+            return;
         }
         if (f.alignment > type_.alignment)
         {
@@ -224,6 +283,39 @@ private:
             return error(fmt::format("field {}: bytes {} to {} are outside the struct of {} bytes", name, f.offset, f.offset + f.byte_size(), type_.size));
         }
         type_.fields.push_back(std::move(f));
+    }
+
+    bool read_hints(const engine_field_desc_t& d, FieldInfo& f)
+    {
+        constexpr std::uint32_t known_flags = ENGINE_FIELD_FLAG_READ_ONLY | ENGINE_FIELD_FLAG_HIDDEN | ENGINE_FIELD_FLAG_RANGE;
+        if ((d.flags & ~known_flags) != 0)
+        {
+            error(fmt::format("field {} has unknown flags {:#x}", f.name, d.flags & ~known_flags));
+            return false;
+        }
+        f.hints.read_only = (d.flags & ENGINE_FIELD_FLAG_READ_ONLY) != 0;
+        f.hints.hidden = (d.flags & ENGINE_FIELD_FLAG_HIDDEN) != 0;
+        f.hints.tooltip = std::string(text(d.tooltip));
+        if ((d.flags & ENGINE_FIELD_FLAG_RANGE) != 0)
+        {
+            const bool number = !f.hints.color && (f.kind == FieldKind::eInt32 || f.kind == FieldKind::eUint32 || f.kind == FieldKind::eFloat);
+            if (!number || !(d.range_min <= d.range_max))
+            {
+                error(fmt::format("field {}: a range is for a number, with its minimum not above its maximum", f.name));
+                return false;
+            }
+            // the editor clamps in the field's own type, so integer limits must be integers of it
+            const bool fits = f.kind == FieldKind::eFloat
+                || (f.kind == FieldKind::eInt32 && d.range_min >= -2147483648.0f && d.range_max < 2147483648.0f)
+                || (f.kind == FieldKind::eUint32 && d.range_min >= 0.0f && d.range_max < 4294967296.0f);
+            if (!fits)
+            {
+                error(fmt::format("field {}: its range [{}, {}] doesn't fit its number type", f.name, d.range_min, d.range_max));
+                return false;
+            }
+            f.hints.range = std::make_pair(d.range_min, d.range_max);
+        }
+        return true;
     }
 
     bool read_enum_values(const engine_field_desc_t& d, FieldInfo& f)

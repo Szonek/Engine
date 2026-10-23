@@ -6,6 +6,7 @@
 
 #include "../app.h"
 #include "encounter_script.h"
+#include "game_components.h"
 
 #include "iscene.h"
 
@@ -21,10 +22,8 @@
 
 namespace
 {
-// the scale of the enemy's model; its weapon inherits it, so the weapon's hitbox is in the model's units
-constexpr float ENEMY_SCALE = 0.35f;
-// in m/s
-constexpr float ENEMY_MOVE_SPEED = 2.0f;
+// its weapon inherits the enemy's scale, so the weapon's hitbox is in the model's units
+constexpr float ENEMY_SCALE = project_c::Enemy::MODEL_SCALE;
 
 struct EnemyAttackAnimation
 {
@@ -47,7 +46,6 @@ constexpr std::array<EnemyAttackAnimation, 2> ENEMY_ATTACK_ANIMATIONS = { {
 } };
 // the blade only reaches ~0.3 m in front of the skeleton, so the player is hit up to ~0.5 m between centers;
 // swinging from further away always misses
-constexpr float ENEMY_ATTACK_RANGE = 0.5f;
 // closer than this there is no nav mesh path to follow: the enemy walks straight at the player
 constexpr float ENEMY_DIRECT_APPROACH_RANGE = 0.8f;
 // the enemy starts chasing a player whose path is shorter than this
@@ -59,8 +57,6 @@ constexpr std::size_t ENEMY_MAX_PATH_POINTS = 16;
 constexpr float ENEMY_PATH_SEARCH_HALF_EXTENTS[3] = { 1.0f, 2.0f, 1.0f };
 // player climbing a wall or standing on a roof is out of reach
 constexpr float ENEMY_MAX_REACH_HEIGHT = 0.6f;
-constexpr float ENEMY_ATTACK_COOLDOWN_SECONDS = 0.8f;
-constexpr std::uint32_t ENEMY_ATTACK_DAMAGE = 2;
 
 void enemy_attack_window_open_callback(const engine_animation_event_info_t* info, void* user_data)
 {
@@ -75,11 +71,10 @@ void enemy_attack_window_close_callback(const engine_animation_event_info_t* inf
 }
 } // namespace
 
-project_c::EnemyWeapon::EnemyWeapon(engine::IScene* my_scene, engine_game_object_t go, Enemy* enemy)
+project_c::EnemyWeapon::EnemyWeapon(engine::IScene* my_scene, engine_game_object_t go, engine_game_object_t enemy)
     : BaseNode(my_scene, go, "enemy-weapon")
-    , enemy_(enemy)
+    , enemy_go_(enemy)
 {
-    assert(enemy_);
 
     auto tc = engineGameObjectGetTransformComponent(go_);
     tc.position[0] = 0.0f;
@@ -91,7 +86,7 @@ project_c::EnemyWeapon::EnemyWeapon(engine::IScene* my_scene, engine_game_object
     engineGameObjectUpdateTransformComponent(go_, &tc);
 
     auto pc = engineGameObjectAddParentComponent(go_);
-    pc.parent = enemy_->get_game_object();
+    pc.parent = enemy_go_;
     engineGameObjectUpdateParentComponent(go_, &pc);
 
     auto jac = engineGameObjectAddJointAttachmentComponent(go_);
@@ -138,33 +133,17 @@ void project_c::EnemyWeapon::on_collision(const collision_t& info)
     }
 
     hit_player_this_swing_ = true;
-    enemy_->on_weapon_hit_player(info.other);
+    if (auto* enemy = my_scene_->get_script<Enemy>(enemy_go_))
+    {
+        enemy->on_weapon_hit_player(info.other);
+    }
 }
 
-project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, float offset_x, float offset_z)
-    : BaseNode(my_scene, pr, "enemy")
+project_c::Enemy::Enemy(engine::IScene* my_scene, engine_game_object_t go)
+    : BaseNode(my_scene, go)
     , state_(States::DECISION_MAKE)
 {
-    auto tc = engineGameObjectGetTransformComponent(go_);
-
-    tc.position[0] = offset_x;
-    tc.position[1] += 0.25f;
-    tc.position[2] = offset_z;
-
-    tc.scale[0] = ENEMY_SCALE;
-    tc.scale[1] = ENEMY_SCALE;
-    tc.scale[2] = ENEMY_SCALE;
-
-    engineGameObjectUpdateTransformComponent(go_, &tc);
     collect_hit_flash_materials(go_);
-
-    // physics: moved by its character controller (sizes in meters, in the enemy's scaled space)
-    auto character = engineGameObjectAddCharacterControllerComponent(go_);
-    character.radius = 0.18f / ENEMY_SCALE;
-    character.height = 0.7f / ENEMY_SCALE;
-    character.step_height = 0.15f / ENEMY_SCALE;
-    character.max_slope = 45.0f;
-    engineGameObjectUpdateCharacterControllerComponent(go_, &character);
 
     for (const auto& attack_animation : ENEMY_ATTACK_ANIMATIONS)
     {
@@ -187,6 +166,10 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, float 
         {
             engineLog("Failed to add enemy attack opening event.\n");
         }
+        else
+        {
+            animation_events_.emplace_back(animation_name, event_id);
+        }
 
         engine_animation_event_t close_event{};
         close_event.trigger_time = attack_animation.active_end * duration;
@@ -198,11 +181,39 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, const PrefabResult& pr, float 
         {
             engineLog("Failed to add enemy attack closing event.\n");
         }
+        else
+        {
+            animation_events_.emplace_back(animation_name, event_id);
+        }
     }
+}
+
+project_c::Enemy::~Enemy()
+{
+    for (const auto& [animation, id] : animation_events_)
+    {
+        engineAnimationControllerAnimationRemoveEvent(go_, animation, id);
+    }
+    // its blade, a runtime object; the blade's script goes with it
+    if (engineGameObjectIsValid(weapon_go_))
+    {
+        engineGameObjectDestroy(weapon_go_);
+    }
+}
+
+project_c::EnemyWeapon* project_c::Enemy::weapon() const
+{
+    return my_scene_->get_script<EnemyWeapon>(weapon_go_);
+}
+
+project_c::EnemyConfig project_c::Enemy::config() const
+{
+    return get_game_component(go_, game_components().enemy_config, default_enemy_config());
 }
 
 void project_c::Enemy::on_start()
 {
+    hp = config().max_hp;
     if (const auto* player = my_scene_->find_script<Player>())
     {
         player_go_ = player->get_game_object();
@@ -215,7 +226,8 @@ void project_c::Enemy::on_start()
         const auto blade = app->spawn_prefab(PREFAB_TYPE_SKELETON_BLADE);
         if (blade.go != ENGINE_INVALID_GAME_OBJECT_ID)
         {
-            weapon_ = my_scene_->register_script<EnemyWeapon>(blade.go, this);
+            my_scene_->register_script<EnemyWeapon>(blade.go, go_);
+            weapon_go_ = blade.go;
         }
     }
     else
@@ -227,6 +239,7 @@ void project_c::Enemy::on_start()
 void project_c::Enemy::update(float dt)
 {
     engine::ScopedProfiler prof("project_c::Enemy::update");
+    const auto cfg = config();
 
     if (hit_stop_remaining_seconds_ > 0.0f)
     {
@@ -327,12 +340,12 @@ void project_c::Enemy::update(float dt)
     {
     case States::DECISION_MAKE:
     {
-        if (distance_to_player <= ENEMY_ATTACK_RANGE && attack_cooldown_remaining_seconds_ <= 0.0f)
+        if (distance_to_player <= cfg.attack_range && attack_cooldown_remaining_seconds_ <= 0.0f)
         {
             state_ = States::ATTACK;
-            if (weapon_)
+            if (auto* blade = weapon())
             {
-                weapon_->begin_swing();
+                blade->begin_swing();
             }
             if (!engineAnimationControllerLayerSetLooping(go_, 0, false))
             {
@@ -344,11 +357,11 @@ void project_c::Enemy::update(float dt)
                 {
                     engineLog("Failed to start enemy attack animation.\n");
                     state_ = States::DECISION_MAKE;
-                    attack_cooldown_remaining_seconds_ = ENEMY_ATTACK_COOLDOWN_SECONDS;
+                    attack_cooldown_remaining_seconds_ = cfg.attack_cooldown_seconds;
                 }
             }
         }
-        else if (distance_to_player <= ENEMY_ATTACK_RANGE)
+        else if (distance_to_player <= cfg.attack_range)
         {
             state_ = States::IDLE;
         }
@@ -385,7 +398,7 @@ void project_c::Enemy::update(float dt)
         {
             state_ = States::DECISION_MAKE;
             set_attack_window_active(false);
-            attack_cooldown_remaining_seconds_ = ENEMY_ATTACK_COOLDOWN_SECONDS;
+            attack_cooldown_remaining_seconds_ = cfg.attack_cooldown_seconds;
             attack_data_.attack_with_right = !attack_data_.attack_with_right;
         }
 
@@ -409,7 +422,7 @@ void project_c::Enemy::update(float dt)
         // path is computed per_frame, but decision was made frame before
         // so it can happen that target has moved and new position is not reachable or close to current position
         const bool direct_approach = !has_path && distance_to_player < ENEMY_DIRECT_APPROACH_RANGE;
-        if (distance_to_player <= ENEMY_ATTACK_RANGE || (!has_path && !direct_approach))
+        if (distance_to_player <= cfg.attack_range || (!has_path && !direct_approach))
         {
             state_ = States::DECISION_MAKE;
             break;
@@ -435,7 +448,7 @@ void project_c::Enemy::update(float dt)
         std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
         engineGameObjectUpdateTransformComponent(go_, &tc);
         const glm::vec3 forward = glm::normalize(quat * glm::vec3(0.0f, 0.0f, 1.0f));
-        velocity = glm::vec3(forward.x, 0.0f, forward.z) * ENEMY_MOVE_SPEED;
+        velocity = glm::vec3(forward.x, 0.0f, forward.z) * cfg.move_speed;
         //state_ = States::DECISION_MAKE;
         break;
     }
@@ -453,9 +466,9 @@ void project_c::Enemy::update(float dt)
 
 void project_c::Enemy::set_attack_window_active(bool active)
 {
-    if (weapon_)
+    if (auto* blade = weapon())
     {
-        weapon_->set_attack_window_active(active);
+        blade->set_attack_window_active(active);
     }
 }
 
@@ -469,7 +482,7 @@ void project_c::Enemy::on_weapon_hit_player(engine_game_object_t player_go)
     if (auto* player = my_scene_->get_script<project_c::Player>(player_go))
     {
         const auto tc = engineGameObjectGetTransformComponent(go_);
-        player->receive_damage(ENEMY_ATTACK_DAMAGE, glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
+        player->receive_damage(config().attack_damage, glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
     }
 }
 
@@ -515,7 +528,8 @@ void project_c::Enemy::collect_hit_flash_materials(engine_game_object_t game_obj
 
 void project_c::Enemy::update_hit_flash(float strength)
 {
-    constexpr std::array<float, 3> hit_color = { 1.0f, 0.32f, 0.22f };
+    const auto cfg = config();
+    const auto& hit_color = cfg.hit_flash_color;
     strength = std::clamp(strength, 0.0f, 1.0f);
 
     for (const auto& entry : hit_flash_materials_)
@@ -526,7 +540,7 @@ void project_c::Enemy::update_hit_flash(float strength)
         }
 
         auto material = engineGameObjectGetMaterialComponent(entry.game_object);
-        for (std::size_t channel = 0; channel < hit_color.size(); ++channel)
+        for (std::size_t channel = 0; channel < std::size(hit_color); ++channel)
         {
             const float original = entry.original_diffuse_color[channel];
             material.diffuse_color[channel] = original + (hit_color[channel] - original) * strength;

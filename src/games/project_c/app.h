@@ -65,6 +65,8 @@ public:
     }
 
 private:
+    // the game's component types and the script types scene files and the editor can create (ScriptRegistry)
+    void register_script_types();
     // logs why when the type can't be instantiated
     bool is_valid_prefab_type(PrefabType type) const;
 

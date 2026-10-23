@@ -49,8 +49,8 @@ void add_binding(std::vector<engine_ui_document_data_binding_t>& registry, const
 }
 }  // namespace
 
-project_c::GameplayHud::GameplayHud(engine::IScene* my_scene)
-    : BaseNode(my_scene, "gameplay-hud")
+project_c::GameplayHud::GameplayHud(engine::IScene* my_scene, engine_game_object_t go)
+    : BaseNode(my_scene, go)
 {
     auto* app = my_scene_->get_app();
     // without the editor gameplay runs from the first frame; with it, once Play is pressed (first late_update)
@@ -258,7 +258,7 @@ void project_c::GameplayHud::update_enemy(const Enemy* en)
     const auto y_str = std::to_string(enemy_screen_coords.y * 100 - (box_height /2)) + "%";
 
     // calculate health progress bar
-    const auto health_progress_value = static_cast<std::uint32_t>(((float)en->hp / (float)en->max_hp) * 100);
+    const auto health_progress_value = static_cast<std::uint32_t>(((float)en->hp / (float)en->get_max_hp()) * 100);
 
     bool found = false;
     for (auto i = 0; i < engineVectorSizeUint32(enemies_.go); i++)

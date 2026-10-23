@@ -9,7 +9,9 @@ namespace project_c
 class CameraScript : public BaseNode
 {
 public:
-    CameraScript(engine::IScene* my_scene);
+    CameraScript(engine::IScene* my_scene, engine_game_object_t go);
+    // the camera component and the transform of the game's camera: an orthographic 3/4 top-down view
+    static void add_components(engine_game_object_t go);
     // snaps to the player
     void on_start() override;
     void snap_to_player();

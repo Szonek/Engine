@@ -3,6 +3,7 @@
 #include "engine.h"
 
 #include "scene_manager.h"
+#include "script_registry.h"
 
 #include <string>
 
@@ -38,8 +39,12 @@ public:
     bool is_editor_enabled() const;
     void update_scenes(float dt);
 
+    // the script types scene files and the editor can put on game objects (see ScriptRegistry)
+    ScriptRegistry& scripts() { return scripts_; }
+
 private:
     engine_application_t app_handle_;
+    ScriptRegistry scripts_;
     SceneManager scene_manager_;
 };
 

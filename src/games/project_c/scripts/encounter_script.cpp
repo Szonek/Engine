@@ -4,8 +4,8 @@
 
 #include <iscene.h>
 
-project_c::Encounter::Encounter(engine::IScene* my_scene)
-    : BaseNode(my_scene, "encounter")
+project_c::Encounter::Encounter(engine::IScene* my_scene, engine_game_object_t go)
+    : BaseNode(my_scene, go)
 {
 }
 

@@ -1,6 +1,14 @@
 #include "app.h"
 
+#include "scripts/building_script.h"
+#include "scripts/camera_script.h"
+#include "scripts/encounter_script.h"
 #include "scripts/enemy_script.h"
+#include "scripts/enviorment_script.h"
+#include "scripts/game_components.h"
+#include "scripts/gameplay_hud_script.h"
+#include "scripts/interactable_script.h"
+#include "scripts/player_script.h"
 
 #include <chrono>
 #include <map>
@@ -53,6 +61,7 @@ project_c::PrefabsData project_c::default_prefabs_data()
 project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppConfig& config)
     : engine::IApplication(app_cd(config))
 {
+    register_script_types();
     prefabs_.fill(ENGINE_INVALID_OBJECT_HANDLE);
     const auto load_start = std::chrono::high_resolution_clock::now();
 
@@ -75,6 +84,28 @@ project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppCo
     const auto ms_load_time = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
     log(fmt::format("Model loading took: {}\n", ms_load_time));
 
+}
+
+void project_c::AppProjectC::register_script_types()
+{
+    register_game_components();
+    const auto& components = game_components();
+    // the names scene files save
+    auto& registry = scripts();
+    registry.add<CameraScript>("camera");
+    registry.add<Encounter>("encounter");
+    registry.add<GameplayHud>("gameplay_hud");
+    registry.add<Floor>("floor");
+    registry.add<Player>("player", { components.player_config });
+    registry.add<Enemy>("enemy", { components.enemy_config });
+    registry.add<Chest>("chest");
+    registry.add<Weapon>("weapon");
+    registry.add<House>("house", { components.house_config });
+    registry.add<BuildingPart>("building_part", { components.building_part_config });
+    if (!registry.register_component())
+    {
+        log("Failed registering the script component: scene files can't create scripts.\n");
+    }
 }
 
 project_c::AppProjectC::~AppProjectC()

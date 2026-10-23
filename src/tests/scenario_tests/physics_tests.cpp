@@ -30,14 +30,21 @@ engine_game_object_t create_object(float x, float y, float z)
     return go;
 }
 
-// 0.5 m static box collider
-void add_box_collider(engine_game_object_t go)
+// static box collider, 0.5 m unless given its half extents
+void add_box_collider(engine_game_object_t go, const glm::vec3& half_extents = glm::vec3(0.25f))
 {
     auto cc = engineGameObjectAddColliderComponent(go);
     cc.type = ENGINE_COLLIDER_TYPE_BOX;
-    cc.collider.box.size[0] = 0.25f;
-    cc.collider.box.size[1] = 0.25f;
-    cc.collider.box.size[2] = 0.25f;
+    cc.collider.box.size[0] = half_extents.x;
+    cc.collider.box.size[1] = half_extents.y;
+    cc.collider.box.size[2] = half_extents.z;
+    engineGameObjectUpdateColliderComponent(go, &cc);
+}
+
+void set_collider_disabled(engine_game_object_t go, bool disabled)
+{
+    auto cc = engineGameObjectGetColliderComponent(go);
+    cc.disable = disabled;
     engineGameObjectUpdateColliderComponent(go, &cc);
 }
 
@@ -433,6 +440,58 @@ TEST_F(PhysicsTest, RayCastSkipsTriggersUnlessAsked)
     filter.hit_triggers = true;
     ASSERT_TRUE(cast_along_x(100.0f, &filter, hit));
     EXPECT_EQ(hit.go, trigger);
+}
+
+TEST_F(PhysicsTest, DisabledColliderHasNoBody)
+{
+    load_scene<PhysicsScene>();
+    const auto disabled = create_object(0.0f, 0.0f, 0.0f);
+    add_box_collider(disabled);
+    set_collider_disabled(disabled, true);
+    const auto wall = create_object(5.0f, 0.0f, 0.0f);
+    add_box_collider(wall);
+
+    // not even a ray cast asking for triggers sees it
+    engine_ray_cast_filter_t filter{};
+    filter.hit_triggers = true;
+    engine_ray_hit_t hit{};
+    ASSERT_TRUE(cast_along_x(100.0f, &filter, hit));
+    EXPECT_EQ(hit.go, wall);
+
+    // enabled again, it has its body at once
+    set_collider_disabled(disabled, false);
+    ASSERT_TRUE(cast_along_x(100.0f, nullptr, hit));
+    EXPECT_EQ(hit.go, disabled);
+}
+
+TEST_F(PhysicsTest, NavMeshLeavesOutADisabledCollider)
+{
+    load_scene<PhysicsScene>();
+    engineGameObjectAddNavSurfaceComponent(engineGameObjectCreate());
+    // a 10 x 10 m floor with its top at y = 0, and a wall across it at x = 0 (z in [-3, 3]: paths go around it)
+    const auto floor = create_object(0.0f, -0.5f, 0.0f);
+    add_box_collider(floor, { 5.0f, 0.5f, 5.0f });
+    const auto wall = create_object(0.0f, 1.0f, 0.0f);
+    add_box_collider(wall, { 0.25f, 1.0f, 3.0f });
+
+    const auto path_corners = []()
+        {
+            EXPECT_EQ(engineNavMeshBuild(), ENGINE_RESULT_CODE_OK);
+            const float start[3] = { -3.0f, 0.0f, 0.0f };
+            const float end[3] = { 3.0f, 0.0f, 0.0f };
+            const float extents[3] = { 1.0f, 2.0f, 1.0f };
+            float points[16 * 3] = {};
+            size_t count = 0;
+            engine_nav_path_status_t status{};
+            EXPECT_EQ(engineNavFindPath(start, end, extents, points, 16, &count, &status), ENGINE_RESULT_CODE_OK);
+            EXPECT_EQ(status, ENGINE_NAV_PATH_STATUS_COMPLETE);
+            return count;
+        };
+    // around the wall
+    EXPECT_GT(path_corners(), 2u);
+    // straight through where it was
+    set_collider_disabled(wall, true);
+    EXPECT_EQ(path_corners(), 2u);
 }
 
 TEST_F(PhysicsTest, RayCastPassesThroughIgnoredGameObjects)

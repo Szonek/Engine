@@ -36,9 +36,10 @@ I.e. a wall on the right side of the screen is climbed by holding D, the front w
 ### Who can be climbed
 
 Traversal is driven by short physics raycasts ("probes") from the player. A probe only counts if it hits a collider owned
-by a `BuildingPart` script, so floors, chests, enemies etc. are never climbed. A `BuildingPart` is climbable if it was
-created with `climbable = true`; the house walls additionally use `set_climbable_away_from(house_center)`, which allows
-climbing only faces pointing away from the house. Otherwise the player could climb an inner wall and pull up through the roof.
+by a `BuildingPart` script, so floors, chests, enemies etc. are never climbed. A `BuildingPart` is climbable when its
+`building_part_config` component says `climbable`; the house walls also set `climbable_from_outside_only`, which allows
+climbing only faces pointing away from the part's parent (the house). Otherwise the player could climb an inner wall and
+pull up through the roof.
 
 Probe heights are measured from the player's feet (the transform origin, player is ~0.85 tall):
 
@@ -110,17 +111,18 @@ The combat (upper body) layer is muted while traversing.
 
 ## The house
 
-`House` is built over the bounding box of the `h` cells of the map by `build_house` (`LevelBuilder::house`). Its parts
-are level content: `BuildingPart` children of the house game object, which the house collects in `on_start`. These cells get floor tiles with a not-walkable nav
+`House` is built over the bounding box of the `h` cells of the map by `build_house` (`LevelBuilder::house`): the house's
+game object stands at the center of its floor, and its parts are level content placed relative to it, `BuildingPart`
+children with a `building_part_config` component, which the house collects in `on_start`. These cells get floor tiles with a not-walkable nav
 modifier, so the nav mesh leaves them out and enemies don't walk into it. Enemies also ignore a player who is more than 0.6 higher than them (on a wall or the roof).
 
 * Walls are KayKit `Primitive_Wall` pieces at half size: 2 wide, 2 tall, 0.5 thick. The roof (`Primitive_Floor`) sits on
   top, flush with the outer faces, so the top of a climbed wall is the roof edge.
 * The engine's compound collider supports one child only, so the window wall's collision is four invisible blockers
-  (left/right pillar, sill, lintel) sharing the transform of the visible `Primitive_Window` piece. The blockers point their
-  alignment point (vault) to the visible piece.
-* While the player is inside, the parts marked with `BuildingPart::HideWhenInside` (the roof and the wall facing the
-  camera) are hidden - see Occlusion below.
+  (left/right pillar, sill, lintel) sharing the transform of the visible `Primitive_Window` piece. The blockers align
+  traversal (vault) to their position (`align_to_position`), the one of the visible piece.
+* While the player is inside, the parts whose config has a `hide_when_inside` (the roof and the wall facing the camera)
+  are hidden - see Occlusion below.
 
 ## Camera
 
@@ -137,11 +139,13 @@ modifier, so the nav mesh leaves them out and enemies don't walk into it. Enemie
 The only occlusion handling is the classic ARPG cutaway of the house, all in `House::update`:
 
 * `House::is_inside` checks the player against the interior of the house (below the roof).
-* When the player enters, the roof is hidden (`HideWhenInside::eMeshAndCollider`: mesh disabled, collider removed, so
-  mouse aiming hits the room floor instead of the roof) together with the props standing on it (`House::add_roof_prop`),
-  and the camera facing wall pieces are hidden (`HideWhenInside::eMesh`: their colliders stay, so the walls still block
-  movement and can be vaulted through).
-* When the player leaves, everything is shown again.
+* When the player enters, the roof is hidden (`mesh_and_collider`: mesh disabled, collider disabled, so mouse
+  aiming hits the room floor instead of the roof; the collider stays, so a scene saved meanwhile keeps it) together with the props standing on it (the `roof_props` of the house's
+  `house_config`, `House::add_roof_prop`), and the camera facing wall pieces are hidden (`mesh`: their colliders stay, so
+  the walls still block movement and can be vaulted through).
+* When the player leaves, everything is shown again. The house looks at its parts' components, not at what it did
+  before: a scene saved while the player was inside loads with the parts hidden, and the house's first update shows
+  them (or keeps them hidden). A part whose script is replaced or removed is shown again.
 
 Outside the house nothing reacts: a player behind the house or climbing its back wall is hidden by it. That was a
 deliberate choice for the POC - fading or lowering occluders was tried (see the PR history) and dropped for now. The
@@ -150,8 +154,8 @@ render feature.
 
 ## Adding things
 
-* **A new climbable object**: give it a `BuildingPart` script (collider in mesh space through `BuildingPart::Box`,
-  `climbable = true`). Vault/mantle need a flat top (normal up) and enough room above it for the player.
+* **A new climbable object**: give it a collider and a `BuildingPart` script, with `climbable` set in its
+  `building_part_config`. Vault/mantle need a flat top (normal up) and enough room above it for the player.
 
 ## Known limitations
 

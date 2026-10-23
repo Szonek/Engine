@@ -554,8 +554,23 @@ typedef enum _engine_field_kind_t
     ENGINE_FIELD_KIND_TEXTURE,
     // an engine_game_object_t, saved as the persistent ID of the game object
     ENGINE_FIELD_KIND_GAME_OBJECT,
+    // a colour: a float[3] (RGB, `count` 3) or float[4] (RGBA, `count` 4), saved as its floats; the editor shows a
+    // colour picker
+    ENGINE_FIELD_KIND_COLOR,
     ENGINE_FIELD_KIND_COUNT
 } engine_field_kind_t;
+
+// How the editor shows a field (engine_field_desc_t::flags, combined with |); they never change what is saved.
+typedef enum _engine_field_flags_t
+{
+    ENGINE_FIELD_FLAG_NONE = 0,
+    // shown, but not editable (e.g. a value a tool computes)
+    ENGINE_FIELD_FLAG_READ_ONLY = 1 << 0,
+    // not shown (still saved and loaded)
+    ENGINE_FIELD_FLAG_HIDDEN = 1 << 1,
+    // a number (int32, uint32, float) the editor keeps in [range_min, range_max]; the limits must fit its type
+    ENGINE_FIELD_FLAG_RANGE = 1 << 2,
+} engine_field_flags_t;
 
 typedef struct _engine_enum_value_desc_t
 {
@@ -577,6 +592,12 @@ typedef struct _engine_field_desc_t
     uint32_t enum_values_count;
     // ENGINE_FIELD_KIND_STRUCT
     const char* type_name;
+    // editor hints, zero for none: engine_field_flags_t, the range of ENGINE_FIELD_FLAG_RANGE, and a tooltip (or NULL)
+    // shown over the field
+    uint32_t flags;
+    float range_min;
+    float range_max;
+    const char* tooltip;
 } engine_field_desc_t;
 
 typedef struct _engine_type_desc_t
@@ -618,6 +639,14 @@ ENGINE_API engine_result_code_t engineGameObjectGetDataComponent(engine_game_obj
 ENGINE_API engine_result_code_t engineGameObjectUpdateDataComponent(engine_game_object_t game_object, engine_component_type_t type, const void* value);
 ENGINE_API void engineGameObjectRemoveDataComponent(engine_game_object_t game_object, engine_component_type_t type);
 ENGINE_API bool engineGameObjectHasDataComponent(engine_game_object_t game_object, engine_component_type_t type);
+// How many times a component of this game-defined type was added, updated or removed in the active scene, ever (loaded
+// from a scene file and edited in the editor too). It only grows: compare it with the value seen last to know that
+// something changed without iterating the game objects every frame (like Flecs' OnAdd / OnSet / OnRemove observers).
+// 0 for a type which isn't game-defined or without a scene.
+ENGINE_API uint64_t engineDataComponentGetChangeCount(engine_component_type_t type);
+// Adds the game objects with the game-defined component to the view (see engineComponentViewCreate); a type which
+// isn't game-defined adds nothing.
+ENGINE_API void engineComponentViewAttachDataComponent(engine_component_view_t view, engine_component_type_t type);
 
 // game objects in scene
 ENGINE_API engine_game_object_t engineGameObjectCreate();

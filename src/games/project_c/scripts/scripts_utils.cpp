@@ -5,7 +5,9 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <algorithm>
 #include <array>
+#include <cstring>
 
 std::vector<engine_game_object_t> project_c::utils::get_children(engine_game_object_t go)
 {
@@ -15,6 +17,36 @@ std::vector<engine_game_object_t> project_c::utils::get_children(engine_game_obj
         ret[i] = engineGameObjectGetChild(go, i);
     }
     return ret;
+}
+
+void project_c::utils::set_name(engine_game_object_t go, std::string_view name)
+{
+    auto nc = engineGameObjectHasNameComponent(go) ? engineGameObjectGetNameComponent(go) : engineGameObjectAddNameComponent(go);
+    std::memset(nc.name, 0, sizeof(nc.name));
+    std::memcpy(nc.name, name.data(), std::min(name.size(), sizeof(nc.name) - 1));
+    engineGameObjectUpdateNameComponent(go, &nc);
+}
+
+glm::vec3 project_c::utils::get_world_position(engine_game_object_t go)
+{
+    if (!engineGameObjectHasTransformComponent(go))
+    {
+        return glm::vec3(0.0f);
+    }
+    auto tc = engineGameObjectGetTransformComponent(go);
+    glm::vec3 position = glm::make_vec3(tc.position);
+    // through the parents' transforms: the world transform component is only computed by the scene update
+    for (auto parent = go; engineGameObjectHasParentComponent(parent);)
+    {
+        parent = engineGameObjectGetParentComponent(parent).parent;
+        if (!engineGameObjectHasTransformComponent(parent))
+        {
+            break;
+        }
+        tc = engineGameObjectGetTransformComponent(parent);
+        position = glm::make_vec3(tc.position) + glm::make_quat(tc.rotation) * (glm::make_vec3(tc.scale) * position);
+    }
+    return position;
 }
 
 std::vector<engine_game_object_t> project_c::utils::get_active_camera_game_objects()

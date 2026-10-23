@@ -49,6 +49,11 @@ public:
 protected:
     IScene* my_scene_ = nullptr;
     const engine_game_object_t go_;
+
+private:
+    friend class IScene;
+    // false when the scene removes the script but keeps its game object (its script component was removed or changed)
+    bool destroys_game_object_ = true;
 };
 
 } // namespace engine

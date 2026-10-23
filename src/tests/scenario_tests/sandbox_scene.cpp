@@ -3,7 +3,6 @@
 #include <app.h>
 #include <scripts/camera_script.h>
 #include <scripts/encounter_script.h>
-#include <scripts/enviorment_script.h>
 #include <scripts/player_script.h>
 #include <scripts/scripts_utils.h>
 
@@ -12,9 +11,9 @@ scenario::SandboxScene::SandboxScene(engine::IApplication* app)
     , builder_(*static_cast<project_c::AppProjectC*>(app), *this)
 {
     builder_.nav_surface();
-    camera_ = register_script<project_c::CameraScript>();
-    register_script<project_c::MainLight>();
-    encounter_ = register_script<project_c::Encounter>();
+    camera_ = builder_.camera();
+    builder_.main_light();
+    encounter_ = builder_.encounter();
 }
 
 engine_result_code_t scenario::SandboxScene::update(float dt)

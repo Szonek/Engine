@@ -147,6 +147,15 @@ public:
     void get_component(const TypeInfo& type, entt::entity entity, void* out) const { type.storage->get(entity_registry_, entity, out); }
     void update_component(const TypeInfo& type, entt::entity entity, const void* value) { type.storage->update(entity_registry_, entity, value); }
     void remove_component(const TypeInfo& type, entt::entity entity) { type.storage->remove(entity_registry_, entity); }
+    // game-defined types only (see ComponentStorage::pool and change_count)
+    std::uint64_t get_change_count(const TypeInfo& type) const { return type.storage->change_count ? type.storage->change_count(entity_registry_) : 0; }
+    void attach_component_to_runtime_view(const TypeInfo& type, entt::runtime_view& rv)
+    {
+        if (type.storage->pool)
+        {
+            rv.iterate(type.storage->pool(entity_registry_));
+        }
+    }
 
     // (Re)builds the nav mesh from the static colliders (see engine_nav_modifier_component_t) with the settings of the
     // scene's nav surface component, and keeps it on that game object. Fails when there is no nav surface or nothing
