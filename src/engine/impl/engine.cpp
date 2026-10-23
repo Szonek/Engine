@@ -161,7 +161,7 @@ engine_result_code_t engineApplicationCreate(engine_application_t* handle, engin
 	engine_result_code_t ret = ENGINE_RESULT_CODE_FAIL;
 
     // the window and GL context first: everything else in the application needs them
-    engine::RenderContext rdx(create_desc.name, { 0, 0, create_desc.width, create_desc.height }, create_desc.fullscreen, create_desc.hidden_window);
+    engine::RenderContext rdx(create_desc.name, { 0, 0, create_desc.width, create_desc.height }, create_desc.fullscreen, create_desc.hidden_window, !create_desc.disable_vsync);
     if (!rdx.is_valid())
     {
         // the reason was logged
