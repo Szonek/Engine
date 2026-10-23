@@ -8,7 +8,7 @@ the player visible when geometry is in the way.
 | `scripts/player_script.h/.cpp`         | Traversal: detection, climbing, vault / mantle / climb-down moves, marker     |
 | `scripts/building_script.h/.cpp`       | `BuildingPart` (what can be climbed) and `House` (the test building, roof cutaway) |
 | `scripts/camera_script.h/.cpp`         | Camera follow and mouse look-ahead                                            |
-| `scenes/scene_test.cpp`                | Map: the `h` block is the house footprint, `B` is a chest inside the house    |
+| `assets/scenes/test_level.json`        | The level: the house, its parts and the chests on and in it                   |
 
 Everything is game code, the engine is not changed. All tuning values are `constexpr` constants at the top of
 `player_script.cpp`, `camera_script.cpp` and `building_script.cpp`.
@@ -111,9 +111,9 @@ The combat (upper body) layer is muted while traversing.
 
 ## The house
 
-`House` is built over the bounding box of the `h` cells of the map by `build_house` (`LevelBuilder::house`): the house's
-game object stands at the center of its floor, and its parts are level content placed relative to it, `BuildingPart`
-children with a `building_part_config` component, which the house collects in `on_start`. These cells get floor tiles with a not-walkable nav
+`House` is built by `build_house` (`LevelBuilder::house`) and saved in the level file: the house's game object stands at
+the center of its floor, and its parts are level content placed relative to it, `BuildingPart` children with a
+`building_part_config` component, which the house collects in `on_start`. Its floor tiles have a not-walkable nav
 modifier, so the nav mesh leaves them out and enemies don't walk into it. Enemies also ignore a player who is more than 0.6 higher than them (on a wall or the roof).
 
 * Walls are KayKit `Primitive_Wall` pieces at half size: 2 wide, 2 tall, 0.5 thick. The roof (`Primitive_Floor`) sits on
