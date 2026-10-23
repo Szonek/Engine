@@ -91,14 +91,18 @@ void engine::EditorCamera::update(const editor_camera_input_t& input, float dt, 
 
 void engine::EditorCamera::frame(const glm::vec3& center, float radius, float fov_y)
 {
-    view_t to{ center, yaw_, pitch_, distance_ };
+    auto to = get_target_view();
+    to.pivot = center;
     to.distance = std::clamp(std::max(radius, MIN_DISTANCE) / std::sin(fov_y * 0.5f), MIN_DISTANCE, MAX_DISTANCE);
     start_transition(to);
 }
 
 void engine::EditorCamera::set_view(float yaw, float pitch)
 {
-    start_transition({ pivot_, wrap_angle(yaw), std::clamp(pitch, -MAX_PITCH, MAX_PITCH), distance_ });
+    auto to = get_target_view();
+    to.yaw = wrap_angle(yaw);
+    to.pitch = std::clamp(pitch, -MAX_PITCH, MAX_PITCH);
+    start_transition(to);
 }
 
 glm::vec3 engine::EditorCamera::get_eye() const
@@ -124,6 +128,15 @@ glm::vec3 engine::EditorCamera::get_up() const
 void engine::EditorCamera::set_fly_speed(float speed)
 {
     fly_speed_ = std::clamp(speed, MIN_FLY_SPEED, MAX_FLY_SPEED);
+}
+
+engine::EditorCamera::view_t engine::EditorCamera::get_target_view() const
+{
+    if (transition_time_ < TRANSITION_TIME)
+    {
+        return transition_to_;
+    }
+    return { pivot_, yaw_, pitch_, distance_ };
 }
 
 void engine::EditorCamera::start_transition(const view_t& to)

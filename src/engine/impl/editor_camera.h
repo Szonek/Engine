@@ -63,7 +63,7 @@ public:
     static constexpr float WHEEL_ZOOM_FACTOR = 0.85f;  // distance multiplier per notch
     static constexpr float DRAG_ZOOM_SENSITIVITY = 0.01f;  // per pixel, exponential
     static constexpr float MIN_DISTANCE = 0.1f;
-    static constexpr float MAX_DISTANCE = 5000.0f;
+    static constexpr float MAX_DISTANCE = 500.0f;  // half the editor camera's far plane, so the pivot's surroundings stay visible
     static constexpr float MAX_PITCH = 1.5533f;  // 89 degrees: the view matrix uses the world up
     static constexpr float FLY_BOOST = 3.0f;  // Shift
     static constexpr float FLY_WHEEL_FACTOR = 1.25f;  // fly speed multiplier per notch
@@ -79,6 +79,8 @@ private:
         float pitch = 0.0f;
         float distance = 1.0f;
     };
+    // where the running glide ends, or the current view: a new glide keeps what it doesn't change from there
+    view_t get_target_view() const;
     void start_transition(const view_t& to);
     void update_transition(float dt);
 

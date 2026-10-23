@@ -200,6 +200,29 @@ TEST(EditorCamera, FrameGlidesOntoTheSphere)
     expect_vec_near(camera.get_forward(), glm::vec3(0.0f, 0.0f, -1.0f));
 }
 
+TEST(EditorCamera, SetViewDuringAFrameGlideKeepsItsTarget)
+{
+    auto camera = make_camera();
+    camera.frame(glm::vec3(5.0f, 1.0f, -3.0f), 2.0f, FOV_Y);
+    camera.update({}, DT, VIEWPORT_HEIGHT, FOV_Y);
+    camera.set_view(-glm::half_pi<float>(), 0.0f);
+    finish_transition(camera);
+    expect_vec_near(camera.get_pivot(), glm::vec3(5.0f, 1.0f, -3.0f));
+    EXPECT_NEAR(camera.get_distance(), 2.0f / std::sin(FOV_Y * 0.5f), 1e-3f);
+    expect_vec_near(camera.get_forward(), glm::vec3(-1.0f, 0.0f, 0.0f));
+}
+
+TEST(EditorCamera, FrameDuringAViewGlideKeepsItsDirection)
+{
+    auto camera = make_camera();
+    camera.set_view(-glm::half_pi<float>(), 0.0f);
+    camera.update({}, DT, VIEWPORT_HEIGHT, FOV_Y);
+    camera.frame(glm::vec3(5.0f, 1.0f, -3.0f), 2.0f, FOV_Y);
+    finish_transition(camera);
+    expect_vec_near(camera.get_forward(), glm::vec3(-1.0f, 0.0f, 0.0f));
+    expect_vec_near(camera.get_pivot(), glm::vec3(5.0f, 1.0f, -3.0f));
+}
+
 TEST(EditorCamera, NavigatingStopsAGlide)
 {
     auto camera = make_camera();
