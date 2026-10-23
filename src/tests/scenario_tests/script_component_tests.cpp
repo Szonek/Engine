@@ -44,15 +44,15 @@ engine_game_object_t child_named(engine_game_object_t go, std::string_view name)
     return ENGINE_INVALID_GAME_OBJECT_ID;
 }
 
-// the roof hidden by the house: its mesh is off and its collider is a trigger (ray casts and characters go through)
+// the roof hidden by the house: its mesh and its collider are disabled (ray casts and characters go through it)
 bool roof_hidden(engine_game_object_t roof)
 {
-    return engineGameObjectGetMeshComponent(roof).disable && engineGameObjectGetColliderComponent(roof).is_trigger;
+    return engineGameObjectGetMeshComponent(roof).disable && engineGameObjectGetColliderComponent(roof).disable;
 }
 
 bool roof_shown(engine_game_object_t roof)
 {
-    return !engineGameObjectGetMeshComponent(roof).disable && !engineGameObjectGetColliderComponent(roof).is_trigger;
+    return !engineGameObjectGetMeshComponent(roof).disable && !engineGameObjectGetColliderComponent(roof).disable;
 }
 
 // a scene loaded from a file: nothing but what the file holds; the nav mesh is built before the first step

@@ -224,6 +224,7 @@ protected:
         engine_collider_component_t collider{};
         collider.type = ENGINE_COLLIDER_TYPE_BOX;
         collider.is_trigger = true;
+        collider.disable = true;
         collider.collider.box = { { 1.0f, 2.0f, 3.0f } };
         collider.bounciness = 0.25f;
         collider.friction_static = 0.75f;
@@ -325,6 +326,7 @@ TEST_F(SceneFileTest, LoadedComponentsHaveTheSavedValues)
     const auto& box = loaded.get<engine_collider_component_t>(1);
     EXPECT_EQ(box.type, ENGINE_COLLIDER_TYPE_BOX);
     EXPECT_TRUE(box.is_trigger);
+    EXPECT_TRUE(box.disable);
     EXPECT_TRUE(same_bytes(box.collider.box, original.get<engine_collider_component_t>(1).collider.box));
     EXPECT_EQ(box.bounciness, 0.25f);
     const auto& compound = loaded.get<engine_collider_component_t>(2).collider.compound.children[0];

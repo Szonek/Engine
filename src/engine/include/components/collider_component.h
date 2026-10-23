@@ -115,6 +115,11 @@ typedef struct _engine_compound_collider_t
  * a trigger, an event is fired but the physics engine does not automatically apply forces 
  * or change the motion of the objects involved.
  *
+ * @var disable
+ * A boolean flag switching the collider off while keeping its shape (like Unity's `Collider.enabled` or Godot's
+ * `disabled`): it has no physics body, so nothing collides with it, ray casts and characters go through it, and nav
+ * mesh builds leave it out. Saved like the rest of the component.
+ *
  * @var collider
  * A union of possible collider shapes. Depending on the `type` field, it can be a box, 
  * sphere, or a compound collider. The `engine_box_collider_t` struct contains the dimensions 
@@ -135,6 +140,7 @@ typedef struct _engine_collider_component_t
 {
     engine_collider_type_t type;
     bool is_trigger;
+    bool disable;
     union 
     {
         engine_box_collider_t box;

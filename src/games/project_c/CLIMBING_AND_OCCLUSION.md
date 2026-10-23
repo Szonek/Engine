@@ -139,7 +139,7 @@ modifier, so the nav mesh leaves them out and enemies don't walk into it. Enemie
 The only occlusion handling is the classic ARPG cutaway of the house, all in `House::update`:
 
 * `House::is_inside` checks the player against the interior of the house (below the roof).
-* When the player enters, the roof is hidden (`mesh_and_collider`: mesh disabled, collider made a trigger, so mouse
+* When the player enters, the roof is hidden (`mesh_and_collider`: mesh disabled, collider disabled, so mouse
   aiming hits the room floor instead of the roof; the collider stays, so a scene saved meanwhile keeps it) together with the props standing on it (the `roof_props` of the house's
   `house_config`, `House::add_roof_prop`), and the camera facing wall pieces are hidden (`mesh`: their colliders stay, so
   the walls still block movement and can be vaulted through).

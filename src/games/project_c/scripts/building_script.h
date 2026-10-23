@@ -29,7 +29,7 @@ public:
     std::optional<glm::vec3> get_alignment_point() const;
     BuildingPartHide get_hide_when_inside() const { return config().hide_when_inside; }
 
-    // Hides the mesh, and optionally makes the collider a trigger (so mouse picking goes through hidden roofs).
+    // Hides the mesh, and optionally disables the collider (so mouse picking goes through hidden roofs).
     void set_hidden(bool hidden, bool affect_collider);
 };
 

@@ -240,7 +240,12 @@ void engine::PhysicsSystem::create_body(entt::entity entity, bool without_rigid_
 {
     world_.remove_rigid_body(registry_, entity);
     const auto* character = without_character_controller ? nullptr : registry_.try_get<engine_character_controller_component_t>(entity);
-    const auto* collider = registry_.try_get<engine_collider_component_t>(entity);
+    auto* collider = registry_.try_get<engine_collider_component_t>(entity);
+    // a disabled collider has no body
+    if (collider && collider->disable)
+    {
+        collider = nullptr;
+    }
     if (!registry_.all_of<engine_transform_component_t>(entity) || (!character && !collider))
     {
         return;

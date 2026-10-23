@@ -277,9 +277,9 @@ TEST_F(HouseTest, RoofAndCameraFacingWallHideWhilePlayerIsInside)
     step(30);
     EXPECT_TRUE(mesh_hidden(*roof));
     EXPECT_TRUE(mesh_hidden(*window));
-    // so mouse aiming hits the room's floor: the roof's collider is a trigger, which ray casts skip
+    // so mouse aiming hits the room's floor: the roof's collider is disabled
     ASSERT_TRUE(engineGameObjectHasColliderComponent(roof->get_game_object()));
-    EXPECT_TRUE(engineGameObjectGetColliderComponent(roof->get_game_object()).is_trigger);
+    EXPECT_TRUE(engineGameObjectGetColliderComponent(roof->get_game_object()).disable);
     const float origin[3] = { 0.0f, 10.0f, 0.0f };
     const float down[3] = { 0.0f, -1.0f, 0.0f };
     engine_ray_hit_t hit{};

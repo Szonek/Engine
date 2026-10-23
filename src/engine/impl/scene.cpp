@@ -243,9 +243,9 @@ engine_result_code_t engine::Scene::build_nav_mesh()
     auto colliders = entity_registry_.view<const world_transform_internal_component_t, const engine_collider_component_t>();
     colliders.each([this, &input](auto entity, const world_transform_internal_component_t& world, const engine_collider_component_t& collider)
         {
-            // only static colliders: moving bodies (dynamic, kinematic) and triggers don't block for good
+            // only static colliders: moving bodies (dynamic, kinematic), triggers and disabled colliders don't block for good
             const auto* rigid_body = entity_registry_.try_get<engine_rigid_body_component_t>(entity);
-            if (collider.is_trigger || (rigid_body && rigid_body->type == ENGINE_RIGID_BODY_TYPE_KINEMATIC)
+            if (collider.is_trigger || collider.disable || (rigid_body && rigid_body->type == ENGINE_RIGID_BODY_TYPE_KINEMATIC)
                 || (rigid_body && rigid_body->type == ENGINE_RIGID_BODY_TYPE_DYNAMIC && rigid_body->mass > 0.0f))
             {
                 return;

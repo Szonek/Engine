@@ -131,6 +131,7 @@ void register_collider(engine::TypeRegistry& registry)
     TypeBuilder<T>(registry, "collider")
         .enumeration("type", &T::type, collider_types)
         .field("is_trigger", &T::is_trigger)
+        .field("disable", &T::disable)
         .tagged_union("collider", &T::collider, "type", {
             { ENGINE_COLLIDER_TYPE_BOX, "box_collider" },
             { ENGINE_COLLIDER_TYPE_SPHERE, "sphere_collider" },

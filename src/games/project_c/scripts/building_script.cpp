@@ -88,8 +88,8 @@ std::optional<glm::vec3> project_c::BuildingPart::get_alignment_point() const
 void project_c::BuildingPart::set_hidden(bool hidden, bool affect_collider)
 {
     // Read from the components, not remembered: they are saved, so a scene saved while the part was hidden loads hidden,
-    // and the house shows it again. The collider stays (a trigger while hidden: ray casts and characters go through
-    // it), so it is saved whatever the part's state.
+    // and the house shows it again. The collider stays, disabled while hidden (ray casts and characters go through it),
+    // so its shape is saved whatever the part's state.
     if (engineGameObjectHasMeshComponent(go_))
     {
         auto mc = engineGameObjectGetMeshComponent(go_);
@@ -102,9 +102,9 @@ void project_c::BuildingPart::set_hidden(bool hidden, bool affect_collider)
     if (affect_collider && engineGameObjectHasColliderComponent(go_))
     {
         auto cc = engineGameObjectGetColliderComponent(go_);
-        if (cc.is_trigger != hidden)
+        if (cc.disable != hidden)
         {
-            cc.is_trigger = hidden;
+            cc.disable = hidden;
             engineGameObjectUpdateColliderComponent(go_, &cc);
         }
     }

@@ -918,6 +918,7 @@ bool display_collider_component(const engine::Scene* /*scene*/, engine_collider_
     }
     // trigger
     requires_component_updated |= ImGui::Checkbox("Is Trigger", &c.is_trigger);
+    requires_component_updated |= ImGui::Checkbox("Disable", &c.disable);
     // bouncies
     requires_component_updated |= ImGui::DragFloat("Bounciness", &c.bounciness, 0.1f);
     // friction

@@ -296,6 +296,21 @@ TEST_F(CharacterControllerTest, WalksThroughTriggersAndIsSeenByThem)
     EXPECT_GT(position_of(character).x, 1.9f);
 }
 
+TEST_F(CharacterControllerTest, WalksThroughADisabledCollider)
+{
+    // a wall whose surface is at x = 1, switched off
+    const auto wall = create_box({ 1.0f, 0.0f, -10.0f }, { 1.5f, 3.0f, 10.0f });
+    auto cc = engineGameObjectGetColliderComponent(wall);
+    cc.disable = true;
+    engineGameObjectUpdateColliderComponent(wall, &cc);
+    const auto character = create_character({ 0.0f, 0.0f, 0.0f });
+    walk(character, glm::vec3(0.0f), 10);
+
+    walk(character, { 2.0f, 0.0f, 0.0f }, 60);
+
+    EXPECT_GT(position_of(character).x, 1.9f);
+}
+
 TEST_F(CharacterControllerTest, PushesADynamicBody)
 {
     const auto box = create_box({ 0.8f, 0.0f, -0.2f }, { 1.2f, 0.4f, 0.2f });
