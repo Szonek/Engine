@@ -37,6 +37,8 @@ set(ENTT_INCLUDE_NATVIS ON CACHE BOOL "")
 add_subdirectory(entt)
 
 # profiler
+# record only while a profiler is connected; otherwise the client keeps every zone in memory and the game grows without bound
+set(TRACY_ON_DEMAND ON CACHE BOOL "")
 add_subdirectory(tracy-0.12.1)
 
 # gtests (the framework of our own tests)

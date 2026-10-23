@@ -92,6 +92,8 @@ typedef struct _engine_application_create_desc_t
     bool enable_editor;
     // create the window hidden (e.g. automated tests); frames still render but are never presented
     bool hidden_window;
+    // present frames as soon as they are rendered instead of waiting for the display's refresh (e.g. benchmarks); vsync is on by default
+    bool disable_vsync;
     // the longest frame time engineFrameBegin reports, in milliseconds (like Unity's Maximum Allowed Timestep): after a
     // long frame (loading, a breakpoint) the game runs slower instead of jumping ahead. 0 means 1000 / 3.
     float max_delta_time;

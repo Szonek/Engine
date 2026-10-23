@@ -868,7 +868,7 @@ message_callback(GLenum /*source*/,
 		type_str, severity_str, message));
 }
 
-engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen, bool hidden)
+engine::RenderContext::RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen, bool hidden, bool vsync)
     : hidden_(hidden)
 {
     if(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
@@ -954,11 +954,11 @@ engine::RenderContext::RenderContext(std::string_view window_name, viewport_t in
         return;
     }
     SDL_GL_MakeCurrent(window_, context_);
-    const auto set_swap_result = SDL_GL_SetSwapInterval(1);
+    const auto set_swap_result = SDL_GL_SetSwapInterval(vsync ? 1 : 0);
     if (!set_swap_result)
     {
         // not supported everywhere (e.g. a virtual X server); frames are then just not synced
-        log::log(log::LogLevel::eError, fmt::format("Failed to enable vsync: {}\n", SDL_GetError()));
+        log::log(log::LogLevel::eError, fmt::format("Failed to {} vsync: {}\n", vsync ? "enable" : "disable", SDL_GetError()));
     }
 
     const auto gl_version = gladLoadGL(SDL_GL_GetProcAddress);
