@@ -25,6 +25,7 @@ struct AppConfig
 {
     bool enable_editor = true;
     bool hidden_window = false;
+    bool vsync = true;
     // window size in pixels; 0 = the game's default
     std::uint32_t window_width = 0;
     std::uint32_t window_height = 0;

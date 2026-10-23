@@ -18,6 +18,7 @@ inline engine_application_create_desc_t app_cd(const project_c::AppConfig& confi
     app_cd.height = config.window_height ? config.window_height : 1080 / 2;
     app_cd.enable_editor = config.enable_editor;
     app_cd.hidden_window = config.hidden_window;
+    app_cd.disable_vsync = !config.vsync;
     return app_cd;
 }
 }  // namespace anonymous

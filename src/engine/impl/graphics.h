@@ -466,7 +466,7 @@ public:
     };
 
 public:
-	RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen, bool hidden = false);
+	RenderContext(std::string_view window_name, viewport_t init_size, bool init_fullscreen, bool hidden = false, bool vsync = true);
 	
 	RenderContext(const RenderContext&) = delete;
 	RenderContext(RenderContext&& rhs) noexcept;
