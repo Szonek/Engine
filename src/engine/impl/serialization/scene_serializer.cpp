@@ -499,8 +499,15 @@ const engine::PrefabComponentValue* find_created(const engine::PrefabInstanceNod
     return it == node.created.end() ? nullptr : &*it;
 }
 
-// The components of a game object of an instance which its prefab didn't give it, and the root's transform (where the
-// instance is placed). Adds to `changes` what changed in the ones the prefab gave it: scene files can't save that yet.
+// The root's components which are always saved, like Unity saves an instance root's name and transform: what the
+// level does with every instance (place it, name it).
+bool is_root_override(const engine::TypeInfo& type)
+{
+    return type.name == "name" || type.name == "transform";
+}
+
+// The components of a game object of an instance which its prefab didn't give it, and the root's name and transform.
+// Adds to `changes` what changed in the other ones the prefab gave it: scene files can't save that yet.
 std::vector<const engine::TypeInfo*> added_components(const std::vector<const engine::TypeInfo*>& components, const entt::registry& registry,
     const engine::PrefabInstanceNode& node, bool is_root, std::vector<std::string>& changes)
 {
@@ -515,7 +522,7 @@ std::vector<const engine::TypeInfo*> added_components(const std::vector<const en
     {
         const auto has = type->storage->has(registry, node.entity);
         const auto* created = find_created(node, type);
-        if (!created || (is_root && type->name == "transform"))
+        if (!created || (is_root && is_root_override(*type)))
         {
             if (has)
             {

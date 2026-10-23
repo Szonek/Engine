@@ -25,10 +25,10 @@ public:
 // Scene files hold authored data only: every game object with a persistent ID and its components which have a type
 // in the registry (internal components, derived data, are never registered), as JSON:
 //   { "version": 1, "types": { "transform": 1, ... }, "entities": [ { "id": 3, "components": { "transform": { ... } } } ] }
-// A prefab instance is saved as its root with the prefab's asset ID, the root's transform and the components added to
-// the instance after it was created, on the root or on its other game objects (under their node paths); nothing its
-// prefab created is written, the prefab creates it again when the file is loaded:
-//   { "id": 4, "prefab": "characters/Rogue.glb", "components": { "transform": { ... } }, "nodes": { "Body/Hand": { "collider": { ... } } } }
+// A prefab instance is saved as its root with the prefab's asset ID, the root's name and transform and the components
+// added to the instance after it was created, on the root or on its other game objects (under their node paths); the
+// rest of what its prefab created is not written, the prefab creates it again when the file is loaded:
+//   { "id": 4, "prefab": "characters/Rogue.glb", "components": { "name": { ... }, "transform": { ... } }, "nodes": { "Body/Hand": { "collider": { ... } } } }
 // The other game objects of an instance have the hashed IDs of their node paths (EntityIdRegistry::hashed_id), which
 // references to them use.
 // Game objects are sorted by persistent ID, components are in registration order and fields in description order,

@@ -515,9 +515,10 @@ TEST_F(SceneFileTest, InstanceIsSavedAsItsPrefabAndWhatWasAddedToIt)
     ASSERT_EQ(doc["entities"].Size(), 1u);
     const auto& saved = doc["entities"][0];
     EXPECT_STREQ(saved["prefab"].GetString(), FakePrefabs::ARM);
-    // only the root's transform: its name comes from the prefab
+    // the root's name and transform, which are always saved; its mesh and the rest come from the prefab
+    EXPECT_TRUE(saved["components"].HasMember("name"));
     EXPECT_TRUE(saved["components"].HasMember("transform"));
-    EXPECT_EQ(saved["components"].MemberCount(), 1u);
+    EXPECT_EQ(saved["components"].MemberCount(), 2u);
     ASSERT_TRUE(saved["nodes"].HasMember("Upper/Hand"));
     EXPECT_TRUE(saved["nodes"]["Upper/Hand"].HasMember("collider"));
     EXPECT_EQ(saved["nodes"]["Upper/Hand"].MemberCount(), 1u);
@@ -621,6 +622,21 @@ TEST_F(SceneFileTest, ChangesToWhatThePrefabCreatedAreLoggedAndNotSaved)
     EXPECT_TRUE(test_logger::logged(fmt::format("game object {} is an instance of models/arm.gltf; changes to what its prefab created aren't saved: "
         "node Upper: its name changed, node Upper/Hand lost its mesh", w.ids.get_id(root))));
     EXPECT_EQ(file.find("Renamed"), std::string::npos);
+}
+
+TEST_F(SceneFileTest, RenamedInstanceRootKeepsItsName)
+{
+    World original;
+    const auto root = instantiate_arm(original);
+    engine_name_component_t name{};
+    std::strcpy(name.name, "left arm");
+    original.registry.replace<engine_name_component_t>(root, name);
+    const auto file = save(original);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+
+    World loaded;
+    ASSERT_TRUE(load(loaded, file));
+    EXPECT_STREQ(loaded.get<engine_name_component_t>(original.ids.get_id(root)).name, "left arm");
 }
 
 TEST_F(SceneFileTest, UnchangedInstanceSavesWithoutWarnings)
