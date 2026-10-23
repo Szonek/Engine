@@ -23,7 +23,12 @@ ctest --test-dir build -C Debug                                # all tests
 ctest --test-dir build -C Debug -L ci                          # only the tests CI runs
 ctest --test-dir build -C Debug -L gpu --output-on-failure     # scenario tests (real game code, needs a GL 4.5 context)
 build\bin\Debug\engine_logic_tests.exe --gtest_filter=Suite.Name   # single test
+
+cmake --build build --config Release --target big_scene_benchmark
+build\bin\Release\big_scene_benchmark.exe --out results.md     # frame times of big scenes (GPU, visible window; not a test)
 ```
+
+Benchmarks live in `src/tests/benchmarks` (see its README for options and the baseline numbers); rerun the big scene benchmark after changes to rendering, physics, transforms or scripts and compare with the baseline.
 
 Binaries land in `build/bin/<Config>/`, libraries in `build/lib/<Config>/`.
 
