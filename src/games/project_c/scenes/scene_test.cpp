@@ -17,6 +17,7 @@ namespace
 {
 // top of the Floor_Prototype tile collider
 constexpr float FLOOR_TOP_Y = 0.125f;
+constexpr std::uint32_t ENEMY_PACK_SEED = 2026;
 
 struct EnemyPack
 {
@@ -26,8 +27,9 @@ class MobPackSpawner
 {
 public:
     // delete copy ctor, default move ctor
+    // a fixed seed: the level is the same in every run
     MobPackSpawner()
-        : rng_(std::random_device()())
+        : rng_(ENEMY_PACK_SEED)
     {
     }
     MobPackSpawner(const MobPackSpawner&) = delete;
@@ -163,9 +165,10 @@ inline void generate_scene(std::string_view scene_str, project_c::LevelBuilder& 
         }
     }
 
+    std::vector<engine_game_object_t> player_starts;
     for (const auto& point : scene_spawn_points.player)
     {
-        builder.player(point.x, point.y);
+        player_starts.push_back(builder.player_start(point.x, point.y));
     }
     for (const auto& point : scene_spawn_points.enemy_packs)
     {
@@ -214,6 +217,11 @@ inline void generate_scene(std::string_view scene_str, project_c::LevelBuilder& 
     if (engineNavMeshBuild() != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed to build the level's nav mesh; enemies will not move.\n");
+    }
+    // the level holds where the player starts, the player is spawned there (never saved with the level)
+    if (!player_starts.empty())
+    {
+        builder.spawn_player(player_starts.front());
     }
 }
 }

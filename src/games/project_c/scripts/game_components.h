@@ -61,6 +61,16 @@ struct HouseConfig
     engine_game_object_t roof_props[HOUSE_MAX_ROOF_PROPS];
 };
 
+inline constexpr std::uint32_t PLAYER_START_ID_MAX_LENGTH = 32;
+
+// Where the player enters a level (like Unreal's PlayerStart): levels hold player starts, never the player, which the
+// level spawns at one when it is loaded (LevelBuilder::spawn_player). It has no script.
+struct PlayerStart
+{
+    // the entrance's name, for the level exit leading here; "default" is where a level starts
+    char id[PLAYER_START_ID_MAX_LENGTH];
+};
+
 // the handles of the game's component types, ENGINE_INVALID_OBJECT_HANDLE until register_game_components()
 struct GameComponentTypes
 {
@@ -68,6 +78,7 @@ struct GameComponentTypes
     engine_component_type_t player_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t building_part_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t house_config = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_component_type_t player_start = ENGINE_INVALID_OBJECT_HANDLE;
 };
 
 // Registers the game's component types with the active application (once, at startup, before scene files are loaded);
@@ -80,6 +91,7 @@ EnemyConfig default_enemy_config();
 PlayerConfig default_player_config();
 BuildingPartConfig default_building_part_config();
 HouseConfig default_house_config();
+PlayerStart default_player_start();
 
 // The game object's component of the type, or `fallback` when it has none (a script placed without its config).
 template<typename T>

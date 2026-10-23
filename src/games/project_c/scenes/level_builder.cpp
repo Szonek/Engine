@@ -241,9 +241,37 @@ project_c::Player* project_c::LevelBuilder::player(float x, float z)
     {
         return nullptr;
     }
-    const auto go = app_.instantiate_prefab(PREFAB_TYPE_ROGUE).go;
+    return set_up_player(app_.instantiate_prefab(PREFAB_TYPE_ROGUE).go, glm::vec3(x, 1.0f, z));
+}
+
+engine_game_object_t project_c::LevelBuilder::player_start(float x, float z, std::string_view id)
+{
+    const auto go = engineGameObjectCreate();
+    set_name(go, "player-start");
+    set_editor_folder(go, "spawns");
+    // where the player's origin goes: it lands on the floor below
+    set_position_and_scale(go, glm::vec3(x, 1.0f, z), 1.0f);
+    auto start = default_player_start();
+    std::memset(start.id, 0, sizeof(start.id));
+    std::memcpy(start.id, id.data(), std::min(id.size(), sizeof(start.id) - 1));
+    engineGameObjectAddDataComponent(go, game_components().player_start, &start);
+    return go;
+}
+
+project_c::Player* project_c::LevelBuilder::spawn_player(engine_game_object_t player_start)
+{
+    if (!app_.is_prefab_available(PREFAB_TYPE_ROGUE) || !engineGameObjectHasTransformComponent(player_start))
+    {
+        return nullptr;
+    }
+    const auto tc = engineGameObjectGetTransformComponent(player_start);
+    return set_up_player(app_.spawn_prefab(PREFAB_TYPE_ROGUE).go, glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
+}
+
+project_c::Player* project_c::LevelBuilder::set_up_player(engine_game_object_t go, const glm::vec3& position)
+{
     set_name(go, "player");
-    set_position_and_scale(go, glm::vec3(x, 1.0f, z), Player::MODEL_SCALE);
+    set_position_and_scale(go, position, Player::MODEL_SCALE);
     add_character_controller(go, 0.15f, Player::MODEL_SCALE);
     const auto config = default_player_config();
     engineGameObjectAddDataComponent(go, game_components().player_config, &config);

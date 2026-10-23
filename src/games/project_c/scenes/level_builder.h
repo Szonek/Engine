@@ -3,6 +3,8 @@
 
 #include <glm/glm.hpp>
 
+#include <string_view>
+
 namespace engine
 {
 class IScene;
@@ -60,6 +62,11 @@ public:
     engine_game_object_t obstacle(const glm::vec3& center, const glm::vec3& size);
     // the player; it equips its starting weapon itself when it starts
     Player* player(float x, float z);
+    // where the player enters the level (levels hold these, not the player)
+    engine_game_object_t player_start(float x, float z, std::string_view id = "default");
+    // The player as a runtime object (transient, never saved) at the player start: what a level does when it is
+    // loaded. nullptr when the start has no transform or the player's prefab isn't loaded.
+    Player* spawn_player(engine_game_object_t player_start);
     Enemy* enemy(float x, float z);
     Chest* chest(float x, float y, float z);
     Weapon* weapon_on_ground(float x, float z);
@@ -69,6 +76,8 @@ public:
 private:
     // a floor tile, or ENGINE_INVALID_GAME_OBJECT_ID when its prefab isn't loaded
     engine_game_object_t place_floor(float x, float z);
+    // what the player is made of, on an instance of its prefab
+    Player* set_up_player(engine_game_object_t go, const glm::vec3& position);
 
     AppProjectC& app_;
     engine::IScene& scene_;

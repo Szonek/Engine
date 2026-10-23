@@ -69,6 +69,11 @@ project_c::HouseConfig project_c::default_house_config()
     return HouseConfig{};
 }
 
+project_c::PlayerStart project_c::default_player_start()
+{
+    return PlayerStart{ "default" };
+}
+
 void project_c::register_game_components()
 {
     g_types.enemy_config = register_component("enemy_config", {
@@ -107,6 +112,10 @@ void project_c::register_game_components()
     g_types.house_config = register_component("house_config", {
         field("roof_props", ENGINE_FIELD_KIND_GAME_OBJECT, offsetof(HouseConfig, roof_props), "objects on the roof, hidden with it", HOUSE_MAX_ROOF_PROPS),
     }, default_house_config());
+
+    g_types.player_start = register_component("player_start", {
+        field("id", ENGINE_FIELD_KIND_STRING, offsetof(PlayerStart, id), "the entrance's name; \"default\" is where the level starts", PLAYER_START_ID_MAX_LENGTH),
+    }, default_player_start());
 }
 
 const project_c::GameComponentTypes& project_c::game_components()
