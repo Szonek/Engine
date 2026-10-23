@@ -14,8 +14,8 @@
 #include <scenes/level_builder.h>
 #include <scripts/building_script.h>
 #include <scripts/encounter_script.h>
-#include <scripts/enviorment_script.h>
 #include <scripts/player_script.h>
+#include <scripts/scripts_utils.h>
 
 #include <engine.h>
 #include <iscene.h>
@@ -44,7 +44,9 @@ constexpr std::int32_t ROOM_CELLS = 8;
 constexpr std::int32_t DOOR_CELLS = 2;
 // Primitive_Wall is 4 x 4 x 1 m: scaled to a 1 m wide, 2 m tall and 0.25 m thick piece
 const glm::vec3 WALL_SCALE(0.25f, 0.5f, 0.25f);
-constexpr project_c::BuildingPart::Box WALL_BOX = { { 0.0f, 2.0f, 0.0f }, { 2.0f, 2.0f, 0.5f } };
+// the wall's collider box in its mesh space: center and half extents
+const glm::vec3 WALL_BOX_CENTER(0.0f, 2.0f, 0.0f);
+const glm::vec3 WALL_BOX_HALF_EXTENTS(2.0f, 2.0f, 0.5f);
 // the gameplay camera of the game (CameraScript): orthographic, 45 degrees pitch
 constexpr float GAMEPLAY_ORTHO_HALF_HEIGHT = 5.0f;
 constexpr float CAMERA_PITCH_DEGREES = 45.0f;
@@ -90,7 +92,7 @@ void point_light(float x, float y, float z)
     tc.position[1] = y;
     tc.position[2] = z;
     engineGameObjectUpdateTransformComponent(go, &tc);
-    // the game's PointLight values (enviorment_script.cpp)
+    // a warm light over the room (the level has no point lights since they became plain game objects)
     auto lc = engineGameObjectAddLightComponent(go);
     lc.type = ENGINE_LIGHT_TYPE_POINT;
     const std::array<float, 3> ambient = { 0.05f, 0.05f, 0.05f };
@@ -117,9 +119,9 @@ public:
         auto& app_c = *static_cast<project_c::AppProjectC*>(app);
         project_c::LevelBuilder builder(app_c, *this);
         builder.nav_surface();
-        register_script<project_c::MainLight>();
+        builder.main_light();
         // the win/lose rules every gameplay scene has (enemies look them up)
-        register_script<project_c::Encounter>();
+        builder.encounter();
 
         const std::int32_t cells = G_SCENE_CELLS;
         const std::int32_t half = cells / 2;
@@ -228,8 +230,31 @@ private:
         {
             return;
         }
-        register_script<project_c::BuildingPart>(app_c.instantiate_prefab(project_c::PREFAB_TYPE_BUILDING_WALL).go, "wall",
-            glm::vec3(x, 0.0f, z), y_rotation_degrees, WALL_SCALE, WALL_BOX, false);
+        const auto go = app_c.instantiate_prefab(project_c::PREFAB_TYPE_BUILDING_WALL).go;
+        project_c::utils::set_name(go, "wall");
+        auto tc = engineGameObjectGetTransformComponent(go);
+        tc.position[0] = x;
+        tc.position[1] = 0.0f;
+        tc.position[2] = z;
+        const glm::quat rot = glm::angleAxis(glm::radians(y_rotation_degrees), glm::vec3(0.0f, 1.0f, 0.0f));
+        tc.rotation[0] = rot.x;
+        tc.rotation[1] = rot.y;
+        tc.rotation[2] = rot.z;
+        tc.rotation[3] = rot.w;
+        std::copy_n(&WALL_SCALE.x, 3, tc.scale);
+        engineGameObjectUpdateTransformComponent(go, &tc);
+
+        auto cc = engineGameObjectAddColliderComponent(go);
+        cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
+        auto& child = cc.collider.compound.children[0];
+        child.type = ENGINE_COLLIDER_TYPE_BOX;
+        child.rotation_quaternion[3] = 1.0f;
+        std::copy_n(&WALL_BOX_CENTER.x, 3, child.transform);
+        std::copy_n(&WALL_BOX_HALF_EXTENTS.x, 3, child.collider.box.size);
+        engineGameObjectUpdateColliderComponent(go, &cc);
+
+        // not climbable, never hidden: the default config
+        attach_script<project_c::BuildingPart>(go);
         G_COUNTS.wall_pieces++;
     }
 
