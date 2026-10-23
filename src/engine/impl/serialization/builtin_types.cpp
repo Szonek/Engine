@@ -3,10 +3,63 @@
 #include <engine.h>
 
 // Not described yet, so not saved: the skin, skinned mesh, joint attachment and animation controller components
-// (they come with saved prefab instances), the camera (set up by the game's camera script) and the sprite (a placeholder).
+// (they come with saved prefab instances) and the sprite (a placeholder).
 
 namespace
 {
+// the cases of the camera's projection union: each is one float
+struct OrthographicProjection
+{
+    float scale;
+};
+struct PerspectiveProjection
+{
+    float fov;
+};
+static_assert(sizeof(OrthographicProjection) == sizeof(engine_camera_component_t::type_union));
+static_assert(sizeof(PerspectiveProjection) == sizeof(engine_camera_component_t::type_union));
+
+void register_camera(engine::TypeRegistry& registry)
+{
+    using namespace engine;
+    TypeBuilder<OrthographicProjection>(registry, "orthographic_projection")
+        .field("scale", &OrthographicProjection::scale)
+        .structure();
+    TypeBuilder<PerspectiveProjection>(registry, "perspective_projection")
+        .field("fov", &PerspectiveProjection::fov)
+        .structure();
+    TypeBuilder<engine_viewport_rect_component_t>(registry, "viewport_rect")
+        .field("x", &engine_viewport_rect_component_t::x)
+        .field("y", &engine_viewport_rect_component_t::y)
+        .field("width", &engine_viewport_rect_component_t::width)
+        .field("height", &engine_viewport_rect_component_t::height)
+        .structure();
+    TypeBuilder<engine_camera_direction_t>(registry, "camera_direction")
+        .field("up", &engine_camera_direction_t::up)
+        .field("right", &engine_camera_direction_t::right)
+        .field("front", &engine_camera_direction_t::front)
+        .structure();
+
+    using T = engine_camera_component_t;
+    TypeBuilder<T>(registry, "camera")
+        .field("enabled", &T::enabled)
+        .enumeration("type", &T::type, {
+            { "orthographic", ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC },
+            { "perspective", ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE } })
+        .tagged_union("projection", &T::type_union, "type", {
+            { ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC, "orthographic_projection" },
+            { ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE, "perspective_projection" } })
+        .field("target", &T::target)
+        .structure("viewport_rect", &T::viewport_rect, "viewport_rect")
+        .structure("direction", &T::direction, "camera_direction")
+        .field("pitch", &T::pitch)
+        .field("yaw", &T::yaw)
+        .field("roll", &T::roll)
+        .field("clip_plane_near", &T::clip_plane_near)
+        .field("clip_plane_far", &T::clip_plane_far)
+        .component();
+}
+
 void register_light(engine::TypeRegistry& registry)
 {
     using namespace engine;
@@ -119,6 +172,7 @@ void engine::register_builtin_types(TypeRegistry& registry)
         .asset("specular_texture", &engine_material_component_t::specular_texture, AssetKind::eTexture)
         .component();
     register_light(registry);
+    register_camera(registry);
 
     // navigation
     TypeBuilder<engine_nav_surface_component_t>(registry, "nav_surface")

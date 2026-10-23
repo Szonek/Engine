@@ -249,6 +249,19 @@ protected:
         w.put<engine_nav_surface_component_t>(level, engine_nav_surface_component_t{ 0.4f, 1.8f, 40.0f, 0.3f, 0.2f, 0.1f });
         w.put<engine_nav_modifier_component_t>(level, engine_nav_modifier_component_t{ ENGINE_NAV_MODIFIER_TYPE_NOT_WALKABLE });
         w.put<engine_character_controller_component_t>(level, engine_character_controller_component_t{ 0.3f, 1.7f, 0.25f, 50.0f });
+
+        const auto camera = w.create();
+        engine_camera_component_t cam{};
+        cam.enabled = true;
+        cam.type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
+        cam.type_union.perspective_fov = 60.0f;
+        cam.target[2] = -1.0f;
+        cam.viewport_rect = { 0.0f, 0.0f, 1.0f, 0.5f };
+        cam.direction.up[1] = 1.0f;
+        cam.pitch = -30.0f;
+        cam.clip_plane_near = 0.1f;
+        cam.clip_plane_far = 250.0f;
+        w.put<engine_camera_component_t>(camera, cam);
     }
 
     engine::TypeRegistry types_;
@@ -323,6 +336,17 @@ TEST_F(SceneFileTest, LoadedComponentsHaveTheSavedValues)
     EXPECT_EQ(light.type, ENGINE_LIGHT_TYPE_SPOT);
     EXPECT_TRUE(same_bytes(light.intensity, original.get<engine_light_component_t>(2).intensity));
     EXPECT_TRUE(same_bytes(light.spot, original.get<engine_light_component_t>(2).spot));
+
+    const auto& camera = loaded.get<engine_camera_component_t>(4);
+    const auto& saved_camera = original.get<engine_camera_component_t>(4);
+    EXPECT_TRUE(camera.enabled);
+    EXPECT_EQ(camera.type, ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE);
+    EXPECT_EQ(camera.type_union.perspective_fov, 60.0f);
+    EXPECT_TRUE(same_bytes(camera.target, saved_camera.target));
+    EXPECT_TRUE(same_bytes(camera.viewport_rect, saved_camera.viewport_rect));
+    EXPECT_TRUE(same_bytes(camera.direction, saved_camera.direction));
+    EXPECT_EQ(camera.pitch, -30.0f);
+    EXPECT_EQ(camera.clip_plane_far, 250.0f);
 
     // the reference points at the loaded game object with the saved ID
     EXPECT_EQ(loaded.get<engine_parent_component_t>(2).parent, static_cast<engine_game_object_t>(loaded.find(1)));
