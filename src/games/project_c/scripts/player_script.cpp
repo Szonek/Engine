@@ -6,6 +6,8 @@
 #include "camera_script.h"
 #include "building_script.h"
 
+#include "game_components.h"
+
 #include "../app.h"
 #include "iscene.h"
 
@@ -25,14 +27,15 @@ namespace
 {
 // the scale of the player's model; its children (attack trigger, weapon) inherit it, so their colliders are in the
 // model's units
-constexpr float PLAYER_SCALE = 0.35f;
+constexpr float PLAYER_SCALE = project_c::Player::MODEL_SCALE;
 constexpr float ATTACK_PLAYBACK_RATE = 1.25f;
 constexpr float ATTACK_INPUT_BUFFER_SECONDS = 0.25f;
 constexpr float ATTACK_COMBO_CROSS_FADE_SECONDS = 0.08f;
 constexpr float ATTACK_EXIT_CROSS_FADE_SECONDS = 0.15f;
 constexpr float PLAYER_TURN_RATE_DEGREES_PER_SECOND = 540.0f;
-constexpr float PLAYER_WALK_SPEED = 1.875f;
-constexpr float PLAYER_RUN_SPEED = 2.5f;
+// the speeds the locomotion animations were made for: their playback rate follows the actual speed
+constexpr float PLAYER_WALK_ANIMATION_SPEED = 1.875f;
+constexpr float PLAYER_RUN_ANIMATION_SPEED = 2.5f;
 constexpr float PLAYER_MOVEMENT_ACCELERATION = 24.0f;
 constexpr float PLAYER_MOVEMENT_BRAKING = 30.0f;
 constexpr float PLAYER_IDLE_SPEED_THRESHOLD = 0.05f;
@@ -40,8 +43,6 @@ constexpr float HIT_STOP_DURATION_SECONDS = 0.06f;
 constexpr float HIT_CAMERA_SHAKE_INTENSITY = 0.035f;
 constexpr float HIT_CAMERA_SHAKE_DURATION_SECONDS = 0.08f;
 constexpr float DODGE_INVULNERABILITY_SECONDS = 0.20f;
-constexpr float DODGE_COOLDOWN_SECONDS = 0.65f;
-constexpr float DODGE_SPEED = 4.0f;
 constexpr float PLAYER_HIT_STUN_SECONDS = 0.0f;
 constexpr float PLAYER_KNOCKBACK_SPEED = 2.5f;
 
@@ -112,33 +113,37 @@ void attack_window_close_callback(const engine_animation_event_info_t* info, voi
 } // namespace anonymous
 
 project_c::Weapon::Weapon(engine::IScene* my_scene, engine_game_object_t go)
-    : BaseNode(my_scene, go, "weapon-daggers")
+    : BaseNode(my_scene, go)
 {
-    const auto* app = static_cast<const AppProjectC*>(my_scene_->get_app());
-    const auto dagger_texture = engineTextured2DGetByName(app->model_asset_id(PREFAB_TYPE_ROGUE, "rogue_texture").c_str());
+}
+
+void project_c::Weapon::add_components(engine_game_object_t go, const AppProjectC& app)
+{
+    const auto dagger_texture = engineTextured2DGetByName(app.model_asset_id(PREFAB_TYPE_ROGUE, "rogue_texture").c_str());
+
+    auto nc = engineGameObjectAddNameComponent(go);
+    std::strncpy(nc.name, "weapon-daggers", std::size(nc.name) - 1);
+    engineGameObjectUpdateNameComponent(go, &nc);
 
     // transform
-    auto tc = engineGameObjectAddTransformComponent(go_);
-    tc.position[0] = 0.0f;
-    tc.position[1] = 0.0f;
-    tc.position[2] = 0.0f;
-    engineGameObjectUpdateTransformComponent(go_, &tc);
+    auto tc = engineGameObjectAddTransformComponent(go);
+    engineGameObjectUpdateTransformComponent(go, &tc);
 
     // mesh
-    auto mc = engineGameObjectAddMeshComponent(go_);
-    mc.geometry = engineGeometryGetByName(app->model_asset_id(PREFAB_TYPE_ROGUE, "Cylinder.008").c_str());
+    auto mc = engineGameObjectAddMeshComponent(go);
+    mc.geometry = engineGeometryGetByName(app.model_asset_id(PREFAB_TYPE_ROGUE, "Cylinder.008").c_str());
     assert(mc.geometry != ENGINE_INVALID_OBJECT_HANDLE);
-    engineGameObjectUpdateMeshComponent(go_, &mc);
+    engineGameObjectUpdateMeshComponent(go, &mc);
 
     // material
-    auto matc = engineGameObjectAddMaterialComponent(go_);
+    auto matc = engineGameObjectAddMaterialComponent(go);
     set_c_array(matc.diffuse_color, std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f});
     matc.shininess = 32.0f;
     matc.diffuse_texture = dagger_texture;
-    engineGameObjectUpdateMaterialComponent(go_, &matc);
+    engineGameObjectUpdateMaterialComponent(go, &matc);
 
     // physics
-    auto cc = engineGameObjectAddColliderComponent(go_);
+    auto cc = engineGameObjectAddColliderComponent(go);
     cc.bounciness = 0.35f;
     cc.friction_static = 0.9f;
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
@@ -151,8 +156,30 @@ project_c::Weapon::Weapon(engine::IScene* my_scene, engine_game_object_t go)
     cc_child.type = ENGINE_COLLIDER_TYPE_BOX;
     // ToDo: box sie could be smaller and only increase box size when item dropped on the ground, so it do not fly trhoguh ground
     set_c_array(cc_child.collider.box.size, std::array<float, 3>{ 0.1f, 0.10f, 0.04f});
-    engineGameObjectUpdateColliderComponent(go_, &cc);
+    engineGameObjectUpdateColliderComponent(go, &cc);
+}
 
+void project_c::Weapon::add_lying_components(engine_game_object_t go, const glm::vec3& position)
+{
+    // a dynamic body, so it falls; its collider stops it on the ground
+    if (!engineGameObjectHasRigidBodyComponent(go))
+    {
+        engineGameObjectAddRigidBodyComponent(go);
+    }
+    auto rbc = engineGameObjectGetRigidBodyComponent(go);
+    rbc.mass = 1000.0f;
+    engineGameObjectUpdateRigidBodyComponent(go, &rbc);
+
+    auto cc = engineGameObjectGetColliderComponent(go);
+    cc.is_trigger = false;
+    engineGameObjectUpdateColliderComponent(go, &cc);
+
+    // dropped from above the spot
+    auto tc = engineGameObjectGetTransformComponent(go);
+    tc.position[0] = position.x;
+    tc.position[1] = position.y + 2.0f;
+    tc.position[2] = position.z;
+    engineGameObjectUpdateTransformComponent(go, &tc);
 }
 
 project_c::Weapon::~Weapon()
@@ -281,29 +308,17 @@ void project_c::Weapon::drop_on_ground(glm::vec3 position)
         engineGameObjectRemoveJointAttachmentComponent(go_);
     }
 
-    // add rigid body component
-    auto rbc = engineGameObjectAddRigidBodyComponent(go_);
-    rbc.mass = 1000.0f;
-    engineGameObjectUpdateRigidBodyComponent(go_, &rbc);
-
-    // update collider to not be trigger, so it will stop on collision
-    auto cc = engineGameObjectGetColliderComponent(go_);
-    cc.is_trigger = false;
-    engineGameObjectUpdateColliderComponent(go_, &cc);
-
-    // set position
-    auto tc = engineGameObjectGetTransformComponent(go_);
-    tc.position[0] = position.x;
-    tc.position[1] = position.y + 2.0f;
-    tc.position[2] = position.z;
+    // keeps the size it had in its holder's hand
     if (engineGameObjectHasParentComponent(go_))
     {
+        auto tc = engineGameObjectGetTransformComponent(go_);
         const auto parent_tc = engineGameObjectGetTransformComponent(engineGameObjectGetParentComponent(go_).parent);
         tc.scale[0] = parent_tc.scale[0];
         tc.scale[1] = parent_tc.scale[1];
         tc.scale[2] = parent_tc.scale[2];
+        engineGameObjectUpdateTransformComponent(go_, &tc);
     }
-    engineGameObjectUpdateTransformComponent(go_, &tc);
+    add_lying_components(go_, position);
 
     // remove parent
     if (engineGameObjectHasParentComponent(go_))
@@ -371,7 +386,7 @@ void project_c::AttackTrigger::on_collision(const collision_t& info)
         if (auto* enemy = my_scene_->get_script<Enemy>(info.other))
         {
             hit_enemies_.insert(info.other);
-            enemy->receive_attack_hit(10, HIT_STOP_DURATION_SECONDS);
+            enemy->receive_attack_hit(player_->config().attack_damage, HIT_STOP_DURATION_SECONDS);
             player_->on_confirmed_attack_hit(HIT_STOP_DURATION_SECONDS);
         }
     }
@@ -395,27 +410,12 @@ void project_c::AttackTrigger::deactivate()
     is_active_ = false;
 }
 
-project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
-    : BaseNode(my_scene, pr, "player")
+project_c::Player::Player(engine::IScene* my_scene, engine_game_object_t go)
+    : BaseNode(my_scene, go)
     , weapon_(nullptr)
     , state_(States::IDLE)
     , attack_trigger_(nullptr)
 {
-    auto tc = engineGameObjectGetTransformComponent(go_);
-    tc.position[1] = -0.25f;
-    tc.scale[0] = PLAYER_SCALE;
-    tc.scale[1] = PLAYER_SCALE;
-    tc.scale[2] = PLAYER_SCALE;
-    engineGameObjectUpdateTransformComponent(go_, &tc);
-
-    // physics: moved by its character controller (sizes in meters, in the player's scaled space)
-    auto character = engineGameObjectAddCharacterControllerComponent(go_);
-    character.radius = 0.15f / PLAYER_SCALE;
-    character.height = 0.7f / PLAYER_SCALE;
-    character.step_height = 0.15f / PLAYER_SCALE;
-    character.max_slope = 45.0f;
-    engineGameObjectUpdateCharacterControllerComponent(go_, &character);
-
     // the model's own weapons aren't used: the player equips a Weapon
     constexpr std::array<const char*, 5> unused_model_parts = { "Knife", "Knife_Offhand", "1H_Crossbow", "2H_Crossbow", "Throwable" };
     for (const auto child : utils::get_children(go_))
@@ -460,12 +460,20 @@ project_c::Player::Player(engine::IScene* my_scene, const PrefabResult& pr)
     }
 }
 
+project_c::PlayerConfig project_c::Player::config() const
+{
+    return get_game_component(go_, game_components().player_config, default_player_config());
+}
+
 void project_c::Player::on_start()
 {
+    hp_ = config().max_hp;
     // runtime parts of the player, never saved: the attack trigger, the traversal marker and the starting weapon
     attack_trigger_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreateTransient(), this);
     create_traversal_marker();
-    equip_waepon(my_scene_->register_script<Weapon>(engineGameObjectCreateTransient()));
+    const auto weapon_go = engineGameObjectCreateTransient();
+    Weapon::add_components(weapon_go, *static_cast<const AppProjectC*>(my_scene_->get_app()));
+    equip_waepon(my_scene_->register_script<Weapon>(weapon_go));
 
     for (std::size_t combo_index = 0; combo_index < AttackStateData::combo_length; ++combo_index)
     {
@@ -663,7 +671,7 @@ void project_c::Player::update(float dt)
     if (dodging_this_frame)
     {
         movement_velocity_ = glm::vec2(0.0f);
-        velocity = glm::vec3(dodge_direction_.x, 0.0f, dodge_direction_.z) * DODGE_SPEED;
+        velocity = glm::vec3(dodge_direction_.x, 0.0f, dodge_direction_.z) * config().dodge_speed;
         dodge_remaining_seconds_ = std::max(0.0f, dodge_remaining_seconds_ - delta_seconds);
         dodge_invulnerability_remaining_seconds_ = std::max(0.0f, dodge_invulnerability_remaining_seconds_ - delta_seconds);
         if (dodge_remaining_seconds_ <= 0.0f)
@@ -682,7 +690,7 @@ void project_c::Player::update(float dt)
     }
     else
     {
-        const float target_speed = PLAYER_RUN_SPEED;
+        const float target_speed = config().move_speed;
         const glm::vec2 target_velocity = move_input * target_speed;
         const glm::vec2 velocity_delta = target_velocity - movement_velocity_;
         const float max_velocity_change = (glm::length(move_input) > 0.0f ? PLAYER_MOVEMENT_ACCELERATION : PLAYER_MOVEMENT_BRAKING) * delta_seconds;
@@ -990,13 +998,13 @@ float project_c::Player::MoveStateData::get_animation_reference_speed(Direction 
 {
     if (dir == Direction::eBackward)
     {
-        return PLAYER_WALK_SPEED;
+        return PLAYER_WALK_ANIMATION_SPEED;
     }
     if (dir == Direction::eLeft || dir == Direction::eRight)
     {
-        return PLAYER_RUN_SPEED;
+        return PLAYER_RUN_ANIMATION_SPEED;
     }
-    return PLAYER_RUN_SPEED;
+    return PLAYER_RUN_ANIMATION_SPEED;
 }
 
 const project_c::Player::AttackStateData::Attack& project_c::Player::AttackStateData::get_attack(std::size_t combo_index) const
@@ -1100,7 +1108,7 @@ bool project_c::Player::start_dodge(const glm::vec2& move_input, const glm::quat
     dodge_direction_ = world_direction;
     dodge_remaining_seconds_ = duration;
     dodge_invulnerability_remaining_seconds_ = std::min(DODGE_INVULNERABILITY_SECONDS, duration);
-    dodge_cooldown_remaining_seconds_ = DODGE_COOLDOWN_SECONDS;
+    dodge_cooldown_remaining_seconds_ = config().dodge_cooldown_seconds;
     movement_velocity_ = glm::vec2(0.0f);
     return true;
 }

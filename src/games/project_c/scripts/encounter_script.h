@@ -18,7 +18,7 @@ public:
         eDefeated
     };
 
-    Encounter(engine::IScene* my_scene);
+    Encounter(engine::IScene* my_scene, engine_game_object_t go);
 
     void update(float dt) override;
 

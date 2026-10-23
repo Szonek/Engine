@@ -16,7 +16,7 @@ namespace project_c
 class GameplayHud : public BaseNode
 {
 public:
-    GameplayHud(engine::IScene* my_scene);
+    GameplayHud(engine::IScene* my_scene, engine_game_object_t go);
     ~GameplayHud();
 
     void late_update(float dt) override;

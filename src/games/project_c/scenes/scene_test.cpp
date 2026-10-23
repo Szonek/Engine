@@ -1,15 +1,10 @@
 #include "scene_test.h"
 
 #include "../app.h"
-#include "../scripts/camera_script.h"
-#include "../scripts/enviorment_script.h"
-#include "../scripts/enemy_script.h"
-#include "../scripts/player_script.h"
-#include "../scripts/interactable_script.h"
 #include "../scripts/building_script.h"
 #include "../scripts/encounter_script.h"
 #include "../scripts/gameplay_hud_script.h"
-#include "../scripts/scripts_utils.h"
+#include "../scripts/interactable_script.h"
 #include "level_builder.h"
 
 #include <engine_vector.h>
@@ -70,16 +65,14 @@ private:
 };
 
 
-inline void generate_scene(std::string_view scene_str, project_c::AppProjectC& app, engine::IScene& scene)
+inline void generate_scene(std::string_view scene_str, project_c::LevelBuilder& builder)
 {
-    project_c::LevelBuilder builder(app, scene);
     builder.nav_surface();
 
     struct SceneSpawnPoints
     {
         std::vector<engine_fvec2_t> player;
         std::vector<engine_fvec2_t> enemy_packs;
-        std::vector<engine_fvec2_t> point_lights;
         std::vector<engine_fvec2_t> weapons;
         std::vector<engine_fvec2_t> chests;
         std::vector<engine_fvec2_t> house_cells;
@@ -159,10 +152,6 @@ inline void generate_scene(std::string_view scene_str, project_c::AppProjectC& a
             {
                 scene_spawn_points.enemy_packs.push_back({ x_offset, z_offset });
             }
-            else if (c == 'p')
-            {
-                scene_spawn_points.point_lights.push_back({ x_offset, z_offset });
-            }
             else if (c == 'w')
             {
                 scene_spawn_points.weapons.push_back({ x_offset, z_offset });
@@ -185,12 +174,6 @@ inline void generate_scene(std::string_view scene_str, project_c::AppProjectC& a
         const auto spawn_area = MobPackSpawner::SpawnAreaRect{ -1.0f, 1.0f, -1.0f, 1.0f };
         const auto spawn_world_pos = MobPackSpawner::Point{ point.x, point.y };
         spawner.spawn(pack, 5, spawn_world_pos, spawn_area, builder);
-    }
-
-    for (const auto& point : scene_spawn_points.point_lights)
-    {
-        auto l = scene.register_script<project_c::PointLight>();
-        l->set_world_position(point.x, 1.0f, point.y);
     }
 
     for (const auto& chest : scene_spawn_points.chests)
@@ -239,9 +222,11 @@ inline void generate_scene(std::string_view scene_str, project_c::AppProjectC& a
 project_c::TestScene::TestScene(engine::IApplication* app)
     : IScene(app)
 {
-    register_script<CameraScript>();
-    register_script<Encounter>();
-    hud_ = register_script<GameplayHud>();
+    LevelBuilder builder(*static_cast<AppProjectC*>(app), *this);
+    builder.camera();
+    builder.encounter();
+    hud_ = builder.hud();
+    builder.main_light();
 
     // h - house footprint (house is built over it), B - chest inside the house
     const std::string scene_str =
@@ -259,10 +244,7 @@ project_c::TestScene::TestScene(engine::IApplication* app)
         "                     \n"
         "                     \n";
 
-
-    register_script<MainLight>();
-    auto typed_app = static_cast<AppProjectC*>(app);
-    generate_scene(scene_str, *typed_app, *this);
+    generate_scene(scene_str, builder);
 }
 
 void project_c::TestScene::activate()

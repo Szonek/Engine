@@ -1,5 +1,6 @@
-#pragma
+#pragma once
 #include "base_script.h"
+#include "game_components.h"
 
 #include <array>
 #include <cstdint>
@@ -49,10 +50,17 @@ private:
     struct MoveStateData {};
 
 public:
-    std::uint32_t hp = 20;
-    std::uint32_t max_hp = 20;
+    // the scale of the enemy's model in the level
+    static constexpr float MODEL_SCALE = 0.35f;
 
-    Enemy(engine::IScene* my_scene, const PrefabResult& pr, float offset_x, float offset_z);
+    // set to the config's max_hp when the enemy starts
+    std::uint32_t hp = 0;
+
+    Enemy(engine::IScene* my_scene, engine_game_object_t go);
+
+    // its designer-set values (the enemy_config component), read on every use
+    EnemyConfig config() const;
+    std::uint32_t get_max_hp() const { return config().max_hp; }
 
     void on_start() override;
 

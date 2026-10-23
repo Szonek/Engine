@@ -6,20 +6,8 @@
 #include <cassert>
 
 project_c::Chest::Chest(engine::IScene* my_scene, engine_game_object_t go)
-    : BaseNode(my_scene, go, "chest")
+    : BaseNode(my_scene, go)
 {
-    // physcis
-    auto cc = engineGameObjectAddColliderComponent(go_);
-    cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
-    auto& child_c = cc.collider.compound.children[0];
-    {
-        child_c.type = ENGINE_COLLIDER_TYPE_BOX;
-        child_c.transform[1] = 0.2f;
-        child_c.rotation_quaternion[3] = 1.0f;
-        set_c_array(child_c.collider.box.size, std::array<float, 3>{ 0.4f, 0.2f, 0.3f});
-    }
-    engineGameObjectUpdateColliderComponent(go_, &cc);
-
 }
 
 void project_c::Chest::interact()

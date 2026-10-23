@@ -1,5 +1,6 @@
-#pragma
+#pragma once
 #include "base_script.h"
+#include "game_components.h"
 #include "../player_input.h"
 
 #include <array>
@@ -12,6 +13,7 @@
 
 namespace project_c
 {
+class AppProjectC;
 class Player;
 
 class AttackTrigger : public BaseNode
@@ -35,6 +37,12 @@ class Weapon : public BaseNode
 public:
     Weapon(engine::IScene* my_scene, engine_game_object_t go);
     ~Weapon();
+
+    // what a weapon is made of (name, transform, the rogue's dagger mesh and material, a trigger collider), for the
+    // level's weapons and the ones the player spawns
+    static void add_components(engine_game_object_t go, const AppProjectC& app);
+    // the components of a weapon lying on the ground at `position`: dropped from above it as a dynamic body
+    static void add_lying_components(engine_game_object_t go, const glm::vec3& position);
 
     void on_start() override;
 
@@ -179,14 +187,20 @@ private:
     };
 
 public:
-    Player(engine::IScene* my_scene, const PrefabResult& pr);
+    // the scale of the player's model in the level
+    static constexpr float MODEL_SCALE = 0.35f;
+
+    Player(engine::IScene* my_scene, engine_game_object_t go);
+
+    // its designer-set values (the player_config component), read on every use
+    PlayerConfig config() const;
 
     void on_start() override;
     void update(float dt);
     void on_confirmed_attack_hit(float hit_stop_seconds);
     bool receive_damage(std::uint32_t damage, const glm::vec3& source_position);
     std::uint32_t get_hp() const { return hp_; }
-    std::uint32_t get_max_hp() const { return max_hp_; }
+    std::uint32_t get_max_hp() const { return config().max_hp; }
     bool is_dead() const { return hp_ == 0; }
 
     bool equip_waepon(Weapon* sword);
@@ -218,8 +232,8 @@ private:
     bool combat_layer_has_pose_ = false;
     float hit_stop_remaining_seconds_ = 0.0f;
     bool hit_stop_just_started_ = false;
-    std::uint32_t hp_ = 100;
-    std::uint32_t max_hp_ = 100;
+    // set to the config's max_hp when the player starts
+    std::uint32_t hp_ = 0;
     bool dodge_input_was_down_ = false;
     bool dodge_press_pending_ = false;
     float dodge_remaining_seconds_ = 0.0f;

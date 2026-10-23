@@ -233,12 +233,12 @@ TEST_F(CombatTest, AttackPressedDuringHitStopIsNotLost)
     const auto target = position_of(enemy->get_game_object()) + glm::vec3(0.0f, 0.35f, 0.0f);
     scene->snap_camera_to_player();
     step(LANDING_FRAMES);
-    ASSERT_EQ(enemy->hp, enemy->max_hp);
+    ASSERT_EQ(enemy->hp, enemy->get_max_hp());
 
     player->receive_damage(1, position_of(enemy->get_game_object()));
     attack(target, 40);
 
-    EXPECT_LT(enemy->hp, enemy->max_hp);
+    EXPECT_LT(enemy->hp, enemy->get_max_hp());
 }
 
 TEST_F(CombatTest, PlayerDeathDefeatsEncounter)

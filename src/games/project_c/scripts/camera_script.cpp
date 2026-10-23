@@ -55,10 +55,14 @@ glm::vec3 smooth_damp(const glm::vec3& current, const glm::vec3& target, glm::ve
 }
 } // namespace
 
-project_c::CameraScript::CameraScript(engine::IScene* my_scene)
-    : BaseNode(my_scene, "camera")
+project_c::CameraScript::CameraScript(engine::IScene* my_scene, engine_game_object_t go)
+    : BaseNode(my_scene, go)
 {
-    auto camera_comp = engineGameObjectAddCameraComponent(go_);
+}
+
+void project_c::CameraScript::add_components(engine_game_object_t go)
+{
+    auto camera_comp = engineGameObjectAddCameraComponent(go);
     camera_comp.enabled = true;
     camera_comp.clip_plane_near = 0.1f;
     camera_comp.clip_plane_far = 100.0f;
@@ -69,13 +73,13 @@ project_c::CameraScript::CameraScript(engine::IScene* my_scene)
     camera_comp.target[1] = 0.0f;
     camera_comp.target[2] = 0.0f;
 
-    engineGameObjectUpdateCameraComponent(go_, &camera_comp);
+    engineGameObjectUpdateCameraComponent(go, &camera_comp);
 
-    auto camera_transform_comp = engineGameObjectAddTransformComponent(go_);
+    auto camera_transform_comp = engineGameObjectAddTransformComponent(go);
     camera_transform_comp.position[0] = CAMERA_OFFSET.x;
     camera_transform_comp.position[1] = CAMERA_OFFSET.y;
     camera_transform_comp.position[2] = CAMERA_OFFSET.z;
-    engineGameObjectUpdateTransformComponent(go_, &camera_transform_comp);
+    engineGameObjectUpdateTransformComponent(go, &camera_transform_comp);
 }
 
 void project_c::CameraScript::on_start()

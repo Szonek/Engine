@@ -11,21 +11,36 @@ class IScene;
 namespace project_c
 {
 class AppProjectC;
+class CameraScript;
 class Chest;
+class Encounter;
 class Enemy;
+class GameplayHud;
 class House;
 class Player;
 class Weapon;
 
-// Places gameplay objects (level content) into a scene the way the game does: the nav surface, floor tiles, walls, the player, enemies,
-// chests, weapons and the house. The level (TestScene's ASCII map) and the scenario tests both build with it. The nav mesh is built
-// from the static colliders with engineNavMeshBuild() once everything is placed.
+// Places level content into a scene the way the game does: the camera, the light, the nav surface, floor tiles, walls,
+// the player, enemies, chests, weapons, the house, and the Encounter and GameplayHud scripts. Each object gets its
+// components (name, transform, colliders, its config component with the default values) and, when it has behaviour,
+// its script as data (IScene::attach_script: a `script` component naming it), so the scene is what a scene file of it
+// would load. The level (TestScene's ASCII map) and the scenario tests both build with it. The nav mesh is built from the
+// static colliders with engineNavMeshBuild() once everything is placed.
 // x/z are world positions in metres; floor tiles sit on the 1 m grid. Objects whose prefab failed to load are skipped
 // (nullptr / no-op), like the level always did.
 class LevelBuilder
 {
 public:
     LevelBuilder(AppProjectC& app, engine::IScene& scene);
+
+    // the orthographic top-down camera following the player
+    CameraScript* camera();
+    // the directional light (with shadows) of the level
+    engine_game_object_t main_light();
+    // the level's win/lose rules
+    Encounter* encounter();
+    // the gameplay UI
+    GameplayHud* hud();
 
     // the game object with the scene's nav surface component (nav mesh settings for the enemies)
     engine_game_object_t nav_surface();
@@ -52,6 +67,9 @@ public:
     House* house(float x, float z, float ground_y);
 
 private:
+    // a floor tile, or ENGINE_INVALID_GAME_OBJECT_ID when its prefab isn't loaded
+    engine_game_object_t place_floor(float x, float z);
+
     AppProjectC& app_;
     engine::IScene& scene_;
 };

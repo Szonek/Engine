@@ -1,6 +1,7 @@
 #pragma once
 #include "engine.h"
 
+#include <string_view>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -12,6 +13,11 @@ namespace utils
 {
 // the game objects whose parent is `go`; a copy, so they can be destroyed or reparented while iterating
 std::vector<engine_game_object_t> get_children(engine_game_object_t go);
+// gives the game object a name component with this name (cut to its length)
+void set_name(engine_game_object_t go, std::string_view name);
+// the game object's position in the world, as of the last scene update (engineGameObjectGetWorldTransform); the
+// origin when it has no transform
+glm::vec3 get_world_position(engine_game_object_t go);
 std::vector<engine_game_object_t> get_active_camera_game_objects();
 glm::quat rotate_toward(glm::vec3 origin, glm::vec3 target);
 struct CursorRay
