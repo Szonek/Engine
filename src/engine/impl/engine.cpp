@@ -483,7 +483,7 @@ static engine_game_object_t instantiate_prefab(engine_prefab_t prefab, engine::P
     {
         return ENGINE_INVALID_GAME_OBJECT_ID;
     }
-    const auto root = api_cast(G_ACTIVE_SCENE)->instantiate_prefab(prefab, instance);
+    const auto root = api_cast(G_ACTIVE_SCENE)->prefabs().instantiate_prefab(prefab, instance);
     return root == entt::null ? ENGINE_INVALID_GAME_OBJECT_ID : static_cast<engine_game_object_t>(root);
 }
 

@@ -4,8 +4,7 @@
 
 #include "physics_system.h"
 #include "entity_id_registry.h"
-#include "prefab.h"
-#include "serialization/prefab_instances.h"
+#include "prefab_system.h"
 #include "serialization/scene_assets.h"
 
 #include "render/render_scene_data.h"
@@ -23,7 +22,7 @@ class Skin;
 struct SkinPose;
 class AnimationController;
 class NavMesh;
-class Scene : public IPrefabInstances
+class Scene
 {
 public:
     Scene(Application* app, Renderer& renderer, const engine_scene_create_desc_t& config, engine_result_code_t& out_code);
@@ -31,12 +30,14 @@ public:
     Scene(Scene&& rhs) = delete;
     Scene& operator=(const Scene&) = delete;
     Scene& operator=(Scene&& rhs) = delete;
-    ~Scene() override;
+    ~Scene();
 
     Application* get_application() const;
     // the scene's bodies, physics queries and character controllers
     PhysicsSystem& physics();
     const PhysicsSystem& physics() const;
+    // instantiates prefabs and knows the scene's prefab instances
+    PrefabSystem& prefabs();
 
     void enable_nav_mesh_debug_draw(bool enable);
     bool is_nav_mesh_debug_draw_enabled() const;
@@ -56,13 +57,6 @@ public:
     // a game object of a prefab instance whose root has the persistent ID `root_id`: it gets the hashed ID of its node
     // path (EntityIdRegistry::hashed_id), or a new counter ID (logged) when another game object has that one
     entt::entity create_prefab_node_entity(std::uint64_t root_id, std::string_view node_path);
-    // Instantiates the prefab (see Prefab::instantiate) and marks the root with its prefab instance component, which
-    // holds what scene files need about the instance. entt::null when it fails (logged).
-    entt::entity instantiate_prefab(std::uint32_t prefab, Prefab::Instance instance, entt::entity root = entt::null);
-
-    // IPrefabInstances, for scene files; a returned instance is valid until the next prefab is instantiated
-    const PrefabInstanceInfo* find_instance(entt::entity root) const override;
-    const PrefabInstanceInfo* instantiate(std::string_view prefab_asset_id, entt::entity root) override;
     // destroys the entity and its children, with theirs
     void destroy_entity(entt::entity entity);
     bool is_valid_entity(entt::entity entity) const;
@@ -192,6 +186,7 @@ private:
     EntityIdRegistry entity_ids_;
     // declared after the registry too; constructed before the constructor connects the component initializers
     PhysicsSystem physics_;
+    PrefabSystem prefabs_;
 
     bool nav_mesh_debug_draw_ = false;
 };

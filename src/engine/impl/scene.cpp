@@ -16,7 +16,6 @@
 #include "components_internals/children_internal_component.h"
 #include "components_internals/joint_attachment_internal_component.h"
 #include "components_internals/nav_mesh_internal_component.h"
-#include "components_internals/prefab_instance_component.h"
 #include "profiler.h"
 #include "engine_vector_impl_def.h"
 #include "skin.h"
@@ -138,6 +137,7 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     , physics_(entity_registry_,
         [this](const engine_joint_attachment_component_t& joint_attachment) { return get_joint_matrix(joint_attachment); },
         [this]() { const auto* editor = dynamic_cast<const ApplicationEditor*>(app_); return editor && !editor->is_playing(); })
+    , prefabs_(*app, *this, entity_registry_, assets_)
 {
     // the first entity EnTT creates is 0: reserve it, so that no game object has the value of ENGINE_INVALID_GAME_OBJECT_ID
     [[maybe_unused]] const auto reserved = entity_registry_.create();
@@ -187,6 +187,11 @@ engine::Scene::~Scene()
 engine::Application* engine::Scene::get_application() const
 {
     return app_;
+}
+
+engine::PrefabSystem& engine::Scene::prefabs()
+{
+    return prefabs_;
 }
 
 engine::PhysicsSystem& engine::Scene::physics()
@@ -699,46 +704,6 @@ entt::entity engine::Scene::create_prefab_node_entity(std::uint64_t root_id, std
     return entity;
 }
 
-entt::entity engine::Scene::instantiate_prefab(std::uint32_t prefab, Prefab::Instance instance, entt::entity root)
-{
-    ENGINE_PROFILE_SECTION;
-    const auto* typed_prefab = app_->get_prefab(prefab);
-    if (!typed_prefab)
-    {
-        log::log(log::LogLevel::eError, fmt::format("Can't instantiate prefab {}: it doesn't exist.\n", prefab));
-        return entt::null;
-    }
-    PrefabInstanceInfo info{ typed_prefab->get_name(), typed_prefab->instantiate(*this, instance, root) };
-    if (info.nodes.empty())
-    {
-        return entt::null;
-    }
-    const auto root_entity = info.nodes.front().entity;
-    if (instance == Prefab::Instance::ePersistent)
-    {
-        capture_prefab_components(app_->get_type_registry(), entity_registry_, info);
-    }
-    add_component(root_entity, prefab_instance_internal_component_t(*app_, prefab, std::move(info)));
-    return root_entity;
-}
-
-const engine::PrefabInstanceInfo* engine::Scene::find_instance(entt::entity root) const
-{
-    const auto* component = entity_registry_.try_get<prefab_instance_internal_component_t>(root);
-    return component ? &component->get_info() : nullptr;
-}
-
-const engine::PrefabInstanceInfo* engine::Scene::instantiate(std::string_view prefab_asset_id, entt::entity root)
-{
-    const auto prefab = assets_.resolve_prefab(prefab_asset_id);
-    if (prefab == ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        return nullptr;
-    }
-    const auto entity = instantiate_prefab(prefab, Prefab::Instance::ePersistent, root);
-    return entity == entt::null ? nullptr : find_instance(entity);
-}
-
 void engine::Scene::destroy_entity(entt::entity entity)
 {
     ENGINE_PROFILE_SECTION;
@@ -776,13 +741,13 @@ entt::runtime_view engine::Scene::create_runtime_view()
 std::string engine::Scene::save() const
 {
     ENGINE_PROFILE_SECTION;
-    return save_scene(app_->get_type_registry(), entity_registry_, entity_ids_, assets_, *this);
+    return save_scene(app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_);
 }
 
 bool engine::Scene::load(std::string_view json, std::string_view file_name)
 {
     ENGINE_PROFILE_SECTION;
-    return load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_, *this);
+    return load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_);
 }
 
 std::vector<entt::entity> engine::Scene::get_all_entities() const
