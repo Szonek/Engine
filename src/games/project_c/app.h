@@ -50,8 +50,9 @@ public:
     // The caller owns the loop and calls it between engineFrameBegin() and engineFrameEnd() (main.cpp, tests).
     void update(float dt);
 
-    // the level file LevelScene loads (AppConfig::level_path)
+    // the level file LevelScene loads (AppConfig::level_path), relative to assets/scenes or absolute
     const std::string& get_level_path() const { return level_path_; }
+    void set_level_path(std::string path) { level_path_ = std::move(path); }
 
     // what gameplay scripts read as this frame's player input; whoever drives the frames sets it before update()
     const PlayerInput& player_input() const { return player_input_; }
