@@ -130,7 +130,7 @@ Here is a list of the main dependencies used in Engine and their purposes:
 - **recastnavigation**: Navigation mesh generation (Recast) and path finding (Detour).
 - **stb**: A set of single-file public domain (or MIT licensed) libraries for C/C++.
 - **tinygltf**: A header-only C++ library for parsing glTF files.
-- **tracy-0.12.1**: A real-time, nanosecond resolution, remote telemetry, hybrid frame and sampling profiler.
+- **tracy-0.12.1**: A real-time, nanosecond resolution, remote telemetry, hybrid frame and sampling profiler. Built on demand: it records only while the Tracy profiler is connected, so start the profiler and connect to see frames.
 
 ## Contribution
 
