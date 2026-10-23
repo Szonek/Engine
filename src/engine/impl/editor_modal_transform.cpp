@@ -55,9 +55,7 @@ void engine::ModalTransform::toggle_axis(ModalTransformAxis axis)
         axis_ = ModalTransformAxis::eNone;
         local_ = false;
     }
-    float parameter = 0.0f;
-    start_axis_parameter_ = axis_parameter(start_mouse_, parameter) ? parameter : 0.0f;
-    last_axis_parameter_ = start_axis_parameter_;
+    restart_axis(start_mouse_);
 }
 
 glm::mat4 engine::ModalTransform::update(const glm::vec2& mouse, bool snap)
@@ -84,9 +82,15 @@ glm::mat4 engine::ModalTransform::update(const glm::vec2& mouse, bool snap)
         }
         else
         {
-            float parameter = last_axis_parameter_;
+            float parameter = 0.0f;
             if (axis_parameter(mouse, parameter))
             {
+                if (!has_start_axis_parameter_)
+                {
+                    // the axis pointed at the camera at the start: the motion is measured from here
+                    start_axis_parameter_ = parameter;
+                    has_start_axis_parameter_ = true;
+                }
                 last_axis_parameter_ = parameter;
             }
             float distance = last_axis_parameter_ - start_axis_parameter_;
@@ -170,11 +174,19 @@ glm::vec2 engine::ModalTransform::get_center_on_screen() const
     return project(get_origin());
 }
 
+void engine::ModalTransform::restart_axis(const glm::vec2& mouse)
+{
+    has_start_axis_parameter_ = axis_parameter(mouse, start_axis_parameter_);
+    if (!has_start_axis_parameter_)
+    {
+        start_axis_parameter_ = 0.0f;
+    }
+    last_axis_parameter_ = start_axis_parameter_;
+}
+
 void engine::ModalTransform::restart(const glm::vec2& mouse)
 {
-    float parameter = 0.0f;
-    start_axis_parameter_ = axis_parameter(mouse, parameter) ? parameter : 0.0f;
-    last_axis_parameter_ = start_axis_parameter_;
+    restart_axis(mouse);
     last_screen_angle_ = screen_angle(mouse);
     angle_ = 0.0f;
     value_ = mode_ == ModalTransformMode::eGrab ? glm::vec3(0.0f) : glm::vec3(mode_ == ModalTransformMode::eScale ? 1.0f : 0.0f, 0.0f, 0.0f);

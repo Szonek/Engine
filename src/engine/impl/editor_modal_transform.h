@@ -67,6 +67,8 @@ public:
 
 private:
     void restart(const glm::vec2& mouse);
+    // grab along an axis starts measuring at the mouse position
+    void restart_axis(const glm::vec2& mouse);
     // the mouse ray in world space: origin and direction
     void mouse_ray(const glm::vec2& mouse, glm::vec3& origin, glm::vec3& direction) const;
     // how far along the constraint axis (from the origin) the cursor points, or false when the ray is parallel to it
@@ -86,8 +88,9 @@ private:
     glm::mat4 result_;
     glm::vec3 value_{ 0.0f };
 
-    // grab along an axis: where the cursor started on it
+    // grab along an axis: where the cursor started on it; unknown while the axis points at the camera
     float start_axis_parameter_ = 0.0f;
+    bool has_start_axis_parameter_ = false;
     float last_axis_parameter_ = 0.0f;
     // rotate: the angle is accumulated, so it can go past half a turn
     float last_screen_angle_ = 0.0f;

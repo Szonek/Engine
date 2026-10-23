@@ -85,6 +85,18 @@ TEST(ModalTransform, GrabAlongTheAxisPointingAtTheCameraDoesNotJump)
     expect_vec_near(origin_of(transform.update(CENTER + glm::vec2(1.0f, 0.0f), false)), glm::vec3(0.0f));
 }
 
+TEST(ModalTransform, GrabAlongTheAxisPointingAtTheCameraStartsWhereTheCursorCanBeRead)
+{
+    ModalTransform transform(ModalTransformMode::eGrab, glm::mat4(1.0f), CENTER, make_view());
+    transform.toggle_axis(ModalTransformAxis::eZ);
+    // far enough off the axis to read it: the motion is measured from here, not from the origin
+    expect_vec_near(origin_of(transform.update(CENTER + glm::vec2(50.0f, 0.0f), false)), glm::vec3(0.0f));
+    const auto moved = origin_of(transform.update(CENTER + glm::vec2(60.0f, 0.0f), false));
+    EXPECT_NEAR(moved.x, 0.0f, 1e-4f);
+    EXPECT_NEAR(moved.y, 0.0f, 1e-4f);
+    EXPECT_NE(moved.z, 0.0f);
+}
+
 TEST(ModalTransform, GrabSnapsToSteps)
 {
     ModalTransform transform(ModalTransformMode::eGrab, glm::mat4(1.0f), CENTER, make_view());
