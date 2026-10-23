@@ -215,8 +215,10 @@ bool parse_number(const Json& json, T& out)
 class SceneReader
 {
 public:
-    SceneReader(std::string_view file_name, const std::unordered_map<std::uint64_t, entt::entity>& entities, engine::IAssetResolver& assets)
-        : file_name_(file_name), entities_(entities), assets_(assets)
+    // `outside`: where references to game objects which aren't in the file are looked up, nullptr when they are none
+    SceneReader(std::string_view file_name, const std::unordered_map<std::uint64_t, entt::entity>& entities, const engine::EntityIdRegistry* outside,
+        engine::IAssetResolver& assets)
+        : file_name_(file_name), entities_(entities), outside_(outside), assets_(assets)
     {
     }
 
@@ -402,13 +404,19 @@ private:
                 return error(path, "is not a persistent ID, the default is kept");
             }
             const auto it = entities_.find(id);
-            if (it == entities_.end())
+            if (it != entities_.end())
             {
-                error(path, fmt::format("references the game object {} which isn't in the file (or no node of a prefab instance in it), it references none", id));
-                write_as(p, static_cast<std::uint32_t>(ENGINE_INVALID_GAME_OBJECT_ID));
+                write_as(p, static_cast<std::uint32_t>(it->second));
                 return;
             }
-            write_as(p, static_cast<std::uint32_t>(it->second));
+            const auto outside = outside_ ? outside_->find(id) : entt::entity{ entt::null };
+            if (outside != entt::null)
+            {
+                write_as(p, static_cast<std::uint32_t>(outside));
+                return;
+            }
+            error(path, fmt::format("references the game object {} which isn't in the file (or no node of a prefab instance in it), it references none", id));
+            write_as(p, static_cast<std::uint32_t>(ENGINE_INVALID_GAME_OBJECT_ID));
             return;
         }
         }
@@ -427,6 +435,7 @@ private:
 
     std::string_view file_name_;
     const std::unordered_map<std::uint64_t, entt::entity>& entities_;
+    const engine::EntityIdRegistry* outside_;
     engine::IAssetResolver& assets_;
     std::uint64_t entity_id_ = 0;
 };
@@ -558,17 +567,12 @@ void write_components(SceneWriter& out, const entt::registry& registry, entt::en
     }
     w.EndObject();
 }
-}  // namespace
 
-std::string engine::save_scene(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
-    const IPrefabInstances& prefabs)
+// `entities`: the game objects to save with their persistent IDs, sorted by ID
+std::string write_scene(const engine::TypeRegistry& types, const entt::registry& registry, const engine::EntityIdRegistry& ids, const engine::IAssetResolver& assets,
+    const engine::IPrefabInstances& prefabs, const std::vector<std::pair<std::uint64_t, entt::entity>>& entities)
 {
-    std::vector<std::pair<std::uint64_t, entt::entity>> entities;
-    for (const auto [entity, id] : registry.view<const entity_id_component_t>().each())
-    {
-        entities.emplace_back(id.id, entity);
-    }
-    std::ranges::sort(entities);
+    using namespace engine;
     const auto& components = types.get_components();
 
     // the game objects of an instance (but its root) are made by its prefab: only their added components are saved,
@@ -684,9 +688,56 @@ std::string engine::save_scene(const TypeRegistry& types, const entt::registry& 
     w.EndObject();
     return out.result() + "\n";
 }
+}  // namespace
+
+std::string engine::save_scene(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
+    const IPrefabInstances& prefabs)
+{
+    std::vector<std::pair<std::uint64_t, entt::entity>> entities;
+    for (const auto [entity, id] : registry.view<const entity_id_component_t>().each())
+    {
+        entities.emplace_back(id.id, entity);
+    }
+    std::ranges::sort(entities);
+    return write_scene(types, registry, ids, assets, prefabs, entities);
+}
+
+std::string engine::save_game_objects(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
+    const IPrefabInstances& prefabs, std::span<const entt::entity> roots)
+{
+    // the parent components are the hierarchy (the scene's children lists are derived from them)
+    std::unordered_map<entt::entity, std::vector<entt::entity>> children;
+    for (const auto [entity, parent] : registry.view<const engine_parent_component_t>().each())
+    {
+        children[static_cast<entt::entity>(parent.parent)].push_back(entity);
+    }
+    std::set<entt::entity> visited;
+    std::vector<entt::entity> to_visit(roots.begin(), roots.end());
+    std::vector<std::pair<std::uint64_t, entt::entity>> entities;
+    while (!to_visit.empty())
+    {
+        const auto entity = to_visit.back();
+        to_visit.pop_back();
+        if (!registry.valid(entity) || !visited.insert(entity).second)
+        {
+            continue;
+        }
+        // transient game objects aren't saved, as in save_scene
+        if (const auto id = ids.get_id(entity); id != EntityIdRegistry::INVALID_ID)
+        {
+            entities.emplace_back(id, entity);
+        }
+        if (const auto it = children.find(entity); it != children.end())
+        {
+            to_visit.insert(to_visit.end(), it->second.begin(), it->second.end());
+        }
+    }
+    std::ranges::sort(entities);
+    return write_scene(types, registry, ids, assets, prefabs, entities);
+}
 
 bool engine::load_scene(std::string_view json, std::string_view file_name, const TypeRegistry& types, entt::registry& registry, EntityIdRegistry& ids, IAssetResolver& assets,
-    IPrefabInstances& prefabs)
+    IPrefabInstances& prefabs, const SceneLoadOptions& options)
 {
     // 1. read and check the file; nothing in the registry changes until it can be used
     rapidjson::Document doc;
@@ -797,7 +848,8 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
     std::vector<std::uint64_t> used_ids;
     for (const auto& e : file_entities)
     {
-        const auto entity = registry.create();
+        const auto handle = options.handles.find(e.id);
+        const auto entity = handle == options.handles.end() ? registry.create() : registry.create(handle->second);
         if (!ids.assign(entity, e.id))
         {
             used_ids.push_back(e.id);
@@ -865,7 +917,7 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
     }
 
     // 3. the components, one type after the other: the listeners of a type see the components registered before it
-    SceneReader reader(file_name, entities, assets);
+    SceneReader reader(file_name, entities, options.find_references_outside_file ? &ids : nullptr, assets);
     for (const auto* type : types.get_components())
     {
         if (skipped_components.contains(type->name))
