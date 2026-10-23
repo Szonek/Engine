@@ -3,14 +3,17 @@
 //
 // Every size is a square grid of cells split into rooms of ROOM_CELLS x ROOM_CELLS cells, built the way the level builds
 // today: a floor prefab instance (collider + script) per cell, wall pieces (BuildingPart, a collider each) along the room
-// borders with a door in every side, two chests, one point light and one enemy per room, and the player in the middle.
+// borders with a door in every side, two chests, one point light and one enemy per room, the player in the middle and the
+// Encounter rules.
 // Each size is measured with two camera shots: the gameplay view on the player and an overview of the whole map (worst case).
 // Every frame simulates exactly FIXED_DT_MS, so runs are deterministic; the measured times are real (wall clock).
 //
-// Usage: big_scene_benchmark [--frames N] [--warmup N] [--sizes 32,64,128] [--out results.md]
+// Usage: big_scene_benchmark [--frames N] [--warmup N] [--sizes 32,64,128] [--enemies 0|1] [--out results.md]
+// (--enemies 0 leaves the enemies out, to tell their cost from the rest)
 #include <app.h>
 #include <scenes/level_builder.h>
 #include <scripts/building_script.h>
+#include <scripts/encounter_script.h>
 #include <scripts/enviorment_script.h>
 #include <scripts/player_script.h>
 
@@ -51,6 +54,7 @@ struct Options
     std::uint32_t warmup_frames = 120;
     std::uint32_t measured_frames = 600;
     std::vector<std::int32_t> sizes = { 32, 64, 128 };
+    bool enemies = true;
     std::string out_path;
 };
 
@@ -72,6 +76,7 @@ struct SceneCounts
 
 // the size of the next BenchmarkScene; scenes are created by type, so it's passed on the side
 std::int32_t G_SCENE_CELLS = 0;
+bool G_SCENE_ENEMIES = true;
 SceneCounts G_COUNTS{};
 
 void point_light(float x, float y, float z)
@@ -113,6 +118,8 @@ public:
         project_c::LevelBuilder builder(app_c, *this);
         builder.nav_surface();
         register_script<project_c::MainLight>();
+        // the win/lose rules every gameplay scene has (enemies look them up)
+        register_script<project_c::Encounter>();
 
         const std::int32_t cells = G_SCENE_CELLS;
         const std::int32_t half = cells / 2;
@@ -157,7 +164,7 @@ public:
                 }
                 // no enemy next to the player, so it stays alive during the measurement
                 const bool player_room = room_x == rooms / 2 && room_z == rooms / 2;
-                if (!player_room && builder.enemy(center_x + 1.5f, center_z + 1.5f))
+                if (!player_room && G_SCENE_ENEMIES && builder.enemy(center_x + 1.5f, center_z + 1.5f))
                 {
                     G_COUNTS.enemies++;
                 }
@@ -348,6 +355,10 @@ Options parse_options(int argc, char** argv)
                 options.sizes.push_back(std::stoi(size));
             }
         }
+        else if (key == "--enemies")
+        {
+            options.enemies = value != "0";
+        }
         else if (key == "--out")
         {
             options.out_path = value;
@@ -380,6 +391,7 @@ int main(int argc, char** argv)
     for (const auto cells : options.sizes)
     {
         G_SCENE_CELLS = cells;
+        G_SCENE_ENEMIES = options.enemies;
         auto* scene = static_cast<BenchmarkScene*>(app.register_scene<BenchmarkScene>());
         scene->activate();
         // the first update creates the scripts and starts them (enemies find the player, the player equips its weapon)

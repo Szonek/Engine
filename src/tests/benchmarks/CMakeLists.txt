@@ -3,6 +3,7 @@
 set(BIG_SCENE_BENCHMARK_NAME "big_scene_benchmark")
 add_executable(${BIG_SCENE_BENCHMARK_NAME}
 	big_scene_benchmark.cpp
+	README.md
 )
 set_property(TARGET ${BIG_SCENE_BENCHMARK_NAME} PROPERTY CXX_STANDARD 20)
 target_link_libraries(${BIG_SCENE_BENCHMARK_NAME} project_c_lib)
