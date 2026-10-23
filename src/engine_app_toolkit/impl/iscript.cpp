@@ -12,7 +12,7 @@ engine::IScript::IScript(engine::IScene *my_scene)
 
 engine::IScript::~IScript()
 {
-    if (engineGameObjectIsValid(go_))
+    if (destroys_game_object_ && engineGameObjectIsValid(go_))
     {
         engineGameObjectDestroy(go_);
     }

@@ -7,6 +7,7 @@
 #include <deque>
 #include <functional>
 #include <memory>
+#include <typeinfo>
 
 namespace engine
 {
@@ -47,6 +48,12 @@ class IApplication;
 // 3. update, late_update, on_collision: every playing frame, once started.
 // The load order this enables: create all game objects and components -> fix references between them -> create the
 // scripts -> on_start for all of them.
+//
+// Scripts from data: a game object with a `script` component (see ScriptRegistry) gets the script it names, created at
+// the start of the next update, before the register queue is flushed: after a scene file is loaded, and when the
+// editor or game code adds or changes the component (attach_script does it at once). Changing the component replaces
+// the script and removing it removes the script; the game object stays. The scene only looks at the script components
+// when they changed (engineDataComponentGetChangeCount), never every frame.
 class ENGINE_APP_TOOLKIT_API IScene
 {
 public:
@@ -73,6 +80,15 @@ public:
     {
         scripts_register_queue_.push_back(t);
         return (T*)scripts_register_queue_.back();
+    }
+
+    // Gives the game object the script T (registered in the application's ScriptRegistry) as data: its `script`
+    // component names T, the components T requires are added when missing, and the script is created now and returned
+    // (it is registered like register_script). nullptr (logged) when T isn't registered or the game object has a script.
+    template<typename T>
+    T* attach_script(engine_game_object_t go)
+    {
+        return static_cast<T*>(attach_script(go, typeid(T)));
     }
 
     template<typename T>
@@ -150,6 +166,16 @@ private:
     // registered by on_start)
     void flush_register_queue(bool playing);
 
+    IScript* attach_script(engine_game_object_t go, const std::type_info& type);
+    // the game object has a script, added to the scene or waiting in the register queue
+    bool has_script(engine_game_object_t go) const;
+    // creates, replaces and removes the scripts of the game objects with a script component, when the components changed
+    void sync_scripts_with_components();
+    // the script of type `index` on the game object, with the components it requires
+    IScript* create_script_from_component(engine_game_object_t go, std::int32_t index);
+    // deletes the script of the game object but keeps the game object (its script component was removed or changed)
+    void remove_script_keep_game_object(engine_game_object_t go);
+
 protected:
     IApplication* app_ = nullptr;
     engine_scene_t scene_{};
@@ -159,6 +185,10 @@ protected:
     // game objects of the scripts added to scripts_ which haven't started yet, in registration order
     std::vector<engine_game_object_t> scripts_to_start_{};
     ScriptsQueue scripts_unregister_queue_{};
+    // game object -> the script type its script component named when its script was created
+    std::unordered_map<engine_game_object_t, std::int32_t> component_scripts_{};
+    // engineDataComponentGetChangeCount of the script component when the scripts were last synced with it
+    std::uint64_t synced_script_changes_ = 0;
     UserEventSystem user_event_system_;
     bool is_activate_ = true;
 };
