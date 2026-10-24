@@ -5,7 +5,9 @@ level from `test_level.json` here (`LevelScene`; another file with `project_c_ga
 folder or absolute). Files are read at runtime from the source tree's `assets`, so editing one needs no rebuild.
 
 The engine writes them (`engineSceneSave`, `scene_serializer.cpp`) and reads them (`engineSceneLoad`). Until the editor
-can save scenes, a level is changed by editing its file or by building it in code with `LevelBuilder` and saving it.
+can save scenes, a level is changed by editing its file (or building it in code and saving it with `engineSceneSave`).
+After a format change (a component gains a field), old files keep loading with the new field at its default; saving
+the level writes the new format.
 
 ## Format
 
