@@ -7,6 +7,7 @@
 #include "level_builder.h"
 
 #include <cstring>
+#include <stdexcept>
 #include <vector>
 
 namespace
@@ -53,10 +54,10 @@ project_c::LevelScene::LevelScene(engine::IApplication* app)
 {
     auto& typed_app = *static_cast<AppProjectC*>(app);
     const auto& path = typed_app.get_level_path();
+    // a game without its level has nothing to play: the caller (main) reports it and exits
     if (engineSceneLoad(path.c_str()) != ENGINE_RESULT_CODE_OK)
     {
-        log(fmt::format("Failed loading the level {}.\n", path));
-        return;
+        throw std::runtime_error(fmt::format("Failed loading the level {} (a missing file or not a scene file).", path));
     }
     // derived data, never saved: built from the level's static colliders
     if (engineNavMeshBuild() != ENGINE_RESULT_CODE_OK)
@@ -70,9 +71,22 @@ project_c::LevelScene::LevelScene(engine::IApplication* app)
     }
 }
 
+void project_c::LevelScene::find_level_scripts()
+{
+    if (const auto* hud = find_script<GameplayHud>())
+    {
+        hud_go_ = hud->get_game_object();
+    }
+    if (const auto* encounter = find_script<Encounter>())
+    {
+        encounter_go_ = encounter->get_game_object();
+    }
+    level_scripts_found_ = true;
+}
+
 project_c::GameplayHud* project_c::LevelScene::hud()
 {
-    return find_script<GameplayHud>();
+    return get_script<GameplayHud>(hud_go_);
 }
 
 void project_c::LevelScene::activate()
@@ -96,6 +110,11 @@ void project_c::LevelScene::deactivate()
 engine_result_code_t project_c::LevelScene::update(float dt)
 {
     const auto result = IScene::update(dt);
+    // the scripts from the file exist after the first update
+    if (!level_scripts_found_)
+    {
+        find_level_scripts();
+    }
 
     // the gameplay UI follows the editor's game/editor view (always the game view without the editor)
     if (auto* hud = this->hud())
@@ -108,7 +127,7 @@ engine_result_code_t project_c::LevelScene::update(float dt)
     const bool restart_down = app->player_input().restart;
     const bool restart_pressed = restart_down && !restart_was_down_;
     restart_was_down_ = restart_down;
-    const auto* encounter = find_script<Encounter>();
+    const auto* encounter = get_script<Encounter>(encounter_go_);
     if (encounter && encounter->is_over() && restart_pressed)
     {
         app->request_scene_reload<LevelScene>();

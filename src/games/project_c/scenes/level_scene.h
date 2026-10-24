@@ -13,6 +13,7 @@ class GameplayHud;
 class LevelScene : public engine::IScene
 {
 public:
+    // throws std::runtime_error when the level file can't be loaded
     LevelScene(engine::IApplication* app);
 
     void activate() override;
@@ -23,8 +24,15 @@ public:
     static constexpr const char* get_name() { return "LevelScene"; }
 
 private:
-    // the HUD, from the file: nullptr until its script was created (the first update) or without one
+    // the HUD's and the encounter's game objects, once their scripts exist (after the first update): their scripts are
+    // then looked up by game object, never by scanning every script each frame
+    void find_level_scripts();
+    // the HUD, from the file: nullptr before the first update, in a level without one or when its script was removed
     GameplayHud* hud();
+
+    bool level_scripts_found_ = false;
+    engine_game_object_t hud_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    engine_game_object_t encounter_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
     bool restart_was_down_ = false;
 };
 
