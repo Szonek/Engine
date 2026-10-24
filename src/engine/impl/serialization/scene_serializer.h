@@ -60,6 +60,13 @@ struct SceneLoadOptions
     // a reference to a game object which isn't in the file finds the registry's game object with that persistent ID
     // (e.g. the parent of a restored subtree); otherwise it is none
     bool find_references_outside_file = false;
+    // every game object gets a new persistent ID instead of the file's, for a copy of game objects the registry has
+    // already (the editor's duplicate); the file's references to them find the copies, the game objects of a prefab
+    // instance get the hashed IDs of the new root ID
+    bool new_ids = false;
+    // when given, filled with the loaded game objects by the persistent IDs the file gives them (hashed IDs of the
+    // file's root ID for the game objects of a prefab instance), e.g. to find a copy
+    EntityHandles* loaded = nullptr;
 };
 
 // Adds the game objects of a scene file to the registry. The file is read and checked first: when it can't be used
@@ -68,8 +75,8 @@ struct SceneLoadOptions
 // the load goes on: an entity without a valid ID is skipped, an unknown component or field is ignored, a missing field
 // keeps the component's default, a string too long is cut, a reference to a game object which isn't in the file is
 // none (unless SceneLoadOptions say otherwise), an asset which can't be found is none.
-// Game objects keep the persistent IDs of the file; one whose ID is used already gets a new one (references in the
-// file still point at it). Prefab instances are instantiated once every game object of the file exists; a prefab which
+// Game objects keep the persistent IDs of the file (unless SceneLoadOptions::new_ids); one whose ID is used already
+// gets a new one (references in the file still point at it). Prefab instances are instantiated once every game object of the file exists; a prefab which
 // can't be found leaves its root without the prefab's game objects, and the components of a node its model doesn't
 // have (any more) are ignored, as are references to it. Components are added the way the C API does (add with their
 // defaults, then update with the file's values), so the scene's listeners run, one component type after the other in

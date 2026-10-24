@@ -679,6 +679,70 @@ TEST_F(SceneFileTest, RestoredInstanceKeepsTheHandlesOfItsNodesAndItsAddedCompon
     EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
 }
 
+// the editor's duplicate: the saved subtree loaded again as a copy
+engine::SceneLoadOptions copy_options(engine::EntityHandles& loaded)
+{
+    engine::SceneLoadOptions options;
+    options.new_ids = true;
+    options.find_references_outside_file = true;
+    options.loaded = &loaded;
+    return options;
+}
+
+TEST_F(SceneFileTest, CopyGetsNewIdsAndItsReferencesFindTheCopies)
+{
+    World w;
+    const auto parent = w.create();
+    const auto child = w.create();
+    w.put<engine_parent_component_t>(child, engine_parent_component_t{ static_cast<engine_game_object_t>(parent) });
+    engine_name_component_t name{};
+    std::strcpy(name.name, "child");
+    w.put<engine_name_component_t>(child, name);
+    const auto grandchild = w.create();
+    w.put<engine_parent_component_t>(grandchild, engine_parent_component_t{ static_cast<engine_game_object_t>(child) });
+    const auto child_id = w.ids.get_id(child);
+    const auto grandchild_id = w.ids.get_id(grandchild);
+
+    engine::EntityHandles loaded;
+    ASSERT_TRUE(load(w, snapshot(w, child).file, copy_options(loaded)));
+    const auto copy = loaded.at(child_id);
+    const auto grandchild_copy = loaded.at(grandchild_id);
+    EXPECT_NE(copy, child);
+    EXPECT_NE(grandchild_copy, grandchild);
+    EXPECT_NE(w.ids.get_id(copy), child_id);
+    EXPECT_NE(w.ids.get_id(grandchild_copy), grandchild_id);
+    // the original is untouched
+    EXPECT_EQ(w.find(child_id), child);
+    EXPECT_EQ(w.find(grandchild_id), grandchild);
+    // the reference inside the copy finds the copy, the one outside of it the same game object as the original's
+    EXPECT_EQ(w.registry.get<engine_parent_component_t>(grandchild_copy).parent, static_cast<engine_game_object_t>(copy));
+    EXPECT_EQ(w.registry.get<engine_parent_component_t>(copy).parent, static_cast<engine_game_object_t>(parent));
+    EXPECT_STREQ(w.registry.get<engine_name_component_t>(copy).name, "child");
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(SceneFileTest, CopyOfAnInstanceIsAnInstanceWithItsAddedComponents)
+{
+    World w;
+    const auto root = instantiate_arm(w);
+    engine_light_component_t light{};
+    light.type = ENGINE_LIGHT_TYPE_POINT;
+    w.put<engine_light_component_t>(w.prefabs.node(root, "Upper"), light);
+    const auto root_id = w.ids.get_id(root);
+
+    engine::EntityHandles loaded;
+    ASSERT_TRUE(load(w, snapshot(w, root).file, copy_options(loaded)));
+    const auto copy = loaded.at(root_id);
+    ASSERT_NE(w.prefabs.find_instance(copy), nullptr);
+    const auto upper = w.prefabs.node(copy, "Upper");
+    // the copy's nodes have the hashed IDs of its own root ID, and the file's references to the nodes find them
+    EXPECT_EQ(w.ids.get_id(upper), EntityIdRegistry::hashed_id(w.ids.get_id(copy), "Upper"));
+    EXPECT_EQ(loaded.at(EntityIdRegistry::hashed_id(root_id, "Upper")), upper);
+    EXPECT_TRUE(w.registry.all_of<engine_light_component_t>(upper));
+    EXPECT_NE(upper, w.prefabs.node(root, "Upper"));
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
 // -- prefab instances ------------------------------------------------------------------------------------------------
 
 TEST_F(SceneFileTest, InstanceIsSavedAsItsPrefabAndWhatWasAddedToIt)
