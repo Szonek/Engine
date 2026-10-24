@@ -176,27 +176,37 @@ CommandDestroyEntity::CommandDestroyEntity(Scene& sc, entt::entity e)
     assert(e_ != entt::null);
 }
 
+bool CommandDestroyEntity::can_destroy(const Scene& sc, entt::entity e)
+{
+    return !EntityIdRegistry::is_hashed_id(sc.get_persistent_id(e));
+}
+
 void CommandDestroyEntity::execute()
 {
-    handles_.clear();
     saved_.clear();
-    if (!scene_.is_valid_entity(e_))
+    restore_ = {};
+    parent_ = entt::null;
+    if (!scene_.is_valid_entity(e_) || !can_destroy(scene_, e_))
     {
         return;
     }
-    std::vector<entt::entity> to_visit{ e_ };
-    while (!to_visit.empty())
+    const auto subtree = scene_.get_subtree(e_);
+    for (const auto entity : subtree)
     {
-        const auto entity = to_visit.back();
-        to_visit.pop_back();
         if (const auto id = scene_.get_persistent_id(entity); id != EntityIdRegistry::INVALID_ID)
         {
-            handles_[id] = entity;
+            restore_.handles[id] = entity;
         }
-        const auto children = scene_.get_children(entity);
-        to_visit.insert(to_visit.end(), children.begin(), children.end());
     }
-    saved_ = scene_.save(std::span(&e_, 1));
+    // the parent (and anything else outside of what is destroyed) is referenced by persistent ID
+    restore_.find_references_outside_file = true;
+    if (const auto* parent = scene_.get_component<engine_parent_component_t>(e_))
+    {
+        parent_ = static_cast<entt::entity>(parent->parent);
+        const auto siblings = scene_.get_children(parent_);
+        child_index_ = static_cast<std::size_t>(std::find(siblings.begin(), siblings.end(), e_) - siblings.begin());
+    }
+    saved_ = scene_.save(subtree);
     scene_.destroy_entity(e_);
 }
 
@@ -206,8 +216,11 @@ void CommandDestroyEntity::undo()
     {
         return;
     }
-    // the parent (and anything else outside of what was destroyed) is referenced by persistent ID
-    scene_.load(saved_, "undo of a destroy", SceneLoadOptions{ handles_, true });
+    scene_.load(saved_, "undo of a destroy", restore_);
+    if (parent_ != entt::null)
+    {
+        scene_.set_child_index(parent_, e_, child_index_);
+    }
 }
 
 

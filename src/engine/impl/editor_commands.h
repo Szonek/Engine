@@ -4,7 +4,6 @@
 #include <vector>
 #include <memory>
 #include <string>
-#include <unordered_map>
 
 #include "components_internals/guizmo_component.h"
 #include "components_internals/outline_component.h"
@@ -200,12 +199,18 @@ private:
 };
 
 // Destroys the game object and everything parented under it. They are saved first and loaded back on undo, with
-// their persistent IDs and handles, so references to them find them again. Transient game objects aren't saved, so
-// they don't come back.
+// their persistent IDs and handles (so references to them find them again) and at the same place among their parent's
+// children. Transient game objects aren't saved, so they don't come back, and changes to what a prefab created on its
+// instance can't be saved yet, so they are lost (logged); a game object of a prefab instance (but its root) isn't
+// deleted (see can_destroy).
 class CommandDestroyEntity : public ICommand
 {
 public:
     CommandDestroyEntity(Scene& sc, entt::entity e);
+
+    // false for a game object its prefab instance created: undo couldn't bring back what the prefab gave it which
+    // scene files don't describe yet (its mesh, skin, joint attachment), until prefab overrides exist
+    static bool can_destroy(const Scene& sc, entt::entity e);
 
     void execute() override;
     void undo() override;
@@ -214,7 +219,9 @@ private:
     Scene& scene_;
     const entt::entity e_;
     std::string saved_;
-    std::unordered_map<std::uint64_t, entt::entity> handles_;
+    SceneLoadOptions restore_;
+    entt::entity parent_ = entt::null;
+    std::size_t child_index_ = 0;
 };
 
 class CommandSetPhysicsDebugDraw: public ICommand

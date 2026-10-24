@@ -136,10 +136,15 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
     if (ImGui::BeginPopupContextItem())
     {
         // delete entity
-        if (ImGui::MenuItem("Delete"))
+        const auto can_delete = engine::CommandDestroyEntity::can_destroy(*scene, node->entity);
+        if (ImGui::MenuItem("Delete", nullptr, false, can_delete))
         {
             ctx.set_selected_entity(scene, entt::null, commands);
             commands.execute_command(std::make_unique<engine::CommandDestroyEntity>(*scene, node->entity));
+        }
+        if (!can_delete)
+        {
+            ImGui::SetItemTooltip("Part of a prefab instance: it can't be deleted until prefab overrides exist (delete the instance's root instead)");
         }
 
         //rename entity
