@@ -231,7 +231,7 @@ const engine::ModelNodeDesc* engine::Prefab::find_node(const std::string& name) 
     return it != model_.nodes.end() ? it->get() : nullptr;
 }
 
-std::vector<engine::PrefabInstanceNode> engine::Prefab::instantiate(Scene& scene, Instance instance, entt::entity root) const
+std::vector<engine::PrefabInstanceNode> engine::Prefab::instantiate(Scene& scene, Instance instance, entt::entity root, const EntityHandles* node_handles) const
 {
     const SkinDesc* skin_desc = model_.skins.empty() ? nullptr : &model_.skins.front();
     // the game object owning this instance's skin (and its pose); skinned meshes and joint attachments point at it
@@ -266,7 +266,7 @@ std::vector<engine::PrefabInstanceNode> engine::Prefab::instantiate(Scene& scene
         {
             return scene.create_transient_entity();
         }
-        return scene.create_prefab_node_entity(root_id, node_paths_.at(node.index));
+        return scene.create_prefab_node_entity(root_id, node_paths_.at(node.index), node_handles);
     };
 
     std::map<std::int32_t, entt::entity> node_index_to_entity;

@@ -48,10 +48,16 @@ public:
     void set_forced_open_selected_parents(bool value);
     bool is_forced_open_selected_parents() const;
     void sync_selected_from_scene(engine::Scene* scene);
-    
+
+    // deleting a game object undo can't bring back (a transient one) waits for the user to confirm it in a popup
+    void request_delete_without_undo(entt::entity e);
+    // the game object whose delete was requested since the last call, or entt::null
+    entt::entity take_delete_without_undo_request();
+
 private:
     entt::entity selected_ = entt::null;
     bool force_open_selected_parents_ = false;
+    entt::entity delete_without_undo_ = entt::null;
 };
 
 class ApplicationEditor : public Application
@@ -86,6 +92,8 @@ private:
     void render_scene_view();
     void render_editor_controls(class Scene* scene, float dt);
     void render_scene_hierarchy_panel(class Scene* scene, float dt);
+    // asks to confirm deleting a game object undo can't bring back (SceneHierarchyContext::request_delete_without_undo)
+    void display_delete_without_undo_popup(class Scene* scene);
     void render_entity_properties_panel(class Scene* scene, float dt);
     void render_debug_panel(class Scene* scene, float dt);
     void render_guizmo(class Scene* scene);
@@ -166,6 +174,8 @@ private:
     bool scene_view_mouse_held_ = false;
     bool scene_view_focused_ = false;
     SceneHierarchyContext scene_hierarchy_context_;
+    // the game object whose delete without undo waits for its confirmation
+    entt::entity delete_without_undo_ = entt::null;
 };
 
 } // namespace engine

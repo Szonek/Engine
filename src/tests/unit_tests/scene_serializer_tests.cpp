@@ -84,7 +84,7 @@ public:
         return it == instances_.end() ? nullptr : &it->second;
     }
 
-    const engine::PrefabInstanceInfo* instantiate(std::string_view prefab_asset_id, entt::entity root) override
+    const engine::PrefabInstanceInfo* instantiate(std::string_view prefab_asset_id, entt::entity root, const engine::EntityHandles& node_handles) override
     {
         if (prefab_asset_id != ARM)
         {
@@ -97,7 +97,10 @@ public:
             auto entity = root;
             if (!path.empty())
             {
-                entity = registry_.create();
+                // like Scene::create_prefab_node_entity
+                const auto handle = node_handles.find(EntityIdRegistry::hashed_id(root_id, path));
+                const auto reuse = handle != node_handles.end() && registry_.valid(handle->second) && ids_.get_id(handle->second) == EntityIdRegistry::INVALID_ID;
+                entity = reuse ? handle->second : registry_.create();
                 if (!ids_.assign(entity, EntityIdRegistry::hashed_id(root_id, path)))
                 {
                     ids_.assign_next(entity);
@@ -191,17 +194,49 @@ protected:
         world.prefabs.types = &types_;
         return engine::save_scene(types_, world.registry, world.ids, assets_, world.prefabs);
     }
-    bool load(World& world, std::string_view json)
+    bool load(World& world, std::string_view json, const engine::SceneLoadOptions& options = {})
     {
         world.prefabs.types = &types_;
-        return engine::load_scene(json, "test.json", types_, world.registry, world.ids, assets_, world.prefabs);
+        return engine::load_scene(json, "test.json", types_, world.registry, world.ids, assets_, world.prefabs, options);
+    }
+    // the game object and what is parented under it, saved the way the editor's undo of a delete does: the file and how
+    // to load it back
+    struct Snapshot
+    {
+        std::string file;
+        engine::SceneLoadOptions restore;
+    };
+    Snapshot snapshot(World& world, entt::entity root)
+    {
+        world.prefabs.types = &types_;
+        std::vector<entt::entity> subtree{ root };
+        for (std::size_t i = 0; i < subtree.size(); i++)
+        {
+            for (const auto [child, parent] : world.registry.view<const engine_parent_component_t>().each())
+            {
+                if (static_cast<entt::entity>(parent.parent) == subtree[i])
+                {
+                    subtree.push_back(child);
+                }
+            }
+        }
+        Snapshot result{ engine::save_game_objects(types_, world.registry, world.ids, assets_, world.prefabs, subtree), {} };
+        for (const auto entity : subtree)
+        {
+            if (const auto id = world.ids.get_id(entity); id != EntityIdRegistry::INVALID_ID)
+            {
+                result.restore.handles[id] = entity;
+            }
+        }
+        result.restore.find_references_outside_file = true;
+        return result;
     }
     // an instance of FakePrefabs::ARM, its root with the next persistent ID
     entt::entity instantiate_arm(World& world)
     {
         world.prefabs.types = &types_;
         const auto root = world.create();
-        world.prefabs.instantiate(FakePrefabs::ARM, root);
+        world.prefabs.instantiate(FakePrefabs::ARM, root, {});
         return root;
     }
 
@@ -518,6 +553,130 @@ TEST_F(SceneFileTest, UsedIdGetsANewOneAndReferencesFollowIt)
     EXPECT_NE(child_parent, existing);
     EXPECT_STREQ(w.registry.get<engine_name_component_t>(child_parent).name, "root");
     EXPECT_GT(w.ids.get_id(child_parent), 2u);
+}
+
+// -- some game objects (the editor's undo of a destroy) --------------------------------------------------------------
+
+// destroys the game object and everything parented under it, as the scene does
+void destroy_with_children(World& w, entt::entity entity)
+{
+    std::vector<entt::entity> children;
+    for (const auto [child, parent] : w.registry.view<const engine_parent_component_t>().each())
+    {
+        if (static_cast<entt::entity>(parent.parent) == entity)
+        {
+            children.push_back(child);
+        }
+    }
+    for (const auto child : children)
+    {
+        destroy_with_children(w, child);
+    }
+    w.registry.destroy(entity);
+}
+
+TEST_F(SceneFileTest, OnlyTheGivenGameObjectsAreSaved)
+{
+    World original;
+    build_full_scene(original);
+    const auto root = original.find(1);
+    const auto grandchild = original.create();
+    original.put<engine_parent_component_t>(grandchild, engine_parent_component_t{ static_cast<engine_game_object_t>(original.find(2)) });
+    const auto transient = original.registry.create();
+    original.put<engine_parent_component_t>(transient, engine_parent_component_t{ static_cast<engine_game_object_t>(root) });
+    const auto file = snapshot(original, root).file;
+
+    World loaded;
+    ASSERT_TRUE(load(loaded, file));
+    // the root, its child and grandchild; not the other game objects of the scene, nor the transient child
+    EXPECT_EQ(count_entities(loaded.registry), 4u);
+    EXPECT_NE(loaded.find(1), entt::entity{ entt::null });
+    EXPECT_NE(loaded.find(2), entt::entity{ entt::null });
+    EXPECT_NE(loaded.find(original.ids.get_id(grandchild)), entt::entity{ entt::null });
+    EXPECT_STREQ(loaded.get<engine_name_component_t>(1).name, "crate");
+}
+
+TEST_F(SceneFileTest, RestoredGameObjectsKeepTheirHandlesAndReferencesOutsideTheFile)
+{
+    World w;
+    const auto parent = w.create();
+    const auto child = w.create();
+    w.put<engine_parent_component_t>(child, engine_parent_component_t{ static_cast<engine_game_object_t>(parent) });
+    engine_name_component_t name{};
+    std::strcpy(name.name, "child");
+    w.put<engine_name_component_t>(child, name);
+    const auto grandchild = w.create();
+    w.put<engine_parent_component_t>(grandchild, engine_parent_component_t{ static_cast<engine_game_object_t>(child) });
+    const auto scene = save(w);
+    const auto child_id = w.ids.get_id(child);
+    const auto grandchild_id = w.ids.get_id(grandchild);
+
+    const auto saved = snapshot(w, child);
+    destroy_with_children(w, child);
+    ASSERT_FALSE(w.registry.valid(child));
+
+    ASSERT_TRUE(load(w, saved.file, saved.restore));
+    EXPECT_EQ(w.find(child_id), child);
+    EXPECT_EQ(w.find(grandchild_id), grandchild);
+    EXPECT_EQ(w.registry.get<engine_parent_component_t>(child).parent, static_cast<engine_game_object_t>(parent));
+    EXPECT_EQ(w.registry.get<engine_parent_component_t>(grandchild).parent, static_cast<engine_game_object_t>(child));
+    EXPECT_STREQ(w.registry.get<engine_name_component_t>(child).name, "child");
+    EXPECT_EQ(save(w), scene);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(SceneFileTest, GameObjectWhoseHandleIsTakenDoesntTakeAnotherOnesHandle)
+{
+    World w;
+    const auto parent = w.create();
+    const auto child = w.create();
+    w.put<engine_parent_component_t>(child, engine_parent_component_t{ static_cast<engine_game_object_t>(parent) });
+    const auto grandchild = w.create();
+    w.put<engine_parent_component_t>(grandchild, engine_parent_component_t{ static_cast<engine_game_object_t>(child) });
+    const auto child_id = w.ids.get_id(child);
+    const auto grandchild_id = w.ids.get_id(grandchild);
+
+    const auto saved = snapshot(w, child);
+    destroy_with_children(w, child);
+    // another game object takes the child's slot (destroyed last, so the next one created reuses it)
+    const auto other = w.registry.create();
+    ASSERT_EQ(entt::to_entity(other), entt::to_entity(child));
+
+    ASSERT_TRUE(load(w, saved.file, saved.restore));
+    // the grandchild still gets its own handle back, the child a new one, and the references follow
+    EXPECT_EQ(w.find(grandchild_id), grandchild);
+    const auto new_child = w.find(child_id);
+    ASSERT_NE(new_child, entt::entity{ entt::null });
+    EXPECT_NE(new_child, child);
+    EXPECT_NE(new_child, other);
+    EXPECT_EQ(w.registry.get<engine_parent_component_t>(grandchild).parent, static_cast<engine_game_object_t>(new_child));
+    EXPECT_EQ(w.registry.get<engine_parent_component_t>(new_child).parent, static_cast<engine_game_object_t>(parent));
+}
+
+TEST_F(SceneFileTest, RestoredInstanceKeepsTheHandlesOfItsNodesAndItsAddedComponents)
+{
+    World w;
+    const auto parent = w.create();
+    const auto root = instantiate_arm(w);
+    w.put<engine_parent_component_t>(root, engine_parent_component_t{ static_cast<engine_game_object_t>(parent) });
+    const auto upper = w.prefabs.node(root, "Upper");
+    const auto hand = w.prefabs.node(root, "Upper/Hand");
+    engine_light_component_t light{};
+    light.type = ENGINE_LIGHT_TYPE_POINT;
+    w.put<engine_light_component_t>(upper, light);
+    const auto scene = save(w);
+    const auto root_id = w.ids.get_id(root);
+
+    const auto saved = snapshot(w, root);
+    destroy_with_children(w, root);
+
+    ASSERT_TRUE(load(w, saved.file, saved.restore));
+    EXPECT_EQ(w.find(root_id), root);
+    EXPECT_EQ(w.prefabs.node(root, "Upper"), upper);
+    EXPECT_EQ(w.prefabs.node(root, "Upper/Hand"), hand);
+    EXPECT_TRUE(w.registry.all_of<engine_light_component_t>(upper));
+    EXPECT_EQ(save(w), scene);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
 }
 
 // -- prefab instances ------------------------------------------------------------------------------------------------

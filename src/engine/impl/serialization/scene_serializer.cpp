@@ -215,8 +215,10 @@ bool parse_number(const Json& json, T& out)
 class SceneReader
 {
 public:
-    SceneReader(std::string_view file_name, const std::unordered_map<std::uint64_t, entt::entity>& entities, engine::IAssetResolver& assets)
-        : file_name_(file_name), entities_(entities), assets_(assets)
+    // `outside`: where references to game objects which aren't in the file are looked up, nullptr when they are none
+    SceneReader(std::string_view file_name, const std::unordered_map<std::uint64_t, entt::entity>& entities, const engine::EntityIdRegistry* outside,
+        engine::IAssetResolver& assets)
+        : file_name_(file_name), entities_(entities), outside_(outside), assets_(assets)
     {
     }
 
@@ -402,13 +404,19 @@ private:
                 return error(path, "is not a persistent ID, the default is kept");
             }
             const auto it = entities_.find(id);
-            if (it == entities_.end())
+            if (it != entities_.end())
             {
-                error(path, fmt::format("references the game object {} which isn't in the file (or no node of a prefab instance in it), it references none", id));
-                write_as(p, static_cast<std::uint32_t>(ENGINE_INVALID_GAME_OBJECT_ID));
+                write_as(p, static_cast<std::uint32_t>(it->second));
                 return;
             }
-            write_as(p, static_cast<std::uint32_t>(it->second));
+            const auto outside = outside_ ? outside_->find(id) : entt::entity{ entt::null };
+            if (outside != entt::null)
+            {
+                write_as(p, static_cast<std::uint32_t>(outside));
+                return;
+            }
+            error(path, fmt::format("references the game object {} which isn't in the file (or no node of a prefab instance in it), it references none", id));
+            write_as(p, static_cast<std::uint32_t>(ENGINE_INVALID_GAME_OBJECT_ID));
             return;
         }
         }
@@ -427,6 +435,7 @@ private:
 
     std::string_view file_name_;
     const std::unordered_map<std::uint64_t, entt::entity>& entities_;
+    const engine::EntityIdRegistry* outside_;
     engine::IAssetResolver& assets_;
     std::uint64_t entity_id_ = 0;
 };
@@ -558,17 +567,13 @@ void write_components(SceneWriter& out, const entt::registry& registry, entt::en
     }
     w.EndObject();
 }
-}  // namespace
 
-std::string engine::save_scene(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
-    const IPrefabInstances& prefabs)
+// `entities`: the game objects to save with their persistent IDs, sorted by ID; `snapshot`: what is written is loaded
+// back into the same scene (save_game_objects), not saved to a scene file
+std::string write_scene(const engine::TypeRegistry& types, const entt::registry& registry, const engine::EntityIdRegistry& ids, const engine::IAssetResolver& assets,
+    const engine::IPrefabInstances& prefabs, const std::vector<std::pair<std::uint64_t, entt::entity>>& entities, bool snapshot)
 {
-    std::vector<std::pair<std::uint64_t, entt::entity>> entities;
-    for (const auto [entity, id] : registry.view<const entity_id_component_t>().each())
-    {
-        entities.emplace_back(id.id, entity);
-    }
-    std::ranges::sort(entities);
+    using namespace engine;
     const auto& components = types.get_components();
 
     // the game objects of an instance (but its root) are made by its prefab: only their added components are saved,
@@ -623,7 +628,12 @@ std::string engine::save_scene(const TypeRegistry& types, const entt::registry& 
                 e.nodes.emplace_back(&node, std::move(added));
             }
         }
-        if (!changes.empty())
+        if (!changes.empty() && snapshot)
+        {
+            log_error(fmt::format("Game object {} is an instance of {}; changes to what its prefab created can't be kept yet, they are lost when it "
+                "comes back (e.g. undo of its delete): {}.\n", id, e.instance->prefab, fmt::join(changes, ", ")));
+        }
+        else if (!changes.empty())
         {
             log_error(fmt::format("Scene save: game object {} is an instance of {}; changes to what its prefab created aren't saved: {}.\n", id,
                 e.instance->prefab, fmt::join(changes, ", ")));
@@ -684,9 +694,39 @@ std::string engine::save_scene(const TypeRegistry& types, const entt::registry& 
     w.EndObject();
     return out.result() + "\n";
 }
+}  // namespace
+
+std::string engine::save_scene(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
+    const IPrefabInstances& prefabs)
+{
+    std::vector<std::pair<std::uint64_t, entt::entity>> entities;
+    for (const auto [entity, id] : registry.view<const entity_id_component_t>().each())
+    {
+        entities.emplace_back(id.id, entity);
+    }
+    std::ranges::sort(entities);
+    return write_scene(types, registry, ids, assets, prefabs, entities, false);
+}
+
+std::string engine::save_game_objects(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
+    const IPrefabInstances& prefabs, std::span<const entt::entity> game_objects)
+{
+    std::vector<std::pair<std::uint64_t, entt::entity>> entities;
+    for (const auto entity : game_objects)
+    {
+        // transient game objects aren't saved, as in save_scene
+        if (const auto id = ids.get_id(entity); id != EntityIdRegistry::INVALID_ID)
+        {
+            entities.emplace_back(id, entity);
+        }
+    }
+    std::ranges::sort(entities);
+    entities.erase(std::unique(entities.begin(), entities.end()), entities.end());
+    return write_scene(types, registry, ids, assets, prefabs, entities, true);
+}
 
 bool engine::load_scene(std::string_view json, std::string_view file_name, const TypeRegistry& types, entt::registry& registry, EntityIdRegistry& ids, IAssetResolver& assets,
-    IPrefabInstances& prefabs)
+    IPrefabInstances& prefabs, const SceneLoadOptions& options)
 {
     // 1. read and check the file; nothing in the registry changes until it can be used
     rapidjson::Document doc;
@@ -792,12 +832,29 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
     }
 
     // 2. every game object exists before any reference to one is read
+    // the handles to restore first, each one whose slot is free, so no other game object (a new one, or one whose
+    // handle is taken) gets the slot a later one needs; the game objects of the prefab instances take theirs when they
+    // are created
+    EntityHandles reserved;
+    for (const auto& [id, handle] : options.handles)
+    {
+        const auto entity = registry.create(handle);
+        if (entity == handle)
+        {
+            reserved.emplace(id, entity);
+        }
+        else
+        {
+            registry.destroy(entity);
+        }
+    }
     // the IDs of the file first, so a game object which needs a new one can't take the ID of another one in the file
     std::unordered_map<std::uint64_t, entt::entity> entities;
     std::vector<std::uint64_t> used_ids;
     for (const auto& e : file_entities)
     {
-        const auto entity = registry.create();
+        const auto handle = reserved.find(e.id);
+        const auto entity = handle == reserved.end() ? registry.create() : handle->second;
         if (!ids.assign(entity, e.id))
         {
             used_ids.push_back(e.id);
@@ -821,7 +878,7 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
         {
             continue;
         }
-        const auto* instance = prefabs.instantiate(e.prefab, root);
+        const auto* instance = prefabs.instantiate(e.prefab, root, reserved);
         if (!instance)
         {
             log_error(fmt::format("Scene {}, game object {}: its prefab {} can't be instantiated, it is loaded without it.\n", file_name, e.id, e.prefab));
@@ -863,9 +920,17 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
             file_components.push_back({ e.id, path, &node.value, found->entity });
         }
     }
+    // reserved for a game object which didn't come (a node the model doesn't have any more)
+    for (const auto& [id, entity] : reserved)
+    {
+        if (ids.get_id(entity) == EntityIdRegistry::INVALID_ID)
+        {
+            registry.destroy(entity);
+        }
+    }
 
     // 3. the components, one type after the other: the listeners of a type see the components registered before it
-    SceneReader reader(file_name, entities, assets);
+    SceneReader reader(file_name, entities, options.find_references_outside_file ? &ids : nullptr, assets);
     for (const auto* type : types.get_components())
     {
         if (skipped_components.contains(type->name))

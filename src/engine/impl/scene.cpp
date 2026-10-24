@@ -636,6 +636,34 @@ std::span<const entt::entity> engine::Scene::get_children(entt::entity entity) c
     return children ? std::span<const entt::entity>(children->children) : std::span<const entt::entity>();
 }
 
+std::vector<entt::entity> engine::Scene::get_subtree(entt::entity entity) const
+{
+    std::vector<entt::entity> subtree{ entity };
+    for (std::size_t i = 0; i < subtree.size(); i++)
+    {
+        const auto children = get_children(subtree[i]);
+        subtree.insert(subtree.end(), children.begin(), children.end());
+    }
+    return subtree;
+}
+
+void engine::Scene::set_child_index(entt::entity parent, entt::entity child, std::size_t index)
+{
+    auto* children = entity_registry_.try_get<children_internal_component_t>(parent);
+    if (!children)
+    {
+        return;
+    }
+    auto& list = children->children;
+    const auto it = std::find(list.begin(), list.end(), child);
+    if (it == list.end())
+    {
+        return;
+    }
+    list.erase(it);
+    list.insert(list.begin() + static_cast<std::ptrdiff_t>(std::min(index, list.size())), child);
+}
+
 engine::AnimationController* engine::Scene::get_animation_controller(entt::entity entity)
 {
     if (!entity_registry_.valid(entity))
@@ -672,29 +700,29 @@ entt::entity engine::Scene::create_new_entity()
     return entity;
 }
 
-entt::entity engine::Scene::create_new_entity(entt::entity hint, std::uint64_t persistent_id)
-{
-    ENGINE_PROFILE_SECTION;
-    const auto entity = entity_registry_.create(hint);
-    // an entity that had no persistent ID (a transient one) is restored without one
-    if (persistent_id != EntityIdRegistry::INVALID_ID && !entity_ids_.assign(entity, persistent_id))
-    {
-        log::log(log::LogLevel::eError, fmt::format("Scene: can't restore entity with persistent ID {}, it is invalid or already used.\n", persistent_id));
-    }
-    return entity;
-}
-
 entt::entity engine::Scene::create_transient_entity()
 {
     ENGINE_PROFILE_SECTION;
     return entity_registry_.create();
 }
 
-entt::entity engine::Scene::create_prefab_node_entity(std::uint64_t root_id, std::string_view node_path)
+entt::entity engine::Scene::create_prefab_node_entity(std::uint64_t root_id, std::string_view node_path, const EntityHandles* node_handles)
 {
     ENGINE_PROFILE_SECTION;
-    const auto entity = entity_registry_.create();
     const auto id = EntityIdRegistry::hashed_id(root_id, node_path);
+    auto entity = entt::entity{ entt::null };
+    if (node_handles)
+    {
+        const auto it = node_handles->find(id);
+        if (it != node_handles->end() && is_valid_entity(it->second) && entity_ids_.get_id(it->second) == EntityIdRegistry::INVALID_ID)
+        {
+            entity = it->second;
+        }
+    }
+    if (entity == entt::null)
+    {
+        entity = entity_registry_.create();
+    }
     if (!entity_ids_.assign(entity, id))
     {
         const auto new_id = entity_ids_.assign_next(entity);
@@ -744,10 +772,16 @@ std::string engine::Scene::save() const
     return save_scene(app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_);
 }
 
-bool engine::Scene::load(std::string_view json, std::string_view file_name)
+std::string engine::Scene::save(std::span<const entt::entity> entities) const
 {
     ENGINE_PROFILE_SECTION;
-    return load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_);
+    return save_game_objects(app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_, entities);
+}
+
+bool engine::Scene::load(std::string_view json, std::string_view file_name, const SceneLoadOptions& options)
+{
+    ENGINE_PROFILE_SECTION;
+    return load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_, options);
 }
 
 std::vector<entt::entity> engine::Scene::get_all_entities() const

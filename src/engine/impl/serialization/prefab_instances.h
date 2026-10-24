@@ -1,5 +1,6 @@
 #pragma once
 #include "type_registry.h"
+#include "../entity_id_registry.h"
 
 #include <entt/entt.hpp>
 
@@ -48,7 +49,8 @@ public:
     virtual const PrefabInstanceInfo* find_instance(entt::entity root) const = 0;
     // Instantiates the prefab with this asset ID (loading it when needed) with `root`, which has its persistent ID, as
     // its root game object; the other game objects get the hashed IDs of their node paths (EntityIdRegistry::hashed_id).
-    // nullptr (logged) when the prefab can't be found.
-    virtual const PrefabInstanceInfo* instantiate(std::string_view prefab_asset_id, entt::entity root) = 0;
+    // nullptr (logged) when the prefab can't be found. `node_handles`: game objects created already, without a persistent
+    // ID, which become the nodes with these hashed IDs (to restore their handles); the others are created.
+    virtual const PrefabInstanceInfo* instantiate(std::string_view prefab_asset_id, entt::entity root, const EntityHandles& node_handles) = 0;
 };
 }  // namespace engine
