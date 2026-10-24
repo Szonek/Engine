@@ -18,7 +18,7 @@ engine::PrefabSystem::PrefabSystem(Application& app, Scene& scene, entt::registr
 {
 }
 
-entt::entity engine::PrefabSystem::instantiate_prefab(std::uint32_t prefab, Prefab::Instance instance, entt::entity root)
+entt::entity engine::PrefabSystem::instantiate_prefab(std::uint32_t prefab, Prefab::Instance instance, entt::entity root, const EntityHandles* node_handles)
 {
     ENGINE_PROFILE_SECTION;
     const auto* typed_prefab = app_.get_prefab(prefab);
@@ -27,7 +27,7 @@ entt::entity engine::PrefabSystem::instantiate_prefab(std::uint32_t prefab, Pref
         log::log(log::LogLevel::eError, fmt::format("Can't instantiate prefab {}: it doesn't exist.\n", prefab));
         return entt::null;
     }
-    PrefabInstanceInfo info{ typed_prefab->get_name(), typed_prefab->instantiate(scene_, instance, root) };
+    PrefabInstanceInfo info{ typed_prefab->get_name(), typed_prefab->instantiate(scene_, instance, root, node_handles) };
     if (info.nodes.empty())
     {
         return entt::null;
@@ -47,13 +47,13 @@ const engine::PrefabInstanceInfo* engine::PrefabSystem::find_instance(entt::enti
     return component ? &component->get_info() : nullptr;
 }
 
-const engine::PrefabInstanceInfo* engine::PrefabSystem::instantiate(std::string_view prefab_asset_id, entt::entity root)
+const engine::PrefabInstanceInfo* engine::PrefabSystem::instantiate(std::string_view prefab_asset_id, entt::entity root, const EntityHandles& node_handles)
 {
     const auto prefab = assets_.resolve_prefab(prefab_asset_id);
     if (prefab == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return nullptr;
     }
-    const auto entity = instantiate_prefab(prefab, Prefab::Instance::ePersistent, root);
+    const auto entity = instantiate_prefab(prefab, Prefab::Instance::ePersistent, root, &node_handles);
     return entity == entt::null ? nullptr : find_instance(entity);
 }

@@ -54,7 +54,9 @@ public:
     entt::entity create_transient_entity();
     // a game object of a prefab instance whose root has the persistent ID `root_id`: it gets the hashed ID of its node
     // path (EntityIdRegistry::hashed_id), or a new counter ID (logged) when another game object has that one
-    entt::entity create_prefab_node_entity(std::uint64_t root_id, std::string_view node_path);
+    // `node_handles`: game objects created already without a persistent ID (a scene file load restoring handles); the
+    // one listed under the node's hashed ID becomes the node instead of a new one
+    entt::entity create_prefab_node_entity(std::uint64_t root_id, std::string_view node_path, const EntityHandles* node_handles = nullptr);
     // destroys the entity and its children, with theirs
     void destroy_entity(entt::entity entity);
     bool is_valid_entity(entt::entity entity) const;
@@ -65,6 +67,11 @@ public:
     // the entities whose parent component points at `entity`, in the order they were parented; invalidated by any
     // change of the hierarchy
     std::span<const entt::entity> get_children(entt::entity entity) const;
+    // the entity and everything parented under it, the entity first
+    std::vector<entt::entity> get_subtree(entt::entity entity) const;
+    // moves a child of `parent` to `index` in its children (e.g. back where it was after an undo); the end when it is
+    // past it
+    void set_child_index(entt::entity parent, entt::entity child, std::size_t index);
 
     // the engine-owned animation controller of the entity, or nullptr
     AnimationController* get_animation_controller(entt::entity entity);
@@ -74,8 +81,8 @@ public:
 
     // the scene as a scene file, see engine::save_scene
     std::string save() const;
-    // these entities and everything parented under them as a scene file, see engine::save_game_objects
-    std::string save(std::span<const entt::entity> roots) const;
+    // only these entities as a scene file, see engine::save_game_objects
+    std::string save(std::span<const entt::entity> entities) const;
     // adds the game objects of a scene file to the scene, see engine::load_scene; the assets it uses live as long as
     // the scene (SceneAssets)
     bool load(std::string_view json, std::string_view file_name, const SceneLoadOptions& options = {});

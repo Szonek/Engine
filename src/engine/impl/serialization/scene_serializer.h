@@ -43,17 +43,20 @@ inline constexpr std::uint32_t SCENE_FILE_VERSION = 1;
 // Changes to the components a prefab created on its instance can't be saved yet: they are logged, once per instance.
 std::string save_scene(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
     const IPrefabInstances& prefabs);
-// Only these game objects and everything parented under them, as a scene file (e.g. the snapshot that brings back a
-// destroyed game object). References to game objects outside of them are saved like the others, by persistent ID.
+// Only these game objects as a scene file, for a snapshot loaded back into the same scene (e.g. undo of a delete: a game
+// object and everything parented under it). Transient ones are left out, as in save_scene; references to game objects
+// which aren't saved are written like the others, by persistent ID. The changes to what a prefab created which can't
+// be kept are logged, as when a scene is saved.
 std::string save_game_objects(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
-    const IPrefabInstances& prefabs, std::span<const entt::entity> roots);
+    const IPrefabInstances& prefabs, std::span<const entt::entity> game_objects);
 
 struct SceneLoadOptions
 {
-    // the handles to create the file's game objects with, by persistent ID, so references to them which outlived them
-    // (in other game objects, in the editor's undo history) find them again; a handle in use already gets a new one.
-    // The other game objects of a prefab instance are created by its prefab and get new handles.
-    std::unordered_map<std::uint64_t, entt::entity> handles;
+    // the handles to create the file's game objects with, by persistent ID (hashed IDs for the game objects of a prefab
+    // instance), so references to them which outlived them (in other game objects, in the editor's undo history) find
+    // them again. They are taken before any other game object is created; a game object whose handle is in use already
+    // gets a new one.
+    EntityHandles handles;
     // a reference to a game object which isn't in the file finds the registry's game object with that persistent ID
     // (e.g. the parent of a restored subtree); otherwise it is none
     bool find_references_outside_file = false;
