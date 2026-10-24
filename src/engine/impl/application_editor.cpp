@@ -1363,7 +1363,7 @@ void engine::ApplicationEditor::display_delete_without_undo_popup(class Scene* s
         ImGui::EndPopup();
         return;
     }
-    const auto* name = scene->get_component<engine_name_component_t>(delete_without_undo_);
+    const auto* name = scene->has_component<engine_name_component_t>(delete_without_undo_) ? scene->get_component<engine_name_component_t>(delete_without_undo_) : nullptr;
     ImGui::Text("\"%s\" is a runtime (transient) object: it isn't saved,", name ? name->name : "?");
     ImGui::TextUnformatted("so deleting it (and what is parented under it) can't be undone.");
     if (ImGui::Button("Delete"))

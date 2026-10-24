@@ -200,9 +200,9 @@ void CommandDestroyEntity::execute()
     }
     // the parent (and anything else outside of what is destroyed) is referenced by persistent ID
     restore_.find_references_outside_file = true;
-    if (const auto* parent = scene_.get_component<engine_parent_component_t>(e_))
+    if (scene_.has_component<engine_parent_component_t>(e_))
     {
-        parent_ = static_cast<entt::entity>(parent->parent);
+        parent_ = static_cast<entt::entity>(scene_.get_component<engine_parent_component_t>(e_)->parent);
         const auto siblings = scene_.get_children(parent_);
         child_index_ = static_cast<std::size_t>(std::find(siblings.begin(), siblings.end(), e_) - siblings.begin());
     }
