@@ -772,6 +772,10 @@ ENGINE_API bool engineGameObjectHasTransformComponent(engine_game_object_t game_
 // scene and read-only, valid after the last scene update (engineFrameSceneUpdate): changes made since then show up after the next one.
 // Fails when the game object has no transform component.
 ENGINE_API engine_result_code_t engineGameObjectGetWorldTransform(engine_game_object_t game_object, float out_matrix[16]);
+// The same matrix computed now from the current transforms, parents and joint attachments (as physics does), for a
+// caller that can't wait for the next scene update, e.g. right after a scene file was loaded. It walks the parents, so
+// prefer engineGameObjectGetWorldTransform every frame. Fails when the game object has no transform component.
+ENGINE_API engine_result_code_t engineGameObjectComputeWorldTransform(engine_game_object_t game_object, float out_matrix[16]);
 
 // light component
 ENGINE_API engine_light_component_t engineGameObjectAddLightComponent(engine_game_object_t game_object);
