@@ -855,7 +855,11 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
     {
         const auto handle = reserved.find(e.id);
         const auto entity = handle == reserved.end() ? registry.create() : handle->second;
-        if (!ids.assign(entity, e.id))
+        if (options.new_ids)
+        {
+            ids.assign_next(entity);
+        }
+        else if (!ids.assign(entity, e.id))
         {
             used_ids.push_back(e.id);
         }
@@ -927,6 +931,10 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
         {
             registry.destroy(entity);
         }
+    }
+    if (options.loaded)
+    {
+        options.loaded->insert(entities.begin(), entities.end());
     }
 
     // 3. the components, one type after the other: the listeners of a type see the components registered before it
