@@ -75,6 +75,9 @@ public:
     void on_weapon_hit_player(engine_game_object_t player_go);
 
 private:
+    // the player's game object, or none (a scene without a player, or the player is gone)
+    void find_player();
+
     struct HitFlashMaterial
     {
         engine_game_object_t game_object;
@@ -96,7 +99,7 @@ private:
     engine_game_object_t weapon_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
     // the animation events calling it (removed with it), by animation
     std::vector<std::pair<const char*, engine_animation_event_id_t>> animation_events_;
-    engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;  // found in on_start
+    engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;  // found in on_start, again when it is gone
     float hit_flash_remaining_seconds_ = 0.0f;
     float hit_stop_remaining_seconds_ = 0.0f;
     float attack_cooldown_remaining_seconds_ = 0.0f;
