@@ -1,5 +1,6 @@
 #include "sandbox_scene.h"
 
+#include <scenes/level_builder.h>
 #include <scenes/level_scene.h>
 #include <scripts/encounter_script.h>
 #include <scripts/enemy_script.h>
@@ -15,6 +16,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -55,14 +57,20 @@ class TempLevel
 public:
     TempLevel() { scenario::app().set_level_path(path_.string()); }
     explicit TempLevel(const std::string& content) : TempLevel() { std::ofstream(path_, std::ios::binary) << content; }
+    // a temp file of the name, written later (e.g. by engineSceneSave), not loaded until the test sets the level path
+    static TempLevel unwritten(const char* name) { return TempLevel(temp_file(name)); }
     ~TempLevel()
     {
+        // the game starts again: its first level, a fresh player
         scenario::app().set_level_path(project_c::AppConfig{}.level_path);
+        scenario::app().set_level_entry_state(std::nullopt);
         std::filesystem::remove(path_);
     }
     const std::filesystem::path& path() const { return path_; }
 
 private:
+    explicit TempLevel(std::filesystem::path path) : path_(std::move(path)) {}
+
     std::filesystem::path path_ = temp_file("level_test");
 };
 
@@ -215,7 +223,7 @@ TEST_F(LevelTest, LevelUnloadedBeforeFirstStepCanBeLoadedAgain)
     EXPECT_NE(scene->find_script<project_c::Player>(), nullptr);
 }
 
-// the level holds a player start, not the player: the player is spawned at the start, as a runtime object
+// the level holds player starts, not the player: the player is spawned at the default start, as a runtime object
 TEST_F(LevelTest, PlayerIsSpawnedAtThePlayerStart)
 {
     auto* scene = load_scene<project_c::LevelScene>();
@@ -224,16 +232,16 @@ TEST_F(LevelTest, PlayerIsSpawnedAtThePlayerStart)
     ASSERT_NE(player, nullptr);
     EXPECT_TRUE(engineGameObjectIsTransient(player->get_game_object()));
 
-    // the file's only player start
+    // the file's default player start (the others are entrances from other levels)
     rapidjson::Document file;
     file.Parse(read_text(LEVEL_FILE).c_str());
     const rapidjson::Value* start_position = nullptr;
     for (const auto& entity : file["entities"].GetArray())
     {
         const auto& components = entity["components"];
-        if (components.HasMember("player_start"))
+        if (components.HasMember("player_start") && std::string(components["player_start"]["id"].GetString()) == "default")
         {
-            EXPECT_EQ(start_position, nullptr) << "the level has one player start";
+            EXPECT_EQ(start_position, nullptr) << "the level has one default player start";
             start_position = &components["transform"]["position"];
         }
         EXPECT_FALSE(components.HasMember("script") && std::string(components["script"]["type"].GetString()) == "player");
@@ -244,6 +252,96 @@ TEST_F(LevelTest, PlayerIsSpawnedAtThePlayerStart)
     EXPECT_NEAR(tc.position[0], (*start_position)[0].GetFloat(), 1e-3f);
     EXPECT_NEAR(tc.position[2], (*start_position)[2].GetFloat(), 1e-3f);
     EXPECT_NEAR(tc.position[1], (*start_position)[1].GetFloat(), 0.1f);
+}
+
+// Two small levels with an exit to each other: walking into an exit loads the other level, the player enters it at the
+// exit's entrance and keeps what they had (hp, coins, weapon); the exit there leads back.
+TEST_F(LevelTest, LevelExitsChangeTheLevelAndBack)
+{
+    const auto first = TempLevel::unwritten("level_first");
+    const auto second = TempLevel::unwritten("level_second");
+    // first: the game starts at (0, 0), its exit is 2 m to the right (+x); the way back from the second level enters
+    // at (0, -1.5)
+    {
+        auto* scene = load_scene<scenario::EmptyScene>();
+        project_c::LevelBuilder build(scenario::app(), *scene);
+        // the player needs a camera to aim with
+        build.camera();
+        build.nav_surface();
+        build.floor_area(-3.0f, -3.0f, 3.0f, 3.0f);
+        build.player_start(0.0f, 0.0f, 90.0f, "default");
+        build.player_start(0.0f, -1.5f, 90.0f, "from_second");
+        build.level_exit(2.0f, 0.0f, second.path().string(), "from_first");
+        ASSERT_EQ(engineSceneSave(first.path().string().c_str()), ENGINE_RESULT_CODE_OK);
+        TearDown();
+    }
+    // second: entered from the first level at (0, 1), its exit back is 2 m to the left
+    {
+        auto* scene = load_scene<scenario::EmptyScene>();
+        project_c::LevelBuilder build(scenario::app(), *scene);
+        // the player needs a camera to aim with
+        build.camera();
+        build.nav_surface();
+        build.floor_area(-3.0f, -3.0f, 3.0f, 3.0f);
+        build.player_start(0.0f, 1.0f, -90.0f, "from_first");
+        build.level_exit(-2.0f, 1.0f, first.path().string(), "from_second");
+        ASSERT_EQ(engineSceneSave(second.path().string().c_str()), ENGINE_RESULT_CODE_OK);
+        TearDown();
+    }
+
+    // walks with `input` until the level changes; the player of the new level
+    const auto walk_to_next_level = [this](const project_c::PlayerInput& input) -> project_c::Player*
+    {
+        const auto level = scenario::app().get_level_path();
+        set_input(input);
+        for (int frame = 0; frame < 300 && scenario::app().get_level_path() == level; frame++)
+        {
+            step();
+        }
+        release_all_input();
+        EXPECT_NE(scenario::app().get_level_path(), level) << "the player never went through the exit";
+        // the new level's player starts in its first update
+        step();
+        auto* scene = scenario::app().get_scene(project_c::LevelScene::get_name());
+        return scene ? scene->find_script<project_c::Player>() : nullptr;
+    };
+    const auto position_of = [](const project_c::Player* player)
+    {
+        const auto tc = engineGameObjectGetTransformComponent(player->get_game_object());
+        return glm::vec3(tc.position[0], tc.position[1], tc.position[2]);
+    };
+
+    scenario::app().set_level_path(first.path().string());
+    auto* scene = load_scene<project_c::LevelScene>();
+    step(30);
+    auto* player = scene->find_script<project_c::Player>();
+    ASSERT_NE(player, nullptr);
+    player->add_coin(3);
+    const auto max_hp = player->get_max_hp();
+    ASSERT_TRUE(player->receive_damage(10, position_of(player) + glm::vec3(-1.0f, 0.0f, 0.0f)));
+    step(30);
+
+    project_c::PlayerInput right{};
+    right.right = true;
+    player = walk_to_next_level(right);
+    ASSERT_NE(player, nullptr);
+    EXPECT_EQ(scenario::app().get_level_path(), second.path().string());
+    EXPECT_NEAR(position_of(player).x, 0.0f, 0.05f);
+    EXPECT_NEAR(position_of(player).z, 1.0f, 0.05f);
+    EXPECT_EQ(player->get_coins(), 3u);
+    EXPECT_EQ(player->get_hp(), max_hp - 10);
+    EXPECT_EQ(player->state().weapon, project_c::WeaponType::eDaggers);
+
+    step(30);
+    project_c::PlayerInput left{};
+    left.left = true;
+    player = walk_to_next_level(left);
+    ASSERT_NE(player, nullptr);
+    EXPECT_EQ(scenario::app().get_level_path(), first.path().string());
+    EXPECT_NEAR(position_of(player).x, 0.0f, 0.05f);
+    EXPECT_NEAR(position_of(player).z, -1.5f, 0.05f);
+    EXPECT_EQ(player->get_coins(), 3u);
+    EXPECT_EQ(player->get_hp(), max_hp - 10);
 }
 
 using PlayerStartTest = scenario::GameplayTest;
@@ -285,3 +383,4 @@ TEST_F(PlayerStartTest, PlayerSpawnsAtTheStartsWorldTransform)
     EXPECT_NEAR(tc.scale[0], project_c::Player::MODEL_SCALE, 1e-6f);
 }
 }  // namespace
+

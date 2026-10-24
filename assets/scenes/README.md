@@ -51,12 +51,27 @@ found is none. A game object whose ID is used already gets a new one and the fil
 
 Components are added type by type in the engine's load order (transforms and parents first), the way the C API adds
 them. Scripts are created from the `script` components at the scene's next update; the nav mesh isn't saved, the level
-builds it after loading (`engineNavMeshBuild`), and the level spawns the player at its `player_start`.
+builds it after loading (`engineNavMeshBuild`), and the level spawns the player at the `player_start` of the entrance
+the player comes through (`"default"` when the game starts).
+
+## Levels and their exits
+
+A level holds **player starts** (`player_start`, with an `id`), never the player: `default` is where the game starts
+in it, the others are entrances from other levels. A **level exit** (a game object with the `level_exit` script and
+component, a kinematic trigger collider and a pad showing it) names a level file (relative to this folder) and the
+`entrance` there: the player walking into it goes to that level, entering at the player start with that id (the default
+one when there is none), with what they had (hp, coins, weapon). `test_level.json` and `test_level_2.json` lead to
+each other.
+
+To add a level, build it in code with `LevelBuilder` (`player_start`, `level_exit` and the rest) and save it with
+`engineSceneSave`, or copy a file and edit it; then give an existing level an exit to it, and the new level a player
+start with the entrance id that exit names. Place a player start a few steps away from its level's exits, so the player
+arriving there doesn't stand in one.
 
 ## Game components
 
 The game's own components (`src/games/project_c/scripts/game_components.h`: `enemy_config`, `player_config`,
-`building_part_config`, `house_config`, `player_start`) are saved like the engine's. Rules for adding one:
+`building_part_config`, `house_config`, `player_start`, `level_exit`) are saved like the engine's. Rules for adding one:
 
 - A **plain C struct**: numbers, bools, enums (saved by name), fixed char arrays for strings, fixed arrays, structs of
   the game's own struct types, and game object / geometry / texture handles. No pointers, no `std::string`, no unions.

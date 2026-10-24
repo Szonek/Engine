@@ -2,6 +2,7 @@
 #include "base_script.h"
 #include "game_components.h"
 #include "../player_input.h"
+#include "../player_state.h"
 
 #include <array>
 #include <optional>
@@ -58,6 +59,8 @@ public:
 
     // lying on the ground (can be picked up), not held by anyone
     bool is_on_ground() const;
+    // what the player carries when holding it (every weapon is daggers for now)
+    WeaponType get_type() const { return WeaponType::eDaggers; }
 
 private:
     struct OffhandHolder
@@ -206,19 +209,26 @@ public:
     void update(float dt);
     void on_confirmed_attack_hit(float hit_stop_seconds);
     bool receive_damage(std::uint32_t damage, const glm::vec3& source_position);
-    std::uint32_t get_hp() const { return hp_; }
+    std::uint32_t get_hp() const { return state().hp; }
     std::uint32_t get_max_hp() const { return config().max_hp; }
-    bool is_dead() const { return hp_ == 0; }
+    bool is_dead() const { return state().hp == 0; }
 
     bool equip_waepon(Weapon* sword);
     // the hit window of the current swing opened or closed (animation events)
     void set_attack_window_active(bool active);
 
     void add_coin(std::uint64_t amount);
+    std::uint64_t get_coins() const { return state().coins; }
+    // its stats (hp, coins, weapon), kept by the app so they outlive the level (AppProjectC::player_state)
+    const PlayerState& state() const;
+    // what a player who has nothing carried starts with
+    PlayerState fresh_state() const;
 
 private:
     // this frame's player input (AppProjectC::player_input), never the keyboard/mouse directly
     const PlayerInput& input() const;
+    // state(), to change it
+    PlayerState& edit_state();
 
     enum LayerIDs : std::size_t
     {
@@ -241,8 +251,6 @@ private:
     bool combat_layer_has_pose_ = false;
     float hit_stop_remaining_seconds_ = 0.0f;
     bool hit_stop_just_started_ = false;
-    // set to the config's max_hp when the player starts
-    std::uint32_t hp_ = 0;
     bool dodge_input_was_down_ = false;
     bool dodge_press_pending_ = false;
     float dodge_remaining_seconds_ = 0.0f;
@@ -261,8 +269,8 @@ private:
     std::vector<std::pair<const char*, engine_animation_event_id_t>> animation_events_;
 
     // inventory
+    // the held weapon's runtime object (what it holds is state().weapon)
     engine_game_object_t weapon_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
-    std::uint64_t coins_ = 0;
 
     bool start_attack(std::size_t combo_index);
     bool start_dodge(const glm::vec2& move_input, const glm::quat& rotation);

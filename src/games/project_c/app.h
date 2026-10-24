@@ -6,12 +6,15 @@
 
 #include "prefab_types.h"
 #include "player_input.h"
+#include "player_state.h"
 
 #include <fmt/format.h>
 #include <fmt/chrono.h>
 
 #include <array>
+#include <cstdint>
 #include <functional>
+#include <optional>
 #include <unordered_map>
 
 namespace project_c
@@ -33,6 +36,14 @@ struct AppConfig
     std::string level_path = "test_level.json";
 };
 
+// a level exit asking for the next level: the level file (relative to assets/scenes or absolute) and the player start
+// where the player enters it (the player carries their PlayerState, which the app holds)
+struct LevelTravel
+{
+    std::string level_path;
+    std::string entrance;
+};
+
 class AppProjectC : public engine::IApplication
 {
 public:
@@ -50,9 +61,29 @@ public:
     // The caller owns the loop and calls it between engineFrameBegin() and engineFrameEnd() (main.cpp, tests).
     void update(float dt);
 
-    // the level file LevelScene loads (AppConfig::level_path), relative to assets/scenes or absolute
+    // the level file LevelScene loads (AppConfig::level_path), relative to assets/scenes or absolute, and the id of the
+    // player start where the player enters it ("default": where the level starts)
     const std::string& get_level_path() const { return level_path_; }
-    void set_level_path(std::string path) { level_path_ = std::move(path); }
+    const std::string& get_level_entrance() const { return level_entrance_; }
+    void set_level_path(std::string path, std::string entrance = "default")
+    {
+        level_path_ = std::move(path);
+        level_entrance_ = std::move(entrance);
+    }
+    // The player's stats, the only copy: the Player script reads and writes them here, so they outlive its level.
+    PlayerState& player_state() { return player_state_; }
+    const PlayerState& player_state() const { return player_state_; }
+    // What the player entered the current level with, a snapshot taken when they travel (LevelScene): the Player
+    // starts the level with it, so a restart gives it back. None when the game starts (a fresh player).
+    const std::optional<PlayerState>& get_level_entry_state() const { return level_entry_state_; }
+    void set_level_entry_state(std::optional<PlayerState> state) { level_entry_state_ = state; }
+
+    // Level exits ask for the next level here; the level applies the request after its update (LevelScene), so
+    // gameplay scripts never depend on the scene class. The first request of a frame wins; false when another one came
+    // first. A request no level takes in its frame (made in another kind of scene) is dropped at the end of the frame.
+    bool request_level_travel(LevelTravel travel);
+    // the pending request, cleared
+    std::optional<LevelTravel> take_level_travel_request();
 
     // what gameplay scripts read as this frame's player input; whoever drives the frames sets it before update()
     const PlayerInput& player_input() const { return player_input_; }
@@ -80,6 +111,10 @@ private:
     std::array<engine_prefab_t, PREFAB_TYPE_COUNT> prefabs_;
     std::array<std::string, PREFAB_TYPE_COUNT> prefab_paths_;
     std::string level_path_;
+    std::string level_entrance_ = "default";
+    PlayerState player_state_;
+    std::optional<PlayerState> level_entry_state_;
+    std::optional<LevelTravel> level_travel_request_;
     PlayerInput player_input_{};
     std::function<void()> pending_scene_change_;
 };

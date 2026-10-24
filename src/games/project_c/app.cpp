@@ -8,6 +8,7 @@
 #include "scripts/game_components.h"
 #include "scripts/gameplay_hud_script.h"
 #include "scripts/interactable_script.h"
+#include "scripts/level_exit_script.h"
 #include "scripts/player_script.h"
 
 #include <chrono>
@@ -103,6 +104,7 @@ void project_c::AppProjectC::register_script_types()
     registry.add<Weapon>("weapon");
     registry.add<House>("house", { components.house_config });
     registry.add<BuildingPart>("building_part", { components.building_part_config });
+    registry.add<LevelExit>("level_exit", { components.level_exit });
     if (!registry.register_component())
     {
         log("Failed registering the script component: scene files can't create scripts.\n");
@@ -156,9 +158,32 @@ std::string project_c::AppProjectC::model_asset_id(PrefabType type, std::string_
     return fmt::format("{}#{}", prefab_paths_[type], name);
 }
 
+bool project_c::AppProjectC::request_level_travel(LevelTravel travel)
+{
+    if (level_travel_request_)
+    {
+        return false;
+    }
+    level_travel_request_ = std::move(travel);
+    return true;
+}
+
+std::optional<project_c::LevelTravel> project_c::AppProjectC::take_level_travel_request()
+{
+    auto request = std::move(level_travel_request_);
+    level_travel_request_.reset();
+    return request;
+}
+
 void project_c::AppProjectC::update(float dt)
 {
     update_scenes(dt);
+    // only a LevelScene takes travel requests; one left over would fire in whichever level loads next
+    if (level_travel_request_)
+    {
+        log(fmt::format("Nothing took the travel to the level {}; it is dropped.\n", level_travel_request_->level_path));
+        level_travel_request_.reset();
+    }
 
     if (pending_scene_change_)
     {
