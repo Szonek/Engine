@@ -501,15 +501,18 @@ project_c::PlayerConfig project_c::Player::config() const
 
 void project_c::Player::on_start()
 {
-    // what the player brought from the previous level; a fresh player at the start of the game
+    // the level starts with what the player entered it with (also after a restart); a fresh player at the start of
+    // the game
     const auto& app = *static_cast<const AppProjectC*>(my_scene_->get_app());
-    const auto& carried = app.get_player_state();
-    hp_ = carried ? std::min(carried->hp, config().max_hp) : config().max_hp;
-    coins_ = carried ? carried->coins : 0;
+    auto& stats = edit_state();
+    stats = app.get_level_entry_state().value_or(fresh_state());
+    stats.hp = std::min(stats.hp, config().max_hp);
+    const auto carried_weapon = std::exchange(stats.weapon, WeaponType::eNone);
     // runtime parts of the player, never saved: the attack trigger, the traversal marker and the weapon
     attack_trigger_go_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreateTransient(), go_)->get_game_object();
     create_traversal_marker();
-    if (!carried || carried->has_weapon)
+    // held again when it is spawned and equipped (equip_waepon)
+    if (carried_weapon == WeaponType::eDaggers)
     {
         const auto weapon_go = engineGameObjectCreateTransient();
         Weapon::add_components(weapon_go, app);
@@ -661,6 +664,7 @@ void project_c::Player::update(float dt)
         const auto tc = engineGameObjectGetTransformComponent(go_);
         held->drop_on_ground({ tc.position[0], tc.position[1], tc.position[2] });
         weapon_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
+        edit_state().weapon = WeaponType::eNone;
     }
 
     const auto tc = engineGameObjectGetTransformComponent(go_);
@@ -894,6 +898,7 @@ bool project_c::Player::equip_waepon(Weapon* sword)
     if (!weapon() && sword)
     {
         weapon_go_ = sword->get_game_object();
+        edit_state().weapon = sword->get_type();
         sword->attach_to_game_object(go_, "handslot.r", glm::vec3(0.0f, 0.0f, 0.0f), glm::angleAxis(glm::radians(-180.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
         sword->attach_offhand_to_game_object(go_, "handslot.l");
         return true;
@@ -925,12 +930,13 @@ void project_c::Player::on_confirmed_attack_hit(float hit_stop_seconds)
 
 bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& source_position)
 {
-    if (hp_ == 0 || dodge_invulnerability_remaining_seconds_ > 0.0f)
+    auto& hp = edit_state().hp;
+    if (hp == 0 || dodge_invulnerability_remaining_seconds_ > 0.0f)
     {
         return false;
     }
 
-    hp_ = damage >= hp_ ? 0 : hp_ - damage;
+    hp = damage >= hp ? 0 : hp - damage;
 
     auto player_transform = engineGameObjectGetTransformComponent(go_);
     glm::vec3 knockback_direction(
@@ -943,7 +949,7 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
     }
     knockback_velocity_ = glm::normalize(knockback_direction) * PLAYER_KNOCKBACK_SPEED;
 
-    if (hp_ == 0)
+    if (hp == 0)
     {
         // fall off the wall
         stop_traversal(0.0f);
@@ -1000,16 +1006,26 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
     return true;
 }
 
-project_c::PlayerState project_c::Player::get_state() const
+const project_c::PlayerState& project_c::Player::state() const
 {
-    return PlayerState{ hp_, coins_, weapon() != nullptr };
+    return static_cast<const AppProjectC*>(my_scene_->get_app())->player_state();
+}
+
+project_c::PlayerState& project_c::Player::edit_state()
+{
+    return static_cast<AppProjectC*>(my_scene_->get_app())->player_state();
+}
+
+project_c::PlayerState project_c::Player::fresh_state() const
+{
+    return PlayerState{ config().max_hp, 0, WeaponType::eDaggers };
 }
 
 void project_c::Player::add_coin(std::uint64_t amount)
 {   
-    coins_ += amount;
+    edit_state().coins += amount;
     // for now only log, but we should update UI
-    engineLog(std::format("Player coins: {}\n", coins_).c_str());
+    engineLog(std::format("Player coins: {}\n", state().coins).c_str());
 }
 
 const char* project_c::Player::MoveStateData::direction_to_string(Direction dir) const

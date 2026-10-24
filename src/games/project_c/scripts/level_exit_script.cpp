@@ -39,5 +39,5 @@ void project_c::LevelExit::on_collision(const collision_t& info)
     }
     auto* app = static_cast<AppProjectC*>(my_scene_->get_app());
     // taken only when the travel was accepted (another exit's request may have come first this frame)
-    taken_ = app->request_level_travel(LevelTravel{ std::string(level), std::string(utils::to_string_view(exit.entrance)), player->get_state() });
+    taken_ = app->request_level_travel(LevelTravel{ std::string(level), std::string(utils::to_string_view(exit.entrance)) });
 }

@@ -9,7 +9,7 @@ class GameplayHud;
 
 // A level: a scene file (AppProjectC::get_level_path, assets/scenes/test_level.json by default) with the nav mesh built
 // from it and the player spawned at the player start of the entrance (AppProjectC::get_level_entrance) with what they
-// carry (AppProjectC::get_player_state). Everything else (the camera, the Encounter, the GameplayHud, the level exits)
+// carry (AppProjectC::player_state). Everything else (the camera, the Encounter, the GameplayHud, the level exits)
 // is in the file. Gameplay scripts don't depend on it; it only adds the level rules (going through a level exit to the
 // next level, restart, HUD visibility).
 class LevelScene : public engine::IScene

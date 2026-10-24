@@ -63,7 +63,7 @@ public:
     {
         // the game starts again: its first level, a fresh player
         scenario::app().set_level_path(project_c::AppConfig{}.level_path);
-        scenario::app().set_player_state(std::nullopt);
+        scenario::app().set_level_entry_state(std::nullopt);
         std::filesystem::remove(path_);
     }
     const std::filesystem::path& path() const { return path_; }
@@ -330,7 +330,7 @@ TEST_F(LevelTest, LevelExitsChangeTheLevelAndBack)
     EXPECT_NEAR(position_of(player).z, 1.0f, 0.05f);
     EXPECT_EQ(player->get_coins(), 3u);
     EXPECT_EQ(player->get_hp(), max_hp - 10);
-    EXPECT_TRUE(player->get_state().has_weapon);
+    EXPECT_EQ(player->state().weapon, project_c::WeaponType::eDaggers);
 
     step(30);
     project_c::PlayerInput left{};

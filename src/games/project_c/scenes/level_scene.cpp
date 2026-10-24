@@ -157,7 +157,8 @@ engine_result_code_t project_c::LevelScene::update(float dt)
     if (auto travel = app->take_level_travel_request())
     {
         app->set_level_path(std::move(travel->level_path), std::move(travel->entrance));
-        app->set_player_state(travel->player_state);
+        // what the player has now is what they enter the next level with (and get back when they restart it)
+        app->set_level_entry_state(app->player_state());
         app->request_scene_reload<LevelScene>();
         return result;
     }

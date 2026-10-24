@@ -9,6 +9,7 @@ set(LIB_SOURCES
 	app.cpp
 
 	player_input.h
+	player_state.h
 	player_input.cpp
 	
 	
