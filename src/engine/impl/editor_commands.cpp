@@ -172,20 +172,55 @@ void CommandRemoveTypedComponent::undo()
 CommandDestroyEntity::CommandDestroyEntity(Scene& sc, entt::entity e)
     : scene_(sc)
     , e_(e)
-    , persistent_id_(sc.get_persistent_id(e))
 {
     assert(e_ != entt::null);
 }
 
+bool CommandDestroyEntity::can_destroy(const Scene& sc, entt::entity e)
+{
+    return !EntityIdRegistry::is_hashed_id(sc.get_persistent_id(e));
+}
+
 void CommandDestroyEntity::execute()
 {
+    saved_.clear();
+    restore_ = {};
+    parent_ = entt::null;
+    if (!scene_.is_valid_entity(e_) || !can_destroy(scene_, e_))
+    {
+        return;
+    }
+    const auto subtree = scene_.get_subtree(e_);
+    for (const auto entity : subtree)
+    {
+        if (const auto id = scene_.get_persistent_id(entity); id != EntityIdRegistry::INVALID_ID)
+        {
+            restore_.handles[id] = entity;
+        }
+    }
+    // the parent (and anything else outside of what is destroyed) is referenced by persistent ID
+    restore_.find_references_outside_file = true;
+    if (scene_.has_component<engine_parent_component_t>(e_))
+    {
+        parent_ = static_cast<entt::entity>(scene_.get_component<engine_parent_component_t>(e_)->parent);
+        const auto siblings = scene_.get_children(parent_);
+        child_index_ = static_cast<std::size_t>(std::find(siblings.begin(), siblings.end(), e_) - siblings.begin());
+    }
+    saved_ = scene_.save(subtree);
     scene_.destroy_entity(e_);
 }
 
 void CommandDestroyEntity::undo()
 {
-    const auto new_entt = scene_.create_new_entity(e_, persistent_id_);
-    assert(new_entt == e_);
+    if (saved_.empty())
+    {
+        return;
+    }
+    scene_.load(saved_, "undo of a destroy", restore_);
+    if (parent_ != entt::null)
+    {
+        scene_.set_child_index(parent_, e_, child_index_);
+    }
 }
 
 

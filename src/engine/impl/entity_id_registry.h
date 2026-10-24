@@ -10,6 +10,9 @@
 
 namespace engine
 {
+// game objects by persistent ID
+using EntityHandles = std::unordered_map<std::uint64_t, entt::entity>;
+
 // Persistent identity of an entity, unlike entt::entity it is meant to be written to files. 0 is never a valid ID.
 struct entity_id_component_t
 {

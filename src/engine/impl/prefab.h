@@ -49,8 +49,9 @@ public:
     // `root`, when given, is the game object which becomes the root (a scene file's, with the ID of the file). In a
     // persistent instance the other game objects get the hashed IDs of their node paths (EntityIdRegistry::hashed_id):
     // a node's path is the names of the nodes from the root down, joined by '/'; a name which is empty or used by a
-    // sibling before it gets the node's position among its siblings ("Arm#1").
-    std::vector<PrefabInstanceNode> instantiate(Scene& scene, Instance instance, entt::entity root = entt::null) const;
+    // sibling before it gets the node's position among its siblings ("Arm#1"). `node_handles`: see
+    // Scene::create_prefab_node_entity.
+    std::vector<PrefabInstanceNode> instantiate(Scene& scene, Instance instance, entt::entity root = entt::null, const EntityHandles* node_handles = nullptr) const;
 
 private:
     Prefab(Application& app, ModelDesc&& model);

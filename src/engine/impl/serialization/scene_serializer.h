@@ -6,8 +6,10 @@
 #include <entt/entt.hpp>
 
 #include <cstdint>
+#include <span>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 namespace engine
 {
@@ -41,13 +43,31 @@ inline constexpr std::uint32_t SCENE_FILE_VERSION = 1;
 // Changes to the components a prefab created on its instance can't be saved yet: they are logged, once per instance.
 std::string save_scene(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
     const IPrefabInstances& prefabs);
+// Only these game objects as a scene file, for a snapshot loaded back into the same scene (e.g. undo of a delete: a game
+// object and everything parented under it). Transient ones are left out, as in save_scene; references to game objects
+// which aren't saved are written like the others, by persistent ID. The changes to what a prefab created which can't
+// be kept are logged, as when a scene is saved.
+std::string save_game_objects(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
+    const IPrefabInstances& prefabs, std::span<const entt::entity> game_objects);
+
+struct SceneLoadOptions
+{
+    // the handles to create the file's game objects with, by persistent ID (hashed IDs for the game objects of a prefab
+    // instance), so references to them which outlived them (in other game objects, in the editor's undo history) find
+    // them again. They are taken before any other game object is created; a game object whose handle is in use already
+    // gets a new one.
+    EntityHandles handles;
+    // a reference to a game object which isn't in the file finds the registry's game object with that persistent ID
+    // (e.g. the parent of a restored subtree); otherwise it is none
+    bool find_references_outside_file = false;
+};
 
 // Adds the game objects of a scene file to the registry. The file is read and checked first: when it can't be used
 // (not JSON, no version or a newer one than this engine's, no entity list) the load fails and the registry is not
 // changed. Otherwise every problem inside it is logged (with the file name, persistent ID, component and field) and
 // the load goes on: an entity without a valid ID is skipped, an unknown component or field is ignored, a missing field
 // keeps the component's default, a string too long is cut, a reference to a game object which isn't in the file is
-// none, an asset which can't be found is none.
+// none (unless SceneLoadOptions say otherwise), an asset which can't be found is none.
 // Game objects keep the persistent IDs of the file; one whose ID is used already gets a new one (references in the
 // file still point at it). Prefab instances are instantiated once every game object of the file exists; a prefab which
 // can't be found leaves its root without the prefab's game objects, and the components of a node its model doesn't
@@ -55,5 +75,5 @@ std::string save_scene(const TypeRegistry& types, const entt::registry& registry
 // defaults, then update with the file's values), so the scene's listeners run, one component type after the other in
 // registration order.
 bool load_scene(std::string_view json, std::string_view file_name, const TypeRegistry& types, entt::registry& registry, EntityIdRegistry& ids, IAssetResolver& assets,
-    IPrefabInstances& prefabs);
+    IPrefabInstances& prefabs, const SceneLoadOptions& options = {});
 }  // namespace engine

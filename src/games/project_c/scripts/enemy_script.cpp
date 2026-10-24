@@ -206,6 +206,12 @@ project_c::EnemyWeapon* project_c::Enemy::weapon() const
     return my_scene_->get_script<EnemyWeapon>(weapon_go_);
 }
 
+void project_c::Enemy::find_player()
+{
+    const auto* player = my_scene_->find_script<Player>();
+    player_go_ = player && engineGameObjectIsValid(player->get_game_object()) ? player->get_game_object() : ENGINE_INVALID_GAME_OBJECT_ID;
+}
+
 project_c::EnemyConfig project_c::Enemy::config() const
 {
     return get_game_component(go_, game_components().enemy_config, default_enemy_config());
@@ -214,10 +220,7 @@ project_c::EnemyConfig project_c::Enemy::config() const
 void project_c::Enemy::on_start()
 {
     hp = config().max_hp;
-    if (const auto* player = my_scene_->find_script<Player>())
-    {
-        player_go_ = player->get_game_object();
-    }
+    find_player();
 
     // the blade is part of the enemy's loadout, a runtime object
     auto* app = reinterpret_cast<AppProjectC*>(my_scene_->get_app());
@@ -270,10 +273,14 @@ void project_c::Enemy::update(float dt)
 
     attack_cooldown_remaining_seconds_ = std::max(0.0f, attack_cooldown_remaining_seconds_ - dt / 1000.0f);
 
-    // a scene without a player (e.g. a test scene)
-    if (player_go_ == ENGINE_INVALID_GAME_OBJECT_ID)
+    // a scene without a player (e.g. a test scene), or the player was destroyed (e.g. deleted in the editor)
+    if (!engineGameObjectIsValid(player_go_))
     {
-        return;
+        find_player();
+        if (player_go_ == ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            return;
+        }
     }
 
     for (auto& s : debug_scripts_)
