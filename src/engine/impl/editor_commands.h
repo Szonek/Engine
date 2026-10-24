@@ -224,6 +224,41 @@ private:
     std::size_t child_index_ = 0;
 };
 
+// Copies the game object and everything parented under it, like Duplicate in Unity, Godot and Unreal: the copy gets
+// new persistent IDs, the same parent, the place right after the original among its parent's children and the name
+// "<name> (1)" (the first number no sibling uses), and becomes the selection. References between the copied game
+// objects point at the copies, references to the rest of the scene stay. A prefab instance is copied as an instance
+// of its prefab with what was added to it (changes to what the prefab created can't be saved yet, so they aren't
+// copied, logged). Undo destroys the copy (and gives the selection back), redo brings it back with the same IDs and
+// handles; one undo step.
+class CommandDuplicateEntity : public ICommand
+{
+public:
+    // `selected`: the selection before the copy, given back on undo
+    CommandDuplicateEntity(Scene& sc, entt::entity e, entt::entity selected);
+
+    // false for a transient game object (runtime objects aren't scene content) and a game object its prefab instance
+    // created (copying it needs prefab overrides)
+    static bool can_duplicate(const Scene& sc, entt::entity e);
+
+    // entt::null when nothing was copied
+    entt::entity get_copy() const { return copy_; }
+
+    void execute() override;
+    void undo() override;
+
+private:
+    void duplicate();
+
+    Scene& scene_;
+    const entt::entity e_;
+    const entt::entity selected_;
+    entt::entity copy_ = entt::null;
+    // undo destroys the copy the way a delete does, redo is that delete's undo
+    std::unique_ptr<CommandDestroyEntity> destroy_copy_;
+    std::unique_ptr<CommandSetSelectedEntity> select_copy_;
+};
+
 class CommandSetPhysicsDebugDraw: public ICommand
 {
 public:

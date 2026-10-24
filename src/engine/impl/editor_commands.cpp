@@ -3,6 +3,8 @@
 #include <cassert>
 #include <cstring>
 #include <string>
+#include <string_view>
+#include <vector>
 #include <algorithm>
 
 namespace engine
@@ -221,6 +223,132 @@ void CommandDestroyEntity::undo()
     {
         scene_.set_child_index(parent_, e_, child_index_);
     }
+}
+
+namespace
+{
+// "<base> (<n>)" with the first n from 1 which no other name in `names` uses; the base is the name without a number
+// in parentheses at its end, so a copy of "wall (1)" is "wall (2)"
+std::string copy_name(std::string_view name, const std::vector<std::string>& names)
+{
+    auto base = std::string(name);
+    if (const auto open = base.rfind(" ("); open != std::string::npos && base.ends_with(')')
+        && open + 2 < base.size() - 1 && std::all_of(base.begin() + open + 2, base.end() - 1, [](char c) { return c >= '0' && c <= '9'; }))
+    {
+        base.resize(open);
+    }
+    for (std::size_t n = 1;; n++)
+    {
+        auto candidate = base + " (" + std::to_string(n) + ")";
+        // the name component's storage is a fixed size: the number is kept, the base is cut
+        if (candidate.size() >= ENGINE_ENTITY_NAME_MAX_LENGTH)
+        {
+            const auto suffix = " (" + std::to_string(n) + ")";
+            candidate = base.substr(0, ENGINE_ENTITY_NAME_MAX_LENGTH - 1 - suffix.size()) + suffix;
+        }
+        if (std::find(names.begin(), names.end(), candidate) == names.end())
+        {
+            return candidate;
+        }
+    }
+}
+
+entt::entity parent_of(const Scene& scene, entt::entity e)
+{
+    return scene.has_component<engine_parent_component_t>(e) ? static_cast<entt::entity>(scene.get_component<engine_parent_component_t>(e)->parent) : entt::entity{ entt::null };
+}
+}  // namespace
+
+CommandDuplicateEntity::CommandDuplicateEntity(Scene& sc, entt::entity e, entt::entity selected)
+    : scene_(sc)
+    , e_(e)
+    , selected_(selected)
+{
+}
+
+bool CommandDuplicateEntity::can_duplicate(const Scene& sc, entt::entity e)
+{
+    const auto id = sc.get_persistent_id(e);
+    return sc.is_valid_entity(e) && id != EntityIdRegistry::INVALID_ID && !EntityIdRegistry::is_hashed_id(id);
+}
+
+void CommandDuplicateEntity::execute()
+{
+    if (!destroy_copy_)
+    {
+        duplicate();
+    }
+    else
+    {
+        destroy_copy_->undo();
+    }
+    if (select_copy_)
+    {
+        select_copy_->execute();
+    }
+}
+
+void CommandDuplicateEntity::undo()
+{
+    if (select_copy_)
+    {
+        select_copy_->undo();
+    }
+    if (destroy_copy_)
+    {
+        destroy_copy_->execute();
+    }
+}
+
+void CommandDuplicateEntity::duplicate()
+{
+    if (!can_duplicate(scene_, e_))
+    {
+        return;
+    }
+    EntityHandles loaded;
+    SceneLoadOptions copy;
+    copy.new_ids = true;
+    // the parent (and anything else outside of what is copied) stays what it is
+    copy.find_references_outside_file = true;
+    copy.loaded = &loaded;
+    if (!scene_.load(scene_.save(scene_.get_subtree(e_)), "duplicate", copy))
+    {
+        return;
+    }
+    const auto it = loaded.find(scene_.get_persistent_id(e_));
+    if (it == loaded.end())
+    {
+        return;
+    }
+    copy_ = it->second;
+
+    // the name, unique among the siblings, and the place right after the original
+    const auto parent = parent_of(scene_, e_);
+    std::vector<std::string> sibling_names;
+    for (const auto sibling : scene_.get_all_entities())
+    {
+        if (sibling != copy_ && parent_of(scene_, sibling) == parent && scene_.has_component<engine_name_component_t>(sibling))
+        {
+            sibling_names.emplace_back(scene_.get_component<engine_name_component_t>(sibling)->name);
+        }
+    }
+    if (scene_.has_component<engine_name_component_t>(copy_))
+    {
+        auto name = *scene_.get_component<engine_name_component_t>(copy_);
+        const auto new_name = copy_name(name.name, sibling_names);
+        std::memcpy(name.name, new_name.c_str(), new_name.size() + 1);
+        scene_.update_component<engine_name_component_t>(copy_, name);
+    }
+    if (parent != entt::null)
+    {
+        const auto siblings = scene_.get_children(parent);
+        const auto index = static_cast<std::size_t>(std::find(siblings.begin(), siblings.end(), e_) - siblings.begin());
+        scene_.set_child_index(parent, copy_, index + 1);
+    }
+
+    destroy_copy_ = std::make_unique<CommandDestroyEntity>(scene_, copy_);
+    select_copy_ = std::make_unique<CommandSetSelectedEntity>(scene_, selected_, copy_);
 }
 
 
