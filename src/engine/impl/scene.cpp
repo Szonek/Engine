@@ -39,6 +39,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <limits>
 
 
 static inline void update_parent_component(entt::registry& registry, entt::entity entity)
@@ -223,10 +225,35 @@ engine_result_code_t engine::Scene::build_nav_mesh()
         log::log(log::LogLevel::eError, "Nav mesh build: the scene has no nav surface component.\n");
         return ENGINE_RESULT_CODE_FAIL;
     }
-    const auto surface_entity = *surfaces.begin();
-    if (std::next(surfaces.begin()) != surfaces.end())
+    // one nav surface per scene for now; when there are more (e.g. a duplicated one), the one with the lowest persistent
+    // ID, so the choice doesn't depend on the storage's order (transient ones last), and the others keep no nav mesh,
+    // so the queries use the same one
+    const auto surface_order = [this](entt::entity e)
+        {
+            const auto id = get_persistent_id(e);
+            return id == EntityIdRegistry::INVALID_ID ? std::numeric_limits<std::uint64_t>::max() : id;
+        };
+    auto surface_entity = *surfaces.begin();
+    std::size_t count = 0;
+    for (const auto surface : surfaces)
     {
-        log::log(log::LogLevel::eError, "Nav mesh build: the scene has more than one nav surface component, using one of them.\n");
+        count++;
+        if (surface_order(surface) < surface_order(surface_entity))
+        {
+            surface_entity = surface;
+        }
+    }
+    if (count > 1)
+    {
+        log::log(log::LogLevel::eError, fmt::format("Nav mesh build: the scene has {} nav surface components, using the one with the lowest "
+            "persistent ID ({}).\n", count, get_persistent_id(surface_entity)));
+        for (const auto other : surfaces)
+        {
+            if (other != surface_entity)
+            {
+                entity_registry_.remove<nav_mesh_internal_component_t>(other);
+            }
+        }
     }
     const auto& surface = surfaces.get<const engine_nav_surface_component_t>(surface_entity);
     NavMeshBuildSettings settings{};

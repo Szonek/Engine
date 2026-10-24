@@ -95,11 +95,6 @@ inline bool is_entity_parent_of(entt::entity parent, entt::entity child, engine:
 // copies the game object with what is parented under it and selects the copy (see CommandDuplicateEntity)
 void duplicate_entity(entt::entity e, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
 {
-    if (!engine::CommandDuplicateEntity::can_duplicate(*scene, e))
-    {
-        engine::log::log(engine::log::LogLevel::eError, "Editor: a runtime (transient) object or a part of a prefab instance can't be duplicated.\n");
-        return;
-    }
     commands.execute_command(std::make_unique<engine::CommandDuplicateEntity>(*scene, e, ctx.get_selected_entity()));
     ctx.sync_selected_from_scene(scene);
 }
@@ -1163,7 +1158,6 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
 
 void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
 {
-
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
     const float editor_delta_time = frame_delta_time_;
 
@@ -1198,16 +1192,15 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     }
     ctrl_z_prev = ctrl_z_curr;
 
-    // duplicate the selection (not while typing into a text field)
+    // duplicate the selection, in the editor view only (the game view gets the game's keys: D moves the player), and
+    // not while typing into a text field
     static bool ctrl_d_prev = false;
     const auto ctrl_d_curr = lctrl && !lshift && keyboard_is_key_down(ENGINE_KEYBOARD_KEY_D);
-    if (ctrl_d_curr && !ctrl_d_prev && !ImGui::GetIO().WantTextInput && scene_hierarchy_context_.has_selected_entity())
+    if (ctrl_d_curr && !ctrl_d_prev && editor_view_ == EditorView::eEditor && !ImGui::GetIO().WantTextInput && scene_hierarchy_context_.has_selected_entity())
     {
         duplicate_entity(scene_hierarchy_context_.get_selected_entity(), scene, commands_, scene_hierarchy_context_);
     }
     ctrl_d_prev = ctrl_d_curr;
-
-
 
     camera_context_.on_scene_update_post(scene, editor_delta_time);
 }

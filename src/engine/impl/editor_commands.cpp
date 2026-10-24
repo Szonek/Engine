@@ -1,9 +1,10 @@
 #include "editor_commands.h"
+#include "copy_name.h"
+#include "logger.h"
 
 #include <cassert>
 #include <cstring>
 #include <string>
-#include <string_view>
 #include <vector>
 #include <algorithm>
 
@@ -227,32 +228,6 @@ void CommandDestroyEntity::undo()
 
 namespace
 {
-// "<base> (<n>)" with the first n from 1 which no other name in `names` uses; the base is the name without a number
-// in parentheses at its end, so a copy of "wall (1)" is "wall (2)"
-std::string copy_name(std::string_view name, const std::vector<std::string>& names)
-{
-    auto base = std::string(name);
-    if (const auto open = base.rfind(" ("); open != std::string::npos && base.ends_with(')')
-        && open + 2 < base.size() - 1 && std::all_of(base.begin() + open + 2, base.end() - 1, [](char c) { return c >= '0' && c <= '9'; }))
-    {
-        base.resize(open);
-    }
-    for (std::size_t n = 1;; n++)
-    {
-        auto candidate = base + " (" + std::to_string(n) + ")";
-        // the name component's storage is a fixed size: the number is kept, the base is cut
-        if (candidate.size() >= ENGINE_ENTITY_NAME_MAX_LENGTH)
-        {
-            const auto suffix = " (" + std::to_string(n) + ")";
-            candidate = base.substr(0, ENGINE_ENTITY_NAME_MAX_LENGTH - 1 - suffix.size()) + suffix;
-        }
-        if (std::find(names.begin(), names.end(), candidate) == names.end())
-        {
-            return candidate;
-        }
-    }
-}
-
 entt::entity parent_of(const Scene& scene, entt::entity e)
 {
     return scene.has_component<engine_parent_component_t>(e) ? static_cast<entt::entity>(scene.get_component<engine_parent_component_t>(e)->parent) : entt::entity{ entt::null };
@@ -304,6 +279,7 @@ void CommandDuplicateEntity::duplicate()
 {
     if (!can_duplicate(scene_, e_))
     {
+        log::log(log::LogLevel::eError, "Editor: a runtime (transient) object or a part of a prefab instance can't be duplicated.\n");
         return;
     }
     EntityHandles loaded;
@@ -326,17 +302,32 @@ void CommandDuplicateEntity::duplicate()
     // the name, unique among the siblings, and the place right after the original
     const auto parent = parent_of(scene_, e_);
     std::vector<std::string> sibling_names;
-    for (const auto sibling : scene_.get_all_entities())
-    {
-        if (sibling != copy_ && parent_of(scene_, sibling) == parent && scene_.has_component<engine_name_component_t>(sibling))
+    const auto add_sibling_name = [&](entt::entity sibling)
         {
-            sibling_names.emplace_back(scene_.get_component<engine_name_component_t>(sibling)->name);
+            if (sibling != copy_ && scene_.has_component<engine_name_component_t>(sibling))
+            {
+                sibling_names.emplace_back(scene_.get_component<engine_name_component_t>(sibling)->name);
+            }
+        };
+    if (parent != entt::null)
+    {
+        std::ranges::for_each(scene_.get_children(parent), add_sibling_name);
+    }
+    else
+    {
+        // the game objects without a parent have no list of their own
+        for (const auto sibling : scene_.get_all_entities())
+        {
+            if (parent_of(scene_, sibling) == entt::null)
+            {
+                add_sibling_name(sibling);
+            }
         }
     }
     if (scene_.has_component<engine_name_component_t>(copy_))
     {
         auto name = *scene_.get_component<engine_name_component_t>(copy_);
-        const auto new_name = copy_name(name.name, sibling_names);
+        const auto new_name = copy_name(name.name, sibling_names, ENGINE_ENTITY_NAME_MAX_LENGTH);
         std::memcpy(name.name, new_name.c_str(), new_name.size() + 1);
         scene_.update_component<engine_name_component_t>(copy_, name);
     }
@@ -345,6 +336,14 @@ void CommandDuplicateEntity::duplicate()
         const auto siblings = scene_.get_children(parent);
         const auto index = static_cast<std::size_t>(std::find(siblings.begin(), siblings.end(), e_) - siblings.begin());
         scene_.set_child_index(parent, copy_, index + 1);
+    }
+
+    // a scene has one nav surface for now: the nav mesh build keeps using the original's
+    const auto copy_subtree = scene_.get_subtree(copy_);
+    if (std::ranges::any_of(copy_subtree, [this](entt::entity e) { return scene_.has_component<engine_nav_surface_component_t>(e); }))
+    {
+        log::log(log::LogLevel::eError, "Editor: the copy has a nav surface, so the scene has more than one now; the nav mesh is built from the one "
+            "with the lowest persistent ID (the original's).\n");
     }
 
     destroy_copy_ = std::make_unique<CommandDestroyEntity>(scene_, copy_);

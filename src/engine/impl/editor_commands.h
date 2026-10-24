@@ -21,6 +21,12 @@ public:
     {
         return false;
     }
+    // false when the first execute() changed nothing (e.g. a copy which couldn't be made): the command isn't kept, so
+    // undo doesn't take an empty step and redo doesn't try it again
+    virtual bool has_effect() const
+    {
+        return true;
+    }
 };
 
 class CommandManager
@@ -38,6 +44,10 @@ public:
             }
         }
         cmd->execute();
+        if (!cmd->has_effect())
+        {
+            return;
+        }
         undo_stack_.push_back(std::move(cmd));
         redo_stack_.clear();
         if (undo_stack_.size() > max_history_)
@@ -238,7 +248,7 @@ public:
     CommandDuplicateEntity(Scene& sc, entt::entity e, entt::entity selected);
 
     // false for a transient game object (runtime objects aren't scene content) and a game object its prefab instance
-    // created (copying it needs prefab overrides)
+    // created (copying it needs prefab overrides); duplicating it anyway logs why and copies nothing
     static bool can_duplicate(const Scene& sc, entt::entity e);
 
     // entt::null when nothing was copied
@@ -246,6 +256,8 @@ public:
 
     void execute() override;
     void undo() override;
+    // a copy which couldn't be made leaves no undo step
+    bool has_effect() const override { return copy_ != entt::null; }
 
 private:
     void duplicate();

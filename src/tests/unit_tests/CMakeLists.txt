@@ -18,6 +18,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	type_registry_tests.cpp
 	scene_serializer_tests.cpp
 	game_types_tests.cpp
+	copy_name_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
@@ -26,6 +27,8 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/named_atlas.h
 	# header-only
 	${ENGINE_IMPL_DIR}/entity_id_registry.h
+	# header-only: the names of the editor's copies
+	${ENGINE_IMPL_DIR}/copy_name.h
 	# skin asset + pose and the animation controller (ozz only, no GL)
 	${ENGINE_IMPL_DIR}/skin.cpp
 	${ENGINE_IMPL_DIR}/skin.h
