@@ -1143,13 +1143,10 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_post");
     const float editor_delta_time = frame_delta_time_;
 
-    // a modal transform owns the mouse, wherever it is clicked: the click that ends it doesn't reach the panels either
-    ImGui::BeginDisabled(modal_transform_.has_value() || mouse_consumed_);
     render_editor_controls(scene, editor_delta_time);
     render_scene_hierarchy_panel(scene, editor_delta_time);
     render_entity_properties_panel(scene, editor_delta_time);
     render_debug_panel(scene, editor_delta_time);
-    ImGui::EndDisabled();
 
     if (editor_view_ == EditorView::eEditor)
     {
@@ -1705,9 +1702,17 @@ void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
         modal_transform_.reset();
         return;
     }
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+    // Like Blender's modal operators, it owns the mouse buttons wherever the mouse is: the panels' widgets don't see
+    // the clicks, including the one that ends it (locked until it is released). Set each frame, before the panels.
+    const ImGuiID owner = ImHashStr("editor_modal_transform");
+    ImGui::SetKeyOwner(ImGuiKey_MouseLeft, owner, ImGuiInputFlags_LockUntilRelease);
+    ImGui::SetKeyOwner(ImGuiKey_MouseRight, owner, ImGuiInputFlags_LockUntilRelease);
+    const bool left_clicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left, ImGuiInputFlags_None, owner);
+    const bool right_clicked = ImGui::IsMouseClicked(ImGuiMouseButton_Right, ImGuiInputFlags_None, owner);
+
+    if (right_clicked || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
     {
-        mouse_consumed_ = ImGui::IsMouseClicked(ImGuiMouseButton_Right);
+        mouse_consumed_ = right_clicked;
         cancel_modal_transform(scene);
         return;
     }
@@ -1728,9 +1733,9 @@ void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
         scene->update_component<engine_transform_component_t>(entity, transform);
     }
 
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false))
+    if (left_clicked || ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false))
     {
-        mouse_consumed_ = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+        mouse_consumed_ = left_clicked;
         auto result = *scene->get_component<engine_transform_component_t>(entity);
         // the command records the transform from before the preview, so undo goes back there
         scene->update_component<engine_transform_component_t>(entity, modal_transform_original_);
