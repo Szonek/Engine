@@ -19,17 +19,21 @@ Passes declared every frame:
 | Shadow Map                                  | built-in, per scene camera | ShadowMap              |
 | Depth Pre-pass                              | built-in, per scene camera | SceneDepth             |
 | SSAO / SSAO Blur                            | built-in, per scene camera | AmbientOcclusion       |
-| Forward / Sprites / Physics Debug Lines     | built-in, per scene camera | SceneColor (+EntityId, SceneDepth) |
+| Forward / Sprites / Physics Debug Lines     | built-in, per scene camera | SceneColor (+EntityId, SceneDepth, SceneNormals) |
+| Pixel Outline                               | built-in, optional | new SceneColor                     |
 | *features of stage* `ePostProcess`          | `RenderFeature` | usually SceneColor                |
-| Present                                     | built-in      | SceneOutput                         |
+| Present                                     | built-in      | SceneOutput (scaled up from the scene targets) |
 | *features of stage* `eOverlay`              | `RenderFeature` | SceneOutput (game UI)             |
 | *features of stage* `eScreen`               | `RenderFeature` | Backbuffer (editor)               |
 
 The scene is rendered at the size of the image it is shown in: the window, or with the editor the scene panel.
 `SceneOutput` is then the backbuffer, or with the editor a texture it shows in that panel (`Renderer::set_scene_output`);
 `Application::get_scene_viewport()` is that part of the window, which cameras, the game UI and mouse coordinates use.
+With low resolution rendering (PIXEL_ART.md) the scene targets are smaller than that image and Present scales them up.
 
 Shadows and ambient occlusion (the three passes before Forward) are explained in [SHADOWS_AND_SSAO.md](SHADOWS_AND_SSAO.md).
+The optional stylized look of the lit shaders (no extra passes) is explained in [STYLIZED_LIGHTING.md](STYLIZED_LIGHTING.md).
+Low resolution rendering (scene targets smaller than the window, camera snapping, Pixel Outline) is explained in [PIXEL_ART.md](PIXEL_ART.md).
 Shadow Map and SSAO are declared only when enabled in `RenderSettings` (`Renderer::get_settings()`, editable in the editor's debug panel).
 
 The pass list of the last frame (with culled passes greyed out and resource reads/writes in a tooltip) is shown in the
@@ -44,9 +48,11 @@ editor's debug panel. Every pass is also a named debug group in RenderDoc/Nsight
 | `render_scene_data.h`             | Plain data the scene submits (draw items, lights, cameras) + GPU struct layouts   |
 | `renderer.h/.cpp`                 | Owns the graph, materials, per-scene GPU buffers; builds the built-in passes      |
 | `render_feature.h`                | `RenderFeature` extension point, `FrameContext`                                   |
-| `render_settings.h`               | `RenderSettings`: shadow and SSAO parameters                                      |
+| `render_settings.h`               | `RenderSettings`: shadow, SSAO, stylized lighting and pixel art parameters        |
 | `shadows.h/.cpp`                  | Fits the shadow map of the directional light to the camera frustum. **No GL.**    |
 | `ssao_pass.h/.cpp`                | Screen space ambient occlusion passes                                             |
+| `pixel_art.h/.cpp`                | Low resolution scene targets and camera snapping. **No GL.**                      |
+| `pixel_outline_pass.h/.cpp`       | Pixel Outline pass (silhouettes and creases)                                      |
 | `outline_feature.h/.cpp`          | Example feature: editor selection outline (raster mask pass + compute pass)       |
 | `grid_feature.h/.cpp`             | Editor feature: infinite anti-aliased grid on the XZ plane (one full screen pass) |
 
@@ -107,10 +113,13 @@ A new built-in lit/unlit shader is a `Material*` class in `material.h/.cpp` plus
 
 ## Notes
 
-* Entity ids for picking come from the **previous** frame: `Renderer::read_entity_id()` reads the extracted `EntityId` texture.
+* Entity ids for picking come from the **previous** frame: `Renderer::read_entity_id()` reads the extracted `EntityId` texture
+  (window pixels are mapped into it, it can be smaller than the window).
+* Scene targets can be smaller than the window (`PixelArtSettings::target_height`): a feature which creates textures matching
+  them uses `FrameContext::width/height`, never the window size.
 * Geometry/Texture pointers in draw items are only valid until the end of the frame.
 * Meshes are drawn by three passes (Shadow Map, Depth Pre-pass, Forward). The Forward pass uses depth test "less or equal" against the
   depth of the pre-pass, so a new mesh type has to be drawn in `draw_meshes_depth_only` too, with the same vertex shader as its lit draw.
 * Bone matrices of all skinned meshes of a scene are uploaded once per frame (`SceneGpu::frames[...].skinning`, one copy per frame in flight guarded by a fence, so the CPU never overwrites matrices the GPU is still reading), draws only pass an offset into it.
 * `RenderGraph` is unit tested without a GL context: see `src/tests/unit_tests/render_graph_tests.cpp` (target `engine_logic_tests`).
-  The same target contains tests of the shadow map math (`shadows_tests.cpp`).
+  The same target contains tests of the shadow map math (`shadows_tests.cpp`) and of the pixel art camera (`pixel_art_tests.cpp`).

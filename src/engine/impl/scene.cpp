@@ -494,8 +494,34 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
             camera_internal.computed_this_frame = false;
         });
 
+        // World position of the topmost ancestor with a transform: the snap origin of everything in its hierarchy.
+        const auto hierarchy_root_position = [this](entt::entity entity)
+            {
+                auto root_transform = entity_registry_.try_get<world_transform_internal_component_t>(entity);
+                // depth limit only guards against a broken (cyclic) hierarchy
+                for (int depth = 0; depth < 64; depth++)
+                {
+                    const auto parent_component = entity_registry_.try_get<engine_parent_component_t>(entity);
+                    if (!parent_component)
+                    {
+                        break;
+                    }
+                    const auto parent = static_cast<entt::entity>(parent_component->parent);
+                    if (!entity_registry_.valid(parent))
+                    {
+                        break;
+                    }
+                    entity = parent;
+                    if (const auto transform = entity_registry_.try_get<world_transform_internal_component_t>(entity))
+                    {
+                        root_transform = transform;
+                    }
+                }
+                return root_transform ? glm::vec3(root_transform->local_to_world[3]) : glm::vec3(0.0f);
+            };
+
         // Fills data shared by all mesh draws. Returns false if the draw has to be skipped.
-        const auto fill_mesh_draw_item = [this](entt::entity entity, const world_transform_internal_component_t& world, const engine_material_component_t& material_component, engine_geometry_t geometry, StaticMeshDrawItem& item)
+        const auto fill_mesh_draw_item = [this, &hierarchy_root_position](entt::entity entity, const world_transform_internal_component_t& world, const engine_material_component_t& material_component, engine_geometry_t geometry, StaticMeshDrawItem& item)
             {
                 if (geometry == ENGINE_INVALID_OBJECT_HANDLE)
                 {
@@ -508,6 +534,7 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
                 item.entity_id = static_cast<std::uint32_t>(entity);
                 item.geometry = get_application()->get_geometry(geometry);
                 item.model = world.local_to_world;
+                item.snap_origin = hierarchy_root_position(entity);
                 item.diffuse_color = glm::make_vec4(material_component.diffuse_color);
                 item.shininess = static_cast<float>(material_component.shininess);
                 item.texture_diffuse = get_application()->get_texture(texture_diffuse_idx);
@@ -574,7 +601,7 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
         );
 
         auto outline_view = entity_registry_.view<const outline_component_t, const world_transform_internal_component_t, const engine_mesh_component_t, const engine_material_component_t>();
-        outline_view.each([&](const outline_component_t&, const world_transform_internal_component_t& world, const engine_mesh_component_t& mesh_component, const engine_material_component_t&)
+        outline_view.each([&](auto entity, const outline_component_t&, const world_transform_internal_component_t& world, const engine_mesh_component_t& mesh_component, const engine_material_component_t&)
             {
                 const auto* geometry = get_application()->get_geometry(mesh_component.geometry);
                 if (!geometry)
@@ -583,7 +610,8 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
                 }
                 render_data.outline_items.push_back(OutlineDrawItem{
                     .geometry = geometry,
-                    .model = world.local_to_world });
+                    .model = world.local_to_world,
+                    .snap_origin = hierarchy_root_position(entity) });
             }
         );
     }

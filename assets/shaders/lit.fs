@@ -27,9 +27,13 @@ layout (binding = ENGINE_BINDING_SLOT_LIGHTS_DATA, std430) readonly buffer Light
 
 layout (location = 0) out vec4 out_fragment_color; 
 layout (location = 1) out uint out_entity_id; 
+// view space normal * 0.5 + 0.5, alpha 1: geometry. Used by the pixel art outline, discarded when there is no such target.
+layout (location = 2) out vec4 out_normal;
 
 uniform vec4 diffuse_color;
 uniform float shininess;
+// set by the material: 1 the mesh gets the stylized rim light (skinned meshes = characters), 0 only if enabled for all meshes
+uniform float rim_mask;
 uniform uint entity_id;
 layout(binding = ENGINE_BINDING_SLOT_TEXTURE_DIFFUSE) uniform sampler2D texture_diffuse;
 layout(binding = ENGINE_BINDING_SLOT_TEXTURE_SPECULAR) uniform sampler2D texture_specular;
@@ -84,6 +88,9 @@ void main()
 		out_color += calc_spot_light(light_data[i], normal, view_dir, fs_in.world_pos, frag_color, specular_color, shininess, ambient_occlusion, direct_occlusion);
 	}
 	
+	// stylized rim light, independent of the lights
+	out_color += stylized_rim(normal, view_dir, rim_mask);
+	
 	// debug views (editor: debug panel)
 	if (debug_view == DEBUG_VIEW_AMBIENT_OCCLUSION)
 	{
@@ -97,4 +104,5 @@ void main()
 	// final result
 	out_fragment_color = vec4((out_color + ambient + diffuse + specular), 1.0f);
 	out_entity_id = entity_id;
+	out_normal = vec4(normalize(mat3(view) * normal) * 0.5f + 0.5f, 1.0f);
 } 

@@ -1492,6 +1492,40 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
     ImGui::Text("Animation controllers: %zu", engine::AnimationController::get_live_count());
 
     auto& render_settings = renderer_.get_settings();
+    ImGui::SeparatorText("Pixel art");
+    {
+        // sets the pixel art, stylized lighting and shadow settings below
+        if (ImGui::Button("Apply pixel art preset"))
+        {
+            apply_pixel_art_preset(render_settings);
+        }
+        auto& pixel_art = render_settings.pixel_art;
+        static const std::array<std::uint32_t, 6> target_heights = { 0, 180, 270, 360, 480, 540 };
+        const auto height_name = [](std::uint32_t height) { return height == 0 ? std::string("Off (window resolution)") : std::to_string(height); };
+        if (ImGui::BeginCombo("Target height", height_name(pixel_art.target_height).c_str()))
+        {
+            for (const auto height : target_heights)
+            {
+                if (ImGui::Selectable(height_name(height).c_str(), height == pixel_art.target_height))
+                {
+                    pixel_art.target_height = height;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        const auto window_height = static_cast<std::uint32_t>(std::max(rdx_.get_window_size_in_pixels().height, 0));
+        const auto pixel_scale = compute_pixel_scale(window_height, pixel_art.target_height);
+        ImGui::Text("Pixel scale: %u (scene %u lines)", pixel_scale, (window_height + pixel_scale - 1) / pixel_scale);
+        ImGui::Checkbox("Snap camera to pixels", &pixel_art.snap_camera);
+        ImGui::Checkbox("Outline", &pixel_art.outline);
+        ImGui::BeginDisabled(!pixel_art.outline);
+        ImGui::SliderFloat("Outline strength", &pixel_art.outline_strength, 0.0f, 1.0f);
+        ImGui::SliderFloat("Highlight strength", &pixel_art.highlight_strength, 0.0f, 1.0f);
+        ImGui::DragFloat("Outline depth threshold", &pixel_art.outline_depth_threshold, 0.01f, 0.0f, 10.0f);
+        ImGui::SliderFloat("Highlight normal threshold", &pixel_art.highlight_normal_threshold, 0.0f, 2.0f);
+        ImGui::EndDisabled();
+    }
+
     ImGui::SeparatorText("Shadows");
     {
         auto& shadows = render_settings.shadows;
@@ -1518,6 +1552,7 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
             shadows.pcf_radius = static_cast<std::uint32_t>(pcf_radius);
         }
         ImGui::SliderFloat("Strength##shadows", &shadows.strength, 0.0f, 1.0f);
+        ImGui::Checkbox("Hard edges", &shadows.hard_edges);
     }
 
     ImGui::SeparatorText("SSAO");
@@ -1534,6 +1569,33 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
         }
         ImGui::Checkbox("Blur", &ssao.blur);
         ImGui::SliderFloat("Direct light occlusion", &ssao.direct_light_occlusion, 0.0f, 1.0f);
+    }
+
+    ImGui::SeparatorText("Stylized lighting");
+    {
+        auto& stylized = render_settings.stylized;
+        ImGui::Checkbox("Enabled##stylized", &stylized.enabled);
+        ImGui::BeginDisabled(!stylized.enabled);
+        // ambient multipliers can be above 1
+        const ImGuiColorEditFlags hdr_flags = ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float;
+        ImGui::ColorEdit3("Sky ambient", &stylized.sky_ambient.x, hdr_flags);
+        ImGui::ColorEdit3("Ground ambient", &stylized.ground_ambient.x, hdr_flags);
+        int bands = static_cast<int>(stylized.bands);
+        if (ImGui::SliderInt("Bands (0: smooth)", &bands, 0, static_cast<int>(StylizedLightingSettings::MAX_BANDS)))
+        {
+            stylized.bands = static_cast<std::uint32_t>(bands);
+        }
+        ImGui::SliderFloat("Band softness", &stylized.band_softness, 0.0f, 1.0f);
+        ImGui::ColorEdit3("Shadow color", &stylized.shadow_color.x, ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("Rim color", &stylized.rim_color.x, ImGuiColorEditFlags_Float);
+        ImGui::SliderFloat("Rim strength", &stylized.rim_strength, 0.0f, 2.0f);
+        ImGui::SliderFloat("Rim power", &stylized.rim_power, 0.5f, 8.0f);
+        ImGui::Checkbox("Rim on static meshes", &stylized.rim_on_static_meshes);
+        if (ImGui::Button("Reset##stylized"))
+        {
+            stylized = StylizedLightingSettings{ .enabled = true };
+        }
+        ImGui::EndDisabled();
     }
 
     {
