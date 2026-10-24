@@ -4,6 +4,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <string_view>
+
 namespace engine
 {
 class IScene;
@@ -18,11 +20,12 @@ class Encounter;
 class Enemy;
 class GameplayHud;
 class House;
+class LevelExit;
 class Player;
 class Weapon;
 
 // Places level content into a scene the way the game does: the camera, the light, the nav surface, floor tiles, walls,
-// the player, enemies, chests, weapons, the house, and the Encounter and GameplayHud scripts. Each object gets its
+// the player, player starts, level exits, enemies, chests, weapons, the house, and the Encounter and GameplayHud scripts. Each object gets its
 // components (name, transform, colliders, its config component with the default values) and, when it has behaviour,
 // its script as data (IScene::attach_script: a `script` component naming it), so the scene is what a scene file of it
 // would load. Levels made in code (the scenario tests' scenes) build with it; LevelScene uses it to spawn the player. The nav mesh is built from the
@@ -65,6 +68,13 @@ public:
     // faces: what a level does when it is loaded (levels hold player starts, not the player). nullptr when the start
     // has no transform or the player's prefab isn't loaded.
     Player* spawn_player(engine_game_object_t player_start);
+    // Where the player enters the level from the level exit naming `id` ("default": where the level starts), above
+    // the floor at (x, z) facing `yaw_degrees` around +y (0: +z). Place it a few steps away from the level's own
+    // exits, so the player arriving there doesn't stand in one.
+    engine_game_object_t player_start(float x, float z, float yaw_degrees, std::string_view id);
+    // A 1 x 1 m pad on the floor centered on (x, z): walking onto it takes the player to `level` (relative to
+    // assets/scenes), entering it at the player start `entrance`.
+    LevelExit* level_exit(float x, float z, std::string_view level, std::string_view entrance);
     Enemy* enemy(float x, float z);
     Chest* chest(float x, float y, float z);
     Weapon* weapon_on_ground(float x, float z);

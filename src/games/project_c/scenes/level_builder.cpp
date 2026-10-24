@@ -9,6 +9,7 @@
 #include "../scripts/game_components.h"
 #include "../scripts/gameplay_hud_script.h"
 #include "../scripts/interactable_script.h"
+#include "../scripts/level_exit_script.h"
 #include "../scripts/player_script.h"
 #include "../scripts/scripts_utils.h"
 
@@ -26,6 +27,15 @@
 namespace
 {
 using project_c::utils::set_name;
+
+// copies `text` into a fixed char array field, cut to fit with its terminating zero
+template<std::size_t N>
+void copy_string(char (&field)[N], std::string_view text)
+{
+    const auto length = std::min(text.size(), N - 1);
+    std::memcpy(field, text.data(), length);
+    field[length] = '\0';
+}
 
 // lists the game object in the given folder of the editor's scene hierarchy
 void set_editor_folder(engine_game_object_t go, std::string_view path)
@@ -271,6 +281,68 @@ project_c::Player* project_c::LevelBuilder::set_up_player(engine_game_object_t g
     const auto config = default_player_config();
     engineGameObjectAddDataComponent(go, game_components().player_config, &config);
     return scene_.attach_script<Player>(go);
+}
+
+engine_game_object_t project_c::LevelBuilder::player_start(float x, float z, float yaw_degrees, std::string_view id)
+{
+    const auto go = engineGameObjectCreate();
+    set_name(go, "player-start");
+    set_editor_folder(go, "player_starts");
+    set_position_and_scale(go, glm::vec3(x, 1.0f, z), 1.0f);
+    auto tc = engineGameObjectGetTransformComponent(go);
+    const auto rotation = glm::angleAxis(glm::radians(yaw_degrees), glm::vec3(0.0f, 1.0f, 0.0f));
+    set_c_array(tc.rotation, std::array<float, 4>{ rotation.x, rotation.y, rotation.z, rotation.w });
+    engineGameObjectUpdateTransformComponent(go, &tc);
+    auto ps = default_player_start();
+    copy_string(ps.id, id);
+    engineGameObjectAddDataComponent(go, game_components().player_start, &ps);
+    return go;
+}
+
+project_c::LevelExit* project_c::LevelBuilder::level_exit(float x, float z, std::string_view level, std::string_view entrance)
+{
+    const auto go = engineGameObjectCreate();
+    set_name(go, "level-exit");
+    set_editor_folder(go, "level_exits");
+    set_position_and_scale(go, glm::vec3(x, 0.0f, z), 1.0f);
+    // A trigger standing on the floor. Kinematic: static colliders never detect the player's capsule, which is
+    // kinematic itself (kinematic bodies pair with dynamic and kinematic ones only).
+    add_box_collider(go, glm::vec3(0.0f, 0.5f, 0.0f), glm::vec3(0.5f, 0.5f, 0.5f));
+    auto cc = engineGameObjectGetColliderComponent(go);
+    cc.is_trigger = true;
+    engineGameObjectUpdateColliderComponent(go, &cc);
+    auto rb = engineGameObjectAddRigidBodyComponent(go);
+    rb.type = ENGINE_RIGID_BODY_TYPE_KINEMATIC;
+    engineGameObjectUpdateRigidBodyComponent(go, &rb);
+
+    // the pad showing it: a thin coloured slab on the floor (the traversal marker's cube: 2 units, pivot at the bottom)
+    const auto cube_geo = engineGeometryGetByName(app_.model_asset_id(PREFAB_TYPE_TRAVERSAL_MARKER, "Cube.16427").c_str());
+    if (ENGINE_INVALID_OBJECT_HANDLE != cube_geo)
+    {
+        const auto pad = engineGameObjectCreate();
+        set_name(pad, "level-exit-pad");
+        auto tc = engineGameObjectAddTransformComponent(pad);
+        // on the floor tiles' top
+        set_c_array(tc.position, std::array<float, 3>{ 0.0f, 0.125f, 0.0f });
+        set_c_array(tc.scale, std::array<float, 3>{ 0.45f, 0.01f, 0.45f });
+        engineGameObjectUpdateTransformComponent(pad, &tc);
+        auto pc = engineGameObjectAddParentComponent(pad);
+        pc.parent = go;
+        engineGameObjectUpdateParentComponent(pad, &pc);
+        auto mc = engineGameObjectAddMeshComponent(pad);
+        mc.geometry = cube_geo;
+        engineGameObjectUpdateMeshComponent(pad, &mc);
+        // a flat colour, no texture
+        auto mat = engineGameObjectAddMaterialComponent(pad);
+        set_c_array(mat.diffuse_color, std::array<float, 4>{ 0.25f, 0.8f, 1.0f, 1.0f });
+        engineGameObjectUpdateMaterialComponent(pad, &mat);
+    }
+
+    auto exit = default_level_exit();
+    copy_string(exit.level, level);
+    copy_string(exit.entrance, entrance);
+    engineGameObjectAddDataComponent(go, game_components().level_exit, &exit);
+    return scene_.attach_script<LevelExit>(go);
 }
 
 project_c::Enemy* project_c::LevelBuilder::enemy(float x, float z)

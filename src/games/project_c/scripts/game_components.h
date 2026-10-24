@@ -71,6 +71,17 @@ struct PlayerStart
     char id[PLAYER_START_ID_MAX_LENGTH];
 };
 
+inline constexpr std::uint32_t LEVEL_PATH_MAX_LENGTH = 128;
+
+// Where a level exit leads (the LevelExit script)
+struct LevelExitConfig
+{
+    // the level file, relative to assets/scenes (or absolute)
+    char level[LEVEL_PATH_MAX_LENGTH];
+    // the id of the player start there where the player enters
+    char entrance[PLAYER_START_ID_MAX_LENGTH];
+};
+
 // the handles of the game's component types, ENGINE_INVALID_OBJECT_HANDLE until register_game_components()
 struct GameComponentTypes
 {
@@ -79,6 +90,7 @@ struct GameComponentTypes
     engine_component_type_t building_part_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t house_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_start = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_component_type_t level_exit = ENGINE_INVALID_OBJECT_HANDLE;
 };
 
 // Registers the game's component types with the active application (once, at startup, before scene files are loaded);
@@ -92,6 +104,7 @@ PlayerConfig default_player_config();
 BuildingPartConfig default_building_part_config();
 HouseConfig default_house_config();
 PlayerStart default_player_start();
+LevelExitConfig default_level_exit();
 
 // The game object's component of the type, or `fallback` when it has none (a script placed without its config).
 template<typename T>

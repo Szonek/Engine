@@ -8,6 +8,7 @@
 #include "scripts/game_components.h"
 #include "scripts/gameplay_hud_script.h"
 #include "scripts/interactable_script.h"
+#include "scripts/level_exit_script.h"
 #include "scripts/player_script.h"
 
 #include <chrono>
@@ -103,6 +104,7 @@ void project_c::AppProjectC::register_script_types()
     registry.add<Weapon>("weapon");
     registry.add<House>("house", { components.house_config });
     registry.add<BuildingPart>("building_part", { components.building_part_config });
+    registry.add<LevelExit>("level_exit", { components.level_exit });
     if (!registry.register_component())
     {
         log("Failed registering the script component: scene files can't create scripts.\n");

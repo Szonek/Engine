@@ -74,6 +74,11 @@ project_c::PlayerStart project_c::default_player_start()
     return PlayerStart{ "default" };
 }
 
+project_c::LevelExitConfig project_c::default_level_exit()
+{
+    return LevelExitConfig{ "", "default" };
+}
+
 void project_c::register_game_components()
 {
     g_types.enemy_config = register_component("enemy_config", {
@@ -116,6 +121,12 @@ void project_c::register_game_components()
     g_types.player_start = register_component("player_start", {
         field("id", ENGINE_FIELD_KIND_STRING, offsetof(PlayerStart, id), "the entrance's name; \"default\" is where the level starts", PLAYER_START_ID_MAX_LENGTH),
     }, default_player_start());
+
+    g_types.level_exit = register_component("level_exit", {
+        field("level", ENGINE_FIELD_KIND_STRING, offsetof(LevelExitConfig, level), "the level file it leads to, relative to assets/scenes", LEVEL_PATH_MAX_LENGTH),
+        field("entrance", ENGINE_FIELD_KIND_STRING, offsetof(LevelExitConfig, entrance), "the id of the player start there where the player enters",
+            PLAYER_START_ID_MAX_LENGTH),
+    }, default_level_exit());
 }
 
 const project_c::GameComponentTypes& project_c::game_components()
