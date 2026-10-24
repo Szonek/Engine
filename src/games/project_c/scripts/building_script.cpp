@@ -148,10 +148,13 @@ bool project_c::House::add_roof_prop(engine_game_object_t go)
 
 void project_c::House::on_start()
 {
-    if (const auto* player = my_scene_->find_script<Player>())
-    {
-        player_go_ = player->get_game_object();
-    }
+    find_player();
+}
+
+void project_c::House::find_player()
+{
+    const auto* player = my_scene_->find_script<Player>();
+    player_go_ = player && engineGameObjectIsValid(player->get_game_object()) ? player->get_game_object() : ENGINE_INVALID_GAME_OBJECT_ID;
 }
 
 bool project_c::House::is_inside(const glm::vec3& p) const
@@ -165,10 +168,14 @@ bool project_c::House::is_inside(const glm::vec3& p) const
 
 void project_c::House::update(float dt)
 {
-    // a scene without a player (e.g. a test scene)
-    if (player_go_ == ENGINE_INVALID_GAME_OBJECT_ID)
+    // a scene without a player (e.g. a test scene), or the player was destroyed (e.g. deleted in the editor)
+    if (!engineGameObjectIsValid(player_go_))
     {
-        return;
+        find_player();
+        if (player_go_ == ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            return;
+        }
     }
 
     const auto ptc = engineGameObjectGetTransformComponent(player_go_);

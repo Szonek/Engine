@@ -63,6 +63,9 @@ private:
 
 private:
     // nullopt until the first update
+    // the player's game object, or none (a scene without a player, or the player is gone)
+    void find_player();
+
     std::optional<bool> player_inside_;
     engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
 };
