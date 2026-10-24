@@ -268,4 +268,27 @@ TEST_F(CombatTest, EncounterWithoutEnemiesIsNeverCleared)
 
     EXPECT_EQ(scene->encounter()->get_state(), Encounter::State::eInProgress);
 }
+
+// regression: the enemies and the house kept the player's game object from their start and read it every frame, so
+// destroying the player (e.g. deleting it in the editor) aborted the game; they find the next player
+TEST_F(CombatTest, EnemiesAndHouseFindTheNextPlayerWhenThePlayerIsDestroyed)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-8.0f, -8.0f, 4.0f, 4.0f);
+    scene->build().house(-5.0f, -5.0f, 0.125f);
+    const auto first_player = scene->build().player(PLAYER_X, PLAYER_Z)->get_game_object();
+    auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + 0.8f);
+    scene->snap_camera_to_player();
+    step(LANDING_FRAMES);
+
+    engineGameObjectDestroy(first_player);
+    step(30);
+    EXPECT_FALSE(engineGameObjectIsValid(first_player));
+
+    // next to where the enemy walked to (on it, the player would be out of its reach)
+    const auto enemy_position = position_of(enemy->get_game_object());
+    auto* player = scene->build().player(enemy_position.x + 1.0f, enemy_position.z);
+    step(LANDING_FRAMES + 240);
+    EXPECT_LT(player->get_hp(), player->get_max_hp());
+}
 }  // namespace
