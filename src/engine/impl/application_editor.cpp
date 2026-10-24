@@ -24,6 +24,7 @@
 #include <cstring>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <map>
 #include <memory>
 #include <numeric>
@@ -137,7 +138,17 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
     {
         // delete entity
         const auto can_delete = engine::CommandDestroyEntity::can_destroy(*scene, node->entity);
-        if (ImGui::MenuItem("Delete", nullptr, false, can_delete))
+        const auto transient = scene->get_persistent_id(node->entity) == engine::EntityIdRegistry::INVALID_ID;
+        if (transient)
+        {
+            // a runtime object isn't saved, so undo can't bring it back: deleting it is confirmed first
+            if (ImGui::MenuItem("Delete (can't be undone)"))
+            {
+                ctx.request_delete_without_undo(node->entity);
+            }
+            ImGui::SetItemTooltip("A runtime (transient) object isn't saved, so deleting it can't be undone");
+        }
+        else if (ImGui::MenuItem("Delete", nullptr, false, can_delete))
         {
             ctx.set_selected_entity(scene, entt::null, commands);
             commands.execute_command(std::make_unique<engine::CommandDestroyEntity>(*scene, node->entity));
@@ -1328,7 +1339,47 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
         }
         ImGui::TreePop();
     }
+    display_delete_without_undo_popup(scene);
     ImGui::End(); // scene panel
+}
+
+void engine::ApplicationEditor::display_delete_without_undo_popup(class Scene* scene)
+{
+    constexpr const char* popup = "Delete runtime object?";
+    if (const auto requested = scene_hierarchy_context_.take_delete_without_undo_request(); requested != entt::null)
+    {
+        delete_without_undo_ = requested;
+        ImGui::OpenPopup(popup);
+    }
+    if (!ImGui::BeginPopupModal(popup, nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        return;
+    }
+    // gone meanwhile (e.g. destroyed by its script)
+    if (!scene->is_valid_entity(delete_without_undo_))
+    {
+        delete_without_undo_ = entt::null;
+        ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+        return;
+    }
+    const auto* name = scene->get_component<engine_name_component_t>(delete_without_undo_);
+    ImGui::Text("\"%s\" is a runtime (transient) object: it isn't saved,", name ? name->name : "?");
+    ImGui::TextUnformatted("so deleting it (and what is parented under it) can't be undone.");
+    if (ImGui::Button("Delete"))
+    {
+        scene_hierarchy_context_.set_selected_entity(scene, entt::null, commands_);
+        scene->destroy_entity(delete_without_undo_);
+        delete_without_undo_ = entt::null;
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape))
+    {
+        delete_without_undo_ = entt::null;
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
 }
 
 void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scene, float /*dt*/)
@@ -1860,6 +1911,16 @@ void engine::SceneHierarchyContext::set_forced_open_selected_parents(bool value)
 bool engine::SceneHierarchyContext::is_forced_open_selected_parents() const
 {
     return force_open_selected_parents_;
+}
+
+void engine::SceneHierarchyContext::request_delete_without_undo(entt::entity e)
+{
+    delete_without_undo_ = e;
+}
+
+entt::entity engine::SceneHierarchyContext::take_delete_without_undo_request()
+{
+    return std::exchange(delete_without_undo_, entt::entity{ entt::null });
 }
 
 void engine::SceneHierarchyContext::sync_selected_from_scene(engine::Scene* scene)
