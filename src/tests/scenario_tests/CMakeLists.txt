@@ -26,6 +26,8 @@ add_executable(${SCENARIO_TESTS_NAME}
 set_property(TARGET ${SCENARIO_TESTS_NAME} PROPERTY CXX_STANDARD 20)
 # the assets folder of this source tree, for tests which load a file by its path
 target_compile_definitions(${SCENARIO_TESTS_NAME} PRIVATE TEST_ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets")
+# the level tests read scene files
+target_include_directories(${SCENARIO_TESTS_NAME} PRIVATE ${RAPIDJSON_INCLUDE_DIR})
 target_link_libraries(${SCENARIO_TESTS_NAME} GTest::gtest project_c_lib)
 add_test(NAME ${SCENARIO_TESTS_NAME} COMMAND ${SCENARIO_TESTS_NAME})
 # the timeout guards against hangs; a Debug run on a software GL renderer (Linux CI) takes ~2 min
