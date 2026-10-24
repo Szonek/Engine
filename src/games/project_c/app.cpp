@@ -156,6 +156,21 @@ std::string project_c::AppProjectC::model_asset_id(PrefabType type, std::string_
     return fmt::format("{}#{}", prefab_paths_[type], name);
 }
 
+void project_c::AppProjectC::request_level_travel(LevelTravel travel)
+{
+    if (!level_travel_request_)
+    {
+        level_travel_request_ = std::move(travel);
+    }
+}
+
+std::optional<project_c::LevelTravel> project_c::AppProjectC::take_level_travel_request()
+{
+    auto request = std::move(level_travel_request_);
+    level_travel_request_.reset();
+    return request;
+}
+
 void project_c::AppProjectC::update(float dt)
 {
     update_scenes(dt);

@@ -501,13 +501,20 @@ project_c::PlayerConfig project_c::Player::config() const
 
 void project_c::Player::on_start()
 {
-    hp_ = config().max_hp;
-    // runtime parts of the player, never saved: the attack trigger, the traversal marker and the starting weapon
+    // what the player brought from the previous level; a fresh player at the start of the game
+    const auto& app = *static_cast<const AppProjectC*>(my_scene_->get_app());
+    const auto& carried = app.get_player_state();
+    hp_ = carried ? std::min(carried->hp, config().max_hp) : config().max_hp;
+    coins_ = carried ? carried->coins : 0;
+    // runtime parts of the player, never saved: the attack trigger, the traversal marker and the weapon
     attack_trigger_go_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreateTransient(), go_)->get_game_object();
     create_traversal_marker();
-    const auto weapon_go = engineGameObjectCreateTransient();
-    Weapon::add_components(weapon_go, *static_cast<const AppProjectC*>(my_scene_->get_app()));
-    equip_waepon(my_scene_->register_script<Weapon>(weapon_go));
+    if (!carried || carried->has_weapon)
+    {
+        const auto weapon_go = engineGameObjectCreateTransient();
+        Weapon::add_components(weapon_go, app);
+        equip_waepon(my_scene_->register_script<Weapon>(weapon_go));
+    }
 
     for (std::size_t combo_index = 0; combo_index < AttackStateData::combo_length; ++combo_index)
     {
@@ -991,6 +998,11 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
         my_scene_->get_script<CameraScript>(cameras.front())->shake(0.05f, 0.12f);
     }
     return true;
+}
+
+project_c::PlayerState project_c::Player::get_state() const
+{
+    return PlayerState{ hp_, coins_, weapon() != nullptr };
 }
 
 void project_c::Player::add_coin(std::uint64_t amount)

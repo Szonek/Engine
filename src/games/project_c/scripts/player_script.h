@@ -17,6 +17,7 @@ namespace project_c
 {
 class AppProjectC;
 class Player;
+struct PlayerState;
 
 class AttackTrigger : public BaseNode
 {
@@ -215,6 +216,9 @@ public:
     void set_attack_window_active(bool active);
 
     void add_coin(std::uint64_t amount);
+    std::uint64_t get_coins() const { return coins_; }
+    // what the player carries to the next level (AppProjectC::request_level_travel)
+    PlayerState get_state() const;
 
 private:
     // this frame's player input (AppProjectC::player_input), never the keyboard/mouse directly
