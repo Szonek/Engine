@@ -63,6 +63,9 @@ public:
 
     // the space the entity's transform is local to (parent world * joint), see engine::get_parent_space_matrix
     glm::mat4 get_parent_space_matrix(entt::entity entity) const;
+    // the entity's world matrix from the current transforms (the world transform component is from the last update),
+    // see engine::compute_world_matrix
+    glm::mat4 compute_world_matrix(entt::entity entity) const;
 
     // the entities whose parent component points at `entity`, in the order they were parented; invalidated by any
     // change of the hierarchy

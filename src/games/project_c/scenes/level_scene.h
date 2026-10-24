@@ -1,0 +1,39 @@
+#pragma once
+
+#include "engine.h"
+#include "iscene.h"
+
+namespace project_c
+{
+class GameplayHud;
+
+// A level: a scene file (AppProjectC::get_level_path, assets/scenes/test_level.json by default) with the nav mesh built
+// from it and the player spawned at its player start. Everything else (the camera, the Encounter, the GameplayHud) is
+// in the file. Gameplay scripts don't depend on it; it only adds the level rules (restart, HUD visibility).
+class LevelScene : public engine::IScene
+{
+public:
+    // throws std::runtime_error when the level file can't be loaded
+    LevelScene(engine::IApplication* app);
+
+    void activate() override;
+    void deactivate() override;
+
+    // the level's per-frame rules on top of IScene::update; runs also while the editor is paused
+    engine_result_code_t update(float dt) override;
+    static constexpr const char* get_name() { return "LevelScene"; }
+
+private:
+    // the HUD's and the encounter's game objects, once their scripts exist (after the first update): their scripts are
+    // then looked up by game object, never by scanning every script each frame
+    void find_level_scripts();
+    // the HUD, from the file: nullptr before the first update, in a level without one or when its script was removed
+    GameplayHud* hud();
+
+    bool level_scripts_found_ = false;
+    engine_game_object_t hud_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    engine_game_object_t encounter_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    bool restart_was_down_ = false;
+};
+
+}// namespace project_c

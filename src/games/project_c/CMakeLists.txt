@@ -14,8 +14,8 @@ set(LIB_SOURCES
 	
 	scenes/level_builder.h
 	scenes/level_builder.cpp
-	scenes/scene_test.h
-	scenes/scene_test.cpp
+	scenes/level_scene.h
+	scenes/level_scene.cpp
 	
 	scripts/base_script.h
 	scripts/base_script.cpp

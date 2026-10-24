@@ -16,6 +16,7 @@
 #include <utils.h>
 
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
 #include <array>
@@ -241,9 +242,31 @@ project_c::Player* project_c::LevelBuilder::player(float x, float z)
     {
         return nullptr;
     }
-    const auto go = app_.instantiate_prefab(PREFAB_TYPE_ROGUE).go;
+    return set_up_player(app_.instantiate_prefab(PREFAB_TYPE_ROGUE).go, glm::vec3(x, 1.0f, z), glm::identity<glm::quat>());
+}
+
+project_c::Player* project_c::LevelBuilder::spawn_player(engine_game_object_t player_start)
+{
+    // where the start is in the world now (it may be parented, e.g. under a room), not as of the last scene update:
+    // a level spawns the player right after loading
+    float world[16] = {};
+    if (!app_.is_prefab_available(PREFAB_TYPE_ROGUE) || engineGameObjectComputeWorldTransform(player_start, world) != ENGINE_RESULT_CODE_OK)
+    {
+        return nullptr;
+    }
+    const auto matrix = glm::make_mat4(world);
+    // the start's facing, without its scale
+    const glm::mat3 rotation(glm::normalize(glm::vec3(matrix[0])), glm::normalize(glm::vec3(matrix[1])), glm::normalize(glm::vec3(matrix[2])));
+    return set_up_player(app_.spawn_prefab(PREFAB_TYPE_ROGUE).go, glm::vec3(matrix[3]), glm::quat_cast(rotation));
+}
+
+project_c::Player* project_c::LevelBuilder::set_up_player(engine_game_object_t go, const glm::vec3& position, const glm::quat& rotation)
+{
     set_name(go, "player");
-    set_position_and_scale(go, glm::vec3(x, 1.0f, z), Player::MODEL_SCALE);
+    set_position_and_scale(go, position, Player::MODEL_SCALE);
+    auto tc = engineGameObjectGetTransformComponent(go);
+    set_c_array(tc.rotation, std::array<float, 4>{ rotation.x, rotation.y, rotation.z, rotation.w });
+    engineGameObjectUpdateTransformComponent(go, &tc);
     add_character_controller(go, 0.15f, Player::MODEL_SCALE);
     const auto config = default_player_config();
     engineGameObjectAddDataComponent(go, game_components().player_config, &config);

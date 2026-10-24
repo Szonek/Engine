@@ -346,6 +346,11 @@ glm::mat4 engine::Scene::get_parent_space_matrix(entt::entity entity) const
     return engine::get_parent_space_matrix(entity_registry_, entity, [this](const auto& joint_attachment) { return get_joint_matrix(joint_attachment); });
 }
 
+glm::mat4 engine::Scene::compute_world_matrix(entt::entity entity) const
+{
+    return engine::compute_world_matrix(entity_registry_, entity, [this](const auto& joint_attachment) { return get_joint_matrix(joint_attachment); });
+}
+
 void engine::Scene::update_world_transforms()
 {
     engine::update_world_transforms(entity_registry_, [this](const auto& joint_attachment) { return get_joint_matrix(joint_attachment); });
