@@ -215,7 +215,7 @@ TEST_F(LevelTest, LevelUnloadedBeforeFirstStepCanBeLoadedAgain)
     EXPECT_NE(scene->find_script<project_c::Player>(), nullptr);
 }
 
-// the level holds a player start, not the player: the player is spawned at the start, as a runtime object
+// the level holds player starts, not the player: the player is spawned at the default start, as a runtime object
 TEST_F(LevelTest, PlayerIsSpawnedAtThePlayerStart)
 {
     auto* scene = load_scene<project_c::LevelScene>();
@@ -224,16 +224,16 @@ TEST_F(LevelTest, PlayerIsSpawnedAtThePlayerStart)
     ASSERT_NE(player, nullptr);
     EXPECT_TRUE(engineGameObjectIsTransient(player->get_game_object()));
 
-    // the file's only player start
+    // the file's default player start (the others are entrances from other levels)
     rapidjson::Document file;
     file.Parse(read_text(LEVEL_FILE).c_str());
     const rapidjson::Value* start_position = nullptr;
     for (const auto& entity : file["entities"].GetArray())
     {
         const auto& components = entity["components"];
-        if (components.HasMember("player_start"))
+        if (components.HasMember("player_start") && std::string(components["player_start"]["id"].GetString()) == "default")
         {
-            EXPECT_EQ(start_position, nullptr) << "the level has one player start";
+            EXPECT_EQ(start_position, nullptr) << "the level has one default player start";
             start_position = &components["transform"]["position"];
         }
         EXPECT_FALSE(components.HasMember("script") && std::string(components["script"]["type"].GetString()) == "player");
