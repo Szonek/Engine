@@ -158,12 +158,14 @@ std::string project_c::AppProjectC::model_asset_id(PrefabType type, std::string_
     return fmt::format("{}#{}", prefab_paths_[type], name);
 }
 
-void project_c::AppProjectC::request_level_travel(LevelTravel travel)
+bool project_c::AppProjectC::request_level_travel(LevelTravel travel)
 {
-    if (!level_travel_request_)
+    if (level_travel_request_)
     {
-        level_travel_request_ = std::move(travel);
+        return false;
     }
+    level_travel_request_ = std::move(travel);
+    return true;
 }
 
 std::optional<project_c::LevelTravel> project_c::AppProjectC::take_level_travel_request()
@@ -176,6 +178,12 @@ std::optional<project_c::LevelTravel> project_c::AppProjectC::take_level_travel_
 void project_c::AppProjectC::update(float dt)
 {
     update_scenes(dt);
+    // only a LevelScene takes travel requests; one left over would fire in whichever level loads next
+    if (level_travel_request_)
+    {
+        log(fmt::format("Nothing took the travel to the level {}; it is dropped.\n", level_travel_request_->level_path));
+        level_travel_request_.reset();
+    }
 
     if (pending_scene_change_)
     {

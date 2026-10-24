@@ -85,8 +85,9 @@ public:
     void set_player_state(std::optional<PlayerState> state) { player_state_ = state; }
 
     // Level exits ask for the next level here; the level applies the request after its update (LevelScene), so
-    // gameplay scripts never depend on the scene class. The first request of a frame wins.
-    void request_level_travel(LevelTravel travel);
+    // gameplay scripts never depend on the scene class. The first request of a frame wins; false when another one came
+    // first. A request no level takes in its frame (made in another kind of scene) is dropped at the end of the frame.
+    bool request_level_travel(LevelTravel travel);
     // the pending request, cleared
     std::optional<LevelTravel> take_level_travel_request();
 

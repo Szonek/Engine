@@ -5,11 +5,13 @@
 #include "../scripts/game_components.h"
 #include "../scripts/gameplay_hud_script.h"
 #include "level_builder.h"
+#include "../scripts/scripts_utils.h"
 
 #include <utils.h>
 
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace
@@ -36,12 +38,12 @@ std::vector<engine_game_object_t> find_player_starts()
 }
 
 // the start with the id; ENGINE_INVALID_GAME_OBJECT_ID when the level has none
-engine_game_object_t find_player_start(const std::vector<engine_game_object_t>& starts, const std::string& id)
+engine_game_object_t find_player_start(const std::vector<engine_game_object_t>& starts, std::string_view id)
 {
     for (const auto start : starts)
     {
         const auto ps = project_c::get_game_component(start, project_c::game_components().player_start, project_c::default_player_start());
-        if (id == ps.id)
+        if (project_c::utils::to_string_view(ps.id) == id)
         {
             return start;
         }
@@ -54,19 +56,25 @@ engine_game_object_t find_player_start(const std::vector<engine_game_object_t>& 
 engine_game_object_t find_entrance(const std::string& level_path, const std::string& entrance)
 {
     const auto starts = find_player_starts();
+    if (starts.empty())
+    {
+        return ENGINE_INVALID_GAME_OBJECT_ID;
+    }
     if (const auto start = find_player_start(starts, entrance); start != ENGINE_INVALID_GAME_OBJECT_ID)
     {
         return start;
     }
-    if (!starts.empty())
+    if (entrance != "default")
     {
-        log(fmt::format("The level {} has no player start \"{}\", the player enters at the default one.\n", level_path, entrance));
+        if (const auto start = find_player_start(starts, "default"); start != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            log(fmt::format("The level {} has no player start \"{}\", the player enters at the default one.\n", level_path, entrance));
+            return start;
+        }
     }
-    if (const auto start = find_player_start(starts, "default"); start != ENGINE_INVALID_GAME_OBJECT_ID)
-    {
-        return start;
-    }
-    return starts.empty() ? ENGINE_INVALID_GAME_OBJECT_ID : starts.front();
+    log(fmt::format("The level {} has no player start \"{}\" and no default one, the player enters at its first one.\n", level_path,
+        entrance));
+    return starts.front();
 }
 }  // namespace
 

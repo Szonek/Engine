@@ -20,5 +20,8 @@ public:
 private:
     // the trigger reports the player every frame it overlaps; the level is left once
     bool taken_ = false;
+    // an exit without a level is logged once, not every frame the player stands on it; its level can be set while
+    // playing (the config is read on every use)
+    bool warned_no_level_ = false;
 };
 }  // namespace project_c

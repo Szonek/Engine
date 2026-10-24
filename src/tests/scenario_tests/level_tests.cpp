@@ -57,8 +57,8 @@ class TempLevel
 public:
     TempLevel() { scenario::app().set_level_path(path_.string()); }
     explicit TempLevel(const std::string& content) : TempLevel() { std::ofstream(path_, std::ios::binary) << content; }
-    // a temp file of the name, written later
-    explicit TempLevel(const char* name, bool) : path_(temp_file(name)) {}
+    // a temp file of the name, written later (e.g. by engineSceneSave), not loaded until the test sets the level path
+    static TempLevel unwritten(const char* name) { return TempLevel(temp_file(name)); }
     ~TempLevel()
     {
         // the game starts again: its first level, a fresh player
@@ -69,6 +69,8 @@ public:
     const std::filesystem::path& path() const { return path_; }
 
 private:
+    explicit TempLevel(std::filesystem::path path) : path_(std::move(path)) {}
+
     std::filesystem::path path_ = temp_file("level_test");
 };
 
@@ -256,8 +258,8 @@ TEST_F(LevelTest, PlayerIsSpawnedAtThePlayerStart)
 // exit's entrance and keeps what they had (hp, coins, weapon); the exit there leads back.
 TEST_F(LevelTest, LevelExitsChangeTheLevelAndBack)
 {
-    const TempLevel first("level_first", true);
-    const TempLevel second("level_second", true);
+    const auto first = TempLevel::unwritten("level_first");
+    const auto second = TempLevel::unwritten("level_second");
     // first: the game starts at (0, 0), its exit is 2 m to the right (+x); the way back from the second level enters
     // at (0, -1.5)
     {

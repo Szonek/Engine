@@ -26,22 +26,14 @@
 
 namespace
 {
+using project_c::utils::copy_string;
 using project_c::utils::set_name;
-
-// copies `text` into a fixed char array field, cut to fit with its terminating zero
-template<std::size_t N>
-void copy_string(char (&field)[N], std::string_view text)
-{
-    const auto length = std::min(text.size(), N - 1);
-    std::memcpy(field, text.data(), length);
-    field[length] = '\0';
-}
 
 // lists the game object in the given folder of the editor's scene hierarchy
 void set_editor_folder(engine_game_object_t go, std::string_view path)
 {
     auto fc = engineGameObjectAddFolderComponent(go);
-    std::strncpy(fc.path, path.data(), std::min<std::size_t>(path.size(), ENGINE_FOLDER_PATH_MAX_LENGTH - 1));
+    copy_string(fc.path, path);
     engineGameObjectUpdateFolderComponent(go, &fc);
 }
 
@@ -294,7 +286,10 @@ engine_game_object_t project_c::LevelBuilder::player_start(float x, float z, flo
     set_c_array(tc.rotation, std::array<float, 4>{ rotation.x, rotation.y, rotation.z, rotation.w });
     engineGameObjectUpdateTransformComponent(go, &tc);
     auto ps = default_player_start();
-    copy_string(ps.id, id);
+    if (!copy_string(ps.id, id))
+    {
+        log(fmt::format("The player start id \"{}\" is longer than {} characters; it is cut.\n", id, PLAYER_START_ID_MAX_LENGTH - 1));
+    }
     engineGameObjectAddDataComponent(go, game_components().player_start, &ps);
     return go;
 }
@@ -339,8 +334,16 @@ project_c::LevelExit* project_c::LevelBuilder::level_exit(float x, float z, std:
     }
 
     auto exit = default_level_exit();
-    copy_string(exit.level, level);
-    copy_string(exit.entrance, entrance);
+    if (!copy_string(exit.level, level))
+    {
+        log(fmt::format("The level exit's level \"{}\" is longer than {} characters; it is cut and leads nowhere.\n", level,
+            LEVEL_PATH_MAX_LENGTH - 1));
+    }
+    if (!copy_string(exit.entrance, entrance))
+    {
+        log(fmt::format("The level exit's entrance \"{}\" is longer than {} characters; it is cut.\n", entrance,
+            PLAYER_START_ID_MAX_LENGTH - 1));
+    }
     engineGameObjectAddDataComponent(go, game_components().level_exit, &exit);
     return scene_.attach_script<LevelExit>(go);
 }
