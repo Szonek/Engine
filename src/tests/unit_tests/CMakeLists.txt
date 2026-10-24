@@ -19,6 +19,8 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	scene_serializer_tests.cpp
 	game_types_tests.cpp
 	copy_name_tests.cpp
+	editor_camera_tests.cpp
+	editor_modal_transform_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
@@ -41,6 +43,11 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	# local TRS -> world matrices (EnTT registry only)
 	${ENGINE_IMPL_DIR}/world_transform.cpp
 	${ENGINE_IMPL_DIR}/world_transform.h
+	# the editor's viewport camera and modal transform (glm only)
+	${ENGINE_IMPL_DIR}/editor_camera.cpp
+	${ENGINE_IMPL_DIR}/editor_camera.h
+	${ENGINE_IMPL_DIR}/editor_modal_transform.cpp
+	${ENGINE_IMPL_DIR}/editor_modal_transform.h
 	# type registry, the engine's component descriptions, game-defined types and scene files (EnTT registry + rapidjson)
 	${ENGINE_IMPL_DIR}/serialization/type_registry.cpp
 	${ENGINE_IMPL_DIR}/serialization/type_registry.h
