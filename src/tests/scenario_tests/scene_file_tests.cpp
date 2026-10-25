@@ -312,8 +312,8 @@ TEST_F(SceneFileTest, ChangesToWhatThePrefabCreatedAreSavedAndLoadBack)
     const auto saved = read_file(file_);
     // only what changed: the lid's mesh keeps the prefab's geometry, which isn't written
     EXPECT_NE(saved.find(R"("mesh": {
-            "disable": true
-          })"), std::string::npos) << saved;
+              "disable": true
+            })"), std::string::npos) << saved;
     EXPECT_EQ(saved.find("geometry"), std::string::npos);
     EXPECT_EQ(saved.find("shininess"), std::string::npos);
 

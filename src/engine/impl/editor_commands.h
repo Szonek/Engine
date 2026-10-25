@@ -210,7 +210,7 @@ private:
 
 // Destroys the game object and everything parented under it. They are saved first and loaded back on undo, with
 // their persistent IDs and handles (so references to them find them again) and at the same place among their parent's
-// children. Transient game objects aren't saved, so they don't come back, and what was removed from what a prefab
+// children. Transient game objects aren't saved, so they don't come back, and a game object removed from what a prefab
 // created on its instance can't be saved yet, so it comes back (logged); a game object of a prefab instance (but its
 // root) isn't deleted (see can_destroy).
 class CommandDestroyEntity : public ICommand
@@ -238,8 +238,8 @@ private:
 // new persistent IDs, the same parent, the place right after the original among its parent's children and the name
 // "<name> (1)" (the first number no sibling uses), and becomes the selection. References between the copied game
 // objects point at the copies, references to the rest of the scene stay. A prefab instance is copied as an instance
-// of its prefab with what was added to it and changed in it (prefab overrides; what was removed from what the prefab
-// created can't be saved yet, so the copy has it, logged). Undo destroys the copy (and gives the selection back), redo brings it back with the same IDs and
+// of its prefab with what was added to it, changed in it (prefab overrides) and removed from it (a game object removed
+// from what the prefab created can't be saved yet, so the copy has it, logged). Undo destroys the copy (and gives the selection back), redo brings it back with the same IDs and
 // handles; one undo step.
 class CommandDuplicateEntity : public ICommand
 {

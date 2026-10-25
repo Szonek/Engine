@@ -238,7 +238,8 @@ TEST_F(LevelTest, PlayerIsSpawnedAtThePlayerStart)
     const rapidjson::Value* start_position = nullptr;
     for (const auto& entity : file["entities"].GetArray())
     {
-        const auto& components = entity["components"];
+        // a prefab instance (the enemies) has its root's components under its node path ""
+        const auto& components = entity.HasMember("prefab") ? entity["nodes"][""]["components"] : entity["components"];
         if (components.HasMember("player_start") && std::string(components["player_start"]["id"].GetString()) == "default")
         {
             EXPECT_EQ(start_position, nullptr) << "the level has one default player start";
