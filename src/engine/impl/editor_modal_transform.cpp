@@ -7,17 +7,11 @@
 #include <algorithm>
 #include <cmath>
 
-namespace
-{
-float snap_to(float value, float step)
-{
-    return std::round(value / step) * step;
-}
-}  // namespace
-
-engine::ModalTransform::ModalTransform(ModalTransformMode mode, const glm::mat4& world, const glm::vec2& mouse, const modal_transform_view_t& view)
+engine::ModalTransform::ModalTransform(ModalTransformMode mode, const glm::mat4& world, const glm::vec2& mouse, const modal_transform_view_t& view,
+    const editor_snap_steps_t& snap_steps)
     : mode_(mode)
     , view_(view)
+    , snap_steps_(snap_steps)
     , view_projection_(view.projection * view.view)
     , inverse_view_projection_(glm::inverse(view_projection_))
     , start_world_(world)
@@ -77,7 +71,7 @@ glm::mat4 engine::ModalTransform::update(const glm::vec2& mouse, bool snap)
             offset = glm::vec3(moved) / moved.w - origin;
             if (snap)
             {
-                offset = { snap_to(offset.x, GRAB_SNAP), snap_to(offset.y, GRAB_SNAP), snap_to(offset.z, GRAB_SNAP) };
+                offset = { snap_to(offset.x, snap_steps_.translate), snap_to(offset.y, snap_steps_.translate), snap_to(offset.z, snap_steps_.translate) };
             }
         }
         else
@@ -96,7 +90,7 @@ glm::mat4 engine::ModalTransform::update(const glm::vec2& mouse, bool snap)
             float distance = last_axis_parameter_ - start_axis_parameter_;
             if (snap)
             {
-                distance = snap_to(distance, GRAB_SNAP);
+                distance = snap_to(distance, snap_steps_.translate);
             }
             offset = axis * distance;
         }
@@ -112,7 +106,7 @@ glm::mat4 engine::ModalTransform::update(const glm::vec2& mouse, bool snap)
         float angle = angle_;
         if (snap)
         {
-            angle = glm::radians(snap_to(glm::degrees(angle), ROTATE_SNAP));
+            angle = glm::radians(snap_to(glm::degrees(angle), snap_steps_.rotate));
         }
         // counterclockwise on the screen turns about the axis toward the viewer
         const auto toward_viewer = glm::normalize(glm::vec3(glm::inverse(view_.view)[2]));
@@ -133,7 +127,7 @@ glm::mat4 engine::ModalTransform::update(const glm::vec2& mouse, bool snap)
         float factor = glm::length(mouse - center) / start_distance;
         if (snap)
         {
-            factor = snap_to(factor, SCALE_SNAP);
+            factor = snap_to(factor, snap_steps_.scale);
         }
         glm::vec3 scale(factor);
         if (axis_ != ModalTransformAxis::eNone)

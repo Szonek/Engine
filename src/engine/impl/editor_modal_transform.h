@@ -1,4 +1,6 @@
 #pragma once
+#include "editor_snap.h"
+
 #include <glm/glm.hpp>
 
 namespace engine
@@ -32,11 +34,12 @@ struct modal_transform_view_t
 //   rotate: by the angle the cursor turns around the object on the screen; about the view axis, or the chosen axis
 //   scale:  by how much closer to / further from the object the cursor is; uniform, or along the chosen local axis
 // Axis keys cycle like Blender's: first press global, second local, third none (scale: local, then none).
-// Snapping (Ctrl): grab in steps of GRAB_SNAP units, rotate in ROTATE_SNAP, scale in SCALE_SNAP.
+// Snapping (Ctrl): grab, rotate and scale in the editor's snap steps, like the gizmo.
 class ModalTransform
 {
 public:
-    ModalTransform(ModalTransformMode mode, const glm::mat4& world, const glm::vec2& mouse, const modal_transform_view_t& view);
+    ModalTransform(ModalTransformMode mode, const glm::mat4& world, const glm::vec2& mouse, const modal_transform_view_t& view,
+        const editor_snap_steps_t& snap_steps = {});
 
     // starts the new mode from the current result and mouse position, like pressing another of G/R/S in Blender
     void set_mode(ModalTransformMode mode, const glm::vec2& mouse);
@@ -60,11 +63,6 @@ public:
     // what the last update did: the grab offset, the rotation in degrees (x) or the scale factor (x)
     glm::vec3 get_value() const { return value_; }
 
-public:
-    static constexpr float GRAB_SNAP = 0.5f;  // units
-    static constexpr float ROTATE_SNAP = 5.0f;  // degrees
-    static constexpr float SCALE_SNAP = 0.1f;
-
 private:
     void restart(const glm::vec2& mouse);
     // grab along an axis starts measuring at the mouse position
@@ -80,6 +78,7 @@ private:
     ModalTransformAxis axis_ = ModalTransformAxis::eNone;
     bool local_ = false;
     modal_transform_view_t view_;
+    editor_snap_steps_t snap_steps_;
     glm::mat4 view_projection_{ 1.0f };
     glm::mat4 inverse_view_projection_{ 1.0f };
 

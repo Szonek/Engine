@@ -103,7 +103,7 @@ TEST(ModalTransform, GrabSnapsToSteps)
     const auto origin = origin_of(transform.update(CENTER + glm::vec2(77.0f, 31.0f), true));
     for (int i = 0; i < 3; i++)
     {
-        EXPECT_NEAR(std::remainder(origin[i], ModalTransform::GRAB_SNAP), 0.0f, 1e-4f);
+        EXPECT_NEAR(std::remainder(origin[i], engine::editor_snap_steps_t{}.translate), 0.0f, 1e-4f);
     }
     EXPECT_GT(origin.x, 0.0f);
 }
@@ -190,6 +190,32 @@ TEST(ModalTransform, RotateSnapsToSteps)
     const float angle = glm::radians(23.0f);
     transform.update(CENTER + 100.0f * glm::vec2(std::cos(angle), -std::sin(angle)), true);
     EXPECT_NEAR(transform.get_value().x, 25.0f, 1e-3f);
+}
+
+TEST(ModalTransform, SnapsToTheGivenSteps)
+{
+    const engine::editor_snap_steps_t steps{ 2.0f, 15.0f, 0.25f };
+    const float angle = glm::radians(23.0f);
+    ModalTransform rotate(ModalTransformMode::eRotate, glm::mat4(1.0f), CENTER + glm::vec2(100.0f, 0.0f), make_view(), steps);
+    rotate.update(CENTER + 100.0f * glm::vec2(std::cos(angle), -std::sin(angle)), true);
+    EXPECT_NEAR(rotate.get_value().x, 30.0f, 1e-3f);
+
+    ModalTransform scale(ModalTransformMode::eScale, glm::mat4(1.0f), CENTER + glm::vec2(100.0f, 0.0f), make_view(), steps);
+    scale.update(CENTER + glm::vec2(140.0f, 0.0f), true);
+    EXPECT_NEAR(scale.get_value().x, 1.5f, 1e-3f);
+
+    ModalTransform grab(ModalTransformMode::eGrab, glm::mat4(1.0f), CENTER, make_view(), steps);
+    grab.toggle_axis(ModalTransformAxis::eX);
+    const auto origin = origin_of(grab.update(project(glm::vec3(2.9f, 0.0f, 0.0f)), true));
+    expect_vec_near(origin, glm::vec3(2.0f, 0.0f, 0.0f));
+}
+
+TEST(EditorSnap, SnapsToTheClosestStep)
+{
+    EXPECT_FLOAT_EQ(engine::snap_to(0.74f, 0.5f), 0.5f);
+    EXPECT_FLOAT_EQ(engine::snap_to(0.76f, 0.5f), 1.0f);
+    EXPECT_FLOAT_EQ(engine::snap_to(-1.3f, 0.5f), -1.5f);
+    EXPECT_FLOAT_EQ(engine::snap_to(37.0f, 15.0f), 30.0f);
 }
 
 TEST(ModalTransform, ScaleByTheCursorsDistanceFromTheObject)

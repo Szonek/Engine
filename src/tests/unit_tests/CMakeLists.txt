@@ -48,6 +48,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/editor_camera.h
 	${ENGINE_IMPL_DIR}/editor_modal_transform.cpp
 	${ENGINE_IMPL_DIR}/editor_modal_transform.h
+	${ENGINE_IMPL_DIR}/editor_snap.h
 	# type registry, the engine's component descriptions, game-defined types and scene files (EnTT registry + rapidjson)
 	${ENGINE_IMPL_DIR}/serialization/type_registry.cpp
 	${ENGINE_IMPL_DIR}/serialization/type_registry.h
