@@ -120,6 +120,19 @@ bool equal_elements(const engine::FieldInfo& field, const std::byte* a, const st
 }
 }  // namespace
 
+bool engine::equal_field(const FieldInfo& field, const std::byte* a, const std::byte* b)
+{
+    for (std::size_t i = 0; i < field.count; i++)
+    {
+        const auto offset = field.offset + i * field.size;
+        if (!equal_elements(field, a + offset, b + offset))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool engine::equal_values(const TypeInfo& type, const std::byte* a, const std::byte* b)
 {
     for (const auto& field : type.fields)
@@ -134,13 +147,9 @@ bool engine::equal_values(const TypeInfo& type, const std::byte* a, const std::b
             }
             continue;
         }
-        for (std::size_t i = 0; i < field.count; i++)
+        if (!equal_field(field, a, b))
         {
-            const auto offset = field.offset + i * field.size;
-            if (!equal_elements(field, a + offset, b + offset))
-            {
-                return false;
-            }
+            return false;
         }
     }
     return true;
