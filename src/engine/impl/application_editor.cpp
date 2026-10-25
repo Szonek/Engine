@@ -134,7 +134,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
         }
         if (!can_delete)
         {
-            ImGui::SetItemTooltip("Part of a prefab instance: it can't be deleted until prefab overrides exist (delete the instance's root instead)");
+            ImGui::SetItemTooltip("Part of a prefab instance: removing it from the instance can't be saved yet (delete the instance's root instead)");
         }
 
         const auto can_duplicate = engine::CommandDuplicateEntity::can_duplicate(*scene, node->entity);
@@ -145,7 +145,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
         if (!can_duplicate)
         {
             ImGui::SetItemTooltip(transient ? "A runtime (transient) object isn't scene content, so it isn't duplicated"
-                : "Part of a prefab instance: it can't be duplicated until prefab overrides exist (duplicate the instance's root instead)");
+                : "Part of a prefab instance: it can't be duplicated out of it yet (duplicate the instance's root instead)");
         }
 
         //rename entity

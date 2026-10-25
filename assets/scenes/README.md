@@ -19,7 +19,7 @@ the level writes the new format.
     { "id": 1, "components": { "name": { "name": "camera" }, "transform": { ... }, "camera": { ... }, "script": { "type": "camera" } } },
     { "id": 42, "prefab": "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb",
       "components": { "name": { ... }, "transform": { ... }, "character_controller": { ... }, "enemy_config": { ... }, "script": { "type": "enemy" } },
-      "nodes": { "Body/Hand": { "collider": { ... } } } }
+      "nodes": { "Body/Hand": { "collider": { ... } }, "Body": { "mesh": { "disable": true } } } }
   ]
 }
 ```
@@ -34,9 +34,14 @@ the level writes the new format.
   that reads back exactly. A union (a light's or collider's data) writes only its active case, under the name of its
   type (`"type": "orthographic", "orthographic": { "scale": 5 }`).
 - An entity with `prefab` is a **prefab instance**: the model (its path under `assets/models`) is instantiated again
-  when the file is loaded, and only the root's name and transform and the components added to the instance are saved,
-  on the root or under `nodes` by node path (the node names from the root down, joined by `/`). The game objects inside
-  an instance have IDs hashed from the root's ID and their node path, so references to them survive a reload.
+  when the file is loaded, and only the root's name and transform and what changed since are saved, on the root or
+  under `nodes` by node path (the node names from the root down, joined by `/`): a component added to the instance is
+  written whole, a component the model gave it which was changed (an **override**, like Unity's prefab overrides) only
+  with the fields that differ from the model's (`"mesh": { "disable": true }`; an array such as a colour is one field, a
+  union whose type changed is written whole). Everything else comes from the model, so a change to the model shows up
+  wherever no override hides it. Removing a component or game object the model created isn't saved yet. The game
+  objects inside an instance have IDs hashed from the root's ID and their node path, so references to them survive a
+  reload.
 - `script` names the game object's script (a script type the game registered, or `none`).
 
 The same scene always gives the same bytes, so files diff cleanly.
