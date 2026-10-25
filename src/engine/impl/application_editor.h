@@ -4,6 +4,7 @@
 #include "editor_commands.h"
 #include "editor_camera.h"
 #include "editor_modal_transform.h"
+#include "world_transform.h"
 #include "render/outline_feature.h"
 #include "render/grid_feature.h"
 
@@ -171,6 +172,9 @@ private:
     std::optional<ModalTransform> modal_transform_;
     entt::entity modal_transform_entity_ = entt::null;
     engine_transform_component_t modal_transform_original_{};
+    // what the modal transform changed since it started (it can go from one mode to another): the rest of the original
+    // transform is kept exactly
+    TransformParts modal_transform_parts_{ false, false, false };
     // the gizmo handle under the cursor while no gizmo is dragged, and whose gizmo it is: the handle a drag starts on
     entt::entity gizmo_hovered_entity_ = entt::null;
     std::optional<ModalTransformMode> gizmo_hovered_handle_;

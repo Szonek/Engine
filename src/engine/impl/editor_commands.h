@@ -219,7 +219,9 @@ public:
     CommandDestroyEntity(Scene& sc, entt::entity e);
 
     // false for a game object its prefab instance created: a game object removed from an instance can't be saved yet,
-    // and undo couldn't bring back what the prefab gave it which scene files don't describe yet (skin, joint attachment)
+    // and undo couldn't bring back what the prefab gave it which scene files don't describe yet (skin, joint attachment);
+    // also false when one is parented under `e` without its instance's root (moved out of its instance by code: the
+    // editor doesn't move them), which would come back apart from its instance
     static bool can_destroy(const Scene& sc, entt::entity e);
 
     void execute() override;
@@ -248,8 +250,8 @@ public:
     CommandDuplicateEntity(Scene& sc, entt::entity e, entt::entity selected);
 
     // false for a transient game object (runtime objects aren't scene content) and a game object its prefab instance
-    // created (a copy out of an instance would need what scene files don't describe yet: skin, joint attachment);
-    // duplicating it anyway logs why and copies nothing
+    // created (a copy out of an instance would need what scene files don't describe yet: skin, joint attachment), or
+    // which holds one without its instance's root (see can_destroy); duplicating it anyway logs why and copies nothing
     static bool can_duplicate(const Scene& sc, entt::entity e);
 
     // entt::null when nothing was copied

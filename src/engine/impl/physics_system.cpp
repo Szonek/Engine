@@ -378,7 +378,8 @@ void engine::PhysicsSystem::write_dynamic_bodies_to_transforms()
                 const glm::vec3 position{ origin.getX(), origin.getY(), origin.getZ() };
                 const glm::quat rotation = glm::make_quat(std::array<float, 4>{ body_rotation.getX(), body_rotation.getY(), body_rotation.getZ(), body_rotation.getW() }.data());
                 const auto body_world = compute_model_matrix(position, rotation, world_scale);
-                if (!local_transform_from_world(get_parent_space_matrix(registry_, entity, joint_matrix_), body_world, updated))
+                // the scale is the game object's, kept exactly
+                if (!local_transform_from_world(get_parent_space_matrix(registry_, entity, joint_matrix_), body_world, updated, { .position = true, .rotation = true, .scale = false }))
                 {
                     return;
                 }

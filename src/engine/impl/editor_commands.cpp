@@ -179,9 +179,45 @@ CommandDestroyEntity::CommandDestroyEntity(Scene& sc, entt::entity e)
     assert(e_ != entt::null);
 }
 
+namespace
+{
+entt::entity parent_of(const Scene& scene, entt::entity e)
+{
+    return scene.has_component<engine_parent_component_t>(e) ? static_cast<entt::entity>(scene.get_component<engine_parent_component_t>(e)->parent) : entt::entity{ entt::null };
+}
+
+// Whether every game object a prefab instance created which is in the subtree of `e` has its instance's root in it too
+// (above it, up to `e`). One which was moved out of its instance (parented under a game object outside of it) would be
+// saved and loaded back apart from its instance, as a game object of its own with the ID of the instance's node.
+bool holds_whole_instances(const Scene& sc, entt::entity e)
+{
+    const auto is_node_of = [&](entt::entity root, entt::entity node) {
+        const auto* instance = sc.prefabs().find_instance(root);
+        return instance && std::ranges::any_of(instance->nodes, [node](const PrefabInstanceNode& n) { return n.entity == node; });
+    };
+    for (const auto entity : sc.get_subtree(e))
+    {
+        if (!EntityIdRegistry::is_hashed_id(sc.get_persistent_id(entity)))
+        {
+            continue;
+        }
+        auto ancestor = entity;
+        do
+        {
+            ancestor = parent_of(sc, ancestor);
+        } while (ancestor != entt::null && ancestor != e && !is_node_of(ancestor, entity));
+        if (ancestor == entt::null || !is_node_of(ancestor, entity))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+}  // namespace
+
 bool CommandDestroyEntity::can_destroy(const Scene& sc, entt::entity e)
 {
-    return !EntityIdRegistry::is_hashed_id(sc.get_persistent_id(e));
+    return !EntityIdRegistry::is_hashed_id(sc.get_persistent_id(e)) && holds_whole_instances(sc, e);
 }
 
 void CommandDestroyEntity::execute()
@@ -226,14 +262,6 @@ void CommandDestroyEntity::undo()
     }
 }
 
-namespace
-{
-entt::entity parent_of(const Scene& scene, entt::entity e)
-{
-    return scene.has_component<engine_parent_component_t>(e) ? static_cast<entt::entity>(scene.get_component<engine_parent_component_t>(e)->parent) : entt::entity{ entt::null };
-}
-}  // namespace
-
 CommandDuplicateEntity::CommandDuplicateEntity(Scene& sc, entt::entity e, entt::entity selected)
     : scene_(sc)
     , e_(e)
@@ -244,7 +272,7 @@ CommandDuplicateEntity::CommandDuplicateEntity(Scene& sc, entt::entity e, entt::
 bool CommandDuplicateEntity::can_duplicate(const Scene& sc, entt::entity e)
 {
     const auto id = sc.get_persistent_id(e);
-    return sc.is_valid_entity(e) && id != EntityIdRegistry::INVALID_ID && !EntityIdRegistry::is_hashed_id(id);
+    return sc.is_valid_entity(e) && id != EntityIdRegistry::INVALID_ID && !EntityIdRegistry::is_hashed_id(id) && holds_whole_instances(sc, e);
 }
 
 void CommandDuplicateEntity::execute()
@@ -279,7 +307,8 @@ void CommandDuplicateEntity::duplicate()
 {
     if (!can_duplicate(scene_, e_))
     {
-        log::log(log::LogLevel::eError, "Editor: a runtime (transient) object or a part of a prefab instance can't be duplicated.\n");
+        log::log(log::LogLevel::eError, "Editor: a runtime (transient) object, a part of a prefab instance or a game object holding a part of one without its "
+            "instance can't be duplicated.\n");
         return;
     }
     EntityHandles loaded;

@@ -114,14 +114,25 @@ bool equal_elements(const engine::FieldInfo& field, const std::byte* a, const st
         return length == strnlen(sb, field.size) && std::memcmp(sa, sb, length) == 0;
     }
     case FieldKind::eStruct: return engine::equal_values(*field.struct_type, a, b);
-    case FieldKind::eUnion: return true;  // compared by equal_values
+    case FieldKind::eUnion: return true;  // compared by equal_field, which knows its tag
     default: return std::memcmp(a, b, field.size) == 0;
     }
 }
 }  // namespace
 
-bool engine::equal_field(const FieldInfo& field, const std::byte* a, const std::byte* b)
+bool engine::equal_field(const TypeInfo& type, const FieldInfo& field, const std::byte* a, const std::byte* b)
 {
+    if (field.kind == FieldKind::eUnion)
+    {
+        // equal tags select the same case, whose data is all the union holds
+        const auto* tag = type.find_field(field.union_tag);
+        if (tag && !equal_field(type, *tag, a, b))
+        {
+            return false;
+        }
+        const auto* active = find_active_case(type, field, a);
+        return !active || equal_values(*active->type, a + field.offset, b + field.offset);
+    }
     for (std::size_t i = 0; i < field.count; i++)
     {
         const auto offset = field.offset + i * field.size;
@@ -135,22 +146,5 @@ bool engine::equal_field(const FieldInfo& field, const std::byte* a, const std::
 
 bool engine::equal_values(const TypeInfo& type, const std::byte* a, const std::byte* b)
 {
-    for (const auto& field : type.fields)
-    {
-        if (field.kind == FieldKind::eUnion)
-        {
-            // the tags are fields of their own: equal tags select the same case
-            const auto* active = find_active_case(type, field, a);
-            if (active && !equal_values(*active->type, a + field.offset, b + field.offset))
-            {
-                return false;
-            }
-            continue;
-        }
-        if (!equal_field(field, a, b))
-        {
-            return false;
-        }
-    }
-    return true;
+    return std::ranges::all_of(type.fields, [&](const FieldInfo& field) { return equal_field(type, field, a, b); });
 }

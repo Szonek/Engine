@@ -192,6 +192,27 @@ TEST_F(WorldTransformTest, LocalTransformFromWorldKeepsARotationUnderARotatedPar
     expect_matrix_near(world(child), target);
 }
 
+// a move with the gizmo under a rotated, scaled parent: the decomposition rounds the rotation and scale it didn't change
+TEST_F(WorldTransformTest, LocalTransformFromWorldWritesOnlyTheChangedParts)
+{
+    const auto parent_rotation = glm::angleAxis(glm::radians(37.0f), glm::normalize(glm::vec3(1.0f, 2.0f, 0.5f)));
+    const auto parent = create(make_transform({ 3.0f, -1.0f, 2.0f }, parent_rotation, glm::vec3(0.35f)));
+    const auto child_rotation = glm::angleAxis(glm::radians(-71.0f), glm::normalize(glm::vec3(0.2f, 1.0f, -0.4f)));
+    const auto child = create(make_transform({ 1.0f, 1.0f, 0.0f }, child_rotation), parent);
+    engine::update_world_transforms(registry_, no_joints);
+    const auto before = registry_.get<engine_transform_component_t>(child);
+    const auto target = glm::translate(glm::mat4(1.0f), glm::vec3(0.5f, 2.0f, -1.0f)) * world(child);
+
+    auto moved = before;
+    ASSERT_TRUE(engine::local_transform_from_world(world(parent), target, moved, { .position = true, .rotation = false, .scale = false }));
+    EXPECT_NE(std::memcmp(moved.position, before.position, sizeof(moved.position)), 0);
+    EXPECT_EQ(std::memcmp(moved.rotation, before.rotation, sizeof(moved.rotation)), 0);
+    EXPECT_EQ(std::memcmp(moved.scale, before.scale, sizeof(moved.scale)), 0);
+    registry_.replace<engine_transform_component_t>(child, moved);
+    engine::update_world_transforms(registry_, no_joints);
+    expect_matrix_near(world(child), target);
+}
+
 TEST_F(WorldTransformTest, LocalTransformFromWorldFailsForAZeroScaleWithoutTouchingTheTransform)
 {
     const auto before = make_transform({ 1.0f, 2.0f, 3.0f });

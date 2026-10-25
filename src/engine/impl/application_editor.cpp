@@ -99,8 +99,13 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
     const auto entity_id = std::string(node->name) + "##" + std::to_string(static_cast<std::uint32_t>(node->entity));
     // a collapsed node returns false but can still be clicked, dragged etc., so its item is handled either way
     const bool open = ImGui::TreeNodeEx(entity_id.c_str(), dispaly_flags);
+    // a game object its prefab instance created stays under its instance's root, like Unity's (which can't be
+    // restructured): one moved out of it would be saved apart from its instance
+    const auto persistent_id = scene->get_persistent_id(node->entity);
+    const auto instance_part = engine::EntityIdRegistry::is_hashed_id(persistent_id);
     // tooltip the id
-    ImGui::SetItemTooltip("ID: %llu (entity: %u)", static_cast<unsigned long long>(scene->get_persistent_id(node->entity)), static_cast<std::uint32_t>(node->entity));
+    ImGui::SetItemTooltip("ID: %llu (entity: %u)%s", static_cast<unsigned long long>(persistent_id), static_cast<std::uint32_t>(node->entity),
+        instance_part ? "\nPart of a prefab instance: it can't be moved out of it (move the instance's root)" : "");
 
     // select entity with LMB
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
@@ -134,7 +139,8 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
         }
         if (!can_delete)
         {
-            ImGui::SetItemTooltip("Part of a prefab instance: removing it from the instance can't be saved yet (delete the instance's root instead)");
+            ImGui::SetItemTooltip(instance_part ? "Part of a prefab instance: removing it from the instance can't be saved yet (delete the instance's root instead)"
+                : "A part of a prefab instance is under it without its instance's root: move it back to its instance first");
         }
 
         const auto can_duplicate = engine::CommandDuplicateEntity::can_duplicate(*scene, node->entity);
@@ -145,7 +151,8 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
         if (!can_duplicate)
         {
             ImGui::SetItemTooltip(transient ? "A runtime (transient) object isn't scene content, so it isn't duplicated"
-                : "Part of a prefab instance: it can't be duplicated out of it yet (duplicate the instance's root instead)");
+                : instance_part ? "Part of a prefab instance: it can't be duplicated out of it yet (duplicate the instance's root instead)"
+                : "A part of a prefab instance is under it without its instance's root: move it back to its instance first");
         }
 
         //rename entity
@@ -162,7 +169,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
     }
 
     // drag and drop
-    if (ImGui::BeginDragDropSource())
+    if (!instance_part && ImGui::BeginDragDropSource())
     {
         ImGui::SetDragDropPayload("DND_ENTITY", &node->entity, sizeof(entt::entity));
         ImGui::Text("Drag and drop. Entity: %s", node->name.c_str());
@@ -1048,6 +1055,12 @@ std::optional<engine::ModalTransformMode> get_hovered_gizmo_handle()
     return std::nullopt;
 }
 
+// the part of the transform a handle (or G / R / S) changes: it moves, rotates or scales about the object's origin
+engine::TransformParts get_transform_parts(engine::ModalTransformMode mode)
+{
+    return { mode == engine::ModalTransformMode::eGrab, mode == engine::ModalTransformMode::eRotate, mode == engine::ModalTransformMode::eScale };
+}
+
 // ImGuizmo's snap values for dragging a handle: a step per axis when moving, the first value when rotating (degrees)
 // or scaling
 std::array<float, 3> get_gizmo_snap_values(engine::ModalTransformMode handle, const engine::editor_snap_steps_t& steps)
@@ -1677,8 +1690,11 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
 
             if (ImGuizmo::IsUsing())
             {
+                // only the part the dragged handle changes is written, the others keep their exact values (not the
+                // rounding of decomposing the matrix, which a scene file would save as an override of a prefab's)
+                const auto parts = entity == gizmo_hovered_entity_ && gizmo_hovered_handle_ ? get_transform_parts(*gizmo_hovered_handle_) : engine::TransformParts{};
                 auto c = *scene->get_component<engine_transform_component_t>(entity);
-                if (engine::local_transform_from_world(scene->get_parent_space_matrix(entity), model_matrix, c))
+                if (engine::local_transform_from_world(scene->get_parent_space_matrix(entity), model_matrix, c, parts))
                 {
                     commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, c));
                 }
@@ -1756,6 +1772,7 @@ void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
         modal_transform_.emplace(*mode, scene->get_component<world_transform_internal_component_t>(entity)->local_to_world, mouse, view, snap_steps_);
         modal_transform_entity_ = entity;
         modal_transform_original_ = *scene->get_component<engine_transform_component_t>(entity);
+        modal_transform_parts_ = get_transform_parts(*mode);
         return;
     }
 
@@ -1783,15 +1800,20 @@ void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
     if (const auto mode = pressed_mode())
     {
         modal_transform_->set_mode(*mode, mouse);
+        const auto parts = get_transform_parts(*mode);
+        modal_transform_parts_.position |= parts.position;
+        modal_transform_parts_.rotation |= parts.rotation;
+        modal_transform_parts_.scale |= parts.scale;
     }
     if (ImGui::IsKeyPressed(ImGuiKey_X, false)) modal_transform_->toggle_axis(ModalTransformAxis::eX);
     if (ImGui::IsKeyPressed(ImGuiKey_Y, false)) modal_transform_->toggle_axis(ModalTransformAxis::eY);
     if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) modal_transform_->toggle_axis(ModalTransformAxis::eZ);
 
     // previewed on the component itself, so physics, children and the render see it; only the result is a command
+    // what it didn't change keeps the original's exact values
     const auto world = modal_transform_->update(mouse, io.KeyCtrl);
-    auto transform = *scene->get_component<engine_transform_component_t>(entity);
-    if (local_transform_from_world(scene->get_parent_space_matrix(entity), world, transform))
+    auto transform = modal_transform_original_;
+    if (local_transform_from_world(scene->get_parent_space_matrix(entity), world, transform, modal_transform_parts_))
     {
         scene->update_component<engine_transform_component_t>(entity, transform);
     }

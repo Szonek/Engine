@@ -271,4 +271,27 @@ TEST_F(TypeRegistryTest, OnlyTheActiveUnionCaseIsCompared)
     b.type = ENGINE_COLLIDER_TYPE_BOX;
     EXPECT_FALSE(equal(collider, a, b));
 }
+
+TEST_F(TypeRegistryTest, UnionFieldComparesItsTagAndActiveCase)
+{
+    engine::register_builtin_types(types_);
+    const auto& collider = *types_.find("collider");
+    const auto& field = *collider.find_field("collider");
+    ASSERT_EQ(field.kind, engine::FieldKind::eUnion);
+    const auto equal_union = [&](const engine_collider_component_t& a, const engine_collider_component_t& b) {
+        return engine::equal_field(collider, field, reinterpret_cast<const std::byte*>(&a), reinterpret_cast<const std::byte*>(&b));
+    };
+    engine_collider_component_t a{};
+    a.type = ENGINE_COLLIDER_TYPE_SPHERE;
+    a.collider.sphere.radius = 0.5f;
+    auto b = a;
+    b.collider.box.size[2] = 7.0f;
+    b.bounciness = 0.75f;  // not part of the union
+    EXPECT_TRUE(equal_union(a, b));
+    b.collider.sphere.radius = 0.25f;
+    EXPECT_FALSE(equal_union(a, b));
+    b = a;
+    b.type = ENGINE_COLLIDER_TYPE_BOX;
+    EXPECT_FALSE(equal_union(a, b));
+}
 }  // namespace
