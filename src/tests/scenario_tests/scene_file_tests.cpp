@@ -288,6 +288,56 @@ TEST_F(SceneFileTest, PrefabInstanceIsSavedAsItsPrefabAndLoadsBack)
     EXPECT_EQ(again, saved);
 }
 
+TEST_F(SceneFileTest, ChangesToWhatThePrefabCreatedAreSavedAndLoadBack)
+{
+    TestModel crate("crate.gltf");
+    ASSERT_TRUE(crate.loaded());
+    const auto root = crate.instantiate();
+    // the lid hidden and moved, the base recoloured
+    const auto lid = child_named(root, "Lid");
+    const auto base = child_named(root, "Base");
+    ASSERT_NE(lid, ENGINE_INVALID_GAME_OBJECT_ID);
+    ASSERT_NE(base, ENGINE_INVALID_GAME_OBJECT_ID);
+    auto mc = engineGameObjectGetMeshComponent(lid);
+    mc.disable = true;
+    engineGameObjectUpdateMeshComponent(lid, &mc);
+    auto tc = engineGameObjectGetTransformComponent(lid);
+    tc.position[1] += 1.0f;
+    engineGameObjectUpdateTransformComponent(lid, &tc);
+    const auto prefab_material = engineGameObjectGetMaterialComponent(base);
+    auto material = prefab_material;
+    material.diffuse_color[0] = 0.25f;
+    engineGameObjectUpdateMaterialComponent(base, &material);
+    ASSERT_EQ(engineSceneSave(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+    const auto saved = read_file(file_);
+    // only what changed: the lid's mesh keeps the prefab's geometry, which isn't written
+    EXPECT_NE(saved.find(R"("mesh": {
+            "disable": true
+          })"), std::string::npos) << saved;
+    EXPECT_EQ(saved.find("geometry"), std::string::npos);
+    EXPECT_EQ(saved.find("shininess"), std::string::npos);
+
+    create_file_scene();
+    ASSERT_EQ(engineSceneLoad(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+    const auto loaded = find_with([](engine_game_object_t go) { return enginePrefabInstanceGetPrefab(go) != ENGINE_INVALID_OBJECT_HANDLE; });
+    ASSERT_NE(loaded, ENGINE_INVALID_GAME_OBJECT_ID);
+    const auto loaded_lid = child_named(loaded, "Lid");
+    const auto loaded_base = child_named(loaded, "Base");
+    EXPECT_TRUE(engineGameObjectGetMeshComponent(loaded_lid).disable);
+    EXPECT_NE(engineGameObjectGetMeshComponent(loaded_lid).geometry, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(engineGameObjectGetTransformComponent(loaded_lid).position[1], tc.position[1]);
+    const auto loaded_material = engineGameObjectGetMaterialComponent(loaded_base);
+    EXPECT_EQ(loaded_material.diffuse_color[0], 0.25f);
+    EXPECT_EQ(loaded_material.diffuse_color[1], prefab_material.diffuse_color[1]);
+    EXPECT_EQ(loaded_material.shininess, prefab_material.shininess);
+
+    const auto resaved = file_.string() + ".resaved";
+    ASSERT_EQ(engineSceneSave(resaved.c_str()), ENGINE_RESULT_CODE_OK);
+    const auto again = read_file(resaved);
+    std::filesystem::remove(resaved);
+    EXPECT_EQ(again, saved);
+}
+
 TEST_F(SceneFileTest, GameObjectAttachedInsideAnInstanceIsAttachedAgain)
 {
     TestModel arm("skinned_arm.gltf");
