@@ -1055,12 +1055,6 @@ std::optional<engine::ModalTransformMode> get_hovered_gizmo_handle()
     return std::nullopt;
 }
 
-// the part of the transform a handle (or G / R / S) changes: it moves, rotates or scales about the object's origin
-engine::TransformParts get_transform_parts(engine::ModalTransformMode mode)
-{
-    return { mode == engine::ModalTransformMode::eGrab, mode == engine::ModalTransformMode::eRotate, mode == engine::ModalTransformMode::eScale };
-}
-
 // ImGuizmo's snap values for dragging a handle: a step per axis when moving, the first value when rotating (degrees)
 // or scaling
 std::array<float, 3> get_gizmo_snap_values(engine::ModalTransformMode handle, const engine::editor_snap_steps_t& steps)
@@ -1690,11 +1684,8 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
 
             if (ImGuizmo::IsUsing())
             {
-                // only the part the dragged handle changes is written, the others keep their exact values (not the
-                // rounding of decomposing the matrix, which a scene file would save as an override of a prefab's)
-                const auto parts = entity == gizmo_hovered_entity_ && gizmo_hovered_handle_ ? get_transform_parts(*gizmo_hovered_handle_) : engine::TransformParts{};
                 auto c = *scene->get_component<engine_transform_component_t>(entity);
-                if (engine::local_transform_from_world(scene->get_parent_space_matrix(entity), model_matrix, c, parts))
+                if (engine::local_transform_from_world(scene->get_parent_space_matrix(entity), model_matrix, c))
                 {
                     commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, c));
                 }
@@ -1772,7 +1763,6 @@ void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
         modal_transform_.emplace(*mode, scene->get_component<world_transform_internal_component_t>(entity)->local_to_world, mouse, view, snap_steps_);
         modal_transform_entity_ = entity;
         modal_transform_original_ = *scene->get_component<engine_transform_component_t>(entity);
-        modal_transform_parts_ = get_transform_parts(*mode);
         return;
     }
 
@@ -1800,20 +1790,15 @@ void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
     if (const auto mode = pressed_mode())
     {
         modal_transform_->set_mode(*mode, mouse);
-        const auto parts = get_transform_parts(*mode);
-        modal_transform_parts_.position |= parts.position;
-        modal_transform_parts_.rotation |= parts.rotation;
-        modal_transform_parts_.scale |= parts.scale;
     }
     if (ImGui::IsKeyPressed(ImGuiKey_X, false)) modal_transform_->toggle_axis(ModalTransformAxis::eX);
     if (ImGui::IsKeyPressed(ImGuiKey_Y, false)) modal_transform_->toggle_axis(ModalTransformAxis::eY);
     if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) modal_transform_->toggle_axis(ModalTransformAxis::eZ);
 
     // previewed on the component itself, so physics, children and the render see it; only the result is a command
-    // what it didn't change keeps the original's exact values
     const auto world = modal_transform_->update(mouse, io.KeyCtrl);
-    auto transform = modal_transform_original_;
-    if (local_transform_from_world(scene->get_parent_space_matrix(entity), world, transform, modal_transform_parts_))
+    auto transform = *scene->get_component<engine_transform_component_t>(entity);
+    if (local_transform_from_world(scene->get_parent_space_matrix(entity), world, transform))
     {
         scene->update_component<engine_transform_component_t>(entity, transform);
     }

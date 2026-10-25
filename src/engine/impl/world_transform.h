@@ -35,19 +35,8 @@ glm::mat4 compute_world_matrix(const entt::registry& registry, entt::entity enti
 // attachment's joint matrix (each identity when there is none), so local_to_world = parent space * local matrix.
 glm::mat4 get_parent_space_matrix(const entt::registry& registry, entt::entity entity, const JointMatrixFunction& joint_matrix);
 
-// The parts of a local transform which a change of the world matrix wrote (a move, a rotation, a scale).
-struct TransformParts
-{
-    bool position = true;
-    bool rotation = true;
-    bool scale = true;
-};
-
 // The local transform (position, rotation, scale) which puts a game object whose parent space is `parent_space` at `world`.
-// Only the `parts` the caller changed are written: the others keep their exact values in `out` (its current
-// transform), not the decomposition's rounding (a scale of 0.99999994 instead of 1, which a scene file would save as a
-// change to what a prefab gave). Returns false and leaves `out` untouched when the matrix can't be decomposed (e.g. a
-// zero scale). Shear (a rotated child under a non-uniformly scaled parent) can't be represented by TRS: the result is
-// then the closest TRS.
-bool local_transform_from_world(const glm::mat4& parent_space, const glm::mat4& world, engine_transform_component_t& out, TransformParts parts = {});
+// Returns false and leaves `out` untouched when the matrix can't be decomposed (e.g. a zero scale). Shear (a rotated
+// child under a non-uniformly scaled parent) can't be represented by TRS: the result is then the closest TRS.
+bool local_transform_from_world(const glm::mat4& parent_space, const glm::mat4& world, engine_transform_component_t& out);
 }  // namespace engine

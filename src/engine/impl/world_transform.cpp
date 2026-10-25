@@ -101,7 +101,7 @@ glm::mat4 engine::get_parent_space_matrix(const entt::registry& registry, entt::
     return parent_space;
 }
 
-bool engine::local_transform_from_world(const glm::mat4& parent_space, const glm::mat4& world, engine_transform_component_t& out, TransformParts parts)
+bool engine::local_transform_from_world(const glm::mat4& parent_space, const glm::mat4& world, engine_transform_component_t& out)
 {
     glm::vec3 scale;
     glm::quat rotation;
@@ -122,17 +122,8 @@ bool engine::local_transform_from_world(const glm::mat4& parent_space, const glm
         return false;
     }
     rotation = glm::normalize(rotation);
-    if (parts.position)
-    {
-        std::memcpy(out.position, glm::value_ptr(translation), sizeof(out.position));
-    }
-    if (parts.rotation)
-    {
-        std::memcpy(out.rotation, glm::value_ptr(rotation), sizeof(out.rotation));
-    }
-    if (parts.scale)
-    {
-        std::memcpy(out.scale, glm::value_ptr(scale), sizeof(out.scale));
-    }
+    std::memcpy(out.position, glm::value_ptr(translation), sizeof(out.position));
+    std::memcpy(out.rotation, glm::value_ptr(rotation), sizeof(out.rotation));
+    std::memcpy(out.scale, glm::value_ptr(scale), sizeof(out.scale));
     return true;
 }
