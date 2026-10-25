@@ -24,7 +24,7 @@ struct PrefabInstanceNode
     std::string path;
     entt::entity entity;
     // the registered components the prefab gave it, as they were right after the instance was created: what a scene
-    // file doesn't need to save
+    // file doesn't need to save, and what its overrides are the differences from
     std::vector<PrefabComponentValue> created;
 };
 

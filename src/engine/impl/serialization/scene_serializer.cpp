@@ -77,25 +77,77 @@ public:
                 continue;
             }
             key(field.name);
-            const auto field_path = fmt::format("{}.{}", path, field.name);
-            if (field.is_array)
+            write_field(field, value, fmt::format("{}.{}", path, field.name));
+        }
+        writer_.EndObject();
+    }
+
+    // Only the fields of `value` which differ from `base`, a value of the same type (a prefab override): a field is
+    // written whole (an array is one field), a nested struct with the fields which differ in it, a union whose tag is the
+    // same with what differs in its case, one whose tag changed whole.
+    void write_struct_diff(const engine::TypeInfo& type, const std::byte* value, const std::byte* base, std::string_view path)
+    {
+        writer_.StartObject();
+        for (const auto& field : type.fields)
+        {
+            if (field.kind == engine::FieldKind::eUnion)
             {
-                writer_.StartArray();
-                for (std::size_t i = 0; i < field.count; i++)
+                const auto* active = engine::find_active_case(type, field, value);
+                if (!active)
                 {
-                    write_element(field, value + field.offset + i * field.size, field_path);
+                    continue;
                 }
-                writer_.EndArray();
+                const auto same_case = active == engine::find_active_case(type, field, base);
+                if (same_case && engine::equal_values(*active->type, value + field.offset, base + field.offset))
+                {
+                    continue;
+                }
+                key(active->name);
+                const auto case_path = fmt::format("{}.{}", path, active->name);
+                if (same_case)
+                {
+                    write_struct_diff(*active->type, value + field.offset, base + field.offset, case_path);
+                }
+                else
+                {
+                    write_struct(*active->type, value + field.offset, case_path);
+                }
+                continue;
+            }
+            if (engine::equal_field(field, value, base))
+            {
+                continue;
+            }
+            key(field.name);
+            const auto field_path = fmt::format("{}.{}", path, field.name);
+            if (field.kind == engine::FieldKind::eStruct && !field.is_array)
+            {
+                write_struct_diff(*field.struct_type, value + field.offset, base + field.offset, field_path);
             }
             else
             {
-                write_element(field, value + field.offset, field_path);
+                write_field(field, value, field_path);
             }
         }
         writer_.EndObject();
     }
 
 private:
+    void write_field(const engine::FieldInfo& field, const std::byte* value, const std::string& path)
+    {
+        if (!field.is_array)
+        {
+            write_element(field, value + field.offset, path);
+            return;
+        }
+        writer_.StartArray();
+        for (std::size_t i = 0; i < field.count; i++)
+        {
+            write_element(field, value + field.offset + i * field.size, path);
+        }
+        writer_.EndArray();
+    }
+
     void key(std::string_view name)
     {
         writer_.Key(name.data(), static_cast<rapidjson::SizeType>(name.size()));
@@ -491,15 +543,22 @@ void engine::capture_prefab_components(const TypeRegistry& types, const entt::re
 
 namespace
 {
-// A game object as it is written: its components, and for the root of a prefab instance the components added to the
-// instance's other game objects.
+// A component as it is written: whole, or as the fields which differ from the value its prefab gave it (`created`).
+struct ComponentToWrite
+{
+    const engine::TypeInfo* type;
+    const engine::PrefabComponentValue* created = nullptr;
+};
+
+// A game object as it is written: its components, and for the root of a prefab instance the components of the
+// instance's other game objects which were added or changed.
 struct EntityToWrite
 {
     std::uint64_t id;
     entt::entity entity;
-    std::vector<const engine::TypeInfo*> components;
+    std::vector<ComponentToWrite> components;
     const engine::PrefabInstanceInfo* instance = nullptr;
-    std::vector<std::pair<const engine::PrefabInstanceNode*, std::vector<const engine::TypeInfo*>>> nodes;
+    std::vector<std::pair<const engine::PrefabInstanceNode*, std::vector<ComponentToWrite>>> nodes;
 };
 
 const engine::PrefabComponentValue* find_created(const engine::PrefabInstanceNode& node, const engine::TypeInfo* type)
@@ -508,24 +567,25 @@ const engine::PrefabComponentValue* find_created(const engine::PrefabInstanceNod
     return it == node.created.end() ? nullptr : &*it;
 }
 
-// The root's components which are always saved, like Unity saves an instance root's name and transform: what the
+// The root's components which are always saved whole, like Unity saves an instance root's name and transform: what the
 // level does with every instance (place it, name it).
 bool is_root_override(const engine::TypeInfo& type)
 {
     return type.name == "name" || type.name == "transform";
 }
 
-// The components of a game object of an instance which its prefab didn't give it, and the root's name and transform.
-// Adds to `changes` what changed in the other ones the prefab gave it: scene files can't save that yet.
-std::vector<const engine::TypeInfo*> added_components(const std::vector<const engine::TypeInfo*>& components, const entt::registry& registry,
+// What is saved of a game object of an instance: the components its prefab didn't give it (and the root's name and
+// transform) whole, the ones it gave it which changed since as overrides (only what changed). Adds to `changes` what
+// scene files can't save yet: a component the prefab gave it which was removed, a game object which was destroyed.
+std::vector<ComponentToWrite> instance_node_components(const std::vector<const engine::TypeInfo*>& components, const entt::registry& registry,
     const engine::PrefabInstanceNode& node, bool is_root, std::vector<std::string>& changes)
 {
     const auto node_name = is_root ? std::string("the root") : fmt::format("node {}", node.path);
-    std::vector<const engine::TypeInfo*> added;
+    std::vector<ComponentToWrite> written;
     if (!registry.valid(node.entity))
     {
         changes.push_back(fmt::format("{} was destroyed", node_name));
-        return added;
+        return written;
     }
     for (const auto* type : components)
     {
@@ -535,7 +595,7 @@ std::vector<const engine::TypeInfo*> added_components(const std::vector<const en
         {
             if (has)
             {
-                added.push_back(type);
+                written.push_back({ type, nullptr });
             }
             continue;
         }
@@ -548,22 +608,30 @@ std::vector<const engine::TypeInfo*> added_components(const std::vector<const en
         type->storage->get(registry, node.entity, value.get());
         if (!engine::equal_values(*type, created->value.get(), value.get()))
         {
-            changes.push_back(fmt::format("{}: its {} changed", node_name, type->name));
+            written.push_back({ type, created });
         }
     }
-    return added;
+    return written;
 }
 
-void write_components(SceneWriter& out, const entt::registry& registry, entt::entity entity, const std::vector<const engine::TypeInfo*>& components, std::string_view path)
+void write_components(SceneWriter& out, const entt::registry& registry, entt::entity entity, const std::vector<ComponentToWrite>& components, std::string_view path)
 {
     auto& w = out.writer();
     w.StartObject();
-    for (const auto* type : components)
+    for (const auto& [type, created] : components)
     {
         engine::ValueBuffer value(type->size);
         type->storage->get(registry, entity, value.get());
         w.Key(type->name.c_str());
-        out.write_struct(*type, value.get(), fmt::format("{}: {}", path, type->name));
+        const auto component_path = fmt::format("{}: {}", path, type->name);
+        if (created)
+        {
+            out.write_struct_diff(*type, value.get(), created->value.get(), component_path);
+        }
+        else
+        {
+            out.write_struct(*type, value.get(), component_path);
+        }
     }
     w.EndObject();
 }
@@ -576,8 +644,8 @@ std::string write_scene(const engine::TypeRegistry& types, const entt::registry&
     using namespace engine;
     const auto& components = types.get_components();
 
-    // the game objects of an instance (but its root) are made by its prefab: only their added components are saved,
-    // with the root
+    // the game objects of an instance (but its root) are made by its prefab: only their added and changed components are
+    // saved, with the root
     std::set<entt::entity> instance_nodes;
     for (const auto& [id, entity] : entities)
     {
@@ -608,7 +676,7 @@ std::string write_scene(const engine::TypeRegistry& types, const entt::registry&
             {
                 if (type->storage->has(registry, entity))
                 {
-                    e.components.push_back(type);
+                    e.components.push_back({ type, nullptr });
                 }
             }
             to_write.push_back(std::move(e));
@@ -618,24 +686,24 @@ std::string write_scene(const engine::TypeRegistry& types, const entt::registry&
         for (const auto& node : e.instance->nodes)
         {
             const auto is_root = node.entity == entity;
-            auto added = added_components(components, registry, node, is_root, changes);
+            auto written = instance_node_components(components, registry, node, is_root, changes);
             if (is_root)
             {
-                e.components = std::move(added);
+                e.components = std::move(written);
             }
-            else if (!added.empty())
+            else if (!written.empty())
             {
-                e.nodes.emplace_back(&node, std::move(added));
+                e.nodes.emplace_back(&node, std::move(written));
             }
         }
         if (!changes.empty() && snapshot)
         {
-            log_error(fmt::format("Game object {} is an instance of {}; changes to what its prefab created can't be kept yet, they are lost when it "
-                "comes back (e.g. undo of its delete): {}.\n", id, e.instance->prefab, fmt::join(changes, ", ")));
+            log_error(fmt::format("Game object {} is an instance of {}; what was removed from what its prefab created can't be kept yet, it comes "
+                "back with it (e.g. undo of its delete): {}.\n", id, e.instance->prefab, fmt::join(changes, ", ")));
         }
         else if (!changes.empty())
         {
-            log_error(fmt::format("Scene save: game object {} is an instance of {}; changes to what its prefab created aren't saved: {}.\n", id,
+            log_error(fmt::format("Scene save: game object {} is an instance of {}; what was removed from what its prefab created isn't saved: {}.\n", id,
                 e.instance->prefab, fmt::join(changes, ", ")));
         }
         std::ranges::sort(e.nodes, {}, [](const auto& n) { return std::string_view(n.first->path); });
@@ -651,7 +719,7 @@ std::string write_scene(const engine::TypeRegistry& types, const entt::registry&
     w.StartObject();
     for (const auto* type : components)
     {
-        const auto written = [type](const std::vector<const TypeInfo*>& list) { return std::ranges::find(list, type) != list.end(); };
+        const auto written = [type](const std::vector<ComponentToWrite>& list) { return std::ranges::find(list, type, &ComponentToWrite::type) != list.end(); };
         const auto used = std::ranges::any_of(to_write, [&](const EntityToWrite& e) {
             return written(e.components) || std::ranges::any_of(e.nodes, [&](const auto& n) { return written(n.second); });
         });
@@ -681,10 +749,10 @@ std::string write_scene(const engine::TypeRegistry& types, const entt::registry&
         {
             w.Key("nodes");
             w.StartObject();
-            for (const auto& [node, added] : e.nodes)
+            for (const auto& [node, written] : e.nodes)
             {
                 w.Key(node->path.c_str(), static_cast<rapidjson::SizeType>(node->path.size()));
-                write_components(out, registry, node->entity, added, fmt::format("{}, node {}", path, node->path));
+                write_components(out, registry, node->entity, written, fmt::format("{}, node {}", path, node->path));
             }
             w.EndObject();
         }
