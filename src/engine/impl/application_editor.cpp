@@ -29,6 +29,7 @@
 #include <map>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <vector>
 
 namespace
@@ -1025,6 +1026,44 @@ bool display_camera_component(const engine::Scene* /*scene*/, engine_camera_comp
     return update_required;
 }
 
+const auto GIZMO_OPERATION = ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::SCALE | ImGuizmo::OPERATION::ROTATE;
+
+// The gizmo handle under the cursor, picked in the order ImGuizmo::Manipulate picks them (move, scale, rotate); read
+// right after Manipulate drew the game object's gizmo, while it isn't dragged.
+std::optional<engine::ModalTransformMode> get_hovered_gizmo_handle()
+{
+    if (ImGuizmo::IsOver(ImGuizmo::OPERATION::TRANSLATE))
+    {
+        return engine::ModalTransformMode::eGrab;
+    }
+    // asked with the move handles, so the scale handles are where the combined gizmo draws them
+    if (ImGuizmo::IsOver(ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::SCALE))
+    {
+        return engine::ModalTransformMode::eScale;
+    }
+    if (ImGuizmo::IsOver(ImGuizmo::OPERATION::ROTATE))
+    {
+        return engine::ModalTransformMode::eRotate;
+    }
+    return std::nullopt;
+}
+
+// ImGuizmo's snap values for dragging a handle: a step per axis when moving, the first value when rotating (degrees)
+// or scaling
+std::array<float, 3> get_gizmo_snap_values(engine::ModalTransformMode handle, const engine::editor_snap_steps_t& steps)
+{
+    switch (handle)
+    {
+    case engine::ModalTransformMode::eGrab:
+        return { steps.translate, steps.translate, steps.translate };
+    case engine::ModalTransformMode::eRotate:
+        return { steps.rotate, steps.rotate, steps.rotate };
+    case engine::ModalTransformMode::eScale:
+        return { steps.scale, steps.scale, steps.scale };
+    }
+    return {};
+}
+
 } // namespace anonymous
 
 
@@ -1606,11 +1645,35 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
             // ImGuizmo manipulates the world matrix, the transform component is local to the parent space
             auto model_matrix = scene->get_component<engine::world_transform_internal_component_t>(entity)->local_to_world;
 
+            // Ctrl snaps like G / R / S; ImGuizmo snaps every handle by the same values, so they are the steps of the
+            // handle the drag started on (the one under the cursor the frame before, when ImGuizmo started it)
+            std::array<float, 3> snap_values{};
+            const float* snap = nullptr;
+            if (ImGui::GetIO().KeyCtrl && entity == gizmo_hovered_entity_ && gizmo_hovered_handle_)
+            {
+                snap_values = get_gizmo_snap_values(*gizmo_hovered_handle_, snap_steps_);
+                snap = snap_values.data();
+            }
+
             ImGuizmo::SetOrthographic(camera.type == ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC); // Set the projection mode to perspective
             ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection),
-                ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::SCALE | ImGuizmo::OPERATION::ROTATE,
+                GIZMO_OPERATION,
                 ImGuizmo::MODE::LOCAL,
-                glm::value_ptr(model_matrix));
+                glm::value_ptr(model_matrix), nullptr, snap);
+
+            if (!ImGuizmo::IsUsing())
+            {
+                if (const auto handle = get_hovered_gizmo_handle())
+                {
+                    gizmo_hovered_entity_ = entity;
+                    gizmo_hovered_handle_ = handle;
+                }
+                else if (entity == gizmo_hovered_entity_)
+                {
+                    gizmo_hovered_entity_ = entt::null;
+                    gizmo_hovered_handle_.reset();
+                }
+            }
 
             if (ImGuizmo::IsUsing())
             {
@@ -1690,7 +1753,7 @@ void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
         }
         const modal_transform_view_t view{ scene->get_camera_view(camera_entity), scene->get_camera_projection(camera_entity),
             glm::vec2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)) };
-        modal_transform_.emplace(*mode, scene->get_component<world_transform_internal_component_t>(entity)->local_to_world, mouse, view);
+        modal_transform_.emplace(*mode, scene->get_component<world_transform_internal_component_t>(entity)->local_to_world, mouse, view, snap_steps_);
         modal_transform_entity_ = entity;
         modal_transform_original_ = *scene->get_component<engine_transform_component_t>(entity);
         return;

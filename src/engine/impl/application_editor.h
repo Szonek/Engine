@@ -166,9 +166,14 @@ private:
 
 private:
     CameraContext camera_context_;
+    // what the modal transform and the gizmo snap to
+    editor_snap_steps_t snap_steps_;
     std::optional<ModalTransform> modal_transform_;
     entt::entity modal_transform_entity_ = entt::null;
     engine_transform_component_t modal_transform_original_{};
+    // the gizmo handle under the cursor while no gizmo is dragged, and whose gizmo it is: the handle a drag starts on
+    entt::entity gizmo_hovered_entity_ = entt::null;
+    std::optional<ModalTransformMode> gizmo_hovered_handle_;
     // the click that confirmed or cancelled a modal transform doesn't pick, orbit or fly until it is released
     bool mouse_consumed_ = false;
     EditorView editor_view_ = EditorView::eGame;
