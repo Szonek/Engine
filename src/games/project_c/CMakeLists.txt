@@ -9,6 +9,7 @@ set(LIB_SOURCES
 	app.cpp
 
 	player_input.h
+	player_state.h
 	player_input.cpp
 	
 	
@@ -25,6 +26,8 @@ set(LIB_SOURCES
 	scripts/camera_script.cpp
 	scripts/interactable_script.h
 	scripts/interactable_script.cpp
+	scripts/level_exit_script.h
+	scripts/level_exit_script.cpp
 	scripts/coin_script.h
 	scripts/coin_script.cpp
 	scripts/encounter_script.h

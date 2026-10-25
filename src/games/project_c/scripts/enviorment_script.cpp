@@ -1,8 +1,7 @@
 #include "enviorment_script.h"
 #include "iscene.h"
+#include "scripts_utils.h"
 
-#include <algorithm>
-#include <cstring>
 #include <string_view>
 
 namespace
@@ -11,7 +10,7 @@ namespace
 void set_editor_folder(engine_game_object_t go, std::string_view path)
 {
     auto fc = engineGameObjectAddFolderComponent(go);
-    std::strncpy(fc.path, path.data(), std::min<std::size_t>(path.size(), ENGINE_FOLDER_PATH_MAX_LENGTH - 1));
+    project_c::utils::copy_string(fc.path, path);
     engineGameObjectUpdateFolderComponent(go, &fc);
 }
 } // namespace

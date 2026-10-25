@@ -5,17 +5,20 @@
     "folder": 1,
     "transform": 1,
     "parent": 1,
+    "mesh": 1,
     "material": 1,
     "light": 1,
     "camera": 1,
     "nav_surface": 1,
     "nav_modifier": 1,
+    "rigid_body": 1,
     "collider": 1,
     "character_controller": 1,
     "enemy_config": 1,
     "building_part_config": 1,
     "house_config": 1,
     "player_start": 1,
+    "level_exit": 1,
     "script": 1
   },
   "entities": [{
@@ -10802,6 +10805,92 @@
         },
         "script": {
           "type": "chest"
+        }
+      }
+    }, {
+      "id": 301,
+      "components": {
+        "name": {
+          "name": "player-start"
+        },
+        "folder": {
+          "path": "player_starts"
+        },
+        "transform": {
+          "position": [-7.5, 1, 4],
+          "scale": [1, 1, 1],
+          "rotation": [0, 0.70710677, 0, 0.70710677]
+        },
+        "player_start": {
+          "id": "from_level_2"
+        }
+      }
+    }, {
+      "id": 302,
+      "components": {
+        "name": {
+          "name": "level-exit"
+        },
+        "folder": {
+          "path": "level_exits"
+        },
+        "transform": {
+          "position": [-9, 0, 4],
+          "scale": [1, 1, 1],
+          "rotation": [0, 0, 0, 1]
+        },
+        "rigid_body": {
+          "type": "kinematic",
+          "mass": 0
+        },
+        "collider": {
+          "type": "compound",
+          "is_trigger": true,
+          "disable": false,
+          "compound": {
+            "children": [{
+                "type": "box",
+                "transform": [0, 0.5, 0],
+                "rotation_quaternion": [0, 0, 0, 1],
+                "box": {
+                  "size": [0.5, 0.5, 0.5]
+                }
+              }]
+          },
+          "bounciness": 0.5,
+          "friction_static": 1
+        },
+        "level_exit": {
+          "level": "test_level_2.json",
+          "entrance": "from_level_1"
+        },
+        "script": {
+          "type": "level_exit"
+        }
+      }
+    }, {
+      "id": 303,
+      "components": {
+        "name": {
+          "name": "level-exit-pad"
+        },
+        "transform": {
+          "position": [0, 0.125, 0],
+          "scale": [0.45, 0.01, 0.45],
+          "rotation": [0, 0, 0, 1]
+        },
+        "parent": {
+          "parent": 302
+        },
+        "mesh": {
+          "geometry": "KayKit_Prototype_Bits_1.0_FREE/Assets/gltf/Primitive_Cube_Small.gltf#Cube.16427",
+          "disable": false
+        },
+        "material": {
+          "diffuse_color": [0.25, 0.8, 1, 1],
+          "diffuse_texture": null,
+          "shininess": 0,
+          "specular_texture": null
         }
       }
     }]
