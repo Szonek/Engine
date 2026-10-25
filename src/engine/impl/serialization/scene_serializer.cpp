@@ -61,11 +61,27 @@ public:
     Writer& writer() { return writer_; }
     std::string result() const { return std::string(buffer_.GetString(), buffer_.GetSize()); }
 
-    void write_struct(const engine::TypeInfo& type, const std::byte* value, std::string_view path)
+    // Every field of `value`, or with a `base` (a value of the same type: what a prefab gave, for an override) only the
+    // fields which differ from it: a field is written whole (an array is one field), a nested struct with the fields
+    // which differ in it. A union writes its active case under the name of its tag's value; it is one value, so when
+    // anything in it differs from the base (its tag or its case), its tag and its whole case are written, and the
+    // override applies whatever case the base has when it is loaded.
+    void write_struct(const engine::TypeInfo& type, const std::byte* value, std::string_view path, const std::byte* base = nullptr)
     {
+        const auto differs = [&](const engine::FieldInfo& field) { return !base || !engine::equal_field(type, field, value, base); };
+        // the tag of a union which differs is written with it
+        const auto tag_of_differing_union = [&](const engine::FieldInfo& field) {
+            return base && std::ranges::any_of(type.fields, [&](const engine::FieldInfo& u) {
+                return u.kind == engine::FieldKind::eUnion && u.union_tag == field.name && differs(u);
+            });
+        };
         writer_.StartObject();
         for (const auto& field : type.fields)
         {
+            if (!differs(field) && !tag_of_differing_union(field))
+            {
+                continue;
+            }
             if (field.kind == engine::FieldKind::eUnion)
             {
                 // only the active case has data; a tag value without a case has none
@@ -78,24 +94,34 @@ public:
             }
             key(field.name);
             const auto field_path = fmt::format("{}.{}", path, field.name);
-            if (field.is_array)
+            if (base && field.kind == engine::FieldKind::eStruct && !field.is_array)
             {
-                writer_.StartArray();
-                for (std::size_t i = 0; i < field.count; i++)
-                {
-                    write_element(field, value + field.offset + i * field.size, field_path);
-                }
-                writer_.EndArray();
+                write_struct(*field.struct_type, value + field.offset, field_path, base + field.offset);
             }
             else
             {
-                write_element(field, value + field.offset, field_path);
+                write_field(field, value, field_path);
             }
         }
         writer_.EndObject();
     }
 
 private:
+    void write_field(const engine::FieldInfo& field, const std::byte* value, const std::string& path)
+    {
+        if (!field.is_array)
+        {
+            write_element(field, value + field.offset, path);
+            return;
+        }
+        writer_.StartArray();
+        for (std::size_t i = 0; i < field.count; i++)
+        {
+            write_element(field, value + field.offset + i * field.size, path);
+        }
+        writer_.EndArray();
+    }
+
     void key(std::string_view name)
     {
         writer_.Key(name.data(), static_cast<rapidjson::SizeType>(name.size()));
@@ -444,19 +470,36 @@ struct FileEntity
 {
     std::uint64_t id;
     const Json* components;
-    // an instance root: its prefab's asset ID, and node path -> the components added to that game object
+    // an instance root: its prefab's asset ID, and node path ("" for the root) -> what differs from the prefab on that
+    // game object
     std::string_view prefab;
     const Json* nodes = nullptr;
 };
 
-// the components of one game object in the file, and the game object they go to
+// what the file has for one game object, and the game object it goes to: the components to add whole, the overrides of
+// the ones its prefab gave it, the names of the ones its prefab gave it to remove (each nullptr when there are none)
 struct FileComponents
 {
     std::uint64_t id;
     std::string_view node_path;
     const Json* components;
     entt::entity entity;
+    const Json* overrides = nullptr;
+    const Json* removed = nullptr;
+    std::string_view prefab;
 };
+
+// the member `key` of a node of an instance when it is an object (an array for "removed"), else nullptr
+const Json* node_member(const Json& node, const char* key)
+{
+    const auto it = node.FindMember(key);
+    if (it == node.MemberEnd())
+    {
+        return nullptr;
+    }
+    const auto is_removed = std::string_view(key) == "removed";
+    return (is_removed ? it->value.IsArray() : it->value.IsObject()) ? &it->value : nullptr;
+}
 
 void check_components(const Json& components, std::string_view file_name, const engine::TypeRegistry& types, std::set<std::string_view>& unknown_components)
 {
@@ -491,15 +534,43 @@ void engine::capture_prefab_components(const TypeRegistry& types, const entt::re
 
 namespace
 {
-// A game object as it is written: its components, and for the root of a prefab instance the components added to the
-// instance's other game objects.
+// A component as it is written, its value read once: whole, or as the fields which differ from the value its prefab
+// gave it (`created`).
+struct ComponentToWrite
+{
+    const engine::TypeInfo* type;
+    engine::ValueBuffer value;
+    const engine::PrefabComponentValue* created = nullptr;
+};
+
+ComponentToWrite read_component(const engine::TypeInfo* type, const entt::registry& registry, entt::entity entity)
+{
+    ComponentToWrite component{ type, engine::ValueBuffer(type->size) };
+    type->storage->get(registry, entity, component.value.get());
+    return component;
+}
+
+// What is written of a game object of a prefab instance (the root too, node path ""): the components written whole,
+// the overrides of the ones its prefab gave it, and the names of the ones its prefab gave it which were removed.
+struct NodeToWrite
+{
+    const engine::PrefabInstanceNode* node;
+    std::vector<ComponentToWrite> components;
+    std::vector<ComponentToWrite> overrides;
+    std::vector<const engine::TypeInfo*> removed;
+
+    bool empty() const { return components.empty() && overrides.empty() && removed.empty(); }
+};
+
+// A game object as it is written: its components, or for the root of a prefab instance what differs from its prefab
+// on each game object of the instance.
 struct EntityToWrite
 {
     std::uint64_t id;
     entt::entity entity;
-    std::vector<const engine::TypeInfo*> components;
+    std::vector<ComponentToWrite> components;
     const engine::PrefabInstanceInfo* instance = nullptr;
-    std::vector<std::pair<const engine::PrefabInstanceNode*, std::vector<const engine::TypeInfo*>>> nodes;
+    std::vector<NodeToWrite> nodes;
 };
 
 const engine::PrefabComponentValue* find_created(const engine::PrefabInstanceNode& node, const engine::TypeInfo* type)
@@ -508,62 +579,89 @@ const engine::PrefabComponentValue* find_created(const engine::PrefabInstanceNod
     return it == node.created.end() ? nullptr : &*it;
 }
 
-// The root's components which are always saved, like Unity saves an instance root's name and transform: what the
-// level does with every instance (place it, name it).
-bool is_root_override(const engine::TypeInfo& type)
+// The root's components which are always saved whole, like Unity saves an instance root's name and transform: what the
+// level does with every instance (place it, name it), kept even when its prefab can't be found.
+bool is_root_placement(const engine::TypeInfo& type)
 {
     return type.name == "name" || type.name == "transform";
 }
 
-// The components of a game object of an instance which its prefab didn't give it, and the root's name and transform.
-// Adds to `changes` what changed in the other ones the prefab gave it: scene files can't save that yet.
-std::vector<const engine::TypeInfo*> added_components(const std::vector<const engine::TypeInfo*>& components, const entt::registry& registry,
+// What is saved of a game object of an instance: the components its prefab didn't give it (and the root's name and
+// transform) whole, the ones it gave it which changed since as overrides (only what changed), the ones it gave it which
+// were removed by name. Adds to `changes` what scene files can't save yet: a game object which was destroyed.
+NodeToWrite instance_node_components(const std::vector<const engine::TypeInfo*>& components, const entt::registry& registry,
     const engine::PrefabInstanceNode& node, bool is_root, std::vector<std::string>& changes)
 {
-    const auto node_name = is_root ? std::string("the root") : fmt::format("node {}", node.path);
-    std::vector<const engine::TypeInfo*> added;
+    NodeToWrite written{ &node, {}, {}, {} };
     if (!registry.valid(node.entity))
     {
-        changes.push_back(fmt::format("{} was destroyed", node_name));
-        return added;
+        changes.push_back(fmt::format("node {} was destroyed", node.path));
+        return written;
     }
     for (const auto* type : components)
     {
         const auto has = type->storage->has(registry, node.entity);
         const auto* created = find_created(node, type);
-        if (!created || (is_root && is_root_override(*type)))
+        if (!created || (is_root && is_root_placement(*type)))
         {
             if (has)
             {
-                added.push_back(type);
+                written.components.push_back(read_component(type, registry, node.entity));
             }
             continue;
         }
         if (!has)
         {
-            changes.push_back(fmt::format("{} lost its {}", node_name, type->name));
+            written.removed.push_back(type);
             continue;
         }
-        engine::ValueBuffer value(type->size);
-        type->storage->get(registry, node.entity, value.get());
-        if (!engine::equal_values(*type, created->value.get(), value.get()))
+        auto component = read_component(type, registry, node.entity);
+        if (!engine::equal_values(*type, created->value.get(), component.value.get()))
         {
-            changes.push_back(fmt::format("{}: its {} changed", node_name, type->name));
+            component.created = created;
+            written.overrides.push_back(std::move(component));
         }
     }
-    return added;
+    return written;
 }
 
-void write_components(SceneWriter& out, const entt::registry& registry, entt::entity entity, const std::vector<const engine::TypeInfo*>& components, std::string_view path)
+void write_components(SceneWriter& out, const std::vector<ComponentToWrite>& components, std::string_view path)
 {
     auto& w = out.writer();
     w.StartObject();
-    for (const auto* type : components)
+    for (const auto& component : components)
     {
-        engine::ValueBuffer value(type->size);
-        type->storage->get(registry, entity, value.get());
-        w.Key(type->name.c_str());
-        out.write_struct(*type, value.get(), fmt::format("{}: {}", path, type->name));
+        w.Key(component.type->name.c_str());
+        out.write_struct(*component.type, component.value.get(), fmt::format("{}: {}", path, component.type->name),
+            component.created ? component.created->value.get() : nullptr);
+    }
+    w.EndObject();
+}
+
+// { "components": { ... }, "overrides": { ... }, "removed": [ ... ] }, each only when it isn't empty
+void write_node(SceneWriter& out, const NodeToWrite& node, std::string_view path)
+{
+    auto& w = out.writer();
+    w.StartObject();
+    if (!node.components.empty())
+    {
+        w.Key("components");
+        write_components(out, node.components, path);
+    }
+    if (!node.overrides.empty())
+    {
+        w.Key("overrides");
+        write_components(out, node.overrides, path);
+    }
+    if (!node.removed.empty())
+    {
+        w.Key("removed");
+        w.StartArray();
+        for (const auto* type : node.removed)
+        {
+            w.String(type->name.c_str(), static_cast<rapidjson::SizeType>(type->name.size()));
+        }
+        w.EndArray();
     }
     w.EndObject();
 }
@@ -576,8 +674,8 @@ std::string write_scene(const engine::TypeRegistry& types, const entt::registry&
     using namespace engine;
     const auto& components = types.get_components();
 
-    // the game objects of an instance (but its root) are made by its prefab: only their added components are saved,
-    // with the root
+    // the game objects of an instance (but its root) are made by its prefab: only what differs from it is saved, with
+    // the root
     std::set<entt::entity> instance_nodes;
     for (const auto& [id, entity] : entities)
     {
@@ -608,7 +706,7 @@ std::string write_scene(const engine::TypeRegistry& types, const entt::registry&
             {
                 if (type->storage->has(registry, entity))
                 {
-                    e.components.push_back(type);
+                    e.components.push_back(read_component(type, registry, entity));
                 }
             }
             to_write.push_back(std::move(e));
@@ -617,28 +715,23 @@ std::string write_scene(const engine::TypeRegistry& types, const entt::registry&
         std::vector<std::string> changes;
         for (const auto& node : e.instance->nodes)
         {
-            const auto is_root = node.entity == entity;
-            auto added = added_components(components, registry, node, is_root, changes);
-            if (is_root)
+            auto written = instance_node_components(components, registry, node, node.entity == entity, changes);
+            if (!written.empty())
             {
-                e.components = std::move(added);
-            }
-            else if (!added.empty())
-            {
-                e.nodes.emplace_back(&node, std::move(added));
+                e.nodes.push_back(std::move(written));
             }
         }
         if (!changes.empty() && snapshot)
         {
-            log_error(fmt::format("Game object {} is an instance of {}; changes to what its prefab created can't be kept yet, they are lost when it "
-                "comes back (e.g. undo of its delete): {}.\n", id, e.instance->prefab, fmt::join(changes, ", ")));
+            log_error(fmt::format("Game object {} is an instance of {}; a game object removed from what its prefab created can't be kept yet, it "
+                "comes back with it (e.g. undo of its delete): {}.\n", id, e.instance->prefab, fmt::join(changes, ", ")));
         }
         else if (!changes.empty())
         {
-            log_error(fmt::format("Scene save: game object {} is an instance of {}; changes to what its prefab created aren't saved: {}.\n", id,
-                e.instance->prefab, fmt::join(changes, ", ")));
+            log_error(fmt::format("Scene save: game object {} is an instance of {}; a game object removed from what its prefab created isn't "
+                "saved: {}.\n", id, e.instance->prefab, fmt::join(changes, ", ")));
         }
-        std::ranges::sort(e.nodes, {}, [](const auto& n) { return std::string_view(n.first->path); });
+        std::ranges::sort(e.nodes, {}, [](const NodeToWrite& n) { return std::string_view(n.node->path); });
         to_write.push_back(std::move(e));
     }
 
@@ -651,9 +744,9 @@ std::string write_scene(const engine::TypeRegistry& types, const entt::registry&
     w.StartObject();
     for (const auto* type : components)
     {
-        const auto written = [type](const std::vector<const TypeInfo*>& list) { return std::ranges::find(list, type) != list.end(); };
+        const auto written = [type](const std::vector<ComponentToWrite>& list) { return std::ranges::find(list, type, &ComponentToWrite::type) != list.end(); };
         const auto used = std::ranges::any_of(to_write, [&](const EntityToWrite& e) {
-            return written(e.components) || std::ranges::any_of(e.nodes, [&](const auto& n) { return written(n.second); });
+            return written(e.components) || std::ranges::any_of(e.nodes, [&](const NodeToWrite& n) { return written(n.components) || written(n.overrides); });
         });
         if (used)
         {
@@ -670,21 +763,21 @@ std::string write_scene(const engine::TypeRegistry& types, const entt::registry&
         w.StartObject();
         w.Key("id");
         w.Uint64(e.id);
-        if (e.instance)
+        if (!e.instance)
+        {
+            w.Key("components");
+            write_components(out, e.components, path);
+        }
+        else
         {
             w.Key("prefab");
             w.String(e.instance->prefab.c_str(), static_cast<rapidjson::SizeType>(e.instance->prefab.size()));
-        }
-        w.Key("components");
-        write_components(out, registry, e.entity, e.components, path);
-        if (!e.nodes.empty())
-        {
             w.Key("nodes");
             w.StartObject();
-            for (const auto& [node, added] : e.nodes)
+            for (const auto& node : e.nodes)
             {
-                w.Key(node->path.c_str(), static_cast<rapidjson::SizeType>(node->path.size()));
-                write_components(out, registry, node->entity, added, fmt::format("{}, node {}", path, node->path));
+                w.Key(node.node->path.c_str(), static_cast<rapidjson::SizeType>(node.node->path.size()));
+                write_node(out, node, node.node->path.empty() ? path : fmt::format("{}, node {}", path, node.node->path));
             }
             w.EndObject();
         }
@@ -810,6 +903,12 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
                 file_entity.prefab = std::string_view(e["prefab"].GetString(), e["prefab"].GetStringLength());
             }
         }
+        if (!file_entity.prefab.empty() && file_entity.components)
+        {
+            log_error(fmt::format("Scene {}, game object {}: a prefab instance has its components under its nodes (\"\" for the root), they are "
+                "ignored.\n", file_name, id));
+            file_entity.components = nullptr;
+        }
         if (e.HasMember("nodes"))
         {
             if (file_entity.prefab.empty() || !e["nodes"].IsObject())
@@ -821,9 +920,40 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
                 file_entity.nodes = &e["nodes"];
                 for (const auto& node : file_entity.nodes->GetObject())
                 {
-                    if (node.value.IsObject())
+                    const std::string_view path(node.name.GetString(), node.name.GetStringLength());
+                    if (!node.value.IsObject())
                     {
-                        check_components(node.value, file_name, types, unknown_components);
+                        log_error(fmt::format("Scene {}, game object {}: node {} is not an object, it is ignored.\n", file_name, id, path));
+                        continue;
+                    }
+                    for (const auto& member : node.value.GetObject())
+                    {
+                        const std::string_view key(member.name.GetString(), member.name.GetStringLength());
+                        if (key != "components" && key != "overrides" && key != "removed")
+                        {
+                            log_error(fmt::format("Scene {}, game object {}: node {} has an unknown member \"{}\", it is ignored.\n", file_name, id, path, key));
+                        }
+                        else if (!node_member(node.value, member.name.GetString()))
+                        {
+                            log_error(fmt::format("Scene {}, game object {}: the {} of node {} are not {}, they are ignored.\n", file_name, id, key, path,
+                                key == "removed" ? "a list of component names" : "an object"));
+                        }
+                        else if (key == "removed")
+                        {
+                            for (const auto& name : member.value.GetArray())
+                            {
+                                const auto* type = name.IsString() ? types.find(std::string_view(name.GetString(), name.GetStringLength())) : nullptr;
+                                if (!type || !type->is_component())
+                                {
+                                    log_error(fmt::format("Scene {}, game object {}: node {} removes something which isn't a known component, it is "
+                                        "ignored.\n", file_name, id, path));
+                                }
+                            }
+                        }
+                        else
+                        {
+                            check_components(member.value, file_name, types, unknown_components);
+                        }
                     }
                 }
             }
@@ -877,7 +1007,10 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
     for (const auto& e : file_entities)
     {
         const auto root = entities.at(e.id);
-        file_components.push_back({ e.id, {}, e.components, root });
+        if (e.components)
+        {
+            file_components.push_back({ e.id, {}, e.components, root, nullptr, nullptr, {} });
+        }
         if (e.prefab.empty())
         {
             continue;
@@ -904,24 +1037,25 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
         }
         for (const auto& node : e.nodes->GetObject())
         {
+            if (!node.value.IsObject())
+            {
+                continue;  // logged when the file was checked
+            }
             const std::string_view path(node.name.GetString(), node.name.GetStringLength());
-            const PrefabInstanceNode* found = nullptr;
+            // the root is there even when its prefab can't be found: what is saved whole of it is loaded
+            auto entity = path.empty() ? root : entt::entity{ entt::null };
             if (instance && !path.empty())
             {
                 const auto it = std::ranges::find(instance->nodes, path, &PrefabInstanceNode::path);
-                found = it == instance->nodes.end() ? nullptr : &*it;
+                entity = it == instance->nodes.end() ? entt::entity{ entt::null } : it->entity;
             }
-            if (!found)
+            if (entity == entt::null)
             {
-                log_error(fmt::format("Scene {}, game object {}: its prefab {} has no node {}, the node's components are ignored.\n", file_name, e.id, e.prefab, path));
+                log_error(fmt::format("Scene {}, game object {}: its prefab {} has no node {}, what the file has for it is ignored.\n", file_name, e.id, e.prefab, path));
                 continue;
             }
-            if (!node.value.IsObject())
-            {
-                log_error(fmt::format("Scene {}, game object {}: the components of its node {} are not an object, they are ignored.\n", file_name, e.id, path));
-                continue;
-            }
-            file_components.push_back({ e.id, path, &node.value, found->entity });
+            file_components.push_back({ e.id, path, node_member(node.value, "components"), entity, node_member(node.value, "overrides"),
+                node_member(node.value, "removed"), e.prefab });
         }
     }
     // reserved for a game object which didn't come (a node the model doesn't have any more)
@@ -947,24 +1081,51 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
         }
         for (const auto& e : file_components)
         {
-            if (!e.components)
-            {
-                continue;
-            }
-            const auto it = e.components->FindMember(type->name.c_str());
-            if (it == e.components->MemberEnd())
-            {
-                continue;
-            }
+            const auto find = [&](const Json* components) -> const Json* {
+                if (!components)
+                {
+                    return nullptr;
+                }
+                const auto it = components->FindMember(type->name.c_str());
+                return it == components->MemberEnd() ? nullptr : &it->value;
+            };
+            const auto read = [&](const Json& json) {
+                engine::ValueBuffer value(type->size);
+                type->storage->get(registry, e.entity, value.get());
+                reader.read_struct(*type, json, value.get(), e.node_path.empty() ? type->name : fmt::format("node {}: {}", e.node_path, type->name));
+                type->storage->update(registry, e.entity, value.get());
+            };
             reader.set_entity(e.id);
-            if (!type->storage->has(registry, e.entity))
+            // removed from what its prefab gave it; nothing to do when the prefab doesn't give it (any more)
+            if (e.removed && std::ranges::any_of(e.removed->GetArray(), [&](const Json& name) { return name.IsString() && type->name == name.GetString(); }))
             {
-                type->storage->add(registry, e.entity);
+                if (type->storage->has(registry, e.entity))
+                {
+                    type->storage->remove(registry, e.entity);
+                }
             }
-            engine::ValueBuffer value(type->size);
-            type->storage->get(registry, e.entity, value.get());
-            reader.read_struct(*type, it->value, value.get(), e.node_path.empty() ? type->name : fmt::format("node {}: {}", e.node_path, type->name));
-            type->storage->update(registry, e.entity, value.get());
+            // whole: added with its defaults when the game object doesn't have it, then every field is read (over the
+            // prefab's value when the prefab gives it, e.g. the root's transform, or a component the model got since)
+            if (const auto* json = find(e.components))
+            {
+                if (!type->storage->has(registry, e.entity))
+                {
+                    type->storage->add(registry, e.entity);
+                }
+                read(*json);
+            }
+            // an override: the fields which differ, read over the prefab's value; without it there is nothing to override
+            if (const auto* json = find(e.overrides))
+            {
+                if (!type->storage->has(registry, e.entity))
+                {
+                    log_error(fmt::format("Scene {}, game object {}: {} has an override of {}, which its prefab {} doesn't give it (any more), the "
+                        "override is ignored.\n", file_name, e.id, e.node_path.empty() ? std::string("the root") : fmt::format("node {}", e.node_path),
+                        type->name, e.prefab));
+                    continue;
+                }
+                read(*json);
+            }
         }
     }
     return true;

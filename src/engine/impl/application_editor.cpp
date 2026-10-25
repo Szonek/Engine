@@ -99,8 +99,13 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
     const auto entity_id = std::string(node->name) + "##" + std::to_string(static_cast<std::uint32_t>(node->entity));
     // a collapsed node returns false but can still be clicked, dragged etc., so its item is handled either way
     const bool open = ImGui::TreeNodeEx(entity_id.c_str(), dispaly_flags);
+    // a game object its prefab instance created stays under its instance's root, like Unity's (which can't be
+    // restructured): one moved out of it would be saved apart from its instance
+    const auto persistent_id = scene->get_persistent_id(node->entity);
+    const auto instance_part = engine::EntityIdRegistry::is_hashed_id(persistent_id);
     // tooltip the id
-    ImGui::SetItemTooltip("ID: %llu (entity: %u)", static_cast<unsigned long long>(scene->get_persistent_id(node->entity)), static_cast<std::uint32_t>(node->entity));
+    ImGui::SetItemTooltip("ID: %llu (entity: %u)%s", static_cast<unsigned long long>(persistent_id), static_cast<std::uint32_t>(node->entity),
+        instance_part ? "\nPart of a prefab instance: it can't be moved out of it (move the instance's root)" : "");
 
     // select entity with LMB
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
@@ -134,7 +139,8 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
         }
         if (!can_delete)
         {
-            ImGui::SetItemTooltip("Part of a prefab instance: it can't be deleted until prefab overrides exist (delete the instance's root instead)");
+            ImGui::SetItemTooltip(instance_part ? "Part of a prefab instance: removing it from the instance can't be saved yet (delete the instance's root instead)"
+                : "A part of a prefab instance is under it without its instance's root: move it back to its instance first");
         }
 
         const auto can_duplicate = engine::CommandDuplicateEntity::can_duplicate(*scene, node->entity);
@@ -145,7 +151,8 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
         if (!can_duplicate)
         {
             ImGui::SetItemTooltip(transient ? "A runtime (transient) object isn't scene content, so it isn't duplicated"
-                : "Part of a prefab instance: it can't be duplicated until prefab overrides exist (duplicate the instance's root instead)");
+                : instance_part ? "Part of a prefab instance: it can't be duplicated out of it yet (duplicate the instance's root instead)"
+                : "A part of a prefab instance is under it without its instance's root: move it back to its instance first");
         }
 
         //rename entity
@@ -162,7 +169,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
     }
 
     // drag and drop
-    if (ImGui::BeginDragDropSource())
+    if (!instance_part && ImGui::BeginDragDropSource())
     {
         ImGui::SetDragDropPayload("DND_ENTITY", &node->entity, sizeof(entt::entity));
         ImGui::Text("Drag and drop. Entity: %s", node->name.c_str());

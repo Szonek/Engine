@@ -39,6 +39,7 @@ public:
     const PhysicsSystem& physics() const;
     // instantiates prefabs and knows the scene's prefab instances
     PrefabSystem& prefabs();
+    const PrefabSystem& prefabs() const;
 
     void enable_nav_mesh_debug_draw(bool enable);
     bool is_nav_mesh_debug_draw_enabled() const;

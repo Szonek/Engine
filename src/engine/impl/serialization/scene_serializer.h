@@ -27,26 +27,32 @@ public:
 // Scene files hold authored data only: every game object with a persistent ID and its components which have a type
 // in the registry (internal components, derived data, are never registered), as JSON:
 //   { "version": 1, "types": { "transform": 1, ... }, "entities": [ { "id": 3, "components": { "transform": { ... } } } ] }
-// A prefab instance is saved as its root with the prefab's asset ID, the root's name and transform and the components
-// added to the instance after it was created, on the root or on its other game objects (under their node paths); the
-// rest of what its prefab created is not written, the prefab creates it again when the file is loaded:
-//   { "id": 4, "prefab": "characters/Rogue.glb", "components": { "name": { ... }, "transform": { ... } }, "nodes": { "Body/Hand": { "collider": { ... } } } }
+// A prefab instance is saved as its root with the prefab's asset ID and what differs from the prefab since it was
+// created, by node path ("" for the root), each kind under its own key (like Unity's prefab instances): "components"
+// whole (the ones added to the instance, and the root's name and transform, always), "overrides" of the ones the
+// prefab gave it which changed, only the fields which differ from the prefab's value (like Unity's prefab overrides; an
+// array is one field, a union is one value: its tag and its whole case), "removed" the names of the ones the prefab gave
+// it which were removed. The rest is not written, the prefab creates it again when the file is loaded, so a change to
+// the prefab shows up where nothing overrides it:
+//   { "id": 4, "prefab": "characters/Rogue.glb", "nodes": { "": { "components": { "name": { ... }, "transform": { ... } } },
+//     "Body": { "overrides": { "mesh": { "disable": true } } }, "Body/Hand": { "components": { "collider": { ... } }, "removed": [ "material" ] } } }
 // The other game objects of an instance have the hashed IDs of their node paths (EntityIdRegistry::hashed_id), which
 // references to them use.
 // Game objects are sorted by persistent ID, components are in registration order and fields in description order,
-// so saving the same scene gives the same bytes. Every field is written, defaults too: a file doesn't change meaning
-// when a default changes. Enums are written by name, asset references as asset IDs, game object references as
+// so saving the same scene gives the same bytes. Every field is written (but in overrides), defaults too: a file
+// doesn't change meaning when a default changes. Enums are written by name, asset references as asset IDs, game object references as
 // persistent IDs (null for none); a union writes only its active case, under the name of its tag's value.
 inline constexpr std::uint32_t SCENE_FILE_VERSION = 1;
 
 // The scene as a scene file. Transient game objects aren't saved, so a reference to one is saved as null (logged).
-// Changes to the components a prefab created on its instance can't be saved yet: they are logged, once per instance.
+// Game objects removed from what a prefab created on its instance can't be saved yet: they are logged, once per
+// instance.
 std::string save_scene(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
     const IPrefabInstances& prefabs);
 // Only these game objects as a scene file, for a snapshot loaded back into the same scene (e.g. undo of a delete: a game
 // object and everything parented under it). Transient ones are left out, as in save_scene; references to game objects
-// which aren't saved are written like the others, by persistent ID. The changes to what a prefab created which can't
-// be kept are logged, as when a scene is saved.
+// which aren't saved are written like the others, by persistent ID. A game object removed from what a prefab created
+// can't be kept, it is logged, as when a scene is saved.
 std::string save_game_objects(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
     const IPrefabInstances& prefabs, std::span<const entt::entity> game_objects);
 
@@ -77,10 +83,13 @@ struct SceneLoadOptions
 // none (unless SceneLoadOptions say otherwise), an asset which can't be found is none.
 // Game objects keep the persistent IDs of the file (unless SceneLoadOptions::new_ids); one whose ID is used already
 // gets a new one (references in the file still point at it). Prefab instances are instantiated once every game object of the file exists; a prefab which
-// can't be found leaves its root without the prefab's game objects, and the components of a node its model doesn't
-// have (any more) are ignored, as are references to it. Components are added the way the C API does (add with their
-// defaults, then update with the file's values), so the scene's listeners run, one component type after the other in
-// registration order.
+// can't be found leaves its root without the prefab's game objects (what is saved whole of the root is loaded), and
+// what the file has for a node its model doesn't have (any more) is ignored, as are references to it. Components are
+// added the way the C API does (add with their defaults, then update with the file's values), so the scene's listeners
+// run, one component type after the other in registration order. On the game objects of an instance, a component
+// saved whole which the prefab gives (by now) is read over the prefab's value; an override is read over the prefab's
+// value, so the fields the file doesn't have keep the prefab's, and is ignored (logged) when the prefab doesn't give
+// that component (any more); a removed component is removed when the prefab gives it.
 bool load_scene(std::string_view json, std::string_view file_name, const TypeRegistry& types, entt::registry& registry, EntityIdRegistry& ids, IAssetResolver& assets,
     IPrefabInstances& prefabs, const SceneLoadOptions& options = {});
 }  // namespace engine

@@ -201,6 +201,9 @@ void clear_union(const FieldInfo& union_field, std::byte* value);
 // Whether two values of `type` are the same field by field: padding and the bytes after a string's terminator don't
 // count, and a union compares only its active case.
 bool equal_values(const TypeInfo& type, const std::byte* a, const std::byte* b);
+// Whether the field `field` of `type` (every element of an array) is the same in the values `a` and `b` of the type, as
+// equal_values compares it; a union is the same when its tag is and its active case is.
+bool equal_field(const TypeInfo& type, const FieldInfo& field, const std::byte* a, const std::byte* b);
 
 namespace type_builder_detail
 {

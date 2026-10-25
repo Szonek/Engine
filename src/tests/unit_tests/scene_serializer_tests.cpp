@@ -68,9 +68,9 @@ void init_light(entt::registry& registry, entt::entity entity)
     l.point.quadratic = 0.032f;
 }
 
-// Prefab instances without an application: the model "models/arm.gltf" has a root node and the nodes "Upper" and
-// "Upper/Hand" (with a mesh); each node gets a name and a transform, the others are children of the root, like a
-// prefab's instance.
+// Prefab instances without an application: the model "models/arm.gltf" has a root node and the nodes "Upper" (with a
+// box collider) and "Upper/Hand" (with a mesh and `hand_material`); each node gets a name and a transform, the others
+// are children of the root, like a prefab's instance.
 class FakePrefabs : public engine::IPrefabInstances
 {
 public:
@@ -111,9 +111,17 @@ public:
             std::strcpy(name.name, path.empty() ? "Arm" : path.substr(path.rfind('/') + 1).c_str());
             registry_.emplace_or_replace<engine_name_component_t>(entity, name);
             registry_.emplace_or_replace<engine_transform_component_t>(entity);
+            if (path == "Upper")
+            {
+                registry_.emplace<engine_collider_component_t>(entity, upper_collider);
+            }
             if (path == "Upper/Hand")
             {
-                registry_.emplace<engine_mesh_component_t>(entity, engine_mesh_component_t{ 7, true });
+                if (hand_has_mesh)
+                {
+                    registry_.emplace<engine_mesh_component_t>(entity, engine_mesh_component_t{ 7, false });
+                }
+                registry_.emplace<engine_material_component_t>(entity, hand_material);
             }
             info.nodes.push_back({ path, entity, {} });
         }
@@ -134,6 +142,15 @@ public:
     }
 
     const engine::TypeRegistry* types = nullptr;
+    // what the model gives its nodes (a test changes it to change the model)
+    engine_material_component_t hand_material{ { 1.0f, 1.0f, 1.0f, 1.0f }, 3, 16.0f, ENGINE_INVALID_OBJECT_HANDLE };
+    bool hand_has_mesh = true;
+    engine_collider_component_t upper_collider = [] {
+        engine_collider_component_t collider{};
+        collider.type = ENGINE_COLLIDER_TYPE_BOX;
+        collider.collider.box = { { 0.5f, 1.0f, 0.5f } };
+        return collider;
+    }();
 
 private:
     entt::registry& registry_;
@@ -764,14 +781,22 @@ TEST_F(SceneFileTest, InstanceIsSavedAsItsPrefabAndWhatWasAddedToIt)
     ASSERT_EQ(doc["entities"].Size(), 1u);
     const auto& saved = doc["entities"][0];
     EXPECT_STREQ(saved["prefab"].GetString(), FakePrefabs::ARM);
-    // the root's name and transform, which are always saved; its mesh and the rest come from the prefab
-    EXPECT_TRUE(saved["components"].HasMember("name"));
-    EXPECT_TRUE(saved["components"].HasMember("transform"));
-    EXPECT_EQ(saved["components"].MemberCount(), 2u);
-    ASSERT_TRUE(saved["nodes"].HasMember("Upper/Hand"));
-    EXPECT_TRUE(saved["nodes"]["Upper/Hand"].HasMember("collider"));
-    EXPECT_EQ(saved["nodes"]["Upper/Hand"].MemberCount(), 1u);
-    EXPECT_FALSE(saved["nodes"].HasMember("Upper"));
+    // the root's name and transform, which are always saved whole, under the root's node path ""; its mesh and the
+    // rest come from the prefab
+    EXPECT_FALSE(saved.HasMember("components"));
+    const auto& nodes = saved["nodes"];
+    ASSERT_TRUE(nodes.HasMember(""));
+    EXPECT_EQ(nodes[""].MemberCount(), 1u);
+    EXPECT_TRUE(nodes[""]["components"].HasMember("name"));
+    EXPECT_TRUE(nodes[""]["components"].HasMember("transform"));
+    EXPECT_EQ(nodes[""]["components"].MemberCount(), 2u);
+    // the added collider whole
+    ASSERT_TRUE(nodes.HasMember("Upper/Hand"));
+    EXPECT_EQ(nodes["Upper/Hand"].MemberCount(), 1u);
+    ASSERT_TRUE(nodes["Upper/Hand"].HasMember("components"));
+    EXPECT_TRUE(nodes["Upper/Hand"]["components"]["collider"].HasMember("is_trigger"));
+    EXPECT_EQ(nodes["Upper/Hand"]["components"].MemberCount(), 1u);
+    EXPECT_FALSE(nodes.HasMember("Upper"));
 }
 
 TEST_F(SceneFileTest, InstanceRoundTripsWithItsAddedComponents)
@@ -839,10 +864,10 @@ TEST_F(SceneFileTest, ReferenceToANodeTheModelDoesntHaveIsNone)
     World w;
     const auto gone = EntityIdRegistry::hashed_id(1, "Upper/Gone");
     ASSERT_TRUE(load(w, fmt::format(R"({{ "version": 1, "entities": [
-        {{ "id": 1, "prefab": "models/arm.gltf", "components": {{}}, "nodes": {{ "Upper/Gone": {{ "name": {{ "name": "x" }} }} }} }},
+        {{ "id": 1, "prefab": "models/arm.gltf", "nodes": {{ "Upper/Gone": {{ "components": {{ "name": {{ "name": "x" }} }} }} }} }},
         {{ "id": 2, "components": {{ "parent": {{ "parent": {} }} }} }} ] }})", gone)));
     EXPECT_EQ(w.get<engine_parent_component_t>(2).parent, ENGINE_INVALID_GAME_OBJECT_ID);
-    EXPECT_TRUE(test_logger::logged("its prefab models/arm.gltf has no node Upper/Gone, the node's components are ignored"));
+    EXPECT_TRUE(test_logger::logged("its prefab models/arm.gltf has no node Upper/Gone, what the file has for it is ignored"));
     EXPECT_TRUE(test_logger::logged(fmt::format("references the game object {} which isn't in the file", gone)));
     // the rest of the instance is there
     EXPECT_NE(w.prefabs.node(w.find(1), "Upper/Hand"), entt::entity{ entt::null });
@@ -852,25 +877,329 @@ TEST_F(SceneFileTest, InstanceWhosePrefabCantBeFoundLoadsItsRoot)
 {
     World w;
     ASSERT_TRUE(load(w, R"({ "version": 1, "entities": [
-        { "id": 1, "prefab": "models/missing.gltf", "components": { "transform": { "position": [1, 2, 3] } }, "nodes": { "Upper": { "name": { "name": "x" } } } } ] })"));
+        { "id": 1, "prefab": "models/missing.gltf", "nodes": {
+            "": { "components": { "transform": { "position": [1, 2, 3] } }, "overrides": { "mesh": { "disable": true } } },
+            "Upper": { "components": { "name": { "name": "x" } } } } } ] })"));
     EXPECT_TRUE(test_logger::logged("its prefab models/missing.gltf can't be instantiated"));
+    // what is saved whole of the root is loaded, an override of what the prefab gives it can't be
     EXPECT_FLOAT_EQ(w.get<engine_transform_component_t>(1).position[2], 3.0f);
+    EXPECT_FALSE(w.registry.all_of<engine_mesh_component_t>(w.find(1)));
+    EXPECT_TRUE(test_logger::logged("the root has an override of mesh, which its prefab models/missing.gltf doesn't give it (any more), the override is ignored"));
     EXPECT_EQ(count_entities(w.registry), 2u);  // the reserved entity and the root
 }
 
-TEST_F(SceneFileTest, ChangesToWhatThePrefabCreatedAreLoggedAndNotSaved)
+TEST_F(SceneFileTest, ComponentRemovedFromWhatThePrefabCreatedIsSavedAndRemovedOnLoad)
+{
+    World original;
+    const auto root = instantiate_arm(original);
+    original.registry.remove<engine_mesh_component_t>(original.prefabs.node(root, "Upper/Hand"));
+
+    const auto file = save(original);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+    rapidjson::Document doc;
+    doc.Parse(file.c_str());
+    const auto& hand = doc["entities"][0]["nodes"]["Upper/Hand"];
+    EXPECT_EQ(hand.MemberCount(), 1u);
+    ASSERT_EQ(hand["removed"].Size(), 1u);
+    EXPECT_STREQ(hand["removed"][0].GetString(), "mesh");
+
+    World loaded;
+    ASSERT_TRUE(load(loaded, file));
+    const auto loaded_hand = loaded.prefabs.node(loaded.find(original.ids.get_id(root)), "Upper/Hand");
+    EXPECT_FALSE(loaded.registry.all_of<engine_mesh_component_t>(loaded_hand));
+    EXPECT_TRUE(loaded.registry.all_of<engine_material_component_t>(loaded_hand));
+    EXPECT_EQ(save(loaded), file);
+
+    // nothing to remove when the model doesn't give it any more
+    World changed;
+    changed.prefabs.hand_has_mesh = false;
+    ASSERT_TRUE(load(changed, file));
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(SceneFileTest, GameObjectRemovedFromWhatThePrefabCreatedIsLoggedAndNotSaved)
 {
     World w;
     const auto root = instantiate_arm(w);
-    engine_name_component_t name{};
-    std::strcpy(name.name, "Renamed");
-    w.registry.replace<engine_name_component_t>(w.prefabs.node(root, "Upper"), name);
-    w.registry.remove<engine_mesh_component_t>(w.prefabs.node(root, "Upper/Hand"));
+    const auto hand = w.prefabs.node(root, "Upper/Hand");
+    w.registry.destroy(hand);
+
+    save(w);
+    EXPECT_TRUE(test_logger::logged(fmt::format("game object {} is an instance of models/arm.gltf; a game object removed from what its prefab "
+        "created isn't saved: node Upper/Hand was destroyed", w.ids.get_id(root))));
+}
+
+TEST_F(SceneFileTest, ComponentsOfAnInstanceOutsideItsNodesAreIgnored)
+{
+    World w;
+    ASSERT_TRUE(load(w, R"({ "version": 1, "entities": [
+        { "id": 1, "prefab": "models/arm.gltf", "components": { "light": { "type": "point" } }, "nodes": {
+            "Upper": { "overrides": [], "parts": {}, "removed": ["no_such_component"] } } } ] })"));
+    EXPECT_FALSE(w.registry.all_of<engine_light_component_t>(w.find(1)));
+    EXPECT_TRUE(test_logger::logged("a prefab instance has its components under its nodes"));
+    EXPECT_TRUE(test_logger::logged("the overrides of node Upper are not an object, they are ignored"));
+    EXPECT_TRUE(test_logger::logged("node Upper has an unknown member \"parts\""));
+    EXPECT_TRUE(test_logger::logged("node Upper removes something which isn't a known component"));
+    // the instance is there
+    EXPECT_TRUE(w.registry.all_of<engine_collider_component_t>(w.prefabs.node(w.find(1), "Upper")));
+}
+
+// -- prefab overrides ------------------------------------------------------------------------------------------------
+
+// a moved child, a hidden child mesh and a recoloured material
+void override_arm(World& w, entt::entity root)
+{
+    const auto upper = w.prefabs.node(root, "Upper");
+    auto transform = w.registry.get<engine_transform_component_t>(upper);
+    transform.position[1] = 0.75f;
+    w.registry.replace<engine_transform_component_t>(upper, transform);
+    const auto hand = w.prefabs.node(root, "Upper/Hand");
+    auto mesh = w.registry.get<engine_mesh_component_t>(hand);
+    mesh.disable = true;
+    w.registry.replace<engine_mesh_component_t>(hand, mesh);
+    auto material = w.registry.get<engine_material_component_t>(hand);
+    material.diffuse_color[0] = 0.5f;
+    w.registry.replace<engine_material_component_t>(hand, material);
+}
+
+TEST_F(SceneFileTest, ChangesToWhatThePrefabCreatedAreSavedAsTheChangedFields)
+{
+    World w;
+    const auto root = instantiate_arm(w);
+    override_arm(w, root);
 
     const auto file = save(w);
-    EXPECT_TRUE(test_logger::logged(fmt::format("game object {} is an instance of models/arm.gltf; changes to what its prefab created aren't saved: "
-        "node Upper: its name changed, node Upper/Hand lost its mesh", w.ids.get_id(root))));
-    EXPECT_EQ(file.find("Renamed"), std::string::npos);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+    rapidjson::Document doc;
+    doc.Parse<rapidjson::kParseNumbersAsStringsFlag>(file.c_str());
+    ASSERT_TRUE(doc.IsObject());
+    const auto& nodes = doc["entities"][0]["nodes"];
+    // only the fields which differ from the prefab's, an array (the position, the colour) as one field
+    ASSERT_TRUE(nodes.HasMember("Upper"));
+    EXPECT_EQ(nodes["Upper"].MemberCount(), 1u);
+    const auto& upper = nodes["Upper"]["overrides"];
+    EXPECT_EQ(upper.MemberCount(), 1u);
+    ASSERT_EQ(upper["transform"].MemberCount(), 1u);
+    EXPECT_STREQ(upper["transform"]["position"][1].GetString(), "0.75");
+    EXPECT_EQ(nodes["Upper/Hand"].MemberCount(), 1u);
+    const auto& hand = nodes["Upper/Hand"]["overrides"];
+    EXPECT_EQ(hand.MemberCount(), 2u);
+    ASSERT_EQ(hand["mesh"].MemberCount(), 1u);
+    EXPECT_TRUE(hand["mesh"]["disable"].GetBool());
+    ASSERT_EQ(hand["material"].MemberCount(), 1u);
+    EXPECT_EQ(hand["material"]["diffuse_color"].Size(), 4u);
+}
+
+TEST_F(SceneFileTest, OverridesRoundTrip)
+{
+    World original;
+    const auto root = instantiate_arm(original);
+    override_arm(original, root);
+    const auto file = save(original);
+
+    World loaded;
+    ASSERT_TRUE(load(loaded, file));
+    EXPECT_EQ(save(loaded), file);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+    const auto loaded_root = loaded.find(original.ids.get_id(root));
+    const auto upper = loaded.prefabs.node(loaded_root, "Upper");
+    const auto hand = loaded.prefabs.node(loaded_root, "Upper/Hand");
+    EXPECT_TRUE(same_bytes(loaded.registry.get<engine_transform_component_t>(upper), original.registry.get<engine_transform_component_t>(original.prefabs.node(root, "Upper"))));
+    EXPECT_TRUE(loaded.registry.get<engine_mesh_component_t>(hand).disable);
+    EXPECT_EQ(loaded.registry.get<engine_mesh_component_t>(hand).geometry, 7u);
+    const auto& material = loaded.registry.get<engine_material_component_t>(hand);
+    EXPECT_FLOAT_EQ(material.diffuse_color[0], 0.5f);
+    EXPECT_FLOAT_EQ(material.diffuse_color[1], 1.0f);
+    EXPECT_EQ(material.diffuse_texture, 3u);
+}
+
+TEST_F(SceneFileTest, FieldsWhichArentOverriddenFollowThePrefab)
+{
+    World original;
+    const auto root = instantiate_arm(original);
+    override_arm(original, root);
+    const auto file = save(original);
+
+    // the model changed since the file was saved
+    World loaded;
+    loaded.prefabs.hand_material.shininess = 64.0f;
+    loaded.prefabs.hand_material.diffuse_color[0] = 0.0f;
+    ASSERT_TRUE(load(loaded, file));
+    const auto hand = loaded.prefabs.node(loaded.find(original.ids.get_id(root)), "Upper/Hand");
+    const auto& material = loaded.registry.get<engine_material_component_t>(hand);
+    // the overridden colour stays, the shininess is the model's new one
+    EXPECT_FLOAT_EQ(material.diffuse_color[0], 0.5f);
+    EXPECT_FLOAT_EQ(material.shininess, 64.0f);
+}
+
+TEST_F(SceneFileTest, FieldSetBackToThePrefabsValueIsNotSaved)
+{
+    World w;
+    const auto root = instantiate_arm(w);
+    const auto hand = w.prefabs.node(root, "Upper/Hand");
+    auto material = w.registry.get<engine_material_component_t>(hand);
+    material.shininess = 2.0f;
+    w.registry.replace<engine_material_component_t>(hand, material);
+    material.shininess = 16.0f;
+    w.registry.replace<engine_material_component_t>(hand, material);
+
+    rapidjson::Document doc;
+    doc.Parse(save(w).c_str());
+    EXPECT_FALSE(doc["entities"][0]["nodes"].HasMember("Upper/Hand"));
+}
+
+// a box collider made taller on the arm's Upper
+void override_upper_collider(World& w, entt::entity root)
+{
+    const auto upper = w.prefabs.node(root, "Upper");
+    auto collider = w.registry.get<engine_collider_component_t>(upper);
+    collider.collider.box.size[1] = 2.0f;
+    w.registry.replace<engine_collider_component_t>(upper, collider);
+}
+
+TEST_F(SceneFileTest, OverrideInsideAUnionCaseSavesTheWholeUnion)
+{
+    World original;
+    const auto root = instantiate_arm(original);
+    override_upper_collider(original, root);
+    const auto file = save(original);
+
+    rapidjson::Document doc;
+    doc.Parse(file.c_str());
+    const auto& saved = doc["entities"][0]["nodes"]["Upper"]["overrides"]["collider"];
+    // the union is one value: its tag and its whole case, but nothing else of the collider
+    EXPECT_STREQ(saved["type"].GetString(), "box");
+    ASSERT_TRUE(saved.HasMember("box"));
+    EXPECT_EQ(saved["box"]["size"].Size(), 3u);
+    EXPECT_EQ(saved.MemberCount(), 2u);
+
+    World loaded;
+    ASSERT_TRUE(load(loaded, file));
+    EXPECT_EQ(save(loaded), file);
+    const auto& box = loaded.registry.get<engine_collider_component_t>(loaded.prefabs.node(loaded.find(original.ids.get_id(root)), "Upper"));
+    EXPECT_EQ(box.type, ENGINE_COLLIDER_TYPE_BOX);
+    EXPECT_FLOAT_EQ(box.collider.box.size[0], 0.5f);
+    EXPECT_FLOAT_EQ(box.collider.box.size[1], 2.0f);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(SceneFileTest, UnionOverrideStaysWhenThePrefabChangesItsCase)
+{
+    World original;
+    const auto root = instantiate_arm(original);
+    override_upper_collider(original, root);
+    const auto file = save(original);
+
+    // the model's Upper has a sphere collider now
+    World loaded;
+    loaded.prefabs.upper_collider = {};
+    loaded.prefabs.upper_collider.type = ENGINE_COLLIDER_TYPE_SPHERE;
+    loaded.prefabs.upper_collider.collider.sphere.radius = 0.4f;
+    loaded.prefabs.upper_collider.bounciness = 0.75f;
+    ASSERT_TRUE(load(loaded, file));
+    // the override wins: the box it was, the rest of the collider is the model's
+    const auto& collider = loaded.registry.get<engine_collider_component_t>(loaded.prefabs.node(loaded.find(original.ids.get_id(root)), "Upper"));
+    EXPECT_EQ(collider.type, ENGINE_COLLIDER_TYPE_BOX);
+    EXPECT_FLOAT_EQ(collider.collider.box.size[0], 0.5f);
+    EXPECT_FLOAT_EQ(collider.collider.box.size[1], 2.0f);
+    EXPECT_FLOAT_EQ(collider.collider.box.size[2], 0.5f);
+    EXPECT_FLOAT_EQ(collider.bounciness, 0.75f);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(SceneFileTest, OverrideOfAComponentThePrefabDoesntGiveAnyMoreIsIgnored)
+{
+    World original;
+    const auto root = instantiate_arm(original);
+    override_arm(original, root);
+    const auto file = save(original);
+
+    // the model's hand has no mesh any more
+    World loaded;
+    loaded.prefabs.hand_has_mesh = false;
+    ASSERT_TRUE(load(loaded, file));
+    const auto hand = loaded.prefabs.node(loaded.find(original.ids.get_id(root)), "Upper/Hand");
+    // no mesh made of defaults with the overridden field
+    EXPECT_FALSE(loaded.registry.all_of<engine_mesh_component_t>(hand));
+    EXPECT_TRUE(test_logger::logged("node Upper/Hand has an override of mesh, which its prefab models/arm.gltf doesn't give it (any more), the "
+        "override is ignored"));
+    // the other overrides are loaded
+    EXPECT_FLOAT_EQ(loaded.registry.get<engine_material_component_t>(hand).diffuse_color[0], 0.5f);
+}
+
+TEST_F(SceneFileTest, AddedComponentWhichThePrefabGivesSinceIsReadWhole)
+{
+    World original;
+    original.prefabs.hand_has_mesh = false;
+    const auto root = instantiate_arm(original);
+    original.put<engine_mesh_component_t>(original.prefabs.node(root, "Upper/Hand"), engine_mesh_component_t{ 7, true });
+    const auto file = save(original);
+
+    // the model's hand has a mesh now
+    World loaded;
+    ASSERT_TRUE(load(loaded, file));
+    const auto loaded_root = loaded.find(original.ids.get_id(root));
+    EXPECT_TRUE(loaded.registry.get<engine_mesh_component_t>(loaded.prefabs.node(loaded_root, "Upper/Hand")).disable);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+    // and it is an override of the model's from now on
+    rapidjson::Document doc;
+    const auto resaved = save(loaded);
+    doc.Parse(resaved.c_str());
+    const auto& hand = doc["entities"][0]["nodes"]["Upper/Hand"];
+    EXPECT_FALSE(hand.HasMember("components"));
+    EXPECT_EQ(hand["overrides"]["mesh"].MemberCount(), 1u);
+}
+
+TEST_F(SceneFileTest, OverriddenUnionTagSavesTheWholeCase)
+{
+    World original;
+    const auto root = instantiate_arm(original);
+    const auto upper = original.prefabs.node(root, "Upper");
+    auto collider = original.registry.get<engine_collider_component_t>(upper);
+    collider.type = ENGINE_COLLIDER_TYPE_SPHERE;
+    collider.collider = {};
+    collider.collider.sphere.radius = 0.3f;
+    original.registry.replace<engine_collider_component_t>(upper, collider);
+    const auto file = save(original);
+
+    rapidjson::Document doc;
+    doc.Parse(file.c_str());
+    const auto& saved = doc["entities"][0]["nodes"]["Upper"]["overrides"]["collider"];
+    EXPECT_STREQ(saved["type"].GetString(), "sphere");
+    EXPECT_TRUE(saved["sphere"].HasMember("radius"));
+    EXPECT_FALSE(saved.HasMember("box"));
+
+    World loaded;
+    ASSERT_TRUE(load(loaded, file));
+    EXPECT_EQ(save(loaded), file);
+    const auto& sphere = loaded.registry.get<engine_collider_component_t>(loaded.prefabs.node(loaded.find(original.ids.get_id(root)), "Upper"));
+    EXPECT_EQ(sphere.type, ENGINE_COLLIDER_TYPE_SPHERE);
+    // the case starts zeroed, not with the bytes of the prefab's box
+    EXPECT_FLOAT_EQ(sphere.collider.sphere.radius, 0.3f);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(SceneFileTest, OverridesSurviveUndoOfADeleteAndACopy)
+{
+    World w;
+    const auto root = instantiate_arm(w);
+    override_arm(w, root);
+    w.registry.remove<engine_collider_component_t>(w.prefabs.node(root, "Upper"));
+    const auto scene = save(w);
+
+    const auto saved = snapshot(w, root);
+    destroy_with_children(w, root);
+    ASSERT_TRUE(load(w, saved.file, saved.restore));
+    EXPECT_EQ(save(w), scene);
+
+    engine::EntityHandles loaded;
+    ASSERT_TRUE(load(w, snapshot(w, root).file, copy_options(loaded)));
+    const auto copy = loaded.at(w.ids.get_id(root));
+    EXPECT_TRUE(w.registry.get<engine_mesh_component_t>(w.prefabs.node(copy, "Upper/Hand")).disable);
+    EXPECT_FLOAT_EQ(w.registry.get<engine_material_component_t>(w.prefabs.node(copy, "Upper/Hand")).diffuse_color[0], 0.5f);
+    EXPECT_FLOAT_EQ(w.registry.get<engine_transform_component_t>(w.prefabs.node(copy, "Upper")).position[1], 0.75f);
+    EXPECT_FALSE(w.registry.all_of<engine_collider_component_t>(w.prefabs.node(copy, "Upper")));
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
 }
 
 TEST_F(SceneFileTest, RenamedInstanceRootKeepsItsName)
