@@ -849,13 +849,16 @@ bool parse_scene_file(std::string_view json, std::string_view file_name, rapidjs
     return true;
 }
 
-// Sets the parent of a game object the C API way (add it with its defaults, then update it), so the scene's listeners
-// run.
+// Sets the parent of a game object the C API way (add it with its defaults when it has none, then update it), so the
+// scene's listeners run.
 void set_parent(const engine::TypeRegistry& types, entt::registry& registry, entt::entity entity, entt::entity parent)
 {
     const auto* type = types.find("parent");
     const engine_parent_component_t value{ static_cast<engine_game_object_t>(parent) };
-    type->storage->add(registry, entity);
+    if (!type->storage->has(registry, entity))
+    {
+        type->storage->add(registry, entity);
+    }
     type->storage->update(registry, entity, &value);
 }
 
@@ -1209,6 +1212,24 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
                     continue;
                 }
                 read(*json);
+            }
+        }
+        // a scene prefab's game object whose parent isn't in the file (logged, it is read as none) stays under the
+        // instance's root
+        if (instance && type->name == "parent")
+        {
+            for (const auto& e : file_entities)
+            {
+                const auto entity = entities.at(e.id);
+                engine_parent_component_t parent{};
+                if (type->storage->has(registry, entity))
+                {
+                    type->storage->get(registry, entity, &parent);
+                }
+                if (parent.parent == ENGINE_INVALID_GAME_OBJECT_ID || !registry.valid(static_cast<entt::entity>(parent.parent)))
+                {
+                    set_parent(types, registry, entity, instance->root);
+                }
             }
         }
     }

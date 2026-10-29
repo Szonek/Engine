@@ -38,7 +38,5 @@ private:
 
     std::string name_;
     std::string json_;
-    // set while its file is loaded into an instance: instantiating it again then would place it inside itself
-    mutable bool instantiating_ = false;
 };
 }  // namespace engine

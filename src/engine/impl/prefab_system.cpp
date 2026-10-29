@@ -1,6 +1,7 @@
 #include "prefab_system.h"
 
 #include "application.h"
+#include "asset_store.h"
 #include "logger.h"
 #include "profiler.h"
 #include "components_internals/prefab_instance_component.h"
@@ -8,6 +9,7 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
 #include <cassert>
 #include <utility>
 
@@ -60,6 +62,30 @@ const engine::PrefabInstanceInfo* engine::PrefabSystem::instantiate(std::string_
     const auto instance = ids.root_id == EntityIdRegistry::INVALID_ID ? Prefab::Instance::eTransient : Prefab::Instance::ePersistent;
     const auto entity = instantiate_prefab(prefab, instance, root, &node_handles, &ids);
     return entity == entt::null ? nullptr : find_instance(entity);
+}
+
+namespace
+{
+// a scene file's name as one path, however it was written ("rooms/a.json", "rooms/../rooms/a.json" or absolute)
+std::filesystem::path scene_file_key(std::string_view file_name)
+{
+    return (engine::AssetStore::get_instance().get_scenes_base_path() / file_name).lexically_normal();
+}
+}  // namespace
+
+void engine::PrefabSystem::begin_file_load(std::string_view file_name)
+{
+    loading_files_.push_back(scene_file_key(file_name));
+}
+
+void engine::PrefabSystem::end_file_load()
+{
+    loading_files_.pop_back();
+}
+
+bool engine::PrefabSystem::is_file_loading(std::string_view file_name) const
+{
+    return std::ranges::find(loading_files_, scene_file_key(file_name)) != loading_files_.end();
 }
 
 engine::prefab_instance_internal_component_t::prefab_instance_internal_component_t(Application& app, std::uint32_t prefab, PrefabInstanceInfo&& info)

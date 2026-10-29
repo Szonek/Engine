@@ -3,6 +3,8 @@
 
 #include <entt/entt.hpp>
 
+#include <algorithm>
+#include <cctype>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -42,9 +44,12 @@ public:
         const InstanceIds* ids = nullptr) const = 0;
 };
 
-// Whether a prefab's asset ID names a scene file (it ends in ".json"), not a model.
+// Whether a prefab's asset ID names a scene file (it ends in ".json", in any case), not a model.
 inline bool is_scene_prefab_id(std::string_view asset_id)
 {
-    return asset_id.ends_with(".json");
+    constexpr std::string_view extension = ".json";
+    return asset_id.size() >= extension.size()
+        && std::ranges::equal(asset_id.substr(asset_id.size() - extension.size()), extension,
+            [](char a, char b) { return std::tolower(static_cast<unsigned char>(a)) == b; });
 }
 }  // namespace engine

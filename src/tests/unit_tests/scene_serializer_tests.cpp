@@ -1809,4 +1809,69 @@ TEST_F(ScenePrefabTest, FileWhichPlacesItselfIsNotPlacedInsideItself)
     ASSERT_NE(inner, entt::entity{ entt::null });
     EXPECT_EQ(w.prefabs.find_instance(inner), nullptr);
 }
+
+TEST_F(ScenePrefabTest, ScenePrefabInsideAScenePrefabHasTheIdsOfItsNodePaths)
+{
+    // a house placing the room
+    constexpr const char* HOUSE = "houses/house.json";
+    const auto house_file = fmt::format(R"({{ "version": 1, "entities": [ {{ "id": 4, "prefab": "{}", "nodes": {{
+        "": {{ "components": {{ "name": {{ "name": "room" }} }} }}, "3/Upper/Hand": {{ "overrides": {{ "material": {{ "shininess": 4.0 }} }} }} }} }} ] }})", ROOM);
+    World original;
+    original.prefabs.types = &types_;
+    original.prefabs.assets = &assets_;
+    original.prefabs.scene_files[ROOM] = room_file();
+    original.prefabs.scene_files[HOUSE] = house_file;
+    const auto root = original.create();
+    ASSERT_NE(original.prefabs.instantiate(HOUSE, root), nullptr);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+
+    const auto room = original.prefabs.node(root, "4");
+    ASSERT_NE(room, entt::entity{ entt::null });
+    EXPECT_EQ(parent(original, room), root);
+    EXPECT_EQ(parent(original, original.prefabs.node(root, "4/1")), room);
+    // the room's override and the house's override both reach the arm's nodes
+    const auto upper = original.prefabs.node(root, "4/3/Upper");
+    ASSERT_NE(upper, entt::entity{ entt::null });
+    EXPECT_TRUE(original.registry.get<engine_collider_component_t>(upper).is_trigger);
+    const auto hand = original.prefabs.node(root, "4/3/Upper/Hand");
+    ASSERT_NE(hand, entt::entity{ entt::null });
+    EXPECT_FLOAT_EQ(original.registry.get<engine_material_component_t>(hand).shininess, 4.0f);
+    const auto root_id = original.ids.get_id(root);
+    EXPECT_EQ(original.ids.get_id(room), EntityIdRegistry::hashed_id(root_id, "4"));
+    EXPECT_EQ(original.ids.get_id(original.prefabs.node(root, "4/2")), EntityIdRegistry::hashed_id(root_id, "4/2"));
+    EXPECT_EQ(original.ids.get_id(upper), EntityIdRegistry::hashed_id(root_id, "4/3/Upper"));
+
+    // an override of the level reaches into the room inside the house, and round trips
+    auto hand_material = original.registry.get<engine_material_component_t>(hand);
+    hand_material.shininess = 2.0f;
+    original.registry.replace<engine_material_component_t>(hand, hand_material);
+    const auto file = save(original);
+    rapidjson::Document doc;
+    doc.Parse(file.c_str());
+    ASSERT_EQ(doc["entities"].Size(), 1u);
+    EXPECT_TRUE(doc["entities"][0]["nodes"].HasMember("4/3/Upper/Hand")) << file;
+
+    World loaded;
+    loaded.prefabs.scene_files[ROOM] = room_file();
+    loaded.prefabs.scene_files[HOUSE] = house_file;
+    ASSERT_TRUE(load(loaded, file));
+    EXPECT_EQ(save(loaded), file);
+    const auto loaded_root = loaded.find(root_id);
+    ASSERT_NE(loaded_root, entt::entity{ entt::null });
+    EXPECT_FLOAT_EQ(loaded.registry.get<engine_material_component_t>(loaded.prefabs.node(loaded_root, "4/3/Upper/Hand")).shininess, 2.0f);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(ScenePrefabTest, GameObjectWhoseParentIsNotInTheFileStaysUnderTheRoot)
+{
+    World w;
+    w.prefabs.types = &types_;
+    w.prefabs.assets = &assets_;
+    w.prefabs.scene_files["rooms/partial.json"] = R"({ "version": 1, "entities": [
+        { "id": 1, "components": { "name": { "name": "lamp" }, "parent": { "parent": 99 } } } ] })";
+    const auto root = w.create();
+    ASSERT_NE(w.prefabs.instantiate("rooms/partial.json", root), nullptr);
+    EXPECT_TRUE(test_logger::logged("references the game object 99 which isn't in the file"));
+    EXPECT_EQ(parent(w, w.prefabs.node(root, "1")), root);
+}
 }  // namespace

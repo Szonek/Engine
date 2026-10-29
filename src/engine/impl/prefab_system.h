@@ -5,7 +5,9 @@
 #include <entt/entt.hpp>
 
 #include <cstdint>
+#include <filesystem>
 #include <string_view>
+#include <vector>
 
 namespace engine
 {
@@ -33,10 +35,17 @@ public:
     const PrefabInstanceInfo* find_instance(entt::entity root) const override;
     const PrefabInstanceInfo* instantiate(std::string_view prefab_asset_id, entt::entity root, const EntityHandles& node_handles, const InstanceIds& ids) override;
 
+    // The scene files being loaded into the scene (Scene::load, nested while a scene prefab's file loads), by name: a
+    // path under assets/scenes or absolute. A scene prefab whose file is one of them would be placed inside itself.
+    void begin_file_load(std::string_view file_name);
+    void end_file_load();
+    bool is_file_loading(std::string_view file_name) const;
+
 private:
     Application& app_;
     Scene& scene_;
     entt::registry& registry_;
     SceneAssets& assets_;
+    std::vector<std::filesystem::path> loading_files_;
 };
 }  // namespace engine

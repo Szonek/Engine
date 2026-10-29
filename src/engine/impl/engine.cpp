@@ -1,4 +1,4 @@
-﻿#include <engine.h>
+#include <engine.h>
 
 #include "application.h"
 #include "application_editor.h"
@@ -458,9 +458,9 @@ engine_result_code_t enginePrefabLoad(engine_model_specification_t spec, const c
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
-    // a scene file is loaded with enginePrefabLoadScene
     if (engine::is_scene_prefab_id(path))
     {
+        engine::log::log(engine::log::LogLevel::eError, fmt::format("Prefab {}: a scene file is loaded with enginePrefabLoadScene.\n", path));
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
     const auto ret = api_cast(G_ACTIVE_APP)->load_prefab(path);
@@ -481,7 +481,7 @@ engine_result_code_t enginePrefabLoadScene(const char* path, engine_prefab_t* ou
     }
     if (!engine::is_scene_prefab_id(path))
     {
-        engine::log::log(engine::log::LogLevel::eError, fmt::format("Scene prefab {}: a scene file's path ends in .json.\n", path));
+        engine::log::log(engine::log::LogLevel::eError, fmt::format("Scene prefab {}: a scene file's path ends in .json; a model is loaded with enginePrefabLoad.\n", path));
         return ENGINE_RESULT_CODE_FAIL;
     }
     const auto ret = api_cast(G_ACTIVE_APP)->load_prefab(path);

@@ -805,7 +805,11 @@ std::string engine::Scene::save(std::span<const entt::entity> entities) const
 bool engine::Scene::load(std::string_view json, std::string_view file_name, const SceneLoadOptions& options)
 {
     ENGINE_PROFILE_SECTION;
-    return load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_, options);
+    // a scene prefab placed in the file (or deeper) which is this file is placed inside itself: it isn't
+    prefabs_.begin_file_load(file_name);
+    const auto loaded = load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_, options);
+    prefabs_.end_file_load();
+    return loaded;
 }
 
 std::vector<entt::entity> engine::Scene::get_all_entities() const

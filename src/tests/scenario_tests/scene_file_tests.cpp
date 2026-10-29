@@ -579,4 +579,15 @@ TEST_F(ScenePrefabTest, FileWhichPlacesItselfStops)
     EXPECT_TRUE(children_of(inner[0]).empty());
     enginePrefabRelease(room);
 }
+
+TEST_F(ScenePrefabTest, LevelWhichPlacesItselfIsNotPlacedInsideItself)
+{
+    // loaded as a level, not placed: the file is being loaded, so it isn't placed inside itself even once
+    const auto path = room_.generic_string();
+    write_room(R"({ "version": 1, "entities": [ { "id": 1, "prefab": ")" + path + R"(" } ] })");
+    ASSERT_EQ(engineSceneLoad(path.c_str()), ENGINE_RESULT_CODE_OK);
+    const auto room = enginePrefabGetByName(path.c_str());
+    ASSERT_NE(room, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_TRUE(instances_of(room).empty());
+}
 }  // namespace
