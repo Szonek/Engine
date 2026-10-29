@@ -161,6 +161,12 @@ private:
             string(std::string_view(chars, strnlen(chars, field.size)));
             break;
         }
+        case FieldKind::eEngineString:
+        {
+            const auto* str = read_as<const engine_string_t*>(p);
+            string(str ? std::string_view(str->str) : std::string_view());
+            break;
+        }
         case FieldKind::eEnum:
         {
             const auto value = read_as<std::int32_t>(p);
@@ -249,7 +255,18 @@ public:
     {
     }
 
-    // reads the fields the json object has into `value`, which holds the defaults
+    // reads the fields the json object has into `value`, which holds the defaults; the engine strings read point at
+    // strings `value` owns
+    void read_struct(const engine::TypeInfo& type, const Json& json, engine::ValueBuffer& value, std::string_view path)
+    {
+        strings_ = &value;
+        read_struct(type, json, value.get(), path);
+        strings_ = nullptr;
+    }
+
+    void set_entity(std::uint64_t id) { entity_id_ = id; }
+
+private:
     void read_struct(const engine::TypeInfo& type, const Json& json, std::byte* value, std::string_view path)
     {
         if (!json.IsObject())
@@ -318,9 +335,6 @@ public:
         }
     }
 
-    void set_entity(std::uint64_t id) { entity_id_ = id; }
-
-private:
     void error(std::string_view path, std::string_view message)
     {
         log_error(fmt::format("Scene {}, game object {}: {} {}.\n", file_name_, entity_id_, path, message));
@@ -377,6 +391,15 @@ private:
             }
             std::memset(p, 0, field.size);
             std::memcpy(p, json.GetString(), length);
+            return;
+        }
+        case FieldKind::eEngineString:
+        {
+            if (!json.IsString())
+            {
+                return error(path, "is not a string, the default is kept");
+            }
+            write_as(p, strings_->make_string(std::string_view(json.GetString(), json.GetStringLength())));
             return;
         }
         case FieldKind::eEnum:
@@ -465,6 +488,8 @@ private:
     const engine::EntityIdRegistry* outside_;
     engine::IAssetResolver& assets_;
     std::uint64_t entity_id_ = 0;
+    // the value being read, which owns the engine strings read into it
+    engine::ValueBuffer* strings_ = nullptr;
 };
 
 struct FileEntity
@@ -527,6 +552,8 @@ void engine::capture_prefab_components(const TypeRegistry& types, const entt::re
             {
                 PrefabComponentValue created{ type, ValueBuffer(type->size) };
                 type->storage->get(registry, node.entity, created.value.get());
+                // the strings it had, not the component's, which change with it
+                own_engine_strings(*type, created.value);
                 node.created.push_back(std::move(created));
             }
         }
@@ -1179,7 +1206,7 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
             const auto read = [&](const Json& json) {
                 engine::ValueBuffer value(type->size);
                 type->storage->get(registry, e.entity, value.get());
-                reader.read_struct(*type, json, value.get(), e.node_path.empty() ? type->name : fmt::format("node {}: {}", e.node_path, type->name));
+                reader.read_struct(*type, json, value, e.node_path.empty() ? type->name : fmt::format("node {}: {}", e.node_path, type->name));
                 type->storage->update(registry, e.entity, value.get());
             };
             reader.set_entity(e.id);
