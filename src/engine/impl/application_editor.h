@@ -2,6 +2,7 @@
 #include "asset_store.h"
 #include "file_watcher.h"
 #include "editor_commands.h"
+#include "editor_asset_panel.h"
 #include "editor_camera.h"
 #include "editor_modal_transform.h"
 #include "render/outline_feature.h"
@@ -97,6 +98,11 @@ private:
     void render_scene_view();
     void render_editor_controls(class Scene* scene, float dt);
     void render_scene_hierarchy_panel(class Scene* scene, float dt);
+    // the asset browser, in the bottom panel
+    void render_asset_browser_panel(class Scene* scene);
+    // a model or scene file dragged from the asset browser and dropped on the scene view is placed where the mouse ray
+    // hits a collider, or the ground (CommandPlacePrefab)
+    void handle_asset_drop(class Scene* scene);
     // asks to confirm deleting a game object undo can't bring back (SceneHierarchyContext::request_delete_without_undo)
     void display_delete_without_undo_popup(class Scene* scene);
     void render_entity_properties_panel(class Scene* scene, float dt);
@@ -195,6 +201,8 @@ private:
     bool scene_view_mouse_held_ = false;
     bool scene_view_focused_ = false;
     SceneHierarchyContext scene_hierarchy_context_;
+    // the properties panel shows the file selected in it while no game object is selected
+    AssetBrowserPanel asset_browser_{ *this };
     // the game object whose delete without undo waits for its confirmation
     entt::entity delete_without_undo_ = entt::null;
 };

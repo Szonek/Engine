@@ -460,6 +460,11 @@ std::string engine::Application::get_skin_name(std::uint32_t idx) const
     return skins_atlas_.get_object_name(idx);
 }
 
+std::vector<std::pair<std::uint32_t, std::string>> engine::Application::get_skin_names() const
+{
+    return skins_atlas_.get_object_names();
+}
+
 void engine::Application::release_skin(std::uint32_t idx)
 {
     skins_atlas_.release(idx);
