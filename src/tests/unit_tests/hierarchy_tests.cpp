@@ -139,3 +139,15 @@ TEST_F(HierarchyTest, ReparentedChildKeepsItsNewParentWhenTheOldOneIsDestroyed)
     EXPECT_EQ(static_cast<entt::entity>(registry_.get<engine_parent_component_t>(child).parent), new_parent);
     EXPECT_EQ(children(new_parent), (std::vector<entt::entity>{ child }));
 }
+
+// every way to change a component goes through the parent storage, not only replace
+TEST_F(HierarchyTest, PatchingTheParentComponentMovesTheChildToo)
+{
+    const auto old_parent = registry_.create();
+    const auto new_parent = registry_.create();
+    const auto child = registry_.create();
+    set_parent(child, old_parent);
+    registry_.patch<engine_parent_component_t>(child, [new_parent](engine_parent_component_t& component) { component.parent = static_cast<std::uint32_t>(new_parent); });
+    EXPECT_TRUE(children(old_parent).empty());
+    EXPECT_EQ(children(new_parent), (std::vector<entt::entity>{ child }));
+}

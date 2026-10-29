@@ -7,59 +7,38 @@
 #include <fmt/format.h>
 
 #include <algorithm>
+#include <cstdint>
 
 namespace
 {
-// takes the game object out of the children list it is in, if any
-void unlist(entt::registry& registry, entt::entity entity)
+void unlist(entt::registry& registry, entt::entity entity, std::uint32_t parent)
 {
-    auto* listed = registry.try_get<engine::listed_parent_internal_component_t>(entity);
-    if (!listed || listed->parent == entt::null)
-    {
-        return;
-    }
-    if (auto* children = registry.try_get<engine::children_internal_component_t>(listed->parent))
+    if (auto* children = registry.try_get<engine::children_internal_component_t>(static_cast<entt::entity>(parent)))
     {
         std::erase(children->children, entity);
     }
-    // not removed: this runs inside the destroy listeners of the game object's other components
-    listed->parent = entt::null;
 }
 
-void update_parent_component(entt::registry& registry, entt::entity entity)
+void change_parent_component(entt::registry& registry, entt::entity entity, const engine_parent_component_t& previous)
 {
     const auto& parent = registry.get<engine_parent_component_t>(entity);
-    const auto parent_entt = static_cast<entt::entity>(parent.parent);
-    const auto& listed = registry.get_or_emplace<engine::listed_parent_internal_component_t>(entity);
-    // an update which keeps the parent keeps the child's place among its siblings
-    if (listed.parent == parent_entt && listed.parent != entt::null)
+    // a change which keeps the parent keeps the child's place among its siblings
+    if (parent.parent == previous.parent && parent.parent != ENGINE_INVALID_GAME_OBJECT_ID)
     {
         return;
     }
-    unlist(registry, entity);
+    unlist(registry, entity, previous.parent);
     if (parent.parent == ENGINE_INVALID_GAME_OBJECT_ID)
     {
         engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has invalid parent id. If entity doesnt have parent than just delete it. Are you sure you are doing valid thing?\n"));
         return;
     }
-    registry.get_or_emplace<engine::children_internal_component_t>(parent_entt).children.push_back(entity);
-    registry.get<engine::listed_parent_internal_component_t>(entity).parent = parent_entt;
+    registry.get_or_emplace<engine::children_internal_component_t>(static_cast<entt::entity>(parent.parent)).children.push_back(entity);
 }
 
 void destroy_parent_component(entt::registry& registry, entt::entity entity)
 {
-    if (registry.all_of<engine::listed_parent_internal_component_t>(entity))
-    {
-        unlist(registry, entity);
-        return;
-    }
-    // the game object is being destroyed and its listed parent went first: it is the one its parent component names,
-    // which a listed game object always keeps in step
-    const auto parent = static_cast<entt::entity>(registry.get<engine_parent_component_t>(entity).parent);
-    if (auto* children = registry.try_get<engine::children_internal_component_t>(parent))
-    {
-        std::erase(children->children, entity);
-    }
+    unlist(registry, entity, registry.get<engine_parent_component_t>(entity).parent);
 }
 
 void destroy_children_component(entt::registry& registry, entt::entity entity)
@@ -75,7 +54,7 @@ void destroy_children_component(entt::registry& registry, entt::entity entity)
 
 void engine::connect_hierarchy(entt::registry& registry)
 {
-    registry.on_update<engine_parent_component_t>().connect<&update_parent_component>();
+    registry.storage<engine_parent_component_t>().on_change().connect<&change_parent_component>(registry);
     registry.on_destroy<engine_parent_component_t>().connect<&destroy_parent_component>();
     registry.on_destroy<children_internal_component_t>().connect<&destroy_children_component>();
 }
