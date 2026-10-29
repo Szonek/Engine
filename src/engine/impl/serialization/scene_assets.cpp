@@ -33,6 +33,8 @@ std::string engine::SceneAssets::get_asset_id(AssetKind kind, std::uint32_t hand
     {
     case AssetKind::eGeometry: return app_.get_geometry_name(handle);
     case AssetKind::eTexture: return app_.get_texture_name(handle);
+    case AssetKind::eSkin: return app_.get_skin_name(handle);
+    case AssetKind::eAnimationSet: return app_.get_animation_set_name(handle);
     }
     return {};
 }
@@ -44,6 +46,8 @@ std::uint32_t engine::SceneAssets::resolve(AssetKind kind, std::string_view asse
     {
     case AssetKind::eGeometry: return app_.get_geometry(asset_id);
     case AssetKind::eTexture: return app_.get_texture(asset_id);
+    case AssetKind::eSkin: return app_.get_skin(asset_id);
+    case AssetKind::eAnimationSet: return app_.get_animation_set(asset_id);
     }
     return ENGINE_INVALID_OBJECT_HANDLE;
 }

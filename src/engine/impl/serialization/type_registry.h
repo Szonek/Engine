@@ -1,4 +1,6 @@
 #pragma once
+#include "../engine_string_impl_def.h"
+
 #include <engine.h>
 
 #include <entt/entt.hpp>
@@ -27,6 +29,9 @@ enum class FieldKind
     eFloat,
     // a fixed size char array, null terminated
     eString,
+    // an engine_string_t* (a string the engine owns, e.g. the joint attachment's joint name), written as a JSON string;
+    // null is the empty string. A value read from a file points at a string of its ValueBuffer (see make_string).
+    eEngineString,
     // a C enum (int sized), written by the name of its value
     eEnum,
     // a registered struct type, see FieldInfo::struct_type
@@ -44,6 +49,8 @@ enum class AssetKind
 {
     eGeometry,
     eTexture,
+    eSkin,
+    eAnimationSet,
 };
 
 struct EnumValue
@@ -150,7 +157,9 @@ struct TypeInfo
 };
 
 // A buffer for one value of a registered type, aligned for any of them (C structs, aligned to at most
-// ENGINE_COMPONENT_TYPE_MAX_ALIGNMENT, the engine's like the game's).
+// ENGINE_COMPONENT_TYPE_MAX_ALIGNMENT, the engine's like the game's). It owns the strings its eEngineString fields point
+// at when they were read from a file or copied (own_engine_strings), so they live as long as the value; they never
+// change, so a copy of the buffer shares them.
 class ValueBuffer
 {
 public:
@@ -158,12 +167,19 @@ public:
     std::byte* get() { return data_.empty() ? nullptr : data_.front().bytes; }
     const std::byte* get() const { return data_.empty() ? nullptr : data_.front().bytes; }
 
+    // a string the buffer owns, for an eEngineString field of its value to point at
+    const engine_string_t* make_string(std::string_view value)
+    {
+        return strings_.emplace_back(std::make_shared<engine_string_t>(engine_string_t{ std::string(value) })).get();
+    }
+
 private:
     struct alignas(ENGINE_COMPONENT_TYPE_MAX_ALIGNMENT) Chunk
     {
         std::byte bytes[ENGINE_COMPONENT_TYPE_MAX_ALIGNMENT];
     };
     std::vector<Chunk> data_;
+    std::vector<std::shared_ptr<const engine_string_t>> strings_;
 };
 
 // The types the engine can save, by name. Components keep the order they were registered in: scenes are saved and
@@ -198,8 +214,13 @@ const UnionCase* find_active_case(const TypeInfo& type, const FieldInfo& union_f
 // has the handle 0).
 void clear_union(const FieldInfo& union_field, std::byte* value);
 
+// Points the eEngineString fields of the value of `type` in `value` (nested structs and the active union cases too) at
+// copies `value` owns: a value kept after its component changes (what a prefab gave a node) holds the strings it had,
+// not the component's, which change with it.
+void own_engine_strings(const TypeInfo& type, ValueBuffer& value);
+
 // Whether two values of `type` are the same field by field: padding and the bytes after a string's terminator don't
-// count, and a union compares only its active case.
+// count, an engine string compares its text, and a union compares only its active case.
 bool equal_values(const TypeInfo& type, const std::byte* a, const std::byte* b);
 // Whether the field `field` of `type` (every element of an array) is the same in the values `a` and `b` of the type, as
 // equal_values compares it; a union is the same when its tag is and its active case is.
@@ -239,7 +260,8 @@ std::size_t member_offset(Member Owner::* member)
 //       .field("mass", &engine_rigid_body_component_t::mass)
 //       .component();
 // Plain fields (bool, int32, uint32, float, arrays of them and char arrays) are deduced. Handles are uint32 typedefs,
-// so asset and game object references are declared with asset() and game_object(). A description with a mistake is
+// so asset and game object references are declared with asset() and game_object(); the engine's strings with
+// engine_string(). A description with a mistake is
 // logged and not registered.
 template<typename T>
 class TypeBuilder
@@ -334,6 +356,13 @@ public:
         auto f = make_field<std::uint32_t>(name, member_offset(member));
         f.kind = FieldKind::eAsset;
         f.asset_kind = kind;
+        return push(std::move(f));
+    }
+
+    TypeBuilder& engine_string(std::string_view name, engine_string_t* T::* member)
+    {
+        auto f = make_field<engine_string_t*>(name, member_offset(member));
+        f.kind = FieldKind::eEngineString;
         return push(std::move(f));
     }
 

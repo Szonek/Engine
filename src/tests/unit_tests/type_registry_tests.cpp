@@ -88,9 +88,10 @@ TEST_F(TypeRegistryTest, BuiltinTypesRegisterWithoutErrors)
     {
         components.push_back(t->name);
     }
-    // the load order: transforms and the hierarchy before what reads world matrices, the rigid body before the collider
-    const std::vector<std::string> expected = { "name", "folder", "transform", "parent", "mesh", "material", "light", "camera",
-        "nav_surface", "nav_modifier", "rigid_body", "collider", "character_controller" };
+    // the load order: transforms and the hierarchy before what reads world matrices, the skin before what reads its pose,
+    // joint attachments and the rigid body before the collider
+    const std::vector<std::string> expected = { "name", "folder", "transform", "parent", "skin", "joint_attachment", "animation_controller",
+        "mesh", "skinned_mesh", "material", "light", "camera", "nav_surface", "nav_modifier", "rigid_body", "collider", "character_controller" };
     EXPECT_EQ(components, expected);
 }
 

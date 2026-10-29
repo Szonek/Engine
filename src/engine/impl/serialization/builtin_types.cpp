@@ -2,8 +2,7 @@
 
 #include <engine.h>
 
-// Not described yet, so not saved: the skin, skinned mesh, joint attachment and animation controller components
-// (they come with saved prefab instances) and the sprite (a placeholder).
+// Not described, so not saved: the sprite (a placeholder without data).
 
 namespace
 {
@@ -100,6 +99,42 @@ void register_light(engine::TypeRegistry& registry)
         .component();
 }
 
+// The skin and what reads its pose: the joint attachment and the animation controller (the skinned mesh is with the
+// rendering). Each references the game object with the skin component, whose pose it reads, not the skin asset.
+void register_skeletal_animation(engine::TypeRegistry& registry)
+{
+    using namespace engine;
+    TypeBuilder<engine_skin_component_t>(registry, "skin")
+        .asset("skin", &engine_skin_component_t::skin, AssetKind::eSkin)
+        .component();
+    TypeBuilder<engine_joint_attachment_component_t>(registry, "joint_attachment")
+        .game_object("skin", &engine_joint_attachment_component_t::skin)
+        .engine_string("joint_name", &engine_joint_attachment_component_t::joint_name)
+        .component();
+
+    TypeBuilder<engine_animation_layer_joint_weight_t>(registry, "animation_layer_joint_weight")
+        .field("joint_name", &engine_animation_layer_joint_weight_t::joint_name)
+        .field("weight", &engine_animation_layer_joint_weight_t::weight)
+        .structure();
+    TypeBuilder<engine_animation_layer_desc_t>(registry, "animation_layer")
+        .field("name", &engine_animation_layer_desc_t::name)
+        .enumeration("mode", &engine_animation_layer_desc_t::mode, {
+            { "override", ENGINE_ANIMATION_LAYER_MODE_OVERRIDE },
+            { "additive", ENGINE_ANIMATION_LAYER_MODE_ADDITIVE } })
+        .field("weight", &engine_animation_layer_desc_t::weight)
+        .field("looping", &engine_animation_layer_desc_t::looping)
+        .field("joint_weights_count", &engine_animation_layer_desc_t::joint_weights_count)
+        .structure("joint_weights", &engine_animation_layer_desc_t::joint_weights, "animation_layer_joint_weight")
+        .structure();
+    // the layers are a fixed array with a count, like the compound collider's children: every element is written
+    using T = engine_animation_controller_component_t;
+    TypeBuilder<T>(registry, "animation_controller")
+        .asset("animations", &T::animations, AssetKind::eAnimationSet)
+        .field("layers_count", &T::layers_count)
+        .structure("layers", &T::layers, "animation_layer")
+        .component();
+}
+
 void register_collider(engine::TypeRegistry& registry)
 {
     using namespace engine;
@@ -160,11 +195,19 @@ void engine::register_builtin_types(TypeRegistry& registry)
     TypeBuilder<engine_parent_component_t>(registry, "parent")
         .game_object("parent", &engine_parent_component_t::parent)
         .component();
+    // the skin before what reads its pose (a controller is created when it gets its animation set on a game object
+    // with a skin), and joint attachments before the colliders, whose bodies are created at the joint's world matrix
+    register_skeletal_animation(registry);
 
     // rendering
     TypeBuilder<engine_mesh_component_t>(registry, "mesh")
         .asset("geometry", &engine_mesh_component_t::geometry, AssetKind::eGeometry)
         .field("disable", &engine_mesh_component_t::disable)
+        .component();
+    TypeBuilder<engine_skinned_mesh_component_t>(registry, "skinned_mesh")
+        .asset("geometry", &engine_skinned_mesh_component_t::geometry, AssetKind::eGeometry)
+        .game_object("skin", &engine_skinned_mesh_component_t::skin)
+        .field("disable", &engine_skinned_mesh_component_t::disable)
         .component();
     TypeBuilder<engine_material_component_t>(registry, "material")
         .field("diffuse_color", &engine_material_component_t::diffuse_color)
