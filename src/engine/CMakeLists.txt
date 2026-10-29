@@ -88,7 +88,10 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/skin.h
 	${ENGINE_SOURCES_DIR}/skin.cpp
 	${ENGINE_SOURCES_DIR}/prefab.h
-	${ENGINE_SOURCES_DIR}/prefab.cpp
+	${ENGINE_SOURCES_DIR}/model_prefab.h
+	${ENGINE_SOURCES_DIR}/model_prefab.cpp
+	${ENGINE_SOURCES_DIR}/scene_prefab.h
+	${ENGINE_SOURCES_DIR}/scene_prefab.cpp
 	${ENGINE_SOURCES_DIR}/prefab_system.h
 	${ENGINE_SOURCES_DIR}/prefab_system.cpp
 	${ENGINE_SOURCES_DIR}/serialization/type_registry.h

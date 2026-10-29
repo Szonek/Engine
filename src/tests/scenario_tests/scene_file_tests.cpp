@@ -5,11 +5,14 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
+#include <vector>
 
 // Scene files in a real scene: the assets they reference are loaded on demand and held by the scene, and loaded
 // components reach the scene's systems (physics) like ones added through the C API.
@@ -452,5 +455,139 @@ TEST_F(SceneFileTest, GameComponentIsSavedAndLoaded)
     // the reference points at the loaded buddy
     ASSERT_TRUE(engineGameObjectIsValid(read.buddy));
     EXPECT_TRUE(engineGameObjectHasTransformComponent(read.buddy));
+}
+
+// -- scene prefabs ---------------------------------------------------------------------------------------------------
+
+// A scene file used as a prefab, written next to the test's scene file and named by its absolute path (its asset ID).
+class ScenePrefabTest : public SceneFileTest
+{
+protected:
+    void TearDown() override
+    {
+        std::filesystem::remove(room_);
+        SceneFileTest::TearDown();
+    }
+
+    std::string write_room(const std::string& content)
+    {
+        std::ofstream(room_, std::ios::binary) << content;
+        return room_.generic_string();
+    }
+
+    static float world_x(engine_game_object_t go)
+    {
+        float m[16]{};
+        EXPECT_EQ(engineGameObjectComputeWorldTransform(go, m), ENGINE_RESULT_CODE_OK);
+        return m[12];
+    }
+
+    // the game objects of the active scene which are instances of the prefab
+    static std::vector<engine_game_object_t> instances_of(engine_prefab_t prefab)
+    {
+        std::vector<engine_game_object_t> ret;
+        for (engine_game_object_t go = 1; go < 256; go++)
+        {
+            if (engineGameObjectIsValid(go) && enginePrefabInstanceGetPrefab(go) == prefab)
+            {
+                ret.push_back(go);
+            }
+        }
+        return ret;
+    }
+
+    std::filesystem::path room_ = std::filesystem::temp_directory_path() / "project_c_scene_prefab_room.json";
+};
+
+// a room: a crate (a model's instance) one unit along x from the room's origin
+constexpr const char* ROOM_WITH_A_CRATE = R"({ "version": 1, "entities": [ { "id": 1, "prefab": "test_fixtures/crate.gltf",
+    "nodes": { "": { "components": { "name": { "name": "crate" }, "transform": { "position": [1, 0, 0] } } } } } ] })";
+
+TEST_F(ScenePrefabTest, EachInstanceIsPlacedByItsRoot)
+{
+    const auto path = write_room(ROOM_WITH_A_CRATE);
+    engine_prefab_t room = ENGINE_INVALID_OBJECT_HANDLE;
+    ASSERT_EQ(enginePrefabLoadScene(path.c_str(), &room), ENGINE_RESULT_CODE_OK);
+    // a model is loaded with enginePrefabLoad, a scene file with enginePrefabLoadScene
+    engine_prefab_t wrong = ENGINE_INVALID_OBJECT_HANDLE;
+    EXPECT_NE(enginePrefabLoad(ENGINE_MODEL_SPECIFICATION_GLTF_2, path.c_str(), &wrong), ENGINE_RESULT_CODE_OK);
+
+    const auto a = enginePrefabInstantiate(room);
+    const auto b = enginePrefabInstantiate(room);
+    ASSERT_NE(a, ENGINE_INVALID_GAME_OBJECT_ID);
+    ASSERT_NE(b, ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_EQ(enginePrefabInstanceGetPrefab(a), room);
+    // the root it creates has a transform, which places the instance
+    auto tc = engineGameObjectGetTransformComponent(b);
+    tc.position[0] = 10.0f;
+    engineGameObjectUpdateTransformComponent(b, &tc);
+
+    const auto crate_a = children_of(a);
+    const auto crate_b = children_of(b);
+    ASSERT_EQ(crate_a.size(), 1u);
+    ASSERT_EQ(crate_b.size(), 1u);
+    EXPECT_NE(crate_a[0], crate_b[0]);
+    EXPECT_STREQ(engineGameObjectGetNameComponent(crate_a[0]).name, "crate");
+    EXPECT_FLOAT_EQ(world_x(crate_a[0]), 1.0f);
+    EXPECT_FLOAT_EQ(world_x(crate_b[0]), 11.0f);
+    // the crate's model was loaded for the file
+    EXPECT_NE(enginePrefabGetByName("test_fixtures/crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
+
+    // saved as two instances, which come back where they were
+    ASSERT_EQ(engineSceneSave(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+    create_file_scene();
+    ASSERT_EQ(engineSceneLoad(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+    const auto loaded = instances_of(room);
+    ASSERT_EQ(loaded.size(), 2u);
+    float xs[2]{ world_x(children_of(loaded[0]).at(0)), world_x(children_of(loaded[1]).at(0)) };
+    std::sort(std::begin(xs), std::end(xs));
+    EXPECT_FLOAT_EQ(xs[0], 1.0f);
+    EXPECT_FLOAT_EQ(xs[1], 11.0f);
+    destroy_file_scene();
+    enginePrefabRelease(room);
+}
+
+TEST_F(ScenePrefabTest, TransientInstanceHasOnlyTransientGameObjects)
+{
+    engine_prefab_t room = ENGINE_INVALID_OBJECT_HANDLE;
+    ASSERT_EQ(enginePrefabLoadScene(write_room(ROOM_WITH_A_CRATE).c_str(), &room), ENGINE_RESULT_CODE_OK);
+    const auto root = enginePrefabInstantiateTransient(room);
+    ASSERT_NE(root, ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_TRUE(engineGameObjectIsTransient(root));
+    const auto crate = children_of(root);
+    ASSERT_EQ(crate.size(), 1u);
+    EXPECT_TRUE(engineGameObjectIsTransient(crate[0]));
+    for (const auto node : children_of(crate[0]))
+    {
+        EXPECT_TRUE(engineGameObjectIsTransient(node));
+    }
+    enginePrefabRelease(room);
+}
+
+TEST_F(ScenePrefabTest, FileWhichPlacesItselfStops)
+{
+    const auto path = room_.generic_string();
+    write_room(R"({ "version": 1, "entities": [ { "id": 1, "prefab": ")" + path + R"(" } ] })");
+    engine_prefab_t room = ENGINE_INVALID_OBJECT_HANDLE;
+    ASSERT_EQ(enginePrefabLoadScene(path.c_str(), &room), ENGINE_RESULT_CODE_OK);
+    const auto root = enginePrefabInstantiate(room);
+    ASSERT_NE(root, ENGINE_INVALID_GAME_OBJECT_ID);
+    // the game object placing it inside itself is there, without an instance
+    const auto inner = children_of(root);
+    ASSERT_EQ(inner.size(), 1u);
+    EXPECT_EQ(enginePrefabInstanceGetPrefab(inner[0]), ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_TRUE(children_of(inner[0]).empty());
+    enginePrefabRelease(room);
+}
+
+TEST_F(ScenePrefabTest, LevelWhichPlacesItselfIsNotPlacedInsideItself)
+{
+    // loaded as a level, not placed: the file is being loaded, so it isn't placed inside itself even once
+    const auto path = room_.generic_string();
+    write_room(R"({ "version": 1, "entities": [ { "id": 1, "prefab": ")" + path + R"(" } ] })");
+    ASSERT_EQ(engineSceneLoad(path.c_str()), ENGINE_RESULT_CODE_OK);
+    const auto room = enginePrefabGetByName(path.c_str());
+    ASSERT_NE(room, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_TRUE(instances_of(room).empty());
 }
 }  // namespace

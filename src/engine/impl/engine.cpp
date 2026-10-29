@@ -458,6 +458,11 @@ engine_result_code_t enginePrefabLoad(engine_model_specification_t spec, const c
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
+    if (engine::is_scene_prefab_id(path))
+    {
+        engine::log::log(engine::log::LogLevel::eError, fmt::format("Prefab {}: a scene file is loaded with enginePrefabLoadScene.\n", path));
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
     const auto ret = api_cast(G_ACTIVE_APP)->load_prefab(path);
     if (ret == ENGINE_INVALID_OBJECT_HANDLE)
     {
@@ -465,6 +470,26 @@ engine_result_code_t enginePrefabLoad(engine_model_specification_t spec, const c
     }
     *out = ret;
     engineLog(fmt::format("Loaded prefab: {}, with id: {}\n", path, ret).c_str());
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t enginePrefabLoadScene(const char* path, engine_prefab_t* out)
+{
+    if (!G_ACTIVE_APP || !path || !out)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    if (!engine::is_scene_prefab_id(path))
+    {
+        engine::log::log(engine::log::LogLevel::eError, fmt::format("Scene prefab {}: a scene file's path ends in .json; a model is loaded with enginePrefabLoad.\n", path));
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const auto ret = api_cast(G_ACTIVE_APP)->load_prefab(path);
+    if (ret == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    *out = ret;
     return ENGINE_RESULT_CODE_OK;
 }
 

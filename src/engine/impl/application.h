@@ -74,7 +74,8 @@ public:
     virtual void release_animation_set(std::uint32_t idx);
 
     // prefab assets: a model file with the assets created from it, named by its path relative to the models folder
-    // ("characters/Rogue.glb"). Loading a model which is loaded already returns its prefab with one more reference.
+    // ("characters/Rogue.glb"), or a scene file, named by its path relative to the scenes folder ("rooms/room_a.json",
+    // see is_scene_prefab_id). Loading a file which is loaded already returns its prefab with one more reference.
     virtual std::uint32_t load_prefab(std::string_view path);
     virtual bool acquire_prefab(std::uint32_t idx);
     virtual void release_prefab(std::uint32_t idx);

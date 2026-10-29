@@ -747,22 +747,9 @@ entt::entity engine::Scene::create_prefab_node_entity(std::uint64_t root_id, std
 {
     ENGINE_PROFILE_SECTION;
     const auto id = EntityIdRegistry::hashed_id(root_id, node_path);
-    auto entity = entt::entity{ entt::null };
-    if (node_handles)
+    const auto entity = entity_ids_.create_hashed(id, node_handles);
+    if (const auto new_id = entity_ids_.get_id(entity); new_id != id)
     {
-        const auto it = node_handles->find(id);
-        if (it != node_handles->end() && is_valid_entity(it->second) && entity_ids_.get_id(it->second) == EntityIdRegistry::INVALID_ID)
-        {
-            entity = it->second;
-        }
-    }
-    if (entity == entt::null)
-    {
-        entity = entity_registry_.create();
-    }
-    if (!entity_ids_.assign(entity, id))
-    {
-        const auto new_id = entity_ids_.assign_next(entity);
         log::log(log::LogLevel::eError, fmt::format("Scene: node {} of the prefab instance {} gets the ID {}, its hashed ID {} is used already.\n",
             node_path, root_id, new_id, id));
     }
@@ -818,7 +805,11 @@ std::string engine::Scene::save(std::span<const entt::entity> entities) const
 bool engine::Scene::load(std::string_view json, std::string_view file_name, const SceneLoadOptions& options)
 {
     ENGINE_PROFILE_SECTION;
-    return load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_, options);
+    // a scene prefab placed in the file (or deeper) which is this file is placed inside itself: it isn't
+    prefabs_.begin_file_load(file_name);
+    const auto loaded = load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_, options);
+    prefabs_.end_file_load();
+    return loaded;
 }
 
 std::vector<entt::entity> engine::Scene::get_all_entities() const

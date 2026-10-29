@@ -109,6 +109,31 @@ public:
         return true;
     }
 
+    // A game object of a prefab instance with the hashed ID `id`: the game object `node_handles` has for the ID when it
+    // is valid and has no ID yet (a load restoring handles), else a new one. When the ID is used already it gets the
+    // next counter ID instead (the caller compares get_id with `id` to tell).
+    entt::entity create_hashed(std::uint64_t id, const EntityHandles* node_handles)
+    {
+        auto entity = entt::entity{ entt::null };
+        if (node_handles)
+        {
+            const auto it = node_handles->find(id);
+            if (it != node_handles->end() && registry_.valid(it->second) && get_id(it->second) == INVALID_ID)
+            {
+                entity = it->second;
+            }
+        }
+        if (entity == entt::null)
+        {
+            entity = registry_.create();
+        }
+        if (!assign(entity, id))
+        {
+            assign_next(entity);
+        }
+        return entity;
+    }
+
     // INVALID_ID when the entity has no ID.
     std::uint64_t get_id(entt::entity entity) const
     {
