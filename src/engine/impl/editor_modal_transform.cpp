@@ -193,11 +193,12 @@ glm::vec2 engine::ModalTransform::project(const glm::vec3& world) const
     return { (ndc.x + 1.0f) * 0.5f * view_.viewport_size.x, (1.0f - ndc.y) * 0.5f * view_.viewport_size.y };
 }
 
-void engine::ModalTransform::mouse_ray(const glm::vec2& mouse, glm::vec3& origin, glm::vec3& direction) const
+void engine::mouse_ray(const modal_transform_view_t& view, const glm::vec2& mouse, glm::vec3& origin, glm::vec3& direction)
 {
-    const auto ndc = glm::vec2(2.0f * mouse.x / view_.viewport_size.x - 1.0f, 1.0f - 2.0f * mouse.y / view_.viewport_size.y);
-    const auto near_point = inverse_view_projection_ * glm::vec4(ndc, -1.0f, 1.0f);
-    const auto far_point = inverse_view_projection_ * glm::vec4(ndc, 1.0f, 1.0f);
+    const auto inverse_view_projection = glm::inverse(view.projection * view.view);
+    const auto ndc = glm::vec2(2.0f * mouse.x / view.viewport_size.x - 1.0f, 1.0f - 2.0f * mouse.y / view.viewport_size.y);
+    const auto near_point = inverse_view_projection * glm::vec4(ndc, -1.0f, 1.0f);
+    const auto far_point = inverse_view_projection * glm::vec4(ndc, 1.0f, 1.0f);
     origin = glm::vec3(near_point) / near_point.w;
     direction = glm::normalize(glm::vec3(far_point) / far_point.w - origin);
 }
@@ -211,7 +212,7 @@ bool engine::ModalTransform::axis_parameter(const glm::vec2& mouse, float& out) 
     // the point of the axis line closest to the mouse ray
     glm::vec3 ray_origin;
     glm::vec3 ray_direction;
-    mouse_ray(mouse, ray_origin, ray_direction);
+    engine::mouse_ray(view_, mouse, ray_origin, ray_direction);
     const auto axis = get_axis_direction();
     const auto w0 = get_origin() - ray_origin;
     const float b = glm::dot(axis, ray_direction);
