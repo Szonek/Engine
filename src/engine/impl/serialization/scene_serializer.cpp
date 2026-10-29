@@ -17,6 +17,7 @@
 #include <cstring>
 #include <map>
 #include <set>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -818,11 +819,11 @@ std::string engine::save_game_objects(const TypeRegistry& types, const entt::reg
     return write_scene(types, registry, ids, assets, prefabs, entities, true);
 }
 
-bool engine::load_scene(std::string_view json, std::string_view file_name, const TypeRegistry& types, entt::registry& registry, EntityIdRegistry& ids, IAssetResolver& assets,
-    IPrefabInstances& prefabs, const SceneLoadOptions& options)
+namespace
 {
-    // 1. read and check the file; nothing in the registry changes until it can be used
-    rapidjson::Document doc;
+// Parses the file into `doc` and checks that it is a scene file this engine reads (logged when not).
+bool parse_scene_file(std::string_view json, std::string_view file_name, rapidjson::Document& doc)
+{
     doc.Parse<rapidjson::kParseNumbersAsStringsFlag>(json.data(), json.size());
     if (doc.HasParseError())
     {
@@ -835,14 +836,62 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
         log_error(fmt::format("Scene {}: it has no version, it isn't a scene file. Nothing is loaded.\n", file_name));
         return false;
     }
-    if (version > SCENE_FILE_VERSION || version == 0)
+    if (version > engine::SCENE_FILE_VERSION || version == 0)
     {
-        log_error(fmt::format("Scene {}: version {} is not supported (this engine reads up to {}). Nothing is loaded.\n", file_name, version, SCENE_FILE_VERSION));
+        log_error(fmt::format("Scene {}: version {} is not supported (this engine reads up to {}). Nothing is loaded.\n", file_name, version, engine::SCENE_FILE_VERSION));
         return false;
     }
     if (!doc.HasMember("entities") || !doc["entities"].IsArray())
     {
         log_error(fmt::format("Scene {}: it has no entity list. Nothing is loaded.\n", file_name));
+        return false;
+    }
+    return true;
+}
+
+// Sets the parent of a game object the C API way (add it with its defaults, then update it), so the scene's listeners
+// run.
+void set_parent(const engine::TypeRegistry& types, entt::registry& registry, entt::entity entity, entt::entity parent)
+{
+    const auto* type = types.find("parent");
+    const engine_parent_component_t value{ static_cast<engine_game_object_t>(parent) };
+    type->storage->add(registry, entity);
+    type->storage->update(registry, entity, &value);
+}
+
+// A game object of a scene prefab's file, `file_id` in the file, loaded into an instance: it gets the hashed ID of its
+// node path, its ID in the file (no ID when the instance is transient).
+entt::entity create_instance_node(const engine::SceneInstanceTarget& instance, std::uint64_t file_id, entt::registry& registry, engine::EntityIdRegistry& ids,
+    const engine::EntityHandles& node_handles, std::string_view file_name)
+{
+    if (instance.ids.root_id == engine::EntityIdRegistry::INVALID_ID)
+    {
+        return registry.create();
+    }
+    const auto id = engine::EntityIdRegistry::hashed_id(instance.ids.root_id, fmt::format("{}{}", instance.ids.prefix, file_id));
+    const auto entity = ids.create_hashed(id, &node_handles);
+    if (const auto new_id = ids.get_id(entity); new_id != id)
+    {
+        log_error(fmt::format("Scene {}: game object {}, placed in the prefab instance {}, gets the ID {}: its hashed ID {} is used already.\n", file_name, file_id,
+            instance.ids.root_id, new_id, id));
+    }
+    return entity;
+}
+}  // namespace
+
+bool engine::check_scene_file(std::string_view json, std::string_view file_name)
+{
+    rapidjson::Document doc;
+    return parse_scene_file(json, file_name, doc);
+}
+
+bool engine::load_scene(std::string_view json, std::string_view file_name, const TypeRegistry& types, entt::registry& registry, EntityIdRegistry& ids, IAssetResolver& assets,
+    IPrefabInstances& prefabs, const SceneLoadOptions& options)
+{
+    // 1. read and check the file; nothing in the registry changes until it can be used
+    rapidjson::Document doc;
+    if (!parse_scene_file(json, file_name, doc))
+    {
         return false;
     }
 
@@ -965,8 +1014,15 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
     // the handles to restore first, each one whose slot is free, so no other game object (a new one, or one whose
     // handle is taken) gets the slot a later one needs; the game objects of the prefab instances take theirs when they
     // are created
+    // (in a scene prefab's file, the ones the load of the file placing it reserved for the instance's game objects)
+    auto* const instance = options.instance;
+    const EntityHandles no_handles;
     EntityHandles reserved;
-    for (const auto& [id, handle] : options.handles)
+    if (instance && instance->node_handles)
+    {
+        reserved = *instance->node_handles;
+    }
+    for (const auto& [id, handle] : instance ? no_handles : options.handles)
     {
         const auto entity = registry.create(handle);
         if (entity == handle)
@@ -983,6 +1039,11 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
     std::vector<std::uint64_t> used_ids;
     for (const auto& e : file_entities)
     {
+        if (instance)
+        {
+            entities[e.id] = create_instance_node(*instance, e.id, registry, ids, reserved, file_name);
+            continue;
+        }
         const auto handle = reserved.find(e.id);
         const auto entity = handle == reserved.end() ? registry.create() : handle->second;
         if (options.new_ids)
@@ -1000,6 +1061,14 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
         const auto new_id = ids.assign_next(entities.at(id));
         log_error(fmt::format("Scene {}: the persistent ID {} is used already, its game object gets {}.\n", file_name, id, new_id));
     }
+    // a scene prefab's game objects are under its instance's root; the parents the file has are read over it
+    if (instance)
+    {
+        for (const auto& e : file_entities)
+        {
+            set_parent(types, registry, entities.at(e.id), instance->root);
+        }
+    }
 
     // the prefab instances: the file references the game objects of an instance by the IDs they had when it was saved,
     // the hashed IDs of the file's root ID (they are new ones when the root got a new ID)
@@ -1007,6 +1076,10 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
     for (const auto& e : file_entities)
     {
         const auto root = entities.at(e.id);
+        if (instance)
+        {
+            instance->nodes.push_back({ std::to_string(e.id), root, {} });
+        }
         if (e.components)
         {
             file_components.push_back({ e.id, {}, e.components, root, nullptr, nullptr, {} });
@@ -1015,19 +1088,29 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
         {
             continue;
         }
-        const auto* instance = prefabs.instantiate(e.prefab, root, reserved);
-        if (!instance)
+        // in a scene prefab's file, the game objects of an instance are game objects of the outer instance: its IDs
+        const auto instance_ids = instance ? InstanceIds{ instance->ids.root_id, fmt::format("{}{}/", instance->ids.prefix, e.id) } : InstanceIds{ ids.get_id(root), {} };
+        const auto* prefab_instance = prefabs.instantiate(e.prefab, root, reserved, instance_ids);
+        if (!prefab_instance)
         {
             log_error(fmt::format("Scene {}, game object {}: its prefab {} can't be instantiated, it is loaded without it.\n", file_name, e.id, e.prefab));
         }
         else
         {
-            for (const auto& node : instance->nodes)
+            for (const auto& node : prefab_instance->nodes)
             {
-                if (node.entity != root && !entities.emplace(EntityIdRegistry::hashed_id(e.id, node.path), node.entity).second)
+                if (node.entity == root)
+                {
+                    continue;
+                }
+                if (!entities.emplace(EntityIdRegistry::hashed_id(e.id, node.path), node.entity).second)
                 {
                     log_error(fmt::format("Scene {}, game object {}: the ID of its node {} is used by another game object of the file, references to "
                         "the node find the other one.\n", file_name, e.id, node.path));
+                }
+                if (instance)
+                {
+                    instance->nodes.push_back({ fmt::format("{}/{}", e.id, node.path), node.entity, {} });
                 }
             }
         }
@@ -1044,10 +1127,10 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
             const std::string_view path(node.name.GetString(), node.name.GetStringLength());
             // the root is there even when its prefab can't be found: what is saved whole of it is loaded
             auto entity = path.empty() ? root : entt::entity{ entt::null };
-            if (instance && !path.empty())
+            if (prefab_instance && !path.empty())
             {
-                const auto it = std::ranges::find(instance->nodes, path, &PrefabInstanceNode::path);
-                entity = it == instance->nodes.end() ? entt::entity{ entt::null } : it->entity;
+                const auto it = std::ranges::find(prefab_instance->nodes, path, &PrefabInstanceNode::path);
+                entity = it == prefab_instance->nodes.end() ? entt::entity{ entt::null } : it->entity;
             }
             if (entity == entt::null)
             {
@@ -1058,21 +1141,22 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
                 node_member(node.value, "removed"), e.prefab });
         }
     }
-    // reserved for a game object which didn't come (a node the model doesn't have any more)
-    for (const auto& [id, entity] : reserved)
+    // reserved for a game object which didn't come (a node the model doesn't have any more); in a scene prefab's file
+    // they are the file placing it's, which destroys them once the whole instance is there
+    for (const auto& [id, entity] : instance ? no_handles : reserved)
     {
         if (ids.get_id(entity) == EntityIdRegistry::INVALID_ID)
         {
             registry.destroy(entity);
         }
     }
-    if (options.loaded)
+    if (options.loaded && !instance)
     {
         options.loaded->insert(entities.begin(), entities.end());
     }
 
     // 3. the components, one type after the other: the listeners of a type see the components registered before it
-    SceneReader reader(file_name, entities, options.find_references_outside_file ? &ids : nullptr, assets);
+    SceneReader reader(file_name, entities, options.find_references_outside_file && !instance ? &ids : nullptr, assets);
     for (const auto* type : types.get_components())
     {
         if (skipped_components.contains(type->name))

@@ -8,6 +8,7 @@
 
 #include <fmt/format.h>
 
+#include <cassert>
 #include <utility>
 
 engine::PrefabSystem::PrefabSystem(Application& app, Scene& scene, entt::registry& registry, SceneAssets& assets)
@@ -18,7 +19,8 @@ engine::PrefabSystem::PrefabSystem(Application& app, Scene& scene, entt::registr
 {
 }
 
-entt::entity engine::PrefabSystem::instantiate_prefab(std::uint32_t prefab, Prefab::Instance instance, entt::entity root, const EntityHandles* node_handles)
+entt::entity engine::PrefabSystem::instantiate_prefab(std::uint32_t prefab, Prefab::Instance instance, entt::entity root, const EntityHandles* node_handles,
+    const InstanceIds* ids)
 {
     ENGINE_PROFILE_SECTION;
     const auto* typed_prefab = app_.get_prefab(prefab);
@@ -27,7 +29,7 @@ entt::entity engine::PrefabSystem::instantiate_prefab(std::uint32_t prefab, Pref
         log::log(log::LogLevel::eError, fmt::format("Can't instantiate prefab {}: it doesn't exist.\n", prefab));
         return entt::null;
     }
-    PrefabInstanceInfo info{ typed_prefab->get_name(), typed_prefab->instantiate(scene_, instance, root, node_handles) };
+    PrefabInstanceInfo info{ typed_prefab->get_name(), typed_prefab->instantiate(scene_, instance, root, node_handles, ids) };
     if (info.nodes.empty())
     {
         return entt::null;
@@ -47,13 +49,60 @@ const engine::PrefabInstanceInfo* engine::PrefabSystem::find_instance(entt::enti
     return component ? &component->get_info() : nullptr;
 }
 
-const engine::PrefabInstanceInfo* engine::PrefabSystem::instantiate(std::string_view prefab_asset_id, entt::entity root, const EntityHandles& node_handles)
+const engine::PrefabInstanceInfo* engine::PrefabSystem::instantiate(std::string_view prefab_asset_id, entt::entity root, const EntityHandles& node_handles,
+    const InstanceIds& ids)
 {
     const auto prefab = assets_.resolve_prefab(prefab_asset_id);
     if (prefab == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return nullptr;
     }
-    const auto entity = instantiate_prefab(prefab, Prefab::Instance::ePersistent, root, &node_handles);
+    const auto instance = ids.root_id == EntityIdRegistry::INVALID_ID ? Prefab::Instance::eTransient : Prefab::Instance::ePersistent;
+    const auto entity = instantiate_prefab(prefab, instance, root, &node_handles, &ids);
     return entity == entt::null ? nullptr : find_instance(entity);
+}
+
+engine::prefab_instance_internal_component_t::prefab_instance_internal_component_t(Application& app, std::uint32_t prefab, PrefabInstanceInfo&& info)
+    : app_(&app)
+    , prefab_(prefab)
+    , info_(std::move(info))
+{
+    const auto acquired = app_->acquire_prefab(prefab_);
+    assert(acquired && "the prefab of an instance must be valid");
+    if (!acquired)
+    {
+        app_ = nullptr;
+    }
+}
+
+engine::prefab_instance_internal_component_t::prefab_instance_internal_component_t(prefab_instance_internal_component_t&& rhs) noexcept
+    : app_(std::exchange(rhs.app_, nullptr))
+    , prefab_(rhs.prefab_)
+    , info_(std::move(rhs.info_))
+{
+}
+
+engine::prefab_instance_internal_component_t& engine::prefab_instance_internal_component_t::operator=(prefab_instance_internal_component_t&& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        release();
+        app_ = std::exchange(rhs.app_, nullptr);
+        prefab_ = rhs.prefab_;
+        info_ = std::move(rhs.info_);
+    }
+    return *this;
+}
+
+engine::prefab_instance_internal_component_t::~prefab_instance_internal_component_t()
+{
+    release();
+}
+
+void engine::prefab_instance_internal_component_t::release()
+{
+    if (app_)
+    {
+        std::exchange(app_, nullptr)->release_prefab(prefab_);
+    }
 }

@@ -405,6 +405,12 @@ typedef enum _engine_model_specification_t
 // scene. Components store asset handles without holding references: a game object using a model's asset (e.g. its
 // geometry) needs someone to hold the prefab, like the game or an instance.
 ENGINE_API engine_result_code_t enginePrefabLoad(engine_model_specification_t spec, const char* path, engine_prefab_t* out);
+// A scene file as a prefab (a room placed by a level any number of times), named by its path relative to the scenes
+// folder, ending in ".json" ("rooms/room_a.json"); the path is its asset ID, a scene file's "prefab" may name it.
+// Instantiating it loads the file's game objects into the active scene under the instance's root, which carries the
+// placement (its transform); their node paths are their persistent IDs in the file. Reference counted like a model's
+// prefab. ENGINE_RESULT_CODE_FAIL (logged) when the file can't be read, isn't a scene file or doesn't end in ".json".
+ENGINE_API engine_result_code_t enginePrefabLoadScene(const char* path, engine_prefab_t* out);
 ENGINE_API engine_prefab_t enginePrefabGetByName(const char* name);
 // Returns the root game object of the new instance, or ENGINE_INVALID_GAME_OBJECT_ID. The root is the parent of all the
 // other game objects of the instance.

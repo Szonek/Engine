@@ -1,17 +1,15 @@
-#include "prefab.h"
+#include "model_prefab.h"
 
 #include "application.h"
 #include "asset_id.h"
 #include "logger.h"
 #include "scene.h"
-#include "components_internals/prefab_instance_component.h"
 
 #include <engine.h>
 
 #include <fmt/format.h>
 
 #include <algorithm>
-#include <cassert>
 #include <cstring>
 #include <map>
 #include <set>
@@ -41,9 +39,9 @@ void copy_vec3(float (&dst)[3], const glm::vec3& src)
 }
 }  // namespace
 
-std::unique_ptr<engine::Prefab> engine::Prefab::create(Application& app, ModelDesc&& model)
+std::unique_ptr<engine::ModelPrefab> engine::ModelPrefab::create(Application& app, ModelDesc&& model)
 {
-    std::unique_ptr<Prefab> prefab(new Prefab(app, std::move(model)));
+    std::unique_ptr<ModelPrefab> prefab(new ModelPrefab(app, std::move(model)));
     if (!prefab->create_assets())
     {
         return nullptr;
@@ -51,7 +49,7 @@ std::unique_ptr<engine::Prefab> engine::Prefab::create(Application& app, ModelDe
     return prefab;
 }
 
-engine::Prefab::Prefab(Application& app, ModelDesc&& model)
+engine::ModelPrefab::ModelPrefab(Application& app, ModelDesc&& model)
     : app_(app)
     , model_(std::move(model))
 {
@@ -91,7 +89,7 @@ engine::Prefab::Prefab(Application& app, ModelDesc&& model)
     }
 }
 
-engine::Prefab::~Prefab()
+engine::ModelPrefab::~ModelPrefab()
 {
     if (animation_set_ != ENGINE_INVALID_OBJECT_HANDLE)
     {
@@ -111,7 +109,7 @@ engine::Prefab::~Prefab()
     }
 }
 
-bool engine::Prefab::create_assets()
+bool engine::ModelPrefab::create_assets()
 {
     for (const auto& geometry_desc : model_.geometries)
     {
@@ -131,7 +129,7 @@ bool engine::Prefab::create_assets()
     return create_skin() && create_animation_set();
 }
 
-bool engine::Prefab::create_textures()
+bool engine::ModelPrefab::create_textures()
 {
     for (const auto& texture_desc : model_.textures)
     {
@@ -152,7 +150,7 @@ bool engine::Prefab::create_textures()
     return true;
 }
 
-void engine::Prefab::create_materials()
+void engine::ModelPrefab::create_materials()
 {
     // value-initialized: a texture a material doesn't use is index 0, the application's default texture
     materials_ = std::vector<engine_material_component_t>(model_.materials.size());
@@ -172,7 +170,7 @@ void engine::Prefab::create_materials()
     }
 }
 
-bool engine::Prefab::create_skin()
+bool engine::ModelPrefab::create_skin()
 {
     if (model_.skins.empty())
     {
@@ -204,7 +202,7 @@ bool engine::Prefab::create_skin()
     return skin_ != ENGINE_INVALID_OBJECT_HANDLE;
 }
 
-bool engine::Prefab::create_animation_set()
+bool engine::ModelPrefab::create_animation_set()
 {
     // the model's animations, compiled once for its skin; every instance's controller plays them
     if (skin_ == ENGINE_INVALID_OBJECT_HANDLE || model_.animations.empty())
@@ -225,13 +223,14 @@ bool engine::Prefab::create_animation_set()
     return animation_set_ != ENGINE_INVALID_OBJECT_HANDLE;
 }
 
-const engine::ModelNodeDesc* engine::Prefab::find_node(const std::string& name) const
+const engine::ModelNodeDesc* engine::ModelPrefab::find_node(const std::string& name) const
 {
     const auto it = std::find_if(model_.nodes.begin(), model_.nodes.end(), [&name](const auto& node) { return node->name == name; });
     return it != model_.nodes.end() ? it->get() : nullptr;
 }
 
-std::vector<engine::PrefabInstanceNode> engine::Prefab::instantiate(Scene& scene, Instance instance, entt::entity root, const EntityHandles* node_handles) const
+std::vector<engine::PrefabInstanceNode> engine::ModelPrefab::instantiate(Scene& scene, Instance instance, entt::entity root, const EntityHandles* node_handles,
+    const InstanceIds* ids) const
 {
     const SkinDesc* skin_desc = model_.skins.empty() ? nullptr : &model_.skins.front();
     // the game object owning this instance's skin (and its pose); skinned meshes and joint attachments point at it
@@ -256,17 +255,17 @@ std::vector<engine::PrefabInstanceNode> engine::Prefab::instantiate(Scene& scene
     {
         root = instance == Instance::eTransient ? scene.create_transient_entity() : scene.create_new_entity();
     }
-    const auto root_id = scene.get_persistent_id(root);
+    const auto node_ids = ids ? *ids : InstanceIds{ scene.get_persistent_id(root), {} };
     const auto create_entity = [&](const ModelNodeDesc& node) {
         if (&node == root_node)
         {
             return root;
         }
-        if (instance == Instance::eTransient || root_id == EntityIdRegistry::INVALID_ID)
+        if (instance == Instance::eTransient || node_ids.root_id == EntityIdRegistry::INVALID_ID)
         {
             return scene.create_transient_entity();
         }
-        return scene.create_prefab_node_entity(root_id, node_paths_.at(node.index), node_handles);
+        return scene.create_prefab_node_entity(node_ids.root_id, node_ids.prefix + node_paths_.at(node.index), node_handles);
     };
 
     std::map<std::int32_t, entt::entity> node_index_to_entity;
@@ -378,49 +377,4 @@ std::vector<engine::PrefabInstanceNode> engine::Prefab::instantiate(Scene& scene
         }
     }
     return nodes;
-}
-
-engine::prefab_instance_internal_component_t::prefab_instance_internal_component_t(Application& app, std::uint32_t prefab, PrefabInstanceInfo&& info)
-    : app_(&app)
-    , prefab_(prefab)
-    , info_(std::move(info))
-{
-    const auto acquired = app_->acquire_prefab(prefab_);
-    assert(acquired && "the prefab of an instance must be valid");
-    if (!acquired)
-    {
-        app_ = nullptr;
-    }
-}
-
-engine::prefab_instance_internal_component_t::prefab_instance_internal_component_t(prefab_instance_internal_component_t&& rhs) noexcept
-    : app_(std::exchange(rhs.app_, nullptr))
-    , prefab_(rhs.prefab_)
-    , info_(std::move(rhs.info_))
-{
-}
-
-engine::prefab_instance_internal_component_t& engine::prefab_instance_internal_component_t::operator=(prefab_instance_internal_component_t&& rhs) noexcept
-{
-    if (this != &rhs)
-    {
-        release();
-        app_ = std::exchange(rhs.app_, nullptr);
-        prefab_ = rhs.prefab_;
-        info_ = std::move(rhs.info_);
-    }
-    return *this;
-}
-
-engine::prefab_instance_internal_component_t::~prefab_instance_internal_component_t()
-{
-    release();
-}
-
-void engine::prefab_instance_internal_component_t::release()
-{
-    if (app_)
-    {
-        std::exchange(app_, nullptr)->release_prefab(prefab_);
-    }
 }

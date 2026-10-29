@@ -9,10 +9,13 @@
 #include <gtest/gtest.h>
 #include <rapidjson/document.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
+#include <iterator>
 #include <limits>
 #include <map>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -70,7 +73,8 @@ void init_light(entt::registry& registry, entt::entity entity)
 
 // Prefab instances without an application: the model "models/arm.gltf" has a root node and the nodes "Upper" (with a
 // box collider) and "Upper/Hand" (with a mesh and `hand_material`); each node gets a name and a transform, the others
-// are children of the root, like a prefab's instance.
+// are children of the root, like a prefab's instance. Scene prefabs are the files in `scene_files`, loaded into their
+// instances like ScenePrefab does.
 class FakePrefabs : public engine::IPrefabInstances
 {
 public:
@@ -84,27 +88,25 @@ public:
         return it == instances_.end() ? nullptr : &it->second;
     }
 
-    const engine::PrefabInstanceInfo* instantiate(std::string_view prefab_asset_id, entt::entity root, const engine::EntityHandles& node_handles) override
+    const engine::PrefabInstanceInfo* instantiate(std::string_view prefab_asset_id, entt::entity root, const engine::EntityHandles& node_handles,
+        const engine::InstanceIds& ids) override
     {
+        if (const auto file = scene_files.find(std::string(prefab_asset_id)); file != scene_files.end())
+        {
+            return instantiate_scene(file->first, file->second, root, node_handles, ids);
+        }
         if (prefab_asset_id != ARM)
         {
             return nullptr;
         }
         engine::PrefabInstanceInfo info{ ARM, {} };
-        const auto root_id = ids_.get_id(root);
         for (const std::string path : { "", "Upper", "Upper/Hand" })
         {
             auto entity = root;
             if (!path.empty())
             {
                 // like Scene::create_prefab_node_entity
-                const auto handle = node_handles.find(EntityIdRegistry::hashed_id(root_id, path));
-                const auto reuse = handle != node_handles.end() && registry_.valid(handle->second) && ids_.get_id(handle->second) == EntityIdRegistry::INVALID_ID;
-                entity = reuse ? handle->second : registry_.create();
-                if (!ids_.assign(entity, EntityIdRegistry::hashed_id(root_id, path)))
-                {
-                    ids_.assign_next(entity);
-                }
+                entity = ids.root_id == EntityIdRegistry::INVALID_ID ? registry_.create() : ids_.create_hashed(EntityIdRegistry::hashed_id(ids.root_id, ids.prefix + path), &node_handles);
                 registry_.emplace<engine_parent_component_t>(entity, static_cast<engine_game_object_t>(root));
             }
             engine_name_component_t name{};
@@ -125,8 +127,13 @@ public:
             }
             info.nodes.push_back({ path, entity, {} });
         }
-        engine::capture_prefab_components(*types, registry_, info);
-        return &instances_.insert_or_assign(root, std::move(info)).first->second;
+        return add_instance(root, std::move(info));
+    }
+
+    // an instance whose root has the next persistent ID (and its prefab's nodes the hashed IDs of their paths)
+    const engine::PrefabInstanceInfo* instantiate(std::string_view prefab_asset_id, entt::entity root)
+    {
+        return instantiate(prefab_asset_id, root, {}, engine::InstanceIds{ ids_.get_id(root), {} });
     }
 
     entt::entity node(entt::entity root, std::string_view path) const
@@ -142,6 +149,9 @@ public:
     }
 
     const engine::TypeRegistry* types = nullptr;
+    engine::IAssetResolver* assets = nullptr;
+    // scene prefabs: asset ID -> the file
+    std::map<std::string, std::string> scene_files;
     // what the model gives its nodes (a test changes it to change the model)
     engine_material_component_t hand_material{ { 1.0f, 1.0f, 1.0f, 1.0f }, 3, 16.0f, ENGINE_INVALID_OBJECT_HANDLE };
     bool hand_has_mesh = true;
@@ -153,9 +163,43 @@ public:
     }();
 
 private:
+    const engine::PrefabInstanceInfo* add_instance(entt::entity root, engine::PrefabInstanceInfo&& info)
+    {
+        engine::capture_prefab_components(*types, registry_, info);
+        return &instances_.insert_or_assign(root, std::move(info)).first->second;
+    }
+
+    // like ScenePrefab::instantiate
+    const engine::PrefabInstanceInfo* instantiate_scene(const std::string& name, const std::string& json, entt::entity root, const engine::EntityHandles& node_handles,
+        const engine::InstanceIds& ids)
+    {
+        if (loading_.contains(name))
+        {
+            test_logger::messages().push_back(fmt::format("Scene prefab {} places itself.", name));
+            return nullptr;
+        }
+        engine::SceneInstanceTarget target;
+        target.root = root;
+        target.ids = ids;
+        target.node_handles = &node_handles;
+        engine::SceneLoadOptions options;
+        options.instance = &target;
+        loading_.insert(name);
+        const auto loaded = engine::load_scene(json, name, *types, registry_, ids_, *assets, *this, options);
+        loading_.erase(name);
+        if (!loaded)
+        {
+            return nullptr;
+        }
+        engine::PrefabInstanceInfo info{ name, { { "", root, {} } } };
+        std::ranges::move(target.nodes, std::back_inserter(info.nodes));
+        return add_instance(root, std::move(info));
+    }
+
     entt::registry& registry_;
     EntityIdRegistry& ids_;
     std::map<entt::entity, engine::PrefabInstanceInfo> instances_;
+    std::set<std::string> loading_;
 };
 
 // a registry set up like a scene's: entity 0 reserved, persistent IDs, the initializers above
@@ -209,11 +253,13 @@ protected:
     std::string save(World& world)
     {
         world.prefabs.types = &types_;
+        world.prefabs.assets = &assets_;
         return engine::save_scene(types_, world.registry, world.ids, assets_, world.prefabs);
     }
     bool load(World& world, std::string_view json, const engine::SceneLoadOptions& options = {})
     {
         world.prefabs.types = &types_;
+        world.prefabs.assets = &assets_;
         return engine::load_scene(json, "test.json", types_, world.registry, world.ids, assets_, world.prefabs, options);
     }
     // the game object and what is parented under it, saved the way the editor's undo of a delete does: the file and how
@@ -226,6 +272,7 @@ protected:
     Snapshot snapshot(World& world, entt::entity root)
     {
         world.prefabs.types = &types_;
+        world.prefabs.assets = &assets_;
         std::vector<entt::entity> subtree{ root };
         for (std::size_t i = 0; i < subtree.size(); i++)
         {
@@ -252,8 +299,9 @@ protected:
     entt::entity instantiate_arm(World& world)
     {
         world.prefabs.types = &types_;
+        world.prefabs.assets = &assets_;
         const auto root = world.create();
-        world.prefabs.instantiate(FakePrefabs::ARM, root, {});
+        world.prefabs.instantiate(FakePrefabs::ARM, root);
         return root;
     }
 
@@ -1528,5 +1576,237 @@ TEST_F(GameComponentFileTest, GameComponentSavedInANewerVersionIsSkipped)
         "patrol_config": { "speed": 0.5 } } } ] })"));
     EXPECT_FALSE(patrol_config().storage->has(w.registry, w.find(1)));
     EXPECT_TRUE(test_logger::logged("component patrol_config was saved in version 2"));
+}
+
+// -- scene prefabs ---------------------------------------------------------------------------------------------------
+
+// A room: a table, a cup on it (a reference inside the file) and an arm (a model's instance) with a changed collider.
+constexpr const char* ROOM = "rooms/room.json";
+std::string room_file(float table_x = 1.0f)
+{
+    return fmt::format(R"({{ "version": 1, "entities": [
+        {{ "id": 1, "components": {{ "name": {{ "name": "table" }}, "transform": {{ "position": [{}, 0, 0] }} }} }},
+        {{ "id": 2, "components": {{ "name": {{ "name": "cup" }}, "parent": {{ "parent": 1 }}, "transform": {{ "position": [0, 0.9, 0] }} }} }},
+        {{ "id": 3, "prefab": "models/arm.gltf", "nodes": {{ "": {{ "components": {{ "name": {{ "name": "arm" }} }} }},
+            "Upper": {{ "overrides": {{ "collider": {{ "is_trigger": true }} }} }} }} }} ] }})", table_x);
+}
+
+class ScenePrefabTest : public SceneFileTest
+{
+protected:
+    // an instance of the room, its root (with the next persistent ID) at `x`
+    entt::entity place_room(World& w, float x)
+    {
+        w.prefabs.types = &types_;
+        w.prefabs.assets = &assets_;
+        w.prefabs.scene_files[ROOM] = room_file();
+        const auto root = w.create();
+        w.put<engine_transform_component_t>(root, engine_transform_component_t{ { x, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f, 1.0f } });
+        EXPECT_NE(w.prefabs.instantiate(ROOM, root), nullptr);
+        return root;
+    }
+
+    static entt::entity parent(const World& w, entt::entity e)
+    {
+        return static_cast<entt::entity>(w.registry.get<engine_parent_component_t>(e).parent);
+    }
+};
+
+TEST_F(ScenePrefabTest, EachInstanceHasItsOwnGameObjects)
+{
+    World w;
+    const auto a = place_room(w, 0.0f);
+    const auto b = place_room(w, 10.0f);
+    for (const auto root : { a, b })
+    {
+        const auto table = w.prefabs.node(root, "1");
+        const auto cup = w.prefabs.node(root, "2");
+        const auto arm = w.prefabs.node(root, "3");
+        ASSERT_NE(table, entt::entity{ entt::null });
+        // the file's game objects without a parent are under the root, the references inside the file point into the
+        // same instance
+        EXPECT_EQ(parent(w, table), root);
+        EXPECT_EQ(parent(w, arm), root);
+        EXPECT_EQ(parent(w, cup), table);
+        EXPECT_FLOAT_EQ(w.registry.get<engine_transform_component_t>(table).position[0], 1.0f);
+        // the model's instance in the file is reached by the node path of its root there
+        const auto upper = w.prefabs.node(root, "3/Upper");
+        ASSERT_NE(upper, entt::entity{ entt::null });
+        EXPECT_EQ(parent(w, upper), arm);
+        EXPECT_TRUE(w.registry.get<engine_collider_component_t>(upper).is_trigger);
+        // every game object has the hashed ID of its node path, however deep
+        const auto root_id = w.ids.get_id(root);
+        EXPECT_EQ(w.ids.get_id(table), EntityIdRegistry::hashed_id(root_id, "1"));
+        EXPECT_EQ(w.ids.get_id(upper), EntityIdRegistry::hashed_id(root_id, "3/Upper"));
+        EXPECT_EQ(w.ids.get_id(w.prefabs.node(root, "3/Upper/Hand")), EntityIdRegistry::hashed_id(root_id, "3/Upper/Hand"));
+    }
+    EXPECT_NE(w.prefabs.node(a, "2"), w.prefabs.node(b, "2"));
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(ScenePrefabTest, InstanceIsSavedAsItsRootAndItsOverrides)
+{
+    World w;
+    const auto root = place_room(w, 3.0f);
+    auto cup_transform = w.registry.get<engine_transform_component_t>(w.prefabs.node(root, "2"));
+    cup_transform.position[1] = 0.8f;
+    w.registry.replace<engine_transform_component_t>(w.prefabs.node(root, "2"), cup_transform);
+    auto hand_material = w.registry.get<engine_material_component_t>(w.prefabs.node(root, "3/Upper/Hand"));
+    hand_material.shininess = 2.0f;
+    w.registry.replace<engine_material_component_t>(w.prefabs.node(root, "3/Upper/Hand"), hand_material);
+
+    const auto file = save(w);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+    rapidjson::Document doc;
+    doc.Parse(file.c_str());
+    ASSERT_EQ(doc["entities"].Size(), 1u);
+    const auto& saved = doc["entities"][0];
+    EXPECT_STREQ(saved["prefab"].GetString(), ROOM);
+    const auto& nodes = saved["nodes"];
+    // the root's placement, and only what changed inside the instance, by node path
+    EXPECT_EQ(nodes.MemberCount(), 3u) << file;
+    EXPECT_TRUE(nodes[""]["components"].HasMember("transform"));
+    EXPECT_EQ(nodes["2"]["overrides"]["transform"].MemberCount(), 1u);
+    EXPECT_TRUE(nodes["2"]["overrides"]["transform"].HasMember("position"));
+    EXPECT_EQ(nodes["3/Upper/Hand"]["overrides"]["material"].MemberCount(), 1u);
+}
+
+TEST_F(ScenePrefabTest, InstanceRoundTripsWhateverWasCreatedBefore)
+{
+    World original;
+    place_room(original, 0.0f);
+    const auto b = place_room(original, 10.0f);
+    auto cup_transform = original.registry.get<engine_transform_component_t>(original.prefabs.node(b, "2"));
+    cup_transform.position[1] = 0.8f;
+    original.registry.replace<engine_transform_component_t>(original.prefabs.node(b, "2"), cup_transform);
+    // a game object of the level references a game object inside the second room's arm
+    const auto holder = original.create();
+    original.put<engine_parent_component_t>(holder, engine_parent_component_t{ static_cast<engine_game_object_t>(original.prefabs.node(b, "3/Upper")) });
+    const auto file = save(original);
+
+    World loaded;
+    loaded.prefabs.scene_files[ROOM] = room_file();
+    ASSERT_TRUE(load(loaded, file));
+    EXPECT_EQ(save(loaded), file);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+    const auto loaded_b = loaded.find(original.ids.get_id(b));
+    ASSERT_NE(loaded_b, entt::entity{ entt::null });
+    EXPECT_FLOAT_EQ(loaded.registry.get<engine_transform_component_t>(loaded.prefabs.node(loaded_b, "2")).position[1], 0.8f);
+    EXPECT_EQ(parent(loaded, loaded.find(original.ids.get_id(holder))), loaded.prefabs.node(loaded_b, "3/Upper"));
+
+    // the scene the file is loaded into has game objects already, which have the IDs of the file's game objects: the
+    // reference into the instance still finds its game object
+    World crowded;
+    crowded.prefabs.scene_files[ROOM] = room_file();
+    for (int i = 0; i < 5; i++)
+    {
+        crowded.create();
+    }
+    ASSERT_TRUE(load(crowded, file));
+    auto crowded_holder = entt::entity{ entt::null };
+    for (const auto entity : crowded.registry.view<const engine_parent_component_t>(entt::exclude<engine_name_component_t>))
+    {
+        crowded_holder = entity;
+    }
+    ASSERT_NE(crowded_holder, entt::entity{ entt::null });
+    const auto upper = parent(crowded, crowded_holder);
+    ASSERT_TRUE(crowded.registry.valid(upper));
+    EXPECT_STREQ(crowded.registry.get<engine_name_component_t>(upper).name, "Upper");
+    const auto crowded_b = parent(crowded, parent(crowded, upper));
+    EXPECT_EQ(crowded.prefabs.node(crowded_b, "3/Upper"), upper);
+    EXPECT_FLOAT_EQ(crowded.registry.get<engine_transform_component_t>(crowded_b).position[0], 10.0f);
+}
+
+TEST_F(ScenePrefabTest, ChangeToTheFileShowsInEveryInstanceWhereNothingOverridesIt)
+{
+    World original;
+    const auto a = place_room(original, 0.0f);
+    const auto b = place_room(original, 10.0f);
+    auto table_transform = original.registry.get<engine_transform_component_t>(original.prefabs.node(a, "1"));
+    table_transform.scale[1] = 2.0f;
+    original.registry.replace<engine_transform_component_t>(original.prefabs.node(a, "1"), table_transform);
+    const auto file = save(original);
+
+    World loaded;
+    loaded.prefabs.scene_files[ROOM] = room_file(5.0f);
+    ASSERT_TRUE(load(loaded, file));
+    const auto loaded_a = loaded.find(original.ids.get_id(a));
+    const auto loaded_b = loaded.find(original.ids.get_id(b));
+    const auto& table_a = loaded.registry.get<engine_transform_component_t>(loaded.prefabs.node(loaded_a, "1"));
+    const auto& table_b = loaded.registry.get<engine_transform_component_t>(loaded.prefabs.node(loaded_b, "1"));
+    EXPECT_FLOAT_EQ(table_a.position[0], 5.0f);
+    EXPECT_FLOAT_EQ(table_a.scale[1], 2.0f);
+    EXPECT_FLOAT_EQ(table_b.position[0], 5.0f);
+    EXPECT_FLOAT_EQ(table_b.scale[1], 1.0f);
+}
+
+TEST_F(ScenePrefabTest, UndoOfADeletedInstanceRestoresItsHandles)
+{
+    World w;
+    const auto root = place_room(w, 0.0f);
+    std::map<std::string, entt::entity> nodes;
+    for (const auto& node : w.prefabs.find_instance(root)->nodes)
+    {
+        nodes[node.path] = node.entity;
+    }
+    const auto scene = save(w);
+
+    const auto saved = snapshot(w, root);
+    destroy_with_children(w, root);
+    ASSERT_TRUE(load(w, saved.file, saved.restore));
+    for (const auto& [path, entity] : nodes)
+    {
+        EXPECT_EQ(w.prefabs.node(root, path), entity) << path;
+    }
+    EXPECT_EQ(save(w), scene);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(ScenePrefabTest, CopyOfAnInstanceHasTheIdsOfItsOwnRoot)
+{
+    World w;
+    const auto root = place_room(w, 0.0f);
+    const auto root_id = w.ids.get_id(root);
+
+    engine::EntityHandles loaded;
+    ASSERT_TRUE(load(w, snapshot(w, root).file, copy_options(loaded)));
+    const auto copy = loaded.at(root_id);
+    const auto upper = w.prefabs.node(copy, "3/Upper");
+    EXPECT_EQ(w.ids.get_id(upper), EntityIdRegistry::hashed_id(w.ids.get_id(copy), "3/Upper"));
+    EXPECT_EQ(loaded.at(EntityIdRegistry::hashed_id(root_id, "3/Upper")), upper);
+    EXPECT_NE(upper, w.prefabs.node(root, "3/Upper"));
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(ScenePrefabTest, TransientInstanceHasNoIds)
+{
+    World w;
+    w.prefabs.types = &types_;
+    w.prefabs.assets = &assets_;
+    w.prefabs.scene_files[ROOM] = room_file();
+    const auto root = w.registry.create();
+    ASSERT_NE(w.prefabs.instantiate(ROOM, root, {}, engine::InstanceIds{}), nullptr);
+    for (const auto& node : w.prefabs.find_instance(root)->nodes)
+    {
+        EXPECT_EQ(w.ids.get_id(node.entity), EntityIdRegistry::INVALID_ID) << node.path;
+    }
+    EXPECT_EQ(parent(w, w.prefabs.node(root, "2")), w.prefabs.node(root, "1"));
+    EXPECT_EQ(parent(w, w.prefabs.node(root, "3/Upper")), w.prefabs.node(root, "3"));
+}
+
+TEST_F(ScenePrefabTest, FileWhichPlacesItselfIsNotPlacedInsideItself)
+{
+    World w;
+    w.prefabs.types = &types_;
+    w.prefabs.assets = &assets_;
+    w.prefabs.scene_files["rooms/loop.json"] = R"({ "version": 1, "entities": [ { "id": 1, "prefab": "rooms/loop.json" } ] })";
+    const auto root = w.create();
+    ASSERT_NE(w.prefabs.instantiate("rooms/loop.json", root), nullptr);
+    EXPECT_TRUE(test_logger::logged("Scene prefab rooms/loop.json places itself"));
+    EXPECT_TRUE(test_logger::logged("its prefab rooms/loop.json can't be instantiated"));
+    // the placing game object inside it is there, without an instance
+    const auto inner = w.prefabs.node(root, "1");
+    ASSERT_NE(inner, entt::entity{ entt::null });
+    EXPECT_EQ(w.prefabs.find_instance(inner), nullptr);
 }
 }  // namespace

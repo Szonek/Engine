@@ -4,6 +4,8 @@
 #include "scene.h"
 #include "logger.h"
 #include "gltf_parser.h"
+#include "model_prefab.h"
+#include "scene_prefab.h"
 #include "ui_document.h"
 #include "serialization/builtin_types.h"
 #include "serialization/game_types.h"
@@ -493,10 +495,16 @@ std::uint32_t engine::Application::load_prefab(std::string_view path)
 {
     // the asset ID: the same file is always named the same way
     const auto name = std::filesystem::path(path).lexically_normal().generic_string();
-    // a prefab is named by its model file: that file is loaded already
+    // a prefab is named by its file: that file is loaded already
     if (const auto loaded = get_prefab(name); loaded != ENGINE_INVALID_OBJECT_HANDLE)
     {
         return acquire_prefab(loaded) ? loaded : ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    if (is_scene_prefab_id(name))
+    {
+        // logs why when it fails
+        std::unique_ptr<Prefab> prefab = ScenePrefab::load(name);
+        return prefab ? prefabs_atlas_.add_object(name, std::move(prefab)) : ENGINE_INVALID_OBJECT_HANDLE;
     }
 
     const auto file_path = AssetStore::get_instance().get_models_base_path() / name;
@@ -512,7 +520,7 @@ std::uint32_t engine::Application::load_prefab(std::string_view path)
         log::log(log::LogLevel::eError, fmt::format("Model file {} has no nodes, it is not a usable glTF file.\n", file_path.string()));
         return ENGINE_INVALID_OBJECT_HANDLE;
     }
-    auto prefab = Prefab::create(*this, std::move(model));
+    std::unique_ptr<Prefab> prefab = ModelPrefab::create(*this, std::move(model));
     if (!prefab)
     {
         return ENGINE_INVALID_OBJECT_HANDLE;

@@ -10,6 +10,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 namespace engine
 {
@@ -37,7 +38,8 @@ public:
 //   { "id": 4, "prefab": "characters/Rogue.glb", "nodes": { "": { "components": { "name": { ... }, "transform": { ... } } },
 //     "Body": { "overrides": { "mesh": { "disable": true } } }, "Body/Hand": { "components": { "collider": { ... } }, "removed": [ "material" ] } } }
 // The other game objects of an instance have the hashed IDs of their node paths (EntityIdRegistry::hashed_id), which
-// references to them use.
+// references to them use. A prefab whose asset ID ends in ".json" is another scene file (ScenePrefab): its node paths are
+// the IDs of the game objects in that file ("12", "12/Body" for a node of a model's instance there).
 // Game objects are sorted by persistent ID, components are in registration order and fields in description order,
 // so saving the same scene gives the same bytes. Every field is written (but in overrides), defaults too: a file
 // doesn't change meaning when a default changes. Enums are written by name, asset references as asset IDs, game object references as
@@ -56,6 +58,26 @@ std::string save_scene(const TypeRegistry& types, const entt::registry& registry
 std::string save_game_objects(const TypeRegistry& types, const entt::registry& registry, const EntityIdRegistry& ids, const IAssetResolver& assets,
     const IPrefabInstances& prefabs, std::span<const entt::entity> game_objects);
 
+// Whether `json` can be loaded as a scene file (JSON, a version this engine reads, an entity list), logged when not.
+bool check_scene_file(std::string_view json, std::string_view file_name);
+
+// Where the file of a scene prefab is loaded to: its game objects become the game objects of an instance (see
+// ScenePrefab).
+struct SceneInstanceTarget
+{
+    // the instance's root: the file's game objects without a parent are parented to it
+    entt::entity root = entt::null;
+    // the IDs of the instance's game objects: the hashed IDs of their node paths (none when the instance is transient).
+    // The node path of a game object of the file is its persistent ID in the file ("12"), of a game object of a prefab
+    // instance in the file the ID of the instance's root in the file and its node path there ("12/Body").
+    InstanceIds ids;
+    // game objects created already, without a persistent ID, which become the ones with these hashed IDs (to restore
+    // their handles); the others are created
+    const EntityHandles* node_handles = nullptr;
+    // filled with the instance's game objects (but its root) and their node paths
+    std::vector<PrefabInstanceNode> nodes;
+};
+
 struct SceneLoadOptions
 {
     // the handles to create the file's game objects with, by persistent ID (hashed IDs for the game objects of a prefab
@@ -73,6 +95,10 @@ struct SceneLoadOptions
     // when given, filled with the loaded game objects by the persistent IDs the file gives them (hashed IDs of the
     // file's root ID for the game objects of a prefab instance), e.g. to find a copy
     EntityHandles* loaded = nullptr;
+    // when given, the file is a scene prefab's, loaded into an instance: its game objects get the IDs of the instance's
+    // game objects instead of the file's (handles, new_ids and loaded aren't used, references are never looked up
+    // outside the file)
+    SceneInstanceTarget* instance = nullptr;
 };
 
 // Adds the game objects of a scene file to the registry. The file is read and checked first: when it can't be used

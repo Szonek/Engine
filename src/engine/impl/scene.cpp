@@ -747,22 +747,9 @@ entt::entity engine::Scene::create_prefab_node_entity(std::uint64_t root_id, std
 {
     ENGINE_PROFILE_SECTION;
     const auto id = EntityIdRegistry::hashed_id(root_id, node_path);
-    auto entity = entt::entity{ entt::null };
-    if (node_handles)
+    const auto entity = entity_ids_.create_hashed(id, node_handles);
+    if (const auto new_id = entity_ids_.get_id(entity); new_id != id)
     {
-        const auto it = node_handles->find(id);
-        if (it != node_handles->end() && is_valid_entity(it->second) && entity_ids_.get_id(it->second) == EntityIdRegistry::INVALID_ID)
-        {
-            entity = it->second;
-        }
-    }
-    if (entity == entt::null)
-    {
-        entity = entity_registry_.create();
-    }
-    if (!entity_ids_.assign(entity, id))
-    {
-        const auto new_id = entity_ids_.assign_next(entity);
         log::log(log::LogLevel::eError, fmt::format("Scene: node {} of the prefab instance {} gets the ID {}, its hashed ID {} is used already.\n",
             node_path, root_id, new_id, id));
     }
