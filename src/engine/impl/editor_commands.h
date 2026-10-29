@@ -274,6 +274,38 @@ private:
     std::unique_ptr<CommandSetSelectedEntity> select_copy_;
 };
 
+// Places a prefab (a model or a scene file, by its asset ID) as a persistent instance, like dragging an asset into
+// Unity's or Godot's scene view: its root is moved to `position` (keeping the rotation and scale the prefab gave it),
+// gets a name no other game object without a parent has ("Rogue (1)" when there is a "Rogue", like a duplicate) and becomes
+// the selection. The scene holds the prefab (SceneAssets) as long as it lives. Undo destroys the instance (and gives
+// the selection back), redo brings it back with the same IDs and handles; one undo step.
+class CommandPlacePrefab : public ICommand
+{
+public:
+    // `selected`: the selection before the placement, given back on undo
+    CommandPlacePrefab(Scene& sc, std::string_view prefab_asset_id, const glm::vec3& position, entt::entity selected);
+
+    // the instance's root, entt::null when nothing was placed
+    entt::entity get_instance() const { return root_; }
+
+    void execute() override;
+    void undo() override;
+    // a prefab which couldn't be loaded or instantiated leaves no undo step
+    bool has_effect() const override { return root_ != entt::null; }
+
+private:
+    void place();
+
+    Scene& scene_;
+    const std::string asset_id_;
+    const glm::vec3 position_;
+    const entt::entity selected_;
+    entt::entity root_ = entt::null;
+    // undo destroys the instance the way a delete does, redo is that delete's undo
+    std::unique_ptr<CommandDestroyEntity> destroy_instance_;
+    std::unique_ptr<CommandSetSelectedEntity> select_instance_;
+};
+
 class CommandSetPhysicsDebugDraw: public ICommand
 {
 public:
