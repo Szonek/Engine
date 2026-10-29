@@ -15,6 +15,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	skin_tests.cpp
 	nav_mesh_tests.cpp
 	world_transform_tests.cpp
+	hierarchy_tests.cpp
 	type_registry_tests.cpp
 	scene_serializer_tests.cpp
 	game_types_tests.cpp
@@ -43,6 +44,9 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	# local TRS -> world matrices (EnTT registry only)
 	${ENGINE_IMPL_DIR}/world_transform.cpp
 	${ENGINE_IMPL_DIR}/world_transform.h
+	# the children lists kept from the parent components (EnTT registry only)
+	${ENGINE_IMPL_DIR}/hierarchy.cpp
+	${ENGINE_IMPL_DIR}/hierarchy.h
 	# the editor's viewport camera and modal transform (glm only)
 	${ENGINE_IMPL_DIR}/editor_camera.cpp
 	${ENGINE_IMPL_DIR}/editor_camera.h
