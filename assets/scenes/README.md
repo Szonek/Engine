@@ -51,6 +51,17 @@ the level writes the new format.
   Everything else comes from the model, so a change to the model shows up wherever no override hides it. Removing a
   game object the model created isn't saved yet. The game objects inside an instance have IDs hashed from the root's ID
   and their node path, so references to them survive a reload.
+- A `prefab` ending in `.json` is a **scene prefab**: another scene file (its path under this folder) placed like a
+  model, any number of times (like Godot's instanced scenes, Unity's nested prefabs, Unreal's Level Instances). The
+  placing game object is the instance's root and carries its placement (its transform); the file's game objects without
+  a parent are parented to it. A node path is a game object's ID in the placed file (`"12"`), and for the game objects
+  of a prefab instance in it the ID of that instance's root and its node path there (`"12/Body"`), so `nodes` reaches
+  into nested instances the same way: `"12/Body": { "overrides": { "mesh": { "disable": true } } }` hides one mesh in
+  one room. What the placed file saved for its own instances applies first, the placing file's after. A file which
+  places itself (directly or through others) is logged and its inner instance isn't created.
+  Rules for files meant to be placed (rooms): no nav surface, camera, `Encounter` or HUD (the level has those), and
+  colliders of level geometry get an explicit static rigid body, since they have a parent in an instance (a collider
+  with a parent and no rigid body is kinematic: the nav mesh leaves it out).
 - `script` names the game object's script (a script type the game registered, or `none`).
 
 The same scene always gives the same bytes, so files diff cleanly.
