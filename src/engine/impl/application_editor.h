@@ -60,6 +60,10 @@ public:
     void set_forced_open_selected_parents(bool value);
     bool is_forced_open_selected_parents() const;
     void sync_selected_from_scene(engine::Scene* scene);
+    // The selection refers to its game object by persistent ID (GameObjectRef): when the game object got a new handle
+    // (Stop loaded the scene saved at Play back), the selection follows it and marks it again; when it is gone (a script
+    // destroyed it), nothing is selected.
+    void resolve_selection(engine::Scene* scene);
 
     // deleting a game object undo can't bring back (a transient one) waits for the user to confirm it in a popup
     void request_delete_without_undo(entt::entity e);
@@ -68,7 +72,9 @@ public:
 
 private:
     IAssetSelection& assets_;
+    // the selected game object's handle, found again from selected_ref_ by resolve_selection
     entt::entity selected_ = entt::null;
+    GameObjectRef selected_ref_;
     bool force_open_selected_parents_ = false;
     entt::entity delete_without_undo_ = entt::null;
 };

@@ -1,5 +1,6 @@
 #include "components_internals/editor_object_internal_component.h"
 #include "components_internals/joint_attachment_internal_component.h"
+#include "game_object_ref.h"
 #include "serialization/builtin_types.h"
 #include "serialization/game_types.h"
 #include "serialization/scene_serializer.h"
@@ -2215,5 +2216,41 @@ TEST_F(PlayModeRestoreTest, IdsAfterARestoreAreTheOnesBeforePlay)
     // and a scene built into a cleared one gets the IDs of a new scene
     engine::clear_game_objects(w.registry, w.ids);
     EXPECT_EQ(w.ids.get_id(w.create()), 1u);
+}
+
+TEST_F(PlayModeRestoreTest, EditorReferencesFindTheirGameObjectsAfterARestore)
+{
+    World w;
+    build_level(w);
+    const auto arm = instantiate_arm(w);
+    const auto runtime_object = w.registry.create();
+    // what an undo step and the selection keep
+    const auto wall = engine::GameObjectRef::of(w.ids, w.find(1));
+    const auto hand = engine::GameObjectRef::of(w.ids, w.prefabs.node(arm, "Upper/Hand"));
+    const auto runtime = engine::GameObjectRef::of(w.ids, runtime_object);
+    EXPECT_EQ(runtime.resolve(w.registry, w.ids), runtime_object);
+    const auto old_wall = w.find(1);
+    const auto arm_id = w.ids.get_id(arm);
+    const auto snapshot = save(w);
+
+    ASSERT_TRUE(restore(w, snapshot));
+    // persistent game objects, a prefab instance's node too, are found under their new handles
+    const auto restored_wall = wall.resolve(w.registry, w.ids);
+    ASSERT_NE(restored_wall, entt::entity{ entt::null });
+    EXPECT_NE(restored_wall, old_wall);
+    EXPECT_EQ(restored_wall, w.find(1));
+    const auto restored_hand = hand.resolve(w.registry, w.ids);
+    ASSERT_NE(restored_hand, entt::entity{ entt::null });
+    EXPECT_EQ(restored_hand, w.prefabs.node(w.find(arm_id), "Upper/Hand"));
+    // a runtime object is gone for good
+    EXPECT_EQ(runtime.resolve(w.registry, w.ids), entt::entity{ entt::null });
+    EXPECT_TRUE(engine::GameObjectRef{}.is_none());
+    EXPECT_EQ(engine::GameObjectRef{}.resolve(w.registry, w.ids), entt::entity{ entt::null });
+
+    // an undo step of the edit state (a transform change) applies to the restored game object
+    auto transform = w.registry.get<engine_transform_component_t>(restored_wall);
+    transform.position[2] = 7.0f;
+    w.registry.replace<engine_transform_component_t>(wall.resolve(w.registry, w.ids), transform);
+    EXPECT_FLOAT_EQ(w.get<engine_transform_component_t>(1).position[2], 7.0f);
 }
 }  // namespace

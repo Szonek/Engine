@@ -4,6 +4,7 @@
 
 #include "physics_system.h"
 #include "entity_id_registry.h"
+#include "game_object_ref.h"
 #include "prefab_system.h"
 #include "serialization/scene_assets.h"
 #include "serialization/scene_serializer.h"
@@ -86,6 +87,10 @@ public:
     std::uint64_t get_persistent_id(entt::entity entity) const;
     // the game object with this persistent ID, entt::null when there is none
     entt::entity find_entity(std::uint64_t persistent_id) const;
+    // a reference to the game object which finds it under a new handle too (see GameObjectRef)
+    GameObjectRef make_ref(entt::entity entity) const { return GameObjectRef::of(entity_ids_, entity); }
+    // entt::null when the game object isn't there (any more)
+    entt::entity resolve(const GameObjectRef& ref) const { return ref.resolve(entity_registry_, entity_ids_); }
 
     // the scene as a scene file, see engine::save_scene
     std::string save() const;

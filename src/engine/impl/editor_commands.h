@@ -12,12 +12,16 @@
 namespace engine
 {
 
+// An undo step. Commands refer to game objects with GameObjectRef (by persistent ID), never by handle, and get the scene
+// when they run: they find their game objects again after Stop loaded the scene saved at Play back with new handles
+// (also into another scene object, when the game replaced its scene while playing). A command whose game object isn't
+// there (any more) changes nothing and logs it (log_missing).
 class ICommand
 {
 public:
     virtual ~ICommand() = default;
-    virtual void execute() = 0;
-    virtual void undo() = 0;
+    virtual void execute(Scene& sc) = 0;
+    virtual void undo(Scene& sc) = 0;
     virtual bool merge_with(const ICommand* /*other*/)
     {
         return false;
@@ -30,10 +34,13 @@ public:
     }
 };
 
+// logs that the game object an undo step changes isn't in the scene (any more)
+void log_missing(std::string_view command);
+
 class CommandManager
 {
 public:
-    void execute_command(std::unique_ptr<ICommand> cmd)
+    void execute_command(Scene& sc, std::unique_ptr<ICommand> cmd)
     {
         if (!undo_stack_.empty())
         {
@@ -44,7 +51,7 @@ public:
                 return;
             }
         }
-        cmd->execute();
+        cmd->execute(sc);
         if (!cmd->has_effect())
         {
             return;
@@ -57,7 +64,7 @@ public:
         }
     }
 
-    void undo()
+    void undo(Scene& sc)
     {
         if (undo_stack_.empty())
         {
@@ -65,11 +72,11 @@ public:
         }
         auto cmd = std::move(undo_stack_.back());
         undo_stack_.pop_back();
-        cmd->undo();
+        cmd->undo(sc);
         redo_stack_.push_back(std::move(cmd));
     }
 
-    void redo()
+    void redo(Scene& sc)
     {
         if (redo_stack_.empty())
         {
@@ -77,7 +84,7 @@ public:
         }
         auto cmd = std::move(redo_stack_.back());
         redo_stack_.pop_back();
-        cmd->execute();
+        cmd->execute(sc);
         undo_stack_.push_back(std::move(cmd));
     }
 
@@ -92,26 +99,35 @@ class CommandUpdateComponent : public ICommand
 {
 public:
     CommandUpdateComponent(Scene& sc, entt::entity e, TComp& new_comp)
-        : sc_(sc)
-        , e_(e)
-        , prev_(*sc.get_component<TComp>(e_))
+        : ref_(sc.make_ref(e))
+        , prev_(*sc.get_component<TComp>(e))
         , new_(new_comp)
     {
     }
 
-    void execute() override
+    void execute(Scene& sc) override
     {
-        sc_.update_component<TComp>(e_, new_);
+        apply(sc, new_);
     }
 
-    void undo() override
+    void undo(Scene& sc) override
     {
-        sc_.update_component<TComp>(e_, prev_);
+        apply(sc, prev_);
     }
 
 private:
-    Scene& sc_;
-    entt::entity e_;
+    void apply(Scene& sc, const TComp& value)
+    {
+        const auto e = sc.resolve(ref_);
+        if (e == entt::null || !sc.has_component<TComp>(e))
+        {
+            log_missing("component update");
+            return;
+        }
+        sc.update_component<TComp>(e, value);
+    }
+
+    const GameObjectRef ref_;
     const TComp prev_;
     const TComp new_;
 };
@@ -122,15 +138,14 @@ class CommandUpdateTypedComponent : public ICommand
 public:
     CommandUpdateTypedComponent(Scene& sc, entt::entity e, const TypeInfo& type, const void* new_value);
 
-    void execute() override;
-    void undo() override;
+    void execute(Scene& sc) override;
+    void undo(Scene& sc) override;
 
 private:
     // nothing happens when the component was removed meanwhile
-    void apply(const ValueBuffer& value);
+    void apply(Scene& sc, const ValueBuffer& value);
 
-    Scene& sc_;
-    entt::entity e_;
+    const GameObjectRef ref_;
     const TypeInfo& type_;
     ValueBuffer prev_;
     ValueBuffer new_;
@@ -142,12 +157,11 @@ class CommandAddTypedComponent : public ICommand
 public:
     CommandAddTypedComponent(Scene& sc, entt::entity e, const TypeInfo& type);
 
-    void execute() override;
-    void undo() override;
+    void execute(Scene& sc) override;
+    void undo(Scene& sc) override;
 
 private:
-    Scene& sc_;
-    entt::entity e_;
+    const GameObjectRef ref_;
     const TypeInfo& type_;
 };
 
@@ -157,12 +171,11 @@ class CommandRemoveTypedComponent : public ICommand
 public:
     CommandRemoveTypedComponent(Scene& sc, entt::entity e, const TypeInfo& type);
 
-    void execute() override;
-    void undo() override;
+    void execute(Scene& sc) override;
+    void undo(Scene& sc) override;
 
 private:
-    Scene& sc_;
-    entt::entity e_;
+    const GameObjectRef ref_;
     const TypeInfo& type_;
     ValueBuffer value_;
 };
@@ -177,15 +190,14 @@ public:
     // selects the game object and the file (an empty path for none); the file selected before is the one selected now
     CommandSetSelection(Scene& sc, IAssetSelection& assets, entt::entity prev_selected, entt::entity new_selected, std::string_view new_asset);
 
-    void execute() override;
-    void undo() override;
+    void execute(Scene& sc) override;
+    void undo(Scene& sc) override;
 
 private:
-    void select(entt::entity deselected, entt::entity selected, const std::string& asset);
+    void select(Scene& sc, const GameObjectRef& deselected, const GameObjectRef& selected, const std::string& asset);
 
-    Scene& sc_;
-    entt::entity e_prev_;
-    entt::entity e_new_;
+    const GameObjectRef prev_;
+    const GameObjectRef new_;
     IAssetSelection* assets_ = nullptr;
     std::string asset_prev_;
     std::string asset_new_;
@@ -196,12 +208,13 @@ class CommandRenameEntity : public ICommand
 public:
     CommandRenameEntity(Scene& sc, entt::entity e, std::string_view new_name);
 
-    void execute() override;
-    void undo() override;
+    void execute(Scene& sc) override;
+    void undo(Scene& sc) override;
 
 private:
-    Scene& scene_;
-    const entt::entity e_ = entt::null;
+    void rename(Scene& sc, const std::string& name);
+
+    const GameObjectRef ref_;
     std::string prev_name_;
     std::string new_name_;
 };
@@ -209,14 +222,13 @@ private:
 class CommandAddEntity : public ICommand
 {
 public:
-    CommandAddEntity(Scene& sc);
+    CommandAddEntity() = default;
 
-    void execute() override;
-    void undo() override;
+    void execute(Scene& sc) override;
+    void undo(Scene& sc) override;
 
 private:
-    Scene& scene_;
-    entt::entity e_ = entt::null;
+    GameObjectRef ref_;
 };
 
 // Destroys the game object and everything parented under it. They are saved first and loaded back on undo, with
@@ -235,15 +247,14 @@ public:
     // editor doesn't move them), which would come back apart from its instance
     static bool can_destroy(const Scene& sc, entt::entity e);
 
-    void execute() override;
-    void undo() override;
+    void execute(Scene& sc) override;
+    void undo(Scene& sc) override;
 
 private:
-    Scene& scene_;
-    const entt::entity e_;
+    const GameObjectRef ref_;
     std::string saved_;
     SceneLoadOptions restore_;
-    entt::entity parent_ = entt::null;
+    GameObjectRef parent_;
     std::size_t child_index_ = 0;
 };
 
@@ -265,21 +276,20 @@ public:
     // which holds one without its instance's root (see can_destroy); duplicating it anyway logs why and copies nothing
     static bool can_duplicate(const Scene& sc, entt::entity e);
 
-    // entt::null when nothing was copied
-    entt::entity get_copy() const { return copy_; }
+    // the copy in `sc`, entt::null when nothing was copied
+    entt::entity get_copy(const Scene& sc) const { return sc.resolve(copy_); }
 
-    void execute() override;
-    void undo() override;
+    void execute(Scene& sc) override;
+    void undo(Scene& sc) override;
     // a copy which couldn't be made leaves no undo step
-    bool has_effect() const override { return copy_ != entt::null; }
+    bool has_effect() const override { return !copy_.is_none(); }
 
 private:
-    void duplicate();
+    void duplicate(Scene& sc);
 
-    Scene& scene_;
-    const entt::entity e_;
-    const entt::entity selected_;
-    entt::entity copy_ = entt::null;
+    const GameObjectRef ref_;
+    const GameObjectRef selected_;
+    GameObjectRef copy_;
     // undo destroys the copy the way a delete does, redo is that delete's undo
     std::unique_ptr<CommandDestroyEntity> destroy_copy_;
     std::unique_ptr<CommandSetSelection> select_copy_;
@@ -297,23 +307,22 @@ public:
     // `selected`: the game object selected before the placement, given back on undo with the file selected in `assets`
     CommandPlacePrefab(Scene& sc, IAssetSelection& assets, std::string_view prefab_asset_id, const glm::vec3& position, entt::entity selected);
 
-    // the instance's root, entt::null when nothing was placed
-    entt::entity get_instance() const { return root_; }
+    // the instance's root in `sc`, entt::null when nothing was placed
+    entt::entity get_instance(const Scene& sc) const { return sc.resolve(root_); }
 
-    void execute() override;
-    void undo() override;
+    void execute(Scene& sc) override;
+    void undo(Scene& sc) override;
     // a prefab which couldn't be loaded or instantiated leaves no undo step
-    bool has_effect() const override { return root_ != entt::null; }
+    bool has_effect() const override { return !root_.is_none(); }
 
 private:
-    void place();
+    void place(Scene& sc);
 
-    Scene& scene_;
     IAssetSelection& assets_;
     const std::string asset_id_;
     const glm::vec3 position_;
-    const entt::entity selected_;
-    entt::entity root_ = entt::null;
+    const GameObjectRef selected_;
+    GameObjectRef root_;
     // undo destroys the instance the way a delete does, redo is that delete's undo
     std::unique_ptr<CommandDestroyEntity> destroy_instance_;
     std::unique_ptr<CommandSetSelection> select_instance_;
@@ -322,15 +331,13 @@ private:
 class CommandSetPhysicsDebugDraw: public ICommand
 {
 public:
-    CommandSetPhysicsDebugDraw(Scene& sc, bool flag);
+    explicit CommandSetPhysicsDebugDraw(bool flag);
 
-    void execute() override;
-    void undo() override;
+    void execute(Scene& sc) override;
+    void undo(Scene& sc) override;
 
 private:
-    Scene& scene_;
     bool flag_;
 };
 
 }  // namespace engine
-

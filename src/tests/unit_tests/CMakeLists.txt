@@ -33,6 +33,8 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/named_atlas.h
 	# header-only
 	${ENGINE_IMPL_DIR}/entity_id_registry.h
+	# header-only: how the editor refers to game objects across a change of their handles
+	${ENGINE_IMPL_DIR}/game_object_ref.h
 	# header-only: the names of the editor's copies
 	${ENGINE_IMPL_DIR}/copy_name.h
 	# skin asset + pose and the animation controller (ozz only, no GL)

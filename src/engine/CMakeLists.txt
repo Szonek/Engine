@@ -50,6 +50,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/profiler.h
 	${ENGINE_SOURCES_DIR}/named_atlas.h
 	${ENGINE_SOURCES_DIR}/entity_id_registry.h
+	${ENGINE_SOURCES_DIR}/game_object_ref.h
 	${ENGINE_SOURCES_DIR}/asset_id.h
 		
 	${ENGINE_SOURCES_DIR}/mesh_defs.h

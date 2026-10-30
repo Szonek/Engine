@@ -69,7 +69,7 @@ inline bool is_entity_parent_of(entt::entity parent, entt::entity child, engine:
 // copies the game object with what is parented under it and selects the copy (see CommandDuplicateEntity)
 void duplicate_entity(entt::entity e, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
 {
-    commands.execute_command(std::make_unique<engine::CommandDuplicateEntity>(*scene, e, ctx.get_selected_entity()));
+    commands.execute_command(*scene, std::make_unique<engine::CommandDuplicateEntity>(*scene, e, ctx.get_selected_entity()));
     ctx.sync_selected_from_scene(scene);
 }
 
@@ -137,7 +137,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
         else if (ImGui::MenuItem("Delete", nullptr, false, can_delete))
         {
             ctx.set_selected_entity(scene, entt::null, commands);
-            commands.execute_command(std::make_unique<engine::CommandDestroyEntity>(*scene, node->entity));
+            commands.execute_command(*scene, std::make_unique<engine::CommandDestroyEntity>(*scene, node->entity));
         }
         if (!can_delete)
         {
@@ -161,7 +161,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
         static decltype(engine_name_component_t::name) new_name = "New name";
         if(ImGui::Button("Rename"))
         {
-            commands.execute_command(std::make_unique<engine::CommandRenameEntity>(*scene, node->entity, new_name));
+            commands.execute_command(*scene, std::make_unique<engine::CommandRenameEntity>(*scene, node->entity, new_name));
             // reset static new name
             std::strcpy(new_name, "New name");
         }
@@ -357,7 +357,7 @@ inline void display_component(std::string_view name, engine::Scene* scene, engin
             if (fn(scene, comp))
             {
                 //scene->update_component<T>(entity, comp);
-                commands.execute_command(std::make_unique<engine::CommandUpdateComponent<T>>(*scene, entity, comp));
+                commands.execute_command(*scene, std::make_unique<engine::CommandUpdateComponent<T>>(*scene, entity, comp));
             }
 
         }
@@ -708,7 +708,7 @@ void display_typed_component(const engine::TypeInfo& type, engine::Scene* scene,
             scene->get_component(type, entity, value.get());
             if (TypeInspector(scene).draw_struct(type, value.get()))
             {
-                commands.execute_command(std::make_unique<engine::CommandUpdateTypedComponent>(*scene, entity, type, value.get()));
+                commands.execute_command(*scene, std::make_unique<engine::CommandUpdateTypedComponent>(*scene, entity, type, value.get()));
             }
         }
     }
@@ -724,11 +724,11 @@ void display_typed_component(const engine::TypeInfo& type, engine::Scene* scene,
     {
         if (has_component)
         {
-            commands.execute_command(std::make_unique<engine::CommandRemoveTypedComponent>(*scene, entity, type));
+            commands.execute_command(*scene, std::make_unique<engine::CommandRemoveTypedComponent>(*scene, entity, type));
         }
         else
         {
-            commands.execute_command(std::make_unique<engine::CommandAddTypedComponent>(*scene, entity, type));
+            commands.execute_command(*scene, std::make_unique<engine::CommandAddTypedComponent>(*scene, entity, type));
         }
     }
     ImGui::PopID();
@@ -1215,6 +1215,7 @@ void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
 void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_pre");
+    scene_hierarchy_context_.resolve_selection(scene);
     if (std::exchange(play_requested_, false))
     {
         enter_play_mode(*scene);
@@ -1272,7 +1273,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     const auto ctrl_shift_z_curr = lctrl && lshift && z;
     if (ctrl_shift_z_prev && !ctrl_shift_z_curr && !modal_transform_)
     {
-        commands_.redo();
+        commands_.redo(*scene);
         scene_hierarchy_context_.sync_selected_from_scene(scene);
     }
     ctrl_shift_z_prev = ctrl_shift_z_curr;
@@ -1281,7 +1282,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     const auto ctrl_z_curr = lctrl && !lshift && z;
     if (ctrl_z_curr && !ctrl_z_prev && !modal_transform_)
     {
-        commands_.undo();
+        commands_.undo(*scene);
         scene_hierarchy_context_.sync_selected_from_scene(scene);
     }
     ctrl_z_prev = ctrl_z_curr;
@@ -1416,13 +1417,13 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
     ImGui::SeparatorText("Scene options");
     if (ImGui::Button("Add entity"))
     {
-        commands_.execute_command(std::make_unique<CommandAddEntity>(*scene));
+        commands_.execute_command(*scene, std::make_unique<CommandAddEntity>());
     }
 
     bool phys_debug_draw_check = scene->physics().is_debug_draw_enabled();
     if (ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check))
     {
-        commands_.execute_command(std::make_unique<CommandSetPhysicsDebugDraw>(*scene, phys_debug_draw_check));
+        commands_.execute_command(*scene, std::make_unique<CommandSetPhysicsDebugDraw>(phys_debug_draw_check));
     }
 
     bool nav_mesh_debug_draw_check = scene->is_nav_mesh_debug_draw_enabled();
@@ -1582,7 +1583,7 @@ void engine::ApplicationEditor::render_asset_browser_panel(Scene* scene)
     if (const auto clicked = asset_browser_.draw())
     {
         // the file in place of the game object, one undo step which gives the game object back
-        commands_.execute_command(std::make_unique<CommandSetSelection>(*scene, asset_browser_, scene_hierarchy_context_.get_selected_entity(), entt::null, *clicked));
+        commands_.execute_command(*scene, std::make_unique<CommandSetSelection>(*scene, asset_browser_, scene_hierarchy_context_.get_selected_entity(), entt::null, *clicked));
         scene_hierarchy_context_.sync_selected_from_scene(scene);
     }
     ImGui::End();
@@ -1632,7 +1633,7 @@ void engine::ApplicationEditor::handle_asset_drop(Scene* scene)
             const float max_distance = scene->get_component<engine_camera_component_t>(camera_entity)->clip_plane_far;
             const auto position = scene->physics().raycast(origin, direction, max_distance, {}, false, hit)
                 ? glm::vec3(hit.position[0], hit.position[1], hit.position[2]) : get_ground_point(origin, direction, max_distance);
-            commands_.execute_command(std::make_unique<CommandPlacePrefab>(*scene, asset_browser_, static_cast<const char*>(payload->Data), position,
+            commands_.execute_command(*scene, std::make_unique<CommandPlacePrefab>(*scene, asset_browser_, static_cast<const char*>(payload->Data), position,
                 scene_hierarchy_context_.get_selected_entity()));
             scene_hierarchy_context_.sync_selected_from_scene(scene);
             scene_hierarchy_context_.set_forced_open_selected_parents(true);
@@ -1836,7 +1837,7 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
                 auto c = *scene->get_component<engine_transform_component_t>(entity);
                 if (engine::local_transform_from_world(scene->get_parent_space_matrix(entity), model_matrix, c))
                 {
-                    commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, c));
+                    commands_.execute_command(*scene, std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, c));
                 }
             }
         }
@@ -1964,7 +1965,7 @@ void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
         auto result = *scene->get_component<engine_transform_component_t>(entity);
         // the command records the transform from before the preview, so undo goes back there
         scene->update_component<engine_transform_component_t>(entity, modal_transform_original_);
-        commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, result));
+        commands_.execute_command(*scene, std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, result));
         modal_transform_.reset();
     }
 }
@@ -2307,8 +2308,9 @@ void engine::SceneHierarchyContext::set_selected_entity(engine::Scene* scene, en
         return;
     }
     // while a game object is selected, no file is: selecting one (from none) deselects the file in the same undo step
-    commands.execute_command(std::make_unique<engine::CommandSetSelection>(*scene, assets_, selected_, e, ""));
+    commands.execute_command(*scene, std::make_unique<engine::CommandSetSelection>(*scene, assets_, selected_, e, ""));
     selected_ = e;
+    selected_ref_ = scene->make_ref(e);
 }
 
 void engine::SceneHierarchyContext::deselect_all(engine::Scene* scene, CommandManager& commands)
@@ -2317,8 +2319,9 @@ void engine::SceneHierarchyContext::deselect_all(engine::Scene* scene, CommandMa
     {
         return;
     }
-    commands.execute_command(std::make_unique<engine::CommandSetSelection>(*scene, assets_, selected_, entt::null, ""));
+    commands.execute_command(*scene, std::make_unique<engine::CommandSetSelection>(*scene, assets_, selected_, entt::null, ""));
     selected_ = entt::null;
+    selected_ref_ = {};
 }
 
 entt::entity engine::SceneHierarchyContext::get_selected_entity() const
@@ -2364,6 +2367,23 @@ void engine::SceneHierarchyContext::sync_selected_from_scene(engine::Scene* scen
         break;
     }
     selected_ = found;
+    selected_ref_ = scene->make_ref(found);
+}
+
+void engine::SceneHierarchyContext::resolve_selection(engine::Scene* scene)
+{
+    const auto e = scene->resolve(selected_ref_);
+    if (e == selected_)
+    {
+        return;
+    }
+    selected_ = e;
+    // the markers are internal: a game object loaded back has none
+    if (e != entt::null && !scene->has_component<engine::guizmo_component_t>(e))
+    {
+        scene->add_component<engine::guizmo_component_t>(e);
+        scene->add_component<engine::outline_component_t>(e);
+    }
 }
 
 void engine::ApplicationEditor::EditorWindowsContext::initialize(std::uint32_t dockspace_id)
