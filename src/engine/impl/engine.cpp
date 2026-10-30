@@ -16,9 +16,11 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <algorithm>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <optional>
 #include <utility>
 
@@ -639,6 +641,11 @@ void engineSceneDestroy(engine_scene_t scene)
     }
     if (scene)
     {
+        // no call finds a destroyed scene through the context (e.g. Stop loading the scene saved at Play into it)
+        if (G_ACTIVE_SCENE == scene)
+        {
+            G_ACTIVE_SCENE = nullptr;
+        }
         auto* app = api_cast(G_ACTIVE_APP);
         app->release_scene(api_cast(scene));
     }
@@ -884,6 +891,21 @@ void engineGameObjectDestroy(engine_game_object_t game_object)
     }
     auto sc = api_cast(G_ACTIVE_SCENE);
     sc->destroy_entity(api_cast(game_object));
+}
+
+void engineGameObjectSortByPersistentId(engine_game_object_t* game_objects, size_t count)
+{
+    if (!G_ACTIVE_SCENE || !game_objects)
+    {
+        return;
+    }
+    const auto* scene = api_cast(G_ACTIVE_SCENE);
+    const auto key = [scene](engine_game_object_t go) {
+        const auto id = scene->get_persistent_id(static_cast<entt::entity>(go));
+        // transient ones last, in handle order
+        return std::make_pair(id == engine::EntityIdRegistry::INVALID_ID ? std::numeric_limits<std::uint64_t>::max() : id, go);
+    };
+    std::sort(game_objects, game_objects + count, [&key](engine_game_object_t a, engine_game_object_t b) { return key(a) < key(b); });
 }
 
 bool engineGameObjectIsValid(engine_game_object_t game_object)

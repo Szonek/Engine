@@ -109,6 +109,14 @@ public:
         redo_stack_.clear();
     }
 
+    // the steps recorded in this play session, keeping the edit history put aside (the scene they were recorded in was
+    // released while playing)
+    void drop_play_session_steps()
+    {
+        undo_stack_.clear();
+        redo_stack_.clear();
+    }
+
     // Stop: the play session's steps are dropped (they would write play session values into the edit state, which
     // Stop gave back) and the edit history comes back, its steps finding their game objects by persistent ID. A
     // session begun without begin_play_session (the one the application starts in, whose Stop keeps the scene as it

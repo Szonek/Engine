@@ -726,6 +726,9 @@ ENGINE_API bool                 engineGameObjectIsTransient(engine_game_object_t
 // destroys the game object and its children (with theirs); reparent a child first to keep it
 ENGINE_API void                 engineGameObjectDestroy(engine_game_object_t game_object);
 ENGINE_API bool                 engineGameObjectIsValid(engine_game_object_t game_object);
+// Sorts game objects of the active scene by persistent ID, transient ones (which have none) last by handle: an order
+// which is the same in every run and after Stop loaded the scene back with new handles (e.g. to start scripts in).
+ENGINE_API void                 engineGameObjectSortByPersistentId(engine_game_object_t* game_objects, size_t count);
 
 // user input hangling
 ENGINE_API bool engineKeyboardIsButtonDown(engine_keyboard_keys_t key);

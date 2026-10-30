@@ -1177,6 +1177,19 @@ bool engine::ApplicationEditor::is_game_view() const
 void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_begine_info_t & frame_begin_info)
 {
     frame_delta_time_ = frame_begin_info.delta_time;
+    // Play and Stop pressed last frame, before anything of this frame runs: not during a scene update (the editor
+    // camera has the game's cameras disabled then, the snapshot would keep them so) nor while the game's scripts run
+    if (const auto request = std::exchange(play_mode_request_, PlayModeRequest::eNone); request != PlayModeRequest::eNone && play_mode_scene_)
+    {
+        if (request == PlayModeRequest::ePlay)
+        {
+            enter_play_mode(*play_mode_scene_);
+        }
+        else
+        {
+            exit_play_mode(*play_mode_scene_);
+        }
+    }
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
@@ -1217,10 +1230,6 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_pre");
     scene_hierarchy_context_.resolve_selection(scene);
-    if (std::exchange(play_requested_, false))
-    {
-        enter_play_mode(*scene);
-    }
     if (mouse_consumed_ && !any_mouse_button_down(ImGui::GetIO()))
     {
         mouse_consumed_ = false;
@@ -1321,6 +1330,13 @@ void engine::ApplicationEditor::render_scene_view()
     // the scene is rendered into the texture at the end of this frame; GL textures start at the bottom
     const auto image_max = ImVec2(pos.x + static_cast<float>(width), pos.y + static_cast<float>(height));
     ImGui::GetWindowDrawList()->AddImage(static_cast<ImTextureID>(scene_view_texture_->get_imgui_texture_id()), pos, image_max, ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
+    // a border in the toolbar's tint while playing or paused
+    if (const auto play_mode = get_play_mode_state(); play_mode != ENGINE_PLAY_MODE_EDIT)
+    {
+        const auto tint = play_mode == ENGINE_PLAY_MODE_PAUSED ? PAUSED_TINT : PLAYING_TINT;
+        const auto border = ImGui::GetColorU32(ImVec4(tint.x * 2.5f, tint.y * 2.5f, tint.z * 2.5f, 1.0f));
+        ImGui::GetWindowDrawList()->AddRect(pos, image_max, border, 0.0f, 0, 3.0f);
+    }
     // No item covers the image: ImGuizmo only starts a drag when no item is hovered.
     // The mouse stays with the scene while a button pressed over it is held.
     const bool hovered = ImGui::IsWindowHovered();
@@ -1353,9 +1369,48 @@ engine::viewport_t engine::ApplicationEditor::get_scene_viewport() const
     return scene_view_rect_;
 }
 
-void engine::ApplicationEditor::render_editor_controls(class Scene* /*scene*/, float /*dt*/)
+void engine::ApplicationEditor::request_play_mode_change(Scene* scene, PlayModeRequest request)
 {
+    play_mode_request_ = request;
+    play_mode_scene_ = scene;
+}
+
+void engine::ApplicationEditor::handle_play_mode_shortcuts(Scene* scene)
+{
+    // Unity's shortcuts: Ctrl+P plays and stops, Ctrl+Shift+P pauses and resumes, Ctrl+Alt+P steps
+    if (ImGui::GetIO().WantTextInput)
+    {
+        return;
+    }
+    const auto play_mode = get_play_mode_state();
+    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_P))
+    {
+        request_play_mode_change(scene, play_mode == ENGINE_PLAY_MODE_EDIT ? PlayModeRequest::ePlay : PlayModeRequest::eStop);
+    }
+    else if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_P) && play_mode != ENGINE_PLAY_MODE_EDIT)
+    {
+        set_play_mode_paused(play_mode == ENGINE_PLAY_MODE_PLAYING);
+    }
+    else if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_P) && play_mode == ENGINE_PLAY_MODE_PAUSED)
+    {
+        step_play_mode();
+    }
+}
+
+void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float /*dt*/)
+{
+    const auto play_mode = get_play_mode_state();
+    // tinted while playing or paused, like Unity's play mode tint: edits made now are lost at Stop
+    const bool in_play = play_mode != ENGINE_PLAY_MODE_EDIT;
+    if (in_play)
+    {
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, play_mode == ENGINE_PLAY_MODE_PAUSED ? PAUSED_TINT : PLAYING_TINT);
+    }
     ImGui::Begin(editor_windows_context_.get_window_up());
+    if (in_play)
+    {
+        ImGui::PopStyleColor();
+    }
 
     if (ImGui::Selectable("Scene", editor_view_ == EditorView::eGame, ImGuiSelectableFlags_None, ImVec2(50, 0)))
     {
@@ -1367,22 +1422,32 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* /*scene*/, f
         editor_view_ = EditorView::eEditor;
     }
     ImGui::SameLine();
-    // the game plays from the start; Pause stops the scripts (Play in Edit mode starts a play session)
-    const auto play_mode = get_play_mode_state();
-    if (ImGui::Button(play_mode == ENGINE_PLAY_MODE_PLAYING ? "Pause" : "Play"))
+    // Play and Stop happen at the start of the next frame (on_frame_begine)
+    if (ImGui::Button(in_play ? "Stop" : "Play"))
     {
-        if (play_mode == ENGINE_PLAY_MODE_EDIT)
-        {
-            // at the start of the next scene update: the editor camera disabled the scene's cameras for this one, the
-            // scene saved at Play would keep them disabled
-            play_requested_ = true;
-        }
-        else
-        {
-            set_play_mode_paused(play_mode == ENGINE_PLAY_MODE_PLAYING);
-        }
+        request_play_mode_change(scene, in_play ? PlayModeRequest::eStop : PlayModeRequest::ePlay);
     }
+    ImGui::SetItemTooltip(in_play ? "Back to the scene as it was at Play (Ctrl+P)" : "Start a play session (Ctrl+P)");
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!in_play);
+    if (ImGui::Button(play_mode == ENGINE_PLAY_MODE_PAUSED ? "Resume" : "Pause"))
+    {
+        set_play_mode_paused(play_mode == ENGINE_PLAY_MODE_PLAYING);
+    }
+    ImGui::SetItemTooltip("Ctrl+Shift+P");
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::BeginDisabled(play_mode != ENGINE_PLAY_MODE_PAUSED);
+    if (ImGui::Button("Step"))
+    {
+        step_play_mode();
+    }
+    ImGui::SetItemTooltip("One frame (Ctrl+Alt+P)");
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::TextUnformatted(play_mode == ENGINE_PLAY_MODE_EDIT ? "Edit" : play_mode == ENGINE_PLAY_MODE_PAUSED ? "Paused" : "Playing");
     ImGui::End();
+    handle_play_mode_shortcuts(scene);
 }
 
 void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float /*dt*/)
@@ -2055,8 +2120,22 @@ void engine::ApplicationEditor::on_scene_create(Scene* scene)
 void engine::ApplicationEditor::on_scene_release(Scene* scene)
 {
     camera_context_.detach_scene(scene);
-    // persistent IDs are per scene: the steps and the selection would find other game objects in the next one
-    commands_.clear();
+    if (play_mode_scene_ == scene)
+    {
+        play_mode_scene_ = nullptr;
+        play_mode_request_ = PlayModeRequest::eNone;
+    }
+    // persistent IDs are per scene: the steps and the selection would find other game objects in the next one. While
+    // playing (the game replaced its scene: a restart, a level exit) only the play session's steps go: Stop loads the
+    // scene saved at Play into the next scene, where the edit history finds its game objects again.
+    if (get_play_mode_state() == ENGINE_PLAY_MODE_EDIT)
+    {
+        commands_.clear();
+    }
+    else
+    {
+        commands_.drop_play_session_steps();
+    }
     scene_hierarchy_context_.reset();
 }
 
@@ -2070,6 +2149,12 @@ void engine::ApplicationEditor::on_play_mode_exit(Scene* /*scene*/)
     // the steps recorded while playing would write play session values into the edit state; the ones from before Play
     // come back and find their game objects by persistent ID
     commands_.end_play_session();
+    // what the editor held of the play session's game objects
+    modal_transform_.reset();
+    modal_transform_entity_ = entt::null;
+    gizmo_hovered_entity_ = entt::null;
+    gizmo_hovered_handle_.reset();
+    delete_without_undo_ = entt::null;
 }
 
 engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)

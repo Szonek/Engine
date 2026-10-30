@@ -19,13 +19,18 @@ struct PlaySnapshot
 
 // The play state of an application (Edit, Playing, Paused) and the snapshot taken at Play, like Unity's
 // EditorApplication.EnterPlaymode / isPaused / Step / ExitPlaymode: Play saves the edit state, Stop throws the play
-// session away and loads that back (Unity's snapshot-and-restore model). The application starts playing, a session
-// without a snapshot; leaving play mode (exit) is only allowed when the application lets something control it (the
+// session away and loads that back (Unity's snapshot-and-restore model). The editor starts in Edit; the shipped game
+// and tests start playing, a session without a snapshot; leaving play mode (exit) is only allowed when the application lets something control it (the
 // editor, tests), the shipped game never stops playing. GL-free: the caller takes and restores the snapshot.
 class PlayMode
 {
 public:
-    explicit PlayMode(bool exit_allowed) : exit_allowed_(exit_allowed) {}
+    // `starts_in_edit`: the editor starts in Edit mode, like Unity, Unreal and Godot; everything else starts playing
+    explicit PlayMode(bool exit_allowed, bool starts_in_edit = false)
+        : exit_allowed_(exit_allowed)
+        , state_(starts_in_edit ? ENGINE_PLAY_MODE_EDIT : ENGINE_PLAY_MODE_PLAYING)
+    {
+    }
 
     engine_play_mode_state_t get_state() const { return state_; }
     // whether the game plays this frame (scripts tick): playing, or paused with a step taken for this frame
@@ -50,7 +55,7 @@ public:
 
 private:
     const bool exit_allowed_;
-    engine_play_mode_state_t state_ = ENGINE_PLAY_MODE_PLAYING;
+    engine_play_mode_state_t state_;
     std::optional<PlaySnapshot> snapshot_;
     std::uint32_t session_count_ = 0;
     bool step_requested_ = false;

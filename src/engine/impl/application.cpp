@@ -139,7 +139,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, R
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
     , ui_manager_(rdx_)
     , renderer_(rdx_)
-    , play_mode_(desc.enable_editor || desc.play_mode_control)
+    , play_mode_(desc.enable_editor || desc.play_mode_control, desc.enable_editor)
 {
     if (desc.max_delta_time > 0.0f)
     {

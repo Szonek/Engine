@@ -1,4 +1,5 @@
 #include "application.h"
+#include "imgui/imgui.h"
 #include "asset_store.h"
 #include "file_watcher.h"
 #include "editor_commands.h"
@@ -110,8 +111,21 @@ protected:
     void on_play_mode_exit(class Scene* scene) override;
 
 private:
+    // Play or Stop asked for by the toolbar or a shortcut, done at the start of the next frame
+    enum class PlayModeRequest
+    {
+        eNone,
+        ePlay,
+        eStop,
+    };
+    static constexpr ImVec4 PLAYING_TINT{ 0.10f, 0.22f, 0.36f, 1.0f };
+    static constexpr ImVec4 PAUSED_TINT{ 0.30f, 0.24f, 0.08f, 1.0f };
+
     // the panel showing the scene image
     void render_scene_view();
+    void request_play_mode_change(class Scene* scene, PlayModeRequest request);
+    // Ctrl+P, Ctrl+Shift+P, Ctrl+Alt+P
+    void handle_play_mode_shortcuts(class Scene* scene);
     void render_editor_controls(class Scene* scene, float dt);
     void render_scene_hierarchy_panel(class Scene* scene, float dt);
     // the asset browser, in the bottom panel
@@ -202,8 +216,9 @@ private:
     EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;
     float frame_delta_time_ = 0.0f;
-    // Play was pressed in Edit mode: the play session starts with the next scene update
-    bool play_requested_ = false;
+    PlayModeRequest play_mode_request_ = PlayModeRequest::eNone;
+    // the scene the toolbar was drawn for when Play or Stop was asked for
+    class Scene* play_mode_scene_ = nullptr;
     CommandManager commands_;
     std::shared_ptr<OutlineFeature> outline_feature_;
     std::shared_ptr<GridFeature> grid_feature_;
