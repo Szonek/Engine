@@ -52,6 +52,8 @@ public:
 
     // selects the game object (entt::null for none) with an undo step; selecting one deselects the selected file
     void set_selected_entity(engine::Scene* scene, entt::entity e, CommandManager& commands);
+    // nothing selected, neither a game object nor a file (a click on empty space), with an undo step
+    void deselect_all(engine::Scene* scene, CommandManager& commands);
     entt::entity get_selected_entity() const;
     bool has_selected_entity() const;
 

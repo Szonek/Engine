@@ -19,6 +19,7 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
 #include <array>
 #include <functional>
 #include <cstring>
@@ -1429,6 +1430,12 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
         }
         ImGui::TreePop();
     }
+    // a click on the empty space below the game objects deselects everything, a file too, like Unity's hierarchy
+    const auto empty_space = ImGui::GetContentRegionAvail();
+    if (ImGui::InvisibleButton("##deselect_all", ImVec2(std::max(empty_space.x, 1.0f), std::max(empty_space.y, 1.0f))))
+    {
+        scene_hierarchy_context_.deselect_all(scene, commands_);
+    }
     display_delete_without_undo_popup(scene);
     ImGui::End(); // scene panel
 }
@@ -1826,6 +1833,12 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
         if (picked_id != ENGINE_INVALID_GAME_OBJECT_ID)
         {
             entity_id = static_cast<entt::entity>(picked_id);
+        }
+        if (entity_id == entt::null)
+        {
+            // empty space, like Unity: nothing stays selected, a file neither
+            scene_hierarchy_context_.deselect_all(scene, commands_);
+            return;
         }
         scene_hierarchy_context_.set_selected_entity(scene, entity_id, commands_);
         scene_hierarchy_context_.set_forced_open_selected_parents(true);
@@ -2255,6 +2268,16 @@ void engine::SceneHierarchyContext::set_selected_entity(engine::Scene* scene, en
     // while a game object is selected, no file is: selecting one (from none) deselects the file in the same undo step
     commands.execute_command(std::make_unique<engine::CommandSetSelection>(*scene, assets_, selected_, e, ""));
     selected_ = e;
+}
+
+void engine::SceneHierarchyContext::deselect_all(engine::Scene* scene, CommandManager& commands)
+{
+    if (selected_ == entt::null && assets_.get_selected_asset().empty())
+    {
+        return;
+    }
+    commands.execute_command(std::make_unique<engine::CommandSetSelection>(*scene, assets_, selected_, entt::null, ""));
+    selected_ = entt::null;
 }
 
 entt::entity engine::SceneHierarchyContext::get_selected_entity() const
