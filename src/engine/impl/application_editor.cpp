@@ -708,7 +708,8 @@ void display_typed_component(const engine::TypeInfo& type, engine::Scene* scene,
             scene->get_component(type, entity, value.get());
             if (TypeInspector(scene).draw_struct(type, value.get()))
             {
-                commands.execute_command(*scene, std::make_unique<engine::CommandUpdateTypedComponent>(*scene, entity, type, value.get()));
+                // with the components the new value requires (a script's config), in the same undo step
+                commands.execute_command(*scene, engine::make_update_typed_component_command(*scene, entity, type, value.get()));
             }
         }
     }

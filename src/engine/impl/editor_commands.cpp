@@ -1,4 +1,5 @@
 #include "editor_commands.h"
+#include "application.h"
 #include "copy_name.h"
 #include "logger.h"
 
@@ -154,6 +155,25 @@ void CommandUpdateTypedComponent::apply(Scene& sc, const ValueBuffer& value)
     {
         log_missing(type_.name);
     }
+}
+
+std::unique_ptr<ICommand> make_update_typed_component_command(Scene& sc, entt::entity e, const TypeInfo& type, const void* new_value)
+{
+    std::vector<std::unique_ptr<ICommand>> commands;
+    commands.push_back(std::make_unique<CommandUpdateTypedComponent>(sc, e, type, new_value));
+    for (const auto required : required_components(type, static_cast<const std::byte*>(new_value)))
+    {
+        const auto* required_type = sc.get_application()->get_type_registry().get(required);
+        if (required_type && !sc.has_component(*required_type, e))
+        {
+            commands.push_back(std::make_unique<CommandAddTypedComponent>(sc, e, *required_type));
+        }
+    }
+    if (commands.size() == 1)
+    {
+        return std::move(commands.front());
+    }
+    return std::make_unique<CommandSequence>(std::move(commands));
 }
 
 CommandAddTypedComponent::CommandAddTypedComponent(Scene& sc, entt::entity e, const TypeInfo& type)

@@ -195,6 +195,37 @@ private:
     ValueBuffer new_;
 };
 
+// Several steps as one undo step: executed in order, undone in reverse (e.g. a script set with the components it requires).
+class CommandSequence : public ICommand
+{
+public:
+    explicit CommandSequence(std::vector<std::unique_ptr<ICommand>> commands) : commands_(std::move(commands)) {}
+
+    void execute(Scene& sc) override
+    {
+        for (auto& command : commands_)
+        {
+            command->execute(sc);
+        }
+    }
+
+    void undo(Scene& sc) override
+    {
+        for (auto it = commands_.rbegin(); it != commands_.rend(); ++it)
+        {
+            (*it)->undo(sc);
+        }
+    }
+
+private:
+    std::vector<std::unique_ptr<ICommand>> commands_;
+};
+
+// Changes a component known only by its type description and adds the components its new value requires which the game
+// object doesn't have (engine::required_components: a script's config when the script component names it, like Unity's
+// RequireComponent), with their defaults, in one undo step.
+std::unique_ptr<ICommand> make_update_typed_component_command(Scene& sc, entt::entity e, const TypeInfo& type, const void* new_value);
+
 // Adds a component known only by its type description, with its default value; undo removes it.
 class CommandAddTypedComponent : public ICommand
 {

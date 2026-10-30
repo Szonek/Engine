@@ -607,4 +607,53 @@ TEST_F(GameTypesTest, IntegerRangesFitTheirType)
     EXPECT_FALSE(try_range(ENGINE_FIELD_KIND_UINT32, 0.0f, 5e9f));
     EXPECT_TRUE(test_logger::logged("doesn't fit its number type"));
 }
+
+// -- required components ---------------------------------------------------------------------------------------------
+
+// like the toolkit's script component: an enum whose values are script types, the second one requiring a config
+struct ScriptLike
+{
+    std::int32_t type;
+};
+
+TEST_F(GameTypesTest, EnumValueNamesTheComponentsItRequires)
+{
+    const auto* config = register_enemy_config();
+    ASSERT_NE(config, nullptr);
+    const engine_component_type_t required[] = { config->handle };
+    const engine_enum_value_desc_t scripts[] = { { "none", 0 }, { "enemy", 1, required, 1 }, { "chest", 2 } };
+    auto type_field = field("type", ENGINE_FIELD_KIND_ENUM, offsetof(ScriptLike, type));
+    type_field.enum_values = scripts;
+    type_field.enum_values_count = 3;
+    const auto* script = engine::register_game_type(types_, desc<ScriptLike>("script", { type_field }), true);
+    ASSERT_NE(script, nullptr);
+
+    const auto required_by = [script](std::int32_t value) {
+        const ScriptLike v{ value };
+        return engine::required_components(*script, reinterpret_cast<const std::byte*>(&v));
+    };
+    EXPECT_EQ(required_by(1), std::vector<std::uint32_t>{ config->handle });
+    EXPECT_TRUE(required_by(0).empty());
+    EXPECT_TRUE(required_by(2).empty());
+    // a value which isn't one of the enum's requires nothing
+    EXPECT_TRUE(required_by(7).empty());
+}
+
+TEST_F(GameTypesTest, RequiredComponentMustBeARegisteredGameComponent)
+{
+    register_struct_types();
+    const auto* circle = types_.find("circle");
+    ASSERT_NE(circle, nullptr);
+    for (const engine_component_type_t not_a_component : { circle->handle, engine_component_type_t{ 9999 } })
+    {
+        test_logger::messages().clear();
+        const engine_component_type_t required[] = { not_a_component };
+        const engine_enum_value_desc_t scripts[] = { { "none", 0 }, { "enemy", 1, required, 1 } };
+        auto type_field = field("type", ENGINE_FIELD_KIND_ENUM, offsetof(ScriptLike, type));
+        type_field.enum_values = scripts;
+        type_field.enum_values_count = 2;
+        EXPECT_EQ(engine::register_game_type(types_, desc<ScriptLike>("script", { type_field }), true), nullptr);
+        EXPECT_TRUE(test_logger::logged("isn't a registered game component"));
+    }
+}
 }  // namespace
