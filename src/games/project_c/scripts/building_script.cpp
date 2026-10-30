@@ -68,9 +68,16 @@ bool project_c::BuildingPart::is_climbable(const glm::vec3& surface_normal) cons
     {
         return false;
     }
-    if (cfg.climbable_from_outside_only && engineGameObjectHasParentComponent(go_))
+    // outside of the building: its first ancestor which isn't a building part (the house; a window's frames are under
+    // the window piece)
+    auto building = go_;
+    while (engineGameObjectHasParentComponent(building) && engineGameObjectHasDataComponent(building, game_components().building_part_config))
     {
-        const glm::vec3 outward = utils::get_world_position(go_) - utils::get_world_position(engineGameObjectGetParentComponent(go_).parent);
+        building = engineGameObjectGetParentComponent(building).parent;
+    }
+    if (cfg.climbable_from_outside_only && building != go_)
+    {
+        const glm::vec3 outward = utils::get_world_position(go_) - utils::get_world_position(building);
         return surface_normal.x * outward.x + surface_normal.z * outward.z > 0.0f;
     }
     return true;
@@ -221,8 +228,9 @@ project_c::House* project_c::build_house(engine::IScene& scene, AppProjectC& app
     engineGameObjectUpdateTransformComponent(house_go, &house_tc);
     auto* house = scene.attach_script<House>(house_go);
 
+    // a part placed in its parent's space (the house's, or the window piece's for its collision frames)
     auto add_part = [&](engine_game_object_t go, const char* name, const glm::vec3& position, float y_rotation_degrees, const glm::vec3& scale,
-        std::optional<Box> collider, const BuildingPartConfig& cfg)
+        std::optional<Box> collider, const BuildingPartConfig& cfg, engine_game_object_t parent)
         {
             set_name(go, name);
             auto tc = engineGameObjectHasTransformComponent(go) ? engineGameObjectGetTransformComponent(go) : engineGameObjectAddTransformComponent(go);
@@ -233,7 +241,7 @@ project_c::House* project_c::build_house(engine::IScene& scene, AppProjectC& app
             engineGameObjectUpdateTransformComponent(go, &tc);
 
             auto pc = engineGameObjectAddParentComponent(go);
-            pc.parent = house_go;
+            pc.parent = parent;
             engineGameObjectUpdateParentComponent(go, &pc);
 
             // the collider box is in the piece's mesh space
@@ -266,7 +274,7 @@ project_c::House* project_c::build_house(engine::IScene& scene, AppProjectC& app
             if (app.is_prefab_available(PREFAB_TYPE_BUILDING_WALL))
             {
                 add_part(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WALL).go, "house-wall", position, y_rotation_degrees, scale, WALL_BOX,
-                    part_config(true, camera_facing, false));
+                    part_config(true, camera_facing, false), house_go);
             }
         };
     auto add_window_wall = [&](const glm::vec3& position, float y_rotation_degrees, const glm::vec3& scale, bool camera_facing)
@@ -276,13 +284,14 @@ project_c::House* project_c::build_house(engine::IScene& scene, AppProjectC& app
                 return;
             }
             // visible piece, without collider
-            add_part(app.instantiate_prefab(PREFAB_TYPE_BUILDING_WINDOW).go, "house-window", position, y_rotation_degrees, scale, std::nullopt,
-                part_config(false, camera_facing, false));
+            const auto window = app.instantiate_prefab(PREFAB_TYPE_BUILDING_WINDOW).go;
+            add_part(window, "house-window", position, y_rotation_degrees, scale, std::nullopt, part_config(false, camera_facing, false), house_go);
 
-            // invisible collision frame around the opening, aligning traversal to the opening
+            // invisible collision frame around the opening, aligning traversal to the opening: children of the visible
+            // piece (at its origin, the boxes in its mesh space), so moving the window moves what the player climbs through
             for (const auto& box : WINDOW_FRAME_BOXES)
             {
-                add_part(engineGameObjectCreate(), "house-window-frame", position, y_rotation_degrees, scale, box, part_config(true, false, true));
+                add_part(engineGameObjectCreate(), "house-window-frame", glm::vec3(0.0f), 0.0f, glm::vec3(1.0f), box, part_config(true, false, true), window);
             }
         };
 
@@ -312,7 +321,7 @@ project_c::House* project_c::build_house(engine::IScene& scene, AppProjectC& app
         auto roof = part_config(false, false, false);
         roof.hide_when_inside = BUILDING_PART_HIDE_MESH_AND_COLLIDER;
         add_part(app.instantiate_prefab(PREFAB_TYPE_BUILDING_ROOF).go, "house-roof", glm::vec3(0.0f, House::wall_height, 0.0f), 0.0f,
-            glm::vec3(roof_xz_scale, roof_y_scale, roof_xz_scale), ROOF_BOX, roof);
+            glm::vec3(roof_xz_scale, roof_y_scale, roof_xz_scale), ROOF_BOX, roof, house_go);
     }
     return house;
 }

@@ -246,13 +246,52 @@ TEST_F(HouseTest, PartsAreLevelContentUnderTheHouse)
     step();
 
     const auto children = project_c::utils::get_children(house->get_game_object());
-    // 8 wall pieces (one with the window) + 4 window frame blockers + the roof
-    EXPECT_EQ(children.size(), 13u);
+    // 8 wall pieces (one with the window) + the roof; the 4 window frame blockers are under the window piece
+    EXPECT_EQ(children.size(), 9u);
     for (const auto child : children)
     {
         EXPECT_NE(scene->get_script<project_c::BuildingPart>(child), nullptr);
         EXPECT_FALSE(engineGameObjectIsTransient(child));
     }
+    const auto* window = part_named(*scene, *house, "house-window");
+    ASSERT_NE(window, nullptr);
+    const auto frames = project_c::utils::get_children(window->get_game_object());
+    EXPECT_EQ(frames.size(), 4u);
+    for (const auto frame : frames)
+    {
+        EXPECT_NE(scene->get_script<project_c::BuildingPart>(frame), nullptr);
+        EXPECT_FALSE(engineGameObjectIsTransient(frame));
+    }
+}
+
+TEST_F(HouseTest, WindowFramesMoveWithTheWindow)
+{
+    auto* scene = load_sandbox_scene();
+    scene->build().floor_area(-4.0f, -4.0f, 4.0f, 4.0f);
+    auto* house = scene->build().house(0.0f, 0.0f, GROUND_Y);
+    ASSERT_NE(house, nullptr);
+    step();
+    const auto* window = part_named(*scene, *house, "house-window");
+    ASSERT_NE(window, nullptr);
+    const auto frames = project_c::utils::get_children(window->get_game_object());
+    ASSERT_FALSE(frames.empty());
+    auto* frame = scene->get_script<project_c::BuildingPart>(frames.front());
+    ASSERT_NE(frame, nullptr);
+    // the frames are climbed from outside of the house only (the window is in the south wall, +z)
+    EXPECT_TRUE(frame->is_climbable({ 0.0f, 0.0f, 1.0f }));
+    EXPECT_FALSE(frame->is_climbable({ 0.0f, 0.0f, -1.0f }));
+
+    // the designer moves the window piece: what the player climbs through moves with it
+    auto tc = engineGameObjectGetTransformComponent(window->get_game_object());
+    tc.position[0] += 3.0f;
+    engineGameObjectUpdateTransformComponent(window->get_game_object(), &tc);
+    step();
+    const auto window_position = project_c::utils::get_world_position(window->get_game_object());
+    const auto frame_position = project_c::utils::get_world_position(frames.front());
+    EXPECT_NEAR(frame_position.x, window_position.x, 1e-4f);
+    EXPECT_NEAR(frame_position.z, window_position.z, 1e-4f);
+    ASSERT_TRUE(frame->get_alignment_point().has_value());
+    EXPECT_NEAR(frame->get_alignment_point()->x, window_position.x, 1e-4f);
 }
 
 TEST_F(HouseTest, RoofAndCameraFacingWallHideWhilePlayerIsInside)
