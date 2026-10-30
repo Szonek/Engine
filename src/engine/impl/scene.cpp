@@ -105,7 +105,7 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     // connects its listeners before the initializers below: EnTT calls them last-connected first, so its listeners run after them
     , physics_(entity_registry_,
         [this](const engine_joint_attachment_component_t& joint_attachment) { return get_joint_matrix(joint_attachment); },
-        [this]() { const auto* editor = dynamic_cast<const ApplicationEditor*>(app_); return editor && !editor->is_playing(); })
+        [this]() { return dynamic_cast<const ApplicationEditor*>(app_) && !app_->is_playing(); })
     , prefabs_(*app, *this, entity_registry_, assets_)
 {
     // the first entity EnTT creates is 0: reserve it, so that no game object has the value of ENGINE_INVALID_GAME_OBJECT_ID

@@ -196,8 +196,45 @@ bool engineEditorIsPlaying()
     {
         return true;
     }
-    const auto editor = dynamic_cast<engine::ApplicationEditor*>(api_cast(G_ACTIVE_APP));
-    return editor ? editor->is_playing() : true;
+    return api_cast(G_ACTIVE_APP)->is_playing();
+}
+
+engine_play_mode_state_t enginePlayModeGetState()
+{
+    return G_ACTIVE_APP ? api_cast(G_ACTIVE_APP)->get_play_mode_state() : ENGINE_PLAY_MODE_PLAYING;
+}
+
+engine_result_code_t enginePlayModeEnter()
+{
+    if (!G_ACTIVE_APP || !G_ACTIVE_SCENE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    return api_cast(G_ACTIVE_APP)->enter_play_mode(*api_cast(G_ACTIVE_SCENE));
+}
+
+engine_result_code_t enginePlayModeSetPaused(bool paused)
+{
+    return G_ACTIVE_APP ? api_cast(G_ACTIVE_APP)->set_play_mode_paused(paused) : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t enginePlayModeStep()
+{
+    return G_ACTIVE_APP ? api_cast(G_ACTIVE_APP)->step_play_mode() : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t enginePlayModeExit()
+{
+    if (!G_ACTIVE_APP || !G_ACTIVE_SCENE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    return api_cast(G_ACTIVE_APP)->exit_play_mode(*api_cast(G_ACTIVE_SCENE));
+}
+
+uint32_t enginePlayModeGetSessionCount()
+{
+    return G_ACTIVE_APP ? api_cast(G_ACTIVE_APP)->get_play_session_count() : 0;
 }
 
 bool engineEditorIsGameView()

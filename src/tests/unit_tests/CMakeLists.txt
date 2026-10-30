@@ -24,6 +24,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	editor_camera_tests.cpp
 	editor_modal_transform_tests.cpp
 	editor_asset_browser_tests.cpp
+	play_mode_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
@@ -59,6 +60,9 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	# what the editor's asset browser lists and how it names what it drags (std::filesystem + glm)
 	${ENGINE_IMPL_DIR}/editor_asset_browser.cpp
 	${ENGINE_IMPL_DIR}/editor_asset_browser.h
+	# the play state and the snapshot taken at Play (the caller saves and loads the scene)
+	${ENGINE_IMPL_DIR}/play_mode.cpp
+	${ENGINE_IMPL_DIR}/play_mode.h
 	# type registry, the engine's component descriptions, game-defined types and scene files (EnTT registry + rapidjson)
 	${ENGINE_IMPL_DIR}/serialization/type_registry.cpp
 	${ENGINE_IMPL_DIR}/serialization/type_registry.h

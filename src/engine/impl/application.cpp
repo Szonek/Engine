@@ -139,6 +139,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, R
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
     , ui_manager_(rdx_)
     , renderer_(rdx_)
+    , play_mode_(desc.enable_editor || desc.play_mode_control)
 {
     if (desc.max_delta_time > 0.0f)
     {
@@ -217,6 +218,8 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     engine_application_frame_begine_info_t ret{};
     ret.delta_time = std::min(static_cast<float>(timer_.delta_time().count()) / 1000.0f, max_delta_time_);
     ret.events = ENGINE_EVENT_NONE;
+    // a step asked for while paused plays this frame
+    play_mode_.begin_frame();
 
     // the data assets whose files changed (the editor watches them), before anything reads them this frame
     if (data_assets_changed_.exchange(false))
@@ -318,6 +321,40 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
 
     on_frame_begine(ret);
 	return ret;
+}
+
+engine_result_code_t engine::Application::enter_play_mode(Scene& scene)
+{
+    const auto entered = play_mode_.enter([&scene]() { return PlaySnapshot{ scene.save(), scene.get_nav_mesh() != nullptr }; });
+    return entered ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engine::Application::set_play_mode_paused(bool paused)
+{
+    return play_mode_.set_paused(paused) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engine::Application::step_play_mode()
+{
+    return play_mode_.step() ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engine::Application::exit_play_mode(Scene& scene)
+{
+    const auto exited = play_mode_.exit([&scene](const PlaySnapshot& snapshot)
+        {
+            if (!scene.replace(snapshot.scene, "play mode snapshot"))
+            {
+                log::log(log::LogLevel::eError, "Play mode: the scene saved at Play couldn't be loaded back.\n");
+                return;
+            }
+            // derived data, gone with its game object
+            if (snapshot.had_nav_mesh)
+            {
+                scene.build_nav_mesh();
+            }
+        });
+    return exited ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()

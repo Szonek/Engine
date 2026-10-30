@@ -1215,6 +1215,10 @@ void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
 void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_pre");
+    if (std::exchange(play_requested_, false))
+    {
+        enter_play_mode(*scene);
+    }
     if (mouse_consumed_ && !any_mouse_button_down(ImGui::GetIO()))
     {
         mouse_consumed_ = false;
@@ -1224,7 +1228,7 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
         // before the scene update, so this frame renders the preview
         handle_modal_transform(scene);
         const bool camera_accepts_input = !modal_transform_ && !mouse_consumed_;
-        camera_context_.on_scene_update_pre(scene, is_playing_ ? delta_time : frame_delta_time_, scene_hierarchy_context_.get_selected_entity(), camera_accepts_input);
+        camera_context_.on_scene_update_pre(scene, is_playing() ? delta_time : frame_delta_time_, scene_hierarchy_context_.get_selected_entity(), camera_accepts_input);
     }
     else if (modal_transform_)
     {
@@ -1361,9 +1365,20 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* /*scene*/, f
         editor_view_ = EditorView::eEditor;
     }
     ImGui::SameLine();
-    if (ImGui::Button(is_playing_ ? "Pause" : "Play"))
+    // the game plays from the start; Pause stops the scripts (Play in Edit mode starts a play session)
+    const auto play_mode = get_play_mode_state();
+    if (ImGui::Button(play_mode == ENGINE_PLAY_MODE_PLAYING ? "Pause" : "Play"))
     {
-        is_playing_ = !is_playing_;
+        if (play_mode == ENGINE_PLAY_MODE_EDIT)
+        {
+            // at the start of the next scene update: the editor camera disabled the scene's cameras for this one, the
+            // scene saved at Play would keep them disabled
+            play_requested_ = true;
+        }
+        else
+        {
+            set_play_mode_paused(play_mode == ENGINE_PLAY_MODE_PLAYING);
+        }
     }
     ImGui::End();
 }

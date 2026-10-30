@@ -82,7 +82,6 @@ public:
     ApplicationEditor(ApplicationEditor&&) = delete;
     ApplicationEditor& operator=(ApplicationEditor&&) = delete;
     ~ApplicationEditor();
-    bool is_playing() const { return is_playing_; }
     bool is_game_view() const;
     // The mouse is over the scene panel (or a button pressed over it is still held), not over another editor panel.
     bool is_mouse_over_scene() const;
@@ -192,9 +191,9 @@ private:
     EditorView editor_view_ = EditorView::eGame;
     EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;
-    // the game runs from the start; Pause stops the scripts
-    bool is_playing_ = true;
     float frame_delta_time_ = 0.0f;
+    // Play was pressed in Edit mode: the play session starts with the next scene update
+    bool play_requested_ = false;
     CommandManager commands_;
     std::shared_ptr<OutlineFeature> outline_feature_;
     std::shared_ptr<GridFeature> grid_feature_;

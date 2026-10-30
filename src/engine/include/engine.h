@@ -98,12 +98,23 @@ typedef struct _engine_application_create_desc_t
     // the longest frame time engineFrameBegin reports, in milliseconds (like Unity's Maximum Allowed Timestep): after a
     // long frame (loading, a breakpoint) the game runs slower instead of jumping ahead. 0 means 1000 / 3.
     float max_delta_time;
+    // without the editor the application always plays; with this, enginePlayModeExit is allowed too (tests stopping
+    // and starting play sessions, see enginePlayModeGetState)
+    bool play_mode_control;
 } engine_application_create_desc_t;
 
 typedef struct _engine_scene_create_desc_t
 {
     uint32_t reserved;  // no options yet; C has no empty structs
 } engine_scene_create_desc_t;
+
+// see enginePlayModeGetState
+typedef enum _engine_play_mode_state_t
+{
+    ENGINE_PLAY_MODE_EDIT = 0,
+    ENGINE_PLAY_MODE_PLAYING = 1,
+    ENGINE_PLAY_MODE_PAUSED = 2,
+} engine_play_mode_state_t;
 
 typedef enum _engine_begin_frame_event_flags_t
 {
@@ -518,8 +529,27 @@ ENGINE_API engine_result_code_t engineApplicationSetActive(engine_application_t 
 
 // editor
 ENGINE_API bool engineEditorIsEnabled();
+// whether the game plays this frame (scripts tick): play mode is Playing, or Paused with a step taken this frame
 ENGINE_API bool engineEditorIsPlaying();
 ENGINE_API bool engineEditorIsGameView();
+
+// Play mode, like Unity's EditorApplication.EnterPlaymode / isPaused / Step / ExitPlaymode, which its tests use too:
+// Edit -> Playing (enginePlayModeEnter) saves the active scene in memory; Playing <-> Paused keeps everything;
+// Playing or Paused -> Edit (enginePlayModeExit, Stop) throws the play session away: the active scene is cleared (every
+// game object but the editor's, runtime ones too) and the scene saved at Play is loaded back, with the same persistent
+// IDs and new handles (a handle kept from the play session finds nothing), and its nav mesh built again when it had
+// one. Only the edit state is ever saved. The application starts Playing (a session without a snapshot, whose Stop
+// leaves the scene as it is); without the editor or play_mode_control (engine_application_create_desc_t) it never
+// stops. The calls fail (logged) where the transition doesn't exist: Enter while playing, Pause or Exit in Edit, Step
+// when not paused.
+ENGINE_API engine_play_mode_state_t enginePlayModeGetState();
+ENGINE_API engine_result_code_t enginePlayModeEnter();
+ENGINE_API engine_result_code_t enginePlayModeSetPaused(bool paused);
+// while paused, the next frame plays (engineEditorIsPlaying is true for it)
+ENGINE_API engine_result_code_t enginePlayModeStep();
+ENGINE_API engine_result_code_t enginePlayModeExit();
+// the number of play sessions which ended (enginePlayModeExit), so a caller notices a Stop without a callback
+ENGINE_API uint32_t enginePlayModeGetSessionCount();
 
 // scene
 ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_create_desc_t desc, engine_scene_t* out);

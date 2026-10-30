@@ -28,6 +28,8 @@ struct AppConfig
 {
     bool enable_editor = true;
     bool hidden_window = false;
+    // without the editor the game always plays; tests set this to stop and start play sessions (enginePlayModeExit)
+    bool play_mode_control = false;
     bool vsync = true;
     // window size in pixels; 0 = the game's default
     std::uint32_t window_width = 0;

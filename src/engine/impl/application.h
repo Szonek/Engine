@@ -11,6 +11,7 @@
 #include "animation_controller.h"
 #include "prefab.h"
 #include "data_asset.h"
+#include "play_mode.h"
 #include "serialization/type_registry.h"
 #include "render/renderer.h"
 
@@ -102,6 +103,17 @@ public:
     virtual std::string get_shader_name(std::uint32_t idx) const;
     virtual void release_shader(std::uint32_t idx);
 
+    // play mode (see enginePlayModeGetState); Enter saves `scene` and Exit loads it back into `scene`: the active one,
+    // which may be another scene than at Enter (the game replaced its scene while playing)
+    engine_play_mode_state_t get_play_mode_state() const { return play_mode_.get_state(); }
+    // whether the game plays this frame (scripts tick)
+    bool is_playing() const { return play_mode_.is_playing(); }
+    std::uint32_t get_play_session_count() const { return play_mode_.get_session_count(); }
+    engine_result_code_t enter_play_mode(class Scene& scene);
+    engine_result_code_t set_play_mode_paused(bool paused);
+    engine_result_code_t step_play_mode();
+    engine_result_code_t exit_play_mode(class Scene& scene);
+
     // the types scene files hold (see serialization/scene_serializer.h)
     const TypeRegistry& get_type_registry() const { return types_; }
     // a type the game describes, see register_game_type; nullptr (logged) when the description has a mistake
@@ -171,6 +183,8 @@ protected:
     engine_fvec2_t last_game_mouse_coords_{ 0.5f, 0.5f };
 
     Renderer renderer_;
+    // with the editor or play_mode_control, play sessions can be stopped
+    PlayMode play_mode_;
 };
 
 }  // namespace engine
