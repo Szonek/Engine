@@ -195,6 +195,23 @@ void engine::AssetBrowserPanel::select(const asset_entry_t& entry)
     }
 }
 
+std::string engine::AssetBrowserPanel::get_selected_asset() const
+{
+    return selected_ ? selected_->path : std::string();
+}
+
+void engine::AssetBrowserPanel::set_selected_asset(const std::string& path)
+{
+    if (path.empty())
+    {
+        clear_selection();
+        return;
+    }
+    // only files are selected (a folder opens instead)
+    const auto name = std::filesystem::path(path).filename().generic_string();
+    select({ name, path, get_asset_file_kind(path, false) });
+}
+
 void engine::AssetBrowserPanel::refresh()
 {
     folders_.clear();
@@ -234,7 +251,7 @@ const std::vector<engine::asset_entry_t>& engine::AssetBrowserPanel::get_folder(
     return it->second;
 }
 
-bool engine::AssetBrowserPanel::draw()
+std::optional<std::string> engine::AssetBrowserPanel::draw()
 {
     if (ImGui::Button("Refresh"))
     {
@@ -244,7 +261,7 @@ bool engine::AssetBrowserPanel::draw()
     ImGui::SameLine();
     draw_path_bar();
 
-    const auto previous = selected_ ? selected_->path : std::string();
+    std::optional<std::string> clicked;
     if (ImGui::BeginTable("##asset_browser", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV))
     {
         ImGui::TableSetupColumn("Folders", ImGuiTableColumnFlags_WidthFixed, 220.0f);
@@ -259,12 +276,12 @@ bool engine::AssetBrowserPanel::draw()
         ImGui::TableNextColumn();
         if (ImGui::BeginChild("##files"))
         {
-            draw_files();
+            clicked = draw_files();
         }
         ImGui::EndChild();
         ImGui::EndTable();
     }
-    return selected_ && selected_->path != previous;
+    return clicked;
 }
 
 void engine::AssetBrowserPanel::draw_path_bar()
@@ -327,9 +344,10 @@ void engine::AssetBrowserPanel::draw_folder_tree(const std::string& folder, std:
     }
 }
 
-void engine::AssetBrowserPanel::draw_files()
+std::optional<std::string> engine::AssetBrowserPanel::draw_files()
 {
     std::optional<std::string> open_folder;
+    std::optional<std::string> clicked;
     const auto icon_size = ImGui::GetTextLineHeight();
     for (const auto& entry : get_folder(current_folder_))
     {
@@ -379,7 +397,7 @@ void engine::AssetBrowserPanel::draw_files()
             }
             else if (!is_selected)
             {
-                select(entry);
+                clicked = entry.path;
             }
         }
         const auto* payload_type = get_payload_type(entry.kind);
@@ -403,6 +421,7 @@ void engine::AssetBrowserPanel::draw_files()
         current_folder_ = *open_folder;
         reveal_current_folder_ = true;
     }
+    return clicked;
 }
 
 void engine::AssetBrowserPanel::draw_inspector()

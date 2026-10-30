@@ -1480,11 +1480,8 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
         - the one which are available in the entity (whatever color) and a "-" button to remove them
     */
     ImGui::Begin(editor_windows_context_.get_window_right());
-    // the last selection is shown, like Unity's inspector: selecting a file deselects the game object
-    if (scene_hierarchy_context_.has_selected_entity())
-    {
-        asset_browser_.clear_selection();
-    }
+    // one thing is selected, like in Unity's inspector: a file or a game object (selecting one deselects the other,
+    // CommandSetSelection)
     if (asset_browser_.has_selection())
     {
         ImGui::SeparatorText("Asset properties.");
@@ -1536,9 +1533,11 @@ void engine::ApplicationEditor::render_asset_browser_panel(Scene* scene)
 {
     ENGINE_PROFILE_SECTION_N("editor-render_asset_browser_panel");
     ImGui::Begin(editor_windows_context_.get_window_down());
-    if (asset_browser_.draw())
+    if (const auto clicked = asset_browser_.draw())
     {
-        scene_hierarchy_context_.set_selected_entity(scene, entt::null, commands_);
+        // the file in place of the game object, one undo step which gives the game object back
+        commands_.execute_command(std::make_unique<CommandSetSelection>(*scene, asset_browser_, scene_hierarchy_context_.get_selected_entity(), entt::null, *clicked));
+        scene_hierarchy_context_.sync_selected_from_scene(scene);
     }
     ImGui::End();
 }
@@ -1587,7 +1586,7 @@ void engine::ApplicationEditor::handle_asset_drop(Scene* scene)
             const float max_distance = scene->get_component<engine_camera_component_t>(camera_entity)->clip_plane_far;
             const auto position = scene->physics().raycast(origin, direction, max_distance, {}, false, hit)
                 ? glm::vec3(hit.position[0], hit.position[1], hit.position[2]) : get_ground_point(origin, direction, max_distance);
-            commands_.execute_command(std::make_unique<CommandPlacePrefab>(*scene, static_cast<const char*>(payload->Data), position,
+            commands_.execute_command(std::make_unique<CommandPlacePrefab>(*scene, asset_browser_, static_cast<const char*>(payload->Data), position,
                 scene_hierarchy_context_.get_selected_entity()));
             scene_hierarchy_context_.sync_selected_from_scene(scene);
             scene_hierarchy_context_.set_forced_open_selected_parents(true);
@@ -2253,7 +2252,8 @@ void engine::SceneHierarchyContext::set_selected_entity(engine::Scene* scene, en
     {
         return;
     }
-    commands.execute_command(std::make_unique<engine::CommandSetSelectedEntity>(*scene, selected_, e));
+    // while a game object is selected, no file is: selecting one (from none) deselects the file in the same undo step
+    commands.execute_command(std::make_unique<engine::CommandSetSelection>(*scene, assets_, selected_, e, ""));
     selected_ = e;
 }
 

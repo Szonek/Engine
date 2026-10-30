@@ -47,6 +47,10 @@ private:
 class SceneHierarchyContext
 {
 public:
+    // `assets` (the asset browser's selection) must outlive the context
+    explicit SceneHierarchyContext(IAssetSelection& assets) : assets_(assets) {}
+
+    // selects the game object (entt::null for none) with an undo step; selecting one deselects the selected file
     void set_selected_entity(engine::Scene* scene, entt::entity e, CommandManager& commands);
     entt::entity get_selected_entity() const;
     bool has_selected_entity() const;
@@ -61,6 +65,7 @@ public:
     entt::entity take_delete_without_undo_request();
 
 private:
+    IAssetSelection& assets_;
     entt::entity selected_ = entt::null;
     bool force_open_selected_parents_ = false;
     entt::entity delete_without_undo_ = entt::null;
@@ -200,9 +205,10 @@ private:
     // a mouse button pressed over the scene panel is still held
     bool scene_view_mouse_held_ = false;
     bool scene_view_focused_ = false;
-    SceneHierarchyContext scene_hierarchy_context_;
-    // the properties panel shows the file selected in it while no game object is selected
+    // the properties panel shows the file selected in it while no game object is selected (selecting one deselects the
+    // other); before the hierarchy context, which uses its selection
     AssetBrowserPanel asset_browser_{ *this };
+    SceneHierarchyContext scene_hierarchy_context_{ asset_browser_ };
     // the game object whose delete without undo waits for its confirmation
     entt::entity delete_without_undo_ = entt::null;
 };

@@ -25,24 +25,30 @@ class Application;
 // game object's fields.
 // Selecting a model or an image, or opening a model, loads it to show what it holds, and holds it until the selection
 // changes or the model is closed. The folders are listed once and again after Refresh.
-class AssetBrowserPanel
+// The selection is the editor's (IAssetSelection): a click asks for it, and the editor selects the file with an undo
+// step which deselects the game object.
+class AssetBrowserPanel : public IAssetSelection
 {
 public:
     // `app` must outlive the panel
     explicit AssetBrowserPanel(Application& app);
     AssetBrowserPanel(const AssetBrowserPanel&) = delete;
     AssetBrowserPanel& operator=(const AssetBrowserPanel&) = delete;
-    ~AssetBrowserPanel();
+    ~AssetBrowserPanel() override;
 
-    // The panel's contents, in the current ImGui window. True when a file was selected in it this frame.
-    bool draw();
+    // The panel's contents, in the current ImGui window. The path of the file clicked this frame when it isn't the
+    // selected one, for the editor to select.
+    std::optional<std::string> draw();
     // the selected file's details, in the current ImGui window
     void draw_inspector();
 
     bool has_selection() const { return selected_.has_value(); }
-    void clear_selection();
+    std::string get_selected_asset() const override;
+    // selects the file (a path under assets/), or nothing for ""
+    void set_selected_asset(const std::string& path) override;
 
 private:
+    void clear_selection();
     // what a loaded model holds, listed once when it is loaded: its assets live as long as the panel holds the prefab
     struct model_contents_t
     {
@@ -68,7 +74,8 @@ private:
     const std::vector<asset_entry_t>& get_folder(const std::string& folder);
     void draw_folder_tree(const std::string& folder, std::string_view name);
     void draw_path_bar();
-    void draw_files();
+    // the path of the file clicked when it isn't the selected one
+    std::optional<std::string> draw_files();
     void select(const asset_entry_t& entry);
     void draw_model_details();
     void draw_texture_details();

@@ -34,6 +34,17 @@ struct asset_entry_t
 // `path` relative to the assets folder, '/' separated
 AssetFileKind get_asset_file_kind(std::string_view path, bool is_folder);
 
+// The file selected in the editor's asset browser (AssetBrowserPanel), by its path under assets/ ("" for none), for the
+// selection commands (CommandSetSelection): the editor selects one thing, a game object or a file, so selecting one
+// deselects the other in the same undo step.
+class IAssetSelection
+{
+public:
+    virtual ~IAssetSelection() = default;
+    virtual std::string get_selected_asset() const = 0;
+    virtual void set_selected_asset(const std::string& path) = 0;
+};
+
 // The folders and files directly in `folder` (relative to `assets_root`, "" for the root itself): the folders first,
 // then the files, each by name ignoring case. glTF buffers (.bin) are left out: they are part of their .gltf model.
 // Nothing when the folder doesn't exist.

@@ -10,38 +10,48 @@
 
 namespace engine
 {
-CommandSetSelectedEntity::CommandSetSelectedEntity(Scene& sc, entt::entity prev_selected, entt::entity new_selected)
+CommandSetSelection::CommandSetSelection(Scene& sc, entt::entity prev_selected, entt::entity new_selected)
     : sc_(sc)
     , e_prev_(prev_selected)
     , e_new_(new_selected)
 {
 }
 
-void CommandSetSelectedEntity::execute()
+CommandSetSelection::CommandSetSelection(Scene& sc, IAssetSelection& assets, entt::entity prev_selected, entt::entity new_selected, std::string_view new_asset)
+    : sc_(sc)
+    , e_prev_(prev_selected)
+    , e_new_(new_selected)
+    , assets_(&assets)
+    , asset_prev_(assets.get_selected_asset())
+    , asset_new_(new_asset)
 {
-    if (e_prev_ != entt::null)
-    {
-        sc_.remove_component<engine::guizmo_component_t>(e_prev_);
-        sc_.remove_component<engine::outline_component_t>(e_prev_);
-    }
-    if (e_new_ != entt::null)
-    {
-        sc_.add_component<engine::guizmo_component_t>(e_new_);
-        sc_.add_component<engine::outline_component_t>(e_new_);
-    }
 }
 
-void CommandSetSelectedEntity::undo()
+void CommandSetSelection::execute()
 {
-    if (e_new_ != entt::null)
+    select(e_prev_, e_new_, asset_new_);
+}
+
+void CommandSetSelection::undo()
+{
+    select(e_new_, e_prev_, asset_prev_);
+}
+
+void CommandSetSelection::select(entt::entity deselected, entt::entity selected, const std::string& asset)
+{
+    if (deselected != entt::null)
     {
-        sc_.remove_component<engine::guizmo_component_t>(e_new_);
-        sc_.remove_component<engine::outline_component_t>(e_new_);
+        sc_.remove_component<engine::guizmo_component_t>(deselected);
+        sc_.remove_component<engine::outline_component_t>(deselected);
     }
-    if (e_prev_ != entt::null)
+    if (selected != entt::null)
     {
-        sc_.add_component<engine::guizmo_component_t>(e_prev_);
-        sc_.add_component<engine::outline_component_t>(e_prev_);
+        sc_.add_component<engine::guizmo_component_t>(selected);
+        sc_.add_component<engine::outline_component_t>(selected);
+    }
+    if (assets_ && assets_->get_selected_asset() != asset)
+    {
+        assets_->set_selected_asset(asset);
     }
 }
 
@@ -388,11 +398,12 @@ void CommandDuplicateEntity::duplicate()
     }
 
     destroy_copy_ = std::make_unique<CommandDestroyEntity>(scene_, copy_);
-    select_copy_ = std::make_unique<CommandSetSelectedEntity>(scene_, selected_, copy_);
+    select_copy_ = std::make_unique<CommandSetSelection>(scene_, selected_, copy_);
 }
 
-CommandPlacePrefab::CommandPlacePrefab(Scene& sc, std::string_view prefab_asset_id, const glm::vec3& position, entt::entity selected)
+CommandPlacePrefab::CommandPlacePrefab(Scene& sc, IAssetSelection& assets, std::string_view prefab_asset_id, const glm::vec3& position, entt::entity selected)
     : scene_(sc)
+    , assets_(assets)
     , asset_id_(prefab_asset_id)
     , position_(position)
     , selected_(selected)
@@ -450,7 +461,8 @@ void CommandPlacePrefab::place()
     make_name_unique_among_siblings(scene_, root_);
 
     destroy_instance_ = std::make_unique<CommandDestroyEntity>(scene_, root_);
-    select_instance_ = std::make_unique<CommandSetSelectedEntity>(scene_, selected_, root_);
+    // the file selected before (the one dragged in, often) comes back with undo
+    select_instance_ = std::make_unique<CommandSetSelection>(scene_, assets_, selected_, root_, "");
 }
 
 
