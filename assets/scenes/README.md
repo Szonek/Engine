@@ -75,9 +75,10 @@ keeps the default, a reference to a game object that isn't in the file is none, 
 found is none. A game object whose ID is used already gets a new one and the file's references follow it.
 
 Components are added type by type in the engine's load order (transforms and parents first), the way the C API adds
-them. Scripts are created from the `script` components at the scene's next update; the nav mesh isn't saved, the level
-builds it after loading (`engineNavMeshBuild`), and the level spawns the player at the `player_start` of the entrance
-the player comes through (`"default"` when the game starts).
+them. Scripts are created from the `script` components when a play session starts (in the editor: Play; in Edit mode
+they are data only); the nav mesh isn't saved, the level builds it after loading (`engineNavMeshBuild`), and when a
+play session starts the level spawns the player at the `player_start` of the entrance the player comes through
+(`"default"` when the game starts).
 
 ## Levels and their exits
 

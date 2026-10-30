@@ -20,6 +20,7 @@ add_executable(${SCENARIO_TESTS_NAME}
 	level_tests.cpp
 	physics_tests.cpp
 	play_mode_tests.cpp
+	play_session_tests.cpp
 	prefab_tests.cpp
 	scene_file_tests.cpp
 	script_component_tests.cpp
