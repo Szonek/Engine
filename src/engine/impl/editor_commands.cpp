@@ -17,6 +17,24 @@ void log_missing(std::string_view command)
     log::log(log::LogLevel::eError, fmt::format("Editor: the game object of an undo step ({}) isn't in the scene any more; it is skipped.\n", command));
 }
 
+void set_selection_markers(Scene& sc, entt::entity e, bool selected)
+{
+    if (e == entt::null || sc.has_component<engine::guizmo_component_t>(e) == selected)
+    {
+        return;
+    }
+    if (selected)
+    {
+        sc.add_component<engine::guizmo_component_t>(e);
+        sc.add_component<engine::outline_component_t>(e);
+    }
+    else
+    {
+        sc.remove_component<engine::guizmo_component_t>(e);
+        sc.remove_component<engine::outline_component_t>(e);
+    }
+}
+
 CommandSetSelection::CommandSetSelection(Scene& sc, entt::entity prev_selected, entt::entity new_selected)
     : prev_(sc.make_ref(prev_selected))
     , new_(sc.make_ref(new_selected))
@@ -44,17 +62,8 @@ void CommandSetSelection::undo(Scene& sc)
 
 void CommandSetSelection::select(Scene& sc, const GameObjectRef& deselected, const GameObjectRef& selected, const std::string& asset)
 {
-    // the selection markers are internal: a game object loaded back (Stop, undo of a delete) has none
-    if (const auto e = sc.resolve(deselected); e != entt::null && sc.has_component<engine::guizmo_component_t>(e))
-    {
-        sc.remove_component<engine::guizmo_component_t>(e);
-        sc.remove_component<engine::outline_component_t>(e);
-    }
-    if (const auto e = sc.resolve(selected); e != entt::null && !sc.has_component<engine::guizmo_component_t>(e))
-    {
-        sc.add_component<engine::guizmo_component_t>(e);
-        sc.add_component<engine::outline_component_t>(e);
-    }
+    set_selection_markers(sc, sc.resolve(deselected), false);
+    set_selection_markers(sc, sc.resolve(selected), true);
     if (assets_ && assets_->get_selected_asset() != asset)
     {
         assets_->set_selected_asset(asset);

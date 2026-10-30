@@ -104,7 +104,8 @@ public:
     virtual void release_shader(std::uint32_t idx);
 
     // play mode (see enginePlayModeGetState); Enter saves `scene` and Exit loads it back into `scene`: the active one,
-    // which may be another scene than at Enter (the game replaced its scene while playing)
+    // which may be another scene than at Enter (the game replaced its scene while playing). Enter and Exit are refused
+    // (logged) during a scene update, when the editor has changed the scene for it (see update_scene).
     engine_play_mode_state_t get_play_mode_state() const { return play_mode_.get_state(); }
     // whether the game plays this frame (scripts tick)
     bool is_playing() const { return play_mode_.is_playing(); }
@@ -147,6 +148,8 @@ protected:
     virtual void on_scene_release(class Scene* /*scene*/) {}
     virtual void on_scene_update_pre(class Scene* /*scene*/, float /*delta_time*/) {}
     virtual void on_scene_update_post(class Scene* /*scene*/, float /*delta_time*/) {}
+    // a play session ended (Stop): `scene` holds the edit state again
+    virtual void on_play_mode_exit(class Scene* /*scene*/) {}
 
 private:
     // reads the data assets whose files changed again
@@ -185,6 +188,11 @@ protected:
     Renderer renderer_;
     // with the editor or play_mode_control, play sessions can be stopped
     PlayMode play_mode_;
+    // inside update_scene's scene update, see enter_play_mode
+    bool scene_update_running_ = false;
+
+private:
+    bool is_play_mode_change_allowed() const;
 };
 
 }  // namespace engine

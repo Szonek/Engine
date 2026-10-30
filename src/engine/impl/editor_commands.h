@@ -13,9 +13,10 @@ namespace engine
 {
 
 // An undo step. Commands refer to game objects with GameObjectRef (by persistent ID), never by handle, and get the scene
-// when they run: they find their game objects again after Stop loaded the scene saved at Play back with new handles
-// (also into another scene object, when the game replaced its scene while playing). A command whose game object isn't
-// there (any more) changes nothing and logs it (log_missing).
+// when they run: they find their game objects again after undo brought a deleted one back. The editor drops them all
+// at Stop and when a scene is released (CommandManager::clear), so a step never acts on another scene's game objects
+// or writes play session values into the edit state. A command whose game object isn't there (any more) changes
+// nothing and logs it (log_missing).
 class ICommand
 {
 public:
@@ -86,6 +87,14 @@ public:
         redo_stack_.pop_back();
         cmd->execute(sc);
         undo_stack_.push_back(std::move(cmd));
+    }
+
+    // drops every step: when the scene they were recorded in isn't there any more (Stop gave back the edit state, the
+    // scene was released), they would find other game objects with the same persistent IDs
+    void clear()
+    {
+        undo_stack_.clear();
+        redo_stack_.clear();
     }
 
 private:
@@ -182,6 +191,10 @@ private:
 
 // Changes the selection, one undo step like in Blender and Unity: the game object (entt::null for none) and, given the
 // asset browser's selection, the file, so undo and redo bring back a file selected in place of a game object too.
+// Adds or removes the selection markers (gizmo, outline) of a game object, entt::null for none. They are internal, so a
+// game object loaded back (Stop, undo of a delete) has none.
+void set_selection_markers(Scene& sc, entt::entity e, bool selected);
+
 class CommandSetSelection : public ICommand
 {
 public:

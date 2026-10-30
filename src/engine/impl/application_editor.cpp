@@ -2054,6 +2054,16 @@ void engine::ApplicationEditor::on_scene_create(Scene* scene)
 void engine::ApplicationEditor::on_scene_release(Scene* scene)
 {
     camera_context_.detach_scene(scene);
+    // persistent IDs are per scene: the steps and the selection would find other game objects in the next one
+    commands_.clear();
+    scene_hierarchy_context_.reset();
+}
+
+void engine::ApplicationEditor::on_play_mode_exit(Scene* /*scene*/)
+{
+    // the steps recorded while playing would write play session values into the edit state; the ones from before Play
+    // are dropped with them (the scene was saved and loaded since)
+    commands_.clear();
 }
 
 engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
@@ -2373,17 +2383,24 @@ void engine::SceneHierarchyContext::sync_selected_from_scene(engine::Scene* scen
 void engine::SceneHierarchyContext::resolve_selection(engine::Scene* scene)
 {
     const auto e = scene->resolve(selected_ref_);
-    if (e == selected_)
+    if (e == entt::null)
     {
+        // gone for good: never selected again by a game object which gets its ID later
+        reset();
         return;
     }
-    selected_ = e;
-    // the markers are internal: a game object loaded back has none
-    if (e != entt::null && !scene->has_component<engine::guizmo_component_t>(e))
+    if (e != selected_)
     {
-        scene->add_component<engine::guizmo_component_t>(e);
-        scene->add_component<engine::outline_component_t>(e);
+        selected_ = e;
+        set_selection_markers(*scene, e, true);
     }
+}
+
+void engine::SceneHierarchyContext::reset()
+{
+    selected_ = entt::null;
+    selected_ref_ = {};
+    delete_without_undo_ = entt::null;
 }
 
 void engine::ApplicationEditor::EditorWindowsContext::initialize(std::uint32_t dockspace_id)

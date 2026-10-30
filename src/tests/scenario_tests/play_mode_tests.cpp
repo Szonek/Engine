@@ -20,6 +20,14 @@ std::string placing(const char* model, const char* name, int id = 1)
         + R"(", "nodes": { "": { "components": { "name": { "name": ")" + name + R"(" } } } } } ] })";
 }
 
+// the scene the play session the next tests run in is started in
+class PlaySessionScene : public engine::IScene
+{
+public:
+    PlaySessionScene(engine::IApplication* app) : IScene(app) {}
+    static constexpr const char* get_name() { return "play_mode_test_session"; }
+};
+
 class PlayModeTest : public scenario::ModelTest
 {
 protected:
@@ -32,17 +40,20 @@ protected:
 
     void TearDown() override
     {
-        // the next tests play
-        if (enginePlayModeGetState() == ENGINE_PLAY_MODE_EDIT)
+        // this test's play session is thrown away: its snapshot would be loaded into the next test's scene by its Stop
+        if (enginePlayModeGetState() != ENGINE_PLAY_MODE_EDIT)
         {
-            enginePlayModeEnter();
+            enginePlayModeExit();
         }
-        enginePlayModeSetPaused(false);
         for (const auto& file : files_)
         {
             std::filesystem::remove(file);
         }
         ModelTest::TearDown();
+        // the next tests play: the session starts in a scene of its own with nothing in it, so what it saves is empty
+        scenario::app().register_scene<PlaySessionScene>()->activate();
+        EXPECT_EQ(enginePlayModeEnter(), ENGINE_RESULT_CODE_OK);
+        scenario::app().unregister_scene(PlaySessionScene::get_name());
     }
 
     // loads the scene file into the active scene, from a file outside the source tree's assets
@@ -162,6 +173,15 @@ TEST_F(PlayModeTest, StepPlaysOneFrameWhilePaused)
     EXPECT_TRUE(playing_in_next_frame());
     EXPECT_FALSE(playing_in_next_frame());
     EXPECT_EQ(enginePlayModeGetState(), ENGINE_PLAY_MODE_PAUSED);
+}
+
+// runs after the others (gtest keeps the order of definition): nothing an earlier test's play session saved is loaded
+// into this test's scene by the Stop in SetUp
+TEST_F(PlayModeTest, StartsWithNothingFromAnEarlierTest)
+{
+    EXPECT_TRUE(named("crate").empty());
+    EXPECT_TRUE(named("wall").empty());
+    EXPECT_EQ(enginePrefabGetByName("test_fixtures/crate.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
 TEST_F(PlayModeTest, StopInEditModeIsRefused)

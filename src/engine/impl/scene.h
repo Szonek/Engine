@@ -100,13 +100,10 @@ public:
     // the scene (SceneAssets)
     bool load(std::string_view json, std::string_view file_name, const SceneLoadOptions& options = {});
 
-    // Destroys every game object but the editor's (its camera), the runtime (transient) ones too, and starts the
-    // persistent IDs again (see engine::clear_game_objects), and releases the assets the scene held for its content: the
-    // scene is like a new one (Unity's scene unload).
-    void clear();
-    // clear() and load(json), releasing the assets the old content used only after the new content loaded, so the ones
-    // both use aren't loaded again (Stop loading the scene saved at Play). The game objects get the file's persistent IDs
-    // and new handles.
+    // Destroys every game object but the editor's (its camera), the runtime (transient) ones too (see
+    // engine::clear_game_objects), and loads json, releasing the assets the old content used only after the new content
+    // loaded, so the ones both use aren't loaded again (Stop loading the scene saved at Play). The game objects get the
+    // file's persistent IDs and new handles. False (logged), with the scene unchanged, when the file can't be loaded.
     bool replace(std::string_view json, std::string_view file_name);
 
     entt::runtime_view create_runtime_view();
@@ -218,7 +215,7 @@ private:
     Application* app_;
     Renderer& renderer_;
     // declared before the registry: the assets scene files loaded are released after the game objects using them
-    // (also by clear(), which swaps them out first)
+    // (also by replace(), which swaps them out first)
     SceneAssets assets_;
     entt::registry entity_registry_;
     // declared after the registry: it disconnects from the registry's signals when destroyed

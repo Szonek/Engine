@@ -204,7 +204,10 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 {
     ENGINE_PROFILE_SECTION;
     on_scene_update_pre(scene, delta_time);
+    // the editor's hooks change the scene for its update (its camera disables the game's) and change it back after
+    scene_update_running_ = true;
 	const auto ret_code = scene->update(delta_time);
+    scene_update_running_ = false;
     on_scene_update_post(scene, delta_time);
 
     return ret_code;
@@ -323,8 +326,22 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
 	return ret;
 }
 
+bool engine::Application::is_play_mode_change_allowed() const
+{
+    if (scene_update_running_)
+    {
+        log::log(log::LogLevel::eError, "Play mode: Play and Stop can't be done during a scene update.\n");
+        return false;
+    }
+    return true;
+}
+
 engine_result_code_t engine::Application::enter_play_mode(Scene& scene)
 {
+    if (!is_play_mode_change_allowed())
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
     const auto entered = play_mode_.enter([&scene]() { return PlaySnapshot{ scene.save(), scene.get_nav_mesh() != nullptr }; });
     return entered ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
@@ -341,20 +358,30 @@ engine_result_code_t engine::Application::step_play_mode()
 
 engine_result_code_t engine::Application::exit_play_mode(Scene& scene)
 {
+    if (!is_play_mode_change_allowed())
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
     const auto exited = play_mode_.exit([&scene](const PlaySnapshot& snapshot)
         {
+            // the scene is left as it is when the snapshot can't be loaded
             if (!scene.replace(snapshot.scene, "play mode snapshot"))
             {
-                log::log(log::LogLevel::eError, "Play mode: the scene saved at Play couldn't be loaded back.\n");
-                return;
+                return false;
             }
             // derived data, gone with its game object
             if (snapshot.had_nav_mesh)
             {
                 scene.build_nav_mesh();
             }
+            return true;
         });
-    return exited ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+    if (!exited)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    on_play_mode_exit(&scene);
+    return ENGINE_RESULT_CODE_OK;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()

@@ -41,7 +41,7 @@ bool engine::PlayMode::step()
     return true;
 }
 
-bool engine::PlayMode::exit(const std::function<void(const PlaySnapshot&)>& restore)
+bool engine::PlayMode::exit(const std::function<bool(const PlaySnapshot&)>& restore)
 {
     if (!exit_allowed_)
     {
@@ -53,13 +53,15 @@ bool engine::PlayMode::exit(const std::function<void(const PlaySnapshot&)>& rest
         log::log(log::LogLevel::eError, "Play mode: Stop in Edit mode.\n");
         return false;
     }
+    if (snapshot_ && !restore(*snapshot_))
+    {
+        log::log(log::LogLevel::eError, "Play mode: the scene saved at Play couldn't be loaded back; the play session goes on.\n");
+        return false;
+    }
+    snapshot_.reset();
     state_ = ENGINE_PLAY_MODE_EDIT;
     step_requested_ = false;
     step_frame_ = false;
-    if (auto snapshot = std::exchange(snapshot_, std::nullopt))
-    {
-        restore(*snapshot);
-    }
     session_count_++;
     return true;
 }

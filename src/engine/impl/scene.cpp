@@ -787,22 +787,18 @@ bool engine::Scene::load(std::string_view json, std::string_view file_name, cons
     return loaded;
 }
 
-void engine::Scene::clear()
-{
-    ENGINE_PROFILE_SECTION;
-    // released after the game objects using them
-    SceneAssets released(*app_);
-    released.swap(assets_);
-    clear_game_objects(entity_registry_, entity_ids_);
-}
-
 bool engine::Scene::replace(std::string_view json, std::string_view file_name)
 {
     ENGINE_PROFILE_SECTION;
+    // nothing is cleared when the file can't be loaded
+    if (!check_scene_file(json, file_name))
+    {
+        return false;
+    }
     // the old content's files, held until the new content holds the ones it uses too
     SceneAssets old_assets(*app_);
     old_assets.swap(assets_);
-    clear_game_objects(entity_registry_, entity_ids_);
+    clear_game_objects(entity_registry_);
     return load(json, file_name);
 }
 

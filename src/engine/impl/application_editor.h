@@ -62,8 +62,10 @@ public:
     void sync_selected_from_scene(engine::Scene* scene);
     // The selection refers to its game object by persistent ID (GameObjectRef): when the game object got a new handle
     // (Stop loaded the scene saved at Play back), the selection follows it and marks it again; when it is gone (a script
-    // destroyed it), nothing is selected.
+    // destroyed it), nothing is selected any more.
     void resolve_selection(engine::Scene* scene);
+    // no game object selected, without an undo step: the scene it was in was released
+    void reset();
 
     // deleting a game object undo can't bring back (a transient one) waits for the user to confirm it in a popup
     void request_delete_without_undo(entt::entity e);
@@ -104,6 +106,7 @@ protected:
     bool is_keyboard_enabled() override;
     void on_scene_create(class Scene* scene) override;
     void on_scene_release(class Scene* scene) override;
+    void on_play_mode_exit(class Scene* scene) override;
 
 private:
     // the panel showing the scene image

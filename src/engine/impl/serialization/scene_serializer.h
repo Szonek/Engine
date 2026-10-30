@@ -123,11 +123,12 @@ struct SceneLoadOptions
 bool load_scene(std::string_view json, std::string_view file_name, const TypeRegistry& types, entt::registry& registry, EntityIdRegistry& ids, IAssetResolver& assets,
     IPrefabInstances& prefabs, const SceneLoadOptions& options = {});
 
-// Destroys every game object of the registry but the reserved entity 0 and the editor's (editor_object_internal_component_t)
-// and starts the persistent ID counter again (EntityIdRegistry::reset_counter), so a file loaded then gets the IDs it has
-// and a scene built then the IDs it would get in a new scene. Transient game objects (runtime ones) are destroyed too.
-// Handles to the destroyed game objects never find anything again: EnTT gives a reused slot a new version.
-void clear_game_objects(entt::registry& registry, EntityIdRegistry& ids);
+// Destroys every game object of the registry but the reserved entity 0 and the editor's (editor_object_internal_component_t),
+// transient (runtime) ones too. Their persistent IDs are free for a file loaded then, which keeps its IDs; the counter
+// isn't moved back, so a game object created later never gets an ID handed out before (the editor's undo steps and
+// selection refer to game objects by ID). Handles to the destroyed game objects never find anything again: EnTT gives
+// a reused slot a new version.
+void clear_game_objects(entt::registry& registry);
 
 // Data asset files hold one value of a game-defined struct type (see DataAsset) and the version of the type it was
 // written for (the first one when a file written by hand leaves it out), its fields written like a component's in a

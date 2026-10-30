@@ -25,7 +25,7 @@ protected:
     // Stop, recording what it gives back
     bool exit(PlayMode& mode)
     {
-        return mode.exit([this](const PlaySnapshot& snapshot) { restored_.push_back(snapshot); });
+        return mode.exit([this](const PlaySnapshot& snapshot) { restored_.push_back(snapshot); return true; });
     }
 
     std::vector<PlaySnapshot> restored_;
@@ -79,6 +79,24 @@ TEST_F(PlayModeTest, StopGivesBackWhatPlaySaved)
     ASSERT_TRUE(exit(mode));
     ASSERT_EQ(restored_.size(), 2u);
     EXPECT_EQ(restored_[1].scene, "level after edits");
+}
+
+TEST_F(PlayModeTest, StopWhoseSnapshotCantBeLoadedKeepsThePlaySession)
+{
+    PlayMode mode(true);
+    ASSERT_TRUE(exit(mode));
+    ASSERT_TRUE(enter(mode, "level"));
+    const auto sessions = mode.get_session_count();
+    EXPECT_FALSE(mode.exit([](const PlaySnapshot&) { return false; }));
+    EXPECT_TRUE(test_logger::logged("couldn't be loaded back"));
+    EXPECT_EQ(mode.get_state(), ENGINE_PLAY_MODE_PLAYING);
+    EXPECT_EQ(mode.get_session_count(), sessions);
+
+    // the snapshot is kept for the next Stop
+    ASSERT_TRUE(exit(mode));
+    ASSERT_EQ(restored_.size(), 1u);
+    EXPECT_EQ(restored_[0].scene, "level");
+    EXPECT_EQ(mode.get_state(), ENGINE_PLAY_MODE_EDIT);
 }
 
 TEST_F(PlayModeTest, TransitionsWhichDontExistAreRefused)

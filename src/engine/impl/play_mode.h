@@ -41,8 +41,9 @@ public:
     bool step();
     // Playing or Paused -> Edit: `restore` gets what was saved at Play (it isn't called for the session the
     // application started in, which has no snapshot: the scene stays as it is), then the session count moves. False
-    // (logged) in Edit or when exits aren't allowed.
-    bool exit(const std::function<void(const PlaySnapshot&)>& restore);
+    // (logged) in Edit or when exits aren't allowed; false when `restore` fails (returns false), then the session goes
+    // on and keeps its snapshot, so nothing of the edit state is lost and Stop can be tried again.
+    bool exit(const std::function<bool(const PlaySnapshot&)>& restore);
 
     // at the start of every frame: a step asked for plays this frame
     void begin_frame();

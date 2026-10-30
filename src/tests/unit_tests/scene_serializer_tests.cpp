@@ -2111,7 +2111,7 @@ protected:
     // what Stop does with the scene saved at Play (Scene::replace)
     bool restore(World& w, std::string_view snapshot)
     {
-        engine::clear_game_objects(w.registry, w.ids);
+        engine::clear_game_objects(w.registry);
         return load(w, snapshot);
     }
 
@@ -2184,7 +2184,7 @@ TEST_F(PlayModeRestoreTest, ClearKeepsTheEditorsGameObjectsAndTheReservedEntity)
     w.put<engine_camera_component_t>(editor_camera, engine_camera_component_t{});
     const auto runtime_object = w.registry.create();
 
-    engine::clear_game_objects(w.registry, w.ids);
+    engine::clear_game_objects(w.registry);
     EXPECT_TRUE(w.registry.valid(editor_camera));
     EXPECT_TRUE(w.registry.all_of<engine_camera_component_t>(editor_camera));
     EXPECT_TRUE(w.registry.valid(entt::entity{ ENGINE_INVALID_GAME_OBJECT_ID }));
@@ -2196,26 +2196,29 @@ TEST_F(PlayModeRestoreTest, ClearKeepsTheEditorsGameObjectsAndTheReservedEntity)
     EXPECT_EQ(save(w), save(empty));
 }
 
-TEST_F(PlayModeRestoreTest, IdsAfterARestoreAreTheOnesBeforePlay)
+TEST_F(PlayModeRestoreTest, IdsAreNeverHandedOutAgainAfterARestore)
 {
     World w;
     build_level(w);
+    // created and deleted in Edit mode, before Play: an undo step may still refer to its ID
+    const auto deleted_before_play = w.ids.get_id(w.create());
+    w.registry.destroy(w.find(deleted_before_play));
     const auto snapshot = save(w);
-    const auto next_before_play = w.ids.get_id(w.create());
-    w.registry.destroy(w.find(next_before_play));
 
     // playing creates game objects with counter IDs (a level reload by the game, say)
+    std::uint64_t last_while_playing = 0;
     for (int i = 0; i < 5; i++)
     {
-        w.create();
+        last_while_playing = w.ids.get_id(w.create());
     }
     ASSERT_TRUE(restore(w, snapshot));
-    // the counter starts again: the game object created next gets the ID it would have got before Play
-    EXPECT_EQ(w.ids.get_id(w.create()), next_before_play);
+    // the counter isn't moved back: neither the deleted game object's ID nor one of the play session's is given again
+    const auto next = w.ids.get_id(w.create());
+    EXPECT_GT(next, last_while_playing);
+    EXPECT_GT(next, deleted_before_play);
 
-    // and a scene built into a cleared one gets the IDs of a new scene
-    engine::clear_game_objects(w.registry, w.ids);
-    EXPECT_EQ(w.ids.get_id(w.create()), 1u);
+    engine::clear_game_objects(w.registry);
+    EXPECT_GT(w.ids.get_id(w.create()), next);
 }
 
 TEST_F(PlayModeRestoreTest, EditorReferencesFindTheirGameObjectsAfterARestore)

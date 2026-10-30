@@ -1267,7 +1267,7 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
     return true;
 }
 
-void engine::clear_game_objects(entt::registry& registry, EntityIdRegistry& ids)
+void engine::clear_game_objects(entt::registry& registry)
 {
     std::vector<entt::entity> destroyed;
     for (const auto entity : registry.view<entt::entity>())
@@ -1285,7 +1285,6 @@ void engine::clear_game_objects(entt::registry& registry, EntityIdRegistry& ids)
             registry.destroy(entity);
         }
     }
-    ids.reset_counter();
 }
 
 std::string engine::save_data_asset(const TypeInfo& type, const std::byte* value, const IAssetResolver& assets)
