@@ -2059,11 +2059,16 @@ void engine::ApplicationEditor::on_scene_release(Scene* scene)
     scene_hierarchy_context_.reset();
 }
 
+void engine::ApplicationEditor::on_play_mode_enter(Scene* /*scene*/)
+{
+    commands_.begin_play_session();
+}
+
 void engine::ApplicationEditor::on_play_mode_exit(Scene* /*scene*/)
 {
     // the steps recorded while playing would write play session values into the edit state; the ones from before Play
-    // are dropped with them (the scene was saved and loaded since)
-    commands_.clear();
+    // come back and find their game objects by persistent ID
+    commands_.end_play_session();
 }
 
 engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)

@@ -148,6 +148,8 @@ protected:
     virtual void on_scene_release(class Scene* /*scene*/) {}
     virtual void on_scene_update_pre(class Scene* /*scene*/, float /*delta_time*/) {}
     virtual void on_scene_update_post(class Scene* /*scene*/, float /*delta_time*/) {}
+    // a play session started (Play): `scene` was saved
+    virtual void on_play_mode_enter(class Scene* /*scene*/) {}
     // a play session ended (Stop): `scene` holds the edit state again
     virtual void on_play_mode_exit(class Scene* /*scene*/) {}
 

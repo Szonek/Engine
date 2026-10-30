@@ -106,6 +106,7 @@ protected:
     bool is_keyboard_enabled() override;
     void on_scene_create(class Scene* scene) override;
     void on_scene_release(class Scene* scene) override;
+    void on_play_mode_enter(class Scene* scene) override;
     void on_play_mode_exit(class Scene* scene) override;
 
 private:

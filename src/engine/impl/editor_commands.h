@@ -2,6 +2,7 @@
 #include "scene.h"
 #include "editor_asset_browser.h"
 
+#include <optional>
 #include <vector>
 #include <memory>
 #include <string>
@@ -13,9 +14,10 @@ namespace engine
 {
 
 // An undo step. Commands refer to game objects with GameObjectRef (by persistent ID), never by handle, and get the scene
-// when they run: they find their game objects again after undo brought a deleted one back. The editor drops them all
-// at Stop and when a scene is released (CommandManager::clear), so a step never acts on another scene's game objects
-// or writes play session values into the edit state. A command whose game object isn't there (any more) changes
+// when they run: they find their game objects again after Stop gave them new handles, or after undo brought a deleted
+// one back. The editor drops the steps recorded while playing at Stop (CommandManager::end_play_session), so a step
+// never writes play session values into the edit state, and all of them when a scene is released
+// (CommandManager::clear), so a step never acts on another scene's game objects. A command whose game object isn't there (any more) changes
 // nothing and logs it (log_missing).
 class ICommand
 {
@@ -89,17 +91,50 @@ public:
         undo_stack_.push_back(std::move(cmd));
     }
 
-    // drops every step: when the scene they were recorded in isn't there any more (Stop gave back the edit state, the
-    // scene was released), they would find other game objects with the same persistent IDs
+    // drops every step, the edit history kept for a play session too: when the scene they were recorded in was
+    // released, they would find other game objects with the same persistent IDs in the next one
     void clear()
     {
         undo_stack_.clear();
         redo_stack_.clear();
+        edit_history_.reset();
+    }
+
+    // Play: the edit history is put aside and the play session records its own steps (Unreal's Play In Editor
+    // transactions), so undo while playing never reaches into the edit state
+    void begin_play_session()
+    {
+        edit_history_.emplace(History{ std::move(undo_stack_), std::move(redo_stack_) });
+        undo_stack_.clear();
+        redo_stack_.clear();
+    }
+
+    // Stop: the play session's steps are dropped (they would write play session values into the edit state, which
+    // Stop gave back) and the edit history comes back, its steps finding their game objects by persistent ID. A
+    // session begun without begin_play_session (the one the application starts in, whose Stop keeps the scene as it
+    // is) keeps its steps.
+    void end_play_session()
+    {
+        if (!edit_history_)
+        {
+            return;
+        }
+        undo_stack_ = std::move(edit_history_->undo);
+        redo_stack_ = std::move(edit_history_->redo);
+        edit_history_.reset();
     }
 
 private:
+    struct History
+    {
+        std::vector<std::unique_ptr<ICommand>> undo;
+        std::vector<std::unique_ptr<ICommand>> redo;
+    };
+
     std::vector<std::unique_ptr<ICommand>> undo_stack_;
     std::vector<std::unique_ptr<ICommand>> redo_stack_;
+    // the edit history while a play session runs
+    std::optional<History> edit_history_;
     const std::size_t max_history_ = 100;
 };
 
@@ -189,12 +224,12 @@ private:
     ValueBuffer value_;
 };
 
-// Changes the selection, one undo step like in Blender and Unity: the game object (entt::null for none) and, given the
-// asset browser's selection, the file, so undo and redo bring back a file selected in place of a game object too.
 // Adds or removes the selection markers (gizmo, outline) of a game object, entt::null for none. They are internal, so a
 // game object loaded back (Stop, undo of a delete) has none.
 void set_selection_markers(Scene& sc, entt::entity e, bool selected);
 
+// Changes the selection, one undo step like in Blender and Unity: the game object (entt::null for none) and, given the
+// asset browser's selection, the file, so undo and redo bring back a file selected in place of a game object too.
 class CommandSetSelection : public ICommand
 {
 public:

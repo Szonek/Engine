@@ -343,7 +343,12 @@ engine_result_code_t engine::Application::enter_play_mode(Scene& scene)
         return ENGINE_RESULT_CODE_FAIL;
     }
     const auto entered = play_mode_.enter([&scene]() { return PlaySnapshot{ scene.save(), scene.get_nav_mesh() != nullptr }; });
-    return entered ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+    if (!entered)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    on_play_mode_enter(&scene);
+    return ENGINE_RESULT_CODE_OK;
 }
 
 engine_result_code_t engine::Application::set_play_mode_paused(bool paused)
