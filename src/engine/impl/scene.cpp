@@ -5,6 +5,7 @@
 #include "nav_mesh.h"
 #include "nav_mesh_debug_draw.h"
 #include "world_transform.h"
+#include "hierarchy.h"
 #include "logger.h"
 #include "math_helpers.h"
 #include "components_utils/components_initializers.h"
@@ -42,40 +43,6 @@
 #include <cstdint>
 #include <limits>
 
-
-static inline void update_parent_component(entt::registry& registry, entt::entity entity)
-{
-    auto& parent = registry.get<engine_parent_component_t>(entity);
-    if (parent.parent == ENGINE_INVALID_GAME_OBJECT_ID)
-    {
-        engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Parent component has invalid parent id. If entity doesnt have parent than just delete it. Are you sure you are doing valid thing?\n"));
-        return;
-    }
-    const auto parent_entt = static_cast<entt::entity>(parent.parent);
-    auto& children = registry.get_or_emplace<engine::children_internal_component_t>(parent_entt).children;
-    // an update which keeps the parent must not list the child twice
-    if (std::find(children.begin(), children.end(), entity) == children.end())
-    {
-        children.push_back(entity);
-    }
-}
-
-static inline void destroy_parent_component(entt::registry& registry, entt::entity entity)
-{
-    const auto parent_entt = static_cast<entt::entity>(registry.get<engine_parent_component_t>(entity).parent);
-    auto& children = registry.get<engine::children_internal_component_t>(parent_entt).children;
-    children.erase(std::remove(children.begin(), children.end(), entity), children.end());
-}
-
-static inline void destroy_children_component(entt::registry& registry, entt::entity entity)
-{
-    // a copy: removing a child's parent component removes the child from this list
-    const auto children = registry.get<engine::children_internal_component_t>(entity).children;
-    for (const auto child : children)
-    {
-        registry.erase<engine_parent_component_t>(child);
-    }
-}
 
 // the joint name string is the engine's: the internal component owns it and the component points at it
 static inline void construct_joint_attachment(entt::registry& registry, entt::entity entity)
@@ -175,9 +142,7 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     entity_registry_.on_construct<engine_nav_modifier_component_t>().connect<&initialize_nav_modifier_component>();
     entity_registry_.on_destroy<engine_nav_surface_component_t>().connect<&entt::registry::remove<nav_mesh_internal_component_t>>();
     
-    entity_registry_.on_update<engine_parent_component_t>().connect<&update_parent_component>();
-    entity_registry_.on_destroy<engine_parent_component_t>().connect<&destroy_parent_component>();
-    entity_registry_.on_destroy<children_internal_component_t>().connect<&destroy_children_component>();
+    connect_hierarchy(entity_registry_);
 
     out_code = ENGINE_RESULT_CODE_OK;
 }

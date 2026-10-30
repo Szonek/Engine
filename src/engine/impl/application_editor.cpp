@@ -525,6 +525,7 @@ private:
         case FieldKind::eUint32:
         case FieldKind::eFloat: return draw_numbers(field, p, label, 1);
         case FieldKind::eString: return draw_string(field, p, label);
+        case FieldKind::eEngineString: return false;  // game types have none (the engine's components have their own panels)
         case FieldKind::eEnum: return draw_enum(field, p, label);
         case FieldKind::eStruct:
         {

@@ -378,6 +378,103 @@ TEST_F(SceneFileTest, GameObjectAttachedInsideAnInstanceIsAttachedAgain)
     EXPECT_NE(enginePrefabInstanceGetPrefab(loaded_root), ENGINE_INVALID_OBJECT_HANDLE);
 }
 
+TEST_F(SceneFileTest, SkinnedCharacterBuiltByHandIsSavedAndLoadsBack)
+{
+    TestModel arm("skinned_arm.gltf");
+    ASSERT_TRUE(arm.loaded());
+    // the model's assets on game objects which aren't its instance
+    const auto character = engineGameObjectCreate();
+    auto skin = engineGameObjectAddSkinComponent(character);
+    skin.skin = engineSkinGetByName(arm.asset("Rig").c_str());
+    ASSERT_NE(skin.skin, ENGINE_INVALID_OBJECT_HANDLE);
+    engineGameObjectUpdateSkinComponent(character, &skin);
+    auto mesh = engineGameObjectAddSkinnedMeshComponent(character);
+    mesh.geometry = engineGeometryGetByName(arm.asset("Arm").c_str());
+    mesh.skin = character;
+    engineGameObjectUpdateSkinnedMeshComponent(character, &mesh);
+    auto animation = engineGameObjectAddAnimationControllerComponent(character);
+    animation.animations = engineAnimationSetGetByName(arm.asset("animations").c_str());
+    animation.layers_count = 2;
+    animation.layers[1].mode = ENGINE_ANIMATION_LAYER_MODE_ADDITIVE;
+    animation.layers[1].weight = 0.5f;
+    animation.layers[1].joint_weights_count = 1;
+    std::strcpy(animation.layers[1].joint_weights[0].joint_name, "tip");
+    animation.layers[1].joint_weights[0].weight = 1.0f;
+    engineGameObjectUpdateAnimationControllerComponent(character, &animation);
+    const auto gem = engineGameObjectCreate();
+    auto attachment = engineGameObjectAddJointAttachmentComponent(gem);
+    attachment.skin = character;
+    engineStringSet(attachment.joint_name, "tip");
+    engineGameObjectUpdateJointAttachmentComponent(gem, &attachment);
+    ASSERT_EQ(engineSceneSave(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+    const auto saved = read_file(file_);
+
+    create_file_scene();
+    ASSERT_EQ(engineSceneLoad(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+    const auto loaded = find_with(&engineGameObjectHasSkinComponent);
+    ASSERT_NE(loaded, ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_EQ(engineGameObjectGetSkinComponent(loaded).skin, skin.skin);
+    const auto loaded_mesh = engineGameObjectGetSkinnedMeshComponent(loaded);
+    EXPECT_EQ(loaded_mesh.geometry, mesh.geometry);
+    EXPECT_EQ(loaded_mesh.skin, loaded);
+    const auto loaded_animation = engineGameObjectGetAnimationControllerComponent(loaded);
+    EXPECT_EQ(loaded_animation.animations, animation.animations);
+    EXPECT_EQ(loaded_animation.layers_count, 2u);
+    EXPECT_EQ(loaded_animation.layers[1].mode, ENGINE_ANIMATION_LAYER_MODE_ADDITIVE);
+    EXPECT_STREQ(loaded_animation.layers[1].joint_weights[0].joint_name, "tip");
+    // the engine created its controller, which plays the model's clips on both layers
+    EXPECT_TRUE(engineAnimationControllerAnimationPlay(loaded, "Wave", 0));
+    EXPECT_TRUE(engineAnimationControllerAnimationPlay(loaded, "Idle", 1));
+    const auto loaded_gem = find_with(&engineGameObjectHasJointAttachmentComponent);
+    ASSERT_NE(loaded_gem, ENGINE_INVALID_GAME_OBJECT_ID);
+    const auto loaded_attachment = engineGameObjectGetJointAttachmentComponent(loaded_gem);
+    EXPECT_EQ(loaded_attachment.skin, loaded);
+    EXPECT_STREQ(engineStringCStr(loaded_attachment.joint_name), "tip");
+
+    const auto resaved = file_.string() + ".resaved";
+    ASSERT_EQ(engineSceneSave(resaved.c_str()), ENGINE_RESULT_CODE_OK);
+    const auto again = read_file(resaved);
+    std::filesystem::remove(resaved);
+    EXPECT_EQ(again, saved);
+}
+
+TEST_F(SceneFileTest, ChangedAnimationLayersAndJointOfAnInstanceAreSavedAsOverrides)
+{
+    TestModel arm("skinned_arm.gltf");
+    ASSERT_TRUE(arm.loaded());
+    const auto root = arm.instantiate();
+    const auto character = find_with(&engineGameObjectHasAnimationControllerComponent);
+    ASSERT_NE(character, ENGINE_INVALID_GAME_OBJECT_ID);
+    // a second layer, as a script's set up would add it, and the sword moved to the other joint
+    auto animation = engineGameObjectGetAnimationControllerComponent(character);
+    animation.layers_count = 2;
+    animation.layers[1].weight = 0.25f;
+    engineGameObjectUpdateAnimationControllerComponent(character, &animation);
+    const auto sword = child_named(root, "sword");
+    ASSERT_TRUE(engineGameObjectHasJointAttachmentComponent(sword));
+    engineStringSet(engineGameObjectGetJointAttachmentComponent(sword).joint_name, "base");
+    ASSERT_EQ(engineSceneSave(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+    const auto saved = read_file(file_);
+    // only what changed: the model's skin, mesh and animation set aren't written
+    EXPECT_NE(saved.find(R"("joint_name": "base")"), std::string::npos) << saved;
+    EXPECT_NE(saved.find(R"("layers_count": 2)"), std::string::npos) << saved;
+    EXPECT_EQ(saved.find(R"("animations")"), std::string::npos) << saved;
+    EXPECT_EQ(saved.find(R"("skinned_mesh")"), std::string::npos) << saved;
+
+    create_file_scene();
+    ASSERT_EQ(engineSceneLoad(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+    const auto loaded = find_with(&engineGameObjectHasAnimationControllerComponent);
+    ASSERT_NE(loaded, ENGINE_INVALID_GAME_OBJECT_ID);
+    const auto loaded_animation = engineGameObjectGetAnimationControllerComponent(loaded);
+    EXPECT_EQ(loaded_animation.layers_count, 2u);
+    EXPECT_EQ(loaded_animation.layers[1].weight, 0.25f);
+    EXPECT_NE(loaded_animation.animations, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_TRUE(engineAnimationControllerAnimationPlay(loaded, "Wave", 1));
+    const auto loaded_sword = find_with(&engineGameObjectHasJointAttachmentComponent);
+    ASSERT_NE(loaded_sword, ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_STREQ(engineStringCStr(engineGameObjectGetJointAttachmentComponent(loaded_sword).joint_name), "base");
+}
+
 TEST_F(SceneFileTest, GameComponentWorksLikeTheEngineComponents)
 {
     const auto type = scenario_tag_type();

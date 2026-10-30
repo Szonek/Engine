@@ -1,3 +1,4 @@
+#include "components_internals/joint_attachment_internal_component.h"
 #include "serialization/builtin_types.h"
 #include "serialization/game_types.h"
 #include "serialization/scene_serializer.h"
@@ -71,8 +72,31 @@ void init_light(entt::registry& registry, entt::entity entity)
     l.point.quadratic = 0.032f;
 }
 
+// like the scene: the joint attachment's joint name is the engine's string, owned by an internal component; an update
+// carrying another string copies its text
+void construct_joint_attachment(entt::registry& registry, entt::entity entity)
+{
+    auto& owned = registry.emplace<engine::joint_attachment_internal_component_t>(entity);
+    registry.get<engine_joint_attachment_component_t>(entity).joint_name = owned.joint_name.get();
+}
+
+void update_joint_attachment(entt::registry& registry, entt::entity entity)
+{
+    auto& comp = registry.get<engine_joint_attachment_component_t>(entity);
+    auto* owned = registry.get<engine::joint_attachment_internal_component_t>(entity).joint_name.get();
+    if (comp.joint_name != owned)
+    {
+        if (comp.joint_name)
+        {
+            owned->str = comp.joint_name->str;
+        }
+        comp.joint_name = owned;
+    }
+}
+
 // Prefab instances without an application: the model "models/arm.gltf" has a root node and the nodes "Upper" (with a
-// box collider) and "Upper/Hand" (with a mesh and `hand_material`); each node gets a name and a transform, the others
+// box collider) and "Upper/Hand" (with a mesh and `hand_material`, and attached to the joint `hand_joint` of the root
+// when it is set); each node gets a name and a transform, the others
 // are children of the root, like a prefab's instance. Scene prefabs are the files in `scene_files`, loaded into their
 // instances like ScenePrefab does.
 class FakePrefabs : public engine::IPrefabInstances
@@ -124,6 +148,13 @@ public:
                     registry_.emplace<engine_mesh_component_t>(entity, engine_mesh_component_t{ 7, false });
                 }
                 registry_.emplace<engine_material_component_t>(entity, hand_material);
+                if (!hand_joint.empty())
+                {
+                    // like the model prefab: added, then its joint name set with engineStringSet
+                    auto& attachment = registry_.emplace<engine_joint_attachment_component_t>(entity);
+                    attachment.skin = static_cast<engine_game_object_t>(root);
+                    attachment.joint_name->str = hand_joint;
+                }
             }
             info.nodes.push_back({ path, entity, {} });
         }
@@ -155,6 +186,7 @@ public:
     // what the model gives its nodes (a test changes it to change the model)
     engine_material_component_t hand_material{ { 1.0f, 1.0f, 1.0f, 1.0f }, 3, 16.0f, ENGINE_INVALID_OBJECT_HANDLE };
     bool hand_has_mesh = true;
+    std::string hand_joint;
     engine_collider_component_t upper_collider = [] {
         engine_collider_component_t collider{};
         collider.type = ENGINE_COLLIDER_TYPE_BOX;
@@ -211,6 +243,9 @@ struct World
         [[maybe_unused]] const auto reserved = registry.create();
         registry.on_construct<engine_transform_component_t>().connect<&init_transform>();
         registry.on_construct<engine_light_component_t>().connect<&init_light>();
+        registry.on_construct<engine_joint_attachment_component_t>().connect<&construct_joint_attachment>();
+        registry.on_update<engine_joint_attachment_component_t>().connect<&update_joint_attachment>();
+        registry.on_destroy<engine_joint_attachment_component_t>().connect<&entt::registry::remove<engine::joint_attachment_internal_component_t>>();
     }
 
     entt::entity create(std::uint64_t id = EntityIdRegistry::INVALID_ID)
@@ -248,6 +283,9 @@ protected:
         assets_.add(AssetKind::eGeometry, "models/crate.gltf#Cube", 7);
         assets_.add(AssetKind::eTexture, "models/crate.gltf#wood", 3);
         assets_.add(AssetKind::eTexture, "textures/stone.png", 4);
+        assets_.add(AssetKind::eGeometry, "models/knight.glb#Body", 8);
+        assets_.add(AssetKind::eSkin, "models/knight.glb#Rig", 2);
+        assets_.add(AssetKind::eAnimationSet, "models/knight.glb#animations", 5);
     }
 
     std::string save(World& world)
@@ -363,6 +401,25 @@ protected:
         cam.clip_plane_near = 0.1f;
         cam.clip_plane_far = 250.0f;
         w.put<engine_camera_component_t>(camera, cam);
+
+        // a character: its skin, deforming its body, played by its animation controller, and a sword in its hand
+        const auto character = w.create();
+        w.put<engine_skin_component_t>(character, engine_skin_component_t{ 2 });
+        w.put<engine_skinned_mesh_component_t>(character, engine_skinned_mesh_component_t{ 8, static_cast<engine_game_object_t>(character), true });
+        engine_animation_controller_component_t animation{};
+        animation.animations = 5;
+        animation.layers_count = 2;
+        animation.layers[0] = { "base", ENGINE_ANIMATION_LAYER_MODE_OVERRIDE, 1.0f, true, 0, {} };
+        animation.layers[1] = { "upper_body", ENGINE_ANIMATION_LAYER_MODE_ADDITIVE, 0.5f, false, 2, {} };
+        animation.layers[1].joint_weights[0] = { "spine", 1.0f };
+        animation.layers[1].joint_weights[1] = { "neck", 0.25f };
+        w.put<engine_animation_controller_component_t>(character, animation);
+
+        const auto sword = w.create();
+        w.put<engine_parent_component_t>(sword, engine_parent_component_t{ static_cast<engine_game_object_t>(character) });
+        // the caller's string: its text is copied into the engine's
+        engine_string_t hand{ "hand.r" };
+        w.put<engine_joint_attachment_component_t>(sword, engine_joint_attachment_component_t{ static_cast<engine_game_object_t>(character), &hand });
     }
 
     engine::TypeRegistry types_;
@@ -452,6 +509,26 @@ TEST_F(SceneFileTest, LoadedComponentsHaveTheSavedValues)
 
     // the reference points at the loaded game object with the saved ID
     EXPECT_EQ(loaded.get<engine_parent_component_t>(2).parent, static_cast<engine_game_object_t>(loaded.find(1)));
+
+    const auto character = static_cast<engine_game_object_t>(loaded.find(5));
+    EXPECT_EQ(loaded.get<engine_skin_component_t>(5).skin, 2u);
+    const auto& skinned_mesh = loaded.get<engine_skinned_mesh_component_t>(5);
+    EXPECT_EQ(skinned_mesh.geometry, 8u);
+    EXPECT_EQ(skinned_mesh.skin, character);
+    EXPECT_TRUE(skinned_mesh.disable);
+    const auto& animation = loaded.get<engine_animation_controller_component_t>(5);
+    // the layers have padding and bytes after the names' terminators: compared field by field
+    EXPECT_TRUE(engine::equal_values(*types_.find("animation_controller"), reinterpret_cast<const std::byte*>(&animation),
+        reinterpret_cast<const std::byte*>(&original.get<engine_animation_controller_component_t>(5))));
+    EXPECT_EQ(animation.layers_count, 2u);
+    EXPECT_EQ(animation.layers[1].mode, ENGINE_ANIMATION_LAYER_MODE_ADDITIVE);
+    EXPECT_STREQ(animation.layers[1].joint_weights[1].joint_name, "neck");
+    EXPECT_EQ(animation.layers[1].joint_weights[1].weight, 0.25f);
+    const auto& attachment = loaded.get<engine_joint_attachment_component_t>(6);
+    EXPECT_EQ(attachment.skin, character);
+    // the loaded game object's own string, which the engine owns
+    EXPECT_EQ(attachment.joint_name, loaded.registry.get<engine::joint_attachment_internal_component_t>(loaded.find(6)).joint_name.get());
+    EXPECT_EQ(attachment.joint_name->str, "hand.r");
 }
 
 TEST_F(SceneFileTest, FileIsReadable)
@@ -470,6 +547,11 @@ TEST_F(SceneFileTest, FileIsReadable)
     EXPECT_EQ(file.find(R"("sphere_collider")"), std::string::npos);
     EXPECT_NE(file.find(R"("spot": {)"), std::string::npos);
     EXPECT_EQ(file.find(R"("point": {)"), std::string::npos);
+    // skins and animation sets by asset ID, the engine's string as its text
+    EXPECT_NE(file.find(R"("skin": "models/knight.glb#Rig")"), std::string::npos);
+    EXPECT_NE(file.find(R"("animations": "models/knight.glb#animations")"), std::string::npos);
+    EXPECT_NE(file.find(R"("joint_name": "hand.r")"), std::string::npos);
+    EXPECT_NE(file.find(R"("mode": "additive")"), std::string::npos);
 }
 
 TEST_F(SceneFileTest, GameObjectsAreSortedByPersistentId)
@@ -1263,6 +1345,43 @@ TEST_F(SceneFileTest, RenamedInstanceRootKeepsItsName)
     World loaded;
     ASSERT_TRUE(load(loaded, file));
     EXPECT_STREQ(loaded.get<engine_name_component_t>(original.ids.get_id(root)).name, "left arm");
+}
+
+TEST_F(SceneFileTest, JointNameChangedOnAnInstanceIsSavedAsAnOverride)
+{
+    World original;
+    original.prefabs.hand_joint = "wrist";
+    const auto root = instantiate_arm(original);
+    // engineStringSet changes the engine's string in place, without an update: what the prefab gave is a copy
+    const auto hand = original.prefabs.node(root, "Upper/Hand");
+    original.registry.get<engine_joint_attachment_component_t>(hand).joint_name->str = "finger";
+
+    const auto file = save(original);
+    rapidjson::Document doc;
+    doc.Parse(file.c_str());
+    ASSERT_TRUE(doc.IsObject());
+    const auto& overrides = doc["entities"][0]["nodes"]["Upper/Hand"]["overrides"];
+    ASSERT_EQ(overrides.MemberCount(), 1u);
+    ASSERT_EQ(overrides["joint_attachment"].MemberCount(), 1u);
+    EXPECT_STREQ(overrides["joint_attachment"]["joint_name"].GetString(), "finger");
+
+    World loaded;
+    loaded.prefabs.hand_joint = "wrist";
+    ASSERT_TRUE(load(loaded, file));
+    EXPECT_EQ(save(loaded), file);
+    const auto loaded_hand = loaded.prefabs.node(loaded.find(original.ids.get_id(root)), "Upper/Hand");
+    EXPECT_EQ(loaded.registry.get<engine_joint_attachment_component_t>(loaded_hand).joint_name->str, "finger");
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(SceneFileTest, UnchangedJointNameIsNotSaved)
+{
+    World w;
+    w.prefabs.hand_joint = "wrist";
+    instantiate_arm(w);
+    rapidjson::Document doc;
+    doc.Parse(save(w).c_str());
+    EXPECT_FALSE(doc["entities"][0]["nodes"].HasMember("Upper/Hand"));
 }
 
 TEST_F(SceneFileTest, UnchangedInstanceSavesWithoutWarnings)

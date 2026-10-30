@@ -15,6 +15,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	skin_tests.cpp
 	nav_mesh_tests.cpp
 	world_transform_tests.cpp
+	hierarchy_tests.cpp
 	type_registry_tests.cpp
 	scene_serializer_tests.cpp
 	game_types_tests.cpp
@@ -44,6 +45,10 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	# local TRS -> world matrices (EnTT registry only)
 	${ENGINE_IMPL_DIR}/world_transform.cpp
 	${ENGINE_IMPL_DIR}/world_transform.h
+	# the children lists kept from the parent components (EnTT registry only)
+	${ENGINE_IMPL_DIR}/hierarchy.cpp
+	${ENGINE_IMPL_DIR}/hierarchy.h
+	${ENGINE_IMPL_DIR}/parent_storage.h
 	# the editor's viewport camera and modal transform (glm only)
 	${ENGINE_IMPL_DIR}/editor_camera.cpp
 	${ENGINE_IMPL_DIR}/editor_camera.h
@@ -71,6 +76,9 @@ target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE
 	$<TARGET_PROPERTY:RmlUi::RmlUi,INTERFACE_INCLUDE_DIRECTORIES>)
 # same glm configuration as the engine, so quaternions have the same layout
 target_compile_definitions(${ENGINE_LOGIC_TESTS_NAME} PRIVATE GLM_FORCE_QUAT_DATA_XYZW GLM_ENABLE_EXPERIMENTAL)
+# the engine's parent component storage, force-included like in the engine (see its CMakeLists)
+target_compile_options(${ENGINE_LOGIC_TESTS_NAME} PRIVATE
+  "$<$<COMPILE_LANGUAGE:CXX>:$<IF:$<CXX_COMPILER_ID:MSVC>,/FI${ENGINE_IMPL_DIR}/parent_storage.h,SHELL:-include ${ENGINE_IMPL_DIR}/parent_storage.h>>")
 target_link_libraries(${ENGINE_LOGIC_TESTS_NAME} GTest::gtest_main glm fmt::fmt-header-only EnTT::EnTT ozz_animation ozz_animation_offline RecastNavigation::Recast RecastNavigation::Detour)
 add_test(NAME ${ENGINE_LOGIC_TESTS_NAME} COMMAND ${ENGINE_LOGIC_TESTS_NAME})
 set_tests_properties(${ENGINE_LOGIC_TESTS_NAME} PROPERTIES LABELS ci)

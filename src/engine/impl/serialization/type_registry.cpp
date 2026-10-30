@@ -3,6 +3,7 @@
 
 #include <cstring>
 #include <set>
+#include <string_view>
 
 void engine::type_builder_detail::report_error(std::string_view type_name, std::string_view message)
 {
@@ -100,6 +101,43 @@ void engine::clear_union(const FieldInfo& union_field, std::byte* value)
 
 namespace
 {
+// the text of the engine_string_t* at `p`; null is the empty string
+std::string_view engine_string_text(const std::byte* p)
+{
+    const engine_string_t* str = nullptr;
+    std::memcpy(&str, p, sizeof(str));
+    return str ? std::string_view(str->str) : std::string_view();
+}
+
+void own_struct_strings(const engine::TypeInfo& type, std::byte* value, engine::ValueBuffer& owner)
+{
+    using engine::FieldKind;
+    for (const auto& field : type.fields)
+    {
+        if (field.kind == FieldKind::eUnion)
+        {
+            if (const auto* active = engine::find_active_case(type, field, value))
+            {
+                own_struct_strings(*active->type, value + field.offset, owner);
+            }
+            continue;
+        }
+        for (std::size_t i = 0; i < field.count; i++)
+        {
+            auto* p = value + field.offset + i * field.size;
+            if (field.kind == FieldKind::eStruct)
+            {
+                own_struct_strings(*field.struct_type, p, owner);
+            }
+            else if (field.kind == FieldKind::eEngineString)
+            {
+                auto* copy = owner.make_string(engine_string_text(p));
+                std::memcpy(p, &copy, sizeof(copy));
+            }
+        }
+    }
+}
+
 bool equal_elements(const engine::FieldInfo& field, const std::byte* a, const std::byte* b)
 {
     using engine::FieldKind;
@@ -113,6 +151,7 @@ bool equal_elements(const engine::FieldInfo& field, const std::byte* a, const st
         const auto length = strnlen(sa, field.size);
         return length == strnlen(sb, field.size) && std::memcmp(sa, sb, length) == 0;
     }
+    case FieldKind::eEngineString: return engine_string_text(a) == engine_string_text(b);
     case FieldKind::eStruct: return engine::equal_values(*field.struct_type, a, b);
     case FieldKind::eUnion: return true;  // compared by equal_field, which knows its tag
     default: return std::memcmp(a, b, field.size) == 0;
@@ -142,6 +181,11 @@ bool engine::equal_field(const TypeInfo& type, const FieldInfo& field, const std
         }
     }
     return true;
+}
+
+void engine::own_engine_strings(const TypeInfo& type, ValueBuffer& value)
+{
+    own_struct_strings(type, value.get(), value);
 }
 
 bool engine::equal_values(const TypeInfo& type, const std::byte* a, const std::byte* b)

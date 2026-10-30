@@ -84,6 +84,9 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/nav_mesh.cpp
 	${ENGINE_SOURCES_DIR}/world_transform.h
 	${ENGINE_SOURCES_DIR}/world_transform.cpp
+	${ENGINE_SOURCES_DIR}/hierarchy.h
+	${ENGINE_SOURCES_DIR}/hierarchy.cpp
+	${ENGINE_SOURCES_DIR}/parent_storage.h
 	${ENGINE_SOURCES_DIR}/physics_system.h
 	${ENGINE_SOURCES_DIR}/physics_system.cpp
 	${ENGINE_SOURCES_DIR}/nav_mesh_debug_draw.h
@@ -191,6 +194,12 @@ target_compile_options(${ENGINE} PRIVATE
   # GCC: containers of ozz::math::SimdFloat4 (__m128) drop its alignment attribute, which is harmless
   $<$<CXX_COMPILER_ID:GNU>:-Wno-ignored-attributes>
 )
+
+# EnTT picks the storage of a component type at compile time, so every source must see the parent component's
+# (parent_storage.h): it is force-included
+set(ENGINE_PARENT_STORAGE_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/${ENGINE_SOURCES_DIR}/parent_storage.h)
+target_compile_options(${ENGINE} PRIVATE
+  "$<$<COMPILE_LANGUAGE:CXX>:$<IF:$<CXX_COMPILER_ID:MSVC>,/FI${ENGINE_PARENT_STORAGE_HEADER},SHELL:-include ${ENGINE_PARENT_STORAGE_HEADER}>>")
 
 # vendored third party code: its warnings are not ours to fix
 set_source_files_properties(${ENGINE_SOURCES_DIR}/imgui/imgui.cpp ${ENGINE_SOURCES_DIR}/imgui/imgui_demo.cpp ${ENGINE_SOURCES_DIR}/imgui/imgui_draw.cpp
