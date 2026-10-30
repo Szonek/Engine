@@ -51,6 +51,7 @@ typedef uint32_t engine_geometry_t;
 typedef uint32_t engine_prefab_t;
 typedef uint32_t engine_skin_t;
 typedef uint32_t engine_animation_set_t;
+typedef uint32_t engine_data_asset_t;
 typedef uint32_t engine_shader_t;
 typedef uint32_t engine_animation_event_id_t;
 
@@ -563,6 +564,9 @@ typedef enum _engine_field_kind_t
     // a colour: a float[3] (RGB, `count` 3) or float[4] (RGBA, `count` 4), saved as its floats; the editor shows a
     // colour picker
     ENGINE_FIELD_KIND_COLOR,
+    // an engine_data_asset_t holding a value of the struct type `type_name`, saved as its asset ID (see
+    // engineDataAssetLoad)
+    ENGINE_FIELD_KIND_DATA_ASSET,
     ENGINE_FIELD_KIND_COUNT
 } engine_field_kind_t;
 
@@ -596,7 +600,7 @@ typedef struct _engine_field_desc_t
     // ENGINE_FIELD_KIND_ENUM
     const engine_enum_value_desc_t* enum_values;
     uint32_t enum_values_count;
-    // ENGINE_FIELD_KIND_STRUCT
+    // ENGINE_FIELD_KIND_STRUCT, ENGINE_FIELD_KIND_DATA_ASSET
     const char* type_name;
     // editor hints, zero for none: engine_field_flags_t, the range of ENGINE_FIELD_FLAG_RANGE, and a tooltip (or NULL)
     // shown over the field
@@ -617,7 +621,8 @@ typedef struct _engine_type_desc_t
     uint32_t size;
     uint32_t alignment;
     // the value a new component gets (engineGameObjectAddDataComponent with no value, fields missing in a file), or
-    // NULL for zeroes (which reference no asset or game object); not used by struct types
+    // NULL for zeroes (which reference no asset or game object); of a struct type, what a data asset of the type holds
+    // in the fields missing in its file (fields of a struct inside a component keep the component's default)
     const void* default_value;
     // every field: a field left out is never saved or shown
     const engine_field_desc_t* fields;
@@ -631,8 +636,9 @@ typedef struct _engine_type_desc_t
 // the struct, overlapping or misaligned fields (or aligned more than the struct), an unknown struct type, ...
 // Unions aren't supported (unlike in the engine's own components): describe each case as its own field or component.
 ENGINE_API engine_result_code_t engineComponentTypeRegister(const engine_type_desc_t* desc, engine_component_type_t* out);
-// Registers a struct type used inside components (ENGINE_FIELD_KIND_STRUCT), not a component itself.
-ENGINE_API engine_result_code_t engineStructTypeRegister(const engine_type_desc_t* desc);
+// Registers a struct type used inside components (ENGINE_FIELD_KIND_STRUCT) or held by data assets, not a component
+// itself. out (may be NULL): the type's handle, for engineDataAssetGet.
+ENGINE_API engine_result_code_t engineStructTypeRegister(const engine_type_desc_t* desc, engine_component_type_t* out);
 // the component type the game registered with this name; ENGINE_INVALID_OBJECT_HANDLE when none (the engine's own
 // components have their own functions)
 ENGINE_API engine_component_type_t engineComponentTypeGetByName(const char* name);
@@ -653,6 +659,24 @@ ENGINE_API uint64_t engineDataComponentGetChangeCount(engine_component_type_t ty
 // Adds the game objects with the game-defined component to the view (see engineComponentViewCreate); a type which
 // isn't game-defined adds nothing.
 ENGINE_API void engineComponentViewAttachDataComponent(engine_component_view_t view, engine_component_type_t type);
+
+// Data assets (like Unity's ScriptableObject, Unreal's DataAsset, Godot's Resource): one value of a struct type the game
+// registered (engineStructTypeRegister) in a JSON file under assets/data, shared by everything referencing it, e.g. the
+// tuning of an enemy type that every enemy of the type references (ENGINE_FIELD_KIND_DATA_ASSET):
+//   { "version": 1, "type": "enemy_type", "value": { "max_hp": 20, ... } }
+// Its fields are written like a component's in a scene file (assets by asset ID); a field missing in the file keeps the
+// type's default value. A data asset can't hold game object references (it isn't in a scene). Named by its path relative
+// to the data folder ("enemies/skeleton.json"), its asset ID. Reference counted like the other assets: loading gives the
+// caller a reference (loading a file which is loaded already returns the same asset), a scene file referencing it holds
+// one as long as the scene. While the editor runs, a changed file is read again at the start of a frame, into the same
+// asset (a file which can't be read any more is logged and the asset keeps its value), so whoever reads the value on
+// every use sees the change at once.
+// ENGINE_INVALID_OBJECT_HANDLE (logged) when the file can't be read, isn't a data asset or holds an unknown type.
+ENGINE_API engine_data_asset_t engineDataAssetLoad(const char* path);
+ENGINE_API void engineDataAssetRelease(engine_data_asset_t asset);
+// Copies the asset's value (the type's size) to out. ENGINE_RESULT_CODE_FAIL when the asset doesn't exist (any more) or
+// holds a value of another type.
+ENGINE_API engine_result_code_t engineDataAssetGet(engine_data_asset_t asset, engine_component_type_t type, void* out);
 
 // game objects in scene
 ENGINE_API engine_game_object_t engineGameObjectCreate();

@@ -10,8 +10,11 @@
 #include "skin.h"
 #include "animation_controller.h"
 #include "prefab.h"
+#include "data_asset.h"
 #include "serialization/type_registry.h"
 #include "render/renderer.h"
+
+#include <set>
 
 
 namespace engine
@@ -83,6 +86,14 @@ public:
     virtual std::uint32_t get_prefab(std::string_view name) const;
     virtual const Prefab* get_prefab(std::uint32_t idx) const;
 
+    // data assets: a value of a game-defined struct type in a file under assets/data, named by its path there
+    // ("enemies/skeleton.json"), see DataAsset. Loading a file which is loaded already returns it with one more reference.
+    virtual std::uint32_t load_data_asset(std::string_view path);
+    virtual void release_data_asset(std::uint32_t idx);
+    virtual const DataAsset* get_data_asset(std::uint32_t idx) const;
+    virtual std::string get_data_asset_name(std::uint32_t idx) const;
+    virtual std::vector<std::pair<std::uint32_t, std::string>> get_data_asset_names() const;
+
     virtual std::uint32_t add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name);
     virtual std::uint32_t get_shader(std::string_view name) const;
     virtual std::string get_shader_name(std::uint32_t idx) const;
@@ -137,6 +148,10 @@ protected:
     Atlas<std::unique_ptr<Prefab>> prefabs_atlas_;
     Atlas<Shader> shader_atlas_;
     TypeRegistry types_;
+    // after the assets they reference and the types of their values
+    Atlas<std::unique_ptr<DataAsset>> data_assets_atlas_;
+    // the data asset files being read, so one referencing itself (directly or not) is caught
+    std::set<std::string, std::less<>> loading_data_assets_;
 
     UiManager ui_manager_;
     std::array<engine_finger_info_t, 10> finger_info_buffer;

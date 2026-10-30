@@ -6,6 +6,8 @@
 #include <entt/entt.hpp>
 
 #include <cstdint>
+#include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -23,6 +25,8 @@ public:
     virtual std::string get_asset_id(AssetKind kind, std::uint32_t handle) const = 0;
     // The asset with this ID, loaded when needed. ENGINE_INVALID_OBJECT_HANDLE (logged) when it can't be found.
     virtual std::uint32_t resolve(AssetKind kind, std::string_view asset_id) = 0;
+    // the type of the value the data asset holds, nullptr when the handle doesn't name one (any more)
+    virtual const TypeInfo* get_data_asset_type(std::uint32_t handle) const = 0;
 };
 
 // Scene files hold authored data only: every game object with a persistent ID and its components which have a type
@@ -118,4 +122,24 @@ struct SceneLoadOptions
 // that component (any more); a removed component is removed when the prefab gives it.
 bool load_scene(std::string_view json, std::string_view file_name, const TypeRegistry& types, entt::registry& registry, EntityIdRegistry& ids, IAssetResolver& assets,
     IPrefabInstances& prefabs, const SceneLoadOptions& options = {});
+
+// Data asset files hold one value of a game-defined struct type (see DataAsset), its fields written like a component's
+// in a scene file:
+//   { "version": 1, "type": "enemy_type", "value": { "max_hp": 20, ... } }
+inline constexpr std::uint32_t DATA_ASSET_FILE_VERSION = 1;
+
+// The value of `type` (one without game object references, holds_game_object) as a data asset file.
+std::string save_data_asset(const TypeInfo& type, const std::byte* value, const IAssetResolver& assets);
+
+struct DataAssetValue
+{
+    const TypeInfo* type = nullptr;
+    std::unique_ptr<ValueBuffer> value;
+};
+
+// Reads a data asset file: the type it names, which is a game-defined struct type without game object references, and
+// its value, which starts as the type's default value (TypeInfo::default_value), so a field the file doesn't have keeps
+// it. Nothing (logged) when the file can't be used: not JSON, a version this engine doesn't read, an unknown type or one
+// a data asset can't hold, no value object. Problems inside the value are logged and skipped, as in a scene file.
+std::optional<DataAssetValue> load_data_asset(std::string_view json, std::string_view file_name, const TypeRegistry& types, IAssetResolver& assets);
 }  // namespace engine
