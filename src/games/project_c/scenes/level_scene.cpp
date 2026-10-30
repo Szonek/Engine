@@ -93,11 +93,25 @@ project_c::LevelScene::LevelScene(engine::IApplication* app)
     {
         engineLog("Failed to build the level's nav mesh; enemies will not move.\n");
     }
+}
+
+void project_c::LevelScene::on_play_begin()
+{
+    auto& typed_app = *static_cast<AppProjectC*>(get_app());
+    const auto& path = typed_app.get_level_path();
     const auto start = find_entrance(path, typed_app.get_level_entrance());
     if (start == ENGINE_INVALID_GAME_OBJECT_ID || !LevelBuilder(typed_app, *this).spawn_player(start))
     {
         log(fmt::format("The level {} has no player start (or the player can't be spawned), it has no player.\n", path));
     }
+}
+
+void project_c::LevelScene::on_play_end()
+{
+    // the session's scripts are gone; the next session's are found again
+    level_scripts_found_ = false;
+    hud_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    encounter_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
 }
 
 void project_c::LevelScene::find_level_scripts()
@@ -139,8 +153,8 @@ void project_c::LevelScene::deactivate()
 engine_result_code_t project_c::LevelScene::update(float dt)
 {
     const auto result = IScene::update(dt);
-    // the scripts from the file exist after the first update
-    if (!level_scripts_found_)
+    // the scripts from the file exist after the first update of a play session
+    if (!level_scripts_found_ && enginePlayModeGetState() != ENGINE_PLAY_MODE_EDIT)
     {
         find_level_scripts();
     }

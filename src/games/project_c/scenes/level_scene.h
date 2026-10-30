@@ -8,8 +8,8 @@ namespace project_c
 class GameplayHud;
 
 // A level: a scene file (AppProjectC::get_level_path, assets/scenes/test_level.json by default) with the nav mesh built
-// from it and the player spawned at the player start of the entrance (AppProjectC::get_level_entrance) with what they
-// carry (AppProjectC::player_state). Everything else (the camera, the Encounter, the GameplayHud, the level exits)
+// from it and, while playing, the player spawned at the player start of the entrance (AppProjectC::get_level_entrance)
+// with what they carry (AppProjectC::player_state). Everything else (the camera, the Encounter, the GameplayHud, the level exits)
 // is in the file. Gameplay scripts don't depend on it; it only adds the level rules (going through a level exit to the
 // next level, restart, HUD visibility).
 class LevelScene : public engine::IScene
@@ -25,9 +25,15 @@ public:
     engine_result_code_t update(float dt) override;
     static constexpr const char* get_name() { return "LevelScene"; }
 
+protected:
+    // spawns the player at the player start of the entrance, like Unreal's GameMode at a PlayerStart: the edit state
+    // never holds a player
+    void on_play_begin() override;
+    void on_play_end() override;
+
 private:
-    // the HUD's and the encounter's game objects, once their scripts exist (after the first update): their scripts are
-    // then looked up by game object, never by scanning every script each frame
+    // the HUD's and the encounter's game objects, once their scripts exist (after the first update of a play session):
+    // their scripts are then looked up by game object, never by scanning every script each frame
     void find_level_scripts();
     // the HUD, from the file: nullptr before the first update, in a level without one or when its script was removed
     GameplayHud* hud();

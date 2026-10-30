@@ -107,7 +107,22 @@ public:
         };
     }
 
+protected:
+    // The level, entrance and player state a play session may change (a level exit, a restart, the player's hp) are
+    // remembered at Play and put back at Stop, so the editor returns to the level it had open with the player it had.
+    void on_play_begin() override;
+    void on_play_end() override;
+
 private:
+    // what on_play_begin remembered
+    struct PlaySessionStart
+    {
+        std::string level_path;
+        std::string level_entrance;
+        PlayerState player_state;
+        std::optional<PlayerState> level_entry_state;
+    };
+
     // the game's component types and the script types scene files and the editor can create (ScriptRegistry)
     void register_script_types();
     // logs why when the type can't be instantiated
@@ -125,5 +140,6 @@ private:
     std::optional<LevelTravel> level_travel_request_;
     PlayerInput player_input_{};
     std::function<void()> pending_scene_change_;
+    std::optional<PlaySessionStart> play_session_start_;
 };
 } // namespace project_c

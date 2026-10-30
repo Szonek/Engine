@@ -191,6 +191,27 @@ std::optional<project_c::LevelTravel> project_c::AppProjectC::take_level_travel_
     return request;
 }
 
+void project_c::AppProjectC::on_play_begin()
+{
+    play_session_start_ = PlaySessionStart{ level_path_, level_entrance_, player_state_, level_entry_state_ };
+}
+
+void project_c::AppProjectC::on_play_end()
+{
+    if (!play_session_start_)
+    {
+        return;
+    }
+    level_path_ = std::move(play_session_start_->level_path);
+    level_entrance_ = std::move(play_session_start_->level_entrance);
+    player_state_ = play_session_start_->player_state;
+    level_entry_state_ = play_session_start_->level_entry_state;
+    play_session_start_.reset();
+    // a travel or reload asked for in the session's last frame isn't the edit state's
+    level_travel_request_.reset();
+    pending_scene_change_ = nullptr;
+}
+
 void project_c::AppProjectC::update(float dt)
 {
     update_scenes(dt);
