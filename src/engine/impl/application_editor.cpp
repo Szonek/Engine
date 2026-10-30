@@ -398,8 +398,9 @@ bool display_asset_combo(engine::Scene* scene, engine::AssetKind kind, const cha
         : current_name.empty() ? fmt::format("<missing #{}>", handle) : std::string(current_name);
     bool changed = false;
     const bool open = ImGui::BeginCombo(label, preview.c_str());
-    // while the combo is closed, the last item is its preview
-    if (!open && ImGui::BeginDragDropTarget())
+    // while the combo is closed, the last item is its preview; the browser drags meshes and images only
+    const bool droppable = kind == engine::AssetKind::eGeometry || kind == engine::AssetKind::eTexture;
+    if (!open && droppable && ImGui::BeginDragDropTarget())
     {
         const auto* payload_type = kind == engine::AssetKind::eGeometry ? engine::ASSET_PAYLOAD_GEOMETRY : engine::ASSET_PAYLOAD_TEXTURE;
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payload_type))
@@ -543,9 +544,24 @@ private:
         {
             auto handle = read<std::uint32_t>(p);
             const auto* app = scene_->get_application();
-            const bool changed = field.asset_kind == engine::AssetKind::eGeometry
-                ? display_asset_combo(scene_, field.asset_kind, label, handle, app->get_geometry_name(handle), [app] { return app->get_geometry_names(); })
-                : display_asset_combo(scene_, field.asset_kind, label, handle, app->get_texture_name(handle), [app] { return app->get_texture_names(); });
+            bool changed = false;
+            switch (field.asset_kind)
+            {
+            case engine::AssetKind::eGeometry:
+                changed = display_asset_combo(scene_, field.asset_kind, label, handle, app->get_geometry_name(handle), [app] { return app->get_geometry_names(); });
+                break;
+            case engine::AssetKind::eDataAsset:
+                // the loaded data assets holding the field's type
+                changed = display_asset_combo(scene_, field.asset_kind, label, handle, app->get_data_asset_name(handle), [app, &field] {
+                    auto assets = app->get_data_asset_names();
+                    std::erase_if(assets, [&](const auto& asset) { return &app->get_data_asset(asset.first)->get_type() != field.data_type; });
+                    return assets;
+                });
+                break;
+            default:
+                changed = display_asset_combo(scene_, field.asset_kind, label, handle, app->get_texture_name(handle), [app] { return app->get_texture_names(); });
+                break;
+            }
             std::memcpy(p, &handle, sizeof(handle));
             return changed;
         }

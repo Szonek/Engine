@@ -23,7 +23,7 @@ class Application;
 // with its arrow, like Unity's sub-assets, and in its details), onto the asset fields of the properties panel
 // (ASSET_PAYLOAD_GEOMETRY, ASSET_PAYLOAD_TEXTURE). Dragging doesn't select, so a file can be dropped on the selected
 // game object's fields.
-// Selecting a model or an image, or opening a model, loads it to show what it holds, and holds it until the selection
+// Selecting a model, an image or a data asset, or opening a model, loads it to show what it holds, and holds it until the selection
 // changes or the model is closed. The folders are listed once and again after Refresh.
 // The selection is the editor's (IAssetSelection): a click asks for it, and the editor selects the file with an undo
 // step which deselects the game object.
@@ -79,6 +79,7 @@ private:
     void select(const asset_entry_t& entry);
     void draw_model_details();
     void draw_texture_details();
+    void draw_data_asset_details();
 
 private:
     Application& app_;
@@ -92,6 +93,7 @@ private:
     // the references the selection holds, to show its details
     opened_model_t inspected_model_;
     std::uint32_t inspected_texture_ = ENGINE_INVALID_OBJECT_HANDLE;
+    std::uint32_t inspected_data_asset_ = ENGINE_INVALID_OBJECT_HANDLE;
     // the opened models by path, each held while open
     std::map<std::string, opened_model_t> expanded_models_;
 };

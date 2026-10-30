@@ -19,6 +19,7 @@ enum class AssetFileKind
     eModel,    // .glb / .gltf anywhere: a prefab named by its path under assets/models
     eScene,    // .json under assets/scenes: a scene file, placed as a scene prefab named by its path there
     eTexture,  // an image file (.png, .jpg, ...)
+    eData,     // .json under assets/data: a data asset (DataAsset) named by its path there
     eOther,    // shaders, fonts, UI documents, ...: listed, but nothing uses them from the browser
 };
 
@@ -52,7 +53,7 @@ std::vector<asset_entry_t> list_asset_folder(const std::filesystem::path& assets
 
 // The asset ID the engine names the file by, or nothing when it has none: a model or an image by its path under
 // models/ (images in their own files are named like models, so models using them share one texture), a scene file by
-// its path under scenes/.
+// its path under scenes/, a data asset by its path under data/.
 std::optional<std::string> get_asset_id(const asset_entry_t& entry);
 
 // The assets created from a model (asset IDs "<model ID>#<name>", see asset_id.h) among `assets` (an atlas' handles and

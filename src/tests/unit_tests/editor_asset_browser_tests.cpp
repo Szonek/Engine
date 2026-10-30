@@ -72,13 +72,14 @@ TEST(AssetFileKind, ToldByExtensionIgnoringCase)
     EXPECT_EQ(engine::get_asset_file_kind("models/a.glb", true), AssetFileKind::eFolder);
 }
 
-TEST(AssetFileKind, JsonIsASceneOnlyUnderScenes)
+TEST(AssetFileKind, JsonIsASceneUnderScenesAndADataAssetUnderData)
 {
     using engine::AssetFileKind;
     EXPECT_EQ(engine::get_asset_file_kind("scenes/test_level.json", false), AssetFileKind::eScene);
     EXPECT_EQ(engine::get_asset_file_kind("scenes/rooms/room_a.json", false), AssetFileKind::eScene);
-    EXPECT_EQ(engine::get_asset_file_kind("data/enemies/skeleton.json", false), AssetFileKind::eOther);
+    EXPECT_EQ(engine::get_asset_file_kind("data/enemies/skeleton.json", false), AssetFileKind::eData);
     EXPECT_EQ(engine::get_asset_file_kind("scenes_old/level.json", false), AssetFileKind::eOther);
+    EXPECT_EQ(engine::get_asset_file_kind("ui_docs/layout.json", false), AssetFileKind::eOther);
 }
 
 TEST_F(AssetBrowserTest, ListsFoldersFirstThenFilesByNameIgnoringCase)
@@ -127,6 +128,11 @@ TEST(AssetBrowserAssetId, ModelsAndImagesByTheirPathUnderModels)
 TEST(AssetBrowserAssetId, ScenesByTheirPathUnderScenes)
 {
     EXPECT_EQ(engine::get_asset_id(entry("scenes/rooms/room_a.json")), "rooms/room_a.json");
+}
+
+TEST(AssetBrowserAssetId, DataAssetsByTheirPathUnderData)
+{
+    EXPECT_EQ(engine::get_asset_id(entry("data/enemies/skeleton_warrior.json")), "enemies/skeleton_warrior.json");
 }
 
 TEST(AssetBrowserAssetId, NoneOutsideTheirFolderOrForOtherFiles)

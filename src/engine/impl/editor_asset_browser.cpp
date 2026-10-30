@@ -41,6 +41,10 @@ engine::AssetFileKind engine::get_asset_file_kind(std::string_view path, bool is
     {
         return AssetFileKind::eScene;
     }
+    if (extension == ".json" && path_under(path, "data"))
+    {
+        return AssetFileKind::eData;
+    }
     constexpr std::array<std::string_view, 5> image_extensions = { ".png", ".jpg", ".jpeg", ".tga", ".bmp" };
     if (std::ranges::find(image_extensions, extension) != image_extensions.end())
     {
@@ -89,6 +93,7 @@ std::optional<std::string> engine::get_asset_id(const asset_entry_t& entry)
     case AssetFileKind::eModel:
     case AssetFileKind::eTexture: return path_under(entry.path, "models");
     case AssetFileKind::eScene: return path_under(entry.path, "scenes");
+    case AssetFileKind::eData: return path_under(entry.path, "data");
     case AssetFileKind::eFolder:
     case AssetFileKind::eOther: break;
     }
