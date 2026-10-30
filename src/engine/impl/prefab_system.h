@@ -40,6 +40,10 @@ public:
     void begin_file_load(std::string_view file_name);
     void end_file_load();
     bool is_file_loading(std::string_view file_name) const;
+    // The scene files the scene was loaded from or saved to (engineSceneLoad / engineSceneSave), by name like above: a
+    // scene prefab of one of them placed in the scene (the editor's drop) would place that file inside itself once saved.
+    void add_scene_file(std::string_view file_name);
+    bool is_scene_file(std::string_view file_name) const;
 
 private:
     Application& app_;
@@ -47,5 +51,6 @@ private:
     entt::registry& registry_;
     SceneAssets& assets_;
     std::vector<std::filesystem::path> loading_files_;
+    std::vector<std::filesystem::path> scene_files_;
 };
 }  // namespace engine

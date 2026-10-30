@@ -10,38 +10,48 @@
 
 namespace engine
 {
-CommandSetSelectedEntity::CommandSetSelectedEntity(Scene& sc, entt::entity prev_selected, entt::entity new_selected)
+CommandSetSelection::CommandSetSelection(Scene& sc, entt::entity prev_selected, entt::entity new_selected)
     : sc_(sc)
     , e_prev_(prev_selected)
     , e_new_(new_selected)
 {
 }
 
-void CommandSetSelectedEntity::execute()
+CommandSetSelection::CommandSetSelection(Scene& sc, IAssetSelection& assets, entt::entity prev_selected, entt::entity new_selected, std::string_view new_asset)
+    : sc_(sc)
+    , e_prev_(prev_selected)
+    , e_new_(new_selected)
+    , assets_(&assets)
+    , asset_prev_(assets.get_selected_asset())
+    , asset_new_(new_asset)
 {
-    if (e_prev_ != entt::null)
-    {
-        sc_.remove_component<engine::guizmo_component_t>(e_prev_);
-        sc_.remove_component<engine::outline_component_t>(e_prev_);
-    }
-    if (e_new_ != entt::null)
-    {
-        sc_.add_component<engine::guizmo_component_t>(e_new_);
-        sc_.add_component<engine::outline_component_t>(e_new_);
-    }
 }
 
-void CommandSetSelectedEntity::undo()
+void CommandSetSelection::execute()
 {
-    if (e_new_ != entt::null)
+    select(e_prev_, e_new_, asset_new_);
+}
+
+void CommandSetSelection::undo()
+{
+    select(e_new_, e_prev_, asset_prev_);
+}
+
+void CommandSetSelection::select(entt::entity deselected, entt::entity selected, const std::string& asset)
+{
+    if (deselected != entt::null)
     {
-        sc_.remove_component<engine::guizmo_component_t>(e_new_);
-        sc_.remove_component<engine::outline_component_t>(e_new_);
+        sc_.remove_component<engine::guizmo_component_t>(deselected);
+        sc_.remove_component<engine::outline_component_t>(deselected);
     }
-    if (e_prev_ != entt::null)
+    if (selected != entt::null)
     {
-        sc_.add_component<engine::guizmo_component_t>(e_prev_);
-        sc_.add_component<engine::outline_component_t>(e_prev_);
+        sc_.add_component<engine::guizmo_component_t>(selected);
+        sc_.add_component<engine::outline_component_t>(selected);
+    }
+    if (assets_ && assets_->get_selected_asset() != asset)
+    {
+        assets_->set_selected_asset(asset);
     }
 }
 
@@ -213,6 +223,48 @@ bool holds_whole_instances(const Scene& sc, entt::entity e)
     }
     return true;
 }
+
+// Gives `e` a name none of its siblings (the game objects with its parent, or without one) has, see copy_name; a name
+// no sibling has stays.
+void make_name_unique_among_siblings(Scene& scene, entt::entity e)
+{
+    if (!scene.has_component<engine_name_component_t>(e))
+    {
+        return;
+    }
+    const auto parent = parent_of(scene, e);
+    std::vector<std::string> sibling_names;
+    const auto add_sibling_name = [&](entt::entity sibling)
+        {
+            if (sibling != e && scene.has_component<engine_name_component_t>(sibling))
+            {
+                sibling_names.emplace_back(scene.get_component<engine_name_component_t>(sibling)->name);
+            }
+        };
+    if (parent != entt::null)
+    {
+        std::ranges::for_each(scene.get_children(parent), add_sibling_name);
+    }
+    else
+    {
+        // the game objects without a parent have no list of their own
+        for (const auto sibling : scene.get_all_entities())
+        {
+            if (parent_of(scene, sibling) == entt::null)
+            {
+                add_sibling_name(sibling);
+            }
+        }
+    }
+    auto name = *scene.get_component<engine_name_component_t>(e);
+    if (std::ranges::find(sibling_names, name.name) == sibling_names.end())
+    {
+        return;
+    }
+    const auto new_name = copy_name(name.name, sibling_names, ENGINE_ENTITY_NAME_MAX_LENGTH);
+    std::memcpy(name.name, new_name.c_str(), new_name.size() + 1);
+    scene.update_component<engine_name_component_t>(e, name);
+}
 }  // namespace
 
 bool CommandDestroyEntity::can_destroy(const Scene& sc, entt::entity e)
@@ -329,38 +381,8 @@ void CommandDuplicateEntity::duplicate()
     copy_ = it->second;
 
     // the name, unique among the siblings, and the place right after the original
-    const auto parent = parent_of(scene_, e_);
-    std::vector<std::string> sibling_names;
-    const auto add_sibling_name = [&](entt::entity sibling)
-        {
-            if (sibling != copy_ && scene_.has_component<engine_name_component_t>(sibling))
-            {
-                sibling_names.emplace_back(scene_.get_component<engine_name_component_t>(sibling)->name);
-            }
-        };
-    if (parent != entt::null)
-    {
-        std::ranges::for_each(scene_.get_children(parent), add_sibling_name);
-    }
-    else
-    {
-        // the game objects without a parent have no list of their own
-        for (const auto sibling : scene_.get_all_entities())
-        {
-            if (parent_of(scene_, sibling) == entt::null)
-            {
-                add_sibling_name(sibling);
-            }
-        }
-    }
-    if (scene_.has_component<engine_name_component_t>(copy_))
-    {
-        auto name = *scene_.get_component<engine_name_component_t>(copy_);
-        const auto new_name = copy_name(name.name, sibling_names, ENGINE_ENTITY_NAME_MAX_LENGTH);
-        std::memcpy(name.name, new_name.c_str(), new_name.size() + 1);
-        scene_.update_component<engine_name_component_t>(copy_, name);
-    }
-    if (parent != entt::null)
+    make_name_unique_among_siblings(scene_, copy_);
+    if (const auto parent = parent_of(scene_, e_); parent != entt::null)
     {
         const auto siblings = scene_.get_children(parent);
         const auto index = static_cast<std::size_t>(std::find(siblings.begin(), siblings.end(), e_) - siblings.begin());
@@ -376,7 +398,71 @@ void CommandDuplicateEntity::duplicate()
     }
 
     destroy_copy_ = std::make_unique<CommandDestroyEntity>(scene_, copy_);
-    select_copy_ = std::make_unique<CommandSetSelectedEntity>(scene_, selected_, copy_);
+    select_copy_ = std::make_unique<CommandSetSelection>(scene_, selected_, copy_);
+}
+
+CommandPlacePrefab::CommandPlacePrefab(Scene& sc, IAssetSelection& assets, std::string_view prefab_asset_id, const glm::vec3& position, entt::entity selected)
+    : scene_(sc)
+    , assets_(assets)
+    , asset_id_(prefab_asset_id)
+    , position_(position)
+    , selected_(selected)
+{
+}
+
+void CommandPlacePrefab::execute()
+{
+    if (!destroy_instance_)
+    {
+        place();
+    }
+    else
+    {
+        destroy_instance_->undo();
+    }
+    if (select_instance_)
+    {
+        select_instance_->execute();
+    }
+}
+
+void CommandPlacePrefab::undo()
+{
+    if (select_instance_)
+    {
+        select_instance_->undo();
+    }
+    if (destroy_instance_)
+    {
+        destroy_instance_->execute();
+    }
+}
+
+void CommandPlacePrefab::place()
+{
+    // logs why when it can't be loaded
+    const auto prefab = scene_.assets().resolve_prefab(asset_id_);
+    if (prefab == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return;
+    }
+    root_ = scene_.prefabs().instantiate_prefab(prefab, Prefab::Instance::ePersistent);
+    if (root_ == entt::null)
+    {
+        return;
+    }
+    if (!scene_.has_component<engine_transform_component_t>(root_))
+    {
+        scene_.add_component<engine_transform_component_t>(root_);
+    }
+    auto transform = *scene_.get_component<engine_transform_component_t>(root_);
+    std::memcpy(transform.position, &position_[0], sizeof(transform.position));
+    scene_.update_component<engine_transform_component_t>(root_, transform);
+    make_name_unique_among_siblings(scene_, root_);
+
+    destroy_instance_ = std::make_unique<CommandDestroyEntity>(scene_, root_);
+    // the file selected before (the one dragged in, often) comes back with undo
+    select_instance_ = std::make_unique<CommandSetSelection>(scene_, assets_, selected_, root_, "");
 }
 
 

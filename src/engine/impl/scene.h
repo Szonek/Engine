@@ -40,6 +40,8 @@ public:
     // instantiates prefabs and knows the scene's prefab instances
     PrefabSystem& prefabs();
     const PrefabSystem& prefabs() const;
+    // the assets the scene holds for what scene files and the editor placed in it, by asset ID
+    SceneAssets& assets();
 
     void enable_nav_mesh_debug_draw(bool enable);
     bool is_nav_mesh_debug_draw_enabled() const;

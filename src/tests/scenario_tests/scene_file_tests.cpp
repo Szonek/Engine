@@ -687,4 +687,27 @@ TEST_F(ScenePrefabTest, LevelWhichPlacesItselfIsNotPlacedInsideItself)
     ASSERT_NE(room, ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_TRUE(instances_of(room).empty());
 }
+
+TEST_F(ScenePrefabTest, SceneFileIsNotPlacedInTheSceneLoadedFromOrSavedToIt)
+{
+    // the editor's drop: saving the scene would place the file inside itself
+    create_file_scene();
+    const auto path = write_room(ROOM_WITH_A_CRATE);
+    ASSERT_EQ(engineSceneLoad(path.c_str()), ENGINE_RESULT_CODE_OK);
+    engine_prefab_t room = ENGINE_INVALID_OBJECT_HANDLE;
+    ASSERT_EQ(enginePrefabLoadScene(path.c_str(), &room), ENGINE_RESULT_CODE_OK);
+    EXPECT_EQ(enginePrefabInstantiate(room), ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_TRUE(instances_of(room).empty());
+
+    ASSERT_EQ(engineSceneSave(file_.string().c_str()), ENGINE_RESULT_CODE_OK);
+    engine_prefab_t saved = ENGINE_INVALID_OBJECT_HANDLE;
+    ASSERT_EQ(enginePrefabLoadScene(file_.string().c_str(), &saved), ENGINE_RESULT_CODE_OK);
+    EXPECT_EQ(enginePrefabInstantiate(saved), ENGINE_INVALID_GAME_OBJECT_ID);
+
+    // another scene can place them
+    destroy_file_scene();
+    EXPECT_NE(enginePrefabInstantiate(room), ENGINE_INVALID_GAME_OBJECT_ID);
+    enginePrefabRelease(saved);
+    enginePrefabRelease(room);
+}
 }  // namespace

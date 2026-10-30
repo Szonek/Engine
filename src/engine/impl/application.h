@@ -64,6 +64,7 @@ public:
     virtual std::uint32_t get_skin(std::string_view name) const;
     virtual const Skin* get_skin(std::uint32_t idx) const;
     virtual std::string get_skin_name(std::uint32_t idx) const;
+    virtual std::vector<std::pair<std::uint32_t, std::string>> get_skin_names() const;
     virtual void release_skin(std::uint32_t idx);
 
     // animation set assets: a model's clips compiled for one skin, shared by that skin's controllers

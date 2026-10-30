@@ -607,6 +607,7 @@ engine_result_code_t engineSceneSave(const char* path)
         engine::log::log(engine::log::LogLevel::eError, fmt::format("Scene save: can't write {}.\n", file_path.string()));
         return ENGINE_RESULT_CODE_FAIL;
     }
+    api_cast(G_ACTIVE_SCENE)->prefabs().add_scene_file(path);
     return ENGINE_RESULT_CODE_OK;
 }
 
@@ -624,7 +625,13 @@ engine_result_code_t engineSceneLoad(const char* path)
         return ENGINE_RESULT_CODE_FAIL;
     }
     const std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    return api_cast(G_ACTIVE_SCENE)->load(content, path) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+    auto* scene = api_cast(G_ACTIVE_SCENE);
+    if (!scene->load(content, path))
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    scene->prefabs().add_scene_file(path);
+    return ENGINE_RESULT_CODE_OK;
 }
 
 engine_result_code_t engineComponentTypeRegister(const engine_type_desc_t* desc, engine_component_type_t* out)

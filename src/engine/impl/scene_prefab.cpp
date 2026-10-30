@@ -45,8 +45,9 @@ std::vector<engine::PrefabInstanceNode> engine::ScenePrefab::instantiate(Scene& 
     const InstanceIds* ids) const
 {
     ENGINE_PROFILE_SECTION;
-    // its file is being loaded already (the level, or a scene prefab's instance this one is placed in)
-    if (scene.prefabs().is_file_loading(name_))
+    // its file is being loaded already (the level, or a scene prefab's instance this one is placed in), or the scene is
+    // that file (loaded from or saved to it), so saving the scene would place the file inside itself
+    if (scene.prefabs().is_file_loading(name_) || scene.prefabs().is_scene_file(name_))
     {
         log::log(log::LogLevel::eError, fmt::format("Scene prefab {} places itself (directly or through other scene files), the instance inside itself is "
             "not created.\n", name_));

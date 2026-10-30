@@ -28,6 +28,12 @@ struct modal_transform_view_t
     glm::vec2 viewport_size{ 1.0f };
 };
 
+// The ray under a screen position (viewport pixels, y down) in world space: its origin on the near plane and its
+// direction (unit length).
+void mouse_ray(const modal_transform_view_t& view, const glm::vec2& mouse, glm::vec3& origin, glm::vec3& direction);
+// the same with the view's inverse (projection * view) computed already
+void mouse_ray(const glm::mat4& inverse_view_projection, const glm::vec2& viewport_size, const glm::vec2& mouse, glm::vec3& origin, glm::vec3& direction);
+
 // Blender's modal transform (G, R, S), GL-free: follows the mouse from where the key was pressed and gives the new
 // world matrix; the editor confirms or cancels it.
 //   grab:   the object moves under the cursor at its depth; along an axis, to the point of the axis under the cursor
@@ -67,8 +73,6 @@ private:
     void restart(const glm::vec2& mouse);
     // grab along an axis starts measuring at the mouse position
     void restart_axis(const glm::vec2& mouse);
-    // the mouse ray in world space: origin and direction
-    void mouse_ray(const glm::vec2& mouse, glm::vec3& origin, glm::vec3& direction) const;
     // how far along the constraint axis (from the origin) the cursor points, or false when the ray is parallel to it
     bool axis_parameter(const glm::vec2& mouse, float& out) const;
     float screen_angle(const glm::vec2& mouse) const;

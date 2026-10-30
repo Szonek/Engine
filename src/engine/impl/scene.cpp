@@ -166,6 +166,11 @@ const engine::PrefabSystem& engine::Scene::prefabs() const
     return prefabs_;
 }
 
+engine::SceneAssets& engine::Scene::assets()
+{
+    return assets_;
+}
+
 engine::PhysicsSystem& engine::Scene::physics()
 {
     return physics_;

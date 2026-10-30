@@ -19,6 +19,7 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
 #include <array>
 #include <functional>
 #include <cstring>
@@ -339,7 +340,7 @@ inline void display_folder(const std::string& name, folder_node_t& folder, engin
 }
 
 template<typename T>
-inline void display_component(std::string_view name, engine::Scene* scene, engine::CommandManager& commands, entt::entity entity, std::function<bool(const engine::Scene* scene, T& comp)> fn)
+inline void display_component(std::string_view name, engine::Scene* scene, engine::CommandManager& commands, entt::entity entity, std::function<bool(engine::Scene* scene, T& comp)> fn)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_component");
     const bool has_component = scene->has_component<T>(entity);
@@ -387,14 +388,36 @@ inline void display_component(std::string_view name, engine::Scene* scene, engin
 }
 
 // Combo box picking a resource by its asset ID (atlas name) instead of typing its index; "None" selects
-// ENGINE_INVALID_OBJECT_HANDLE. The list of assets is only built while the combo is open. Returns true when the
-// selection changed.
-bool display_asset_combo(const char* label, std::uint32_t& handle, std::string_view current_name, const std::function<std::vector<std::pair<std::uint32_t, std::string>>()>& get_assets)
+// ENGINE_INVALID_OBJECT_HANDLE. The list of assets is only built while the combo is open. An asset of the field's kind
+// dragged from the asset browser can be dropped on it (like Unity's object fields); the scene then holds the file it
+// comes from (SceneAssets). Returns true when the selection changed.
+bool display_asset_combo(engine::Scene* scene, engine::AssetKind kind, const char* label, std::uint32_t& handle, std::string_view current_name,
+    const std::function<std::vector<std::pair<std::uint32_t, std::string>>()>& get_assets)
 {
     const auto preview = handle == ENGINE_INVALID_OBJECT_HANDLE ? std::string("None")
         : current_name.empty() ? fmt::format("<missing #{}>", handle) : std::string(current_name);
     bool changed = false;
-    if (ImGui::BeginCombo(label, preview.c_str()))
+    const bool open = ImGui::BeginCombo(label, preview.c_str());
+    // while the combo is closed, the last item is its preview
+    if (!open && ImGui::BeginDragDropTarget())
+    {
+        const auto* payload_type = kind == engine::AssetKind::eGeometry ? engine::ASSET_PAYLOAD_GEOMETRY : engine::ASSET_PAYLOAD_TEXTURE;
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payload_type))
+        {
+            const std::string_view asset_id(static_cast<const char*>(payload->Data));
+            if (const auto dropped = scene->assets().resolve(kind, asset_id); dropped != ENGINE_INVALID_OBJECT_HANDLE)
+            {
+                changed = dropped != handle;
+                handle = dropped;
+            }
+            else
+            {
+                engine::log::log(engine::log::LogLevel::eError, fmt::format("Editor: the asset {} dropped on {} can't be found.\n", asset_id, label));
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+    if (open)
     {
         if (ImGui::Selectable("None", handle == ENGINE_INVALID_OBJECT_HANDLE))
         {
@@ -419,16 +442,16 @@ bool display_asset_combo(const char* label, std::uint32_t& handle, std::string_v
     return changed;
 }
 
-bool display_geometry_combo(const engine::Scene* scene, std::uint32_t& geometry)
+bool display_geometry_combo(engine::Scene* scene, std::uint32_t& geometry)
 {
     const auto* app = scene->get_application();
-    return display_asset_combo("Geometry", geometry, app->get_geometry_name(geometry), [app] { return app->get_geometry_names(); });
+    return display_asset_combo(scene, engine::AssetKind::eGeometry, "Geometry", geometry, app->get_geometry_name(geometry), [app] { return app->get_geometry_names(); });
 }
 
-bool display_texture_combo(const engine::Scene* scene, const char* label, std::uint32_t& texture)
+bool display_texture_combo(engine::Scene* scene, const char* label, std::uint32_t& texture)
 {
     const auto* app = scene->get_application();
-    return display_asset_combo(label, texture, app->get_texture_name(texture), [app] { return app->get_texture_names(); });
+    return display_asset_combo(scene, engine::AssetKind::eTexture, label, texture, app->get_texture_name(texture), [app] { return app->get_texture_names(); });
 }
 
 // Draws a value of a game-defined type from its description, a widget per field kind (game types have no unions; the
@@ -436,7 +459,7 @@ bool display_texture_combo(const engine::Scene* scene, const char* label, std::u
 class TypeInspector
 {
 public:
-    explicit TypeInspector(const engine::Scene* scene) : scene_(scene) {}
+    explicit TypeInspector(engine::Scene* scene) : scene_(scene) {}
 
     bool draw_struct(const engine::TypeInfo& type, std::byte* value)
     {
@@ -521,8 +544,8 @@ private:
             auto handle = read<std::uint32_t>(p);
             const auto* app = scene_->get_application();
             const bool changed = field.asset_kind == engine::AssetKind::eGeometry
-                ? display_asset_combo(label, handle, app->get_geometry_name(handle), [app] { return app->get_geometry_names(); })
-                : display_asset_combo(label, handle, app->get_texture_name(handle), [app] { return app->get_texture_names(); });
+                ? display_asset_combo(scene_, field.asset_kind, label, handle, app->get_geometry_name(handle), [app] { return app->get_geometry_names(); })
+                : display_asset_combo(scene_, field.asset_kind, label, handle, app->get_texture_name(handle), [app] { return app->get_texture_names(); });
             std::memcpy(p, &handle, sizeof(handle));
             return changed;
         }
@@ -640,7 +663,7 @@ private:
         return changed;
     }
 
-    const engine::Scene* scene_;
+    engine::Scene* scene_;
 };
 
 // display_component for a component known only by its type description, drawn by the TypeInspector
@@ -687,7 +710,7 @@ void display_typed_component(const engine::TypeInfo& type, engine::Scene* scene,
     ImGui::PopID();
 }
 
-bool display_transform_component(const engine::Scene* /*scene*/, engine_transform_component_t& c)
+bool display_transform_component(engine::Scene* /*scene*/, engine_transform_component_t& c)
 {
     const float v_speed = 0.1f;
     bool requires_update = ImGui::DragFloat3("Position##transform", c.position, v_speed);
@@ -703,7 +726,7 @@ bool display_transform_component(const engine::Scene* /*scene*/, engine_transfor
     return requires_update;
 }
 
-bool display_mesh_component(const engine::Scene* scene, engine_mesh_component_t& c)
+bool display_mesh_component(engine::Scene* scene, engine_mesh_component_t& c)
 {
     bool enabled = !c.disable;
     if (ImGui::Checkbox("Enabled", &enabled))
@@ -726,7 +749,7 @@ std::string skin_owner_label(const engine::Scene* scene, engine_game_object_t sk
     return fmt::format("{} (ID {})", name, scene->get_persistent_id(entity));
 }
 
-bool display_skinned_mesh_component(const engine::Scene* scene, engine_skinned_mesh_component_t& c)
+bool display_skinned_mesh_component(engine::Scene* scene, engine_skinned_mesh_component_t& c)
 {
     bool enabled = !c.disable;
     if (ImGui::Checkbox("Enabled", &enabled))
@@ -738,26 +761,26 @@ bool display_skinned_mesh_component(const engine::Scene* scene, engine_skinned_m
     return true;
 }
 
-bool display_skin_component(const engine::Scene* scene, engine_skin_component_t& c)
+bool display_skin_component(engine::Scene* scene, engine_skin_component_t& c)
 {
     const auto name = scene->get_application()->get_skin_name(c.skin);
     ImGui::Text("Asset: %s", name.empty() ? "None" : name.c_str());
     return false;
 }
 
-bool display_folder_component(const engine::Scene* /*scene*/, engine_folder_component_t& c)
+bool display_folder_component(engine::Scene* /*scene*/, engine_folder_component_t& c)
 {
     return ImGui::InputText("Path##folder", c.path, ENGINE_FOLDER_PATH_MAX_LENGTH);
 }
 
-bool display_joint_attachment_component(const engine::Scene* scene, engine_joint_attachment_component_t& c)
+bool display_joint_attachment_component(engine::Scene* scene, engine_joint_attachment_component_t& c)
 {
     ImGui::Text("Skin of: %s", skin_owner_label(scene, c.skin).c_str());
     ImGui::Text("Joint name: %s", c.joint_name->str.c_str());
     return false;
 }
 
-bool display_animation_controller_component(const engine::Scene* scene, engine_animation_controller_component_t& c)
+bool display_animation_controller_component(engine::Scene* scene, engine_animation_controller_component_t& c)
 {
     const auto name = scene->get_application()->get_animation_set_name(c.animations);
     ImGui::Text("Animation set: %s", name.empty() ? "None" : name.c_str());
@@ -792,7 +815,7 @@ bool display_animation_controller_component(const engine::Scene* scene, engine_a
 }
 
 
-bool display_light_component(const engine::Scene* /*scene*/, engine_light_component_t& c)
+bool display_light_component(engine::Scene* /*scene*/, engine_light_component_t& c)
 {
     bool requires_update = false;
     // intensity
@@ -842,7 +865,7 @@ bool display_light_component(const engine::Scene* /*scene*/, engine_light_compon
 }
 
 
-bool display_material_component(const engine::Scene* scene, engine_material_component_t& c)
+bool display_material_component(engine::Scene* scene, engine_material_component_t& c)
 {
     // pong is the only material type
     bool requires_component_updated = false;
@@ -853,7 +876,7 @@ bool display_material_component(const engine::Scene* scene, engine_material_comp
     return requires_component_updated;
 }
 
-bool display_collider_component(const engine::Scene* /*scene*/, engine_collider_component_t& c)
+bool display_collider_component(engine::Scene* /*scene*/, engine_collider_component_t& c)
 {
     bool requires_component_updated = false;
     // list of types
@@ -940,7 +963,7 @@ bool display_collider_component(const engine::Scene* /*scene*/, engine_collider_
     return requires_component_updated;
 }
 
-bool display_rigidbody_component(const engine::Scene* /*scene*/, engine_rigid_body_component_t& c)
+bool display_rigidbody_component(engine::Scene* /*scene*/, engine_rigid_body_component_t& c)
 {
     const char* types[] = { "Dynamic", "Kinematic", "Static" };
     std::int32_t type = c.type;
@@ -957,7 +980,7 @@ bool display_rigidbody_component(const engine::Scene* /*scene*/, engine_rigid_bo
     return requires_update;
 }
 
-bool display_character_controller_component(const engine::Scene* /*scene*/, engine_character_controller_component_t& c)
+bool display_character_controller_component(engine::Scene* /*scene*/, engine_character_controller_component_t& c)
 {
     bool changed = false;
     changed |= ImGui::DragFloat("Radius##character_controller", &c.radius, 0.01f, 0.01f, 10.0f);
@@ -967,7 +990,7 @@ bool display_character_controller_component(const engine::Scene* /*scene*/, engi
     return changed;
 }
 
-bool display_nav_surface_component(const engine::Scene* /*scene*/, engine_nav_surface_component_t& c)
+bool display_nav_surface_component(engine::Scene* /*scene*/, engine_nav_surface_component_t& c)
 {
     // takes effect with the next nav mesh build ("Build nav mesh" below the component)
     bool changed = false;
@@ -980,7 +1003,7 @@ bool display_nav_surface_component(const engine::Scene* /*scene*/, engine_nav_su
     return changed;
 }
 
-bool display_nav_modifier_component(const engine::Scene* /*scene*/, engine_nav_modifier_component_t& c)
+bool display_nav_modifier_component(engine::Scene* /*scene*/, engine_nav_modifier_component_t& c)
 {
     const char* types[] = { "Walkable", "Not walkable", "Ignore" };
     std::int32_t type = c.type;
@@ -992,7 +1015,7 @@ bool display_nav_modifier_component(const engine::Scene* /*scene*/, engine_nav_m
     return false;
 }
 
-bool display_camera_component(const engine::Scene* /*scene*/, engine_camera_component_t& c)
+bool display_camera_component(engine::Scene* /*scene*/, engine_camera_component_t& c)
 {
     bool update_required = false;
     // is it enabled?
@@ -1192,9 +1215,14 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
 
     render_editor_controls(scene, editor_delta_time);
     render_scene_hierarchy_panel(scene, editor_delta_time);
+    render_asset_browser_panel(scene);
     render_entity_properties_panel(scene, editor_delta_time);
     render_debug_panel(scene, editor_delta_time);
 
+    if (!modal_transform_)
+    {
+        handle_asset_drop(scene);
+    }
     if (editor_view_ == EditorView::eEditor)
     {
         if (modal_transform_)
@@ -1402,6 +1430,12 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
         }
         ImGui::TreePop();
     }
+    // a click on the empty space below the game objects deselects everything, a file too, like Unity's hierarchy
+    const auto empty_space = ImGui::GetContentRegionAvail();
+    if (ImGui::InvisibleButton("##deselect_all", ImVec2(std::max(empty_space.x, 1.0f), std::max(empty_space.y, 1.0f))))
+    {
+        scene_hierarchy_context_.deselect_all(scene, commands_);
+    }
     display_delete_without_undo_popup(scene);
     ImGui::End(); // scene panel
 }
@@ -1453,9 +1487,16 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
         - the one which are available in the entity (whatever color) and a "-" button to remove them
     */
     ImGui::Begin(editor_windows_context_.get_window_right());
-    ImGui::SeparatorText("Entity properties.");
-    if (scene_hierarchy_context_.has_selected_entity())
+    // one thing is selected, like in Unity's inspector: a file or a game object (selecting one deselects the other,
+    // CommandSetSelection)
+    if (asset_browser_.has_selection())
     {
+        ImGui::SeparatorText("Asset properties.");
+        asset_browser_.draw_inspector();
+    }
+    else if (scene_hierarchy_context_.has_selected_entity())
+    {
+        ImGui::SeparatorText("Entity properties.");
         const auto selected = scene_hierarchy_context_.get_selected_entity();
         display_component<engine_folder_component_t>("Folder", scene, commands_, selected, display_folder_component);
         display_component<engine_transform_component_t>("Transform", scene, commands_, selected, display_transform_component);
@@ -1489,7 +1530,75 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
     }
     else
     {
+        ImGui::SeparatorText("Entity properties.");
         ImGui::Text("Select entity to display its components.");
+    }
+    ImGui::End();
+}
+
+void engine::ApplicationEditor::render_asset_browser_panel(Scene* scene)
+{
+    ENGINE_PROFILE_SECTION_N("editor-render_asset_browser_panel");
+    ImGui::Begin(editor_windows_context_.get_window_down());
+    if (const auto clicked = asset_browser_.draw())
+    {
+        // the file in place of the game object, one undo step which gives the game object back
+        commands_.execute_command(std::make_unique<CommandSetSelection>(*scene, asset_browser_, scene_hierarchy_context_.get_selected_entity(), entt::null, *clicked));
+        scene_hierarchy_context_.sync_selected_from_scene(scene);
+    }
+    ImGui::End();
+}
+
+void engine::ApplicationEditor::handle_asset_drop(Scene* scene)
+{
+    if (!render_imgui_)
+    {
+        return;
+    }
+    // the scene image covers the whole panel (Begin appends to the window)
+    ImGui::Begin(editor_windows_context_.get_window_scene());
+    const auto viewport = get_scene_viewport();
+    const ImRect rect(static_cast<float>(viewport.x), static_cast<float>(viewport.y), static_cast<float>(viewport.x + viewport.width),
+        static_cast<float>(viewport.y + viewport.height));
+    if (ImGui::BeginDragDropTargetCustom(rect, ImGui::GetID("##scene_asset_drop")))
+    {
+        const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(ASSET_PAYLOAD_PREFAB);
+        // what the scene is seen through: the editor camera in the editor view, the game's (its first enabled camera) in
+        // the game view
+        entt::entity camera_entity = editor_view_ == EditorView::eEditor ? camera_context_.get_camera_entity(scene) : entt::entity{ entt::null };
+        if (editor_view_ == EditorView::eGame)
+        {
+            auto camera_view = scene->create_runtime_view();
+            scene->attach_component_to_runtime_view<engine_camera_component_t>(camera_view);
+            for (const auto entity : camera_view)
+            {
+                if (scene->get_component<engine_camera_component_t>(entity)->enabled)
+                {
+                    camera_entity = entity;
+                    break;
+                }
+            }
+        }
+        if (payload && camera_entity != entt::null)
+        {
+            const modal_transform_view_t view{ scene->get_camera_view(camera_entity), scene->get_camera_projection(camera_entity),
+                glm::vec2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)) };
+            const auto& io = ImGui::GetIO();
+            const glm::vec2 mouse(io.MousePos.x - static_cast<float>(viewport.x), io.MousePos.y - static_cast<float>(viewport.y));
+            glm::vec3 origin{};
+            glm::vec3 direction{};
+            mouse_ray(view, mouse, origin, direction);
+            engine_ray_hit_t hit{};
+            // nothing beyond the far plane: it couldn't be seen there
+            const float max_distance = scene->get_component<engine_camera_component_t>(camera_entity)->clip_plane_far;
+            const auto position = scene->physics().raycast(origin, direction, max_distance, {}, false, hit)
+                ? glm::vec3(hit.position[0], hit.position[1], hit.position[2]) : get_ground_point(origin, direction, max_distance);
+            commands_.execute_command(std::make_unique<CommandPlacePrefab>(*scene, asset_browser_, static_cast<const char*>(payload->Data), position,
+                scene_hierarchy_context_.get_selected_entity()));
+            scene_hierarchy_context_.sync_selected_from_scene(scene);
+            scene_hierarchy_context_.set_forced_open_selected_parents(true);
+        }
+        ImGui::EndDragDropTarget();
     }
     ImGui::End();
 }
@@ -1724,6 +1833,12 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
         if (picked_id != ENGINE_INVALID_GAME_OBJECT_ID)
         {
             entity_id = static_cast<entt::entity>(picked_id);
+        }
+        if (entity_id == entt::null)
+        {
+            // empty space, like Unity: nothing stays selected, a file neither
+            scene_hierarchy_context_.deselect_all(scene, commands_);
+            return;
         }
         scene_hierarchy_context_.set_selected_entity(scene, entity_id, commands_);
         scene_hierarchy_context_.set_forced_open_selected_parents(true);
@@ -2150,8 +2265,19 @@ void engine::SceneHierarchyContext::set_selected_entity(engine::Scene* scene, en
     {
         return;
     }
-    commands.execute_command(std::make_unique<engine::CommandSetSelectedEntity>(*scene, selected_, e));
+    // while a game object is selected, no file is: selecting one (from none) deselects the file in the same undo step
+    commands.execute_command(std::make_unique<engine::CommandSetSelection>(*scene, assets_, selected_, e, ""));
     selected_ = e;
+}
+
+void engine::SceneHierarchyContext::deselect_all(engine::Scene* scene, CommandManager& commands)
+{
+    if (selected_ == entt::null && assets_.get_selected_asset().empty())
+    {
+        return;
+    }
+    commands.execute_command(std::make_unique<engine::CommandSetSelection>(*scene, assets_, selected_, entt::null, ""));
+    selected_ = entt::null;
 }
 
 entt::entity engine::SceneHierarchyContext::get_selected_entity() const

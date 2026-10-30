@@ -1,5 +1,6 @@
 #pragma once
 #include "scene.h"
+#include "editor_asset_browser.h"
 
 #include <vector>
 #include <memory>
@@ -166,18 +167,28 @@ private:
     ValueBuffer value_;
 };
 
-class CommandSetSelectedEntity : public ICommand
+// Changes the selection, one undo step like in Blender and Unity: the game object (entt::null for none) and, given the
+// asset browser's selection, the file, so undo and redo bring back a file selected in place of a game object too.
+class CommandSetSelection : public ICommand
 {
 public:
-    CommandSetSelectedEntity(Scene& sc, entt::entity prev_selected, entt::entity new_selected);
+    // selects the game object, leaving the selected file alone (none is selected while a game object is)
+    CommandSetSelection(Scene& sc, entt::entity prev_selected, entt::entity new_selected);
+    // selects the game object and the file (an empty path for none); the file selected before is the one selected now
+    CommandSetSelection(Scene& sc, IAssetSelection& assets, entt::entity prev_selected, entt::entity new_selected, std::string_view new_asset);
 
     void execute() override;
     void undo() override;
 
 private:
+    void select(entt::entity deselected, entt::entity selected, const std::string& asset);
+
     Scene& sc_;
     entt::entity e_prev_;
     entt::entity e_new_;
+    IAssetSelection* assets_ = nullptr;
+    std::string asset_prev_;
+    std::string asset_new_;
 };
 
 class CommandRenameEntity : public ICommand
@@ -271,7 +282,41 @@ private:
     entt::entity copy_ = entt::null;
     // undo destroys the copy the way a delete does, redo is that delete's undo
     std::unique_ptr<CommandDestroyEntity> destroy_copy_;
-    std::unique_ptr<CommandSetSelectedEntity> select_copy_;
+    std::unique_ptr<CommandSetSelection> select_copy_;
+};
+
+// Places a prefab (a model or a scene file, by its asset ID) as a persistent instance, like dragging an asset into
+// Unity's or Godot's scene view: its root is moved to `position` (keeping the rotation and scale the prefab gave it),
+// gets a name no other game object without a parent has ("Rogue (1)" when there is a "Rogue", like a duplicate) and becomes
+// the selection (deselecting the file selected in the asset browser). The scene holds the prefab (SceneAssets) as long as
+// it lives. Undo destroys the instance (and gives the selection back, a file too), redo brings it back with the same IDs
+// and handles; one undo step.
+class CommandPlacePrefab : public ICommand
+{
+public:
+    // `selected`: the game object selected before the placement, given back on undo with the file selected in `assets`
+    CommandPlacePrefab(Scene& sc, IAssetSelection& assets, std::string_view prefab_asset_id, const glm::vec3& position, entt::entity selected);
+
+    // the instance's root, entt::null when nothing was placed
+    entt::entity get_instance() const { return root_; }
+
+    void execute() override;
+    void undo() override;
+    // a prefab which couldn't be loaded or instantiated leaves no undo step
+    bool has_effect() const override { return root_ != entt::null; }
+
+private:
+    void place();
+
+    Scene& scene_;
+    IAssetSelection& assets_;
+    const std::string asset_id_;
+    const glm::vec3 position_;
+    const entt::entity selected_;
+    entt::entity root_ = entt::null;
+    // undo destroys the instance the way a delete does, redo is that delete's undo
+    std::unique_ptr<CommandDestroyEntity> destroy_instance_;
+    std::unique_ptr<CommandSetSelection> select_instance_;
 };
 
 class CommandSetPhysicsDebugDraw: public ICommand
