@@ -754,6 +754,11 @@ std::uint64_t engine::Scene::get_persistent_id(entt::entity entity) const
     return entity_ids_.get_id(entity);
 }
 
+entt::entity engine::Scene::find_entity(std::uint64_t persistent_id) const
+{
+    return entity_ids_.find(persistent_id);
+}
+
 entt::runtime_view engine::Scene::create_runtime_view()
 {
     ENGINE_PROFILE_SECTION;
@@ -780,6 +785,25 @@ bool engine::Scene::load(std::string_view json, std::string_view file_name, cons
     const auto loaded = load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_, options);
     prefabs_.end_file_load();
     return loaded;
+}
+
+void engine::Scene::clear()
+{
+    ENGINE_PROFILE_SECTION;
+    // released after the game objects using them
+    SceneAssets released(*app_);
+    released.swap(assets_);
+    clear_game_objects(entity_registry_, entity_ids_);
+}
+
+bool engine::Scene::replace(std::string_view json, std::string_view file_name)
+{
+    ENGINE_PROFILE_SECTION;
+    // the old content's files, held until the new content holds the ones it uses too
+    SceneAssets old_assets(*app_);
+    old_assets.swap(assets_);
+    clear_game_objects(entity_registry_, entity_ids_);
+    return load(json, file_name);
 }
 
 std::vector<entt::entity> engine::Scene::get_all_entities() const

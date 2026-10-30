@@ -134,6 +134,10 @@ public:
         return entity;
     }
 
+    // Starts the counter IDs at 1 again, for a registry whose game objects with an ID were destroyed (a cleared scene), so a
+    // file loaded or a scene built then gets the IDs it would in a new registry. IDs still in use are skipped, as always.
+    void reset_counter() { next_id_ = 1; }
+
     // INVALID_ID when the entity has no ID.
     std::uint64_t get_id(entt::entity entity) const
     {

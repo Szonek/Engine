@@ -120,6 +120,7 @@ set(ENGINE_SOURCES
 	
 	${ENGINE_SOURCES_DIR}/components_internals/camera_internal_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/guizmo_component.h
+	${ENGINE_SOURCES_DIR}/components_internals/editor_object_internal_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/outline_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/physics_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/skin_pose_component.h

@@ -9,6 +9,7 @@
 #include "engine_string_impl_def.h"
 
 #include "components_internals/camera_internal_component.h"
+#include "components_internals/editor_object_internal_component.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
@@ -2044,6 +2045,8 @@ engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
     , app_(app)
     , go_(scene->create_transient_entity())
 {
+    // kept when the scene is cleared (Stop restoring the scene saved at Play)
+    scene->add_component<editor_object_internal_component_t>(go_);
     scene->add_component<engine_name_component_t>(go_);
     scene->patch_component<engine_name_component_t>(go_, [](engine_name_component_t& c)
         {   
