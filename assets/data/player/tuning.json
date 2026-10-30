@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "type": "player_tuning",
+  "value": {
+    "max_hp": 100,
+    "attack_damage": 10,
+    "move_speed": 2.5,
+    "dodge_speed": 4,
+    "dodge_cooldown_seconds": 0.65,
+    "dodge_invulnerability_seconds": 0.2,
+    "attack_playback_rate": 1.25,
+    "attack_input_buffer_seconds": 0.25,
+    "attack_combo_cross_fade_seconds": 0.08,
+    "attack_exit_cross_fade_seconds": 0.15,
+    "turn_rate_degrees_per_second": 540,
+    "movement_acceleration": 24,
+    "movement_braking": 30,
+    "hit_stop_seconds": 0.06,
+    "hit_camera_shake_intensity": 0.035,
+    "hit_camera_shake_seconds": 0.08,
+    "hit_stun_seconds": 0,
+    "knockback_speed": 2.5
+  }
+}

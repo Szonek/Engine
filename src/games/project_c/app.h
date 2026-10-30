@@ -57,6 +57,10 @@ public:
     bool is_prefab_available(PrefabType type) const;
     // the asset ID of an asset of the type's model, e.g. one of its meshes: "<model path>#<name>"
     std::string model_asset_id(PrefabType type, std::string_view name) const;
+    // the data assets the level builder references (loaded at startup, held for the whole run; ENGINE_INVALID_OBJECT_HANDLE
+    // when one failed loading): the skeleton warriors' enemy_type and the player's player_tuning
+    engine_data_asset_t get_skeleton_warrior_type() const { return skeleton_warrior_type_; }
+    engine_data_asset_t get_player_tuning() const { return player_tuning_; }
     // One frame of the game (dt in milliseconds): updates the scenes, then applies scene changes they requested.
     // The caller owns the loop and calls it between engineFrameBegin() and engineFrameEnd() (main.cpp, tests).
     void update(float dt);
@@ -110,6 +114,8 @@ private:
     // the engine prefab assets of the models loaded at startup, ENGINE_INVALID_OBJECT_HANDLE for a model which failed loading
     std::array<engine_prefab_t, PREFAB_TYPE_COUNT> prefabs_;
     std::array<std::string, PREFAB_TYPE_COUNT> prefab_paths_;
+    engine_data_asset_t skeleton_warrior_type_ = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_data_asset_t player_tuning_ = ENGINE_INVALID_OBJECT_HANDLE;
     std::string level_path_;
     std::string level_entrance_ = "default";
     PlayerState player_state_;

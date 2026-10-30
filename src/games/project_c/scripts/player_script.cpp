@@ -28,23 +28,10 @@ namespace
 // the scale of the player's model; its children (attack trigger, weapon) inherit it, so their colliders are in the
 // model's units
 constexpr float PLAYER_SCALE = project_c::Player::MODEL_SCALE;
-constexpr float ATTACK_PLAYBACK_RATE = 1.25f;
-constexpr float ATTACK_INPUT_BUFFER_SECONDS = 0.25f;
-constexpr float ATTACK_COMBO_CROSS_FADE_SECONDS = 0.08f;
-constexpr float ATTACK_EXIT_CROSS_FADE_SECONDS = 0.15f;
-constexpr float PLAYER_TURN_RATE_DEGREES_PER_SECOND = 540.0f;
 // the speeds the locomotion animations were made for: their playback rate follows the actual speed
 constexpr float PLAYER_WALK_ANIMATION_SPEED = 1.875f;
 constexpr float PLAYER_RUN_ANIMATION_SPEED = 2.5f;
-constexpr float PLAYER_MOVEMENT_ACCELERATION = 24.0f;
-constexpr float PLAYER_MOVEMENT_BRAKING = 30.0f;
 constexpr float PLAYER_IDLE_SPEED_THRESHOLD = 0.05f;
-constexpr float HIT_STOP_DURATION_SECONDS = 0.06f;
-constexpr float HIT_CAMERA_SHAKE_INTENSITY = 0.035f;
-constexpr float HIT_CAMERA_SHAKE_DURATION_SECONDS = 0.08f;
-constexpr float DODGE_INVULNERABILITY_SECONDS = 0.20f;
-constexpr float PLAYER_HIT_STUN_SECONDS = 0.0f;
-constexpr float PLAYER_KNOCKBACK_SPEED = 2.5f;
 
 // Traversal. Heights are measured from the player's feet (transform origin), player is ~0.85 tall.
 constexpr float PLAYER_HEIGHT = 0.85f;
@@ -386,8 +373,8 @@ void project_c::AttackTrigger::on_collision(const collision_t& info)
         if (auto* enemy = my_scene_->get_script<Enemy>(info.other))
         {
             hit_enemies_.insert(info.other);
-            enemy->receive_attack_hit(player->config().attack_damage, HIT_STOP_DURATION_SECONDS);
-            player->on_confirmed_attack_hit(HIT_STOP_DURATION_SECONDS);
+            enemy->receive_attack_hit(player->tuning().attack_damage, player->tuning().hit_stop_seconds);
+            player->on_confirmed_attack_hit(player->tuning().hit_stop_seconds);
         }
     }
 }
@@ -494,9 +481,10 @@ void project_c::Player::set_attack_window_active(bool active)
     }
 }
 
-project_c::PlayerConfig project_c::Player::config() const
+project_c::PlayerTuning project_c::Player::tuning() const
 {
-    return get_game_component(go_, game_components().player_config, default_player_config());
+    const auto& types = game_components();
+    return get_data_asset(get_game_component(go_, types.player_config, default_player_config()).tuning, types.player_tuning, default_player_tuning());
 }
 
 void project_c::Player::on_start()
@@ -506,7 +494,7 @@ void project_c::Player::on_start()
     const auto& app = *static_cast<const AppProjectC*>(my_scene_->get_app());
     auto& stats = edit_state();
     stats = app.get_level_entry_state().value_or(fresh_state());
-    stats.hp = std::min(stats.hp, config().max_hp);
+    stats.hp = std::min(stats.hp, tuning().max_hp);
     const auto carried_weapon = std::exchange(stats.weapon, WeaponType::eNone);
     // runtime parts of the player, never saved: the attack trigger, the traversal marker and the weapon
     attack_trigger_go_ = my_scene_->register_script<AttackTrigger>(engineGameObjectCreateTransient(), go_)->get_game_object();
@@ -636,7 +624,7 @@ void project_c::Player::update(float dt)
         else if (attack_combo_index_ + 1 < AttackStateData::combo_length)
         {
             attack_buffered_ = true;
-            attack_buffer_remaining_ = ATTACK_INPUT_BUFFER_SECONDS;
+            attack_buffer_remaining_ = tuning().attack_input_buffer_seconds;
         }
     }
 
@@ -718,7 +706,7 @@ void project_c::Player::update(float dt)
     if (dodging_this_frame)
     {
         movement_velocity_ = glm::vec2(0.0f);
-        velocity = glm::vec3(dodge_direction_.x, 0.0f, dodge_direction_.z) * config().dodge_speed;
+        velocity = glm::vec3(dodge_direction_.x, 0.0f, dodge_direction_.z) * tuning().dodge_speed;
         dodge_remaining_seconds_ = std::max(0.0f, dodge_remaining_seconds_ - delta_seconds);
         dodge_invulnerability_remaining_seconds_ = std::max(0.0f, dodge_invulnerability_remaining_seconds_ - delta_seconds);
         if (dodge_remaining_seconds_ <= 0.0f)
@@ -737,10 +725,10 @@ void project_c::Player::update(float dt)
     }
     else
     {
-        const float target_speed = config().move_speed;
+        const float target_speed = tuning().move_speed;
         const glm::vec2 target_velocity = move_input * target_speed;
         const glm::vec2 velocity_delta = target_velocity - movement_velocity_;
-        const float max_velocity_change = (glm::length(move_input) > 0.0f ? PLAYER_MOVEMENT_ACCELERATION : PLAYER_MOVEMENT_BRAKING) * delta_seconds;
+        const float max_velocity_change = (glm::length(move_input) > 0.0f ? tuning().movement_acceleration : tuning().movement_braking) * delta_seconds;
         const float velocity_delta_length = glm::length(velocity_delta);
         if (velocity_delta_length > max_velocity_change && velocity_delta_length > 0.0f)
         {
@@ -804,7 +792,7 @@ void project_c::Player::update(float dt)
     }
     if (check_state_bit(States::ATTACK))
     {
-        attack_elapsed_ += ATTACK_PLAYBACK_RATE * dt / 1000.0f;
+        attack_elapsed_ += tuning().attack_playback_rate * dt / 1000.0f;
         if (attack_buffered_)
         {
             attack_buffer_remaining_ -= dt / 1000.0f;
@@ -853,7 +841,7 @@ void project_c::Player::update(float dt)
                 attack_buffered_ = false;
                 const bool combat_rate_reset = engineAnimationControllerLayerSetPlaybackRate(go_, COMBAT_LAYER_ID, 1.0f);
                 assert(combat_rate_reset);
-                if (engineAnimationControllerAnimationCrossFade(go_, "Unarmed_Idle", COMBAT_LAYER_ID, ATTACK_EXIT_CROSS_FADE_SECONDS))
+                if (engineAnimationControllerAnimationCrossFade(go_, "Unarmed_Idle", COMBAT_LAYER_ID, tuning().attack_exit_cross_fade_seconds))
                 {
                     const bool combat_idle_loops = engineAnimationControllerLayerSetLooping(go_, COMBAT_LAYER_ID, true);
                     assert(combat_idle_loops);
@@ -879,7 +867,7 @@ void project_c::Player::update(float dt)
             const float current_yaw = std::atan2(current_forward.x, current_forward.z);
             const float target_yaw = std::atan2(target_direction.x, target_direction.z);
             const float yaw_delta = std::atan2(std::sin(target_yaw - current_yaw), std::cos(target_yaw - current_yaw));
-            const float max_turn = glm::radians(PLAYER_TURN_RATE_DEGREES_PER_SECOND) * (dt / 1000.0f);
+            const float max_turn = glm::radians(tuning().turn_rate_degrees_per_second) * (dt / 1000.0f);
             const float turn_step = std::clamp(yaw_delta, -max_turn, max_turn);
             const glm::quat rotation = glm::angleAxis(current_yaw + turn_step, glm::vec3(0.0f, 1.0f, 0.0f));
             std::memcpy(facing_transform.rotation, glm::value_ptr(rotation), sizeof(facing_transform.rotation));
@@ -923,8 +911,8 @@ void project_c::Player::on_confirmed_attack_hit(float hit_stop_seconds)
     if (!cameras.empty())
     {
         my_scene_->get_script<CameraScript>(cameras.front())->shake(
-            HIT_CAMERA_SHAKE_INTENSITY,
-            HIT_CAMERA_SHAKE_DURATION_SECONDS);
+            tuning().hit_camera_shake_intensity,
+            tuning().hit_camera_shake_seconds);
     }
 }
 
@@ -947,7 +935,7 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
     {
         knockback_direction = glm::make_quat(player_transform.rotation) * glm::vec3(0.0f, 0.0f, 1.0f);
     }
-    knockback_velocity_ = glm::normalize(knockback_direction) * PLAYER_KNOCKBACK_SPEED;
+    knockback_velocity_ = glm::normalize(knockback_direction) * tuning().knockback_speed;
 
     if (hp == 0)
     {
@@ -989,7 +977,7 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
             }
         }
 
-        hit_stun_remaining_seconds_ = PLAYER_HIT_STUN_SECONDS;
+        hit_stun_remaining_seconds_ = tuning().hit_stun_seconds;
         hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, 0.04f);
         hit_stop_just_started_ = true;
         if (!engineAnimationControllerSetPaused(go_, true))
@@ -1018,7 +1006,7 @@ project_c::PlayerState& project_c::Player::edit_state()
 
 project_c::PlayerState project_c::Player::fresh_state() const
 {
-    return PlayerState{ config().max_hp, 0, WeaponType::eDaggers };
+    return PlayerState{ tuning().max_hp, 0, WeaponType::eDaggers };
 }
 
 void project_c::Player::add_coin(std::uint64_t amount)
@@ -1108,7 +1096,7 @@ bool project_c::Player::start_attack(std::size_t combo_index)
         : engineAnimationControllerAnimationCrossFade(go_,
             animation_name,
             COMBAT_LAYER_ID,
-            combo_index == 0 ? ATTACK_EXIT_CROSS_FADE_SECONDS : ATTACK_COMBO_CROSS_FADE_SECONDS));
+            combo_index == 0 ? tuning().attack_exit_cross_fade_seconds : tuning().attack_combo_cross_fade_seconds));
     if (!animation_started)
     {
         engineLog(std::format("Failed to start attack animation '{}'.\n", animation_name).c_str());
@@ -1116,7 +1104,7 @@ bool project_c::Player::start_attack(std::size_t combo_index)
     }
 
     const bool combat_layer_stopped_looping = engineAnimationControllerLayerSetLooping(go_, COMBAT_LAYER_ID, false);
-    const bool combat_rate_set = engineAnimationControllerLayerSetPlaybackRate(go_, COMBAT_LAYER_ID, ATTACK_PLAYBACK_RATE);
+    const bool combat_rate_set = engineAnimationControllerLayerSetPlaybackRate(go_, COMBAT_LAYER_ID, tuning().attack_playback_rate);
     assert(combat_layer_stopped_looping && combat_rate_set);
 
     if (auto* trigger = attack_trigger())
@@ -1174,8 +1162,8 @@ bool project_c::Player::start_dodge(const glm::vec2& move_input, const glm::quat
 
     dodge_direction_ = world_direction;
     dodge_remaining_seconds_ = duration;
-    dodge_invulnerability_remaining_seconds_ = std::min(DODGE_INVULNERABILITY_SECONDS, duration);
-    dodge_cooldown_remaining_seconds_ = config().dodge_cooldown_seconds;
+    dodge_invulnerability_remaining_seconds_ = std::min(tuning().dodge_invulnerability_seconds, duration);
+    dodge_cooldown_remaining_seconds_ = tuning().dodge_cooldown_seconds;
     movement_velocity_ = glm::vec2(0.0f);
     return true;
 }

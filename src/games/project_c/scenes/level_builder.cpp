@@ -270,7 +270,8 @@ project_c::Player* project_c::LevelBuilder::set_up_player(engine_game_object_t g
     set_c_array(tc.rotation, std::array<float, 4>{ rotation.x, rotation.y, rotation.z, rotation.w });
     engineGameObjectUpdateTransformComponent(go, &tc);
     add_character_controller(go, 0.15f, Player::MODEL_SCALE);
-    const auto config = default_player_config();
+    auto config = default_player_config();
+    config.tuning = app_.get_player_tuning();
     engineGameObjectAddDataComponent(go, game_components().player_config, &config);
     return scene_.attach_script<Player>(go);
 }
@@ -359,7 +360,8 @@ project_c::Enemy* project_c::LevelBuilder::enemy(float x, float z)
     const auto tc = engineGameObjectGetTransformComponent(go);
     set_position_and_scale(go, glm::vec3(x, tc.position[1] + 0.25f, z), Enemy::MODEL_SCALE);
     add_character_controller(go, 0.18f, Enemy::MODEL_SCALE);
-    const auto config = default_enemy_config();
+    auto config = default_enemy_config();
+    config.type = app_.get_skeleton_warrior_type();
     engineGameObjectAddDataComponent(go, game_components().enemy_config, &config);
     return scene_.attach_script<Enemy>(go);
 }
