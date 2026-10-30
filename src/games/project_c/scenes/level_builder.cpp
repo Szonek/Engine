@@ -5,6 +5,7 @@
 #include "../scripts/camera_script.h"
 #include "../scripts/encounter_script.h"
 #include "../scripts/enemy_script.h"
+#include "../scripts/enemy_spawner_script.h"
 #include "../scripts/enviorment_script.h"
 #include "../scripts/game_components.h"
 #include "../scripts/gameplay_hud_script.h"
@@ -351,19 +352,62 @@ project_c::LevelExit* project_c::LevelBuilder::level_exit(float x, float z, std:
 
 project_c::Enemy* project_c::LevelBuilder::enemy(float x, float z)
 {
-    if (!app_.is_prefab_available(PREFAB_TYPE_SKELETON_WARRIOR))
+    const auto go = instantiate_enemy(app_.get_skeleton_warrior_type(), false);
+    if (go == ENGINE_INVALID_GAME_OBJECT_ID)
     {
         return nullptr;
     }
-    const auto go = app_.instantiate_prefab(PREFAB_TYPE_SKELETON_WARRIOR).go;
-    set_name(go, "enemy");
     const auto tc = engineGameObjectGetTransformComponent(go);
     set_position_and_scale(go, glm::vec3(x, tc.position[1] + 0.25f, z), Enemy::MODEL_SCALE);
     add_character_controller(go, 0.18f, Enemy::MODEL_SCALE);
-    auto config = default_enemy_config();
-    config.type = app_.get_skeleton_warrior_type();
-    engineGameObjectAddDataComponent(go, game_components().enemy_config, &config);
     return scene_.attach_script<Enemy>(go);
+}
+
+project_c::Enemy* project_c::LevelBuilder::spawn_enemy(engine_data_asset_t type, const glm::vec3& position, float yaw_degrees)
+{
+    const auto go = instantiate_enemy(type, true);
+    if (go == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        return nullptr;
+    }
+    // a little above the nav mesh, which lies up to a cell above the floor: the character controller lands it
+    set_position_and_scale(go, position + glm::vec3(0.0f, 0.1f, 0.0f), Enemy::MODEL_SCALE);
+    auto tc = engineGameObjectGetTransformComponent(go);
+    const auto rotation = glm::angleAxis(glm::radians(yaw_degrees), glm::vec3(0.0f, 1.0f, 0.0f));
+    set_c_array(tc.rotation, std::array<float, 4>{ rotation.x, rotation.y, rotation.z, rotation.w });
+    engineGameObjectUpdateTransformComponent(go, &tc);
+    add_character_controller(go, 0.18f, Enemy::MODEL_SCALE);
+    return scene_.attach_script<Enemy>(go);
+}
+
+project_c::EnemySpawner* project_c::LevelBuilder::enemy_spawner(float x, float z, const EnemySpawnerConfig& config)
+{
+    const auto go = engineGameObjectCreate();
+    set_name(go, "enemy-spawner");
+    set_editor_folder(go, "enemy_spawners");
+    set_position_and_scale(go, glm::vec3(x, 0.0f, z), 1.0f);
+    engineGameObjectAddDataComponent(go, game_components().enemy_spawner, &config);
+    return scene_.attach_script<EnemySpawner>(go);
+}
+
+engine_game_object_t project_c::LevelBuilder::instantiate_enemy(engine_data_asset_t type, bool transient)
+{
+    const auto prefab = get_data_asset(type, game_components().enemy_type, default_enemy_type()).prefab;
+    if (prefab == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        log("The enemy type has no prefab: no enemy is placed.\n");
+        return ENGINE_INVALID_GAME_OBJECT_ID;
+    }
+    const auto go = transient ? enginePrefabInstantiateTransient(prefab) : enginePrefabInstantiate(prefab);
+    if (go == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        return go;
+    }
+    set_name(go, "enemy");
+    auto config = default_enemy_config();
+    config.type = type;
+    engineGameObjectAddDataComponent(go, game_components().enemy_config, &config);
+    return go;
 }
 
 project_c::Chest* project_c::LevelBuilder::chest(float x, float y, float z)

@@ -43,6 +43,7 @@ std::string engine::SceneAssets::get_asset_id(AssetKind kind, std::uint32_t hand
     case AssetKind::eSkin: return app_.get_skin_name(handle);
     case AssetKind::eAnimationSet: return app_.get_animation_set_name(handle);
     case AssetKind::eDataAsset: return app_.get_data_asset_name(handle);
+    case AssetKind::ePrefab: return app_.get_prefab_name(handle);
     }
     return {};
 }
@@ -60,6 +61,11 @@ std::uint32_t engine::SceneAssets::resolve(AssetKind kind, std::string_view asse
         }
         return it->second;
     }
+    if (kind == AssetKind::ePrefab)
+    {
+        // the asset is its file too
+        return resolve_prefab(asset_id);
+    }
     hold_source_file(kind, asset_id);
     switch (kind)
     {
@@ -67,7 +73,8 @@ std::uint32_t engine::SceneAssets::resolve(AssetKind kind, std::string_view asse
     case AssetKind::eTexture: return app_.get_texture(asset_id);
     case AssetKind::eSkin: return app_.get_skin(asset_id);
     case AssetKind::eAnimationSet: return app_.get_animation_set(asset_id);
-    case AssetKind::eDataAsset: break;
+    case AssetKind::eDataAsset:
+    case AssetKind::ePrefab: break;
     }
     return ENGINE_INVALID_OBJECT_HANDLE;
 }

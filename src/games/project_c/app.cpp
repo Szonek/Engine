@@ -4,6 +4,7 @@
 #include "scripts/camera_script.h"
 #include "scripts/encounter_script.h"
 #include "scripts/enemy_script.h"
+#include "scripts/enemy_spawner_script.h"
 #include "scripts/enviorment_script.h"
 #include "scripts/game_components.h"
 #include "scripts/gameplay_hud_script.h"
@@ -43,8 +44,7 @@ project_c::PrefabsData project_c::default_prefabs_data()
         // player
         { project_c::PREFAB_TYPE_ROGUE,         "KayKit_Adventurers_1.0_FREE/Characters/gltf/Rogue.glb" },
 
-        // enemies
-        { project_c::PREFAB_TYPE_SKELETON_WARRIOR, "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb" },
+        // enemies (their models are named by their enemy types, assets/data/enemies)
         { project_c::PREFAB_TYPE_SKELETON_BLADE, "KayKit_Skeletons_1.0_FREE/assets/gltf/Skeleton_Blade.gltf" },
 
         // scene assets
@@ -112,6 +112,7 @@ void project_c::AppProjectC::register_script_types()
     registry.add<House>("house", { components.house_config });
     registry.add<BuildingPart>("building_part", { components.building_part_config });
     registry.add<LevelExit>("level_exit", { components.level_exit });
+    registry.add<EnemySpawner>("enemy_spawner", { components.enemy_spawner });
     if (!registry.register_component())
     {
         log("Failed registering the script component: scene files can't create scripts.\n");

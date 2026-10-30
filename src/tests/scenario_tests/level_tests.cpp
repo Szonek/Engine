@@ -82,14 +82,6 @@ void replace_first(std::string& text, const std::string& from, const std::string
     text.replace(at, from.size(), to);
 }
 
-void replace_all(std::string& text, const std::string& from, const std::string& to)
-{
-    for (auto at = text.find(from); at != std::string::npos; at = text.find(from, at + to.size()))
-    {
-        text.replace(at, from.size(), to);
-    }
-}
-
 // Everything in `file` is in `saved` with the same value: objects may have more members in `saved` (fields a newer
 // engine added), but nothing of `file` is missing or different. `path` names where a difference is.
 void expect_contained(const rapidjson::Value& file, const rapidjson::Value& saved, const std::string& path)
@@ -129,7 +121,7 @@ TEST_F(LevelTest, LevelLoadsAndPlays)
     ASSERT_NE(player, nullptr);
     EXPECT_FALSE(player->is_dead());
     EXPECT_NE(scene->find_script<project_c::GameplayHud>(), nullptr);
-    // one pack of 5
+    // its spawner's pack of 5
     EXPECT_EQ(scene->get_scripts<project_c::Enemy>().size(), 5u);
     const auto* encounter = scene->find_script<project_c::Encounter>();
     ASSERT_NE(encounter, nullptr);
@@ -177,17 +169,17 @@ TEST_F(LevelTest, LevelSaveLoadSaveGivesTheSameFile)
 // field keeps its default, and the level still plays
 TEST_F(LevelTest, LevelFileWithUnknownAndMissingDataStillPlays)
 {
-    const auto default_max_hp = project_c::default_enemy_type().max_hp;
-    const auto file_max_hp = default_max_hp + 57;
-    // an enemy type of its own (an absolute path is an asset ID too)
+    const auto file_max_hp = project_c::default_enemy_type().max_hp + 57;
+    // an enemy type of its own (an absolute path is an asset ID too), its other fields left out
     const auto enemy_type = temp_file("enemy_type");
-    std::ofstream(enemy_type, std::ios::binary) << fmt::format(R"({{ "version": 1, "type": "enemy_type", "value": {{ "max_hp": {} }} }})", file_max_hp);
+    std::ofstream(enemy_type, std::ios::binary) << fmt::format(
+        R"({{ "version": 1, "type": "enemy_type", "value": {{ "prefab": "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb", "max_hp": {} }} }})",
+        file_max_hp);
     auto text = read_text(LEVEL_FILE);
     replace_first(text, "\"components\": {", "\"components\": { \"no_such_component\": { \"x\": 1 },");
-    // every enemy is of that type, then the first one loses its type: it has the default one
-    const std::string skeleton = "\"type\": \"enemies/skeleton_warrior.json\"";
-    replace_all(text, skeleton, fmt::format("\"type\": \"{}\"", enemy_type.generic_string()));
-    replace_first(text, fmt::format("\"type\": \"{}\"", enemy_type.generic_string()), "\"no_such_field\": 1");
+    // the spawner spawns enemies of that type, and its count is missing: it spawns the default count
+    replace_first(text, "\"enemy_type\": \"enemies/skeleton_warrior.json\"", fmt::format("\"enemy_type\": \"{}\"", enemy_type.generic_string()));
+    replace_first(text, "\"count\": 5,", "\"no_such_field\": 1,");
     const TempLevel level(text);
 
     auto* scene = load_scene<project_c::LevelScene>();
@@ -196,16 +188,11 @@ TEST_F(LevelTest, LevelFileWithUnknownAndMissingDataStillPlays)
     step(60);
     ASSERT_NE(scene->find_script<project_c::Player>(), nullptr);
     const auto enemies = scene->get_scripts<project_c::Enemy>();
-    ASSERT_EQ(enemies.size(), 5u);
-    std::size_t with_default = 0;
-    std::size_t with_file_value = 0;
+    EXPECT_EQ(enemies.size(), project_c::default_enemy_spawner().count);
     for (const auto* enemy : enemies)
     {
-        with_default += enemy->get_max_hp() == default_max_hp;
-        with_file_value += enemy->get_max_hp() == file_max_hp;
+        EXPECT_EQ(enemy->get_max_hp(), file_max_hp);
     }
-    EXPECT_EQ(with_default, 1u);
-    EXPECT_EQ(with_file_value, 4u);
     EXPECT_EQ(scene->find_script<project_c::Encounter>()->get_state(), project_c::Encounter::State::eInProgress);
 }
 

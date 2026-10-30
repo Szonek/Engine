@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -41,14 +42,6 @@ private:
     };
 
     struct IdleStateData {};
-    struct AttackStateData
-    {
-        bool attack_with_right = false;
-        inline const char* get_animation_name() const
-        {
-            return attack_with_right ? "1H_Melee_Attack_Slice_Diagonal" : "1H_Melee_Attack_Slice_Horizontal";
-        }
-    };
     struct DyingStateData {};
     struct MoveStateData {};
 
@@ -90,15 +83,24 @@ private:
     bool triggered_ = false;
     bool attack_right_ = false;
     States state_;
-    AttackStateData attack_data_;
+    // the type's attack used next (skipping the ones without an animation), and the animation of the one playing
+    std::uint32_t attack_index_ = 0;
+    std::string attack_animation_;
     std::vector<IScript*> debug_scripts_;
     std::vector<HitFlashMaterial> hit_flash_materials_;
     // the blade by game object, its script looked up on use: a script can go while its game object stays (its script
     // component removed in the editor), so no pointer to another script is kept
     EnemyWeapon* weapon() const;
     engine_game_object_t weapon_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
-    // the animation events calling it (removed with it), by animation
-    std::vector<std::pair<const char*, engine_animation_event_id_t>> animation_events_;
+    // the type's attack, or nullptr when it has none
+    const EnemyAttack* next_attack(const EnemyType& type);
+    // the animation events opening and closing the attack windows, made again when the type's attacks change
+    void sync_attack_events(const EnemyType& type);
+    void remove_attack_events();
+    // the animation events calling it (removed with it), by animation, and the attacks they were made for
+    std::vector<std::pair<std::string, engine_animation_event_id_t>> animation_events_;
+    EnemyAttack attack_events_for_[ENEMY_TYPE_MAX_ATTACKS]{};
+    bool attack_events_made_ = false;
     engine_game_object_t player_go_ = ENGINE_INVALID_GAME_OBJECT_ID;  // found in on_start, again when it is gone
     float hit_flash_remaining_seconds_ = 0.0f;
     float hit_stop_remaining_seconds_ = 0.0f;

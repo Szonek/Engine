@@ -10,9 +10,26 @@
 // while playing stays in the scripts' members and is never saved.
 namespace project_c
 {
+inline constexpr std::uint32_t ENEMY_TYPE_MAX_ATTACKS = 4;
+inline constexpr std::uint32_t ANIMATION_NAME_MAX_LENGTH = 40;
+
+// One attack of an enemy type: an animation of its model, and when in it the blade deals damage. The damage comes from
+// the blade's hitbox, so the window is tuned per animation: the part of it where the blade sweeps the area in front of
+// the enemy.
+struct EnemyAttack
+{
+    // "" for none
+    char animation[ANIMATION_NAME_MAX_LENGTH];
+    // normalized animation time the blade starts / stops dealing damage
+    float active_start;
+    float active_end;
+};
+
 // the tuning of a kind of enemy, shared by the enemies of the kind (a data asset, assets/data/enemies)
 struct EnemyType
 {
+    // the model the enemies of the kind are made of (spawners and LevelBuilder::enemy instantiate it)
+    engine_prefab_t prefab;
     std::uint32_t max_hp;
     // per hit on the player
     std::uint32_t attack_damage;
@@ -23,6 +40,8 @@ struct EnemyType
     float attack_cooldown_seconds;
     // the colour the enemy flashes when hit
     float hit_flash_color[3];
+    // used in turn, in this order; the ones without an animation are skipped
+    EnemyAttack attacks[ENEMY_TYPE_MAX_ATTACKS];
 };
 
 struct EnemyConfig
@@ -105,6 +124,21 @@ struct PlayerStart
     char id[PLAYER_START_ID_MAX_LENGTH];
 };
 
+// Places `count` enemies of a type at random points of its area when it starts (EnemySpawner, like Unreal's spawn volumes
+// or a Diablo-style monster pack): the level holds the spawner, never its enemies, which are runtime objects. The same
+// seed places the same enemies on every platform.
+struct EnemySpawnerConfig
+{
+    // an EnemyType data asset; with none, nothing is spawned
+    engine_data_asset_t enemy_type;
+    std::uint32_t count;
+    // metres: the area is [-x, x] x [-z, z] around the spawner, in its space (it turns with it)
+    float area_half_extents[2];
+    // metres between two enemies, at least
+    float min_spacing;
+    std::uint32_t seed;
+};
+
 inline constexpr std::uint32_t LEVEL_PATH_MAX_LENGTH = 128;
 
 // Where a level exit leads (the LevelExit script)
@@ -120,6 +154,7 @@ struct LevelExitConfig
 // register_game_components()
 struct GameComponentTypes
 {
+    engine_component_type_t enemy_attack = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_type = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_config = ENGINE_INVALID_OBJECT_HANDLE;
@@ -128,6 +163,7 @@ struct GameComponentTypes
     engine_component_type_t house_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_start = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t level_exit = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_component_type_t enemy_spawner = ENGINE_INVALID_OBJECT_HANDLE;
 };
 
 // Registers the game's component and data asset types with the active application (once, at startup, before scene
@@ -145,6 +181,7 @@ BuildingPartConfig default_building_part_config();
 HouseConfig default_house_config();
 PlayerStart default_player_start();
 LevelExitConfig default_level_exit();
+EnemySpawnerConfig default_enemy_spawner();
 
 // The game object's component of the type, or `fallback` when it has none (a script placed without its config).
 template<typename T>

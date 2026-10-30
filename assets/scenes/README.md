@@ -96,10 +96,10 @@ arriving there doesn't stand in one.
 ## Game components
 
 The game's own components (`src/games/project_c/scripts/game_components.h`: `enemy_config`, `player_config`,
-`building_part_config`, `house_config`, `player_start`, `level_exit`) are saved like the engine's. Rules for adding one:
+`building_part_config`, `house_config`, `player_start`, `level_exit`, `enemy_spawner`) are saved like the engine's. Rules for adding one:
 
 - A **plain C struct**: numbers, bools, enums (saved by name), fixed char arrays for strings, fixed arrays, structs of
-  the game's own struct types, game object / geometry / texture handles, and data asset references. No pointers, no
+  the game's own struct types, game object / geometry / texture / prefab handles, and data asset references. No pointers, no
   `std::string`, no unions.
   At most 256 bytes.
 - It holds **designer-set values only**: what a level designer tunes or what links objects (a house's roof props).

@@ -53,6 +53,8 @@ enum class AssetKind
     eAnimationSet,
     // a data asset (DataAsset), holding a value of FieldInfo::data_type
     eDataAsset,
+    // a prefab (a model or a scene file)
+    ePrefab,
 };
 
 struct EnumValue
