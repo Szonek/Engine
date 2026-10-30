@@ -507,9 +507,15 @@ void engine::AssetBrowserPanel::draw_data_asset_details()
     ImGui::Text("Type: %s", asset->get_type().name.c_str());
     ImGui::TextWrapped("Edit its file: the change shows here and in the game at once.");
     // its value as the file has it, read-only (editing it here comes with saving from the editor)
-    const SceneAssets assets(app_);
+    if (inspected_data_value_of_ != inspected_data_asset_ || inspected_data_value_reloads_ != asset->get_reload_count())
+    {
+        const SceneAssets assets(app_);
+        inspected_data_value_ = save_data_asset(asset->get_type(), asset->get_value(), assets);
+        inspected_data_value_of_ = inspected_data_asset_;
+        inspected_data_value_reloads_ = asset->get_reload_count();
+    }
     ImGui::SeparatorText("Value");
-    ImGui::TextUnformatted(save_data_asset(asset->get_type(), asset->get_value(), assets).c_str());
+    ImGui::TextUnformatted(inspected_data_value_.c_str());
 }
 
 void engine::AssetBrowserPanel::draw_model_details()

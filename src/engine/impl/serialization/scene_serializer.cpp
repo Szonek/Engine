@@ -1289,6 +1289,8 @@ std::string engine::save_data_asset(const TypeInfo& type, const std::byte* value
     w.Uint(DATA_ASSET_FILE_VERSION);
     w.Key("type");
     w.String(type.name.c_str(), static_cast<rapidjson::SizeType>(type.name.size()));
+    w.Key("type_version");
+    w.Uint(type.version);
     w.Key("value");
     out.write_struct(type, value, type.name);
     w.EndObject();
@@ -1316,6 +1318,24 @@ std::optional<engine::DataAssetValue> engine::load_data_asset(std::string_view j
     {
         log_error(fmt::format("Data asset {}: its type isn't a struct type the game registered without game object references.\n", file_name));
         return std::nullopt;
+    }
+    // the version of the type the value was written for; a file written by hand may leave it out, it is the first one
+    std::uint32_t type_version = FIRST_TYPE_VERSION;
+    if (const auto it = doc.FindMember("type_version"); it != doc.MemberEnd() && (!parse_number(it->value, type_version) || type_version == 0))
+    {
+        log_error(fmt::format("Data asset {}: its type_version isn't a version.\n", file_name));
+        return std::nullopt;
+    }
+    if (type_version > type->version)
+    {
+        log_error(fmt::format("Data asset {}: its value is a {} of version {}, this game reads up to {}.\n", file_name, type->name, type_version, type->version));
+        return std::nullopt;
+    }
+    if (type_version < type->version)
+    {
+        // read like a component of an older version in a scene file: the fields which are still there
+        log_error(fmt::format("Data asset {}: its value is a {} of version {}, the type is version {} now; check its fields.\n", file_name, type->name,
+            type_version, type->version));
     }
     const auto value_it = doc.FindMember("value");
     if (value_it == doc.MemberEnd() || !value_it->value.IsObject())

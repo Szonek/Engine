@@ -1,6 +1,7 @@
 {
   "version": 1,
   "type": "enemy_type",
+  "type_version": 1,
   "value": {
     "max_hp": 20,
     "attack_damage": 2,

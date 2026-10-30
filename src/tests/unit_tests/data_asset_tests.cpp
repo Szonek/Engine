@@ -1,4 +1,5 @@
 #include "data_asset.h"
+#include "file_watcher.h"
 #include "serialization/game_types.h"
 #include "serialization/scene_serializer.h"
 #include "test_logger.h"
@@ -15,6 +16,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 // Data assets: a value of a game-defined struct type in its own file (save_data_asset / load_data_asset), and the
 // DataAsset holding it, read again when its file changes.
@@ -30,7 +32,7 @@ struct Tuning
     engine_texture2d_t icon;
 };
 
-// asset IDs <-> handles of textures, nothing is ever loaded; counts how many resolvers are alive (the assets they hold)
+// asset IDs <-> handles of textures and data assets, nothing is ever loaded; counts how many resolvers are alive (the assets they hold)
 class FakeAssets : public engine::IAssetResolver
 {
 public:
@@ -51,10 +53,14 @@ public:
 
     std::string get_asset_id(AssetKind kind, std::uint32_t handle) const override
     {
-        return kind == AssetKind::eTexture && handle == 4 ? "textures/icon.png" : "";
+        return kind == AssetKind::eTexture && handle == 4 ? "textures/icon.png" : kind == AssetKind::eDataAsset && handle == 9 ? "other.json" : "";
     }
     std::uint32_t resolve(AssetKind kind, std::string_view asset_id) override
     {
+        if (kind == AssetKind::eDataAsset)
+        {
+            return asset_id == "other.json" ? 9 : ENGINE_INVALID_OBJECT_HANDLE;
+        }
         return kind == AssetKind::eTexture && asset_id == "textures/icon.png" ? 4 : ENGINE_INVALID_OBJECT_HANDLE;
     }
     const engine::TypeInfo* get_data_asset_type(std::uint32_t) const override { return nullptr; }
@@ -167,6 +173,33 @@ TEST_F(DataAssetTest, FileWhichIsNoDataAssetIsNotLoaded)
     EXPECT_FALSE(engine::load_data_asset(R"({ "version": 1, "type": "nothing", "value": {} })", "d.json", types_, assets_));
     EXPECT_FALSE(engine::load_data_asset(R"({ "version": 1, "type": "tuning" })", "e.json", types_, assets_));
     EXPECT_TRUE(test_logger::logged("Data asset d.json: its type isn't a struct type"));
+    EXPECT_FALSE(engine::load_data_asset(R"({ "version": 1, "type": "tuning", "type_version": 0, "value": {} })", "f.json", types_, assets_));
+}
+
+TEST_F(DataAssetTest, TypeVersionIsWrittenAndChecked)
+{
+    const Tuning original{};
+    const auto file = engine::save_data_asset(*tuning_, reinterpret_cast<const std::byte*>(&original), assets_);
+    EXPECT_NE(file.find(R"("type_version": 1)"), std::string::npos) << file;
+
+    // a value written for a newer version of the type isn't read
+    EXPECT_FALSE(engine::load_data_asset(R"({ "version": 1, "type": "tuning", "type_version": 2, "value": {} })", "newer.json", types_, assets_));
+    EXPECT_TRUE(test_logger::logged("Data asset newer.json: its value is a tuning of version 2, this game reads up to 1"));
+
+    // one written for an older version is read and logged; a file which doesn't say was written for the first version
+    struct Speed
+    {
+        float speed;
+    };
+    const engine_field_desc_t speed = field("speed", ENGINE_FIELD_KIND_FLOAT, offsetof(Speed, speed));
+    const engine_type_desc_t desc{ "speed", 2, sizeof(Speed), alignof(Speed), nullptr, &speed, 1 };
+    ASSERT_NE(engine::register_game_type(types_, desc, false), nullptr);
+    test_logger::messages().clear();
+    EXPECT_TRUE(engine::load_data_asset(R"({ "version": 1, "type": "speed", "value": { "speed": 3 } })", "older.json", types_, assets_));
+    EXPECT_TRUE(test_logger::logged("Data asset older.json: its value is a speed of version 1, the type is version 2 now"));
+    test_logger::messages().clear();
+    EXPECT_TRUE(engine::load_data_asset(R"({ "version": 1, "type": "speed", "type_version": 2, "value": { "speed": 3 } })", "current.json", types_, assets_));
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
 }
 
 TEST_F(DataAssetTest, TypeWithGameObjectReferencesCantBeADataAsset)
@@ -243,6 +276,49 @@ TEST_F(DataAssetTest, FileHoldingAnotherTypeKeepsTheValue)
     EXPECT_EQ(&asset->get_type(), tuning_);
     EXPECT_EQ(value_of(*asset).hp, 30u);
     EXPECT_TRUE(test_logger::logged("now holds a other instead of a tuning"));
+}
+
+TEST_F(DataAssetTest, KnowsTheDataAssetsItReferences)
+{
+    struct Holder
+    {
+        engine_data_asset_t other;
+    };
+    engine_field_desc_t other = field("other", ENGINE_FIELD_KIND_DATA_ASSET, offsetof(Holder, other));
+    other.type_name = "tuning";
+    const engine_type_desc_t desc{ "holder", 1, sizeof(Holder), alignof(Holder), nullptr, &other, 1 };
+    ASSERT_NE(engine::register_game_type(types_, desc, false), nullptr);
+
+    write_file(R"({ "version": 1, "type": "holder", "value": { "other": "other.json" } })");
+    auto asset = load_asset();
+    ASSERT_NE(asset, nullptr);
+    // held by its resolver (the fake one doesn't know its type, so the value doesn't reference it)
+    EXPECT_EQ(asset->get_data_assets(), std::vector<std::uint32_t>{ 9 });
+    EXPECT_EQ(asset->get_reload_count(), 0u);
+
+    write_file(R"({ "version": 1, "type": "holder", "value": {} })");
+    asset->mark_changed();
+    EXPECT_TRUE(asset->reload_if_changed());
+    EXPECT_TRUE(asset->get_data_assets().empty());
+    EXPECT_EQ(asset->get_reload_count(), 1u);
+}
+
+TEST_F(DataAssetTest, SecondAssetOfAFileLeavesTheWatchToTheFirst)
+{
+    write_file(R"({ "version": 1, "type": "tuning", "value": { "hp": 30 } })");
+    auto first = load_asset();
+    auto second = load_asset();
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+    EXPECT_TRUE(test_logger::logged("already exists in watcher"));
+
+    // the first one still watches the file
+    second.reset();
+    auto& watcher = engine::FileWatcher::get_instance();
+    EXPECT_FALSE(watcher.register_callback(file_, [] {}));
+    first.reset();
+    EXPECT_TRUE(watcher.register_callback(file_, [] {}));
+    watcher.unregister_callback(file_);
 }
 
 TEST_F(DataAssetTest, MissingFileIsNotLoaded)

@@ -94,6 +94,10 @@ private:
     opened_model_t inspected_model_;
     std::uint32_t inspected_texture_ = ENGINE_INVALID_OBJECT_HANDLE;
     std::uint32_t inspected_data_asset_ = ENGINE_INVALID_OBJECT_HANDLE;
+    // the inspected data asset's value as its file has it, written again when the selection or the value changes
+    std::string inspected_data_value_;
+    std::uint32_t inspected_data_value_of_ = ENGINE_INVALID_OBJECT_HANDLE;
+    std::uint64_t inspected_data_value_reloads_ = 0;
     // the opened models by path, each held while open
     std::map<std::string, opened_model_t> expanded_models_;
 };

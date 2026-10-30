@@ -14,6 +14,7 @@
 #include "serialization/type_registry.h"
 #include "render/renderer.h"
 
+#include <atomic>
 #include <set>
 
 
@@ -133,6 +134,12 @@ protected:
     virtual void on_scene_update_pre(class Scene* /*scene*/, float /*delta_time*/) {}
     virtual void on_scene_update_post(class Scene* /*scene*/, float /*delta_time*/) {}
 
+private:
+    // reads the data assets whose files changed again
+    void reload_changed_data_assets();
+    // whether the loaded data asset references (directly or through others) one of the data assets being read
+    bool references_loading_data_asset(std::uint32_t idx) const;
+
 protected:
     RenderContext rdx_;
     GameTimer timer_;
@@ -148,9 +155,12 @@ protected:
     Atlas<std::unique_ptr<Prefab>> prefabs_atlas_;
     Atlas<Shader> shader_atlas_;
     TypeRegistry types_;
+    // set (on the watcher's thread) when a data asset's file changed, so the frame only looks at them then; before the
+    // atlas, whose assets' watcher callbacks set it
+    std::atomic<bool> data_assets_changed_ = false;
     // after the assets they reference and the types of their values
     Atlas<std::unique_ptr<DataAsset>> data_assets_atlas_;
-    // the data asset files being read, so one referencing itself (directly or not) is caught
+    // the data asset files being read (loaded or read again), so one referencing itself (directly or not) is caught
     std::set<std::string, std::less<>> loading_data_assets_;
 
     UiManager ui_manager_;

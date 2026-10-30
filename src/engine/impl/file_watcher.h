@@ -29,8 +29,9 @@ public:
     FileWatcher& operator=(const FileWatcher&) = delete;
     FileWatcher& operator=(FileWatcher&&) = delete;
 
-    // files can be registered whether or not the watcher runs; their callbacks are only called while it does
-    void register_callback(const std::filesystem::path& path, const std::function<void()>& callback);
+    // files can be registered whether or not the watcher runs; their callbacks are only called while it does. False
+    // (logged) when the path is watched already: only the first callback is called, so only its owner unregisters it.
+    bool register_callback(const std::filesystem::path& path, const std::function<void()>& callback);
     void unregister_callback(const std::filesystem::path& path);
 
     // starts the background thread checking the registered files (off by default: only the editor needs it)

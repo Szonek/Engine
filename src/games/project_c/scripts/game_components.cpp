@@ -66,9 +66,10 @@ engine_component_type_t register_component(const char* name, const std::vector<e
 }
 
 template<typename T>
-engine_component_type_t register_data_asset_type(const char* name, const std::vector<engine_field_desc_t>& fields, const T& default_value)
+engine_component_type_t register_data_asset_type(const char* name, const std::vector<engine_field_desc_t>& fields, const T& default_value, std::uint32_t version = 1)
 {
-    return register_type(name, fields, default_value, false, 1);
+    // the data asset files under assets/data record the version they were written for ("type_version")
+    return register_type(name, fields, default_value, false, version);
 }
 }  // namespace
 

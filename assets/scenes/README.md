@@ -105,8 +105,9 @@ The game's own components (`src/games/project_c/scripts/game_components.h`: `ene
 - It holds **designer-set values only**: what a level designer tunes or what links objects (a house's roof props).
   Values shared by many objects (every skeleton's HP, speed, colours) go into a **data asset** the component references
   instead (`ENGINE_FIELD_KIND_DATA_ASSET`, like `enemy_config`'s `type`): a file under `assets/data`,
-  `{ "version": 1, "type": "enemy_type", "value": { ... } }`, saved in the scene file as its path there
-  (`"type": "enemies/skeleton_warrior.json"`). Editing the file changes every object referencing it, while the editor
+  `{ "version": 1, "type": "enemy_type", "type_version": 1, "value": { ... } }`, saved in the scene file as its path there
+  (`"type": "enemies/skeleton_warrior.json"`); `type_version` is the struct type's version the value was written for
+  (raise it with the type's when its layout changes: a file of a newer one isn't loaded, an older one is logged). Editing the file changes every object referencing it, while the editor
   runs too (it reads a changed file again at once). Runtime state (current HP, cooldowns, targets) stays in the script's
   members and is never saved.
 - Scripts **read it on every use** (`get_game_component`), never copy it once at the start, so an edit in the editor

@@ -2,15 +2,18 @@
 #include <chrono>
 #include <thread>
 
-void engine::FileWatcher::register_callback(const std::filesystem::path& path, const std::function<void()>& callback)
+bool engine::FileWatcher::register_callback(const std::filesystem::path& path, const std::function<void()>& callback)
 {
     std::unique_lock<std::mutex> lock(mutex_);
     if (files_.contains(path))
     {
         log::log(log::LogLevel::eError, std::format("Path: {} already exists in watcher!\n", path.string()));
-        return;
+        return false;
     }
-    files_[path] = FileInfo{ callback, std::filesystem::last_write_time(path) };
+    // a file which can't be found (yet) gets a time when it shows up, which counts as a change
+    std::error_code error;
+    files_[path] = FileInfo{ callback, std::filesystem::last_write_time(path, error) };
+    return true;
 }
 
 
@@ -49,8 +52,11 @@ void engine::FileWatcher::run()
         std::unique_lock<std::mutex> lock(mutex_);
         for (auto& [path, file_info] : files_)
         {
-            const auto file_last_write_time = std::filesystem::last_write_time(path);
-            if (file_info.last_write_time != file_last_write_time)
+            // a file which is missing for now (deleted, renamed, or replaced by an editor's atomic save) is checked
+            // again on the next tick
+            std::error_code error;
+            const auto file_last_write_time = std::filesystem::last_write_time(path, error);
+            if (!error && file_info.last_write_time != file_last_write_time)
             {
                 file_info.last_write_time = file_last_write_time;
                 file_info.callback();

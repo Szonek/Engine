@@ -1,6 +1,7 @@
 {
   "version": 1,
   "type": "player_tuning",
+  "type_version": 1,
   "value": {
     "max_hp": 100,
     "attack_damage": 10,

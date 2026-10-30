@@ -123,9 +123,10 @@ struct SceneLoadOptions
 bool load_scene(std::string_view json, std::string_view file_name, const TypeRegistry& types, entt::registry& registry, EntityIdRegistry& ids, IAssetResolver& assets,
     IPrefabInstances& prefabs, const SceneLoadOptions& options = {});
 
-// Data asset files hold one value of a game-defined struct type (see DataAsset), its fields written like a component's
-// in a scene file:
-//   { "version": 1, "type": "enemy_type", "value": { "max_hp": 20, ... } }
+// Data asset files hold one value of a game-defined struct type (see DataAsset) and the version of the type it was
+// written for (the first one when a file written by hand leaves it out), its fields written like a component's in a
+// scene file:
+//   { "version": 1, "type": "enemy_type", "type_version": 1, "value": { "max_hp": 20, ... } }
 inline constexpr std::uint32_t DATA_ASSET_FILE_VERSION = 1;
 
 // The value of `type` (one without game object references, holds_game_object) as a data asset file.
@@ -140,6 +141,7 @@ struct DataAssetValue
 // Reads a data asset file: the type it names, which is a game-defined struct type without game object references, and
 // its value, which starts as the type's default value (TypeInfo::default_value), so a field the file doesn't have keeps
 // it. Nothing (logged) when the file can't be used: not JSON, a version this engine doesn't read, an unknown type or one
-// a data asset can't hold, no value object. Problems inside the value are logged and skipped, as in a scene file.
+// a data asset can't hold, a type version newer than the type's, no value object. An older type version is logged and
+// read like a component of an older version in a scene file. Problems inside the value are logged and skipped, as in a scene file.
 std::optional<DataAssetValue> load_data_asset(std::string_view json, std::string_view file_name, const TypeRegistry& types, IAssetResolver& assets);
 }  // namespace engine

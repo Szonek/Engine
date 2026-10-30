@@ -431,7 +431,9 @@ bool display_asset_combo(engine::Scene* scene, engine::AssetKind kind, const cha
             if (ImGui::Selectable(name.c_str(), selected))
             {
                 changed |= !selected;
-                handle = idx;
+                // the scene holds a data asset it references (whoever loaded it may release it); the other kinds are
+                // held by whoever created them
+                handle = kind == engine::AssetKind::eDataAsset ? scene->assets().resolve(kind, name) : idx;
             }
             if (selected)
             {
