@@ -17,6 +17,10 @@
 
 namespace
 {
+// data assets, relative to assets/data
+constexpr const char* SKELETON_WARRIOR_TYPE_PATH = "enemies/skeleton_warrior.json";
+constexpr const char* PLAYER_TUNING_PATH = "player/tuning.json";
+
 inline engine_application_create_desc_t app_cd(const project_c::AppConfig& config)
 {
     engine_application_create_desc_t app_cd{};
@@ -64,6 +68,9 @@ project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppCo
     , level_path_(config.level_path)
 {
     register_script_types();
+    // logged when they fail: enemies and the player then have the types' default values
+    skeleton_warrior_type_ = engineDataAssetLoad(SKELETON_WARRIOR_TYPE_PATH);
+    player_tuning_ = engineDataAssetLoad(PLAYER_TUNING_PATH);
     prefabs_.fill(ENGINE_INVALID_OBJECT_HANDLE);
     const auto load_start = std::chrono::high_resolution_clock::now();
 
@@ -113,6 +120,13 @@ void project_c::AppProjectC::register_script_types()
 
 project_c::AppProjectC::~AppProjectC()
 {
+    for (const auto asset : { skeleton_warrior_type_, player_tuning_ })
+    {
+        if (asset != ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            engineDataAssetRelease(asset);
+        }
+    }
     for (const auto prefab : prefabs_)
     {
         if (prefab != ENGINE_INVALID_OBJECT_HANDLE)

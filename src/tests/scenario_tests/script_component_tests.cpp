@@ -137,7 +137,7 @@ TEST_F(ScriptComponentTest, LevelSavedAndLoadedPlaysTheSame)
     EXPECT_EQ(scene->find_script<project_c::Encounter>()->get_state(), project_c::Encounter::State::eInProgress);
 }
 
-TEST_F(ScriptComponentTest, ConfigEditedWhilePlayingTakesEffect)
+TEST_F(ScriptComponentTest, EnemyTypeChangedWhilePlayingTakesEffect)
 {
     auto* scene = load_sandbox_scene();
     scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
@@ -146,20 +146,28 @@ TEST_F(ScriptComponentTest, ConfigEditedWhilePlayingTakesEffect)
     ASSERT_NE(enemy, nullptr);
     const auto go = enemy->get_game_object();
     const auto type = project_c::game_components().enemy_config;
-
-    // an enemy which can't move stays where it is
     auto config = project_c::get_game_component(go, type, project_c::default_enemy_config());
-    const auto speed = config.move_speed;
-    config.move_speed = 0.0f;
+    const auto skeleton = config.type;
+    ASSERT_NE(skeleton, ENGINE_INVALID_OBJECT_HANDLE);
+
+    // a kind of enemy which can't move (a data asset of its own, by its absolute path): the enemy stays where it is
+    const auto file = std::filesystem::temp_directory_path() / "project_c_scenario_rooted_enemy.json";
+    std::ofstream(file, std::ios::binary) << R"({ "version": 1, "type": "enemy_type", "value": { "move_speed": 0 } })";
+    const auto rooted = engineDataAssetLoad(file.generic_string().c_str());
+    std::filesystem::remove(file);
+    ASSERT_NE(rooted, ENGINE_INVALID_OBJECT_HANDLE);
+    config.type = rooted;
     ASSERT_EQ(engineGameObjectUpdateDataComponent(go, type, &config), ENGINE_RESULT_CODE_OK);
+    EXPECT_EQ(enemy->tuning().move_speed, 0.0f);
     step(LANDING_FRAMES);
     const auto start = position_of(go);
     step(60);
     EXPECT_LT(glm::length(glm::vec2(position_of(go).x - start.x, position_of(go).z - start.z)), 0.05f);
 
-    // the same enemy walks once its speed is back
-    config.move_speed = speed;
+    // the same enemy walks once it is a skeleton again
+    config.type = skeleton;
     ASSERT_EQ(engineGameObjectUpdateDataComponent(go, type, &config), ENGINE_RESULT_CODE_OK);
+    engineDataAssetRelease(rooted);
     step(60);
     EXPECT_GT(glm::length(glm::vec2(position_of(go).x - start.x, position_of(go).z - start.z)), 0.3f);
 }

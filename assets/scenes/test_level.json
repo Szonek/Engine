@@ -14,7 +14,7 @@
     "rigid_body": 1,
     "collider": 1,
     "character_controller": 1,
-    "enemy_config": 1,
+    "enemy_config": 2,
     "building_part_config": 1,
     "house_config": 1,
     "player_start": 1,
@@ -11161,12 +11161,7 @@
               "max_slope": 45
             },
             "enemy_config": {
-              "max_hp": 20,
-              "attack_damage": 2,
-              "move_speed": 2,
-              "attack_range": 0.5,
-              "attack_cooldown_seconds": 0.8,
-              "hit_flash_color": [1, 0.32, 0.22]
+              "type": "enemies/skeleton_warrior.json"
             },
             "script": {
               "type": "enemy"
@@ -11195,12 +11190,7 @@
               "max_slope": 45
             },
             "enemy_config": {
-              "max_hp": 20,
-              "attack_damage": 2,
-              "move_speed": 2,
-              "attack_range": 0.5,
-              "attack_cooldown_seconds": 0.8,
-              "hit_flash_color": [1, 0.32, 0.22]
+              "type": "enemies/skeleton_warrior.json"
             },
             "script": {
               "type": "enemy"
@@ -11229,12 +11219,7 @@
               "max_slope": 45
             },
             "enemy_config": {
-              "max_hp": 20,
-              "attack_damage": 2,
-              "move_speed": 2,
-              "attack_range": 0.5,
-              "attack_cooldown_seconds": 0.8,
-              "hit_flash_color": [1, 0.32, 0.22]
+              "type": "enemies/skeleton_warrior.json"
             },
             "script": {
               "type": "enemy"
@@ -11263,12 +11248,7 @@
               "max_slope": 45
             },
             "enemy_config": {
-              "max_hp": 20,
-              "attack_damage": 2,
-              "move_speed": 2,
-              "attack_range": 0.5,
-              "attack_cooldown_seconds": 0.8,
-              "hit_flash_color": [1, 0.32, 0.22]
+              "type": "enemies/skeleton_warrior.json"
             },
             "script": {
               "type": "enemy"
@@ -11297,12 +11277,7 @@
               "max_slope": 45
             },
             "enemy_config": {
-              "max_hp": 20,
-              "attack_damage": 2,
-              "move_speed": 2,
-              "attack_range": 0.5,
-              "attack_cooldown_seconds": 0.8,
-              "hit_flash_color": [1, 0.32, 0.22]
+              "type": "enemies/skeleton_warrior.json"
             },
             "script": {
               "type": "enemy"

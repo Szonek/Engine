@@ -177,16 +177,22 @@ TEST_F(LevelTest, LevelSaveLoadSaveGivesTheSameFile)
 // field keeps its default, and the level still plays
 TEST_F(LevelTest, LevelFileWithUnknownAndMissingDataStillPlays)
 {
-    const auto default_max_hp = project_c::default_enemy_config().max_hp;
+    const auto default_max_hp = project_c::default_enemy_type().max_hp;
     const auto file_max_hp = default_max_hp + 57;
+    // an enemy type of its own (an absolute path is an asset ID too)
+    const auto enemy_type = temp_file("enemy_type");
+    std::ofstream(enemy_type, std::ios::binary) << fmt::format(R"({{ "version": 1, "type": "enemy_type", "value": {{ "max_hp": {} }} }})", file_max_hp);
     auto text = read_text(LEVEL_FILE);
     replace_first(text, "\"components\": {", "\"components\": { \"no_such_component\": { \"x\": 1 },");
-    // every enemy gets a max_hp other than the default, then the first one loses it
-    replace_all(text, fmt::format("\"max_hp\": {},", default_max_hp), fmt::format("\"max_hp\": {},", file_max_hp));
-    replace_first(text, fmt::format("\"max_hp\": {},", file_max_hp), "\"no_such_field\": 1,");
+    // every enemy is of that type, then the first one loses its type: it has the default one
+    const std::string skeleton = "\"type\": \"enemies/skeleton_warrior.json\"";
+    replace_all(text, skeleton, fmt::format("\"type\": \"{}\"", enemy_type.generic_string()));
+    replace_first(text, fmt::format("\"type\": \"{}\"", enemy_type.generic_string()), "\"no_such_field\": 1");
     const TempLevel level(text);
 
     auto* scene = load_scene<project_c::LevelScene>();
+    // read when the level was loaded
+    std::filesystem::remove(enemy_type);
     step(60);
     ASSERT_NE(scene->find_script<project_c::Player>(), nullptr);
     const auto enemies = scene->get_scripts<project_c::Enemy>();

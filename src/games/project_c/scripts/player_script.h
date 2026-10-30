@@ -202,15 +202,15 @@ public:
     // its game object stays)
     ~Player();
 
-    // its designer-set values (the player_config component), read on every use
-    PlayerConfig config() const;
+    // its tuning (the player_tuning data asset its player_config component references), read on every use
+    PlayerTuning tuning() const;
 
     void on_start() override;
     void update(float dt);
     void on_confirmed_attack_hit(float hit_stop_seconds);
     bool receive_damage(std::uint32_t damage, const glm::vec3& source_position);
     std::uint32_t get_hp() const { return state().hp; }
-    std::uint32_t get_max_hp() const { return config().max_hp; }
+    std::uint32_t get_max_hp() const { return tuning().max_hp; }
     bool is_dead() const { return state().hp == 0; }
 
     bool equip_waepon(Weapon* sword);

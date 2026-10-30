@@ -212,14 +212,15 @@ void project_c::Enemy::find_player()
     player_go_ = player && engineGameObjectIsValid(player->get_game_object()) ? player->get_game_object() : ENGINE_INVALID_GAME_OBJECT_ID;
 }
 
-project_c::EnemyConfig project_c::Enemy::config() const
+project_c::EnemyType project_c::Enemy::tuning() const
 {
-    return get_game_component(go_, game_components().enemy_config, default_enemy_config());
+    const auto& types = game_components();
+    return get_data_asset(get_game_component(go_, types.enemy_config, default_enemy_config()).type, types.enemy_type, default_enemy_type());
 }
 
 void project_c::Enemy::on_start()
 {
-    hp = config().max_hp;
+    hp = tuning().max_hp;
     find_player();
 
     // the blade is part of the enemy's loadout, a runtime object
@@ -242,7 +243,7 @@ void project_c::Enemy::on_start()
 void project_c::Enemy::update(float dt)
 {
     engine::ScopedProfiler prof("project_c::Enemy::update");
-    const auto cfg = config();
+    const auto cfg = tuning();
 
     if (hit_stop_remaining_seconds_ > 0.0f)
     {
@@ -489,7 +490,7 @@ void project_c::Enemy::on_weapon_hit_player(engine_game_object_t player_go)
     if (auto* player = my_scene_->get_script<project_c::Player>(player_go))
     {
         const auto tc = engineGameObjectGetTransformComponent(go_);
-        player->receive_damage(config().attack_damage, glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
+        player->receive_damage(tuning().attack_damage, glm::vec3(tc.position[0], tc.position[1], tc.position[2]));
     }
 }
 
@@ -535,7 +536,7 @@ void project_c::Enemy::collect_hit_flash_materials(engine_game_object_t game_obj
 
 void project_c::Enemy::update_hit_flash(float strength)
 {
-    const auto cfg = config();
+    const auto cfg = tuning();
     const auto& hit_color = cfg.hit_flash_color;
     strength = std::clamp(strength, 0.0f, 1.0f);
 

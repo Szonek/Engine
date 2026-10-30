@@ -48,9 +48,23 @@ public:
         return it == handles_.end() ? ENGINE_INVALID_OBJECT_HANDLE : it->second;
     }
 
+    // a data asset holding a value of `type`
+    void add_data_asset(const std::string& id, std::uint32_t handle, const engine::TypeInfo* type)
+    {
+        add(AssetKind::eDataAsset, id, handle);
+        data_types_[handle] = type;
+    }
+
+    const engine::TypeInfo* get_data_asset_type(std::uint32_t handle) const override
+    {
+        const auto it = data_types_.find(handle);
+        return it == data_types_.end() ? nullptr : it->second;
+    }
+
 private:
     std::map<std::pair<AssetKind, std::uint32_t>, std::string> ids_;
     std::map<std::pair<AssetKind, std::string>, std::uint32_t> handles_;
+    std::map<std::uint32_t, const engine::TypeInfo*> data_types_;
 };
 
 // what the scene's initializers do for these components (the defaults a missing field keeps)
@@ -1695,6 +1709,91 @@ TEST_F(GameComponentFileTest, GameComponentSavedInANewerVersionIsSkipped)
         "patrol_config": { "speed": 0.5 } } } ] })"));
     EXPECT_FALSE(patrol_config().storage->has(w.registry, w.find(1)));
     EXPECT_TRUE(test_logger::logged("component patrol_config was saved in version 2"));
+}
+
+// -- data asset references -------------------------------------------------------------------------------------------
+
+struct Wave
+{
+    float speed;
+};
+
+struct SpawnerConfig
+{
+    engine_data_asset_t wave;
+};
+
+class DataAssetReferenceTest : public GameComponentFileTest
+{
+protected:
+    void SetUp() override
+    {
+        GameComponentFileTest::SetUp();
+        const engine_field_desc_t wave_fields[] = { field("speed", ENGINE_FIELD_KIND_FLOAT, offsetof(Wave, speed)) };
+        const engine_type_desc_t wave{ "wave", 1, sizeof(Wave), alignof(Wave), nullptr, wave_fields, 1 };
+        wave_ = engine::register_game_type(types_, wave, false);
+        ASSERT_NE(wave_, nullptr);
+        auto wave_field = field("wave", ENGINE_FIELD_KIND_DATA_ASSET, offsetof(SpawnerConfig, wave));
+        wave_field.type_name = "wave";
+        const engine_type_desc_t spawner{ "spawner_config", 1, sizeof(SpawnerConfig), alignof(SpawnerConfig), nullptr, &wave_field, 1 };
+        ASSERT_NE(engine::register_game_type(types_, spawner, true), nullptr);
+        assets_.add_data_asset("waves/fast.json", 11, wave_);
+        // a data asset of another type
+        assets_.add_data_asset("waves/ring.json", 12, types_.find("ring"));
+    }
+
+    const engine::TypeInfo& spawner_config() const { return *types_.find("spawner_config"); }
+
+    const engine::TypeInfo* wave_ = nullptr;
+};
+
+TEST_F(DataAssetReferenceTest, ReferenceIsSavedAsTheAssetIdAndLoadedBack)
+{
+    World original;
+    const auto entity = original.create();
+    const SpawnerConfig spawner{ 11 };
+    spawner_config().storage->add(original.registry, entity);
+    spawner_config().storage->update(original.registry, entity, &spawner);
+    const auto file = save(original);
+    EXPECT_NE(file.find(R"("wave": "waves/fast.json")"), std::string::npos) << file;
+
+    World loaded;
+    ASSERT_TRUE(load(loaded, file));
+    SpawnerConfig value{};
+    spawner_config().storage->get(loaded.registry, loaded.find(original.ids.get_id(entity)), &value);
+    EXPECT_EQ(value.wave, 11u);
+    EXPECT_EQ(save(loaded), file);
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(DataAssetReferenceTest, DataAssetOfAnotherTypeIsNone)
+{
+    World w;
+    ASSERT_TRUE(load(w, R"({ "version": 1, "entities": [ { "id": 1, "components": { "spawner_config": { "wave": "waves/ring.json" } } } ] })"));
+    SpawnerConfig value{ 99 };
+    spawner_config().storage->get(w.registry, w.find(1), &value);
+    EXPECT_EQ(value.wave, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_TRUE(test_logger::logged("holds a ring, not a wave"));
+}
+
+TEST_F(DataAssetReferenceTest, FieldNeedsAStructTypeWithoutGameObjects)
+{
+    // patrol_config is a component, and it references a game object
+    auto field_desc = field("wave", ENGINE_FIELD_KIND_DATA_ASSET, offsetof(SpawnerConfig, wave));
+    field_desc.type_name = "patrol_config";
+    const engine_type_desc_t component{ "bad_spawner", 1, sizeof(SpawnerConfig), alignof(SpawnerConfig), nullptr, &field_desc, 1 };
+    EXPECT_EQ(engine::register_game_type(types_, component, true), nullptr);
+
+    struct Targets
+    {
+        engine_game_object_t target;
+    };
+    const engine_field_desc_t target = field("target", ENGINE_FIELD_KIND_GAME_OBJECT, offsetof(Targets, target));
+    const engine_type_desc_t targets{ "targets", 1, sizeof(Targets), alignof(Targets), nullptr, &target, 1 };
+    ASSERT_NE(engine::register_game_type(types_, targets, false), nullptr);
+    field_desc.type_name = "targets";
+    EXPECT_EQ(engine::register_game_type(types_, component, true), nullptr);
+    EXPECT_TRUE(test_logger::logged("without game object references"));
 }
 
 // -- scene prefabs ---------------------------------------------------------------------------------------------------

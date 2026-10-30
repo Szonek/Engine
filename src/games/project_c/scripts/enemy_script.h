@@ -63,9 +63,9 @@ public:
     // removes its animation events and its blade (also when its script component is removed and its game object stays)
     ~Enemy();
 
-    // its designer-set values (the enemy_config component), read on every use
-    EnemyConfig config() const;
-    std::uint32_t get_max_hp() const { return config().max_hp; }
+    // the tuning of its kind (the enemy_type data asset its enemy_config component references), read on every use
+    EnemyType tuning() const;
+    std::uint32_t get_max_hp() const { return tuning().max_hp; }
 
     void on_start() override;
 

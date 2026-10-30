@@ -188,6 +188,15 @@ void engine::own_engine_strings(const TypeInfo& type, ValueBuffer& value)
     own_struct_strings(type, value.get(), value);
 }
 
+bool engine::holds_game_object(const TypeInfo& type)
+{
+    return std::ranges::any_of(type.fields, [](const FieldInfo& field) {
+        return field.kind == FieldKind::eGameObject
+            || (field.kind == FieldKind::eStruct && holds_game_object(*field.struct_type))
+            || (field.kind == FieldKind::eUnion && std::ranges::any_of(field.union_cases, [](const UnionCase& c) { return holds_game_object(*c.type); }));
+    });
+}
+
 bool engine::equal_values(const TypeInfo& type, const std::byte* a, const std::byte* b)
 {
     return std::ranges::all_of(type.fields, [&](const FieldInfo& field) { return equal_field(type, field, a, b); });

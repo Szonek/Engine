@@ -546,6 +546,39 @@ void enginePrefabRelease(engine_prefab_t prefab)
     api_cast(G_ACTIVE_APP)->release_prefab(prefab);
 }
 
+engine_data_asset_t engineDataAssetLoad(const char* path)
+{
+    if (!G_ACTIVE_APP || !path)
+    {
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    return api_cast(G_ACTIVE_APP)->load_data_asset(path);
+}
+
+void engineDataAssetRelease(engine_data_asset_t asset)
+{
+    if (!G_ACTIVE_APP)
+    {
+        return;
+    }
+    api_cast(G_ACTIVE_APP)->release_data_asset(asset);
+}
+
+engine_result_code_t engineDataAssetGet(engine_data_asset_t asset, engine_component_type_t type, void* out)
+{
+    if (!G_ACTIVE_APP || !out)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const auto* data_asset = api_cast(G_ACTIVE_APP)->get_data_asset(asset);
+    if (!data_asset || data_asset->get_type().handle != type)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    std::memcpy(out, data_asset->get_value(), data_asset->get_type().size);
+    return ENGINE_RESULT_CODE_OK;
+}
+
 engine_result_code_t engineSceneCreate(engine_scene_create_desc_t desc, engine_scene_t* out)
 {
     if (!G_ACTIVE_APP)
@@ -645,13 +678,18 @@ engine_result_code_t engineComponentTypeRegister(const engine_type_desc_t* desc,
     return type ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
-engine_result_code_t engineStructTypeRegister(const engine_type_desc_t* desc)
+engine_result_code_t engineStructTypeRegister(const engine_type_desc_t* desc, engine_component_type_t* out)
 {
     if (!G_ACTIVE_APP || !desc)
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
-    return api_cast(G_ACTIVE_APP)->register_game_type(*desc, false) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+    const auto* type = api_cast(G_ACTIVE_APP)->register_game_type(*desc, false);
+    if (out)
+    {
+        *out = type ? type->handle : ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    return type ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
 engine_component_type_t engineComponentTypeGetByName(const char* name)

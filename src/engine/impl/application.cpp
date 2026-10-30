@@ -9,6 +9,7 @@
 #include "ui_document.h"
 #include "serialization/builtin_types.h"
 #include "serialization/game_types.h"
+#include "serialization/scene_assets.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -216,6 +217,12 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     engine_application_frame_begine_info_t ret{};
     ret.delta_time = std::min(static_cast<float>(timer_.delta_time().count()) / 1000.0f, max_delta_time_);
     ret.events = ENGINE_EVENT_NONE;
+
+    // the data assets whose files changed (the editor watches them), before anything reads them this frame
+    if (data_assets_changed_.exchange(false))
+    {
+        reload_changed_data_assets();
+    }
 
 	for(auto& f : finger_info_buffer)
 	{
@@ -553,6 +560,88 @@ bool engine::Application::acquire_prefab(std::uint32_t idx)
 void engine::Application::release_prefab(std::uint32_t idx)
 {
     prefabs_atlas_.release(idx);
+}
+
+std::uint32_t engine::Application::load_data_asset(std::string_view path)
+{
+    // the asset ID: the same file is always named the same way
+    const auto name = std::filesystem::path(path).lexically_normal().generic_string();
+    const auto loaded = data_assets_atlas_.get_object(name);
+    // a file being read again references loaded assets too: holding one which references it would keep both alive forever
+    if (loading_data_assets_.contains(name) || (loaded != ENGINE_INVALID_OBJECT_HANDLE && references_loading_data_asset(loaded)))
+    {
+        log::log(log::LogLevel::eError, fmt::format("Data asset {} references itself (directly or through other data assets), the reference is none.\n", name));
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    if (loaded != ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return data_assets_atlas_.acquire(loaded) ? loaded : ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    loading_data_assets_.insert(name);
+    // the assets the value references are held as long as the asset has the value
+    auto asset = DataAsset::load(name, AssetStore::get_instance().get_data_base_path() / name, types_, [this] { return std::make_unique<SceneAssets>(*this); },
+        [this] { data_assets_changed_ = true; });
+    loading_data_assets_.erase(name);
+    return asset ? data_assets_atlas_.add_object(name, std::move(asset)) : ENGINE_INVALID_OBJECT_HANDLE;
+}
+
+void engine::Application::reload_changed_data_assets()
+{
+    // a copy: reading a file again can load data assets and release others (the ones only its old value referenced)
+    for (const auto& [handle, name] : data_assets_atlas_.get_object_names())
+    {
+        const auto* asset = data_assets_atlas_.get_object(handle);
+        if (!asset)
+        {
+            continue;
+        }
+        loading_data_assets_.insert(name);
+        (*asset)->reload_if_changed();
+        loading_data_assets_.erase(name);
+    }
+}
+
+bool engine::Application::references_loading_data_asset(std::uint32_t idx) const
+{
+    const auto* asset = data_assets_atlas_.get_object(idx);
+    if (!asset)
+    {
+        return false;
+    }
+    if (loading_data_assets_.contains((*asset)->get_name()))
+    {
+        return true;
+    }
+    // loaded data assets never reference each other in a cycle, so this ends
+    for (const auto referenced : (*asset)->get_data_assets())
+    {
+        if (references_loading_data_asset(referenced))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void engine::Application::release_data_asset(std::uint32_t idx)
+{
+    data_assets_atlas_.release(idx);
+}
+
+const engine::DataAsset* engine::Application::get_data_asset(std::uint32_t idx) const
+{
+    const auto* asset = data_assets_atlas_.get_object(idx);
+    return asset ? asset->get() : nullptr;
+}
+
+std::string engine::Application::get_data_asset_name(std::uint32_t idx) const
+{
+    return data_assets_atlas_.get_object_name(idx);
+}
+
+std::vector<std::pair<std::uint32_t, std::string>> engine::Application::get_data_asset_names() const
+{
+    return data_assets_atlas_.get_object_names();
 }
 
 std::uint32_t engine::Application::add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name)

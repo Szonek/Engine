@@ -4,11 +4,14 @@
 #include <cstdint>
 
 // The designer-set values of the game's scripts: game-defined components (plain C structs the engine describes field
-// by field), saved in scene files and edited in the editor. Scripts read them each time they use a value, so an edit
-// while playing takes effect at once; what changes while playing stays in the scripts' members and is never saved.
+// by field), saved in scene files and edited in the editor, and the data assets they reference (a value shared by every
+// object referencing it, in a file under assets/data, like Unity's ScriptableObject). Scripts read them each time they
+// use a value, so an edit while playing (in the editor, or of a data asset's file) takes effect at once; what changes
+// while playing stays in the scripts' members and is never saved.
 namespace project_c
 {
-struct EnemyConfig
+// the tuning of a kind of enemy, shared by the enemies of the kind (a data asset, assets/data/enemies)
+struct EnemyType
 {
     std::uint32_t max_hp;
     // per hit on the player
@@ -22,7 +25,14 @@ struct EnemyConfig
     float hit_flash_color[3];
 };
 
-struct PlayerConfig
+struct EnemyConfig
+{
+    // an EnemyType data asset; with none, the enemy has default_enemy_type()
+    engine_data_asset_t type;
+};
+
+// the player's tuning (a data asset, assets/data/player)
+struct PlayerTuning
 {
     std::uint32_t max_hp;
     // per hit on an enemy (each dagger)
@@ -31,6 +41,30 @@ struct PlayerConfig
     float move_speed;
     float dodge_speed;
     float dodge_cooldown_seconds;
+    float dodge_invulnerability_seconds;
+    // multiplies the attack animations' speed
+    float attack_playback_rate;
+    // an attack pressed this long before the current one ends is the combo's next one
+    float attack_input_buffer_seconds;
+    float attack_combo_cross_fade_seconds;
+    float attack_exit_cross_fade_seconds;
+    float turn_rate_degrees_per_second;
+    // metres per second per second, toward the wanted speed while moving / toward stopping
+    float movement_acceleration;
+    float movement_braking;
+    // the freeze on a hit which lands
+    float hit_stop_seconds;
+    float hit_camera_shake_intensity;
+    float hit_camera_shake_seconds;
+    // being hit
+    float hit_stun_seconds;
+    float knockback_speed;
+};
+
+struct PlayerConfig
+{
+    // a PlayerTuning data asset; with none, the player has default_player_tuning()
+    engine_data_asset_t tuning;
 };
 
 // what the House hides while the player is inside it
@@ -82,9 +116,12 @@ struct LevelExitConfig
     char entrance[PLAYER_START_ID_MAX_LENGTH];
 };
 
-// the handles of the game's component types, ENGINE_INVALID_OBJECT_HANDLE until register_game_components()
+// the handles of the game's component and data asset types, ENGINE_INVALID_OBJECT_HANDLE until
+// register_game_components()
 struct GameComponentTypes
 {
+    engine_component_type_t enemy_type = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_component_type_t player_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t building_part_config = ENGINE_INVALID_OBJECT_HANDLE;
@@ -93,12 +130,15 @@ struct GameComponentTypes
     engine_component_type_t level_exit = ENGINE_INVALID_OBJECT_HANDLE;
 };
 
-// Registers the game's component types with the active application (once, at startup, before scene files are loaded);
-// a type which fails is logged and stays ENGINE_INVALID_OBJECT_HANDLE.
+// Registers the game's component and data asset types with the active application (once, at startup, before scene
+// files and data assets are loaded); a type which fails is logged and stays ENGINE_INVALID_OBJECT_HANDLE.
 void register_game_components();
 const GameComponentTypes& game_components();
 
-// the default values, what a new component of the type holds
+// the default values: what a new component of the type holds, what a data asset holds in the fields its file doesn't
+// have
+EnemyType default_enemy_type();
+PlayerTuning default_player_tuning();
 EnemyConfig default_enemy_config();
 PlayerConfig default_player_config();
 BuildingPartConfig default_building_part_config();
@@ -112,6 +152,18 @@ T get_game_component(engine_game_object_t go, engine_component_type_t type, cons
 {
     T value = fallback;
     if (engineGameObjectGetDataComponent(go, type, &value) != ENGINE_RESULT_CODE_OK)
+    {
+        return fallback;
+    }
+    return value;
+}
+
+// The data asset's value of the type, or `fallback` when it holds none (no asset, or one of another type).
+template<typename T>
+T get_data_asset(engine_data_asset_t asset, engine_component_type_t type, const T& fallback)
+{
+    T value = fallback;
+    if (engineDataAssetGet(asset, type, &value) != ENGINE_RESULT_CODE_OK)
     {
         return fallback;
     }

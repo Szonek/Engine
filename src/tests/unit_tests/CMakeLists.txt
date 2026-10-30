@@ -19,6 +19,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	type_registry_tests.cpp
 	scene_serializer_tests.cpp
 	game_types_tests.cpp
+	data_asset_tests.cpp
 	copy_name_tests.cpp
 	editor_camera_tests.cpp
 	editor_modal_transform_tests.cpp
@@ -68,6 +69,11 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/serialization/scene_serializer.cpp
 	${ENGINE_IMPL_DIR}/serialization/scene_serializer.h
 	${ENGINE_IMPL_DIR}/serialization/prefab_instances.h
+	# data assets and the file watcher they register with (its thread is never started here)
+	${ENGINE_IMPL_DIR}/data_asset.cpp
+	${ENGINE_IMPL_DIR}/data_asset.h
+	${ENGINE_IMPL_DIR}/file_watcher.cpp
+	${ENGINE_IMPL_DIR}/file_watcher.h
 )
 target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/include ${RAPIDJSON_INCLUDE_DIR})
 # profiler.h includes Tracy and RmlUi headers: only their headers, without TRACY_ENABLE the profiling macros are empty

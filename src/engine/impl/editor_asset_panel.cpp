@@ -3,6 +3,7 @@
 #include "application.h"
 #include "asset_store.h"
 #include "animation_controller.h"
+#include "serialization/scene_assets.h"
 
 #include "imgui/imgui.h"
 
@@ -47,6 +48,13 @@ void draw_icon(engine::AssetFileKind kind, float size)
         draw_list->AddTriangleFilled(at(0.15f, 0.8f), at(0.45f, 0.4f), at(0.75f, 0.8f), IM_COL32(240, 230, 250, 255));
         draw_list->AddCircleFilled(at(0.72f, 0.32f), 0.1f * size, IM_COL32(250, 230, 120, 255));
         break;
+    case AssetFileKind::eData:
+        // a table: a header row and lines
+        draw_list->AddRectFilled(at(0.1f, 0.1f), at(0.9f, 0.9f), IM_COL32(220, 140, 70, 255), 2.0f);
+        draw_list->AddRectFilled(at(0.1f, 0.1f), at(0.9f, 0.3f), IM_COL32(170, 95, 40, 255), 2.0f);
+        draw_list->AddLine(at(0.2f, 0.5f), at(0.8f, 0.5f), IM_COL32(255, 235, 210, 255));
+        draw_list->AddLine(at(0.2f, 0.7f), at(0.8f, 0.7f), IM_COL32(255, 235, 210, 255));
+        break;
     case AssetFileKind::eOther:
         // a page with a folded corner
         draw_list->AddRectFilled(at(0.2f, 0.05f), at(0.8f, 0.95f), IM_COL32(150, 150, 150, 255), 1.0f);
@@ -63,6 +71,7 @@ const char* get_payload_type(engine::AssetFileKind kind)
     case engine::AssetFileKind::eModel:
     case engine::AssetFileKind::eScene: return engine::ASSET_PAYLOAD_PREFAB;
     case engine::AssetFileKind::eTexture: return engine::ASSET_PAYLOAD_TEXTURE;
+    case engine::AssetFileKind::eData:
     case engine::AssetFileKind::eFolder:
     case engine::AssetFileKind::eOther: break;
     }
@@ -174,6 +183,10 @@ void engine::AssetBrowserPanel::clear_selection()
     {
         app_.release_texture(std::exchange(inspected_texture_, ENGINE_INVALID_OBJECT_HANDLE));
     }
+    if (inspected_data_asset_ != ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        app_.release_data_asset(std::exchange(inspected_data_asset_, ENGINE_INVALID_OBJECT_HANDLE));
+    }
     selected_.reset();
 }
 
@@ -191,6 +204,10 @@ void engine::AssetBrowserPanel::select(const asset_entry_t& entry)
         else if (entry.kind == AssetFileKind::eTexture)
         {
             inspected_texture_ = app_.load_texture_file(*asset_id);
+        }
+        else if (entry.kind == AssetFileKind::eData)
+        {
+            inspected_data_asset_ = app_.load_data_asset(*asset_id);
         }
     }
 }
@@ -469,11 +486,36 @@ void engine::AssetBrowserPanel::draw_inspector()
             ImGui::TextWrapped("Only images under models/ can be used as assets: they are named by their path there.");
         }
         break;
+    case AssetFileKind::eData:
+        draw_data_asset_details();
+        break;
     case AssetFileKind::eFolder:
     case AssetFileKind::eOther:
         ImGui::TextWrapped("Not an asset the editor can use.");
         break;
     }
+}
+
+void engine::AssetBrowserPanel::draw_data_asset_details()
+{
+    const auto* asset = inspected_data_asset_ == ENGINE_INVALID_OBJECT_HANDLE ? nullptr : app_.get_data_asset(inspected_data_asset_);
+    if (!asset)
+    {
+        ImGui::TextWrapped("The data asset couldn't be loaded (see the log).");
+        return;
+    }
+    ImGui::Text("Type: %s", asset->get_type().name.c_str());
+    ImGui::TextWrapped("Edit its file: the change shows here and in the game at once.");
+    // its value as the file has it, read-only (editing it here comes with saving from the editor)
+    if (inspected_data_value_of_ != inspected_data_asset_ || inspected_data_value_reloads_ != asset->get_reload_count())
+    {
+        const SceneAssets assets(app_);
+        inspected_data_value_ = save_data_asset(asset->get_type(), asset->get_value(), assets);
+        inspected_data_value_of_ = inspected_data_asset_;
+        inspected_data_value_reloads_ = asset->get_reload_count();
+    }
+    ImGui::SeparatorText("Value");
+    ImGui::TextUnformatted(inspected_data_value_.c_str());
 }
 
 void engine::AssetBrowserPanel::draw_model_details()

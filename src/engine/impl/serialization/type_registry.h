@@ -51,6 +51,8 @@ enum class AssetKind
     eTexture,
     eSkin,
     eAnimationSet,
+    // a data asset (DataAsset), holding a value of FieldInfo::data_type
+    eDataAsset,
 };
 
 struct EnumValue
@@ -99,6 +101,7 @@ struct FieldInfo
     std::string union_tag;                             // eUnion: the enum field (before it) selecting the case
     std::vector<UnionCase> union_cases;                // eUnion: a tag value without a case has no data
     AssetKind asset_kind = AssetKind::eGeometry;       // eAsset
+    const TypeInfo* data_type = nullptr;               // eAsset of AssetKind::eDataAsset: the type the asset holds
     FieldHints hints;
 
     // bytes the field covers in its struct
@@ -147,6 +150,9 @@ struct TypeInfo
     std::unique_ptr<ComponentStorage> storage;
     // registered by the game through the C API (see game_types.h), not by the engine; the editor has no panel for it
     bool game_defined = false;
+    // game-defined struct types: what a data asset of the type holds in the fields its file doesn't have (zeroes when
+    // the game gave none)
+    std::vector<std::byte> default_value;
 
     bool is_component() const { return storage != nullptr; }
     const FieldInfo* find_field(std::string_view field_name) const
@@ -218,6 +224,10 @@ void clear_union(const FieldInfo& union_field, std::byte* value);
 // copies `value` owns: a value kept after its component changes (what a prefab gave a node) holds the strings it had,
 // not the component's, which change with it.
 void own_engine_strings(const TypeInfo& type, ValueBuffer& value);
+
+// Whether a value of `type` can reference a game object (a field, or one of a nested struct or union case): a data
+// asset, which isn't in a scene, can't.
+bool holds_game_object(const TypeInfo& type);
 
 // Whether two values of `type` are the same field by field: padding and the bytes after a string's terminator don't
 // count, an engine string compares its text, and a union compares only its active case.

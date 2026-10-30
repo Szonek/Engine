@@ -249,22 +249,20 @@ class SceneReader
 {
 public:
     // `outside`: where references to game objects which aren't in the file are looked up, nullptr when they are none
-    SceneReader(std::string_view file_name, const std::unordered_map<std::uint64_t, entt::entity>& entities, const engine::EntityIdRegistry* outside,
-        engine::IAssetResolver& assets)
-        : file_name_(file_name), entities_(entities), outside_(outside), assets_(assets)
+    SceneReader(const std::unordered_map<std::uint64_t, entt::entity>& entities, const engine::EntityIdRegistry* outside, engine::IAssetResolver& assets)
+        : entities_(entities), outside_(outside), assets_(assets)
     {
     }
 
     // reads the fields the json object has into `value`, which holds the defaults; the engine strings read point at
-    // strings `value` owns
+    // strings `value` owns. `path` says where the value is (the file, the game object, the component), problems are
+    // logged with it and the field's path inside the value
     void read_struct(const engine::TypeInfo& type, const Json& json, engine::ValueBuffer& value, std::string_view path)
     {
         strings_ = &value;
         read_struct(type, json, value.get(), path);
         strings_ = nullptr;
     }
-
-    void set_entity(std::uint64_t id) { entity_id_ = id; }
 
 private:
     void read_struct(const engine::TypeInfo& type, const Json& json, std::byte* value, std::string_view path)
@@ -335,9 +333,9 @@ private:
         }
     }
 
-    void error(std::string_view path, std::string_view message)
+    static void error(std::string_view path, std::string_view message)
     {
-        log_error(fmt::format("Scene {}, game object {}: {} {}.\n", file_name_, entity_id_, path, message));
+        log_error(fmt::format("{} {}.\n", path, message));
     }
 
     void read_field(const engine::FieldInfo& field, const Json& json, std::byte* p, const std::string& path)
@@ -433,10 +431,16 @@ private:
             {
                 return error(path, "is not an asset ID, the default is kept");
             }
-            const auto handle = assets_.resolve(field.asset_kind, std::string_view(json.GetString(), json.GetStringLength()));
+            auto handle = assets_.resolve(field.asset_kind, std::string_view(json.GetString(), json.GetStringLength()));
             if (handle == ENGINE_INVALID_OBJECT_HANDLE)
             {
                 error(path, fmt::format("uses the asset \"{}\" which can't be found, it has none", json.GetString()));
+            }
+            else if (const auto* held = field.asset_kind == engine::AssetKind::eDataAsset ? assets_.get_data_asset_type(handle) : nullptr; held != field.data_type)
+            {
+                error(path, fmt::format("uses the data asset \"{}\" which holds a {}, not a {}, it has none", json.GetString(), held ? held->name : "nothing",
+                    field.data_type ? field.data_type->name : "nothing"));
+                handle = ENGINE_INVALID_OBJECT_HANDLE;
             }
             write_as(p, handle);
             return;
@@ -483,11 +487,9 @@ private:
         write_as(p, value);
     }
 
-    std::string_view file_name_;
     const std::unordered_map<std::uint64_t, entt::entity>& entities_;
     const engine::EntityIdRegistry* outside_;
     engine::IAssetResolver& assets_;
-    std::uint64_t entity_id_ = 0;
     // the value being read, which owns the engine strings read into it
     engine::ValueBuffer* strings_ = nullptr;
 };
@@ -1186,7 +1188,7 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
     }
 
     // 3. the components, one type after the other: the listeners of a type see the components registered before it
-    SceneReader reader(file_name, entities, options.find_references_outside_file && !instance ? &ids : nullptr, assets);
+    SceneReader reader(entities, options.find_references_outside_file && !instance ? &ids : nullptr, assets);
     for (const auto* type : types.get_components())
     {
         if (skipped_components.contains(type->name))
@@ -1206,10 +1208,11 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
             const auto read = [&](const Json& json) {
                 engine::ValueBuffer value(type->size);
                 type->storage->get(registry, e.entity, value.get());
-                reader.read_struct(*type, json, value, e.node_path.empty() ? type->name : fmt::format("node {}: {}", e.node_path, type->name));
+                const auto where = e.node_path.empty() ? fmt::format("Scene {}, game object {}: {}", file_name, e.id, type->name)
+                    : fmt::format("Scene {}, game object {}: node {}: {}", file_name, e.id, e.node_path, type->name);
+                reader.read_struct(*type, json, value, where);
                 type->storage->update(registry, e.entity, value.get());
             };
-            reader.set_entity(e.id);
             // removed from what its prefab gave it; nothing to do when the prefab doesn't give it (any more)
             if (e.removed && std::ranges::any_of(e.removed->GetArray(), [&](const Json& name) { return name.IsString() && type->name == name.GetString(); }))
             {
@@ -1261,4 +1264,81 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
         }
     }
     return true;
+}
+
+std::string engine::save_data_asset(const TypeInfo& type, const std::byte* value, const IAssetResolver& assets)
+{
+    // a data asset holds no game object references (holds_game_object), so no persistent IDs are needed
+    entt::registry no_game_objects;
+    const EntityIdRegistry no_ids(no_game_objects);
+    SceneWriter out(no_ids, assets);
+    auto& w = out.writer();
+    w.StartObject();
+    w.Key("version");
+    w.Uint(DATA_ASSET_FILE_VERSION);
+    w.Key("type");
+    w.String(type.name.c_str(), static_cast<rapidjson::SizeType>(type.name.size()));
+    w.Key("type_version");
+    w.Uint(type.version);
+    w.Key("value");
+    out.write_struct(type, value, type.name);
+    w.EndObject();
+    return out.result();
+}
+
+std::optional<engine::DataAssetValue> engine::load_data_asset(std::string_view json, std::string_view file_name, const TypeRegistry& types, IAssetResolver& assets)
+{
+    rapidjson::Document doc;
+    doc.Parse<rapidjson::kParseNumbersAsStringsFlag>(json.data(), json.size());
+    if (doc.HasParseError())
+    {
+        log_error(fmt::format("Data asset {}: not valid JSON at offset {}: {}\n", file_name, doc.GetErrorOffset(), rapidjson::GetParseError_En(doc.GetParseError())));
+        return std::nullopt;
+    }
+    std::uint32_t version = 0;
+    if (!doc.IsObject() || !doc.HasMember("version") || !parse_number(doc["version"], version) || version == 0 || version > DATA_ASSET_FILE_VERSION)
+    {
+        log_error(fmt::format("Data asset {}: it has no version this engine reads (up to {}), it isn't a data asset file.\n", file_name, DATA_ASSET_FILE_VERSION));
+        return std::nullopt;
+    }
+    const auto type_it = doc.FindMember("type");
+    const auto* type = type_it != doc.MemberEnd() && type_it->value.IsString() ? types.find(type_it->value.GetString()) : nullptr;
+    if (!type || !type->game_defined || type->is_component() || holds_game_object(*type))
+    {
+        log_error(fmt::format("Data asset {}: its type isn't a struct type the game registered without game object references.\n", file_name));
+        return std::nullopt;
+    }
+    // the version of the type the value was written for; a file written by hand may leave it out, it is the first one
+    std::uint32_t type_version = FIRST_TYPE_VERSION;
+    if (const auto it = doc.FindMember("type_version"); it != doc.MemberEnd() && (!parse_number(it->value, type_version) || type_version == 0))
+    {
+        log_error(fmt::format("Data asset {}: its type_version isn't a version.\n", file_name));
+        return std::nullopt;
+    }
+    if (type_version > type->version)
+    {
+        log_error(fmt::format("Data asset {}: its value is a {} of version {}, this game reads up to {}.\n", file_name, type->name, type_version, type->version));
+        return std::nullopt;
+    }
+    if (type_version < type->version)
+    {
+        // read like a component of an older version in a scene file: the fields which are still there
+        log_error(fmt::format("Data asset {}: its value is a {} of version {}, the type is version {} now; check its fields.\n", file_name, type->name,
+            type_version, type->version));
+    }
+    const auto value_it = doc.FindMember("value");
+    if (value_it == doc.MemberEnd() || !value_it->value.IsObject())
+    {
+        log_error(fmt::format("Data asset {}: it has no value object.\n", file_name));
+        return std::nullopt;
+    }
+    DataAssetValue result{ type, std::make_unique<ValueBuffer>(type->size) };
+    if (type->default_value.size() == type->size)
+    {
+        std::memcpy(result.value->get(), type->default_value.data(), type->size);
+    }
+    const std::unordered_map<std::uint64_t, entt::entity> no_game_objects;
+    SceneReader reader(no_game_objects, nullptr, assets);
+    reader.read_struct(*type, value_it->value, *result.value, fmt::format("Data asset {}: {}", file_name, type->name));
+    return result;
 }

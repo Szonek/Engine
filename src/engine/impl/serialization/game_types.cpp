@@ -188,6 +188,15 @@ public:
             type_.storage = make_storage_for_slot(engine::data_slot_size(type_.size), id, std::move(default_value),
                 std::make_index_sequence<ENGINE_COMPONENT_TYPE_MAX_SIZE / engine::DATA_SLOT_ALIGNMENT>{});
         }
+        else
+        {
+            // what a data asset of the type starts from
+            type_.default_value.resize(type_.size);
+            if (desc_.default_value)
+            {
+                std::memcpy(type_.default_value.data(), desc_.default_value, type_.size);
+            }
+        }
         return registry_.add(std::move(type_));
     }
 
@@ -262,6 +271,15 @@ private:
             }
             f.kind = FieldKind::eFloat;
             f.hints.color = true;
+            break;
+        case ENGINE_FIELD_KIND_DATA_ASSET:
+            f.kind = FieldKind::eAsset;
+            f.asset_kind = engine::AssetKind::eDataAsset;
+            f.data_type = registry_.find(text(d.type_name));
+            if (!f.data_type || !f.data_type->game_defined || f.data_type->is_component() || engine::holds_game_object(*f.data_type))
+            {
+                return error(fmt::format("field {}: \"{}\" is not a struct type registered by the game without game object references", name, text(d.type_name)));
+            }
             break;
         default:
             return error(fmt::format("field {} has an unknown kind {}", name, static_cast<int>(d.kind)));

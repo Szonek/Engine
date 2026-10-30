@@ -25,6 +25,13 @@ engine::SceneAssets::~SceneAssets()
             app_.release_texture(texture);
         }
     }
+    for (const auto& [file, data_asset] : data_assets_)
+    {
+        if (data_asset != ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            app_.release_data_asset(data_asset);
+        }
+    }
 }
 
 std::string engine::SceneAssets::get_asset_id(AssetKind kind, std::uint32_t handle) const
@@ -35,12 +42,24 @@ std::string engine::SceneAssets::get_asset_id(AssetKind kind, std::uint32_t hand
     case AssetKind::eTexture: return app_.get_texture_name(handle);
     case AssetKind::eSkin: return app_.get_skin_name(handle);
     case AssetKind::eAnimationSet: return app_.get_animation_set_name(handle);
+    case AssetKind::eDataAsset: return app_.get_data_asset_name(handle);
     }
     return {};
 }
 
 std::uint32_t engine::SceneAssets::resolve(AssetKind kind, std::string_view asset_id)
 {
+    if (kind == AssetKind::eDataAsset)
+    {
+        // the asset is its file
+        auto it = data_assets_.find(asset_id);
+        if (it == data_assets_.end())
+        {
+            // logs why when it fails
+            it = data_assets_.emplace(asset_id, app_.load_data_asset(asset_id)).first;
+        }
+        return it->second;
+    }
     hold_source_file(kind, asset_id);
     switch (kind)
     {
@@ -48,8 +67,15 @@ std::uint32_t engine::SceneAssets::resolve(AssetKind kind, std::string_view asse
     case AssetKind::eTexture: return app_.get_texture(asset_id);
     case AssetKind::eSkin: return app_.get_skin(asset_id);
     case AssetKind::eAnimationSet: return app_.get_animation_set(asset_id);
+    case AssetKind::eDataAsset: break;
     }
     return ENGINE_INVALID_OBJECT_HANDLE;
+}
+
+const engine::TypeInfo* engine::SceneAssets::get_data_asset_type(std::uint32_t handle) const
+{
+    const auto* asset = app_.get_data_asset(handle);
+    return asset ? &asset->get_type() : nullptr;
 }
 
 std::uint32_t engine::SceneAssets::resolve_prefab(std::string_view model_path)
