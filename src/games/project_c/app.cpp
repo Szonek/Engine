@@ -4,6 +4,7 @@
 #include "scripts/camera_script.h"
 #include "scripts/encounter_script.h"
 #include "scripts/enemy_script.h"
+#include "scripts/enemy_spawner_script.h"
 #include "scripts/enviorment_script.h"
 #include "scripts/game_components.h"
 #include "scripts/gameplay_hud_script.h"
@@ -111,6 +112,7 @@ void project_c::AppProjectC::register_script_types()
     registry.add<House>("house", { components.house_config });
     registry.add<BuildingPart>("building_part", { components.building_part_config });
     registry.add<LevelExit>("level_exit", { components.level_exit });
+    registry.add<EnemySpawner>("enemy_spawner", { components.enemy_spawner });
     if (!registry.register_component())
     {
         log("Failed registering the script component: scene files can't create scripts.\n");

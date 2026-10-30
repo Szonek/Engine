@@ -21,7 +21,7 @@ namespace scenario
 //   scene->build().floor_area(-3, -3, 3, 3);
 //   scene->build().player(0, 0);
 //   scene->build().enemy(0, 1);
-// Everything is placed at exact positions, so runs are deterministic (no random spawners). The nav mesh is built from
+// Everything is placed at exact positions (enemy spawners from their seed), so runs are deterministic. The nav mesh is built from
 // what was placed before the first step.
 class SandboxScene : public engine::IScene
 {

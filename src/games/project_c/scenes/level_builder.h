@@ -18,11 +18,13 @@ class CameraScript;
 class Chest;
 class Encounter;
 class Enemy;
+class EnemySpawner;
 class GameplayHud;
 class House;
 class LevelExit;
 class Player;
 class Weapon;
+struct EnemySpawnerConfig;
 
 // Places level content into a scene the way the game does: the camera, the light, the nav surface, floor tiles, walls,
 // the player, player starts, level exits, enemies, chests, weapons, the house, and the Encounter and GameplayHud scripts. Each object gets its
@@ -75,7 +77,13 @@ public:
     // A 1 x 1 m pad on the floor centered on (x, z): walking onto it takes the player to `level` (relative to
     // assets/scenes), entering it at the player start `entrance`.
     LevelExit* level_exit(float x, float z, std::string_view level, std::string_view entrance);
+    // a skeleton warrior (the level's enemy type)
     Enemy* enemy(float x, float z);
+    // An enemy of the type as a runtime object (transient, never saved) standing at `position`, facing `yaw_degrees`
+    // around +y (0: +z): what an EnemySpawner spawns. nullptr when the type has no prefab.
+    Enemy* spawn_enemy(engine_data_asset_t type, const glm::vec3& position, float yaw_degrees);
+    // spawns the enemies `config` describes around (x, z) on the floor when the level starts
+    EnemySpawner* enemy_spawner(float x, float z, const EnemySpawnerConfig& config);
     Chest* chest(float x, float y, float z);
     Weapon* weapon_on_ground(float x, float z);
     // a house centered on (x, z) standing on ground_y, with its walls and roof (see build_house)

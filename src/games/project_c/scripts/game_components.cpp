@@ -149,6 +149,11 @@ project_c::LevelExitConfig project_c::default_level_exit()
     return LevelExitConfig{ "", "default" };
 }
 
+project_c::EnemySpawnerConfig project_c::default_enemy_spawner()
+{
+    return EnemySpawnerConfig{ ENGINE_INVALID_OBJECT_HANDLE, 3, { 2.0f, 2.0f }, 1.0f, 1 };
+}
+
 void project_c::register_game_components()
 {
     // the data asset types first: the components reference them (and the struct types first: the data assets hold them)
@@ -238,6 +243,15 @@ void project_c::register_game_components()
         field("entrance", ENGINE_FIELD_KIND_STRING, offsetof(LevelExitConfig, entrance), "the id of the player start there where the player enters",
             PLAYER_START_ID_MAX_LENGTH),
     }, default_level_exit());
+
+    g_types.enemy_spawner = register_component("enemy_spawner", {
+        data_asset("enemy_type", offsetof(EnemySpawnerConfig, enemy_type), "enemy_type", "the kind of enemies it spawns (assets/data/enemies)"),
+        ranged(field("count", ENGINE_FIELD_KIND_UINT32, offsetof(EnemySpawnerConfig, count), "how many enemies it spawns"), 0.0f, 64.0f),
+        ranged(field("area_half_extents", ENGINE_FIELD_KIND_FLOAT, offsetof(EnemySpawnerConfig, area_half_extents),
+            "metres: the area is [-x, x] x [-z, z] around the spawner, in its space", 2), 0.0f, 50.0f),
+        ranged(field("min_spacing", ENGINE_FIELD_KIND_FLOAT, offsetof(EnemySpawnerConfig, min_spacing), "metres between two enemies, at least"), 0.0f, 10.0f),
+        field("seed", ENGINE_FIELD_KIND_UINT32, offsetof(EnemySpawnerConfig, seed), "the same seed places the same enemies"),
+    }, default_enemy_spawner());
 }
 
 const project_c::GameComponentTypes& project_c::game_components()

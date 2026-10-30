@@ -4,6 +4,7 @@ set(LIB_NAME "project_c_lib")
 
 set(LIB_SOURCES
 	prefab_types.h
+	random.h
 	
 	app.h
 	app.cpp
@@ -28,6 +29,8 @@ set(LIB_SOURCES
 	scripts/interactable_script.cpp
 	scripts/level_exit_script.h
 	scripts/level_exit_script.cpp
+	scripts/enemy_spawner_script.h
+	scripts/enemy_spawner_script.cpp
 	scripts/coin_script.h
 	scripts/coin_script.cpp
 	scripts/encounter_script.h

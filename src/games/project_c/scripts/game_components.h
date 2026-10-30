@@ -124,6 +124,21 @@ struct PlayerStart
     char id[PLAYER_START_ID_MAX_LENGTH];
 };
 
+// Places `count` enemies of a type at random points of its area when it starts (EnemySpawner, like Unreal's spawn volumes
+// or a Diablo-style monster pack): the level holds the spawner, never its enemies, which are runtime objects. The same
+// seed places the same enemies on every platform.
+struct EnemySpawnerConfig
+{
+    // an EnemyType data asset; with none, nothing is spawned
+    engine_data_asset_t enemy_type;
+    std::uint32_t count;
+    // metres: the area is [-x, x] x [-z, z] around the spawner, in its space (it turns with it)
+    float area_half_extents[2];
+    // metres between two enemies, at least
+    float min_spacing;
+    std::uint32_t seed;
+};
+
 inline constexpr std::uint32_t LEVEL_PATH_MAX_LENGTH = 128;
 
 // Where a level exit leads (the LevelExit script)
@@ -148,6 +163,7 @@ struct GameComponentTypes
     engine_component_type_t house_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_start = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t level_exit = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_component_type_t enemy_spawner = ENGINE_INVALID_OBJECT_HANDLE;
 };
 
 // Registers the game's component and data asset types with the active application (once, at startup, before scene
@@ -165,6 +181,7 @@ BuildingPartConfig default_building_part_config();
 HouseConfig default_house_config();
 PlayerStart default_player_start();
 LevelExitConfig default_level_exit();
+EnemySpawnerConfig default_enemy_spawner();
 
 // The game object's component of the type, or `fallback` when it has none (a script placed without its config).
 template<typename T>

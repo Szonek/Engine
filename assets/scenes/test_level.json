@@ -13,12 +13,11 @@
     "nav_modifier": 1,
     "rigid_body": 1,
     "collider": 1,
-    "character_controller": 1,
-    "enemy_config": 2,
     "building_part_config": 1,
     "house_config": 1,
     "player_start": 1,
     "level_exit": 1,
+    "enemy_spawner": 1,
     "script": 1
   },
   "entities": [{
@@ -11141,151 +11140,6 @@
         }
       }
     }, {
-      "id": 280,
-      "prefab": "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb",
-      "nodes": {
-        "": {
-          "components": {
-            "name": {
-              "name": "enemy"
-            },
-            "transform": {
-              "position": [7.438691, 0.25, 3.533218],
-              "scale": [0.35, 0.35, 0.35],
-              "rotation": [0, 0, 0, 1]
-            },
-            "character_controller": {
-              "radius": 0.51428574,
-              "height": 2,
-              "step_height": 0.42857146,
-              "max_slope": 45
-            },
-            "enemy_config": {
-              "type": "enemies/skeleton_warrior.json"
-            },
-            "script": {
-              "type": "enemy"
-            }
-          }
-        }
-      }
-    }, {
-      "id": 281,
-      "prefab": "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb",
-      "nodes": {
-        "": {
-          "components": {
-            "name": {
-              "name": "enemy"
-            },
-            "transform": {
-              "position": [7.8260236, 0.25, 3.922377],
-              "scale": [0.35, 0.35, 0.35],
-              "rotation": [0, 0, 0, 1]
-            },
-            "character_controller": {
-              "radius": 0.51428574,
-              "height": 2,
-              "step_height": 0.42857146,
-              "max_slope": 45
-            },
-            "enemy_config": {
-              "type": "enemies/skeleton_warrior.json"
-            },
-            "script": {
-              "type": "enemy"
-            }
-          }
-        }
-      }
-    }, {
-      "id": 282,
-      "prefab": "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb",
-      "nodes": {
-        "": {
-          "components": {
-            "name": {
-              "name": "enemy"
-            },
-            "transform": {
-              "position": [8.953271, 0.25, 3.9257383],
-              "scale": [0.35, 0.35, 0.35],
-              "rotation": [0, 0, 0, 1]
-            },
-            "character_controller": {
-              "radius": 0.51428574,
-              "height": 2,
-              "step_height": 0.42857146,
-              "max_slope": 45
-            },
-            "enemy_config": {
-              "type": "enemies/skeleton_warrior.json"
-            },
-            "script": {
-              "type": "enemy"
-            }
-          }
-        }
-      }
-    }, {
-      "id": 283,
-      "prefab": "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb",
-      "nodes": {
-        "": {
-          "components": {
-            "name": {
-              "name": "enemy"
-            },
-            "transform": {
-              "position": [7.1777983, 0.25, 3.4140694],
-              "scale": [0.35, 0.35, 0.35],
-              "rotation": [0, 0, 0, 1]
-            },
-            "character_controller": {
-              "radius": 0.51428574,
-              "height": 2,
-              "step_height": 0.42857146,
-              "max_slope": 45
-            },
-            "enemy_config": {
-              "type": "enemies/skeleton_warrior.json"
-            },
-            "script": {
-              "type": "enemy"
-            }
-          }
-        }
-      }
-    }, {
-      "id": 284,
-      "prefab": "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb",
-      "nodes": {
-        "": {
-          "components": {
-            "name": {
-              "name": "enemy"
-            },
-            "transform": {
-              "position": [7.9585795, 0.25, 2.0394254],
-              "scale": [0.35, 0.35, 0.35],
-              "rotation": [0, 0, 0, 1]
-            },
-            "character_controller": {
-              "radius": 0.51428574,
-              "height": 2,
-              "step_height": 0.42857146,
-              "max_slope": 45
-            },
-            "enemy_config": {
-              "type": "enemies/skeleton_warrior.json"
-            },
-            "script": {
-              "type": "enemy"
-            }
-          }
-        }
-      }
-    }, {
       "id": 285,
       "components": {
         "name": {
@@ -12022,6 +11876,31 @@
           "diffuse_texture": null,
           "shininess": 0,
           "specular_texture": null
+        }
+      }
+    }, {
+      "id": 304,
+      "components": {
+        "name": {
+          "name": "enemy-spawner"
+        },
+        "folder": {
+          "path": "enemy_spawners"
+        },
+        "transform": {
+          "position": [8, 0, 3],
+          "scale": [1, 1, 1],
+          "rotation": [0, 0, 0, 1]
+        },
+        "enemy_spawner": {
+          "enemy_type": "enemies/skeleton_warrior.json",
+          "count": 5,
+          "area_half_extents": [1.5, 1.5],
+          "min_spacing": 0.6,
+          "seed": 1
+        },
+        "script": {
+          "type": "enemy_spawner"
         }
       }
     }]
