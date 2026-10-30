@@ -14,7 +14,7 @@ the level writes the new format.
 ```json
 {
   "version": 1,
-  "types": { "transform": 1, "enemy_config": 1, ... },
+  "types": { "transform": 1, "enemy_config": 2, ... },
   "entities": [
     { "id": 1, "components": { "name": { "name": "camera" }, "transform": { ... }, "camera": { ... }, "script": { "type": "camera" } } },
     { "id": 42, "prefab": "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb",
@@ -99,11 +99,16 @@ The game's own components (`src/games/project_c/scripts/game_components.h`: `ene
 `building_part_config`, `house_config`, `player_start`, `level_exit`) are saved like the engine's. Rules for adding one:
 
 - A **plain C struct**: numbers, bools, enums (saved by name), fixed char arrays for strings, fixed arrays, structs of
-  the game's own struct types, and game object / geometry / texture handles. No pointers, no `std::string`, no unions.
+  the game's own struct types, game object / geometry / texture handles, and data asset references. No pointers, no
+  `std::string`, no unions.
   At most 256 bytes.
-- It holds **designer-set values only**: what a level designer tunes (an enemy's HP, speed, colours) or what links
-  objects (a house's roof props). Runtime state (current HP, cooldowns, targets) stays in the script's members and is
-  never saved.
+- It holds **designer-set values only**: what a level designer tunes or what links objects (a house's roof props).
+  Values shared by many objects (every skeleton's HP, speed, colours) go into a **data asset** the component references
+  instead (`ENGINE_FIELD_KIND_DATA_ASSET`, like `enemy_config`'s `type`): a file under `assets/data`,
+  `{ "version": 1, "type": "enemy_type", "value": { ... } }`, saved in the scene file as its path there
+  (`"type": "enemies/skeleton_warrior.json"`). Editing the file changes every object referencing it, while the editor
+  runs too (it reads a changed file again at once). Runtime state (current HP, cooldowns, targets) stays in the script's
+  members and is never saved.
 - Scripts **read it on every use** (`get_game_component`), never copy it once at the start, so an edit in the editor
   takes effect while playing.
 - Describe every field (`register_game_components`), with editor hints where they help: a range, a tooltip,
