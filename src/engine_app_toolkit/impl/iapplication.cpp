@@ -28,6 +28,20 @@ bool engine::IApplication::is_editor_enabled() const
 
 void engine::IApplication::update_scenes(float dt)
 {
+    if (const auto sessions = enginePlayModeGetSessionCount(); sessions != seen_play_sessions_)
+    {
+        seen_play_sessions_ = sessions;
+        if (play_session_)
+        {
+            play_session_ = false;
+            on_play_end();
+        }
+    }
+    if (!play_session_ && enginePlayModeGetState() != ENGINE_PLAY_MODE_EDIT)
+    {
+        play_session_ = true;
+        on_play_begin();
+    }
     scene_manager_.update(dt);
 }
 

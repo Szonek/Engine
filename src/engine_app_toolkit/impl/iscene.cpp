@@ -110,6 +110,8 @@ engine::IScene::IScene(IApplication* app)
     }
     activate();
     scripts_.reserve(1024);
+    // a Stop before this scene existed isn't this scene's
+    seen_play_sessions_ = enginePlayModeGetSessionCount();
 }
 
 engine::IScene::~IScene()
@@ -208,7 +210,27 @@ engine::IScript* engine::IScene::attach_script(engine_game_object_t go, const st
     {
         engineGameObjectUpdateDataComponent(go, component_type, &component);
     }
+    // no scripts in Edit mode: the component is data, the script is created when a play session starts
+    if (enginePlayModeGetState() == ENGINE_PLAY_MODE_EDIT)
+    {
+        add_required_components(go, index);
+        return nullptr;
+    }
     return create_script_from_component(go, index);
+}
+
+void engine::IScene::add_required_components(engine_game_object_t go, std::int32_t index)
+{
+    if (const auto* script_type = app_->scripts().find(index))
+    {
+        for (const auto required : script_type->required)
+        {
+            if (!engineGameObjectHasDataComponent(go, required))
+            {
+                engineGameObjectAddDataComponent(go, required, nullptr);
+            }
+        }
+    }
 }
 
 engine::IScript* engine::IScene::create_script_from_component(engine_game_object_t go, std::int32_t index)
@@ -218,13 +240,7 @@ engine::IScript* engine::IScene::create_script_from_component(engine_game_object
     {
         return nullptr;
     }
-    for (const auto required : script_type->required)
-    {
-        if (!engineGameObjectHasDataComponent(go, required))
-        {
-            engineGameObjectAddDataComponent(go, required, nullptr);
-        }
-    }
+    add_required_components(go, index);
     auto* script = register_script(script_type->factory(this, go));
     component_scripts_[go] = index;
     return script;
@@ -274,8 +290,9 @@ void engine::IScene::sync_scripts_with_components()
         return;
     }
 
-    // the game objects with a script component, and the script each names
-    std::vector<std::pair<engine_game_object_t, std::int32_t>> wanted;
+    // the game objects with a script component, in persistent ID order (the scripts are created and started in it),
+    // and the script each names
+    std::vector<engine_game_object_t> with_script;
     engine_component_view_t view = nullptr;
     engineComponentViewCreate(&view);
     engineComponentViewAttachDataComponent(view, component_type);
@@ -285,14 +302,19 @@ void engine::IScene::sync_scripts_with_components()
     engineComponentViewCreateEndComponentIterator(view, &end);
     for (; !engineComponentIteratorCheckEqual(it, end); engineComponentIteratorNext(it))
     {
-        const auto go = engineComponentIteratorGetGameObject(it);
-        ScriptComponent component{};
-        engineGameObjectGetDataComponent(go, component_type, &component);
-        wanted.emplace_back(go, component.type);
+        with_script.push_back(engineComponentIteratorGetGameObject(it));
     }
     engineComponentIteratorDelete(it);
     engineComponentIteratorDelete(end);
     engineComponentViewDestroy(view);
+    engineGameObjectSortByPersistentId(with_script.data(), with_script.size());
+    std::vector<std::pair<engine_game_object_t, std::int32_t>> wanted;
+    for (const auto go : with_script)
+    {
+        ScriptComponent component{};
+        engineGameObjectGetDataComponent(go, component_type, &component);
+        wanted.emplace_back(go, component.type);
+    }
 
     // scripts whose component was removed, or whose game object is gone
     std::vector<engine_game_object_t> removed;
@@ -332,6 +354,36 @@ void engine::IScene::sync_scripts_with_components()
     synced_script_changes_ = engineDataComponentGetChangeCount(component_type);
 }
 
+void engine::IScene::begin_play_session()
+{
+    play_session_ = true;
+    on_play_begin();
+    // every script component gets its script, whatever the change count says
+    synced_script_changes_.reset();
+}
+
+void engine::IScene::end_play_session()
+{
+    play_session_ = false;
+    // the game objects stay: Stop loaded the scene saved at Play back (they are gone, or the edit state's again)
+    for (auto& [go, script] : scripts_)
+    {
+        script->destroys_game_object_ = false;
+    }
+    scripts_.clear();
+    for (auto* script : scripts_register_queue_)
+    {
+        script->destroys_game_object_ = false;
+        delete script;
+    }
+    scripts_register_queue_.clear();
+    scripts_unregister_queue_.clear();
+    scripts_to_start_.clear();
+    component_scripts_.clear();
+    synced_script_changes_.reset();
+    on_play_end();
+}
+
 engine_result_code_t engine::IScene::update(float dt)
 {
     engine::ScopedProfiler prof("engine::IScene::update");
@@ -340,9 +392,27 @@ engine_result_code_t engine::IScene::update(float dt)
         return ENGINE_RESULT_CODE_OK;
     }
 
-    const bool gameplay_paused = !engineEditorIsPlaying();
-    sync_scripts_with_components();
-    flush_register_queue(!gameplay_paused);
+    // a Stop since the last update ends this scene's session; Play (or an application which starts playing) begins one
+    if (const auto sessions = enginePlayModeGetSessionCount(); sessions != seen_play_sessions_)
+    {
+        seen_play_sessions_ = sessions;
+        if (play_session_)
+        {
+            end_play_session();
+        }
+    }
+    const bool in_play = enginePlayModeGetState() != ENGINE_PLAY_MODE_EDIT;
+    if (in_play && !play_session_)
+    {
+        begin_play_session();
+    }
+    const bool gameplay_paused = !in_play || !engineEditorIsPlaying();
+    // in Edit mode no scripts exist
+    if (play_session_)
+    {
+        sync_scripts_with_components();
+        flush_register_queue(!gameplay_paused);
+    }
 
     if (!gameplay_paused)
     {
