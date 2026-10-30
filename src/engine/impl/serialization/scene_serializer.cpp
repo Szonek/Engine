@@ -249,24 +249,20 @@ class SceneReader
 {
 public:
     // `outside`: where references to game objects which aren't in the file are looked up, nullptr when they are none
-    SceneReader(std::string_view file_name, const std::unordered_map<std::uint64_t, entt::entity>& entities, const engine::EntityIdRegistry* outside,
-        engine::IAssetResolver& assets)
-        : file_name_(file_name), entities_(entities), outside_(outside), assets_(assets)
+    SceneReader(const std::unordered_map<std::uint64_t, entt::entity>& entities, const engine::EntityIdRegistry* outside, engine::IAssetResolver& assets)
+        : entities_(entities), outside_(outside), assets_(assets)
     {
     }
 
     // reads the fields the json object has into `value`, which holds the defaults; the engine strings read point at
-    // strings `value` owns
+    // strings `value` owns. `path` says where the value is (the file, the game object, the component), problems are
+    // logged with it and the field's path inside the value
     void read_struct(const engine::TypeInfo& type, const Json& json, engine::ValueBuffer& value, std::string_view path)
     {
         strings_ = &value;
         read_struct(type, json, value.get(), path);
         strings_ = nullptr;
     }
-
-    void set_entity(std::uint64_t id) { entity_id_ = id; }
-    // the value read is a data asset's, which isn't in a scene: messages name the file only
-    void set_data_asset() { data_asset_ = true; }
 
 private:
     void read_struct(const engine::TypeInfo& type, const Json& json, std::byte* value, std::string_view path)
@@ -337,14 +333,9 @@ private:
         }
     }
 
-    void error(std::string_view path, std::string_view message)
+    static void error(std::string_view path, std::string_view message)
     {
-        if (data_asset_)
-        {
-            log_error(fmt::format("Data asset {}: {} {}.\n", file_name_, path, message));
-            return;
-        }
-        log_error(fmt::format("Scene {}, game object {}: {} {}.\n", file_name_, entity_id_, path, message));
+        log_error(fmt::format("{} {}.\n", path, message));
     }
 
     void read_field(const engine::FieldInfo& field, const Json& json, std::byte* p, const std::string& path)
@@ -496,12 +487,9 @@ private:
         write_as(p, value);
     }
 
-    std::string_view file_name_;
     const std::unordered_map<std::uint64_t, entt::entity>& entities_;
     const engine::EntityIdRegistry* outside_;
     engine::IAssetResolver& assets_;
-    std::uint64_t entity_id_ = 0;
-    bool data_asset_ = false;
     // the value being read, which owns the engine strings read into it
     engine::ValueBuffer* strings_ = nullptr;
 };
@@ -1200,7 +1188,7 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
     }
 
     // 3. the components, one type after the other: the listeners of a type see the components registered before it
-    SceneReader reader(file_name, entities, options.find_references_outside_file && !instance ? &ids : nullptr, assets);
+    SceneReader reader(entities, options.find_references_outside_file && !instance ? &ids : nullptr, assets);
     for (const auto* type : types.get_components())
     {
         if (skipped_components.contains(type->name))
@@ -1220,10 +1208,11 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
             const auto read = [&](const Json& json) {
                 engine::ValueBuffer value(type->size);
                 type->storage->get(registry, e.entity, value.get());
-                reader.read_struct(*type, json, value, e.node_path.empty() ? type->name : fmt::format("node {}: {}", e.node_path, type->name));
+                const auto where = e.node_path.empty() ? fmt::format("Scene {}, game object {}: {}", file_name, e.id, type->name)
+                    : fmt::format("Scene {}, game object {}: node {}: {}", file_name, e.id, e.node_path, type->name);
+                reader.read_struct(*type, json, value, where);
                 type->storage->update(registry, e.entity, value.get());
             };
-            reader.set_entity(e.id);
             // removed from what its prefab gave it; nothing to do when the prefab doesn't give it (any more)
             if (e.removed && std::ranges::any_of(e.removed->GetArray(), [&](const Json& name) { return name.IsString() && type->name == name.GetString(); }))
             {
@@ -1349,8 +1338,7 @@ std::optional<engine::DataAssetValue> engine::load_data_asset(std::string_view j
         std::memcpy(result.value->get(), type->default_value.data(), type->size);
     }
     const std::unordered_map<std::uint64_t, entt::entity> no_game_objects;
-    SceneReader reader(file_name, no_game_objects, nullptr, assets);
-    reader.set_data_asset();
-    reader.read_struct(*type, value_it->value, *result.value, type->name);
+    SceneReader reader(no_game_objects, nullptr, assets);
+    reader.read_struct(*type, value_it->value, *result.value, fmt::format("Data asset {}: {}", file_name, type->name));
     return result;
 }
