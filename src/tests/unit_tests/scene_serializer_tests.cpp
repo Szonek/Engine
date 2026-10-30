@@ -300,6 +300,7 @@ protected:
         assets_.add(AssetKind::eGeometry, "models/knight.glb#Body", 8);
         assets_.add(AssetKind::eSkin, "models/knight.glb#Rig", 2);
         assets_.add(AssetKind::eAnimationSet, "models/knight.glb#animations", 5);
+        assets_.add(AssetKind::ePrefab, "rooms/guard_post.json", 6);
     }
 
     std::string save(World& world)
@@ -1501,6 +1502,7 @@ struct PatrolConfig
     engine_game_object_t target;
     engine_geometry_t marker;
     engine_texture2d_t icon;
+    engine_prefab_t post;
     float points[4];
     Ring ring;
     bool loop;
@@ -1544,6 +1546,7 @@ protected:
             field("target", ENGINE_FIELD_KIND_GAME_OBJECT, offsetof(PatrolConfig, target)),
             field("marker", ENGINE_FIELD_KIND_GEOMETRY, offsetof(PatrolConfig, marker)),
             field("icon", ENGINE_FIELD_KIND_TEXTURE, offsetof(PatrolConfig, icon)),
+            field("post", ENGINE_FIELD_KIND_PREFAB, offsetof(PatrolConfig, post)),
             field("points", ENGINE_FIELD_KIND_FLOAT, offsetof(PatrolConfig, points), 4),
             ring_field,
             field("loop", ENGINE_FIELD_KIND_BOOL, offsetof(PatrolConfig, loop)),
@@ -1554,9 +1557,10 @@ protected:
         defaults.stance = STANCE_GUARD;
         defaults.marker = ENGINE_INVALID_OBJECT_HANDLE;
         defaults.icon = ENGINE_INVALID_OBJECT_HANDLE;
+        defaults.post = ENGINE_INVALID_OBJECT_HANDLE;
         defaults.ring.radius = 1.5f;
         defaults.loop = true;
-        engine_type_desc_t desc{ "patrol_config", 1, sizeof(PatrolConfig), alignof(PatrolConfig), &defaults, fields, 9 };
+        engine_type_desc_t desc{ "patrol_config", 1, sizeof(PatrolConfig), alignof(PatrolConfig), &defaults, fields, 10 };
         ASSERT_NE(engine::register_game_type(types, desc, true), nullptr);
     }
 
@@ -1580,6 +1584,7 @@ protected:
         patrol.target = static_cast<engine_game_object_t>(w.find(2));
         patrol.marker = 7;
         patrol.icon = 4;
+        patrol.post = 6;
         patrol.points[0] = -1.0f;
         patrol.points[3] = 1e-7f;
         patrol.ring.radius = 4.0f;
@@ -1641,6 +1646,7 @@ TEST_F(GameComponentFileTest, LoadedComponentHasTheSavedValues)
     EXPECT_EQ(patrol.target, static_cast<engine_game_object_t>(loaded.find(2)));
     EXPECT_EQ(patrol.marker, 7u);
     EXPECT_EQ(patrol.icon, 4u);
+    EXPECT_EQ(patrol.post, 6u);
     EXPECT_TRUE(same_bytes(patrol.points, expected.points));
     EXPECT_EQ(patrol.ring.radius, 4.0f);
     EXPECT_FALSE(patrol.loop);
@@ -1656,6 +1662,7 @@ TEST_F(GameComponentFileTest, FileIsReadable)
     EXPECT_NE(file.find(R"("stance": "idle")"), std::string::npos);
     EXPECT_NE(file.find(R"("target": 2)"), std::string::npos);
     EXPECT_NE(file.find(R"("marker": "models/crate.gltf#Cube")"), std::string::npos);
+    EXPECT_NE(file.find(R"("post": "rooms/guard_post.json")"), std::string::npos);
     EXPECT_NE(file.find(R"("points": [-1, 0, 0, 1e-07])"), std::string::npos);
     EXPECT_NE(file.find(R"("ring": {)"), std::string::npos);
     // after the engine's components: they are loaded first
@@ -1672,6 +1679,7 @@ TEST_F(GameComponentFileTest, MissingFieldsGetTheTypesDefaultValue)
     EXPECT_STREQ(patrol.label, "patrol");
     EXPECT_EQ(patrol.stance, STANCE_GUARD);
     EXPECT_EQ(patrol.marker, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(patrol.post, ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(patrol.ring.radius, 1.5f);
     EXPECT_TRUE(patrol.loop);
     EXPECT_TRUE(test_logger::messages().empty());

@@ -86,6 +86,8 @@ public:
     virtual void release_prefab(std::uint32_t idx);
     virtual std::uint32_t get_prefab(std::string_view name) const;
     virtual const Prefab* get_prefab(std::uint32_t idx) const;
+    virtual std::string get_prefab_name(std::uint32_t idx) const;
+    virtual std::vector<std::pair<std::uint32_t, std::string>> get_prefab_names() const;
 
     // data assets: a value of a game-defined struct type in a file under assets/data, named by its path there
     // ("enemies/skeleton.json"), see DataAsset. Loading a file which is loaded already returns it with one more reference.

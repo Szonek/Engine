@@ -42,6 +42,7 @@ struct EnemyConfig
     engine_game_object_t target;
     engine_geometry_t weapon;
     engine_texture2d_t skin;
+    engine_prefab_t loot;
     float offset[3];
     Circle aura;
     Box zone;
@@ -109,6 +110,7 @@ protected:
             field("target", ENGINE_FIELD_KIND_GAME_OBJECT, offsetof(EnemyConfig, target)),
             field("weapon", ENGINE_FIELD_KIND_GEOMETRY, offsetof(EnemyConfig, weapon)),
             field("skin", ENGINE_FIELD_KIND_TEXTURE, offsetof(EnemyConfig, skin)),
+            field("loot", ENGINE_FIELD_KIND_PREFAB, offsetof(EnemyConfig, loot)),
             field("offset", ENGINE_FIELD_KIND_FLOAT, offsetof(EnemyConfig, offset), 3),
             aura,
             zone,
@@ -148,7 +150,7 @@ TEST_F(GameTypesTest, DescriptionBecomesATypeWithEveryField)
     EXPECT_EQ(type->size, sizeof(EnemyConfig));
     EXPECT_EQ(types_.find("enemy_config"), type);
     EXPECT_EQ(types_.get(type->handle), type);
-    ASSERT_EQ(type->fields.size(), 12u);
+    ASSERT_EQ(type->fields.size(), 13u);
 
     const auto* title = type->find_field("title");
     EXPECT_EQ(title->kind, FieldKind::eString);
@@ -163,6 +165,7 @@ TEST_F(GameTypesTest, DescriptionBecomesATypeWithEveryField)
     EXPECT_EQ(type->find_field("weapon")->kind, FieldKind::eAsset);
     EXPECT_EQ(type->find_field("weapon")->asset_kind, engine::AssetKind::eGeometry);
     EXPECT_EQ(type->find_field("skin")->asset_kind, engine::AssetKind::eTexture);
+    EXPECT_EQ(type->find_field("loot")->asset_kind, engine::AssetKind::ePrefab);
     EXPECT_EQ(type->find_field("target")->kind, FieldKind::eGameObject);
     EXPECT_EQ(type->find_field("aura")->struct_type, types_.find("circle"));
     EXPECT_EQ(type->find_field("zone")->struct_type, types_.find("box"));
@@ -323,6 +326,7 @@ TEST_F(GameTypesTest, ComponentWithoutDefaultValueIsZeroedAndReferencesNothing)
     // no asset or game object has the handle 0
     EXPECT_EQ(value.weapon, ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(value.skin, ENGINE_INVALID_OBJECT_HANDLE);
+    EXPECT_EQ(value.loot, ENGINE_INVALID_OBJECT_HANDLE);
     EXPECT_EQ(value.target, ENGINE_INVALID_GAME_OBJECT_ID);
 }
 

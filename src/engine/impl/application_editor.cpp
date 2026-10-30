@@ -398,11 +398,12 @@ bool display_asset_combo(engine::Scene* scene, engine::AssetKind kind, const cha
         : current_name.empty() ? fmt::format("<missing #{}>", handle) : std::string(current_name);
     bool changed = false;
     const bool open = ImGui::BeginCombo(label, preview.c_str());
-    // while the combo is closed, the last item is its preview; the browser drags meshes and images only
-    const bool droppable = kind == engine::AssetKind::eGeometry || kind == engine::AssetKind::eTexture;
-    if (!open && droppable && ImGui::BeginDragDropTarget())
+    // while the combo is closed, the last item is its preview; the browser drags meshes, images, models and scene files
+    const auto* payload_type = kind == engine::AssetKind::eGeometry ? engine::ASSET_PAYLOAD_GEOMETRY
+        : kind == engine::AssetKind::eTexture ? engine::ASSET_PAYLOAD_TEXTURE
+        : kind == engine::AssetKind::ePrefab ? engine::ASSET_PAYLOAD_PREFAB : nullptr;
+    if (!open && payload_type && ImGui::BeginDragDropTarget())
     {
-        const auto* payload_type = kind == engine::AssetKind::eGeometry ? engine::ASSET_PAYLOAD_GEOMETRY : engine::ASSET_PAYLOAD_TEXTURE;
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payload_type))
         {
             const std::string_view asset_id(static_cast<const char*>(payload->Data));
@@ -431,9 +432,9 @@ bool display_asset_combo(engine::Scene* scene, engine::AssetKind kind, const cha
             if (ImGui::Selectable(name.c_str(), selected))
             {
                 changed |= !selected;
-                // the scene holds a data asset it references (whoever loaded it may release it); the other kinds are
-                // held by whoever created them
-                handle = kind == engine::AssetKind::eDataAsset ? scene->assets().resolve(kind, name) : idx;
+                // the scene holds a data asset or prefab it references (whoever loaded it may release it); the other
+                // kinds are held by whoever created them
+                handle = kind == engine::AssetKind::eDataAsset || kind == engine::AssetKind::ePrefab ? scene->assets().resolve(kind, name) : idx;
             }
             if (selected)
             {
@@ -559,6 +560,10 @@ private:
                     std::erase_if(assets, [&](const auto& asset) { return &app->get_data_asset(asset.first)->get_type() != field.data_type; });
                     return assets;
                 });
+                break;
+            case engine::AssetKind::ePrefab:
+                // the loaded models and scene files; others are dropped from the asset browser
+                changed = display_asset_combo(scene_, field.asset_kind, label, handle, app->get_prefab_name(handle), [app] { return app->get_prefab_names(); });
                 break;
             default:
                 changed = display_asset_combo(scene_, field.asset_kind, label, handle, app->get_texture_name(handle), [app] { return app->get_texture_names(); });

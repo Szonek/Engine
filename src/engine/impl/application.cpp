@@ -552,6 +552,16 @@ const engine::Prefab* engine::Application::get_prefab(std::uint32_t idx) const
     return prefab ? prefab->get() : nullptr;
 }
 
+std::string engine::Application::get_prefab_name(std::uint32_t idx) const
+{
+    return prefabs_atlas_.get_object_name(idx);
+}
+
+std::vector<std::pair<std::uint32_t, std::string>> engine::Application::get_prefab_names() const
+{
+    return prefabs_atlas_.get_object_names();
+}
+
 bool engine::Application::acquire_prefab(std::uint32_t idx)
 {
     return prefabs_atlas_.acquire(idx);

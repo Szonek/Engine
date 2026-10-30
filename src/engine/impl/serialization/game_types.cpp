@@ -263,6 +263,7 @@ private:
         }
         case ENGINE_FIELD_KIND_GEOMETRY: f.kind = FieldKind::eAsset; f.asset_kind = engine::AssetKind::eGeometry; break;
         case ENGINE_FIELD_KIND_TEXTURE: f.kind = FieldKind::eAsset; f.asset_kind = engine::AssetKind::eTexture; break;
+        case ENGINE_FIELD_KIND_PREFAB: f.kind = FieldKind::eAsset; f.asset_kind = engine::AssetKind::ePrefab; break;
         case ENGINE_FIELD_KIND_GAME_OBJECT: f.kind = FieldKind::eGameObject; break;
         case ENGINE_FIELD_KIND_COLOR:
             if (d.count != 3 && d.count != 4)

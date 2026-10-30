@@ -567,6 +567,9 @@ typedef enum _engine_field_kind_t
     // an engine_data_asset_t holding a value of the struct type `type_name`, saved as its asset ID (see
     // engineDataAssetLoad)
     ENGINE_FIELD_KIND_DATA_ASSET,
+    // an engine_prefab_t (a model or a scene file, see enginePrefabLoad), saved as its asset ID; a scene file or data
+    // asset referencing one holds it, so it stays loaded while they do
+    ENGINE_FIELD_KIND_PREFAB,
     ENGINE_FIELD_KIND_COUNT
 } engine_field_kind_t;
 
