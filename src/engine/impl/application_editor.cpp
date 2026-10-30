@@ -1557,16 +1557,20 @@ void engine::ApplicationEditor::handle_asset_drop(Scene* scene)
     if (ImGui::BeginDragDropTargetCustom(rect, ImGui::GetID("##scene_asset_drop")))
     {
         const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(ASSET_PAYLOAD_PREFAB);
-        // what the scene is seen through: the editor camera in the editor view, the game's in the game view
-        entt::entity camera_entity = entt::null;
-        auto camera_view = scene->create_runtime_view();
-        scene->attach_component_to_runtime_view<engine_camera_component_t>(camera_view);
-        for (const auto entity : camera_view)
+        // what the scene is seen through: the editor camera in the editor view, the game's (its first enabled camera) in
+        // the game view
+        entt::entity camera_entity = editor_view_ == EditorView::eEditor ? camera_context_.get_camera_entity(scene) : entt::entity{ entt::null };
+        if (editor_view_ == EditorView::eGame)
         {
-            if (scene->get_component<engine_camera_component_t>(entity)->enabled)
+            auto camera_view = scene->create_runtime_view();
+            scene->attach_component_to_runtime_view<engine_camera_component_t>(camera_view);
+            for (const auto entity : camera_view)
             {
-                camera_entity = entity;
-                break;
+                if (scene->get_component<engine_camera_component_t>(entity)->enabled)
+                {
+                    camera_entity = entity;
+                    break;
+                }
             }
         }
         if (payload && camera_entity != entt::null)
@@ -1579,9 +1583,10 @@ void engine::ApplicationEditor::handle_asset_drop(Scene* scene)
             glm::vec3 direction{};
             mouse_ray(view, mouse, origin, direction);
             engine_ray_hit_t hit{};
-            constexpr float max_distance = 1000.0f;
+            // nothing beyond the far plane: it couldn't be seen there
+            const float max_distance = scene->get_component<engine_camera_component_t>(camera_entity)->clip_plane_far;
             const auto position = scene->physics().raycast(origin, direction, max_distance, {}, false, hit)
-                ? glm::vec3(hit.position[0], hit.position[1], hit.position[2]) : get_ground_point(origin, direction);
+                ? glm::vec3(hit.position[0], hit.position[1], hit.position[2]) : get_ground_point(origin, direction, max_distance);
             commands_.execute_command(std::make_unique<CommandPlacePrefab>(*scene, static_cast<const char*>(payload->Data), position,
                 scene_hierarchy_context_.get_selected_entity()));
             scene_hierarchy_context_.sync_selected_from_scene(scene);

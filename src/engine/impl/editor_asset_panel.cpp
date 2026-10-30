@@ -108,6 +108,7 @@ void draw_model_asset_rows(const std::vector<std::pair<std::uint32_t, std::strin
 
 constexpr const char* MESH_TOOLTIP = "Drag onto a geometry field of the properties panel";
 constexpr const char* IMAGE_TOOLTIP = "Drag onto a texture field of the properties panel";
+constexpr const char* PLACE_TOOLTIP = "Drag into the scene view to place it";
 }  // namespace
 
 engine::AssetBrowserPanel::AssetBrowserPanel(Application& app)
@@ -119,21 +120,56 @@ engine::AssetBrowserPanel::AssetBrowserPanel(Application& app)
 engine::AssetBrowserPanel::~AssetBrowserPanel()
 {
     clear_selection();
-    for (const auto& [path, prefab] : expanded_models_)
+    for (auto& [path, model] : expanded_models_)
     {
-        if (prefab != ENGINE_INVALID_OBJECT_HANDLE)
-        {
-            app_.release_prefab(prefab);
-        }
+        close_model(model);
     }
+}
+
+engine::AssetBrowserPanel::model_contents_t engine::AssetBrowserPanel::get_model_contents(const std::string& model_id) const
+{
+    model_contents_t contents;
+    contents.meshes = get_model_assets(app_.get_geometry_names(), model_id);
+    contents.images = get_model_assets(app_.get_texture_names(), model_id);
+    if (const auto skins = get_model_assets(app_.get_skin_names(), model_id); !skins.empty())
+    {
+        contents.skin = model_asset_name(skins.front().second);
+    }
+    const auto animation_set = app_.get_animation_set(model_id + "#animations");
+    if (const auto animations = animation_set == ENGINE_INVALID_OBJECT_HANDLE ? nullptr : app_.get_animation_set(animation_set))
+    {
+        for (const auto& [name, clip] : animations->animations())
+        {
+            contents.animations.push_back(name);
+        }
+        std::ranges::sort(contents.animations);
+    }
+    return contents;
+}
+
+engine::AssetBrowserPanel::opened_model_t engine::AssetBrowserPanel::open_model(const std::string& model_id)
+{
+    opened_model_t model;
+    model.prefab = app_.load_prefab(model_id);
+    if (model.prefab != ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        model.contents = get_model_contents(model_id);
+    }
+    return model;
+}
+
+void engine::AssetBrowserPanel::close_model(opened_model_t& model)
+{
+    if (model.prefab != ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        app_.release_prefab(std::exchange(model.prefab, ENGINE_INVALID_OBJECT_HANDLE));
+    }
+    model.contents = {};
 }
 
 void engine::AssetBrowserPanel::clear_selection()
 {
-    if (inspected_prefab_ != ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        app_.release_prefab(std::exchange(inspected_prefab_, ENGINE_INVALID_OBJECT_HANDLE));
-    }
+    close_model(inspected_model_);
     if (inspected_texture_ != ENGINE_INVALID_OBJECT_HANDLE)
     {
         app_.release_texture(std::exchange(inspected_texture_, ENGINE_INVALID_OBJECT_HANDLE));
@@ -150,12 +186,41 @@ void engine::AssetBrowserPanel::select(const asset_entry_t& entry)
     {
         if (entry.kind == AssetFileKind::eModel)
         {
-            inspected_prefab_ = app_.load_prefab(*asset_id);
+            inspected_model_ = open_model(*asset_id);
         }
         else if (entry.kind == AssetFileKind::eTexture)
         {
             inspected_texture_ = app_.load_texture_file(*asset_id);
         }
+    }
+}
+
+void engine::AssetBrowserPanel::refresh()
+{
+    folders_.clear();
+    const auto exists = [this](const std::string& path)
+        {
+            std::error_code error;
+            return std::filesystem::exists(assets_root_ / path, error);
+        };
+    // an opened model whose file is gone is never drawn again, so nothing else would release it
+    for (auto it = expanded_models_.begin(); it != expanded_models_.end();)
+    {
+        if (exists(it->first))
+        {
+            ++it;
+            continue;
+        }
+        close_model(it->second);
+        it = expanded_models_.erase(it);
+    }
+    if (selected_ && !exists(selected_->path))
+    {
+        clear_selection();
+    }
+    if (!current_folder_.empty() && !exists(current_folder_))
+    {
+        current_folder_.clear();
     }
 }
 
@@ -173,7 +238,7 @@ bool engine::AssetBrowserPanel::draw()
 {
     if (ImGui::Button("Refresh"))
     {
-        folders_.clear();
+        refresh();
     }
     ImGui::SetItemTooltip("List the folders again (files added, removed or renamed outside the editor)");
     ImGui::SameLine();
@@ -284,15 +349,11 @@ void engine::AssetBrowserPanel::draw_files()
             {
                 if (expanded == expanded_models_.end())
                 {
-                    // logs why when it can't
-                    expanded = expanded_models_.emplace(entry.path, app_.load_prefab(*asset_id)).first;
+                    expanded = expanded_models_.emplace(entry.path, open_model(*asset_id)).first;
                 }
                 else
                 {
-                    if (expanded->second != ENGINE_INVALID_OBJECT_HANDLE)
-                    {
-                        app_.release_prefab(expanded->second);
-                    }
+                    close_model(expanded->second);
                     expanded_models_.erase(expanded);
                     expanded = expanded_models_.end();
                 }
@@ -324,15 +385,15 @@ void engine::AssetBrowserPanel::draw_files()
         const auto* payload_type = get_payload_type(entry.kind);
         if (asset_id && payload_type)
         {
-            const auto* hint = entry.kind == AssetFileKind::eTexture ? "Drag onto a texture field of the properties panel" : "Drag into the scene view to place it";
+            const auto* hint = entry.kind == AssetFileKind::eTexture ? IMAGE_TOOLTIP : PLACE_TOOLTIP;
             ImGui::SetItemTooltip("%s\n%s", asset_id->c_str(), hint);
             asset_drag_source(payload_type, *asset_id, entry.kind, entry.name);
         }
-        if (expanded != expanded_models_.end() && expanded->second != ENGINE_INVALID_OBJECT_HANDLE)
+        if (expanded != expanded_models_.end() && expanded->second.prefab != ENGINE_INVALID_OBJECT_HANDLE)
         {
             ImGui::Indent(2.0f * icon_size);
-            draw_model_asset_rows(get_model_assets(app_.get_geometry_names(), *asset_id), ASSET_PAYLOAD_GEOMETRY, AssetFileKind::eModel, MESH_TOOLTIP);
-            draw_model_asset_rows(get_model_assets(app_.get_texture_names(), *asset_id), ASSET_PAYLOAD_TEXTURE, AssetFileKind::eTexture, IMAGE_TOOLTIP);
+            draw_model_asset_rows(expanded->second.contents.meshes, ASSET_PAYLOAD_GEOMETRY, AssetFileKind::eModel, MESH_TOOLTIP);
+            draw_model_asset_rows(expanded->second.contents.images, ASSET_PAYLOAD_TEXTURE, AssetFileKind::eTexture, IMAGE_TOOLTIP);
             ImGui::Unindent(2.0f * icon_size);
         }
         ImGui::PopID();
@@ -369,7 +430,7 @@ void engine::AssetBrowserPanel::draw_inspector()
     case AssetFileKind::eModel:
         if (asset_id)
         {
-            draw_model_details(*asset_id);
+            draw_model_details();
         }
         else
         {
@@ -396,38 +457,25 @@ void engine::AssetBrowserPanel::draw_inspector()
     }
 }
 
-void engine::AssetBrowserPanel::draw_model_details(const std::string& model_id)
+void engine::AssetBrowserPanel::draw_model_details()
 {
-    if (inspected_prefab_ == ENGINE_INVALID_OBJECT_HANDLE)
+    if (inspected_model_.prefab == ENGINE_INVALID_OBJECT_HANDLE)
     {
         ImGui::TextWrapped("The model couldn't be loaded (see the log).");
         return;
     }
+    const auto& contents = inspected_model_.contents;
     ImGui::TextWrapped("Drag it into the scene view to place it.");
-    const auto meshes = get_model_assets(app_.get_geometry_names(), model_id);
-    ImGui::SeparatorText(fmt::format("Meshes ({})", meshes.size()).c_str());
-    draw_model_asset_rows(meshes, ASSET_PAYLOAD_GEOMETRY, AssetFileKind::eModel, MESH_TOOLTIP);
-    const auto images = get_model_assets(app_.get_texture_names(), model_id);
-    ImGui::SeparatorText(fmt::format("Images ({})", images.size()).c_str());
-    draw_model_asset_rows(images, ASSET_PAYLOAD_TEXTURE, AssetFileKind::eTexture, IMAGE_TOOLTIP);
+    ImGui::SeparatorText(fmt::format("Meshes ({})", contents.meshes.size()).c_str());
+    draw_model_asset_rows(contents.meshes, ASSET_PAYLOAD_GEOMETRY, AssetFileKind::eModel, MESH_TOOLTIP);
+    ImGui::SeparatorText(fmt::format("Images ({})", contents.images.size()).c_str());
+    draw_model_asset_rows(contents.images, ASSET_PAYLOAD_TEXTURE, AssetFileKind::eTexture, IMAGE_TOOLTIP);
 
     ImGui::SeparatorText("Skin");
-    const auto skins = get_model_assets(app_.get_skin_names(), model_id);
-    ImGui::TextUnformatted(skins.empty() ? "None" : std::string(model_asset_name(skins.front().second)).c_str());
+    ImGui::TextUnformatted(contents.skin.empty() ? "None" : contents.skin.c_str());
 
-    const auto animation_set = app_.get_animation_set(model_id + "#animations");
-    const auto animations = animation_set == ENGINE_INVALID_OBJECT_HANDLE ? nullptr : app_.get_animation_set(animation_set);
-    std::vector<std::string> clips;
-    if (animations)
-    {
-        for (const auto& [name, clip] : animations->animations())
-        {
-            clips.push_back(name);
-        }
-        std::ranges::sort(clips);
-    }
-    ImGui::SeparatorText(fmt::format("Animations ({})", clips.size()).c_str());
-    for (const auto& clip : clips)
+    ImGui::SeparatorText(fmt::format("Animations ({})", contents.animations.size()).c_str());
+    for (const auto& clip : contents.animations)
     {
         ImGui::BulletText("%s", clip.c_str());
     }

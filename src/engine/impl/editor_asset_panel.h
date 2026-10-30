@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace engine
@@ -42,13 +43,34 @@ public:
     void clear_selection();
 
 private:
+    // what a loaded model holds, listed once when it is loaded: its assets live as long as the panel holds the prefab
+    struct model_contents_t
+    {
+        std::vector<std::pair<std::uint32_t, std::string>> meshes;
+        std::vector<std::pair<std::uint32_t, std::string>> images;
+        std::string skin;  // empty when it has none
+        std::vector<std::string> animations;  // by name
+    };
+    struct opened_model_t
+    {
+        // ENGINE_INVALID_OBJECT_HANDLE when it couldn't be loaded
+        std::uint32_t prefab = ENGINE_INVALID_OBJECT_HANDLE;
+        model_contents_t contents;
+    };
+    model_contents_t get_model_contents(const std::string& model_id) const;
+    // loads the model to show what it holds (logs why when it can't)
+    opened_model_t open_model(const std::string& model_id);
+    void close_model(opened_model_t& model);
+
+    // lists the folders again; opened models, the selection and the open folder whose files are gone are dropped
+    void refresh();
     // the folder's entries, listed when first asked for
     const std::vector<asset_entry_t>& get_folder(const std::string& folder);
     void draw_folder_tree(const std::string& folder, std::string_view name);
     void draw_path_bar();
     void draw_files();
     void select(const asset_entry_t& entry);
-    void draw_model_details(const std::string& model_id);
+    void draw_model_details();
     void draw_texture_details();
 
 private:
@@ -61,9 +83,9 @@ private:
     std::map<std::string, std::vector<asset_entry_t>> folders_;
     std::optional<asset_entry_t> selected_;
     // the references the selection holds, to show its details
-    std::uint32_t inspected_prefab_ = ENGINE_INVALID_OBJECT_HANDLE;
+    opened_model_t inspected_model_;
     std::uint32_t inspected_texture_ = ENGINE_INVALID_OBJECT_HANDLE;
-    // the opened models (path -> the prefab held while open, ENGINE_INVALID_OBJECT_HANDLE when it couldn't be loaded)
-    std::map<std::string, std::uint32_t> expanded_models_;
+    // the opened models by path, each held while open
+    std::map<std::string, opened_model_t> expanded_models_;
 };
 }  // namespace engine

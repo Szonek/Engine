@@ -31,6 +31,8 @@ struct modal_transform_view_t
 // The ray under a screen position (viewport pixels, y down) in world space: its origin on the near plane and its
 // direction (unit length).
 void mouse_ray(const modal_transform_view_t& view, const glm::vec2& mouse, glm::vec3& origin, glm::vec3& direction);
+// the same with the view's inverse (projection * view) computed already
+void mouse_ray(const glm::mat4& inverse_view_projection, const glm::vec2& viewport_size, const glm::vec2& mouse, glm::vec3& origin, glm::vec3& direction);
 
 // Blender's modal transform (G, R, S), GL-free: follows the mouse from where the key was pressed and gives the new
 // world matrix; the editor confirms or cancels it.

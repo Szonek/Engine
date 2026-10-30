@@ -52,11 +52,15 @@ engine::AssetFileKind engine::get_asset_file_kind(std::string_view path, bool is
 std::vector<engine::asset_entry_t> engine::list_asset_folder(const std::filesystem::path& assets_root, std::string_view folder)
 {
     std::vector<asset_entry_t> entries;
+    // never throws: the iterator is advanced with an error code (a range-for's ++ would throw), the listing stops at an
+    // error
     std::error_code error;
-    for (const auto& item : std::filesystem::directory_iterator(assets_root / folder, error))
+    for (auto it = std::filesystem::directory_iterator(assets_root / folder, error); !error && it != std::filesystem::directory_iterator(); it.increment(error))
     {
+        const auto& item = *it;
         const auto name = item.path().filename().generic_string();
-        const bool is_folder = item.is_directory(error);
+        std::error_code type_error;
+        const bool is_folder = item.is_directory(type_error);
         if (!is_folder && to_lower(item.path().extension().string()) == ".bin")
         {
             continue;
@@ -99,12 +103,15 @@ std::vector<std::pair<std::uint32_t, std::string>> engine::get_model_assets(cons
     return model_assets;
 }
 
-glm::vec3 engine::get_ground_point(const glm::vec3& ray_origin, const glm::vec3& ray_direction, float fallback_distance)
+glm::vec3 engine::get_ground_point(const glm::vec3& ray_origin, const glm::vec3& ray_direction, float max_distance, float fallback_distance)
 {
-    // the ray reaches y = 0 in front of its origin
+    // the ray reaches y = 0 in front of its origin, within max_distance (a ray just below the horizon meets it very far)
     if (ray_direction.y < -1e-4f && ray_origin.y > 0.0f)
     {
-        return ray_origin + ray_direction * (-ray_origin.y / ray_direction.y);
+        if (const float distance = -ray_origin.y / ray_direction.y; distance <= max_distance)
+        {
+            return ray_origin + ray_direction * distance;
+        }
     }
     return ray_origin + ray_direction * fallback_distance;
 }

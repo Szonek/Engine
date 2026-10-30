@@ -88,6 +88,19 @@ bool engine::PrefabSystem::is_file_loading(std::string_view file_name) const
     return std::ranges::find(loading_files_, scene_file_key(file_name)) != loading_files_.end();
 }
 
+void engine::PrefabSystem::add_scene_file(std::string_view file_name)
+{
+    if (!is_scene_file(file_name))
+    {
+        scene_files_.push_back(scene_file_key(file_name));
+    }
+}
+
+bool engine::PrefabSystem::is_scene_file(std::string_view file_name) const
+{
+    return std::ranges::find(scene_files_, scene_file_key(file_name)) != scene_files_.end();
+}
+
 engine::prefab_instance_internal_component_t::prefab_instance_internal_component_t(Application& app, std::uint32_t prefab, PrefabInstanceInfo&& info)
     : app_(&app)
     , prefab_(prefab)

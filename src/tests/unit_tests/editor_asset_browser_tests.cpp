@@ -152,7 +152,7 @@ TEST(AssetBrowserModelAssets, OnlyTheModelsOwnInTheirOrder)
 
 TEST(AssetBrowserGroundPoint, WhereTheRayMeetsTheGround)
 {
-    const auto point = engine::get_ground_point(glm::vec3(1.0f, 10.0f, 2.0f), glm::normalize(glm::vec3(1.0f, -1.0f, 0.0f)));
+    const auto point = engine::get_ground_point(glm::vec3(1.0f, 10.0f, 2.0f), glm::normalize(glm::vec3(1.0f, -1.0f, 0.0f)), 100.0f);
     EXPECT_NEAR(point.x, 11.0f, 1e-4f);
     EXPECT_NEAR(point.y, 0.0f, 1e-4f);
     EXPECT_NEAR(point.z, 2.0f, 1e-4f);
@@ -161,8 +161,16 @@ TEST(AssetBrowserGroundPoint, WhereTheRayMeetsTheGround)
 TEST(AssetBrowserGroundPoint, InFrontOfTheCameraWhenTheRayMissesTheGround)
 {
     // looking up, and looking down from below the ground
-    const auto up = engine::get_ground_point(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 5.0f);
+    const auto up = engine::get_ground_point(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 100.0f, 5.0f);
     EXPECT_NEAR(up.y, 6.0f, 1e-4f);
-    const auto below = engine::get_ground_point(glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f), 5.0f);
+    const auto below = engine::get_ground_point(glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f), 100.0f, 5.0f);
     EXPECT_NEAR(below.y, -6.0f, 1e-4f);
+}
+
+TEST(AssetBrowserGroundPoint, InFrontOfTheCameraWhenTheGroundIsBeyondMaxDistance)
+{
+    // just below the horizon: the ground is 50000 units away
+    const auto direction = glm::normalize(glm::vec3(1.0f, -0.0002f, 0.0f));
+    const auto point = engine::get_ground_point(glm::vec3(0.0f, 10.0f, 0.0f), direction, 100.0f, 5.0f);
+    EXPECT_NEAR(glm::length(point - glm::vec3(0.0f, 10.0f, 0.0f)), 5.0f, 1e-4f);
 }

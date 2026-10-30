@@ -56,6 +56,7 @@ inline constexpr const char* ASSET_PAYLOAD_GEOMETRY = "ASSET_GEOMETRY";  // a me
 inline constexpr const char* ASSET_PAYLOAD_TEXTURE = "ASSET_TEXTURE";    // an image file, or an image of a model
 
 // Where an asset dropped along the ray lands when it hits no collider: on the ground plane (y = 0) when the ray goes
-// down to it, otherwise `fallback_distance` along the ray (like Unity, which places it in front of the camera then).
-glm::vec3 get_ground_point(const glm::vec3& ray_origin, const glm::vec3& ray_direction, float fallback_distance = 10.0f);
+// down to it within `max_distance` (the camera's far plane: farther, it couldn't be seen), otherwise `fallback_distance`
+// along the ray (like Unity, which places it in front of the camera then).
+glm::vec3 get_ground_point(const glm::vec3& ray_origin, const glm::vec3& ray_direction, float max_distance, float fallback_distance = 10.0f);
 }  // namespace engine
