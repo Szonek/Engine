@@ -10,9 +10,26 @@
 // while playing stays in the scripts' members and is never saved.
 namespace project_c
 {
+inline constexpr std::uint32_t ENEMY_TYPE_MAX_ATTACKS = 4;
+inline constexpr std::uint32_t ANIMATION_NAME_MAX_LENGTH = 40;
+
+// One attack of an enemy type: an animation of its model, and when in it the blade deals damage. The damage comes from
+// the blade's hitbox, so the window is tuned per animation: the part of it where the blade sweeps the area in front of
+// the enemy.
+struct EnemyAttack
+{
+    // "" for none
+    char animation[ANIMATION_NAME_MAX_LENGTH];
+    // normalized animation time the blade starts / stops dealing damage
+    float active_start;
+    float active_end;
+};
+
 // the tuning of a kind of enemy, shared by the enemies of the kind (a data asset, assets/data/enemies)
 struct EnemyType
 {
+    // the model the enemies of the kind are made of (spawners and LevelBuilder::enemy instantiate it)
+    engine_prefab_t prefab;
     std::uint32_t max_hp;
     // per hit on the player
     std::uint32_t attack_damage;
@@ -23,6 +40,8 @@ struct EnemyType
     float attack_cooldown_seconds;
     // the colour the enemy flashes when hit
     float hit_flash_color[3];
+    // used in turn, in this order; the ones without an animation are skipped
+    EnemyAttack attacks[ENEMY_TYPE_MAX_ATTACKS];
 };
 
 struct EnemyConfig
@@ -120,6 +139,7 @@ struct LevelExitConfig
 // register_game_components()
 struct GameComponentTypes
 {
+    engine_component_type_t enemy_attack = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_type = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_config = ENGINE_INVALID_OBJECT_HANDLE;

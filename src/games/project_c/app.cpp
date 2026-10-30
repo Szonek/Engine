@@ -43,8 +43,7 @@ project_c::PrefabsData project_c::default_prefabs_data()
         // player
         { project_c::PREFAB_TYPE_ROGUE,         "KayKit_Adventurers_1.0_FREE/Characters/gltf/Rogue.glb" },
 
-        // enemies
-        { project_c::PREFAB_TYPE_SKELETON_WARRIOR, "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb" },
+        // enemies (their models are named by their enemy types, assets/data/enemies)
         { project_c::PREFAB_TYPE_SKELETON_BLADE, "KayKit_Skeletons_1.0_FREE/assets/gltf/Skeleton_Blade.gltf" },
 
         // scene assets

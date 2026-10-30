@@ -3,11 +3,18 @@
   "type": "enemy_type",
   "type_version": 1,
   "value": {
+    "prefab": "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb",
     "max_hp": 20,
     "attack_damage": 2,
     "move_speed": 2,
     "attack_range": 0.5,
     "attack_cooldown_seconds": 0.8,
-    "hit_flash_color": [1, 0.32, 0.22]
+    "hit_flash_color": [1, 0.32, 0.22],
+    "attacks": [
+      { "animation": "1H_Melee_Attack_Slice_Horizontal", "active_start": 0.18, "active_end": 0.36 },
+      { "animation": "1H_Melee_Attack_Slice_Diagonal", "active_start": 0.32, "active_end": 0.5 },
+      { "animation": "", "active_start": 0, "active_end": 0 },
+      { "animation": "", "active_start": 0, "active_end": 0 }
+    ]
   }
 }

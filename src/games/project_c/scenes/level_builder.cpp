@@ -351,19 +351,35 @@ project_c::LevelExit* project_c::LevelBuilder::level_exit(float x, float z, std:
 
 project_c::Enemy* project_c::LevelBuilder::enemy(float x, float z)
 {
-    if (!app_.is_prefab_available(PREFAB_TYPE_SKELETON_WARRIOR))
+    const auto go = instantiate_enemy(app_.get_skeleton_warrior_type(), false);
+    if (go == ENGINE_INVALID_GAME_OBJECT_ID)
     {
         return nullptr;
     }
-    const auto go = app_.instantiate_prefab(PREFAB_TYPE_SKELETON_WARRIOR).go;
-    set_name(go, "enemy");
     const auto tc = engineGameObjectGetTransformComponent(go);
     set_position_and_scale(go, glm::vec3(x, tc.position[1] + 0.25f, z), Enemy::MODEL_SCALE);
     add_character_controller(go, 0.18f, Enemy::MODEL_SCALE);
-    auto config = default_enemy_config();
-    config.type = app_.get_skeleton_warrior_type();
-    engineGameObjectAddDataComponent(go, game_components().enemy_config, &config);
     return scene_.attach_script<Enemy>(go);
+}
+
+engine_game_object_t project_c::LevelBuilder::instantiate_enemy(engine_data_asset_t type, bool transient)
+{
+    const auto prefab = get_data_asset(type, game_components().enemy_type, default_enemy_type()).prefab;
+    if (prefab == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        log("The enemy type has no prefab: no enemy is placed.\n");
+        return ENGINE_INVALID_GAME_OBJECT_ID;
+    }
+    const auto go = transient ? enginePrefabInstantiateTransient(prefab) : enginePrefabInstantiate(prefab);
+    if (go == ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        return go;
+    }
+    set_name(go, "enemy");
+    auto config = default_enemy_config();
+    config.type = type;
+    engineGameObjectAddDataComponent(go, game_components().enemy_config, &config);
+    return go;
 }
 
 project_c::Chest* project_c::LevelBuilder::chest(float x, float y, float z)

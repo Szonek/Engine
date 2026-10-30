@@ -84,6 +84,9 @@ public:
 private:
     // a floor tile, or ENGINE_INVALID_GAME_OBJECT_ID when its prefab isn't loaded
     engine_game_object_t place_floor(float x, float z);
+    // an instance of the enemy type's prefab with its name and enemy_config, or ENGINE_INVALID_GAME_OBJECT_ID when the
+    // type has no prefab (logged)
+    engine_game_object_t instantiate_enemy(engine_data_asset_t type, bool transient);
     // what the player is made of, on an instance of its prefab
     Player* set_up_player(engine_game_object_t go, const glm::vec3& position, const glm::quat& rotation);
 

@@ -9,6 +9,9 @@
 #include "game_components.h"
 
 #include "iscene.h"
+#include <utils.h>
+
+#include <fmt/format.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -25,25 +28,17 @@ namespace
 // its weapon inherits the enemy's scale, so the weapon's hitbox is in the model's units
 constexpr float ENEMY_SCALE = project_c::Enemy::MODEL_SCALE;
 
-struct EnemyAttackAnimation
+bool same_attacks(const project_c::EnemyAttack (&a)[project_c::ENEMY_TYPE_MAX_ATTACKS], const project_c::EnemyAttack (&b)[project_c::ENEMY_TYPE_MAX_ATTACKS])
 {
-    const char* name;
-    float active_start;  // normalized animation time when the blade hitbox starts dealing damage
-    float active_end;    // normalized animation time when the blade hitbox stops dealing damage
-};
-
-// Damage windows must be tuned per animation, because the damage comes from the blade hitbox itself
-// (unlike the player's fixed box in front of the character). The windows were measured by sampling
-// the "handslot.r" joint of Skeleton_Warrior.glb and checking when the blade sweeps the area in front of the skeleton:
-//  - Slice_Horizontal: wind-up to the left ends at ~18%, strike crosses the front at ~20-30%,
-//    and from 30% on the blade is in follow-through at ~80 degrees to the right (a shared 30-62% window always missed).
-//  - Slice_Diagonal: wind-up held until ~32%, strike crosses the front at ~34-46%.
-// The windows are slightly padded: they were measured while the blade collider still lagged one frame behind the
-// animated pose (Scene::update now computes world transforms before physics, so it no longer does).
-constexpr std::array<EnemyAttackAnimation, 2> ENEMY_ATTACK_ANIMATIONS = { {
-    { "1H_Melee_Attack_Slice_Diagonal",   0.32f, 0.50f },
-    { "1H_Melee_Attack_Slice_Horizontal", 0.18f, 0.36f },
-} };
+    for (std::uint32_t i = 0; i < project_c::ENEMY_TYPE_MAX_ATTACKS; i++)
+    {
+        if (std::strcmp(a[i].animation, b[i].animation) != 0 || a[i].active_start != b[i].active_start || a[i].active_end != b[i].active_end)
+        {
+            return false;
+        }
+    }
+    return true;
+}
 // the blade only reaches ~0.3 m in front of the skeleton, so the player is hit up to ~0.5 m between centers;
 // swinging from further away always misses
 // closer than this there is no nav mesh path to follow: the enemy walks straight at the player
@@ -144,20 +139,35 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, engine_game_object_t go)
     , state_(States::DECISION_MAKE)
 {
     collect_hit_flash_materials(go_);
+    sync_attack_events(tuning());
+}
 
-    for (const auto& attack_animation : ENEMY_ATTACK_ANIMATIONS)
+void project_c::Enemy::sync_attack_events(const EnemyType& type)
+{
+    if (attack_events_made_ && same_attacks(attack_events_for_, type.attacks))
     {
-        const char* animation_name = attack_animation.name;
+        return;
+    }
+    remove_attack_events();
+    attack_events_made_ = true;
+    std::copy(std::begin(type.attacks), std::end(type.attacks), std::begin(attack_events_for_));
+    for (const auto& attack : attack_events_for_)
+    {
+        const char* animation_name = attack.animation;
+        if (animation_name[0] == '\0')
+        {
+            continue;
+        }
         float duration = 0.0f;
         engineAnimationControllerAnimationGetDuration(go_, animation_name, &duration);
         if (duration <= 0.0f)
         {
-            engineLog("Enemy attack animation has no valid duration.\n");
+            log(fmt::format("The enemy's attack animation \"{}\" has no valid duration.\n", animation_name));
             continue;
         }
 
         engine_animation_event_t open_event{};
-        open_event.trigger_time = attack_animation.active_start * duration;
+        open_event.trigger_time = attack.active_start * duration;
         open_event.user_data = this;
         open_event.fn_ptr = enemy_attack_window_open_callback;
         engine_animation_event_id_t event_id = ENGINE_INVALID_OBJECT_HANDLE;
@@ -172,7 +182,7 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, engine_game_object_t go)
         }
 
         engine_animation_event_t close_event{};
-        close_event.trigger_time = attack_animation.active_end * duration;
+        close_event.trigger_time = attack.active_end * duration;
         close_event.user_data = this;
         close_event.fn_ptr = enemy_attack_window_close_callback;
         event_id = ENGINE_INVALID_OBJECT_HANDLE;
@@ -188,12 +198,32 @@ project_c::Enemy::Enemy(engine::IScene* my_scene, engine_game_object_t go)
     }
 }
 
-project_c::Enemy::~Enemy()
+const project_c::EnemyAttack* project_c::Enemy::next_attack(const EnemyType& type)
+{
+    for (std::uint32_t i = 0; i < ENEMY_TYPE_MAX_ATTACKS; i++)
+    {
+        attack_index_ %= ENEMY_TYPE_MAX_ATTACKS;
+        if (type.attacks[attack_index_].animation[0] != '\0')
+        {
+            return &type.attacks[attack_index_];
+        }
+        attack_index_++;
+    }
+    return nullptr;
+}
+
+void project_c::Enemy::remove_attack_events()
 {
     for (const auto& [animation, id] : animation_events_)
     {
-        engineAnimationControllerAnimationRemoveEvent(go_, animation, id);
+        engineAnimationControllerAnimationRemoveEvent(go_, animation.c_str(), id);
     }
+    animation_events_.clear();
+}
+
+project_c::Enemy::~Enemy()
+{
+    remove_attack_events();
     // its blade, a runtime object; the blade's script goes with it
     if (engineGameObjectIsValid(weapon_go_))
     {
@@ -244,6 +274,8 @@ void project_c::Enemy::update(float dt)
 {
     engine::ScopedProfiler prof("project_c::Enemy::update");
     const auto cfg = tuning();
+    // the attack timings of the type changed (an edit of its file, or another type)
+    sync_attack_events(cfg);
 
     if (hit_stop_remaining_seconds_ > 0.0f)
     {
@@ -348,9 +380,11 @@ void project_c::Enemy::update(float dt)
     {
     case States::DECISION_MAKE:
     {
-        if (distance_to_player <= cfg.attack_range && attack_cooldown_remaining_seconds_ <= 0.0f)
+        const auto* attack = distance_to_player <= cfg.attack_range && attack_cooldown_remaining_seconds_ <= 0.0f ? next_attack(cfg) : nullptr;
+        if (attack)
         {
             state_ = States::ATTACK;
+            attack_animation_ = attack->animation;
             if (auto* blade = weapon())
             {
                 blade->begin_swing();
@@ -359,9 +393,9 @@ void project_c::Enemy::update(float dt)
             {
                 engineLog("Failed to disable looping for enemy attack.\n");
             }
-            if (!engineAnimationControllerIsAnimationPlaying(go_, attack_data_.get_animation_name()))
+            if (!engineAnimationControllerIsAnimationPlaying(go_, attack_animation_.c_str()))
             {
-                if (!engineAnimationControllerAnimationPlay(go_, attack_data_.get_animation_name(), 0))
+                if (!engineAnimationControllerAnimationPlay(go_, attack_animation_.c_str(), 0))
                 {
                     engineLog("Failed to start enemy attack animation.\n");
                     state_ = States::DECISION_MAKE;
@@ -402,12 +436,12 @@ void project_c::Enemy::update(float dt)
     }
     case States::ATTACK:
     {
-        if (!engineAnimationControllerIsAnimationPlaying(go_, attack_data_.get_animation_name()))
+        if (!engineAnimationControllerIsAnimationPlaying(go_, attack_animation_.c_str()))
         {
             state_ = States::DECISION_MAKE;
             set_attack_window_active(false);
             attack_cooldown_remaining_seconds_ = cfg.attack_cooldown_seconds;
-            attack_data_.attack_with_right = !attack_data_.attack_with_right;
+            attack_index_++;
         }
 
         auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));

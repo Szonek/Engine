@@ -37,6 +37,13 @@ engine_field_desc_t data_asset(const char* name, std::size_t offset, const char*
     return f;
 }
 
+engine_field_desc_t structs(const char* name, std::size_t offset, const char* type_name, const char* tooltip, std::uint32_t count)
+{
+    auto f = field(name, ENGINE_FIELD_KIND_STRUCT, offset, tooltip, count);
+    f.type_name = type_name;
+    return f;
+}
+
 // a component, or a struct type data assets hold
 template<typename T>
 engine_component_type_t register_type(const char* name, const std::vector<engine_field_desc_t>& fields, const T& default_value, bool component,
@@ -75,7 +82,17 @@ engine_component_type_t register_data_asset_type(const char* name, const std::ve
 
 project_c::EnemyType project_c::default_enemy_type()
 {
-    return EnemyType{ 20, 2, 2.0f, 0.5f, 0.8f, { 1.0f, 0.32f, 0.22f } };
+    // the skeleton warrior's attacks; the windows were measured by sampling the "handslot.r" joint of
+    // Skeleton_Warrior.glb and checking when the blade sweeps the area in front of the skeleton:
+    //  - Slice_Horizontal: wind-up to the left ends at ~18%, strike crosses the front at ~20-30%, and from 30% on the
+    //    blade is in follow-through at ~80 degrees to the right (a shared 30-62% window always missed).
+    //  - Slice_Diagonal: wind-up held until ~32%, strike crosses the front at ~34-46%.
+    // They are slightly padded: they were measured while the blade collider still lagged one frame behind the animated
+    // pose (Scene::update now computes world transforms before physics, so it no longer does).
+    return EnemyType{ ENGINE_INVALID_OBJECT_HANDLE, 20, 2, 2.0f, 0.5f, 0.8f, { 1.0f, 0.32f, 0.22f }, {
+        { "1H_Melee_Attack_Slice_Horizontal", 0.18f, 0.36f },
+        { "1H_Melee_Attack_Slice_Diagonal", 0.32f, 0.50f },
+    } };
 }
 
 project_c::PlayerTuning project_c::default_player_tuning()
@@ -134,14 +151,24 @@ project_c::LevelExitConfig project_c::default_level_exit()
 
 void project_c::register_game_components()
 {
-    // the data asset types first: the components reference them
+    // the data asset types first: the components reference them (and the struct types first: the data assets hold them)
+    g_types.enemy_attack = register_data_asset_type("enemy_attack", {
+        field("animation", ENGINE_FIELD_KIND_STRING, offsetof(EnemyAttack, animation), "the attack's animation; empty for none", ANIMATION_NAME_MAX_LENGTH),
+        ranged(field("active_start", ENGINE_FIELD_KIND_FLOAT, offsetof(EnemyAttack, active_start), "normalized animation time the blade starts dealing damage"),
+            0.0f, 1.0f),
+        ranged(field("active_end", ENGINE_FIELD_KIND_FLOAT, offsetof(EnemyAttack, active_end), "normalized animation time the blade stops dealing damage"),
+            0.0f, 1.0f),
+    }, EnemyAttack{});
+
     g_types.enemy_type = register_data_asset_type("enemy_type", {
+        field("prefab", ENGINE_FIELD_KIND_PREFAB, offsetof(EnemyType, prefab), "the model the enemies of the kind are made of"),
         ranged(field("max_hp", ENGINE_FIELD_KIND_UINT32, offsetof(EnemyType, max_hp), "hit points of a fresh enemy"), 1.0f, 1000.0f),
         ranged(field("attack_damage", ENGINE_FIELD_KIND_UINT32, offsetof(EnemyType, attack_damage), "damage of one hit on the player"), 0.0f, 100.0f),
         ranged(field("move_speed", ENGINE_FIELD_KIND_FLOAT, offsetof(EnemyType, move_speed), "metres per second"), 0.0f, 10.0f),
         ranged(field("attack_range", ENGINE_FIELD_KIND_FLOAT, offsetof(EnemyType, attack_range), "metres: attacks start this close to the player"), 0.1f, 3.0f),
         ranged(field("attack_cooldown_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(EnemyType, attack_cooldown_seconds), "seconds between two attacks"), 0.0f, 10.0f),
         field("hit_flash_color", ENGINE_FIELD_KIND_COLOR, offsetof(EnemyType, hit_flash_color), "the colour the enemy flashes when hit", 3),
+        structs("attacks", offsetof(EnemyType, attacks), "enemy_attack", "used in turn; the ones without an animation are skipped", ENEMY_TYPE_MAX_ATTACKS),
     }, default_enemy_type());
 
     g_types.player_tuning = register_data_asset_type("player_tuning", {
