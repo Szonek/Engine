@@ -110,8 +110,6 @@ engine::IScene::IScene(IApplication* app)
     }
     activate();
     scripts_.reserve(1024);
-    // a Stop before this scene existed isn't this scene's
-    seen_play_sessions_ = enginePlayModeGetSessionCount();
 }
 
 engine::IScene::~IScene()
@@ -356,7 +354,6 @@ void engine::IScene::sync_scripts_with_components()
 
 void engine::IScene::begin_play_session()
 {
-    play_session_ = true;
     on_play_begin();
     // every script component gets its script, whatever the change count says
     synced_script_changes_.reset();
@@ -364,7 +361,6 @@ void engine::IScene::begin_play_session()
 
 void engine::IScene::end_play_session()
 {
-    play_session_ = false;
     // the game objects stay: Stop loaded the scene saved at Play back (they are gone, or the edit state's again)
     for (auto& [go, script] : scripts_)
     {
@@ -393,22 +389,19 @@ engine_result_code_t engine::IScene::update(float dt)
     }
 
     // a Stop since the last update ends this scene's session; Play (or an application which starts playing) begins one
-    if (const auto sessions = enginePlayModeGetSessionCount(); sessions != seen_play_sessions_)
+    const auto changes = play_session_.update();
+    if (changes.ended)
     {
-        seen_play_sessions_ = sessions;
-        if (play_session_)
-        {
-            end_play_session();
-        }
+        end_play_session();
     }
-    const bool in_play = enginePlayModeGetState() != ENGINE_PLAY_MODE_EDIT;
-    if (in_play && !play_session_)
+    if (changes.began)
     {
         begin_play_session();
     }
+    const bool in_play = enginePlayModeGetState() != ENGINE_PLAY_MODE_EDIT;
     const bool gameplay_paused = !in_play || !engineEditorIsPlaying();
     // in Edit mode no scripts exist
-    if (play_session_)
+    if (play_session_.in_session())
     {
         sync_scripts_with_components();
         flush_register_queue(!gameplay_paused);

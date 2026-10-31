@@ -11,6 +11,7 @@ set(APP_TOOLKIT_SOURCES_API_SOURCES
 	${APP_TOOLKIT_SOURCES_API}/scene_manager.h
 	${APP_TOOLKIT_SOURCES_API}/script_registry.h
 	${APP_TOOLKIT_SOURCES_API}/profiler.h
+	${APP_TOOLKIT_SOURCES_API}/play_session_tracker.h
 )
 
 set(APP_TOOLKIT_SOURCES_IMPL "impl")

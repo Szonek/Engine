@@ -619,7 +619,7 @@ typedef struct _engine_enum_value_desc_t
 {
     const char* name;
     int32_t value;
-    // game-defined component types a game object needs while one of its components holds this value (like Unity's
+    // game-defined component types a game object needs while one of its components holds this value, also in a struct field (like Unity's
     // RequireComponent, e.g. a script's config for the script component naming it): when the editor sets the value, it
     // adds the missing ones with their defaults in the same undo step. NULL / 0 for none.
     const engine_component_type_t* required_components;

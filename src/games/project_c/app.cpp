@@ -207,9 +207,6 @@ void project_c::AppProjectC::on_play_end()
     player_state_ = play_session_start_->player_state;
     level_entry_state_ = play_session_start_->level_entry_state;
     play_session_start_.reset();
-    // a travel or reload asked for in the session's last frame isn't the edit state's
-    level_travel_request_.reset();
-    pending_scene_change_ = nullptr;
 }
 
 void project_c::AppProjectC::update(float dt)

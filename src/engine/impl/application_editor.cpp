@@ -1179,8 +1179,15 @@ void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_b
     frame_delta_time_ = frame_begin_info.delta_time;
     // Play and Stop pressed last frame, before anything of this frame runs: not during a scene update (the editor
     // camera has the game's cameras disabled then, the snapshot would keep them so) nor while the game's scripts run
-    if (const auto request = std::exchange(play_mode_request_, PlayModeRequest::eNone); request != PlayModeRequest::eNone && play_mode_scene_)
+    // when the scene was released since (a level exit, a restart), the request waits for the toolbar of the next one
+    if (play_mode_request_ != PlayModeRequest::eNone && play_mode_scene_)
     {
+        const auto request = std::exchange(play_mode_request_, PlayModeRequest::eNone);
+        // a G / R / S preview isn't saved at Play nor kept at Stop: the game object goes back to where it was
+        if (modal_transform_)
+        {
+            cancel_modal_transform(play_mode_scene_);
+        }
         if (request == PlayModeRequest::ePlay)
         {
             enter_play_mode(*play_mode_scene_);
@@ -1369,13 +1376,7 @@ engine::viewport_t engine::ApplicationEditor::get_scene_viewport() const
     return scene_view_rect_;
 }
 
-void engine::ApplicationEditor::request_play_mode_change(Scene* scene, PlayModeRequest request)
-{
-    play_mode_request_ = request;
-    play_mode_scene_ = scene;
-}
-
-void engine::ApplicationEditor::handle_play_mode_shortcuts(Scene* scene)
+void engine::ApplicationEditor::handle_play_mode_shortcuts()
 {
     // Unity's shortcuts: Ctrl+P plays and stops, Ctrl+Shift+P pauses and resumes, Ctrl+Alt+P steps
     if (ImGui::GetIO().WantTextInput)
@@ -1385,7 +1386,7 @@ void engine::ApplicationEditor::handle_play_mode_shortcuts(Scene* scene)
     const auto play_mode = get_play_mode_state();
     if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_P))
     {
-        request_play_mode_change(scene, play_mode == ENGINE_PLAY_MODE_EDIT ? PlayModeRequest::ePlay : PlayModeRequest::eStop);
+        play_mode_request_ = play_mode == ENGINE_PLAY_MODE_EDIT ? PlayModeRequest::ePlay : PlayModeRequest::eStop;
     }
     else if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_P) && play_mode != ENGINE_PLAY_MODE_EDIT)
     {
@@ -1399,6 +1400,7 @@ void engine::ApplicationEditor::handle_play_mode_shortcuts(Scene* scene)
 
 void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float /*dt*/)
 {
+    play_mode_scene_ = scene;
     const auto play_mode = get_play_mode_state();
     // tinted while playing or paused, like Unity's play mode tint: edits made now are lost at Stop
     const bool in_play = play_mode != ENGINE_PLAY_MODE_EDIT;
@@ -1425,7 +1427,7 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float
     // Play and Stop happen at the start of the next frame (on_frame_begine)
     if (ImGui::Button(in_play ? "Stop" : "Play"))
     {
-        request_play_mode_change(scene, in_play ? PlayModeRequest::eStop : PlayModeRequest::ePlay);
+        play_mode_request_ = in_play ? PlayModeRequest::eStop : PlayModeRequest::ePlay;
     }
     ImGui::SetItemTooltip(in_play ? "Back to the scene as it was at Play (Ctrl+P)" : "Start a play session (Ctrl+P)");
     ImGui::SameLine();
@@ -1447,7 +1449,7 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float
     ImGui::SameLine();
     ImGui::TextUnformatted(play_mode == ENGINE_PLAY_MODE_EDIT ? "Edit" : play_mode == ENGINE_PLAY_MODE_PAUSED ? "Paused" : "Playing");
     ImGui::End();
-    handle_play_mode_shortcuts(scene);
+    handle_play_mode_shortcuts();
 }
 
 void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float /*dt*/)
@@ -2123,7 +2125,6 @@ void engine::ApplicationEditor::on_scene_release(Scene* scene)
     if (play_mode_scene_ == scene)
     {
         play_mode_scene_ = nullptr;
-        play_mode_request_ = PlayModeRequest::eNone;
     }
     // persistent IDs are per scene: the steps and the selection would find other game objects in the next one. While
     // playing (the game replaced its scene: a restart, a level exit) only the play session's steps go: Stop loads the

@@ -223,6 +223,11 @@ void project_c::Enemy::remove_attack_events()
 
 project_c::Enemy::~Enemy()
 {
+    // dropped after Stop: its game object and blade are gone with the play session
+    if (!has_game_object())
+    {
+        return;
+    }
     remove_attack_events();
     // its blade, a runtime object; the blade's script goes with it
     if (engineGameObjectIsValid(weapon_go_))

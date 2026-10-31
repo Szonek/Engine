@@ -47,6 +47,11 @@ public:
     virtual engine_game_object_t get_game_object() const { return go_; }
 
 protected:
+    // False once the game object is gone. After Stop the scene was cleared and loaded back before the scripts of the play
+    // session are dropped (IScene::end_play_session), so their destructors run after their game objects (and the runtime
+    // objects they spawned) were destroyed: a destructor which changes its game object or the scene checks this first.
+    bool has_game_object() const { return engineGameObjectIsValid(go_); }
+
     IScene* my_scene_ = nullptr;
     const engine_game_object_t go_;
 

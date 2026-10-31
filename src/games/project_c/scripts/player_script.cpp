@@ -448,6 +448,11 @@ project_c::Player::Player(engine::IScene* my_scene, engine_game_object_t go)
 
 project_c::Player::~Player()
 {
+    // dropped after Stop: its game object and runtime parts are gone with the play session
+    if (!has_game_object())
+    {
+        return;
+    }
     for (const auto& [animation, id] : animation_events_)
     {
         engineAnimationControllerAnimationRemoveEvent(go_, animation, id);

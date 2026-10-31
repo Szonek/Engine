@@ -112,6 +112,8 @@ void project_c::LevelScene::on_play_end()
     level_scripts_found_ = false;
     hud_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
     encounter_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    // a key held at Stop isn't a press of the next session
+    restart_was_down_ = false;
 }
 
 void project_c::LevelScene::find_level_scripts()

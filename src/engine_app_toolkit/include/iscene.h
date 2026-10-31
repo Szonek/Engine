@@ -1,6 +1,7 @@
 #pragma once
 #include "engine.h"
 #include "iscript.h"
+#include "play_session_tracker.h"
 #include "utils.h"
 
 #include <unordered_map>
@@ -212,10 +213,8 @@ protected:
     // engineDataComponentGetChangeCount of the script component when the scripts were last synced with it; none when
     // they must be synced whatever the count (a play session started)
     std::optional<std::uint64_t> synced_script_changes_;
-    // a play session runs in this scene: its scripts exist
-    bool play_session_ = false;
-    // enginePlayModeGetSessionCount when this scene last looked: a move is a Stop
-    std::uint32_t seen_play_sessions_ = 0;
+    // a play session runs in this scene while it is in one: its scripts exist
+    PlaySessionTracker play_session_;
     UserEventSystem user_event_system_;
     bool is_activate_ = true;
 };

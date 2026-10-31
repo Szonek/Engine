@@ -123,9 +123,8 @@ private:
 
     // the panel showing the scene image
     void render_scene_view();
-    void request_play_mode_change(class Scene* scene, PlayModeRequest request);
     // Ctrl+P, Ctrl+Shift+P, Ctrl+Alt+P
-    void handle_play_mode_shortcuts(class Scene* scene);
+    void handle_play_mode_shortcuts();
     void render_editor_controls(class Scene* scene, float dt);
     void render_scene_hierarchy_panel(class Scene* scene, float dt);
     // the asset browser, in the bottom panel
@@ -217,7 +216,7 @@ private:
     bool draw_guizmo_ = true;
     float frame_delta_time_ = 0.0f;
     PlayModeRequest play_mode_request_ = PlayModeRequest::eNone;
-    // the scene the toolbar was drawn for when Play or Stop was asked for
+    // the scene Play and Stop act on: the one the toolbar was last drawn for, none once it is released
     class Scene* play_mode_scene_ = nullptr;
     CommandManager commands_;
     std::shared_ptr<OutlineFeature> outline_feature_;

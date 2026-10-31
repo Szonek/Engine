@@ -2,6 +2,7 @@
 #include "utils.h"
 #include "engine.h"
 
+#include "play_session_tracker.h"
 #include "scene_manager.h"
 #include "script_registry.h"
 
@@ -54,8 +55,7 @@ protected:
 
 private:
     engine_application_t app_handle_;
-    bool play_session_ = false;
-    std::uint32_t seen_play_sessions_ = 0;
+    PlaySessionTracker play_session_;
     ScriptRegistry scripts_;
     SceneManager scene_manager_;
 };

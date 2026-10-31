@@ -198,11 +198,22 @@ bool engine::holds_game_object(const TypeInfo& type)
     });
 }
 
-std::vector<std::uint32_t> engine::required_components(const TypeInfo& type, const std::byte* value)
+namespace
 {
-    std::vector<std::uint32_t> required;
+void add_required_components(const engine::TypeInfo& type, const std::byte* value, std::vector<std::uint32_t>& required)
+{
+    using engine::FieldKind;
     for (const auto& field : type.fields)
     {
+        if (field.kind == FieldKind::eStruct)
+        {
+            // the enums of the game's struct types count wherever the struct is held
+            for (std::size_t i = 0; i < field.count; i++)
+            {
+                add_required_components(*field.struct_type, value + field.offset + i * field.size, required);
+            }
+            continue;
+        }
         if (field.kind != FieldKind::eEnum)
         {
             continue;
@@ -211,7 +222,7 @@ std::vector<std::uint32_t> engine::required_components(const TypeInfo& type, con
         {
             std::int32_t held = 0;
             std::memcpy(&held, value + field.offset + i * field.size, sizeof(held));
-            const auto it = std::ranges::find(field.enum_values, held, &EnumValue::value);
+            const auto it = std::ranges::find(field.enum_values, held, &engine::EnumValue::value);
             if (it == field.enum_values.end())
             {
                 continue;
@@ -225,6 +236,13 @@ std::vector<std::uint32_t> engine::required_components(const TypeInfo& type, con
             }
         }
     }
+}
+}  // namespace
+
+std::vector<std::uint32_t> engine::required_components(const TypeInfo& type, const std::byte* value)
+{
+    std::vector<std::uint32_t> required;
+    add_required_components(type, value, required);
     return required;
 }
 

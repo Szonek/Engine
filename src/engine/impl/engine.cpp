@@ -21,6 +21,8 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <utility>
+#include <vector>
 #include <optional>
 #include <utility>
 
@@ -900,12 +902,19 @@ void engineGameObjectSortByPersistentId(engine_game_object_t* game_objects, size
         return;
     }
     const auto* scene = api_cast(G_ACTIVE_SCENE);
-    const auto key = [scene](engine_game_object_t go) {
-        const auto id = scene->get_persistent_id(static_cast<entt::entity>(go));
-        // transient ones last, in handle order
-        return std::make_pair(id == engine::EntityIdRegistry::INVALID_ID ? std::numeric_limits<std::uint64_t>::max() : id, go);
-    };
-    std::sort(game_objects, game_objects + count, [&key](engine_game_object_t a, engine_game_object_t b) { return key(a) < key(b); });
+    // each game object's ID looked up once; transient ones last, in handle order
+    std::vector<std::pair<std::uint64_t, engine_game_object_t>> keyed;
+    keyed.reserve(count);
+    for (size_t i = 0; i < count; i++)
+    {
+        const auto id = scene->get_persistent_id(static_cast<entt::entity>(game_objects[i]));
+        keyed.emplace_back(id == engine::EntityIdRegistry::INVALID_ID ? std::numeric_limits<std::uint64_t>::max() : id, game_objects[i]);
+    }
+    std::sort(keyed.begin(), keyed.end());
+    for (size_t i = 0; i < count; i++)
+    {
+        game_objects[i] = keyed[i].second;
+    }
 }
 
 bool engineGameObjectIsValid(engine_game_object_t game_object)

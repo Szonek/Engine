@@ -48,11 +48,27 @@ project_c::BuildingPart::BuildingPart(engine::IScene* my_scene, engine_game_obje
 
 project_c::BuildingPart::~BuildingPart()
 {
-    // a part the house hid (its script replaced or removed while the player is inside) is shown again
+    // a part the house hid (its script replaced or removed while the player is inside) is shown again; after Stop the
+    // part is gone (or loaded back as it was at Play)
+    if (!has_game_object())
+    {
+        return;
+    }
     const auto hide = get_hide_when_inside();
     if (hide != BUILDING_PART_HIDE_NEVER)
     {
         set_hidden(false, hide == BUILDING_PART_HIDE_MESH_AND_COLLIDER);
+    }
+}
+
+void project_c::BuildingPart::on_start()
+{
+    // outside of the building: its first ancestor which isn't a building part (the house; a window's frames are under
+    // the window piece). Level content, fixed for the play session.
+    building_go_ = go_;
+    while (engineGameObjectHasParentComponent(building_go_) && engineGameObjectHasDataComponent(building_go_, game_components().building_part_config))
+    {
+        building_go_ = engineGameObjectGetParentComponent(building_go_).parent;
     }
 }
 
@@ -68,16 +84,9 @@ bool project_c::BuildingPart::is_climbable(const glm::vec3& surface_normal) cons
     {
         return false;
     }
-    // outside of the building: its first ancestor which isn't a building part (the house; a window's frames are under
-    // the window piece)
-    auto building = go_;
-    while (engineGameObjectHasParentComponent(building) && engineGameObjectHasDataComponent(building, game_components().building_part_config))
+    if (cfg.climbable_from_outside_only && building_go_ != go_)
     {
-        building = engineGameObjectGetParentComponent(building).parent;
-    }
-    if (cfg.climbable_from_outside_only && building != go_)
-    {
-        const glm::vec3 outward = utils::get_world_position(go_) - utils::get_world_position(building);
+        const glm::vec3 outward = utils::get_world_position(go_) - utils::get_world_position(building_go_);
         return surface_normal.x * outward.x + surface_normal.z * outward.z > 0.0f;
     }
     return true;
