@@ -100,6 +100,58 @@ std::optional<std::string> engine::get_asset_id(const asset_entry_t& entry)
     return std::nullopt;
 }
 
+std::optional<std::string> engine::get_scene_save_path(std::string_view folder, std::string_view name)
+{
+    constexpr std::string_view scenes = "scenes";
+    if (folder != scenes && !path_under(folder, scenes))
+    {
+        return std::nullopt;
+    }
+    // folder names of the assets folder are never "." or "..", but a typed or stored one could be
+    if (folder.find('\\') != std::string_view::npos)
+    {
+        return std::nullopt;
+    }
+    for (std::size_t start = 0; start <= folder.size();)
+    {
+        const auto end = std::min(folder.find('/', start), folder.size());
+        const auto part = folder.substr(start, end - start);
+        if (part == "." || part == "..")
+        {
+            return std::nullopt;
+        }
+        start = end + 1;
+    }
+    constexpr std::string_view refused = "/\\:*?\"<>|";
+    if (name.empty() || name == "." || name == ".." || name.find_first_of(refused) != std::string_view::npos || name.back() == '.' || name.back() == ' ')
+    {
+        return std::nullopt;
+    }
+    if (std::ranges::any_of(name, [](char c) { return static_cast<unsigned char>(c) < 0x20; }))
+    {
+        return std::nullopt;
+    }
+    // Windows' device names are no file names, whatever their extension ("nul.json" is the device too)
+    const auto stem = to_lower(name.substr(0, name.find('.')));
+    constexpr std::array<std::string_view, 4> devices{ "con", "prn", "aux", "nul" };
+    const bool numbered_device = stem.size() == 4 && (stem.starts_with("com") || stem.starts_with("lpt")) && stem[3] >= '1' && stem[3] <= '9';
+    if (numbered_device || std::ranges::find(devices, stem) != devices.end())
+    {
+        return std::nullopt;
+    }
+    std::string file(name);
+    const auto extension = to_lower(std::filesystem::path(file).extension().string());
+    if (extension.empty())
+    {
+        file += ".json";
+    }
+    else if (extension != ".json")
+    {
+        return std::nullopt;
+    }
+    return folder == scenes ? file : *path_under(folder, scenes) + "/" + file;
+}
+
 std::vector<std::pair<std::uint32_t, std::string>> engine::get_model_assets(const std::vector<std::pair<std::uint32_t, std::string>>& assets, std::string_view model_id)
 {
     const auto prefix = std::string(model_id) + "#";

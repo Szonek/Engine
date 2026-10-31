@@ -13,6 +13,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/application.cpp
 	${ENGINE_SOURCES_DIR}/application.h
 	${ENGINE_SOURCES_DIR}/application_editor.cpp
+	${ENGINE_SOURCES_DIR}/application_editor_scene_files.cpp
 	${ENGINE_SOURCES_DIR}/application_editor.h
 	${ENGINE_SOURCES_DIR}/editor_camera.cpp
 	${ENGINE_SOURCES_DIR}/editor_camera.h
@@ -25,6 +26,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/editor_asset_panel.h
 	${ENGINE_SOURCES_DIR}/editor_commands.cpp
 	${ENGINE_SOURCES_DIR}/editor_commands.h
+	${ENGINE_SOURCES_DIR}/editor_save_point.h
 	${ENGINE_SOURCES_DIR}/copy_name.h
 	${ENGINE_SOURCES_DIR}/engine.cpp
 	${ENGINE_SOURCES_DIR}/engine_string_impl_def.h
@@ -104,6 +106,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/data_asset.cpp
 	${ENGINE_SOURCES_DIR}/prefab_system.h
 	${ENGINE_SOURCES_DIR}/prefab_system.cpp
+	${ENGINE_SOURCES_DIR}/file_io.h
+	${ENGINE_SOURCES_DIR}/file_io.cpp
 	${ENGINE_SOURCES_DIR}/play_mode.h
 	${ENGINE_SOURCES_DIR}/play_mode.cpp
 	${ENGINE_SOURCES_DIR}/serialization/type_registry.h

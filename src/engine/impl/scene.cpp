@@ -18,6 +18,8 @@
 #include "components_internals/joint_attachment_internal_component.h"
 #include "components_internals/nav_mesh_internal_component.h"
 #include "profiler.h"
+#include "asset_store.h"
+#include "file_io.h"
 #include "engine_vector_impl_def.h"
 #include "skin.h"
 #include "animation_controller.h"
@@ -800,6 +802,66 @@ bool engine::Scene::replace(std::string_view json, std::string_view file_name)
     old_assets.swap(assets_);
     clear_game_objects(entity_registry_);
     return load(json, file_name);
+}
+
+namespace
+{
+std::filesystem::path scene_file_path(std::string_view path)
+{
+    const std::filesystem::path p(path);
+    return p.is_absolute() ? p : engine::AssetStore::get_instance().get_scenes_base_path() / p;
+}
+}  // namespace
+
+std::optional<std::string> engine::read_scene_file(std::string_view path)
+{
+    return read_text_file(scene_file_path(path), "Scene load");
+}
+
+bool engine::Scene::save_file(std::string_view path)
+{
+    ENGINE_PROFILE_SECTION;
+    if (!write_file_atomic(scene_file_path(path), save(), "Scene save"))
+    {
+        return false;
+    }
+    prefabs_.add_scene_file(path);
+    file_path_ = path;
+    return true;
+}
+
+bool engine::Scene::open(std::string_view json, std::string_view file_name, bool as_new)
+{
+    ENGINE_PROFILE_SECTION;
+    if (!replace(json, file_name))
+    {
+        return false;
+    }
+    // the files of the old content aren't the scene's any more: they can be placed in it now
+    prefabs_.set_scene_files({});
+    file_path_ = as_new ? std::string() : std::string(file_name);
+    if (!as_new)
+    {
+        prefabs_.add_scene_file(file_name);
+    }
+    // derived data, never saved
+    if (!entity_registry_.view<const engine_nav_surface_component_t>().empty())
+    {
+        build_nav_mesh();
+    }
+    return true;
+}
+
+bool engine::Scene::has_content() const
+{
+    for (const auto entity : entity_registry_.view<entt::entity>())
+    {
+        if (entity != RESERVED_ENTITY && get_persistent_id(entity) != EntityIdRegistry::INVALID_ID)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 std::vector<entt::entity> engine::Scene::get_all_entities() const

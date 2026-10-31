@@ -180,3 +180,43 @@ TEST(AssetBrowserGroundPoint, InFrontOfTheCameraWhenTheGroundIsBeyondMaxDistance
     const auto point = engine::get_ground_point(glm::vec3(0.0f, 10.0f, 0.0f), direction, 100.0f, 5.0f);
     EXPECT_NEAR(glm::length(point - glm::vec3(0.0f, 10.0f, 0.0f)), 5.0f, 1e-4f);
 }
+
+TEST(AssetBrowserSceneSavePath, TheNameInItsFolderUnderScenes)
+{
+    EXPECT_EQ(engine::get_scene_save_path("scenes", "level").value_or(""), "level.json");
+    EXPECT_EQ(engine::get_scene_save_path("scenes/rooms", "room_a.json").value_or(""), "rooms/room_a.json");
+    EXPECT_EQ(engine::get_scene_save_path("scenes/rooms/big", "Room A.JSON").value_or(""), "rooms/big/Room A.JSON");
+}
+
+TEST(AssetBrowserSceneSavePath, NothingOutsideTheScenesFolder)
+{
+    EXPECT_FALSE(engine::get_scene_save_path("data", "level").has_value());
+    EXPECT_FALSE(engine::get_scene_save_path("", "level").has_value());
+    EXPECT_FALSE(engine::get_scene_save_path("scenesX", "level").has_value());
+    EXPECT_FALSE(engine::get_scene_save_path("scenes/../data", "level").has_value());
+    EXPECT_FALSE(engine::get_scene_save_path("scenes/./rooms", "level").has_value());
+    EXPECT_FALSE(engine::get_scene_save_path("scenes/rooms/..", "level").has_value());
+}
+
+TEST(AssetBrowserSceneSavePath, AFolderNameWithDotsIsOne)
+{
+    EXPECT_EQ(engine::get_scene_save_path("scenes/level..old", "level").value_or(""), "level..old/level.json");
+}
+
+TEST(AssetBrowserSceneSavePath, NothingForANameWhichIsntOneFileName)
+{
+    EXPECT_FALSE(engine::get_scene_save_path("scenes", "").has_value());
+    EXPECT_FALSE(engine::get_scene_save_path("scenes", "..").has_value());
+    EXPECT_FALSE(engine::get_scene_save_path("scenes", "rooms/a").has_value());
+    EXPECT_FALSE(engine::get_scene_save_path("scenes", "rooms\a").has_value());
+    EXPECT_FALSE(engine::get_scene_save_path("scenes", "a:b").has_value());
+    EXPECT_FALSE(engine::get_scene_save_path("scenes", "level.").has_value());
+    // Windows' device names
+    EXPECT_FALSE(engine::get_scene_save_path("scenes", "nul").has_value());
+    EXPECT_FALSE(engine::get_scene_save_path("scenes", "CON.json").has_value());
+    EXPECT_FALSE(engine::get_scene_save_path("scenes", "com1").has_value());
+    EXPECT_TRUE(engine::get_scene_save_path("scenes", "console").has_value());
+    EXPECT_TRUE(engine::get_scene_save_path("scenes", "com0").has_value());
+    // a scene file is JSON
+    EXPECT_FALSE(engine::get_scene_save_path("scenes", "level.txt").has_value());
+}

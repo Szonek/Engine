@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <set>
+#include <vector>
 
 
 namespace engine
@@ -38,6 +39,9 @@ public:
     virtual engine_result_code_t update_scene(class Scene* scene, float delta_time);
     virtual engine_application_frame_begine_info_t begine_frame();
     virtual engine_application_frame_end_info_t end_frame();
+    // Asks to close the application (engineApplicationRequestQuit, the window's close button): the start of a following
+    // frame reports ENGINE_EVENT_QUIT, unless on_quit_requested holds it.
+    void request_quit();
 
     virtual std::uint32_t add_texture(const TextureDesc& desc);
     virtual std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
@@ -135,12 +139,16 @@ public:
     virtual bool is_keyboard_enabled() { return true; }
 
     virtual bool keyboard_is_key_down(engine_keyboard_keys_t key);
+    // the key went down since the start of the last frame (a key event, not a held key's repeat)
+    bool keyboard_is_key_pressed(engine_keyboard_keys_t key) const;
 
     virtual engine_fvec2_t mouse_get_coords();
     // What the game sees: mouse_get_coords() while the mouse is enabled, otherwise (i.e. over an editor panel)
     // the last position it saw, so the cursor stays where it left the scene instead of jumping.
     engine_fvec2_t mouse_get_game_coords();
     virtual bool mouse_is_button_down(engine_mouse_button_t button);
+    // the button went down since the start of the last frame (a button event)
+    bool mouse_is_button_pressed(engine_mouse_button_t button) const;
 
     virtual std::array<engine_finger_info_t, 10> get_finger_info_events() const;
 
@@ -156,6 +164,10 @@ protected:
     virtual void on_play_mode_enter(class Scene* /*scene*/) {}
     // a play session ended (Stop): `scene` holds the edit state again
     virtual void on_play_mode_exit(class Scene* /*scene*/) {}
+    // a quit was asked for (request_quit); false holds it: whoever held it calls confirm_quit() later, or never (cancelled)
+    virtual bool on_quit_requested() { return true; }
+    // the next frame (or this one, during on_frame_begine) reports ENGINE_EVENT_QUIT
+    void confirm_quit() { quit_confirmed_ = true; }
 
 private:
     // reads the data assets whose files changed again
@@ -190,12 +202,17 @@ protected:
     std::array<engine_finger_info_t, 10> finger_info_buffer;
     // the centre of the scene until the game gets the mouse
     engine_fvec2_t last_game_mouse_coords_{ 0.5f, 0.5f };
+    // the keys and mouse buttons pressed since the start of the frame (their events)
+    std::vector<engine_keyboard_keys_t> keys_pressed_;
+    std::vector<engine_mouse_button_t> mouse_buttons_pressed_;
 
     Renderer renderer_;
     // with the editor or play_mode_control, play sessions can be stopped
     PlayMode play_mode_;
     // inside update_scene's scene update, see enter_play_mode
     bool scene_update_running_ = false;
+    // a quit nothing holds (any more): every frame from now on reports ENGINE_EVENT_QUIT
+    bool quit_confirmed_ = false;
 
 private:
     bool is_play_mode_change_allowed() const;

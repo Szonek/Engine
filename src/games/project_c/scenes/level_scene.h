@@ -41,7 +41,6 @@ private:
     bool level_scripts_found_ = false;
     engine_game_object_t hud_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
     engine_game_object_t encounter_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
-    bool restart_was_down_ = false;
 };
 
 }// namespace project_c

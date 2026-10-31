@@ -245,14 +245,24 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     */
     //Handle events on queue
     SDL_Event e;
+    keys_pressed_.clear();
+    mouse_buttons_pressed_.clear();
     while (SDL_PollEvent(&e) != 0)
     {
         on_sdl_event(e);
         ui_manager_.parse_sdl_event(e);
 
+        if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat)
+        {
+            keys_pressed_.push_back(static_cast<engine_keyboard_keys_t>(e.key.scancode));
+        }
+        if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+        {
+            mouse_buttons_pressed_.push_back(static_cast<engine_mouse_button_t>(e.button.button));
+        }
         if (e.type == SDL_EVENT_QUIT)
         {
-            ret.events |= ENGINE_EVENT_QUIT;
+            request_quit();
         }
         else if (e.type == SDL_EVENT_WINDOW_RESIZED)
         {
@@ -324,7 +334,19 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     // after the editor's Play and Stop (on_frame_begine): a step asked for while paused plays this frame, a frame
     // beginning in Exiting is the play session's last
     play_mode_.begin_frame();
+    if (quit_confirmed_)
+    {
+        ret.events |= ENGINE_EVENT_QUIT;
+    }
 	return ret;
+}
+
+void engine::Application::request_quit()
+{
+    if (!quit_confirmed_ && on_quit_requested())
+    {
+        confirm_quit();
+    }
 }
 
 bool engine::Application::is_play_mode_change_allowed() const
@@ -343,7 +365,8 @@ engine_result_code_t engine::Application::enter_play_mode(Scene& scene)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    const auto entered = play_mode_.enter([&scene]() { return PlaySnapshot{ scene.save(), scene.get_nav_mesh() != nullptr }; });
+    const auto entered = play_mode_.enter([&scene]() { return PlaySnapshot{ scene.save(), scene.get_nav_mesh() != nullptr, scene.get_file_path(),
+        scene.prefabs().get_scene_files() }; });
     if (!entered)
     {
         return ENGINE_RESULT_CODE_FAIL;
@@ -380,6 +403,9 @@ engine_result_code_t engine::Application::finish_exit_play_mode(Scene& scene)
             {
                 return false;
             }
+            // the scene the game loaded while playing (a level exit) is the one at Play again, with its files
+            scene.set_file_path(snapshot.path);
+            scene.prefabs().set_scene_files(snapshot.scene_files);
             // derived data, gone with its game object
             if (snapshot.had_nav_mesh)
             {
@@ -765,6 +791,11 @@ bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
     return static_cast<bool>(state[key]);
 }
 
+bool engine::Application::keyboard_is_key_pressed(engine_keyboard_keys_t key) const
+{
+    return std::ranges::find(keys_pressed_, key) != keys_pressed_.end();
+}
+
 engine_fvec2_t engine::Application::mouse_get_coords()
 {
 	float coord_x = 0.;
@@ -802,6 +833,11 @@ bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
 {
     const auto state = SDL_GetMouseState(nullptr, nullptr);
     return state & SDL_BUTTON_MASK(button);
+}
+
+bool engine::Application::mouse_is_button_pressed(engine_mouse_button_t button) const
+{
+    return std::ranges::find(mouse_buttons_pressed_, button) != mouse_buttons_pressed_.end();
 }
 
 std::array<engine_finger_info_t, 10> engine::Application::get_finger_info_events() const

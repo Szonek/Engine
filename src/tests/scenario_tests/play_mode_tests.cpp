@@ -180,6 +180,23 @@ TEST_F(PlayModeTest, StepPlaysOneFrameWhilePaused)
     EXPECT_EQ(enginePlayModeGetState(), ENGINE_PLAY_MODE_PAUSED);
 }
 
+TEST_F(PlayModeTest, StopGivesBackTheScenesFile)
+{
+    load(placing("crate.gltf", "crate"));
+    const std::string edit_path = engineSceneGetPath();
+    ASSERT_FALSE(edit_path.empty());
+
+    ASSERT_EQ(enginePlayModeEnter(), ENGINE_RESULT_CODE_OK);
+    step();
+    // the play session's scene gets another file (as a level exit loads the next level)
+    const auto other = std::filesystem::temp_directory_path() / "play_mode_test_other.json";
+    ASSERT_EQ(engineSceneSave(other.string().c_str()), ENGINE_RESULT_CODE_OK);
+    EXPECT_EQ(std::string(engineSceneGetPath()), other.string());
+    stop();
+    std::filesystem::remove(other);
+    EXPECT_EQ(std::string(engineSceneGetPath()), edit_path);
+}
+
 // runs after the others (gtest keeps the order of definition): nothing an earlier test's play session saved is loaded
 // into this test's scene by the Stop in SetUp
 TEST_F(PlayModeTest, StartsWithNothingFromAnEarlierTest)
