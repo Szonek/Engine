@@ -187,6 +187,15 @@ engine_result_code_t project_c::LevelScene::update(float dt)
     const auto* encounter = get_script<Encounter>(encounter_go_);
     if (encounter && encounter->is_over() && restart_pressed)
     {
+        // the scene's file restarts: the level the editor opened (or saved under another name), not the one the game
+        // started with
+        const std::string scene_path = engineSceneGetPath();
+        if (scene_path.empty())
+        {
+            log("The level has no file (a new scene not saved yet), so it can't be loaded again to restart it.\n");
+            return result;
+        }
+        app->set_level_path(scene_path, app->get_level_entrance());
         app->request_scene_reload<LevelScene>();
     }
     return result;
