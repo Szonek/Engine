@@ -54,8 +54,9 @@ class IApplication;
 // Play sessions (enginePlayModeGetState): scripts exist only while playing (Unity has no Awake in Edit Mode, Godot no
 // _ready without @tool). In Edit mode a script component is data: attach_script only sets it, nothing is created and
 // nothing ticks. When a play session starts (Play, or the first update of an application which starts playing),
-// on_play_begin() runs, then the scripts are created from their components in persistent ID order
-// (engineGameObjectSortByPersistentId), so every session starts them in the same order, also after a Stop. When it ends
+// on_play_begin() runs, then the scripts are created from their components. Their order among themselves is unspecified
+// (like Unity's): a script may rely on the others of its frame being in the scene in its on_start, never on which of
+// them started first. When it ends
 // (Stop: the session count moves, the engine loaded the scene saved at Play back) every script is dropped, keeping its
 // game object, then on_play_end() runs. State outside the scene (the application's, engine settings a script changes)
 // isn't given back by Stop: reset what a session changes there in on_play_begin (Unity's rule for statics).

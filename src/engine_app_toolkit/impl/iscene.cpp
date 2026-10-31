@@ -288,8 +288,7 @@ void engine::IScene::sync_scripts_with_components()
         return;
     }
 
-    // the game objects with a script component, in persistent ID order (the scripts are created and started in it),
-    // and the script each names
+    // the game objects with a script component and the script each names
     std::vector<engine_game_object_t> with_script;
     engine_component_view_t view = nullptr;
     engineComponentViewCreate(&view);
@@ -305,7 +304,6 @@ void engine::IScene::sync_scripts_with_components()
     engineComponentIteratorDelete(it);
     engineComponentIteratorDelete(end);
     engineComponentViewDestroy(view);
-    engineGameObjectSortByPersistentId(with_script.data(), with_script.size());
     std::vector<std::pair<engine_game_object_t, std::int32_t>> wanted;
     for (const auto go : with_script)
     {
