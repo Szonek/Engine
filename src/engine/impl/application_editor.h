@@ -226,6 +226,10 @@ private:
     // created where nothing is
     void handle_scene_view_context_menu(class Scene* scene);
     void start_modal_transform(class Scene* scene, ModalTransformMode mode);
+    // Like Godot's preview sun: while the editor view shows a scene without a light of its own, an editor-only
+    // directional light lights it (and casts the shadows), so a level being built isn't black. Never saved, never in the
+    // game view.
+    void update_preview_light(class Scene* scene);
     // Blender's G / R / S on the selected game object: starts, follows the mouse, confirms (one undo step) or cancels
     void handle_modal_transform(class Scene* scene);
     void draw_modal_transform(class Scene* scene);
@@ -301,6 +305,9 @@ private:
     // the click that confirmed or cancelled a modal transform doesn't pick, orbit or fly until it is released
     bool mouse_consumed_ = false;
     ContextClick context_click_;
+    // the editor-only light of each scene (a transient editor object, like the editor camera), and whether it is used
+    std::map<class Scene*, entt::entity> preview_lights_;
+    bool preview_light_enabled_ = true;
     // where the scene view's context menu was opened: what it creates goes there
     glm::vec2 context_menu_mouse_{ 0.0f };
     EditorView editor_view_ = EditorView::eGame;

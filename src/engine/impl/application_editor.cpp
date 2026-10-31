@@ -1308,6 +1308,8 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_pre");
     scene_hierarchy_context_.resolve_selection(scene);
+    // before the scene update, so this frame renders with it
+    update_preview_light(scene);
     if (mouse_consumed_ && !any_mouse_button_down(ImGui::GetIO()))
     {
         mouse_consumed_ = false;
@@ -1603,6 +1605,9 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
     {
         commands_.execute_command(*scene, std::make_unique<CommandSetPhysicsDebugDraw>(phys_debug_draw_check));
     }
+
+    ImGui::Checkbox("Preview light", &preview_light_enabled_);
+    ImGui::SetItemTooltip("While the scene has no light of its own, an editor-only light lights the editor view (never saved, never in the game view)");
 
     bool nav_mesh_debug_draw_check = scene->is_nav_mesh_debug_draw_enabled();
     if (ImGui::Checkbox("Nav mesh debug draw", &nav_mesh_debug_draw_check))
@@ -2509,11 +2514,67 @@ bool engine::ApplicationEditor::is_keyboard_enabled()
 void engine::ApplicationEditor::on_scene_create(Scene* scene)
 {
     camera_context_.attach_scene(scene, this);
+    // kept when the scene is cleared (Stop restoring the scene saved at Play), like the editor camera; its light
+    // component is there only while it lights the scene
+    const auto light = scene->create_transient_entity();
+    scene->add_component<editor_object_internal_component_t>(light);
+    scene->add_component<engine_name_component_t>(light);
+    scene->patch_component<engine_name_component_t>(light, [](engine_name_component_t& c)
+        {
+            constexpr const char* editor_light_name = "__engine_editor_light__";
+            std::memcpy(c.name, editor_light_name, std::strlen(editor_light_name));
+        });
+    scene->add_component<engine_transform_component_t>(light);
+    preview_lights_[scene] = light;
+}
+
+void engine::ApplicationEditor::update_preview_light(Scene* scene)
+{
+    const auto it = preview_lights_.find(scene);
+    if (it == preview_lights_.end() || !scene->is_valid_entity(it->second))
+    {
+        return;
+    }
+    const auto light = it->second;
+    bool scene_has_light = false;
+    auto lights = scene->create_runtime_view();
+    scene->attach_component_to_runtime_view<engine_light_component_t>(lights);
+    for (const auto entity : lights)
+    {
+        if (!scene->has_component<editor_object_internal_component_t>(entity))
+        {
+            scene_has_light = true;
+            break;
+        }
+    }
+    const bool lit = preview_light_enabled_ && editor_view_ == EditorView::eEditor && !scene_has_light;
+    if (lit == scene->has_component<engine_light_component_t>(light))
+    {
+        return;
+    }
+    if (!lit)
+    {
+        scene->remove_component<engine_light_component_t>(light);
+        return;
+    }
+    // a daylight from above, like the levels' own
+    engine_light_component_t c = *scene->add_component<engine_light_component_t>(light);
+    c.type = ENGINE_LIGHT_TYPE_DIRECTIONAL;
+    const float ambient[3] = { 0.45f, 0.45f, 0.45f };
+    const float diffuse[3] = { 0.75f, 0.75f, 0.75f };
+    const float specular[3] = { 0.1f, 0.1f, 0.1f };
+    const float direction[3] = { 0.4f, 1.0f, 0.3f };
+    std::memcpy(c.intensity.ambient, ambient, sizeof(ambient));
+    std::memcpy(c.intensity.diffuse, diffuse, sizeof(diffuse));
+    std::memcpy(c.intensity.specular, specular, sizeof(specular));
+    std::memcpy(c.directional.direction, direction, sizeof(direction));
+    scene->update_component<engine_light_component_t>(light, c);
 }
 
 void engine::ApplicationEditor::on_scene_release(Scene* scene)
 {
     camera_context_.detach_scene(scene);
+    preview_lights_.erase(scene);
     if (play_mode_scene_ == scene)
     {
         play_mode_scene_ = nullptr;
