@@ -1208,6 +1208,8 @@ void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_b
             exit_play_mode();
         }
     }
+    // Save, Open or New asked for last frame, at the same point for the same reasons
+    apply_scene_file_request();
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
@@ -1420,10 +1422,15 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float
     {
         ImGui::PushStyleColor(ImGuiCol_WindowBg, play_mode == ENGINE_PLAY_MODE_PAUSED ? PAUSED_TINT : PLAYING_TINT);
     }
-    ImGui::Begin(editor_windows_context_.get_window_up());
+    ImGui::Begin(editor_windows_context_.get_window_up(), nullptr, ImGuiWindowFlags_MenuBar);
     if (in_play)
     {
         ImGui::PopStyleColor();
+    }
+    if (ImGui::BeginMenuBar())
+    {
+        render_file_menu(scene);
+        ImGui::EndMenuBar();
     }
 
     if (ImGui::Selectable("Scene", editor_view_ == EditorView::eGame, ImGuiSelectableFlags_None, ImVec2(50, 0)))
@@ -1466,8 +1473,14 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float
     ImGui::TextUnformatted(play_mode == ENGINE_PLAY_MODE_EDIT ? "Edit"
         : play_mode == ENGINE_PLAY_MODE_PAUSED ? "Paused"
         : exiting ? "Stopping" : "Playing");
+    // the scene's file, * while it has unsaved changes (the edit state's, also while playing)
+    ImGui::SameLine();
+    ImGui::TextDisabled("|  %s%s", scene->get_file_path().empty() ? "Untitled" : scene->get_file_path().c_str(), commands_.is_dirty() ? "*" : "");
     ImGui::End();
     handle_play_mode_shortcuts();
+    handle_file_shortcuts(scene);
+    render_scene_file_dialogs(scene);
+    update_window_title(scene);
 }
 
 void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float /*dt*/)
@@ -1673,6 +1686,11 @@ void engine::ApplicationEditor::render_asset_browser_panel(Scene* scene)
         // the file in place of the game object, one undo step which gives the game object back
         commands_.execute_command(*scene, std::make_unique<CommandSetSelection>(*scene, asset_browser_, scene_hierarchy_context_.get_selected_entity(), entt::null, *clicked));
         scene_hierarchy_context_.sync_selected_from_scene(scene);
+    }
+    // a scene file double-clicked: File > Open
+    if (const auto open = asset_browser_.take_open_scene_request())
+    {
+        request_scene_file_action(scene, SceneFileAction::eOpen, *open);
     }
     ImGui::End();
 }
@@ -2171,11 +2189,7 @@ void engine::ApplicationEditor::on_play_mode_exit(Scene* /*scene*/)
     // come back and find their game objects by persistent ID
     commands_.end_play_session();
     // what the editor held of the play session's game objects
-    modal_transform_.reset();
-    modal_transform_entity_ = entt::null;
-    gizmo_hovered_entity_ = entt::null;
-    gizmo_hovered_handle_.reset();
-    delete_without_undo_ = entt::null;
+    forget_game_objects();
 }
 
 engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)

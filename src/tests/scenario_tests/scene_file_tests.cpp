@@ -230,6 +230,23 @@ TEST_F(SceneFileTest, SaveToAFileWhichCantBeWrittenFailsAndKeepsTheScenesFile)
     EXPECT_EQ(std::string(engineSceneGetPath()), path);
 }
 
+// File > New's templates are scene files which load (the level's has what a level needs, the room's nothing a placed
+// file mustn't have)
+TEST_F(SceneFileTest, NewSceneTemplatesLoad)
+{
+    create_file_scene();
+    ASSERT_EQ(engineSceneLoad("templates/level.json"), ENGINE_RESULT_CODE_OK);
+    EXPECT_NE(find_with(engineGameObjectHasCameraComponent), ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_NE(find_with(engineGameObjectHasNavSurfaceComponent), ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_EQ(engineNavMeshBuild(), ENGINE_RESULT_CODE_OK);
+    destroy_file_scene();
+
+    create_file_scene();
+    ASSERT_EQ(engineSceneLoad("templates/room.json"), ENGINE_RESULT_CODE_OK);
+    EXPECT_EQ(find_with(engineGameObjectHasNavSurfaceComponent), ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_EQ(find_with(engineGameObjectHasCameraComponent), ENGINE_INVALID_GAME_OBJECT_ID);
+}
+
 TEST_F(SceneFileTest, LoadedColliderIsHitAtItsWorldPosition)
 {
     // a box under a parent moved to x = 5: saved, then loaded into another scene

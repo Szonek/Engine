@@ -13,6 +13,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/application.cpp
 	${ENGINE_SOURCES_DIR}/application.h
 	${ENGINE_SOURCES_DIR}/application_editor.cpp
+	${ENGINE_SOURCES_DIR}/application_editor_scene_files.cpp
 	${ENGINE_SOURCES_DIR}/application_editor.h
 	${ENGINE_SOURCES_DIR}/editor_camera.cpp
 	${ENGINE_SOURCES_DIR}/editor_camera.h

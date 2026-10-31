@@ -100,6 +100,40 @@ std::optional<std::string> engine::get_asset_id(const asset_entry_t& entry)
     return std::nullopt;
 }
 
+std::optional<std::string> engine::get_scene_save_path(std::string_view folder, std::string_view name)
+{
+    constexpr std::string_view scenes = "scenes";
+    if (folder != scenes && !path_under(folder, scenes))
+    {
+        return std::nullopt;
+    }
+    // folder names of the assets folder are never "." or "..", but a typed or stored one could be
+    if (folder.find("..") != std::string_view::npos || folder.find('\\') !=std::string_view::npos)
+    {
+        return std::nullopt;
+    }
+    constexpr std::string_view refused = "/\\:*?\"<>|";
+    if (name.empty() || name == "." || name == ".." || name.find_first_of(refused) != std::string_view::npos || name.back() == '.' || name.back() == ' ')
+    {
+        return std::nullopt;
+    }
+    if (std::ranges::any_of(name, [](char c) { return static_cast<unsigned char>(c) < 0x20; }))
+    {
+        return std::nullopt;
+    }
+    std::string file(name);
+    const auto extension = to_lower(std::filesystem::path(file).extension().string());
+    if (extension.empty())
+    {
+        file += ".json";
+    }
+    else if (extension != ".json")
+    {
+        return std::nullopt;
+    }
+    return folder == scenes ? file : *path_under(folder, scenes) + "/" + file;
+}
+
 std::vector<std::pair<std::uint32_t, std::string>> engine::get_model_assets(const std::vector<std::pair<std::uint32_t, std::string>>& assets, std::string_view model_id)
 {
     const auto prefix = std::string(model_id) + "#";

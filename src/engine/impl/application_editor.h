@@ -10,9 +10,11 @@
 #include "render/grid_feature.h"
 
 #include <entt/entt.hpp>
+#include <array>
 #include <map>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
 
 namespace engine
@@ -109,6 +111,8 @@ protected:
     void on_scene_release(class Scene* scene) override;
     void on_play_mode_enter(class Scene* scene) override;
     void on_play_mode_exit(class Scene* scene) override;
+    // closing the window (or the game's quit) with unsaved changes asks to save them first
+    bool on_quit_requested() override;
 
 private:
     // Play or Stop asked for by the toolbar or a shortcut, done at the start of the next frame
@@ -117,6 +121,30 @@ private:
         eNone,
         ePlay,
         eStop,
+    };
+    // The File menu's commands (application_editor_scene_files.cpp), like Unity's: Save writes the scene to its file
+    // (Save As when it has none), Open replaces the scene with a file, New with a template (a scene without a file).
+    enum class SceneFileAction
+    {
+        eNone,
+        eSave,
+        eOpen,
+        eNew,
+        eQuit,
+    };
+    struct scene_file_request_t
+    {
+        SceneFileAction action = SceneFileAction::eNone;
+        // eSave: the file, eOpen: the scene file, eNew: the template (asset IDs: paths under assets/scenes)
+        std::string path;
+    };
+    // the dialog of Save As, Open and New
+    enum class SceneFileDialog
+    {
+        eNone,
+        eSaveAs,
+        eOpen,
+        eNew,
     };
     static constexpr ImVec4 PLAYING_TINT{ 0.10f, 0.22f, 0.36f, 1.0f };
     static constexpr ImVec4 PAUSED_TINT{ 0.30f, 0.24f, 0.08f, 1.0f };
@@ -134,6 +162,25 @@ private:
     void handle_asset_drop(class Scene* scene);
     // asks to confirm deleting a game object undo can't bring back (SceneHierarchyContext::request_delete_without_undo)
     void display_delete_without_undo_popup(class Scene* scene);
+    // the File menu, in the toolbar's menu bar, and its shortcuts (Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Shift+S)
+    void render_file_menu(class Scene* scene);
+    void handle_file_shortcuts(class Scene* scene);
+    // the Save As / Open / New dialog and the unsaved changes prompt
+    void render_scene_file_dialogs(class Scene* scene);
+    void render_scene_file_dialog(class Scene* scene);
+    void render_unsaved_changes_prompt(class Scene* scene);
+    void open_scene_file_dialog(SceneFileDialog dialog, class Scene* scene);
+    // Save: Save As when the scene has no file. Open and New first ask to save unsaved changes (Save / Don't save /
+    // Cancel). Only in Edit mode, like Unity: nothing of a play session is saved.
+    void request_scene_file_action(class Scene* scene, SceneFileAction action, std::string path = {});
+    // what waited for the prompt goes on (saved or discarded)
+    void continue_after_prompt();
+    // the File menu's request, at the start of the frame (on_frame_begine)
+    void apply_scene_file_request();
+    // what the editor holds of the scene's game objects (gizmo, modal transform), which are gone (Stop, Open, New)
+    void forget_game_objects();
+    // "<title> - <scene file>*" while there are unsaved changes
+    void update_window_title(class Scene* scene);
     void render_entity_properties_panel(class Scene* scene, float dt);
     void render_debug_panel(class Scene* scene, float dt);
     void render_guizmo(class Scene* scene);
@@ -236,6 +283,21 @@ private:
     SceneHierarchyContext scene_hierarchy_context_{ asset_browser_ };
     // the game object whose delete without undo waits for its confirmation
     entt::entity delete_without_undo_ = entt::null;
+    // a Save, Open or New done at the start of the next frame, like Play and Stop: never during a scene update (the
+    // editor camera has the game's cameras disabled then, a save would keep them so)
+    scene_file_request_t scene_file_request_;
+    // what waits for the unsaved changes prompt (Open, New, quit), or for the Save As the prompt's Save opened
+    scene_file_request_t after_prompt_;
+    bool open_unsaved_prompt_ = false;
+    SceneFileDialog scene_file_dialog_ = SceneFileDialog::eNone;
+    bool open_scene_file_dialog_popup_ = false;
+    // the dialog's folder (relative to assets/, "scenes" or under it), name typed (Save As) and file picked (Open, New)
+    std::string scene_file_dialog_folder_ = "scenes";
+    std::array<char, 128> scene_file_dialog_name_{};
+    std::string scene_file_dialog_picked_;
+    // the window's title as the game created it, and as it is shown
+    std::string window_title_base_;
+    std::string window_title_;
 };
 
 } // namespace engine
