@@ -26,6 +26,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	editor_asset_browser_tests.cpp
 	play_mode_tests.cpp
 	file_io_tests.cpp
+	editor_save_point_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
@@ -60,6 +61,8 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/editor_modal_transform.cpp
 	${ENGINE_IMPL_DIR}/editor_modal_transform.h
 	${ENGINE_IMPL_DIR}/editor_snap.h
+	# header-only: whether the editor's scene has unsaved changes
+	${ENGINE_IMPL_DIR}/editor_save_point.h
 	# what the editor's asset browser lists and how it names what it drags (std::filesystem + glm)
 	${ENGINE_IMPL_DIR}/editor_asset_browser.cpp
 	${ENGINE_IMPL_DIR}/editor_asset_browser.h

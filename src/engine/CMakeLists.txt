@@ -25,6 +25,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/editor_asset_panel.h
 	${ENGINE_SOURCES_DIR}/editor_commands.cpp
 	${ENGINE_SOURCES_DIR}/editor_commands.h
+	${ENGINE_SOURCES_DIR}/editor_save_point.h
 	${ENGINE_SOURCES_DIR}/copy_name.h
 	${ENGINE_SOURCES_DIR}/engine.cpp
 	${ENGINE_SOURCES_DIR}/engine_string_impl_def.h

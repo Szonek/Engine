@@ -1,7 +1,9 @@
 #pragma once
 #include "scene.h"
 #include "editor_asset_browser.h"
+#include "editor_save_point.h"
 
+#include <algorithm>
 #include <optional>
 #include <vector>
 #include <memory>
@@ -35,6 +37,12 @@ public:
     {
         return true;
     }
+    // false for a step which changes nothing a scene file holds (the selection, debug draw): it doesn't make the scene
+    // unsaved (SavePoint)
+    virtual bool changes_scene() const
+    {
+        return true;
+    }
 };
 
 // logs that the game object an undo step changes isn't in the scene (any more)
@@ -45,12 +53,14 @@ class CommandManager
 public:
     void execute_command(Scene& sc, std::unique_ptr<ICommand> cmd)
     {
-        if (!undo_stack_.empty())
+        // a step merged into the saved one would change the scene without leaving the save point
+        if (!undo_stack_.empty() && save_point_.can_merge())
         {
             const auto last = undo_stack_.back().get();
             if (last->merge_with(cmd.get()))
             {
                 // dont push new cmd, merged with last
+                save_point_.on_merge(cmd->changes_scene());
                 return;
             }
         }
@@ -59,11 +69,13 @@ public:
         {
             return;
         }
+        save_point_.on_execute(cmd->changes_scene());
         undo_stack_.push_back(std::move(cmd));
         redo_stack_.clear();
         if (undo_stack_.size() > max_history_)
         {
             undo_stack_.erase(undo_stack_.begin());
+            save_point_.on_drop_oldest();
         }
     }
 
@@ -77,6 +89,7 @@ public:
         undo_stack_.pop_back();
         cmd->undo(sc);
         redo_stack_.push_back(std::move(cmd));
+        save_point_.on_undo();
     }
 
     void redo(Scene& sc)
@@ -89,24 +102,36 @@ public:
         redo_stack_.pop_back();
         cmd->execute(sc);
         undo_stack_.push_back(std::move(cmd));
+        save_point_.on_redo();
     }
 
+    // Whether the edit state has changes which aren't saved (see SavePoint); while playing, the edit state Stop gives
+    // back: what a play session does is never saved.
+    bool is_dirty() const { return edit_history_ ? edit_history_->save_point.is_dirty() : save_point_.is_dirty(); }
+    // the scene was saved as it is now
+    void mark_saved() { save_point_.mark_saved(); }
+    // the scene changed without an undo step (an editor edit which has none yet): unsaved until the next save
+    void mark_changed() { save_point_.mark_changed(); }
+
     // drops every step, the edit history kept for a play session too: when the scene they were recorded in was
-    // released, they would find other game objects with the same persistent IDs in the next one
+    // released, they would find other game objects with the same persistent IDs in the next one. The scene is clean
+    // then: it was just loaded (or is new).
     void clear()
     {
         undo_stack_.clear();
         redo_stack_.clear();
         edit_history_.reset();
+        save_point_ = SavePoint();
     }
 
     // Play: the edit history is put aside and the play session records its own steps (Unreal's Play In Editor
     // transactions), so undo while playing never reaches into the edit state
     void begin_play_session()
     {
-        edit_history_.emplace(History{ std::move(undo_stack_), std::move(redo_stack_) });
+        edit_history_.emplace(History{ std::move(undo_stack_), std::move(redo_stack_), save_point_ });
         undo_stack_.clear();
         redo_stack_.clear();
+        save_point_ = SavePoint();
     }
 
     // the steps recorded in this play session, keeping the edit history put aside (the scene they were recorded in was
@@ -115,6 +140,7 @@ public:
     {
         undo_stack_.clear();
         redo_stack_.clear();
+        save_point_ = SavePoint();
     }
 
     // Stop: the play session's steps are dropped (they would write play session values into the edit state, which
@@ -129,6 +155,7 @@ public:
         }
         undo_stack_ = std::move(edit_history_->undo);
         redo_stack_ = std::move(edit_history_->redo);
+        save_point_ = edit_history_->save_point;
         edit_history_.reset();
     }
 
@@ -137,12 +164,15 @@ private:
     {
         std::vector<std::unique_ptr<ICommand>> undo;
         std::vector<std::unique_ptr<ICommand>> redo;
+        SavePoint save_point;
     };
 
     std::vector<std::unique_ptr<ICommand>> undo_stack_;
     std::vector<std::unique_ptr<ICommand>> redo_stack_;
     // the edit history while a play session runs
     std::optional<History> edit_history_;
+    // where the history (the edit history, or the play session's while playing) stands relative to the last save
+    SavePoint save_point_;
     const std::size_t max_history_ = 100;
 };
 
@@ -225,6 +255,11 @@ public:
         }
     }
 
+    bool changes_scene() const override
+    {
+        return std::ranges::any_of(commands_, [](const auto& command) { return command->changes_scene(); });
+    }
+
 private:
     std::vector<std::unique_ptr<ICommand>> commands_;
 };
@@ -279,6 +314,8 @@ public:
 
     void execute(Scene& sc) override;
     void undo(Scene& sc) override;
+    // the selection isn't saved
+    bool changes_scene() const override { return false; }
 
 private:
     void select(Scene& sc, const GameObjectRef& deselected, const GameObjectRef& selected, const std::string& asset);
@@ -422,6 +459,7 @@ public:
 
     void execute(Scene& sc) override;
     void undo(Scene& sc) override;
+    bool changes_scene() const override { return false; }
 
 private:
     bool flag_;

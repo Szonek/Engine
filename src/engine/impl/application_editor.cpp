@@ -200,6 +200,11 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
                 pc.parent = static_cast<std::uint32_t>(node->entity);
                 scene->update_component<engine_parent_component_t>(payload_n, pc);
             }
+            // reparenting has no undo step yet
+            if (!creates_cycle)
+            {
+                commands.mark_changed();
+            }
         }
         ImGui::EndDragDropTarget();
     }
@@ -322,6 +327,8 @@ inline void display_folder(const std::string& name, folder_node_t& folder, engin
             engine_folder_component_t fc{};
             std::strncpy(fc.path, folder.path.c_str(), ENGINE_FOLDER_PATH_MAX_LENGTH - 1);
             scene->update_component<engine_folder_component_t>(dropped, fc);
+            // moving to a folder has no undo step yet
+            commands.mark_changed();
         }
         ImGui::EndDragDropTarget();
     }
@@ -376,6 +383,8 @@ inline void display_component(std::string_view name, engine::Scene* scene, engin
         if (ImGui::Button(label.c_str()))
         {
             scene->remove_component<T>(entity);
+            // adding and removing the engine's components have no undo step yet
+            commands.mark_changed();
         }
     }
     else
@@ -384,6 +393,7 @@ inline void display_component(std::string_view name, engine::Scene* scene, engin
         if (ImGui::Button(label.c_str()))
         {
             scene->add_component<T>(entity);
+            commands.mark_changed();
         }
     }
 }
@@ -1522,6 +1532,8 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
                 if (scene->has_component<engine_parent_component_t>(payload_n))
                 {
                     scene->remove_component<engine_parent_component_t>(payload_n);
+                    // unparenting has no undo step yet
+                    commands_.mark_changed();
                 }
             }
             ImGui::EndDragDropTarget();
