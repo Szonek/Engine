@@ -23,6 +23,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	copy_name_tests.cpp
 	editor_camera_tests.cpp
 	editor_context_click_tests.cpp
+	editor_component_list_tests.cpp
 	editor_modal_transform_tests.cpp
 	editor_asset_browser_tests.cpp
 	play_mode_tests.cpp
@@ -65,6 +66,8 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/editor_snap.h
 	# header-only: a right-click in the scene view, told from flying the camera
 	${ENGINE_IMPL_DIR}/editor_context_click.h
+	# header-only: what the properties panel's Add Component list offers
+	${ENGINE_IMPL_DIR}/editor_component_list.h
 	# header-only: whether the editor's scene has unsaved changes
 	${ENGINE_IMPL_DIR}/editor_save_point.h
 	# header-only: what the File menu's commands wait for (the unsaved changes prompt, Save As)
