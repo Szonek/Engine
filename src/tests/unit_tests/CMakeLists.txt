@@ -9,6 +9,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	test_logger.h
 	render_graph_tests.cpp
 	shadows_tests.cpp
+	pixel_art_tests.cpp
 	atlas_tests.cpp
 	entity_id_registry_tests.cpp
 	asset_id_tests.cpp
@@ -29,6 +30,8 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
 	${ENGINE_IMPL_DIR}/render/shadows.h
+	${ENGINE_IMPL_DIR}/render/pixel_art.cpp
+	${ENGINE_IMPL_DIR}/render/pixel_art.h
 	# header-only; test_logger.cpp provides the logger the engine sources use
 	${ENGINE_IMPL_DIR}/named_atlas.h
 	# header-only
