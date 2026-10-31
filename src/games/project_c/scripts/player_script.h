@@ -247,11 +247,11 @@ private:
     bool attack_buffered_ = false;
     bool attack_input_was_down_ = false;
     bool attack_press_pending_ = false;
+    bool drop_weapon_press_pending_ = false;
     AttackPhase attack_phase_ = AttackPhase::eIdle;
     bool combat_layer_has_pose_ = false;
     float hit_stop_remaining_seconds_ = 0.0f;
     bool hit_stop_just_started_ = false;
-    bool dodge_input_was_down_ = false;
     bool dodge_press_pending_ = false;
     float dodge_remaining_seconds_ = 0.0f;
     float dodge_invulnerability_remaining_seconds_ = 0.0f;
