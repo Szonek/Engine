@@ -465,8 +465,10 @@ inline void display_component(std::string_view name, engine::Scene* scene, engin
     bool remove = false;
     if (display_component_header(name.data(), remove) && !remove)
     {
-        auto comp = *scene->get_component<T>(entity);
-        if (fn(scene, comp))
+        const auto original = *scene->get_component<T>(entity);
+        auto comp = original;
+        // only a real change is an undo step (and an update, which rebuilds what depends on the component)
+        if (fn(scene, comp) && std::memcmp(&comp, &original, sizeof(T)) != 0)
         {
             commands.execute_command(*scene, std::make_unique<engine::CommandUpdateComponent<T>>(*scene, entity, comp));
         }
@@ -824,12 +826,10 @@ bool display_transform_component(engine::Scene* /*scene*/, engine_transform_comp
 bool display_mesh_component(engine::Scene* scene, engine_mesh_component_t& c)
 {
     bool enabled = !c.disable;
-    if (ImGui::Checkbox("Enabled", &enabled))
-    {
-        c.disable = !c.disable;
-    }
-    display_geometry_combo(scene, c.geometry);
-    return true;
+    bool changed = ImGui::Checkbox("Enabled", &enabled);
+    c.disable = !enabled;
+    changed |= display_geometry_combo(scene, c.geometry);
+    return changed;
 }
 
 // "<name> (ID <persistent id>)" of the game object owning a skin instance, or "None"
@@ -847,13 +847,11 @@ std::string skin_owner_label(const engine::Scene* scene, engine_game_object_t sk
 bool display_skinned_mesh_component(engine::Scene* scene, engine_skinned_mesh_component_t& c)
 {
     bool enabled = !c.disable;
-    if (ImGui::Checkbox("Enabled", &enabled))
-    {
-        c.disable = !c.disable;
-    }
-    display_geometry_combo(scene, c.geometry);
+    bool changed = ImGui::Checkbox("Enabled", &enabled);
+    c.disable = !enabled;
+    changed |= display_geometry_combo(scene, c.geometry);
     ImGui::Text("Skin of: %s", skin_owner_label(scene, c.skin).c_str());
-    return true;
+    return changed;
 }
 
 bool display_skin_component(engine::Scene* scene, engine_skin_component_t& c)
@@ -1310,6 +1308,8 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_pre");
     scene_hierarchy_context_.resolve_selection(scene);
+    // before the scene update, so this frame renders with it
+    update_preview_light(scene);
     if (mouse_consumed_ && !any_mouse_button_down(ImGui::GetIO()))
     {
         mouse_consumed_ = false;
@@ -1403,6 +1403,12 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     }
 
     camera_context_.on_scene_update_post(scene, editor_delta_time);
+
+    // a drag of a widget or the gizmo, or typing into a field, is one undo step from its start to its end
+    if (!ImGui::IsAnyItemActive() && !ImGuizmo::IsUsingAny())
+    {
+        commands_.end_continuous_edit();
+    }
 }
 
 void engine::ApplicationEditor::render_scene_view()
@@ -1599,6 +1605,9 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
     {
         commands_.execute_command(*scene, std::make_unique<CommandSetPhysicsDebugDraw>(phys_debug_draw_check));
     }
+
+    ImGui::Checkbox("Preview light", &preview_light_enabled_);
+    ImGui::SetItemTooltip("While the scene has no light of its own, an editor-only light lights the editor view (never saved, never in the game view)");
 
     bool nav_mesh_debug_draw_check = scene->is_nav_mesh_debug_draw_enabled();
     if (ImGui::Checkbox("Nav mesh debug draw", &nav_mesh_debug_draw_check))
@@ -2505,11 +2514,67 @@ bool engine::ApplicationEditor::is_keyboard_enabled()
 void engine::ApplicationEditor::on_scene_create(Scene* scene)
 {
     camera_context_.attach_scene(scene, this);
+    // kept when the scene is cleared (Stop restoring the scene saved at Play), like the editor camera; its light
+    // component is there only while it lights the scene
+    const auto light = scene->create_transient_entity();
+    scene->add_component<editor_object_internal_component_t>(light);
+    scene->add_component<engine_name_component_t>(light);
+    scene->patch_component<engine_name_component_t>(light, [](engine_name_component_t& c)
+        {
+            constexpr const char* editor_light_name = "__engine_editor_light__";
+            std::memcpy(c.name, editor_light_name, std::strlen(editor_light_name));
+        });
+    scene->add_component<engine_transform_component_t>(light);
+    preview_lights_[scene] = light;
+}
+
+void engine::ApplicationEditor::update_preview_light(Scene* scene)
+{
+    const auto it = preview_lights_.find(scene);
+    if (it == preview_lights_.end() || !scene->is_valid_entity(it->second))
+    {
+        return;
+    }
+    const auto light = it->second;
+    bool scene_has_light = false;
+    auto lights = scene->create_runtime_view();
+    scene->attach_component_to_runtime_view<engine_light_component_t>(lights);
+    for (const auto entity : lights)
+    {
+        if (!scene->has_component<editor_object_internal_component_t>(entity))
+        {
+            scene_has_light = true;
+            break;
+        }
+    }
+    const bool lit = preview_light_enabled_ && editor_view_ == EditorView::eEditor && !scene_has_light;
+    if (lit == scene->has_component<engine_light_component_t>(light))
+    {
+        return;
+    }
+    if (!lit)
+    {
+        scene->remove_component<engine_light_component_t>(light);
+        return;
+    }
+    // a daylight from above, like the levels' own
+    engine_light_component_t c = *scene->add_component<engine_light_component_t>(light);
+    c.type = ENGINE_LIGHT_TYPE_DIRECTIONAL;
+    const float ambient[3] = { 0.45f, 0.45f, 0.45f };
+    const float diffuse[3] = { 0.75f, 0.75f, 0.75f };
+    const float specular[3] = { 0.1f, 0.1f, 0.1f };
+    const float direction[3] = { 0.4f, 1.0f, 0.3f };
+    std::memcpy(c.intensity.ambient, ambient, sizeof(ambient));
+    std::memcpy(c.intensity.diffuse, diffuse, sizeof(diffuse));
+    std::memcpy(c.intensity.specular, specular, sizeof(specular));
+    std::memcpy(c.directional.direction, direction, sizeof(direction));
+    scene->update_component<engine_light_component_t>(light, c);
 }
 
 void engine::ApplicationEditor::on_scene_release(Scene* scene)
 {
     camera_context_.detach_scene(scene);
+    preview_lights_.erase(scene);
     if (play_mode_scene_ == scene)
     {
         play_mode_scene_ = nullptr;
