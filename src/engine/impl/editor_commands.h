@@ -343,16 +343,19 @@ private:
     std::string new_name_;
 };
 
+// An empty game object, with only a name; with `position`, also a transform there (created in the scene view)
 class CommandAddEntity : public ICommand
 {
 public:
     CommandAddEntity() = default;
+    explicit CommandAddEntity(const glm::vec3& position) : position_(position) {}
 
     void execute(Scene& sc) override;
     void undo(Scene& sc) override;
 
 private:
     GameObjectRef ref_;
+    std::optional<glm::vec3> position_;
 };
 
 // Destroys the game object and everything parented under it. They are saved first and loaded back on undo, with

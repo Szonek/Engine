@@ -41,6 +41,31 @@ bool any_mouse_button_down(const ImGuiIO& io)
     return io.MouseDown[ImGuiMouseButton_Left] || io.MouseDown[ImGuiMouseButton_Right] || io.MouseDown[ImGuiMouseButton_Middle];
 }
 
+// what the editor camera reads this frame (and the scene view's right-click, ContextClick)
+engine::editor_camera_input_t read_editor_camera_input()
+{
+    const auto& io = ImGui::GetIO();
+    engine::editor_camera_input_t input{};
+    if (ImGui::IsMousePosValid() && ImGui::IsMousePosValid(&io.MousePosPrev))
+    {
+        input.mouse_delta = { io.MouseDelta.x, io.MouseDelta.y };
+    }
+    input.wheel = io.MouseWheel;
+    input.lmb = io.MouseDown[ImGuiMouseButton_Left];
+    input.mmb = io.MouseDown[ImGuiMouseButton_Middle];
+    input.rmb = io.MouseDown[ImGuiMouseButton_Right];
+    input.alt = io.KeyAlt;
+    input.shift = io.KeyShift;
+    input.ctrl = io.KeyCtrl;
+    input.move_forward = ImGui::IsKeyDown(ImGuiKey_W);
+    input.move_back = ImGui::IsKeyDown(ImGuiKey_S);
+    input.move_left = ImGui::IsKeyDown(ImGuiKey_A);
+    input.move_right = ImGui::IsKeyDown(ImGuiKey_D);
+    input.move_down = ImGui::IsKeyDown(ImGuiKey_Q);
+    input.move_up = ImGui::IsKeyDown(ImGuiKey_E);
+    return input;
+}
+
 struct entity_node_t
 {
     entt::entity entity = entt::null;
@@ -108,6 +133,64 @@ void display_rename_field(entt::entity e, engine::Scene* scene, engine::CommandM
     }
 }
 
+// Deletes the game object with an undo step; a runtime (transient) one isn't saved, so undo can't bring it back:
+// deleting it is confirmed first. Nothing when it can't be deleted (CommandDestroyEntity::can_destroy).
+void delete_entity(entt::entity e, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
+{
+    if (scene->get_persistent_id(e) == engine::EntityIdRegistry::INVALID_ID)
+    {
+        ctx.request_delete_without_undo(e);
+    }
+    else if (engine::CommandDestroyEntity::can_destroy(*scene, e))
+    {
+        ctx.set_selected_entity(scene, entt::null, commands);
+        commands.execute_command(*scene, std::make_unique<engine::CommandDestroyEntity>(*scene, e));
+    }
+}
+
+// What can be done to one game object, in the hierarchy's context menu and the scene view's (same items, same rules)
+void display_game_object_menu_items(entt::entity e, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
+{
+    const auto instance_part = engine::EntityIdRegistry::is_hashed_id(scene->get_persistent_id(e));
+    const auto transient = scene->get_persistent_id(e) == engine::EntityIdRegistry::INVALID_ID;
+    if (ImGui::MenuItem("Rename", "F2", false, scene->has_component<engine_name_component_t>(e)))
+    {
+        ctx.request_rename(scene, e);
+        ctx.set_forced_open_selected_parents(true);
+    }
+
+    const auto can_duplicate = engine::CommandDuplicateEntity::can_duplicate(*scene, e);
+    if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, can_duplicate))
+    {
+        duplicate_entity(e, scene, commands, ctx);
+    }
+    if (!can_duplicate)
+    {
+        ImGui::SetItemTooltip(transient ? "A runtime (transient) object isn't scene content, so it isn't duplicated"
+            : instance_part ? "Part of a prefab instance: it can't be duplicated out of it yet (duplicate the instance's root instead)"
+            : "A part of a prefab instance is under it without its instance's root: move it back to its instance first");
+    }
+
+    const auto can_delete = engine::CommandDestroyEntity::can_destroy(*scene, e);
+    if (transient)
+    {
+        if (ImGui::MenuItem("Delete (can't be undone)", "Del"))
+        {
+            delete_entity(e, scene, commands, ctx);
+        }
+        ImGui::SetItemTooltip("A runtime (transient) object isn't saved, so deleting it can't be undone");
+    }
+    else if (ImGui::MenuItem("Delete", "Del", false, can_delete))
+    {
+        delete_entity(e, scene, commands, ctx);
+    }
+    if (!transient && !can_delete)
+    {
+        ImGui::SetItemTooltip(instance_part ? "Part of a prefab instance: removing it from the instance can't be saved yet (delete the instance's root instead)"
+            : "A part of a prefab instance is under it without its instance's root: move it back to its instance first");
+    }
+}
+
 inline void display_node(entity_node_t* node, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_node");
@@ -164,45 +247,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
     // context menu with RMB
     if (ImGui::BeginPopupContextItem())
     {
-        // delete entity
-        const auto can_delete = engine::CommandDestroyEntity::can_destroy(*scene, node->entity);
-        const auto transient = scene->get_persistent_id(node->entity) == engine::EntityIdRegistry::INVALID_ID;
-        if (transient)
-        {
-            // a runtime object isn't saved, so undo can't bring it back: deleting it is confirmed first
-            if (ImGui::MenuItem("Delete (can't be undone)"))
-            {
-                ctx.request_delete_without_undo(node->entity);
-            }
-            ImGui::SetItemTooltip("A runtime (transient) object isn't saved, so deleting it can't be undone");
-        }
-        else if (ImGui::MenuItem("Delete", nullptr, false, can_delete))
-        {
-            ctx.set_selected_entity(scene, entt::null, commands);
-            commands.execute_command(*scene, std::make_unique<engine::CommandDestroyEntity>(*scene, node->entity));
-        }
-        if (!can_delete)
-        {
-            ImGui::SetItemTooltip(instance_part ? "Part of a prefab instance: removing it from the instance can't be saved yet (delete the instance's root instead)"
-                : "A part of a prefab instance is under it without its instance's root: move it back to its instance first");
-        }
-
-        const auto can_duplicate = engine::CommandDuplicateEntity::can_duplicate(*scene, node->entity);
-        if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, can_duplicate))
-        {
-            duplicate_entity(node->entity, scene, commands, ctx);
-        }
-        if (!can_duplicate)
-        {
-            ImGui::SetItemTooltip(transient ? "A runtime (transient) object isn't scene content, so it isn't duplicated"
-                : instance_part ? "Part of a prefab instance: it can't be duplicated out of it yet (duplicate the instance's root instead)"
-                : "A part of a prefab instance is under it without its instance's root: move it back to its instance first");
-        }
-
-        if (ImGui::MenuItem("Rename", "F2", false, scene->has_component<engine_name_component_t>(node->entity)))
-        {
-            ctx.request_rename(scene, node->entity);
-        }
+        display_game_object_menu_items(node->entity, scene, commands, ctx);
         ImGui::EndPopup();
     }
 
@@ -1335,6 +1380,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
             handle_mouse_picking(scene);
         }
     }
+    handle_scene_view_context_menu(scene);
     // while a modal transform runs, Ctrl snaps and Z picks the axis: a combination pressed then (or still held when it
     // ends) isn't a new press
     const auto lctrl = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL);
@@ -1374,6 +1420,12 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     {
         scene_hierarchy_context_.request_rename(scene, scene_hierarchy_context_.get_selected_entity());
         scene_hierarchy_context_.set_forced_open_selected_parents(true);
+    }
+    // Delete deletes the selection, from the same places (a runtime object asks first)
+    if (editor_view_ == EditorView::eEditor && (hierarchy_focused_ || scene_view_focused_) && !ImGui::GetIO().WantTextInput && !modal_transform_
+        && ImGui::IsKeyPressed(ImGuiKey_Delete, false) && scene_hierarchy_context_.has_selected_entity())
+    {
+        delete_entity(scene_hierarchy_context_.get_selected_entity(), scene, commands_, scene_hierarchy_context_);
     }
 
     camera_context_.on_scene_update_post(scene, editor_delta_time);
@@ -1806,18 +1858,7 @@ void engine::ApplicationEditor::handle_asset_drop(Scene* scene)
         }
         if (payload && camera_entity != entt::null)
         {
-            const modal_transform_view_t view{ scene->get_camera_view(camera_entity), scene->get_camera_projection(camera_entity),
-                glm::vec2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)) };
-            const auto& io = ImGui::GetIO();
-            const glm::vec2 mouse(io.MousePos.x - static_cast<float>(viewport.x), io.MousePos.y - static_cast<float>(viewport.y));
-            glm::vec3 origin{};
-            glm::vec3 direction{};
-            mouse_ray(view, mouse, origin, direction);
-            engine_ray_hit_t hit{};
-            // nothing beyond the far plane: it couldn't be seen there
-            const float max_distance = scene->get_component<engine_camera_component_t>(camera_entity)->clip_plane_far;
-            const auto position = scene->physics().raycast(origin, direction, max_distance, {}, false, hit)
-                ? glm::vec3(hit.position[0], hit.position[1], hit.position[2]) : get_ground_point(origin, direction, max_distance);
+            const auto position = get_mouse_scene_point(scene, camera_entity, get_scene_view_mouse());
             commands_.execute_command(*scene, std::make_unique<CommandPlacePrefab>(*scene, asset_browser_, static_cast<const char*>(payload->Data), position,
                 scene_hierarchy_context_.get_selected_entity()));
             scene_hierarchy_context_.sync_selected_from_scene(scene);
@@ -2040,25 +2081,12 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
     // Alt + left mouse button orbits the editor camera instead (either Alt, like the camera reads it)
     if (mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT) && !ImGui::GetIO().KeyAlt)
     {
-        const auto scene_viewport = get_scene_viewport();
-        const auto mouse_coords = mouse_get_coords();
-        if (mouse_coords.x < 0.0f || mouse_coords.y < 0.0f)
-        {
-            return;  // held since a click over the scene, but moved off it
-        }
-        // entity ids come from the previous frame, which is what was visible on the screen when the user clicked
-        std::uint32_t picked_id = ENGINE_INVALID_GAME_OBJECT_ID;
-        const auto x = static_cast<std::uint32_t>(mouse_coords.x * scene_viewport.width);
-        const auto y = static_cast<std::uint32_t>(mouse_coords.y * scene_viewport.height);
-        if (!renderer_.read_entity_id(x, y, picked_id))
+        const auto picked = pick_entity_under_mouse();
+        if (!picked)
         {
             return;
         }
-        entt::entity entity_id = entt::null;
-        if (picked_id != ENGINE_INVALID_GAME_OBJECT_ID)
-        {
-            entity_id = static_cast<entt::entity>(picked_id);
-        }
+        const auto entity_id = *picked;
         if (entity_id == entt::null)
         {
             // empty space, like Unity: nothing stays selected, a file neither
@@ -2068,6 +2096,125 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
         scene_hierarchy_context_.set_selected_entity(scene, entity_id, commands_);
         scene_hierarchy_context_.set_forced_open_selected_parents(true);
     }
+}
+
+std::optional<entt::entity> engine::ApplicationEditor::pick_entity_under_mouse()
+{
+    const auto scene_viewport = get_scene_viewport();
+    const auto mouse_coords = mouse_get_coords();
+    if (mouse_coords.x < 0.0f || mouse_coords.y < 0.0f)
+    {
+        return std::nullopt;  // held since a click over the scene, but moved off it
+    }
+    // entity ids come from the previous frame, which is what was visible on the screen when the user clicked
+    std::uint32_t picked_id = ENGINE_INVALID_GAME_OBJECT_ID;
+    const auto x = static_cast<std::uint32_t>(mouse_coords.x * scene_viewport.width);
+    const auto y = static_cast<std::uint32_t>(mouse_coords.y * scene_viewport.height);
+    if (!renderer_.read_entity_id(x, y, picked_id))
+    {
+        return std::nullopt;
+    }
+    return picked_id == ENGINE_INVALID_GAME_OBJECT_ID ? entt::entity{ entt::null } : static_cast<entt::entity>(picked_id);
+}
+
+glm::vec2 engine::ApplicationEditor::get_scene_view_mouse() const
+{
+    const auto& io = ImGui::GetIO();
+    const auto viewport = get_scene_viewport();
+    return glm::vec2(io.MousePos.x - static_cast<float>(viewport.x), io.MousePos.y - static_cast<float>(viewport.y));
+}
+
+glm::vec3 engine::ApplicationEditor::get_mouse_scene_point(Scene* scene, entt::entity camera_entity, const glm::vec2& mouse) const
+{
+    const auto viewport = get_scene_viewport();
+    const modal_transform_view_t view{ scene->get_camera_view(camera_entity), scene->get_camera_projection(camera_entity),
+        glm::vec2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)) };
+    glm::vec3 origin{};
+    glm::vec3 direction{};
+    mouse_ray(view, mouse, origin, direction);
+    engine_ray_hit_t hit{};
+    // nothing beyond the far plane: it couldn't be seen there
+    const float max_distance = scene->get_component<engine_camera_component_t>(camera_entity)->clip_plane_far;
+    return scene->physics().raycast(origin, direction, max_distance, {}, false, hit)
+        ? glm::vec3(hit.position[0], hit.position[1], hit.position[2]) : get_ground_point(origin, direction, max_distance);
+}
+
+void engine::ApplicationEditor::handle_scene_view_context_menu(Scene* scene)
+{
+    constexpr const char* popup = "##scene_view_context_menu";
+    const bool can_open = render_imgui_ && editor_view_ == EditorView::eEditor && !modal_transform_ && !mouse_consumed_
+        && is_mouse_over_scene() && !ImGuizmo::IsUsingAny() && !gizmo_hovered_handle_;
+    // fed every frame, so a press which started while it couldn't open isn't taken for a click later
+    const bool clicked = context_click_.update(read_editor_camera_input(), can_open);
+    // Begin appends to the scene view's window, so the popup belongs to it
+    ImGui::Begin(editor_windows_context_.get_window_scene());
+    if (clicked && can_open)
+    {
+        // like Unreal's: right-clicking a game object which isn't selected selects it; empty space keeps the selection
+        if (const auto picked = pick_entity_under_mouse(); picked && *picked != entt::null && *picked != scene_hierarchy_context_.get_selected_entity())
+        {
+            scene_hierarchy_context_.set_selected_entity(scene, *picked, commands_);
+            scene_hierarchy_context_.set_forced_open_selected_parents(true);
+        }
+        context_menu_mouse_ = get_scene_view_mouse();
+        ImGui::OpenPopup(popup);
+    }
+    if (ImGui::BeginPopup(popup))
+    {
+        const auto selected = scene_hierarchy_context_.get_selected_entity();
+        if (selected != entt::null && scene->is_valid_entity(selected))
+        {
+            if (const auto* name = scene->has_component<engine_name_component_t>(selected) ? scene->get_component<engine_name_component_t>(selected) : nullptr)
+            {
+                ImGui::SeparatorText(name->name);
+            }
+            if (ImGui::MenuItem("Frame selected", "F"))
+            {
+                camera_context_.frame_entity(scene, selected);
+            }
+            display_game_object_menu_items(selected, scene, commands_, scene_hierarchy_context_);
+            ImGui::Separator();
+            const bool can_transform = scene->has_component<engine_transform_component_t>(selected);
+            if (ImGui::MenuItem("Move", "G", false, can_transform))
+            {
+                start_modal_transform(scene, ModalTransformMode::eGrab);
+            }
+            if (ImGui::MenuItem("Rotate", "R", false, can_transform))
+            {
+                start_modal_transform(scene, ModalTransformMode::eRotate);
+            }
+            if (ImGui::MenuItem("Scale", "S", false, can_transform))
+            {
+                start_modal_transform(scene, ModalTransformMode::eScale);
+            }
+        }
+        else if (ImGui::MenuItem("Create empty game object here"))
+        {
+            // where the menu was opened: on what was clicked, or the ground
+            const auto camera_entity = camera_context_.get_camera_entity(scene);
+            commands_.execute_command(*scene, std::make_unique<CommandAddEntity>(camera_entity == entt::null ? glm::vec3(0.0f)
+                : get_mouse_scene_point(scene, camera_entity, context_menu_mouse_)));
+        }
+        ImGui::EndPopup();
+    }
+    ImGui::End();
+}
+
+void engine::ApplicationEditor::start_modal_transform(Scene* scene, ModalTransformMode mode)
+{
+    const auto entity = scene_hierarchy_context_.get_selected_entity();
+    const auto camera_entity = camera_context_.get_camera_entity(scene);
+    if (modal_transform_ || entity == entt::null || camera_entity == entt::null || !scene->is_valid_entity(entity)
+        || !scene->has_component<engine_transform_component_t>(entity) || !scene->has_component<world_transform_internal_component_t>(entity))
+    {
+        return;
+    }
+    const auto viewport = get_scene_viewport();
+    const modal_transform_view_t view{ scene->get_camera_view(camera_entity), scene->get_camera_projection(camera_entity),
+        glm::vec2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)) };
+    modal_transform_.emplace(mode, scene->get_component<world_transform_internal_component_t>(entity)->local_to_world, get_scene_view_mouse(), view, snap_steps_);
+    modal_transform_entity_ = entity;
+    modal_transform_original_ = *scene->get_component<engine_transform_component_t>(entity);
 }
 
 void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
@@ -2091,19 +2238,10 @@ void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
         {
             return;
         }
-        const auto mode = pressed_mode();
-        const auto entity = scene_hierarchy_context_.get_selected_entity();
-        const auto camera_entity = camera_context_.get_camera_entity(scene);
-        if (!mode || entity == entt::null || camera_entity == entt::null || !scene->is_valid_entity(entity)
-            || !scene->has_component<engine_transform_component_t>(entity) || !scene->has_component<world_transform_internal_component_t>(entity))
+        if (const auto mode = pressed_mode())
         {
-            return;
+            start_modal_transform(scene, *mode);
         }
-        const modal_transform_view_t view{ scene->get_camera_view(camera_entity), scene->get_camera_projection(camera_entity),
-            glm::vec2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)) };
-        modal_transform_.emplace(*mode, scene->get_component<world_transform_internal_component_t>(entity)->local_to_world, mouse, view, snap_steps_);
-        modal_transform_entity_ = entity;
-        modal_transform_original_ = *scene->get_component<engine_transform_component_t>(entity);
         return;
     }
 
@@ -2334,25 +2472,7 @@ void engine::CameraScript::update(float dt, entt::entity selected, bool accepts_
     const auto& io = ImGui::GetIO();
     if (accepts_input && app_->is_mouse_over_scene() && !ImGuizmo::IsUsingAny())
     {
-        editor_camera_input_t input{};
-        if (ImGui::IsMousePosValid() && ImGui::IsMousePosValid(&io.MousePosPrev))
-        {
-            input.mouse_delta = { io.MouseDelta.x, io.MouseDelta.y };
-        }
-        input.wheel = io.MouseWheel;
-        input.lmb = io.MouseDown[ImGuiMouseButton_Left];
-        input.mmb = io.MouseDown[ImGuiMouseButton_Middle];
-        input.rmb = io.MouseDown[ImGuiMouseButton_Right];
-        input.alt = io.KeyAlt;
-        input.shift = io.KeyShift;
-        input.ctrl = io.KeyCtrl;
-        input.move_forward = ImGui::IsKeyDown(ImGuiKey_W);
-        input.move_back = ImGui::IsKeyDown(ImGuiKey_S);
-        input.move_left = ImGui::IsKeyDown(ImGuiKey_A);
-        input.move_right = ImGui::IsKeyDown(ImGuiKey_D);
-        input.move_down = ImGui::IsKeyDown(ImGuiKey_Q);
-        input.move_up = ImGui::IsKeyDown(ImGuiKey_E);
-        camera_.update(input, dt, static_cast<float>(app_->get_scene_viewport().height), get_fov_y());
+        camera_.update(read_editor_camera_input(), dt, static_cast<float>(app_->get_scene_viewport().height), get_fov_y());
 
         // shortcuts while the mouse is over the scene, like Blender's
         if (!io.WantTextInput && !camera_.is_flying())
@@ -2508,6 +2628,14 @@ entt::entity engine::ApplicationEditor::CameraContext::get_camera_entity(engine:
 {
     const auto it = cameras_.find(scene);
     return it == cameras_.end() ? entt::null : it->second.camera.get_entity();
+}
+
+void engine::ApplicationEditor::CameraContext::frame_entity(engine::Scene* scene, entt::entity entity)
+{
+    if (const auto it = cameras_.find(scene); it != cameras_.end())
+    {
+        it->second.camera.frame_entity(entity);
+    }
 }
 
 engine::EditorCamera* engine::ApplicationEditor::CameraContext::get_camera(engine::Scene* scene)

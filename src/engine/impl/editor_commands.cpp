@@ -111,6 +111,13 @@ void CommandAddEntity::execute(Scene& sc)
     const auto new_name = "Entity " + std::to_string(static_cast<std::uint32_t>(e));
     std::memcpy(nc->name, new_name.c_str(), std::min<std::size_t>(new_name.size(), ENGINE_ENTITY_NAME_MAX_LENGTH - 1));
     nc->name[std::min<std::size_t>(new_name.size(), ENGINE_ENTITY_NAME_MAX_LENGTH - 1)] = '\0';
+    if (position_)
+    {
+        // added with its defaults, then moved: the scene's listeners see an update like any edit
+        auto tc = *sc.add_component<engine_transform_component_t>(e);
+        std::memcpy(tc.position, &position_->x, sizeof(tc.position));
+        sc.update_component<engine_transform_component_t>(e, tc);
+    }
 }
 
 void CommandAddEntity::undo(Scene& sc)
