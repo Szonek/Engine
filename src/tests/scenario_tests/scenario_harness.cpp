@@ -19,6 +19,8 @@ void scenario::create_app()
     project_c::AppConfig config{};
     config.enable_editor = false;
     config.hidden_window = true;
+    // the play mode tests stop and start play sessions; every other test plays, as the app starts playing
+    config.play_mode_control = true;
     // small, so rendering costs little per simulated frame
     config.window_width = 320;
     config.window_height = 180;
@@ -40,6 +42,13 @@ void scenario::ScenarioTest::step(std::uint32_t frames)
         engineFrameEnd();
         frame_++;
     }
+}
+
+void scenario::ScenarioTest::stop()
+{
+    ASSERT_EQ(enginePlayModeExit(), ENGINE_RESULT_CODE_OK);
+    step();
+    EXPECT_EQ(enginePlayModeGetState(), ENGINE_PLAY_MODE_EDIT);
 }
 
 void scenario::ScenarioTest::TearDown()

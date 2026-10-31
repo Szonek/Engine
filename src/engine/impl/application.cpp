@@ -139,6 +139,7 @@ engine::Application::Application(const engine_application_create_desc_t& desc, R
     , default_texture_idx_(ENGINE_INVALID_OBJECT_HANDLE)
     , ui_manager_(rdx_)
     , renderer_(rdx_)
+    , play_mode_(desc.enable_editor || desc.play_mode_control, desc.enable_editor)
 {
     if (desc.max_delta_time > 0.0f)
     {
@@ -203,7 +204,10 @@ engine_result_code_t engine::Application::update_scene(Scene* scene, float delta
 {
     ENGINE_PROFILE_SECTION;
     on_scene_update_pre(scene, delta_time);
+    // the editor's hooks change the scene for its update (its camera disables the game's) and change it back after
+    scene_update_running_ = true;
 	const auto ret_code = scene->update(delta_time);
+    scene_update_running_ = false;
     on_scene_update_post(scene, delta_time);
 
     return ret_code;
@@ -317,7 +321,78 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     renderer_.begin_frame();
 
     on_frame_begine(ret);
+    // after the editor's Play and Stop (on_frame_begine): a step asked for while paused plays this frame, a frame
+    // beginning in Exiting is the play session's last
+    play_mode_.begin_frame();
 	return ret;
+}
+
+bool engine::Application::is_play_mode_change_allowed() const
+{
+    if (scene_update_running_)
+    {
+        log::log(log::LogLevel::eError, "Play mode: Play and Stop can't be done during a scene update.\n");
+        return false;
+    }
+    return true;
+}
+
+engine_result_code_t engine::Application::enter_play_mode(Scene& scene)
+{
+    if (!is_play_mode_change_allowed())
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const auto entered = play_mode_.enter([&scene]() { return PlaySnapshot{ scene.save(), scene.get_nav_mesh() != nullptr }; });
+    if (!entered)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    on_play_mode_enter(&scene);
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t engine::Application::set_play_mode_paused(bool paused)
+{
+    return play_mode_.set_paused(paused) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engine::Application::step_play_mode()
+{
+    return play_mode_.step() ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engine::Application::exit_play_mode()
+{
+    if (!is_play_mode_change_allowed())
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    return play_mode_.exit() ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engine::Application::finish_exit_play_mode(Scene& scene)
+{
+    const auto exited = play_mode_.finish_exit([&scene](const PlaySnapshot& snapshot)
+        {
+            // the scene is left as it is when the snapshot can't be loaded
+            if (!scene.replace(snapshot.scene, "play mode snapshot"))
+            {
+                return false;
+            }
+            // derived data, gone with its game object
+            if (snapshot.had_nav_mesh)
+            {
+                scene.build_nav_mesh();
+            }
+            return true;
+        });
+    if (!exited)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    on_play_mode_exit(&scene);
+    return ENGINE_RESULT_CODE_OK;
 }
 
 engine_application_frame_end_info_t engine::Application::end_frame()

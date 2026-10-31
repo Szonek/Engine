@@ -11,6 +11,7 @@
 #include "animation_controller.h"
 #include "prefab.h"
 #include "data_asset.h"
+#include "play_mode.h"
 #include "serialization/type_registry.h"
 #include "render/renderer.h"
 
@@ -102,6 +103,22 @@ public:
     virtual std::string get_shader_name(std::uint32_t idx) const;
     virtual void release_shader(std::uint32_t idx);
 
+    // play mode (see enginePlayModeGetState); Enter saves `scene` and the end of a Stop loads it back into `scene`: the
+    // active one, which may be another scene than at Enter (the game replaced its scene while playing). Enter and Exit
+    // are refused (logged) during a scene update, when the editor has changed the scene for it (see update_scene).
+    engine_play_mode_state_t get_play_mode_state() const { return play_mode_.get_state(); }
+    // whether the game plays this frame (scripts tick)
+    bool is_playing() const { return play_mode_.is_playing(); }
+    std::uint32_t get_play_session_count() const { return play_mode_.get_session_count(); }
+    engine_result_code_t enter_play_mode(class Scene& scene);
+    engine_result_code_t set_play_mode_paused(bool paused);
+    engine_result_code_t step_play_mode();
+    // Stop: Exiting, the next frame is the play session's last (see PlayMode)
+    engine_result_code_t exit_play_mode();
+    // the frame which began in Exiting has ended: finish_exit_play_mode is due (engineFrameEnd)
+    bool is_play_mode_exit_due() const { return play_mode_.is_exit_due(); }
+    engine_result_code_t finish_exit_play_mode(class Scene& scene);
+
     // the types scene files hold (see serialization/scene_serializer.h)
     const TypeRegistry& get_type_registry() const { return types_; }
     // a type the game describes, see register_game_type; nullptr (logged) when the description has a mistake
@@ -135,6 +152,10 @@ protected:
     virtual void on_scene_release(class Scene* /*scene*/) {}
     virtual void on_scene_update_pre(class Scene* /*scene*/, float /*delta_time*/) {}
     virtual void on_scene_update_post(class Scene* /*scene*/, float /*delta_time*/) {}
+    // a play session started (Play): `scene` was saved
+    virtual void on_play_mode_enter(class Scene* /*scene*/) {}
+    // a play session ended (Stop): `scene` holds the edit state again
+    virtual void on_play_mode_exit(class Scene* /*scene*/) {}
 
 private:
     // reads the data assets whose files changed again
@@ -171,6 +192,13 @@ protected:
     engine_fvec2_t last_game_mouse_coords_{ 0.5f, 0.5f };
 
     Renderer renderer_;
+    // with the editor or play_mode_control, play sessions can be stopped
+    PlayMode play_mode_;
+    // inside update_scene's scene update, see enter_play_mode
+    bool scene_update_running_ = false;
+
+private:
+    bool is_play_mode_change_allowed() const;
 };
 
 }  // namespace engine

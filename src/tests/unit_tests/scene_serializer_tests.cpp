@@ -1,4 +1,6 @@
+#include "components_internals/editor_object_internal_component.h"
 #include "components_internals/joint_attachment_internal_component.h"
+#include "game_object_ref.h"
 #include "serialization/builtin_types.h"
 #include "serialization/game_types.h"
 #include "serialization/scene_serializer.h"
@@ -2099,5 +2101,159 @@ TEST_F(ScenePrefabTest, GameObjectWhoseParentIsNotInTheFileStaysUnderTheRoot)
     ASSERT_NE(w.prefabs.instantiate("rooms/partial.json", root), nullptr);
     EXPECT_TRUE(test_logger::logged("references the game object 99 which isn't in the file"));
     EXPECT_EQ(parent(w, w.prefabs.node(root, "1")), root);
+}
+
+// -- play mode: clearing the scene and loading back what was saved at Play ------------------------------------------
+
+class PlayModeRestoreTest : public ScenePrefabTest
+{
+protected:
+    // what Stop does with the scene saved at Play (Scene::replace)
+    bool restore(World& w, std::string_view snapshot)
+    {
+        engine::clear_game_objects(w.registry);
+        return load(w, snapshot);
+    }
+
+    // a level: every kind of component, a model's instance with overrides, a scene prefab, and a game object to reparent
+    // and one to destroy while playing
+    void build_level(World& w)
+    {
+        build_full_scene(w);
+        override_arm(w, instantiate_arm(w));
+        place_room(w, 5.0f);
+        engine_name_component_t name{};
+        std::strcpy(name.name, "moved");
+        w.put<engine_name_component_t>(w.create(MOVED), name);
+        std::strcpy(name.name, "destroyed");
+        w.put<engine_name_component_t>(w.create(DESTROYED), name);
+    }
+
+    static constexpr std::uint64_t MOVED = 100;
+    static constexpr std::uint64_t DESTROYED = 101;
+};
+
+TEST_F(PlayModeRestoreTest, RestoreGivesBackTheSceneSavedAtPlay)
+{
+    World w;
+    build_level(w);
+    const auto snapshot = save(w);
+    std::map<std::uint64_t, entt::entity> before;
+    for (const auto e : w.registry.view<entt::entity>())
+    {
+        if (const auto id = w.ids.get_id(e); id != EntityIdRegistry::INVALID_ID)
+        {
+            before[id] = e;
+        }
+    }
+
+    // playing: a game object reparented, one destroyed, a runtime object spawned, a value changed
+    const auto moved = w.find(MOVED);
+    w.put<engine_parent_component_t>(moved, engine_parent_component_t{ static_cast<engine_game_object_t>(w.find(1)) });
+    w.registry.destroy(w.find(DESTROYED));
+    const auto spawned = w.registry.create();
+    w.put<engine_transform_component_t>(spawned, engine_transform_component_t{});
+    auto transform = w.get<engine_transform_component_t>(1);
+    transform.position[0] = 42.0f;
+    w.registry.replace<engine_transform_component_t>(w.find(1), transform);
+    ASSERT_NE(save(w), snapshot);
+
+    ASSERT_TRUE(restore(w, snapshot));
+    // the same bytes, so saving after Stop gives what saving before Play gave
+    EXPECT_EQ(save(w), snapshot);
+    // every game object is back with its persistent ID, under a new handle: a handle kept from the play session finds nothing
+    for (const auto& [id, old_handle] : before)
+    {
+        const auto restored = w.find(id);
+        ASSERT_NE(restored, entt::entity{ entt::null }) << id;
+        EXPECT_NE(restored, old_handle) << id;
+        EXPECT_FALSE(w.registry.valid(old_handle)) << id;
+    }
+    EXPECT_FALSE(w.registry.all_of<engine_parent_component_t>(w.find(MOVED)));
+    EXPECT_FALSE(w.registry.valid(spawned));
+    EXPECT_EQ(count_entities(w.registry), before.size() + 1);  // and the reserved entity 0
+    EXPECT_TRUE(test_logger::messages().empty()) << test_logger::messages().front();
+}
+
+TEST_F(PlayModeRestoreTest, ClearKeepsTheEditorsGameObjectsAndTheReservedEntity)
+{
+    World w;
+    build_level(w);
+    const auto editor_camera = w.registry.create();
+    w.registry.emplace<engine::editor_object_internal_component_t>(editor_camera);
+    w.put<engine_camera_component_t>(editor_camera, engine_camera_component_t{});
+    const auto runtime_object = w.registry.create();
+
+    engine::clear_game_objects(w.registry);
+    EXPECT_TRUE(w.registry.valid(editor_camera));
+    EXPECT_TRUE(w.registry.all_of<engine_camera_component_t>(editor_camera));
+    EXPECT_TRUE(w.registry.valid(entt::entity{ ENGINE_INVALID_GAME_OBJECT_ID }));
+    EXPECT_FALSE(w.registry.valid(runtime_object));
+    EXPECT_EQ(count_entities(w.registry), 2u);
+    EXPECT_EQ(w.find(1), entt::entity{ entt::null });
+    // the scene saves as an empty one
+    World empty;
+    EXPECT_EQ(save(w), save(empty));
+}
+
+TEST_F(PlayModeRestoreTest, IdsAreNeverHandedOutAgainAfterARestore)
+{
+    World w;
+    build_level(w);
+    // created and deleted in Edit mode, before Play: an undo step may still refer to its ID
+    const auto deleted_before_play = w.ids.get_id(w.create());
+    w.registry.destroy(w.find(deleted_before_play));
+    const auto snapshot = save(w);
+
+    // playing creates game objects with counter IDs (a level reload by the game, say)
+    std::uint64_t last_while_playing = 0;
+    for (int i = 0; i < 5; i++)
+    {
+        last_while_playing = w.ids.get_id(w.create());
+    }
+    ASSERT_TRUE(restore(w, snapshot));
+    // the counter isn't moved back: neither the deleted game object's ID nor one of the play session's is given again
+    const auto next = w.ids.get_id(w.create());
+    EXPECT_GT(next, last_while_playing);
+    EXPECT_GT(next, deleted_before_play);
+
+    engine::clear_game_objects(w.registry);
+    EXPECT_GT(w.ids.get_id(w.create()), next);
+}
+
+TEST_F(PlayModeRestoreTest, EditorReferencesFindTheirGameObjectsAfterARestore)
+{
+    World w;
+    build_level(w);
+    const auto arm = instantiate_arm(w);
+    const auto runtime_object = w.registry.create();
+    // what an undo step and the selection keep
+    const auto wall = engine::GameObjectRef::of(w.ids, w.find(1));
+    const auto hand = engine::GameObjectRef::of(w.ids, w.prefabs.node(arm, "Upper/Hand"));
+    const auto runtime = engine::GameObjectRef::of(w.ids, runtime_object);
+    EXPECT_EQ(runtime.resolve(w.registry, w.ids), runtime_object);
+    const auto old_wall = w.find(1);
+    const auto arm_id = w.ids.get_id(arm);
+    const auto snapshot = save(w);
+
+    ASSERT_TRUE(restore(w, snapshot));
+    // persistent game objects, a prefab instance's node too, are found under their new handles
+    const auto restored_wall = wall.resolve(w.registry, w.ids);
+    ASSERT_NE(restored_wall, entt::entity{ entt::null });
+    EXPECT_NE(restored_wall, old_wall);
+    EXPECT_EQ(restored_wall, w.find(1));
+    const auto restored_hand = hand.resolve(w.registry, w.ids);
+    ASSERT_NE(restored_hand, entt::entity{ entt::null });
+    EXPECT_EQ(restored_hand, w.prefabs.node(w.find(arm_id), "Upper/Hand"));
+    // a runtime object is gone for good
+    EXPECT_EQ(runtime.resolve(w.registry, w.ids), entt::entity{ entt::null });
+    EXPECT_TRUE(engine::GameObjectRef{}.is_none());
+    EXPECT_EQ(engine::GameObjectRef{}.resolve(w.registry, w.ids), entt::entity{ entt::null });
+
+    // an undo step of the edit state (a transform change) applies to the restored game object
+    auto transform = w.registry.get<engine_transform_component_t>(restored_wall);
+    transform.position[2] = 7.0f;
+    w.registry.replace<engine_transform_component_t>(wall.resolve(w.registry, w.ids), transform);
+    EXPECT_FLOAT_EQ(w.get<engine_transform_component_t>(1).position[2], 7.0f);
 }
 }  // namespace

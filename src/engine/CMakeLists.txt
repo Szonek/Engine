@@ -50,6 +50,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/profiler.h
 	${ENGINE_SOURCES_DIR}/named_atlas.h
 	${ENGINE_SOURCES_DIR}/entity_id_registry.h
+	${ENGINE_SOURCES_DIR}/game_object_ref.h
 	${ENGINE_SOURCES_DIR}/asset_id.h
 		
 	${ENGINE_SOURCES_DIR}/mesh_defs.h
@@ -103,6 +104,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/data_asset.cpp
 	${ENGINE_SOURCES_DIR}/prefab_system.h
 	${ENGINE_SOURCES_DIR}/prefab_system.cpp
+	${ENGINE_SOURCES_DIR}/play_mode.h
+	${ENGINE_SOURCES_DIR}/play_mode.cpp
 	${ENGINE_SOURCES_DIR}/serialization/type_registry.h
 	${ENGINE_SOURCES_DIR}/serialization/type_registry.cpp
 	${ENGINE_SOURCES_DIR}/serialization/builtin_types.h
@@ -120,6 +123,7 @@ set(ENGINE_SOURCES
 	
 	${ENGINE_SOURCES_DIR}/components_internals/camera_internal_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/guizmo_component.h
+	${ENGINE_SOURCES_DIR}/components_internals/editor_object_internal_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/outline_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/physics_component.h
 	${ENGINE_SOURCES_DIR}/components_internals/skin_pose_component.h

@@ -356,7 +356,21 @@ private:
                 error(fmt::format("enum field {}: each value needs a name, and names and values are unique", f.name));
                 return false;
             }
-            f.enum_values.push_back({ std::string(value_name), value });
+            engine::EnumValue enum_value{ std::string(value_name), value };
+            for (std::uint32_t r = 0; r < d.enum_values[i].required_components_count && d.enum_values[i].required_components; r++)
+            {
+                const auto required = d.enum_values[i].required_components[r];
+                const auto* required_type = registry_.get(required);
+                // a component of the game's, registered before the type which requires it
+                if (!required_type || !required_type->is_component() || !required_type->game_defined)
+                {
+                    error(fmt::format("enum field {}: the value {} requires the component type {}, which isn't a registered game component",
+                        f.name, value_name, required));
+                    return false;
+                }
+                enum_value.required_components.push_back(required);
+            }
+            f.enum_values.push_back(std::move(enum_value));
         }
         return true;
     }

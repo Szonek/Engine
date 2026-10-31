@@ -16,9 +16,11 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <algorithm>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <vector>
 #include <optional>
 #include <utility>
 
@@ -196,8 +198,41 @@ bool engineEditorIsPlaying()
     {
         return true;
     }
-    const auto editor = dynamic_cast<engine::ApplicationEditor*>(api_cast(G_ACTIVE_APP));
-    return editor ? editor->is_playing() : true;
+    return api_cast(G_ACTIVE_APP)->is_playing();
+}
+
+engine_play_mode_state_t enginePlayModeGetState()
+{
+    return G_ACTIVE_APP ? api_cast(G_ACTIVE_APP)->get_play_mode_state() : ENGINE_PLAY_MODE_PLAYING;
+}
+
+engine_result_code_t enginePlayModeEnter()
+{
+    if (!G_ACTIVE_APP || !G_ACTIVE_SCENE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    return api_cast(G_ACTIVE_APP)->enter_play_mode(*api_cast(G_ACTIVE_SCENE));
+}
+
+engine_result_code_t enginePlayModeSetPaused(bool paused)
+{
+    return G_ACTIVE_APP ? api_cast(G_ACTIVE_APP)->set_play_mode_paused(paused) : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t enginePlayModeStep()
+{
+    return G_ACTIVE_APP ? api_cast(G_ACTIVE_APP)->step_play_mode() : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t enginePlayModeExit()
+{
+    return G_ACTIVE_APP ? api_cast(G_ACTIVE_APP)->exit_play_mode() : ENGINE_RESULT_CODE_FAIL;
+}
+
+uint32_t enginePlayModeGetSessionCount()
+{
+    return G_ACTIVE_APP ? api_cast(G_ACTIVE_APP)->get_play_session_count() : 0;
 }
 
 bool engineEditorIsGameView()
@@ -315,7 +350,14 @@ engine_application_frame_end_info_t engineFrameEnd()
         return {};
     }
 	auto* app = api_cast(G_ACTIVE_APP);
-	return app->end_frame();
+	const auto ret = app->end_frame();
+    // the play session's last frame is over (rendered too): Stop loads the edit state back into the active scene; with
+    // none (the game released it), it waits for the next one
+    if (app->is_play_mode_exit_due() && G_ACTIVE_SCENE)
+    {
+        app->finish_exit_play_mode(*api_cast(G_ACTIVE_SCENE));
+    }
+    return ret;
 }
 
 engine_result_code_t engineShaderCreate(const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out)
@@ -602,6 +644,11 @@ void engineSceneDestroy(engine_scene_t scene)
     }
     if (scene)
     {
+        // no call finds a destroyed scene through the context (e.g. Stop loading the scene saved at Play into it)
+        if (G_ACTIVE_SCENE == scene)
+        {
+            G_ACTIVE_SCENE = nullptr;
+        }
         auto* app = api_cast(G_ACTIVE_APP);
         app->release_scene(api_cast(scene));
     }

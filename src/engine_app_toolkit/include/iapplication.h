@@ -2,9 +2,11 @@
 #include "utils.h"
 #include "engine.h"
 
+#include "play_session_tracker.h"
 #include "scene_manager.h"
 #include "script_registry.h"
 
+#include <cstdint>
 #include <string>
 
 namespace engine
@@ -37,13 +39,23 @@ public:
     }
 
     bool is_editor_enabled() const;
+    // one frame of the scenes; a play session starting or ending (see IScene) calls on_play_begin / on_play_end first
     void update_scenes(float dt);
 
     // the script types scene files and the editor can put on game objects (see ScriptRegistry)
     ScriptRegistry& scripts() { return scripts_; }
 
+protected:
+    // A play session starts (Play, or the first frame of an application which starts playing), before any scene's
+    // on_play_begin: remember the application's state a session may change (Unreal's GameInstance), Stop doesn't give
+    // it back by itself.
+    virtual void on_play_begin() {}
+    // the play session ended (Stop), before the scenes' on_play_end: put that state back
+    virtual void on_play_end() {}
+
 private:
     engine_application_t app_handle_;
+    PlaySessionTracker play_session_;
     ScriptRegistry scripts_;
     SceneManager scene_manager_;
 };

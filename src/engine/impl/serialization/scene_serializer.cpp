@@ -1,5 +1,6 @@
 #include "scene_serializer.h"
 #include "../logger.h"
+#include "../components_internals/editor_object_internal_component.h"
 
 #include <engine.h>
 
@@ -1264,6 +1265,26 @@ bool engine::load_scene(std::string_view json, std::string_view file_name, const
         }
     }
     return true;
+}
+
+void engine::clear_game_objects(entt::registry& registry)
+{
+    std::vector<entt::entity> destroyed;
+    for (const auto entity : registry.view<entt::entity>())
+    {
+        if (entity != entt::entity{ ENGINE_INVALID_GAME_OBJECT_ID } && !registry.all_of<editor_object_internal_component_t>(entity))
+        {
+            destroyed.push_back(entity);
+        }
+    }
+    for (const auto entity : destroyed)
+    {
+        // the destroy listeners of one may destroy others
+        if (registry.valid(entity))
+        {
+            registry.destroy(entity);
+        }
+    }
 }
 
 std::string engine::save_data_asset(const TypeInfo& type, const std::byte* value, const IAssetResolver& assets)

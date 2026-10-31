@@ -2,6 +2,7 @@
 #include "../application.h"
 #include "../asset_store.h"
 
+#include <cassert>
 #include <filesystem>
 
 engine::SceneAssets::SceneAssets(Application& app)
@@ -32,6 +33,14 @@ engine::SceneAssets::~SceneAssets()
             app_.release_data_asset(data_asset);
         }
     }
+}
+
+void engine::SceneAssets::swap(SceneAssets& other)
+{
+    assert(&app_ == &other.app_);
+    prefabs_.swap(other.prefabs_);
+    image_files_.swap(other.image_files_);
+    data_assets_.swap(other.data_assets_);
 }
 
 std::string engine::SceneAssets::get_asset_id(AssetKind kind, std::uint32_t handle) const

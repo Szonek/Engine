@@ -20,6 +20,8 @@ public:
     // shows the part again when the house hid it
     ~BuildingPart();
 
+    void on_start() override;
+
     // its designer-set values (the building_part_config component), read on every use
     BuildingPartConfig config() const;
 
@@ -31,6 +33,10 @@ public:
 
     // Hides the mesh, and optionally disables the collider (so mouse picking goes through hidden roofs).
     void set_hidden(bool hidden, bool affect_collider);
+
+private:
+    // the building the part belongs to (see on_start), itself until then
+    engine_game_object_t building_go_ = go_;
 };
 
 // Small, single room house: 4 walls (one with an open window), walkable roof. The house's game object stands at the

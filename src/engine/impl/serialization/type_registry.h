@@ -61,6 +61,9 @@ struct EnumValue
 {
     std::string name;
     std::int32_t value;
+    // the game-defined component types a game object needs while a component of it holds this value (see
+    // engine_enum_value_desc_t::required_components)
+    std::vector<std::uint32_t> required_components = {};
 };
 
 struct TypeInfo;
@@ -230,6 +233,10 @@ void own_engine_strings(const TypeInfo& type, ValueBuffer& value);
 // Whether a value of `type` can reference a game object (a field, or one of a nested struct or union case): a data
 // asset, which isn't in a scene, can't.
 bool holds_game_object(const TypeInfo& type);
+
+// The component types a game object needs while one of its components is `value` of `type`: the required components of
+// the values its enum fields hold (EnumValue::required_components; arrays element by element, the fields of nested structs\n// too), each once, in field order.
+std::vector<std::uint32_t> required_components(const TypeInfo& type, const std::byte* value);
 
 // Whether two values of `type` are the same field by field: padding and the bytes after a string's terminator don't
 // count, an engine string compares its text, and a union compares only its active case.

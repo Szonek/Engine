@@ -28,6 +28,15 @@ bool engine::IApplication::is_editor_enabled() const
 
 void engine::IApplication::update_scenes(float dt)
 {
+    const auto changes = play_session_.update();
+    if (changes.ended)
+    {
+        on_play_end();
+    }
+    if (changes.began)
+    {
+        on_play_begin();
+    }
     scene_manager_.update(dt);
 }
 

@@ -32,6 +32,7 @@ inline engine_application_create_desc_t app_cd(const project_c::AppConfig& confi
     app_cd.height = config.window_height ? config.window_height : 1080 / 2;
     app_cd.enable_editor = config.enable_editor;
     app_cd.hidden_window = config.hidden_window;
+    app_cd.play_mode_control = config.play_mode_control;
     app_cd.disable_vsync = !config.vsync;
     return app_cd;
 }
@@ -188,6 +189,24 @@ std::optional<project_c::LevelTravel> project_c::AppProjectC::take_level_travel_
     auto request = std::move(level_travel_request_);
     level_travel_request_.reset();
     return request;
+}
+
+void project_c::AppProjectC::on_play_begin()
+{
+    play_session_start_ = PlaySessionStart{ level_path_, level_entrance_, player_state_, level_entry_state_ };
+}
+
+void project_c::AppProjectC::on_play_end()
+{
+    if (!play_session_start_)
+    {
+        return;
+    }
+    level_path_ = std::move(play_session_start_->level_path);
+    level_entrance_ = std::move(play_session_start_->level_entrance);
+    player_state_ = play_session_start_->player_state;
+    level_entry_state_ = play_session_start_->level_entry_state;
+    play_session_start_.reset();
 }
 
 void project_c::AppProjectC::update(float dt)

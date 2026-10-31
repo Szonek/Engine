@@ -15,8 +15,9 @@ namespace scenario
 inline constexpr float FIXED_DT_MS = 1000.0f / 60.0f;
 
 // The application is created once for the whole test run (window, GL context, all prefabs) and shared by every test:
-// hidden window, editor disabled (gameplay runs immediately), no level; the keyboard and mouse are never read because
-// tests step frames themselves and only set the player input with set_input().
+// hidden window, editor disabled (gameplay runs immediately; play_mode_control lets the play mode tests stop it), no
+// level; the keyboard and mouse are never read because tests step frames themselves and only set the player input with
+// set_input().
 project_c::AppProjectC& app();
 void create_app();
 void destroy_app();
@@ -47,6 +48,9 @@ protected:
     // advances the game by `frames` frames of FIXED_DT_MS each, regardless of real time; runs the same
     // AppProjectC::update as the game's main loop
     void step(std::uint32_t frames = 1);
+
+    // Stop (enginePlayModeExit) and the frame it ends the play session in: the edit state is back afterwards
+    void stop();
 
     // player input seen by gameplay from the next step() on; it stays until changed
     void set_input(const project_c::PlayerInput& input) { app().set_player_input(input); }

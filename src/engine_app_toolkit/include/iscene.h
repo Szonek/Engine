@@ -1,12 +1,14 @@
 #pragma once
 #include "engine.h"
 #include "iscript.h"
+#include "play_session_tracker.h"
 #include "utils.h"
 
 #include <unordered_map>
 #include <deque>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <typeinfo>
 
 namespace engine
@@ -49,6 +51,17 @@ class IApplication;
 // The load order this enables: create all game objects and components -> fix references between them -> create the
 // scripts -> on_start for all of them.
 //
+// Play sessions (enginePlayModeGetState): scripts exist only while playing (Unity has no Awake in Edit Mode, Godot no
+// _ready without @tool). In Edit mode a script component is data: attach_script only sets it, nothing is created and
+// nothing ticks. When a play session starts (Play, or the first update of an application which starts playing),
+// on_play_begin() runs, then the scripts are created from their components. Their order among themselves is unspecified
+// (like Unity's): a script may rely on the others of its frame being in the scene in its on_start, never on which of
+// them started first. When it ends (Stop: the session's last frame, ENGINE_PLAY_MODE_EXITING, in which the scene is still
+// there; the engine loads the scene saved at Play back at its end) every script is dropped, keeping its game object, then
+// on_play_end() runs. Every game object still exists when the scripts are dropped, so their destructors clean up as
+// they do for any removal. State outside the scene (the application's, engine settings a script changes)
+// isn't given back by Stop: reset what a session changes there in on_play_begin (Unity's rule for statics).
+//
 // Scripts from data: a game object with a `script` component (see ScriptRegistry) gets the script it names, created at
 // the start of the next update, before the register queue is flushed: after a scene file is loaded, and when the
 // editor or game code adds or changes the component (attach_script does it at once). Changing the component replaces
@@ -84,7 +97,8 @@ public:
 
     // Gives the game object the script T (registered in the application's ScriptRegistry) as data: its `script`
     // component names T, the components T requires are added when missing, and the script is created now and returned
-    // (it is registered like register_script). nullptr (logged) when T isn't registered or the game object has a script.
+    // (it is registered like register_script). nullptr (logged) when T isn't registered or the game object has a script;
+    // nullptr in Edit mode, where the component is set and its requirements added but no script exists.
     template<typename T>
     T* attach_script(engine_game_object_t go)
     {
@@ -160,6 +174,12 @@ public:
 protected:
     virtual void update_hook_begin() {}
     virtual void update_hook_end() {}
+    // a play session starts in this scene (Unreal's BeginPlay on the GameMode), before its scripts are created: spawn
+    // what only exists while playing (the player at its player start) and reset what the last session changed
+    virtual void on_play_begin() {}
+    // the play session ended (Stop), after its scripts were dropped; the scene still holds the session's game objects, the
+    // edit state comes back at the end of this frame
+    virtual void on_play_end() {}
 
 private:
     // adds the queued scripts to scripts_ and, when playing, starts every script not started yet (including the ones
@@ -173,6 +193,14 @@ private:
     void sync_scripts_with_components();
     // the script of type `index` on the game object, with the components it requires
     IScript* create_script_from_component(engine_game_object_t go, std::int32_t index);
+    // adds the components the script type `index` requires which the game object doesn't have, with their defaults
+    void add_required_components(engine_game_object_t go, std::int32_t index);
+    // drops (deletes) the scripts whose game object is gone, destroyed outside of them
+    void drop_scripts_of_destroyed_game_objects();
+    // on_play_begin, then the scripts from their components (see the class comment)
+    void begin_play_session();
+    // drops every script, keeping the game objects, then on_play_end
+    void end_play_session();
     // deletes the script of the game object but keeps the game object (its script component was removed or changed)
     void remove_script_keep_game_object(engine_game_object_t go);
 
@@ -187,8 +215,11 @@ protected:
     ScriptsQueue scripts_unregister_queue_{};
     // game object -> the script type its script component named when its script was created
     std::unordered_map<engine_game_object_t, std::int32_t> component_scripts_{};
-    // engineDataComponentGetChangeCount of the script component when the scripts were last synced with it
-    std::uint64_t synced_script_changes_ = 0;
+    // engineDataComponentGetChangeCount of the script component when the scripts were last synced with it; none when
+    // they must be synced whatever the count (a play session started)
+    std::optional<std::uint64_t> synced_script_changes_;
+    // a play session runs in this scene while it is in one: its scripts exist
+    PlaySessionTracker play_session_;
     UserEventSystem user_event_system_;
     bool is_activate_ = true;
 };

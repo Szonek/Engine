@@ -98,12 +98,25 @@ typedef struct _engine_application_create_desc_t
     // the longest frame time engineFrameBegin reports, in milliseconds (like Unity's Maximum Allowed Timestep): after a
     // long frame (loading, a breakpoint) the game runs slower instead of jumping ahead. 0 means 1000 / 3.
     float max_delta_time;
+    // without the editor the application always plays; with this, enginePlayModeExit is allowed too (tests stopping
+    // and starting play sessions, see enginePlayModeGetState)
+    bool play_mode_control;
 } engine_application_create_desc_t;
 
 typedef struct _engine_scene_create_desc_t
 {
     uint32_t reserved;  // no options yet; C has no empty structs
 } engine_scene_create_desc_t;
+
+// see enginePlayModeGetState
+typedef enum _engine_play_mode_state_t
+{
+    ENGINE_PLAY_MODE_EDIT = 0,
+    ENGINE_PLAY_MODE_PLAYING = 1,
+    ENGINE_PLAY_MODE_PAUSED = 2,
+    // Stop was asked for: the play session's last frame, in which nothing plays (see enginePlayModeExit)
+    ENGINE_PLAY_MODE_EXITING = 3,
+} engine_play_mode_state_t;
 
 typedef enum _engine_begin_frame_event_flags_t
 {
@@ -518,8 +531,32 @@ ENGINE_API engine_result_code_t engineApplicationSetActive(engine_application_t 
 
 // editor
 ENGINE_API bool engineEditorIsEnabled();
+// whether the game plays this frame (scripts tick): play mode is Playing, or Paused with a step taken this frame
 ENGINE_API bool engineEditorIsPlaying();
 ENGINE_API bool engineEditorIsGameView();
+
+// Play mode, like Unity's EditorApplication.EnterPlaymode / isPaused / Step / ExitPlaymode, which its tests use too:
+// Edit -> Playing (enginePlayModeEnter) saves the active scene in memory; Playing <-> Paused keeps everything;
+// Playing or Paused -> Exiting -> Edit (enginePlayModeExit, Stop) throws the play session away, in two steps like
+// Unity's ExitingPlayMode: the first frame beginning in Exiting is the session's last, nothing plays in it
+// (engineEditorIsPlaying is false) and the scene is still there, so the game ends its session with every game object
+// still alive (the toolkit drops its scripts); at its engineFrameEnd the active scene is cleared (every game object but
+// the editor's, runtime ones too) and the scene saved at Play is loaded back, with the same persistent IDs and new
+// handles (a handle kept from the play session finds nothing), its nav mesh built again when it had one, and
+// enginePlayModeGetSessionCount moves. When that can't be loaded the session goes on as before Stop. Only the edit
+// state is ever saved. The application starts Playing (a session without a snapshot, whose Stop leaves the scene as it
+// is); without the editor or play_mode_control (engine_application_create_desc_t) it never stops. The calls fail
+// (logged) where the transition doesn't exist: Enter while playing or exiting, Pause in Edit or while exiting, Exit in
+// Edit or while exiting, Step when not paused.
+ENGINE_API engine_play_mode_state_t enginePlayModeGetState();
+ENGINE_API engine_result_code_t enginePlayModeEnter();
+ENGINE_API engine_result_code_t enginePlayModeSetPaused(bool paused);
+// while paused, the next frame plays (engineEditorIsPlaying is true for it)
+ENGINE_API engine_result_code_t enginePlayModeStep();
+ENGINE_API engine_result_code_t enginePlayModeExit();
+// the number of play sessions which ended (a Stop finished: the edit state was loaded back), so a caller notices a Stop
+// without a callback
+ENGINE_API uint32_t enginePlayModeGetSessionCount();
 
 // scene
 ENGINE_API engine_result_code_t engineSceneCreate(engine_scene_create_desc_t desc, engine_scene_t* out);
@@ -589,6 +626,11 @@ typedef struct _engine_enum_value_desc_t
 {
     const char* name;
     int32_t value;
+    // game-defined component types a game object needs while one of its components holds this value, also in a struct field (like Unity's
+    // RequireComponent, e.g. a script's config for the script component naming it): when the editor sets the value, it
+    // adds the missing ones with their defaults in the same undo step. NULL / 0 for none.
+    const engine_component_type_t* required_components;
+    uint32_t required_components_count;
 } engine_enum_value_desc_t;
 
 typedef struct _engine_field_desc_t

@@ -105,7 +105,7 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     // connects its listeners before the initializers below: EnTT calls them last-connected first, so its listeners run after them
     , physics_(entity_registry_,
         [this](const engine_joint_attachment_component_t& joint_attachment) { return get_joint_matrix(joint_attachment); },
-        [this]() { const auto* editor = dynamic_cast<const ApplicationEditor*>(app_); return editor && !editor->is_playing(); })
+        [this]() { return dynamic_cast<const ApplicationEditor*>(app_) && !app_->is_playing(); })
     , prefabs_(*app, *this, entity_registry_, assets_)
 {
     // the first entity EnTT creates is 0: reserve it, so that no game object has the value of ENGINE_INVALID_GAME_OBJECT_ID
@@ -754,6 +754,11 @@ std::uint64_t engine::Scene::get_persistent_id(entt::entity entity) const
     return entity_ids_.get_id(entity);
 }
 
+entt::entity engine::Scene::find_entity(std::uint64_t persistent_id) const
+{
+    return entity_ids_.find(persistent_id);
+}
+
 entt::runtime_view engine::Scene::create_runtime_view()
 {
     ENGINE_PROFILE_SECTION;
@@ -780,6 +785,21 @@ bool engine::Scene::load(std::string_view json, std::string_view file_name, cons
     const auto loaded = load_scene(json, file_name, app_->get_type_registry(), entity_registry_, entity_ids_, assets_, prefabs_, options);
     prefabs_.end_file_load();
     return loaded;
+}
+
+bool engine::Scene::replace(std::string_view json, std::string_view file_name)
+{
+    ENGINE_PROFILE_SECTION;
+    // nothing is cleared when the file can't be loaded
+    if (!check_scene_file(json, file_name))
+    {
+        return false;
+    }
+    // the old content's files, held until the new content holds the ones it uses too
+    SceneAssets old_assets(*app_);
+    old_assets.swap(assets_);
+    clear_game_objects(entity_registry_);
+    return load(json, file_name);
 }
 
 std::vector<entt::entity> engine::Scene::get_all_entities() const

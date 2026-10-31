@@ -9,6 +9,7 @@
 #include "engine_string_impl_def.h"
 
 #include "components_internals/camera_internal_component.h"
+#include "components_internals/editor_object_internal_component.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
@@ -68,7 +69,7 @@ inline bool is_entity_parent_of(entt::entity parent, entt::entity child, engine:
 // copies the game object with what is parented under it and selects the copy (see CommandDuplicateEntity)
 void duplicate_entity(entt::entity e, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
 {
-    commands.execute_command(std::make_unique<engine::CommandDuplicateEntity>(*scene, e, ctx.get_selected_entity()));
+    commands.execute_command(*scene, std::make_unique<engine::CommandDuplicateEntity>(*scene, e, ctx.get_selected_entity()));
     ctx.sync_selected_from_scene(scene);
 }
 
@@ -136,7 +137,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
         else if (ImGui::MenuItem("Delete", nullptr, false, can_delete))
         {
             ctx.set_selected_entity(scene, entt::null, commands);
-            commands.execute_command(std::make_unique<engine::CommandDestroyEntity>(*scene, node->entity));
+            commands.execute_command(*scene, std::make_unique<engine::CommandDestroyEntity>(*scene, node->entity));
         }
         if (!can_delete)
         {
@@ -160,7 +161,7 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
         static decltype(engine_name_component_t::name) new_name = "New name";
         if(ImGui::Button("Rename"))
         {
-            commands.execute_command(std::make_unique<engine::CommandRenameEntity>(*scene, node->entity, new_name));
+            commands.execute_command(*scene, std::make_unique<engine::CommandRenameEntity>(*scene, node->entity, new_name));
             // reset static new name
             std::strcpy(new_name, "New name");
         }
@@ -356,7 +357,7 @@ inline void display_component(std::string_view name, engine::Scene* scene, engin
             if (fn(scene, comp))
             {
                 //scene->update_component<T>(entity, comp);
-                commands.execute_command(std::make_unique<engine::CommandUpdateComponent<T>>(*scene, entity, comp));
+                commands.execute_command(*scene, std::make_unique<engine::CommandUpdateComponent<T>>(*scene, entity, comp));
             }
 
         }
@@ -707,7 +708,8 @@ void display_typed_component(const engine::TypeInfo& type, engine::Scene* scene,
             scene->get_component(type, entity, value.get());
             if (TypeInspector(scene).draw_struct(type, value.get()))
             {
-                commands.execute_command(std::make_unique<engine::CommandUpdateTypedComponent>(*scene, entity, type, value.get()));
+                // with the components the new value requires (a script's config), in the same undo step
+                commands.execute_command(*scene, engine::make_update_typed_component_command(*scene, entity, type, value.get()));
             }
         }
     }
@@ -723,11 +725,11 @@ void display_typed_component(const engine::TypeInfo& type, engine::Scene* scene,
     {
         if (has_component)
         {
-            commands.execute_command(std::make_unique<engine::CommandRemoveTypedComponent>(*scene, entity, type));
+            commands.execute_command(*scene, std::make_unique<engine::CommandRemoveTypedComponent>(*scene, entity, type));
         }
         else
         {
-            commands.execute_command(std::make_unique<engine::CommandAddTypedComponent>(*scene, entity, type));
+            commands.execute_command(*scene, std::make_unique<engine::CommandAddTypedComponent>(*scene, entity, type));
         }
     }
     ImGui::PopID();
@@ -1175,6 +1177,27 @@ bool engine::ApplicationEditor::is_game_view() const
 void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_begine_info_t & frame_begin_info)
 {
     frame_delta_time_ = frame_begin_info.delta_time;
+    // Play and Stop pressed last frame, before anything of this frame runs: not during a scene update (the editor
+    // camera has the game's cameras disabled then, the snapshot would keep them so) nor while the game's scripts run
+    // when the scene was released since (a level exit, a restart), the request waits for the toolbar of the next one
+    if (play_mode_request_ != PlayModeRequest::eNone && play_mode_scene_)
+    {
+        const auto request = std::exchange(play_mode_request_, PlayModeRequest::eNone);
+        // a G / R / S preview isn't saved at Play nor kept at Stop: the game object goes back to where it was
+        if (modal_transform_)
+        {
+            cancel_modal_transform(play_mode_scene_);
+        }
+        if (request == PlayModeRequest::ePlay)
+        {
+            enter_play_mode(*play_mode_scene_);
+        }
+        else
+        {
+            // this frame is the play session's last, the edit state comes back at its end (engineFrameEnd)
+            exit_play_mode();
+        }
+    }
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
@@ -1214,6 +1237,7 @@ void engine::ApplicationEditor::on_sdl_event(SDL_Event e)
 void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_time)
 {
     ENGINE_PROFILE_SECTION_N("editor-on_scene_update_pre");
+    scene_hierarchy_context_.resolve_selection(scene);
     if (mouse_consumed_ && !any_mouse_button_down(ImGui::GetIO()))
     {
         mouse_consumed_ = false;
@@ -1223,7 +1247,7 @@ void engine::ApplicationEditor::on_scene_update_pre(Scene* scene, float delta_ti
         // before the scene update, so this frame renders the preview
         handle_modal_transform(scene);
         const bool camera_accepts_input = !modal_transform_ && !mouse_consumed_;
-        camera_context_.on_scene_update_pre(scene, is_playing_ ? delta_time : frame_delta_time_, scene_hierarchy_context_.get_selected_entity(), camera_accepts_input);
+        camera_context_.on_scene_update_pre(scene, is_playing() ? delta_time : frame_delta_time_, scene_hierarchy_context_.get_selected_entity(), camera_accepts_input);
     }
     else if (modal_transform_)
     {
@@ -1267,7 +1291,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     const auto ctrl_shift_z_curr = lctrl && lshift && z;
     if (ctrl_shift_z_prev && !ctrl_shift_z_curr && !modal_transform_)
     {
-        commands_.redo();
+        commands_.redo(*scene);
         scene_hierarchy_context_.sync_selected_from_scene(scene);
     }
     ctrl_shift_z_prev = ctrl_shift_z_curr;
@@ -1276,7 +1300,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     const auto ctrl_z_curr = lctrl && !lshift && z;
     if (ctrl_z_curr && !ctrl_z_prev && !modal_transform_)
     {
-        commands_.undo();
+        commands_.undo(*scene);
         scene_hierarchy_context_.sync_selected_from_scene(scene);
     }
     ctrl_z_prev = ctrl_z_curr;
@@ -1314,6 +1338,13 @@ void engine::ApplicationEditor::render_scene_view()
     // the scene is rendered into the texture at the end of this frame; GL textures start at the bottom
     const auto image_max = ImVec2(pos.x + static_cast<float>(width), pos.y + static_cast<float>(height));
     ImGui::GetWindowDrawList()->AddImage(static_cast<ImTextureID>(scene_view_texture_->get_imgui_texture_id()), pos, image_max, ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
+    // a border in the toolbar's tint while playing or paused
+    if (const auto play_mode = get_play_mode_state(); play_mode != ENGINE_PLAY_MODE_EDIT)
+    {
+        const auto tint = play_mode == ENGINE_PLAY_MODE_PAUSED ? PAUSED_TINT : PLAYING_TINT;
+        const auto border = ImGui::GetColorU32(ImVec4(tint.x * 2.5f, tint.y * 2.5f, tint.z * 2.5f, 1.0f));
+        ImGui::GetWindowDrawList()->AddRect(pos, image_max, border, 0.0f, 0, 3.0f);
+    }
     // No item covers the image: ImGuizmo only starts a drag when no item is hovered.
     // The mouse stays with the scene while a button pressed over it is held.
     const bool hovered = ImGui::IsWindowHovered();
@@ -1346,9 +1377,44 @@ engine::viewport_t engine::ApplicationEditor::get_scene_viewport() const
     return scene_view_rect_;
 }
 
-void engine::ApplicationEditor::render_editor_controls(class Scene* /*scene*/, float /*dt*/)
+void engine::ApplicationEditor::handle_play_mode_shortcuts()
 {
+    // Unity's shortcuts: Ctrl+P plays and stops, Ctrl+Shift+P pauses and resumes, Ctrl+Alt+P steps
+    const auto play_mode = get_play_mode_state();
+    // nothing to play, pause or step in the frame a Stop ends the session in
+    if (ImGui::GetIO().WantTextInput || play_mode == ENGINE_PLAY_MODE_EXITING)
+    {
+        return;
+    }
+    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_P))
+    {
+        play_mode_request_ = play_mode == ENGINE_PLAY_MODE_EDIT ? PlayModeRequest::ePlay : PlayModeRequest::eStop;
+    }
+    else if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_P) && play_mode != ENGINE_PLAY_MODE_EDIT)
+    {
+        set_play_mode_paused(play_mode == ENGINE_PLAY_MODE_PLAYING);
+    }
+    else if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_P) && play_mode == ENGINE_PLAY_MODE_PAUSED)
+    {
+        step_play_mode();
+    }
+}
+
+void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float /*dt*/)
+{
+    play_mode_scene_ = scene;
+    const auto play_mode = get_play_mode_state();
+    // tinted while playing or paused, like Unity's play mode tint: edits made now are lost at Stop
+    const bool in_play = play_mode != ENGINE_PLAY_MODE_EDIT;
+    if (in_play)
+    {
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, play_mode == ENGINE_PLAY_MODE_PAUSED ? PAUSED_TINT : PLAYING_TINT);
+    }
     ImGui::Begin(editor_windows_context_.get_window_up());
+    if (in_play)
+    {
+        ImGui::PopStyleColor();
+    }
 
     if (ImGui::Selectable("Scene", editor_view_ == EditorView::eGame, ImGuiSelectableFlags_None, ImVec2(50, 0)))
     {
@@ -1360,11 +1426,38 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* /*scene*/, f
         editor_view_ = EditorView::eEditor;
     }
     ImGui::SameLine();
-    if (ImGui::Button(is_playing_ ? "Pause" : "Play"))
+    // Play and Stop happen at the start of the next frame (on_frame_begine); nothing can be done in the frame a Stop
+    // ends the session in
+    const bool exiting = play_mode == ENGINE_PLAY_MODE_EXITING;
+    ImGui::BeginDisabled(exiting);
+    if (ImGui::Button(in_play ? "Stop" : "Play"))
     {
-        is_playing_ = !is_playing_;
+        play_mode_request_ = in_play ? PlayModeRequest::eStop : PlayModeRequest::ePlay;
     }
+    ImGui::SetItemTooltip(in_play ? "Back to the scene as it was at Play (Ctrl+P)" : "Start a play session (Ctrl+P)");
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!in_play || exiting);
+    if (ImGui::Button(play_mode == ENGINE_PLAY_MODE_PAUSED ? "Resume" : "Pause"))
+    {
+        set_play_mode_paused(play_mode == ENGINE_PLAY_MODE_PLAYING);
+    }
+    ImGui::SetItemTooltip("Ctrl+Shift+P");
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::BeginDisabled(play_mode != ENGINE_PLAY_MODE_PAUSED);
+    if (ImGui::Button("Step"))
+    {
+        step_play_mode();
+    }
+    ImGui::SetItemTooltip("One frame (Ctrl+Alt+P)");
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::TextUnformatted(play_mode == ENGINE_PLAY_MODE_EDIT ? "Edit"
+        : play_mode == ENGINE_PLAY_MODE_PAUSED ? "Paused"
+        : exiting ? "Stopping" : "Playing");
     ImGui::End();
+    handle_play_mode_shortcuts();
 }
 
 void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float /*dt*/)
@@ -1400,13 +1493,13 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
     ImGui::SeparatorText("Scene options");
     if (ImGui::Button("Add entity"))
     {
-        commands_.execute_command(std::make_unique<CommandAddEntity>(*scene));
+        commands_.execute_command(*scene, std::make_unique<CommandAddEntity>());
     }
 
     bool phys_debug_draw_check = scene->physics().is_debug_draw_enabled();
     if (ImGui::Checkbox("Physics debug draw", &phys_debug_draw_check))
     {
-        commands_.execute_command(std::make_unique<CommandSetPhysicsDebugDraw>(*scene, phys_debug_draw_check));
+        commands_.execute_command(*scene, std::make_unique<CommandSetPhysicsDebugDraw>(phys_debug_draw_check));
     }
 
     bool nav_mesh_debug_draw_check = scene->is_nav_mesh_debug_draw_enabled();
@@ -1566,7 +1659,7 @@ void engine::ApplicationEditor::render_asset_browser_panel(Scene* scene)
     if (const auto clicked = asset_browser_.draw())
     {
         // the file in place of the game object, one undo step which gives the game object back
-        commands_.execute_command(std::make_unique<CommandSetSelection>(*scene, asset_browser_, scene_hierarchy_context_.get_selected_entity(), entt::null, *clicked));
+        commands_.execute_command(*scene, std::make_unique<CommandSetSelection>(*scene, asset_browser_, scene_hierarchy_context_.get_selected_entity(), entt::null, *clicked));
         scene_hierarchy_context_.sync_selected_from_scene(scene);
     }
     ImGui::End();
@@ -1616,7 +1709,7 @@ void engine::ApplicationEditor::handle_asset_drop(Scene* scene)
             const float max_distance = scene->get_component<engine_camera_component_t>(camera_entity)->clip_plane_far;
             const auto position = scene->physics().raycast(origin, direction, max_distance, {}, false, hit)
                 ? glm::vec3(hit.position[0], hit.position[1], hit.position[2]) : get_ground_point(origin, direction, max_distance);
-            commands_.execute_command(std::make_unique<CommandPlacePrefab>(*scene, asset_browser_, static_cast<const char*>(payload->Data), position,
+            commands_.execute_command(*scene, std::make_unique<CommandPlacePrefab>(*scene, asset_browser_, static_cast<const char*>(payload->Data), position,
                 scene_hierarchy_context_.get_selected_entity()));
             scene_hierarchy_context_.sync_selected_from_scene(scene);
             scene_hierarchy_context_.set_forced_open_selected_parents(true);
@@ -1820,7 +1913,7 @@ void engine::ApplicationEditor::render_guizmo(Scene* scene)
                 auto c = *scene->get_component<engine_transform_component_t>(entity);
                 if (engine::local_transform_from_world(scene->get_parent_space_matrix(entity), model_matrix, c))
                 {
-                    commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, c));
+                    commands_.execute_command(*scene, std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, c));
                 }
             }
         }
@@ -1948,7 +2041,7 @@ void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
         auto result = *scene->get_component<engine_transform_component_t>(entity);
         // the command records the transform from before the preview, so undo goes back there
         scene->update_component<engine_transform_component_t>(entity, modal_transform_original_);
-        commands_.execute_command(std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, result));
+        commands_.execute_command(*scene, std::make_unique<CommandUpdateComponent<engine_transform_component_t>>(*scene, entity, result));
         modal_transform_.reset();
     }
 }
@@ -2037,6 +2130,40 @@ void engine::ApplicationEditor::on_scene_create(Scene* scene)
 void engine::ApplicationEditor::on_scene_release(Scene* scene)
 {
     camera_context_.detach_scene(scene);
+    if (play_mode_scene_ == scene)
+    {
+        play_mode_scene_ = nullptr;
+    }
+    // persistent IDs are per scene: the steps and the selection would find other game objects in the next one. While
+    // playing (the game replaced its scene: a restart, a level exit) only the play session's steps go: Stop loads the
+    // scene saved at Play into the next scene, where the edit history finds its game objects again.
+    if (get_play_mode_state() == ENGINE_PLAY_MODE_EDIT)
+    {
+        commands_.clear();
+    }
+    else
+    {
+        commands_.drop_play_session_steps();
+    }
+    scene_hierarchy_context_.reset();
+}
+
+void engine::ApplicationEditor::on_play_mode_enter(Scene* /*scene*/)
+{
+    commands_.begin_play_session();
+}
+
+void engine::ApplicationEditor::on_play_mode_exit(Scene* /*scene*/)
+{
+    // the steps recorded while playing would write play session values into the edit state; the ones from before Play
+    // come back and find their game objects by persistent ID
+    commands_.end_play_session();
+    // what the editor held of the play session's game objects
+    modal_transform_.reset();
+    modal_transform_entity_ = entt::null;
+    gizmo_hovered_entity_ = entt::null;
+    gizmo_hovered_handle_.reset();
+    delete_without_undo_ = entt::null;
 }
 
 engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
@@ -2044,6 +2171,8 @@ engine::CameraScript::CameraScript(Scene* scene, ApplicationEditor* app)
     , app_(app)
     , go_(scene->create_transient_entity())
 {
+    // kept when the scene is cleared (Stop restoring the scene saved at Play)
+    scene->add_component<editor_object_internal_component_t>(go_);
     scene->add_component<engine_name_component_t>(go_);
     scene->patch_component<engine_name_component_t>(go_, [](engine_name_component_t& c)
         {   
@@ -2289,8 +2418,9 @@ void engine::SceneHierarchyContext::set_selected_entity(engine::Scene* scene, en
         return;
     }
     // while a game object is selected, no file is: selecting one (from none) deselects the file in the same undo step
-    commands.execute_command(std::make_unique<engine::CommandSetSelection>(*scene, assets_, selected_, e, ""));
+    commands.execute_command(*scene, std::make_unique<engine::CommandSetSelection>(*scene, assets_, selected_, e, ""));
     selected_ = e;
+    selected_ref_ = scene->make_ref(e);
 }
 
 void engine::SceneHierarchyContext::deselect_all(engine::Scene* scene, CommandManager& commands)
@@ -2299,8 +2429,9 @@ void engine::SceneHierarchyContext::deselect_all(engine::Scene* scene, CommandMa
     {
         return;
     }
-    commands.execute_command(std::make_unique<engine::CommandSetSelection>(*scene, assets_, selected_, entt::null, ""));
+    commands.execute_command(*scene, std::make_unique<engine::CommandSetSelection>(*scene, assets_, selected_, entt::null, ""));
     selected_ = entt::null;
+    selected_ref_ = {};
 }
 
 entt::entity engine::SceneHierarchyContext::get_selected_entity() const
@@ -2346,6 +2477,30 @@ void engine::SceneHierarchyContext::sync_selected_from_scene(engine::Scene* scen
         break;
     }
     selected_ = found;
+    selected_ref_ = scene->make_ref(found);
+}
+
+void engine::SceneHierarchyContext::resolve_selection(engine::Scene* scene)
+{
+    const auto e = scene->resolve(selected_ref_);
+    if (e == entt::null)
+    {
+        // gone for good: never selected again by a game object which gets its ID later
+        reset();
+        return;
+    }
+    if (e != selected_)
+    {
+        selected_ = e;
+        set_selection_markers(*scene, e, true);
+    }
+}
+
+void engine::SceneHierarchyContext::reset()
+{
+    selected_ = entt::null;
+    selected_ref_ = {};
+    delete_without_undo_ = entt::null;
 }
 
 void engine::ApplicationEditor::EditorWindowsContext::initialize(std::uint32_t dockspace_id)

@@ -1,6 +1,7 @@
 #include "type_registry.h"
 #include "../logger.h"
 
+#include <algorithm>
 #include <cstring>
 #include <set>
 #include <string_view>
@@ -195,6 +196,54 @@ bool engine::holds_game_object(const TypeInfo& type)
             || (field.kind == FieldKind::eStruct && holds_game_object(*field.struct_type))
             || (field.kind == FieldKind::eUnion && std::ranges::any_of(field.union_cases, [](const UnionCase& c) { return holds_game_object(*c.type); }));
     });
+}
+
+namespace
+{
+void add_required_components(const engine::TypeInfo& type, const std::byte* value, std::vector<std::uint32_t>& required)
+{
+    using engine::FieldKind;
+    for (const auto& field : type.fields)
+    {
+        if (field.kind == FieldKind::eStruct)
+        {
+            // the enums of the game's struct types count wherever the struct is held
+            for (std::size_t i = 0; i < field.count; i++)
+            {
+                add_required_components(*field.struct_type, value + field.offset + i * field.size, required);
+            }
+            continue;
+        }
+        if (field.kind != FieldKind::eEnum)
+        {
+            continue;
+        }
+        for (std::size_t i = 0; i < field.count; i++)
+        {
+            std::int32_t held = 0;
+            std::memcpy(&held, value + field.offset + i * field.size, sizeof(held));
+            const auto it = std::ranges::find(field.enum_values, held, &engine::EnumValue::value);
+            if (it == field.enum_values.end())
+            {
+                continue;
+            }
+            for (const auto component : it->required_components)
+            {
+                if (std::ranges::find(required, component) == required.end())
+                {
+                    required.push_back(component);
+                }
+            }
+        }
+    }
+}
+}  // namespace
+
+std::vector<std::uint32_t> engine::required_components(const TypeInfo& type, const std::byte* value)
+{
+    std::vector<std::uint32_t> required;
+    add_required_components(type, value, required);
+    return required;
 }
 
 bool engine::equal_values(const TypeInfo& type, const std::byte* a, const std::byte* b)

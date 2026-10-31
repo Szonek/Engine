@@ -25,7 +25,10 @@ bool engine::ScriptRegistry::register_component()
     values.push_back({ "none", NO_SCRIPT });
     for (std::size_t i = 0; i < types_.size(); i++)
     {
-        values.push_back({ types_[i].name.c_str(), static_cast<std::int32_t>(i + 1) });
+        // the editor adds them in the same undo step as the script (like Unity's RequireComponent)
+        const auto& required = types_[i].required;
+        values.push_back({ types_[i].name.c_str(), static_cast<std::int32_t>(i + 1), required.empty() ? nullptr : required.data(),
+            static_cast<std::uint32_t>(required.size()) });
     }
     engine_field_desc_t type_field{};
     type_field.name = "type";

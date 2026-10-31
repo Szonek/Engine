@@ -40,8 +40,9 @@ public:
         std::string name;
         std::type_index cpp_type;
         Factory factory;
-        // game-defined components the script needs: added with their default values, when missing, as the script is
-        // attached (like Unity's RequireComponent)
+        // game-defined components the script needs (like Unity's RequireComponent): part of the script component's
+        // description, so the editor adds the missing ones with their defaults in the same undo step as the script; the
+        // scene adds them too when it creates the script, for scripts set by code
         std::vector<engine_component_type_t> required;
     };
 

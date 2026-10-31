@@ -1,6 +1,9 @@
 #include "editor_commands.h"
+#include "application.h"
 #include "copy_name.h"
 #include "logger.h"
+
+#include <fmt/format.h>
 
 #include <cassert>
 #include <cstring>
@@ -10,45 +13,58 @@
 
 namespace engine
 {
+void log_missing(std::string_view command)
+{
+    log::log(log::LogLevel::eError, fmt::format("Editor: the game object of an undo step ({}) isn't in the scene any more; it is skipped.\n", command));
+}
+
+void set_selection_markers(Scene& sc, entt::entity e, bool selected)
+{
+    if (e == entt::null || sc.has_component<engine::guizmo_component_t>(e) == selected)
+    {
+        return;
+    }
+    if (selected)
+    {
+        sc.add_component<engine::guizmo_component_t>(e);
+        sc.add_component<engine::outline_component_t>(e);
+    }
+    else
+    {
+        sc.remove_component<engine::guizmo_component_t>(e);
+        sc.remove_component<engine::outline_component_t>(e);
+    }
+}
+
 CommandSetSelection::CommandSetSelection(Scene& sc, entt::entity prev_selected, entt::entity new_selected)
-    : sc_(sc)
-    , e_prev_(prev_selected)
-    , e_new_(new_selected)
+    : prev_(sc.make_ref(prev_selected))
+    , new_(sc.make_ref(new_selected))
 {
 }
 
 CommandSetSelection::CommandSetSelection(Scene& sc, IAssetSelection& assets, entt::entity prev_selected, entt::entity new_selected, std::string_view new_asset)
-    : sc_(sc)
-    , e_prev_(prev_selected)
-    , e_new_(new_selected)
+    : prev_(sc.make_ref(prev_selected))
+    , new_(sc.make_ref(new_selected))
     , assets_(&assets)
     , asset_prev_(assets.get_selected_asset())
     , asset_new_(new_asset)
 {
 }
 
-void CommandSetSelection::execute()
+void CommandSetSelection::execute(Scene& sc)
 {
-    select(e_prev_, e_new_, asset_new_);
+    select(sc, prev_, new_, asset_new_);
 }
 
-void CommandSetSelection::undo()
+void CommandSetSelection::undo(Scene& sc)
 {
-    select(e_new_, e_prev_, asset_prev_);
+    select(sc, new_, prev_, asset_prev_);
 }
 
-void CommandSetSelection::select(entt::entity deselected, entt::entity selected, const std::string& asset)
+void CommandSetSelection::select(Scene& sc, const GameObjectRef& deselected, const GameObjectRef& selected, const std::string& asset)
 {
-    if (deselected != entt::null)
-    {
-        sc_.remove_component<engine::guizmo_component_t>(deselected);
-        sc_.remove_component<engine::outline_component_t>(deselected);
-    }
-    if (selected != entt::null)
-    {
-        sc_.add_component<engine::guizmo_component_t>(selected);
-        sc_.add_component<engine::outline_component_t>(selected);
-    }
+    set_selection_markers(sc, sc.resolve(deselected), false);
+    set_selection_markers(sc, sc.resolve(selected), true);
     if (assets_ && assets_->get_selected_asset() != asset)
     {
         assets_->set_selected_asset(asset);
@@ -57,136 +73,178 @@ void CommandSetSelection::select(entt::entity deselected, entt::entity selected,
 
 
 CommandRenameEntity::CommandRenameEntity(Scene& sc, entt::entity e, std::string_view new_name)
-    : scene_(sc)
-    , e_(e)
-{
-    new_name_.resize(ENGINE_ENTITY_NAME_MAX_LENGTH);
-    new_name_ = new_name;
-    auto nc = scene_.get_component<engine_name_component_t>(e_);
-    prev_name_ = nc->name;
-}
-
-void CommandRenameEntity::execute()
-{
-    auto nc = scene_.get_component<engine_name_component_t>(e_);
-    std::strcpy(nc->name, new_name_.c_str());
-    scene_.update_component<engine_name_component_t>(e_, *nc);
-}
-
-void CommandRenameEntity::undo()
-{
-    auto nc = scene_.get_component<engine_name_component_t>(e_);
-    std::strcpy(nc->name, prev_name_.c_str());
-    scene_.update_component<engine_name_component_t>(e_, *nc);
-}
-
-
-CommandAddEntity::CommandAddEntity(Scene& sc)
-    : scene_(sc)
+    : ref_(sc.make_ref(e))
+    , prev_name_(sc.get_component<engine_name_component_t>(e)->name)
+    , new_name_(new_name.substr(0, ENGINE_ENTITY_NAME_MAX_LENGTH - 1))
 {
 }
 
-void CommandAddEntity::execute()
+void CommandRenameEntity::execute(Scene& sc)
 {
-    assert(e_ == entt::null);
-    e_ = scene_.create_new_entity();
-    auto nc = scene_.add_component<engine_name_component_t>(e_);
-    const auto new_name = "Entity " + std::to_string(static_cast<std::uint32_t>(e_));
+    rename(sc, new_name_);
+}
+
+void CommandRenameEntity::undo(Scene& sc)
+{
+    rename(sc, prev_name_);
+}
+
+void CommandRenameEntity::rename(Scene& sc, const std::string& name)
+{
+    const auto e = sc.resolve(ref_);
+    if (e == entt::null || !sc.has_component<engine_name_component_t>(e))
+    {
+        log_missing("rename");
+        return;
+    }
+    auto nc = *sc.get_component<engine_name_component_t>(e);
+    std::strcpy(nc.name, name.c_str());
+    sc.update_component<engine_name_component_t>(e, nc);
+}
+
+
+void CommandAddEntity::execute(Scene& sc)
+{
+    const auto e = sc.create_new_entity();
+    ref_ = sc.make_ref(e);
+    auto nc = sc.add_component<engine_name_component_t>(e);
+    const auto new_name = "Entity " + std::to_string(static_cast<std::uint32_t>(e));
     std::memcpy(nc->name, new_name.c_str(), std::min<std::size_t>(new_name.size(), ENGINE_ENTITY_NAME_MAX_LENGTH - 1));
     nc->name[std::min<std::size_t>(new_name.size(), ENGINE_ENTITY_NAME_MAX_LENGTH - 1)] = '\0';
 }
 
-void CommandAddEntity::undo()
+void CommandAddEntity::undo(Scene& sc)
 {
-    assert(e_ != entt::null);
-    scene_.destroy_entity(e_);
-    e_ = entt::null;
+    const auto e = sc.resolve(ref_);
+    if (e == entt::null)
+    {
+        log_missing("add a game object");
+        return;
+    }
+    sc.destroy_entity(e);
 }
 
 
 CommandUpdateTypedComponent::CommandUpdateTypedComponent(Scene& sc, entt::entity e, const TypeInfo& type, const void* new_value)
-    : sc_(sc)
-    , e_(e)
+    : ref_(sc.make_ref(e))
     , type_(type)
     , prev_(type.size)
     , new_(type.size)
 {
-    sc_.get_component(type_, e_, prev_.get());
+    sc.get_component(type_, e, prev_.get());
     std::memcpy(new_.get(), new_value, type_.size);
 }
 
-void CommandUpdateTypedComponent::execute()
+void CommandUpdateTypedComponent::execute(Scene& sc)
 {
-    apply(new_);
+    apply(sc, new_);
 }
 
-void CommandUpdateTypedComponent::undo()
+void CommandUpdateTypedComponent::undo(Scene& sc)
 {
-    apply(prev_);
+    apply(sc, prev_);
 }
 
-void CommandUpdateTypedComponent::apply(const ValueBuffer& value)
+void CommandUpdateTypedComponent::apply(Scene& sc, const ValueBuffer& value)
 {
-    if (sc_.is_valid_entity(e_) && sc_.has_component(type_, e_))
+    if (const auto e = sc.resolve(ref_); e != entt::null && sc.has_component(type_, e))
     {
-        sc_.update_component(type_, e_, value.get());
+        sc.update_component(type_, e, value.get());
     }
+    else
+    {
+        log_missing(type_.name);
+    }
+}
+
+std::unique_ptr<ICommand> make_update_typed_component_command(Scene& sc, entt::entity e, const TypeInfo& type, const void* new_value)
+{
+    std::vector<std::unique_ptr<ICommand>> commands;
+    commands.push_back(std::make_unique<CommandUpdateTypedComponent>(sc, e, type, new_value));
+    for (const auto required : required_components(type, static_cast<const std::byte*>(new_value)))
+    {
+        const auto* required_type = sc.get_application()->get_type_registry().get(required);
+        if (required_type && !sc.has_component(*required_type, e))
+        {
+            commands.push_back(std::make_unique<CommandAddTypedComponent>(sc, e, *required_type));
+        }
+    }
+    if (commands.size() == 1)
+    {
+        return std::move(commands.front());
+    }
+    return std::make_unique<CommandSequence>(std::move(commands));
 }
 
 CommandAddTypedComponent::CommandAddTypedComponent(Scene& sc, entt::entity e, const TypeInfo& type)
-    : sc_(sc)
-    , e_(e)
+    : ref_(sc.make_ref(e))
     , type_(type)
 {
 }
 
-void CommandAddTypedComponent::execute()
+void CommandAddTypedComponent::execute(Scene& sc)
 {
-    if (sc_.is_valid_entity(e_) && !sc_.has_component(type_, e_))
+    const auto e = sc.resolve(ref_);
+    if (e == entt::null)
     {
-        sc_.add_component(type_, e_);
+        log_missing(type_.name);
+        return;
+    }
+    if (!sc.has_component(type_, e))
+    {
+        sc.add_component(type_, e);
     }
 }
 
-void CommandAddTypedComponent::undo()
+void CommandAddTypedComponent::undo(Scene& sc)
 {
-    if (sc_.is_valid_entity(e_))
+    const auto e = sc.resolve(ref_);
+    if (e == entt::null)
     {
-        sc_.remove_component(type_, e_);
+        log_missing(type_.name);
+        return;
     }
+    sc.remove_component(type_, e);
 }
 
 CommandRemoveTypedComponent::CommandRemoveTypedComponent(Scene& sc, entt::entity e, const TypeInfo& type)
-    : sc_(sc)
-    , e_(e)
+    : ref_(sc.make_ref(e))
     , type_(type)
     , value_(type.size)
 {
-    sc_.get_component(type_, e_, value_.get());
+    sc.get_component(type_, e, value_.get());
 }
 
-void CommandRemoveTypedComponent::execute()
+void CommandRemoveTypedComponent::execute(Scene& sc)
 {
-    if (sc_.is_valid_entity(e_))
+    const auto e = sc.resolve(ref_);
+    if (e == entt::null)
     {
-        sc_.remove_component(type_, e_);
+        log_missing(type_.name);
+        return;
     }
+    sc.remove_component(type_, e);
 }
 
-void CommandRemoveTypedComponent::undo()
+void CommandRemoveTypedComponent::undo(Scene& sc)
 {
-    if (sc_.is_valid_entity(e_) && !sc_.has_component(type_, e_))
+    const auto e = sc.resolve(ref_);
+    if (e == entt::null)
     {
-        sc_.add_component(type_, e_);
-        sc_.update_component(type_, e_, value_.get());
+        log_missing(type_.name);
+        return;
+    }
+    if (!sc.has_component(type_, e))
+    {
+        sc.add_component(type_, e);
+        sc.update_component(type_, e, value_.get());
     }
 }
 
 CommandDestroyEntity::CommandDestroyEntity(Scene& sc, entt::entity e)
-    : scene_(sc)
-    , e_(e)
+    : ref_(sc.make_ref(e))
 {
-    assert(e_ != entt::null);
+    assert(e != entt::null);
 }
 
 namespace
@@ -272,52 +330,57 @@ bool CommandDestroyEntity::can_destroy(const Scene& sc, entt::entity e)
     return !EntityIdRegistry::is_hashed_id(sc.get_persistent_id(e)) && holds_whole_instances(sc, e);
 }
 
-void CommandDestroyEntity::execute()
+void CommandDestroyEntity::execute(Scene& sc)
 {
     saved_.clear();
     restore_ = {};
-    parent_ = entt::null;
-    if (!scene_.is_valid_entity(e_) || !can_destroy(scene_, e_))
+    parent_ = {};
+    const auto e = sc.resolve(ref_);
+    if (e == entt::null)
+    {
+        log_missing("delete");
+        return;
+    }
+    if (!can_destroy(sc, e))
     {
         return;
     }
-    const auto subtree = scene_.get_subtree(e_);
+    const auto subtree = sc.get_subtree(e);
     for (const auto entity : subtree)
     {
-        if (const auto id = scene_.get_persistent_id(entity); id != EntityIdRegistry::INVALID_ID)
+        if (const auto id = sc.get_persistent_id(entity); id != EntityIdRegistry::INVALID_ID)
         {
             restore_.handles[id] = entity;
         }
     }
     // the parent (and anything else outside of what is destroyed) is referenced by persistent ID
     restore_.find_references_outside_file = true;
-    if (scene_.has_component<engine_parent_component_t>(e_))
+    if (const auto parent = parent_of(sc, e); parent != entt::null)
     {
-        parent_ = static_cast<entt::entity>(scene_.get_component<engine_parent_component_t>(e_)->parent);
-        const auto siblings = scene_.get_children(parent_);
-        child_index_ = static_cast<std::size_t>(std::find(siblings.begin(), siblings.end(), e_) - siblings.begin());
+        parent_ = sc.make_ref(parent);
+        const auto siblings = sc.get_children(parent);
+        child_index_ = static_cast<std::size_t>(std::find(siblings.begin(), siblings.end(), e) - siblings.begin());
     }
-    saved_ = scene_.save(subtree);
-    scene_.destroy_entity(e_);
+    saved_ = sc.save(subtree);
+    sc.destroy_entity(e);
 }
 
-void CommandDestroyEntity::undo()
+void CommandDestroyEntity::undo(Scene& sc)
 {
     if (saved_.empty())
     {
         return;
     }
-    scene_.load(saved_, "undo of a destroy", restore_);
-    if (parent_ != entt::null)
+    sc.load(saved_, "undo of a destroy", restore_);
+    if (const auto parent = sc.resolve(parent_); parent != entt::null)
     {
-        scene_.set_child_index(parent_, e_, child_index_);
+        sc.set_child_index(parent, sc.resolve(ref_), child_index_);
     }
 }
 
 CommandDuplicateEntity::CommandDuplicateEntity(Scene& sc, entt::entity e, entt::entity selected)
-    : scene_(sc)
-    , e_(e)
-    , selected_(selected)
+    : ref_(sc.make_ref(e))
+    , selected_(sc.make_ref(selected))
 {
 }
 
@@ -327,37 +390,43 @@ bool CommandDuplicateEntity::can_duplicate(const Scene& sc, entt::entity e)
     return sc.is_valid_entity(e) && id != EntityIdRegistry::INVALID_ID && !EntityIdRegistry::is_hashed_id(id) && holds_whole_instances(sc, e);
 }
 
-void CommandDuplicateEntity::execute()
+void CommandDuplicateEntity::execute(Scene& sc)
 {
     if (!destroy_copy_)
     {
-        duplicate();
+        duplicate(sc);
     }
     else
     {
-        destroy_copy_->undo();
+        destroy_copy_->undo(sc);
     }
     if (select_copy_)
     {
-        select_copy_->execute();
+        select_copy_->execute(sc);
     }
 }
 
-void CommandDuplicateEntity::undo()
+void CommandDuplicateEntity::undo(Scene& sc)
 {
     if (select_copy_)
     {
-        select_copy_->undo();
+        select_copy_->undo(sc);
     }
     if (destroy_copy_)
     {
-        destroy_copy_->execute();
+        destroy_copy_->execute(sc);
     }
 }
 
-void CommandDuplicateEntity::duplicate()
+void CommandDuplicateEntity::duplicate(Scene& sc)
 {
-    if (!can_duplicate(scene_, e_))
+    const auto e = sc.resolve(ref_);
+    if (e == entt::null)
+    {
+        log_missing("duplicate");
+        return;
+    }
+    if (!can_duplicate(sc, e))
     {
         log::log(log::LogLevel::eError, "Editor: a runtime (transient) object, a part of a prefab instance or a game object holding a part of one without its "
             "instance can't be duplicated.\n");
@@ -369,117 +438,117 @@ void CommandDuplicateEntity::duplicate()
     // the parent (and anything else outside of what is copied) stays what it is
     copy.find_references_outside_file = true;
     copy.loaded = &loaded;
-    if (!scene_.load(scene_.save(scene_.get_subtree(e_)), "duplicate", copy))
+    if (!sc.load(sc.save(sc.get_subtree(e)), "duplicate", copy))
     {
         return;
     }
-    const auto it = loaded.find(scene_.get_persistent_id(e_));
+    const auto it = loaded.find(sc.get_persistent_id(e));
     if (it == loaded.end())
     {
         return;
     }
-    copy_ = it->second;
+    const auto copy_entity = it->second;
+    copy_ = sc.make_ref(copy_entity);
 
     // the name, unique among the siblings, and the place right after the original
-    make_name_unique_among_siblings(scene_, copy_);
-    if (const auto parent = parent_of(scene_, e_); parent != entt::null)
+    make_name_unique_among_siblings(sc, copy_entity);
+    if (const auto parent = parent_of(sc, e); parent != entt::null)
     {
-        const auto siblings = scene_.get_children(parent);
-        const auto index = static_cast<std::size_t>(std::find(siblings.begin(), siblings.end(), e_) - siblings.begin());
-        scene_.set_child_index(parent, copy_, index + 1);
+        const auto siblings = sc.get_children(parent);
+        const auto index = static_cast<std::size_t>(std::find(siblings.begin(), siblings.end(), e) - siblings.begin());
+        sc.set_child_index(parent, copy_entity, index + 1);
     }
 
     // a scene has one nav surface for now: the nav mesh build keeps using the original's
-    const auto copy_subtree = scene_.get_subtree(copy_);
-    if (std::ranges::any_of(copy_subtree, [this](entt::entity e) { return scene_.has_component<engine_nav_surface_component_t>(e); }))
+    const auto copy_subtree = sc.get_subtree(copy_entity);
+    if (std::ranges::any_of(copy_subtree, [&sc](entt::entity c) { return sc.has_component<engine_nav_surface_component_t>(c); }))
     {
         log::log(log::LogLevel::eError, "Editor: the copy has a nav surface, so the scene has more than one now; the nav mesh is built from the one "
             "with the lowest persistent ID (the original's).\n");
     }
 
-    destroy_copy_ = std::make_unique<CommandDestroyEntity>(scene_, copy_);
-    select_copy_ = std::make_unique<CommandSetSelection>(scene_, selected_, copy_);
+    destroy_copy_ = std::make_unique<CommandDestroyEntity>(sc, copy_entity);
+    select_copy_ = std::make_unique<CommandSetSelection>(sc, sc.resolve(selected_), copy_entity);
 }
 
 CommandPlacePrefab::CommandPlacePrefab(Scene& sc, IAssetSelection& assets, std::string_view prefab_asset_id, const glm::vec3& position, entt::entity selected)
-    : scene_(sc)
-    , assets_(assets)
+    : assets_(assets)
     , asset_id_(prefab_asset_id)
     , position_(position)
-    , selected_(selected)
+    , selected_(sc.make_ref(selected))
 {
 }
 
-void CommandPlacePrefab::execute()
+void CommandPlacePrefab::execute(Scene& sc)
 {
     if (!destroy_instance_)
     {
-        place();
+        place(sc);
     }
     else
     {
-        destroy_instance_->undo();
+        destroy_instance_->undo(sc);
     }
     if (select_instance_)
     {
-        select_instance_->execute();
+        select_instance_->execute(sc);
     }
 }
 
-void CommandPlacePrefab::undo()
+void CommandPlacePrefab::undo(Scene& sc)
 {
     if (select_instance_)
     {
-        select_instance_->undo();
+        select_instance_->undo(sc);
     }
     if (destroy_instance_)
     {
-        destroy_instance_->execute();
+        destroy_instance_->execute(sc);
     }
 }
 
-void CommandPlacePrefab::place()
+void CommandPlacePrefab::place(Scene& sc)
 {
     // logs why when it can't be loaded
-    const auto prefab = scene_.assets().resolve_prefab(asset_id_);
+    const auto prefab = sc.assets().resolve_prefab(asset_id_);
     if (prefab == ENGINE_INVALID_OBJECT_HANDLE)
     {
         return;
     }
-    root_ = scene_.prefabs().instantiate_prefab(prefab, Prefab::Instance::ePersistent);
-    if (root_ == entt::null)
+    const auto root = sc.prefabs().instantiate_prefab(prefab, Prefab::Instance::ePersistent);
+    if (root == entt::null)
     {
         return;
     }
-    if (!scene_.has_component<engine_transform_component_t>(root_))
+    root_ = sc.make_ref(root);
+    if (!sc.has_component<engine_transform_component_t>(root))
     {
-        scene_.add_component<engine_transform_component_t>(root_);
+        sc.add_component<engine_transform_component_t>(root);
     }
-    auto transform = *scene_.get_component<engine_transform_component_t>(root_);
+    auto transform = *sc.get_component<engine_transform_component_t>(root);
     std::memcpy(transform.position, &position_[0], sizeof(transform.position));
-    scene_.update_component<engine_transform_component_t>(root_, transform);
-    make_name_unique_among_siblings(scene_, root_);
+    sc.update_component<engine_transform_component_t>(root, transform);
+    make_name_unique_among_siblings(sc, root);
 
-    destroy_instance_ = std::make_unique<CommandDestroyEntity>(scene_, root_);
+    destroy_instance_ = std::make_unique<CommandDestroyEntity>(sc, root);
     // the file selected before (the one dragged in, often) comes back with undo
-    select_instance_ = std::make_unique<CommandSetSelection>(scene_, assets_, selected_, root_, "");
+    select_instance_ = std::make_unique<CommandSetSelection>(sc, assets_, sc.resolve(selected_), root, "");
 }
 
 
-CommandSetPhysicsDebugDraw::CommandSetPhysicsDebugDraw(Scene& sc, bool flag)
-    : scene_(sc)
-    , flag_(flag)
+CommandSetPhysicsDebugDraw::CommandSetPhysicsDebugDraw(bool flag)
+    : flag_(flag)
 {
 }
 
-void CommandSetPhysicsDebugDraw::execute()
+void CommandSetPhysicsDebugDraw::execute(Scene& sc)
 {
-    scene_.physics().enable_debug_draw(flag_);
+    sc.physics().enable_debug_draw(flag_);
 }
 
-void CommandSetPhysicsDebugDraw::undo()
+void CommandSetPhysicsDebugDraw::undo(Scene& sc)
 {
-    scene_.physics().enable_debug_draw(!flag_);
+    sc.physics().enable_debug_draw(!flag_);
 }
 
 } // namespace engine

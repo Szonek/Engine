@@ -1,4 +1,5 @@
 #include "application.h"
+#include "imgui/imgui.h"
 #include "asset_store.h"
 #include "file_watcher.h"
 #include "editor_commands.h"
@@ -60,6 +61,12 @@ public:
     void set_forced_open_selected_parents(bool value);
     bool is_forced_open_selected_parents() const;
     void sync_selected_from_scene(engine::Scene* scene);
+    // The selection refers to its game object by persistent ID (GameObjectRef): when the game object got a new handle
+    // (Stop loaded the scene saved at Play back), the selection follows it and marks it again; when it is gone (a script
+    // destroyed it), nothing is selected any more.
+    void resolve_selection(engine::Scene* scene);
+    // no game object selected, without an undo step: the scene it was in was released
+    void reset();
 
     // deleting a game object undo can't bring back (a transient one) waits for the user to confirm it in a popup
     void request_delete_without_undo(entt::entity e);
@@ -68,7 +75,9 @@ public:
 
 private:
     IAssetSelection& assets_;
+    // the selected game object's handle, found again from selected_ref_ by resolve_selection
     entt::entity selected_ = entt::null;
+    GameObjectRef selected_ref_;
     bool force_open_selected_parents_ = false;
     entt::entity delete_without_undo_ = entt::null;
 };
@@ -82,7 +91,6 @@ public:
     ApplicationEditor(ApplicationEditor&&) = delete;
     ApplicationEditor& operator=(ApplicationEditor&&) = delete;
     ~ApplicationEditor();
-    bool is_playing() const { return is_playing_; }
     bool is_game_view() const;
     // The mouse is over the scene panel (or a button pressed over it is still held), not over another editor panel.
     bool is_mouse_over_scene() const;
@@ -99,10 +107,24 @@ protected:
     bool is_keyboard_enabled() override;
     void on_scene_create(class Scene* scene) override;
     void on_scene_release(class Scene* scene) override;
+    void on_play_mode_enter(class Scene* scene) override;
+    void on_play_mode_exit(class Scene* scene) override;
 
 private:
+    // Play or Stop asked for by the toolbar or a shortcut, done at the start of the next frame
+    enum class PlayModeRequest
+    {
+        eNone,
+        ePlay,
+        eStop,
+    };
+    static constexpr ImVec4 PLAYING_TINT{ 0.10f, 0.22f, 0.36f, 1.0f };
+    static constexpr ImVec4 PAUSED_TINT{ 0.30f, 0.24f, 0.08f, 1.0f };
+
     // the panel showing the scene image
     void render_scene_view();
+    // Ctrl+P, Ctrl+Shift+P, Ctrl+Alt+P
+    void handle_play_mode_shortcuts();
     void render_editor_controls(class Scene* scene, float dt);
     void render_scene_hierarchy_panel(class Scene* scene, float dt);
     // the asset browser, in the bottom panel
@@ -192,9 +214,10 @@ private:
     EditorView editor_view_ = EditorView::eGame;
     EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;
-    // the game runs from the start; Pause stops the scripts
-    bool is_playing_ = true;
     float frame_delta_time_ = 0.0f;
+    PlayModeRequest play_mode_request_ = PlayModeRequest::eNone;
+    // the scene Play and Stop act on: the one the toolbar was last drawn for, none once it is released
+    class Scene* play_mode_scene_ = nullptr;
     CommandManager commands_;
     std::shared_ptr<OutlineFeature> outline_feature_;
     std::shared_ptr<GridFeature> grid_feature_;

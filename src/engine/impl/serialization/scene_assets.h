@@ -30,6 +30,9 @@ public:
     // the prefab of a model or a scene file (its asset ID is the file's path), loaded when needed;
     // ENGINE_INVALID_OBJECT_HANDLE when it can't be loaded (logged)
     std::uint32_t resolve_prefab(std::string_view model_path);
+    // Exchanges the files the two hold (of the same application): the scene keeps holding the files of its old content
+    // in another SceneAssets until its new content holds them too (Scene::replace), so the ones both use aren't loaded again.
+    void swap(SceneAssets& other);
 
 private:
     // holds a reference to the file the asset comes from, loading it when needed
