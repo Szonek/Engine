@@ -111,6 +111,9 @@ void engine::ApplicationEditor::forget_game_objects()
     gizmo_hovered_entity_ = entt::null;
     gizmo_hovered_handle_.reset();
     delete_without_undo_ = entt::null;
+    scene_hierarchy_context_.end_rename();
+    name_field_active_ = false;
+    name_field_entity_ = entt::null;
 }
 
 void engine::ApplicationEditor::apply_scene_file_request()

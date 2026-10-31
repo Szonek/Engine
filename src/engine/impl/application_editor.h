@@ -5,9 +5,13 @@
 #include "editor_commands.h"
 #include "editor_asset_panel.h"
 #include "editor_camera.h"
+#include "editor_context_click.h"
+#include "editor_component_list.h"
 #include "editor_modal_transform.h"
 #include "render/outline_feature.h"
 #include "render/grid_feature.h"
+
+#include "components/name_component.h"
 
 #include <entt/entt.hpp>
 #include <array>
@@ -16,6 +20,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace engine
@@ -35,10 +40,10 @@ public:
 
     entt::entity get_entity() const { return go_; }
     EditorCamera& get_camera() { return camera_; }
+    // glides to the bounding sphere of the entity and its children: their origins, at least about their size (F)
+    bool frame_entity(entt::entity entity);
 
 private:
-    // the bounding sphere of the entity and its children: their origins, at least about their size
-    bool frame_entity(entt::entity entity);
     float get_fov_y() const;
 
 private:
@@ -76,6 +81,18 @@ public:
     // the game object whose delete was requested since the last call, or entt::null
     entt::entity take_delete_without_undo_request();
 
+    // Renames in place, like Unity's, Unreal's and Godot's hierarchies (F2, a double-click, the Rename menu item): the
+    // game object's row becomes a text field holding its name; Enter or clicking away renames it (one undo step),
+    // Escape gives the name back. A game object without a name component can't be renamed.
+    void request_rename(const engine::Scene* scene, entt::entity e);
+    bool is_renaming(entt::entity e) const { return renaming_ != entt::null && renaming_ == e; }
+    std::array<char, ENGINE_ENTITY_NAME_MAX_LENGTH>& get_rename_buffer() { return rename_buffer_; }
+    // true once after request_rename: the text field takes the keyboard focus
+    bool take_rename_focus() { return std::exchange(rename_focus_, false); }
+    // the frames in which the text field gets the focus it asked for
+    bool is_rename_starting() const;
+    void end_rename() { renaming_ = entt::null; }
+
 private:
     IAssetSelection& assets_;
     // the selected game object's handle, found again from selected_ref_ by resolve_selection
@@ -83,6 +100,10 @@ private:
     GameObjectRef selected_ref_;
     bool force_open_selected_parents_ = false;
     entt::entity delete_without_undo_ = entt::null;
+    entt::entity renaming_ = entt::null;
+    std::array<char, ENGINE_ENTITY_NAME_MAX_LENGTH> rename_buffer_{};
+    bool rename_focus_ = false;
+    int rename_frame_ = 0;
 };
 
 class ApplicationEditor : public Application
@@ -185,9 +206,26 @@ private:
     // the scene's file as the toolbar, the title and the prompt show it ("Untitled" without one)
     static std::string scene_display_name(const class Scene& scene);
     void render_entity_properties_panel(class Scene* scene, float dt);
+    // the selected game object's name, at the top of the properties panel (like Unity's inspector header)
+    void display_name_field(class Scene* scene, entt::entity entity);
+    // below its components: a list of the ones it doesn't have, by category, with a search field (like Unity's)
+    void display_add_component_button(class Scene* scene, entt::entity entity);
     void render_debug_panel(class Scene* scene, float dt);
     void render_guizmo(class Scene* scene);
     void handle_mouse_picking(class Scene* scene);
+    // the game object under the mouse in the scene view (entt::null: empty space), as the previous frame showed it;
+    // nothing when it can't be read
+    std::optional<entt::entity> pick_entity_under_mouse();
+    // where the ray through `mouse` (pixels in the scene view) hits a collider, or the ground, seen through the camera
+    // (a placed asset or a created game object goes there)
+    glm::vec3 get_mouse_scene_point(class Scene* scene, entt::entity camera_entity, const glm::vec2& mouse) const;
+    // the mouse in pixels from the scene view's top left corner
+    glm::vec2 get_scene_view_mouse() const;
+    // a right-click (not a drag, which flies the camera) in the scene view opens a menu, like Unreal's and Unity's:
+    // what can be done to the game object clicked on (it is selected first) or the selected one, or what can be
+    // created where nothing is
+    void handle_scene_view_context_menu(class Scene* scene);
+    void start_modal_transform(class Scene* scene, ModalTransformMode mode);
     // Blender's G / R / S on the selected game object: starts, follows the mouse, confirms (one undo step) or cancels
     void handle_modal_transform(class Scene* scene);
     void draw_modal_transform(class Scene* scene);
@@ -204,6 +242,7 @@ private:
         bool is_enabled(engine::Scene* scene) const;
         EditorCamera* get_camera(engine::Scene* scene);
         entt::entity get_camera_entity(engine::Scene* scene) const;
+        void frame_entity(engine::Scene* scene, entt::entity entity);
 
     private:
         struct camera_data_t
@@ -261,6 +300,9 @@ private:
     std::optional<ModalTransformMode> gizmo_hovered_handle_;
     // the click that confirmed or cancelled a modal transform doesn't pick, orbit or fly until it is released
     bool mouse_consumed_ = false;
+    ContextClick context_click_;
+    // where the scene view's context menu was opened: what it creates goes there
+    glm::vec2 context_menu_mouse_{ 0.0f };
     EditorView editor_view_ = EditorView::eGame;
     EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;
@@ -286,6 +328,16 @@ private:
     SceneHierarchyContext scene_hierarchy_context_{ asset_browser_ };
     // the game object whose delete without undo waits for its confirmation
     entt::entity delete_without_undo_ = entt::null;
+    // the properties panel's name field: the text being edited while it is active, the game object's name otherwise
+    // and the game object it is the name of (the selection may change before the field gives up the focus)
+    std::array<char, ENGINE_ENTITY_NAME_MAX_LENGTH> name_field_buffer_{};
+    entt::entity name_field_entity_ = entt::null;
+    bool name_field_active_ = false;
+    // the Add Component list's search text, and the listed component Enter adds
+    std::array<char, 64> add_component_filter_{};
+    int add_component_highlight_ = 0;
+    // the hierarchy panel has the keyboard focus (F2 renames the selection there and in the scene view)
+    bool hierarchy_focused_ = false;
     // a Save, Open or New done at the start of the next frame, like Play and Stop: never during a scene update (the
     // editor camera has the game's cameras disabled then, a save would keep them so)
     scene_file_request_t scene_file_request_;

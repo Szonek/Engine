@@ -41,6 +41,31 @@ bool any_mouse_button_down(const ImGuiIO& io)
     return io.MouseDown[ImGuiMouseButton_Left] || io.MouseDown[ImGuiMouseButton_Right] || io.MouseDown[ImGuiMouseButton_Middle];
 }
 
+// what the editor camera reads this frame (and the scene view's right-click, ContextClick)
+engine::editor_camera_input_t read_editor_camera_input()
+{
+    const auto& io = ImGui::GetIO();
+    engine::editor_camera_input_t input{};
+    if (ImGui::IsMousePosValid() && ImGui::IsMousePosValid(&io.MousePosPrev))
+    {
+        input.mouse_delta = { io.MouseDelta.x, io.MouseDelta.y };
+    }
+    input.wheel = io.MouseWheel;
+    input.lmb = io.MouseDown[ImGuiMouseButton_Left];
+    input.mmb = io.MouseDown[ImGuiMouseButton_Middle];
+    input.rmb = io.MouseDown[ImGuiMouseButton_Right];
+    input.alt = io.KeyAlt;
+    input.shift = io.KeyShift;
+    input.ctrl = io.KeyCtrl;
+    input.move_forward = ImGui::IsKeyDown(ImGuiKey_W);
+    input.move_back = ImGui::IsKeyDown(ImGuiKey_S);
+    input.move_left = ImGui::IsKeyDown(ImGuiKey_A);
+    input.move_right = ImGui::IsKeyDown(ImGuiKey_D);
+    input.move_down = ImGui::IsKeyDown(ImGuiKey_Q);
+    input.move_up = ImGui::IsKeyDown(ImGuiKey_E);
+    return input;
+}
+
 struct entity_node_t
 {
     entt::entity entity = entt::null;
@@ -73,6 +98,99 @@ void duplicate_entity(entt::entity e, engine::Scene* scene, engine::CommandManag
     ctx.sync_selected_from_scene(scene);
 }
 
+// renames the game object with an undo step; an empty or unchanged name changes nothing
+void rename_entity(entt::entity e, std::string_view name, engine::Scene* scene, engine::CommandManager& commands)
+{
+    if (name.empty() || !scene->is_valid_entity(e) || !scene->has_component<engine_name_component_t>(e)
+        || name == scene->get_component<engine_name_component_t>(e)->name)
+    {
+        return;
+    }
+    commands.execute_command(*scene, std::make_unique<engine::CommandRenameEntity>(*scene, e, name));
+}
+
+// the text field in the row of the game object renamed in place (SceneHierarchyContext::request_rename)
+void display_rename_field(entt::entity e, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
+{
+    auto& buffer = ctx.get_rename_buffer();
+    ImGui::SameLine();
+    if (ctx.take_rename_focus())
+    {
+        ImGui::SetKeyboardFocusHere();
+    }
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputText("##rename", buffer.data(), buffer.size(), ImGuiInputTextFlags_AutoSelectAll);
+    // Enter and clicking away rename it; Escape has given the field its starting text back, which renames nothing
+    if (ImGui::IsItemDeactivated())
+    {
+        rename_entity(e, buffer.data(), scene, commands);
+        ctx.end_rename();
+    }
+    else if (!ImGui::IsItemActive() && !ctx.is_rename_starting())
+    {
+        // the field never got the keyboard focus (another window took it)
+        ctx.end_rename();
+    }
+}
+
+// Deletes the game object with an undo step; a runtime (transient) one isn't saved, so undo can't bring it back:
+// deleting it is confirmed first. Nothing when it can't be deleted (CommandDestroyEntity::can_destroy).
+void delete_entity(entt::entity e, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
+{
+    if (scene->get_persistent_id(e) == engine::EntityIdRegistry::INVALID_ID)
+    {
+        ctx.request_delete_without_undo(e);
+    }
+    else if (engine::CommandDestroyEntity::can_destroy(*scene, e))
+    {
+        ctx.set_selected_entity(scene, entt::null, commands);
+        commands.execute_command(*scene, std::make_unique<engine::CommandDestroyEntity>(*scene, e));
+    }
+}
+
+// What can be done to one game object, in the hierarchy's context menu and the scene view's (same items, same rules)
+void display_game_object_menu_items(entt::entity e, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
+{
+    const auto instance_part = engine::EntityIdRegistry::is_hashed_id(scene->get_persistent_id(e));
+    const auto transient = scene->get_persistent_id(e) == engine::EntityIdRegistry::INVALID_ID;
+    if (ImGui::MenuItem("Rename", "F2", false, scene->has_component<engine_name_component_t>(e)))
+    {
+        ctx.request_rename(scene, e);
+        ctx.set_forced_open_selected_parents(true);
+    }
+
+    const auto can_duplicate = engine::CommandDuplicateEntity::can_duplicate(*scene, e);
+    if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, can_duplicate))
+    {
+        duplicate_entity(e, scene, commands, ctx);
+    }
+    if (!can_duplicate)
+    {
+        ImGui::SetItemTooltip(transient ? "A runtime (transient) object isn't scene content, so it isn't duplicated"
+            : instance_part ? "Part of a prefab instance: it can't be duplicated out of it yet (duplicate the instance's root instead)"
+            : "A part of a prefab instance is under it without its instance's root: move it back to its instance first");
+    }
+
+    const auto can_delete = engine::CommandDestroyEntity::can_destroy(*scene, e);
+    if (transient)
+    {
+        if (ImGui::MenuItem("Delete (can't be undone)", "Del"))
+        {
+            delete_entity(e, scene, commands, ctx);
+        }
+        ImGui::SetItemTooltip("A runtime (transient) object isn't saved, so deleting it can't be undone");
+    }
+    else if (ImGui::MenuItem("Delete", "Del", false, can_delete))
+    {
+        delete_entity(e, scene, commands, ctx);
+    }
+    if (!transient && !can_delete)
+    {
+        ImGui::SetItemTooltip(instance_part ? "Part of a prefab instance: removing it from the instance can't be saved yet (delete the instance's root instead)"
+            : "A part of a prefab instance is under it without its instance's root: move it back to its instance first");
+    }
+}
+
 inline void display_node(entity_node_t* node, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_node");
@@ -98,7 +216,9 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
         }
     }
 
-    const auto entity_id = std::string(node->name) + "##" + std::to_string(static_cast<std::uint32_t>(node->entity));
+    // while it is renamed, the text field next to the arrow shows the name
+    const bool renaming = ctx.is_renaming(node->entity);
+    const auto entity_id = (renaming ? std::string() : node->name) + "##" + std::to_string(static_cast<std::uint32_t>(node->entity));
     // a collapsed node returns false but can still be clicked, dragged etc., so its item is handled either way
     const bool open = ImGui::TreeNodeEx(entity_id.c_str(), dispaly_flags);
     // a game object its prefab instance created stays under its instance's root, like Unity's (which can't be
@@ -118,55 +238,16 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
             ctx.set_selected_entity(scene, node->entity, commands);
         }
     }
-    
+    // a double-click renames it, like Godot's scene dock
+    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && !ImGui::IsItemToggledOpen())
+    {
+        ctx.request_rename(scene, node->entity);
+    }
+
     // context menu with RMB
     if (ImGui::BeginPopupContextItem())
     {
-        // delete entity
-        const auto can_delete = engine::CommandDestroyEntity::can_destroy(*scene, node->entity);
-        const auto transient = scene->get_persistent_id(node->entity) == engine::EntityIdRegistry::INVALID_ID;
-        if (transient)
-        {
-            // a runtime object isn't saved, so undo can't bring it back: deleting it is confirmed first
-            if (ImGui::MenuItem("Delete (can't be undone)"))
-            {
-                ctx.request_delete_without_undo(node->entity);
-            }
-            ImGui::SetItemTooltip("A runtime (transient) object isn't saved, so deleting it can't be undone");
-        }
-        else if (ImGui::MenuItem("Delete", nullptr, false, can_delete))
-        {
-            ctx.set_selected_entity(scene, entt::null, commands);
-            commands.execute_command(*scene, std::make_unique<engine::CommandDestroyEntity>(*scene, node->entity));
-        }
-        if (!can_delete)
-        {
-            ImGui::SetItemTooltip(instance_part ? "Part of a prefab instance: removing it from the instance can't be saved yet (delete the instance's root instead)"
-                : "A part of a prefab instance is under it without its instance's root: move it back to its instance first");
-        }
-
-        const auto can_duplicate = engine::CommandDuplicateEntity::can_duplicate(*scene, node->entity);
-        if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, can_duplicate))
-        {
-            duplicate_entity(node->entity, scene, commands, ctx);
-        }
-        if (!can_duplicate)
-        {
-            ImGui::SetItemTooltip(transient ? "A runtime (transient) object isn't scene content, so it isn't duplicated"
-                : instance_part ? "Part of a prefab instance: it can't be duplicated out of it yet (duplicate the instance's root instead)"
-                : "A part of a prefab instance is under it without its instance's root: move it back to its instance first");
-        }
-
-        //rename entity
-        static decltype(engine_name_component_t::name) new_name = "New name";
-        if(ImGui::Button("Rename"))
-        {
-            commands.execute_command(*scene, std::make_unique<engine::CommandRenameEntity>(*scene, node->entity, new_name));
-            // reset static new name
-            std::strcpy(new_name, "New name");
-        }
-        ImGui::SameLine();        
-        ImGui::InputText("##edit", new_name, IM_ARRAYSIZE(new_name));
+        display_game_object_menu_items(node->entity, scene, commands, ctx);
         ImGui::EndPopup();
     }
 
@@ -207,6 +288,11 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
             }
         }
         ImGui::EndDragDropTarget();
+    }
+
+    if (renaming)
+    {
+        display_rename_field(node->entity, scene, commands, ctx);
     }
 
     if (open)
@@ -347,55 +433,51 @@ inline void display_folder(const std::string& name, folder_node_t& folder, engin
     }
 }
 
+// The header of a component the game object has, with its menu (like Unity's ⋮ menu): opened by right-clicking the
+// header or by its button at the header's right. Returns whether the header is open; `remove` is set when Remove was
+// picked.
+bool display_component_header(const char* name, bool& remove)
+{
+    const bool open = ImGui::CollapsingHeader(name, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap);
+    constexpr const char* menu = "##component_menu";
+    ImGui::OpenPopupOnItemClick(menu, ImGuiPopupFlags_MouseButtonRight);
+    const char* button = "...";
+    ImGui::SameLine(ImGui::GetContentRegionMax().x - ImGui::CalcTextSize(button).x - ImGui::GetStyle().FramePadding.x * 2.0f);
+    if (ImGui::SmallButton(button))
+    {
+        ImGui::OpenPopup(menu);
+    }
+    remove = false;
+    if (ImGui::BeginPopup(menu))
+    {
+        remove = ImGui::MenuItem("Remove");
+        ImGui::EndPopup();
+    }
+    return open;
+}
+
+// a component of the engine the game object has, with its hand-written panel `fn`
 template<typename T>
 inline void display_component(std::string_view name, engine::Scene* scene, engine::CommandManager& commands, entt::entity entity, std::function<bool(engine::Scene* scene, T& comp)> fn)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_component");
-    const bool has_component = scene->has_component<T>(entity);
-    if (!has_component)
+    ImGui::PushID(name.data());
+    bool remove = false;
+    if (display_component_header(name.data(), remove) && !remove)
     {
-        ImGui::BeginDisabled();
-    }
-    if (ImGui::CollapsingHeader(name.data(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_AllowItemOverlap))
-    {
-        if (has_component)
+        auto comp = *scene->get_component<T>(entity);
+        if (fn(scene, comp))
         {
-            auto comp = *scene->get_component<T>(entity);
-            if (fn(scene, comp))
-            {
-                //scene->update_component<T>(entity, comp);
-                commands.execute_command(*scene, std::make_unique<engine::CommandUpdateComponent<T>>(*scene, entity, comp));
-            }
-
+            commands.execute_command(*scene, std::make_unique<engine::CommandUpdateComponent<T>>(*scene, entity, comp));
         }
     }
-    else
+    if (remove)
     {
-        ImGui::SameLine();
+        scene->remove_component<T>(entity);
+        // adding and removing the engine's components have no undo step yet
+        commands.mark_changed();
     }
-    if (!has_component)
-    {
-        ImGui::EndDisabled();
-    }
-    if (has_component)
-    {
-        const std::string label = std::string("Remove##") + std::string(name);
-        if (ImGui::Button(label.c_str()))
-        {
-            scene->remove_component<T>(entity);
-            // adding and removing the engine's components have no undo step yet
-            commands.mark_changed();
-        }
-    }
-    else
-    {
-        const std::string label = std::string("Add##") + std::string(name);
-        if (ImGui::Button(label.c_str()))
-        {
-            scene->add_component<T>(entity);
-            commands.mark_changed();
-        }
-    }
+    ImGui::PopID();
 }
 
 // Combo box picking a resource by its asset ID (atlas name) instead of typing its index; "None" selects
@@ -705,42 +787,20 @@ void display_typed_component(const engine::TypeInfo& type, engine::Scene* scene,
 {
     ENGINE_PROFILE_SECTION_N("editor-display_typed_component");
     ImGui::PushID(type.name.c_str());
-    const bool has_component = scene->has_component(type, entity);
-    if (!has_component)
+    bool remove = false;
+    if (display_component_header(type.name.c_str(), remove) && !remove)
     {
-        ImGui::BeginDisabled();
-    }
-    if (ImGui::CollapsingHeader(type.name.c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_AllowItemOverlap))
-    {
-        if (has_component)
+        engine::ValueBuffer value(type.size);
+        scene->get_component(type, entity, value.get());
+        if (TypeInspector(scene).draw_struct(type, value.get()))
         {
-            engine::ValueBuffer value(type.size);
-            scene->get_component(type, entity, value.get());
-            if (TypeInspector(scene).draw_struct(type, value.get()))
-            {
-                // with the components the new value requires (a script's config), in the same undo step
-                commands.execute_command(*scene, engine::make_update_typed_component_command(*scene, entity, type, value.get()));
-            }
+            // with the components the new value requires (a script's config), in the same undo step
+            commands.execute_command(*scene, engine::make_update_typed_component_command(*scene, entity, type, value.get()));
         }
     }
-    else
+    if (remove)
     {
-        ImGui::SameLine();
-    }
-    if (!has_component)
-    {
-        ImGui::EndDisabled();
-    }
-    if (ImGui::Button(has_component ? "Remove" : "Add"))
-    {
-        if (has_component)
-        {
-            commands.execute_command(*scene, std::make_unique<engine::CommandRemoveTypedComponent>(*scene, entity, type));
-        }
-        else
-        {
-            commands.execute_command(*scene, std::make_unique<engine::CommandAddTypedComponent>(*scene, entity, type));
-        }
+        commands.execute_command(*scene, std::make_unique<engine::CommandRemoveTypedComponent>(*scene, entity, type));
     }
     ImGui::PopID();
 }
@@ -1294,6 +1354,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
             handle_mouse_picking(scene);
         }
     }
+    handle_scene_view_context_menu(scene);
     // while a modal transform runs, Ctrl snaps and Z picks the axis: a combination pressed then (or still held when it
     // ends) isn't a new press
     const auto lctrl = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_LCTRL);
@@ -1326,6 +1387,20 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
         duplicate_entity(scene_hierarchy_context_.get_selected_entity(), scene, commands_, scene_hierarchy_context_);
     }
     ctrl_d_prev = ctrl_d_curr;
+
+    // F2 renames the selection in its hierarchy row, like Unity's and Godot's, from the hierarchy or the scene view
+    if (editor_view_ == EditorView::eEditor && (hierarchy_focused_ || scene_view_focused_) && !ImGui::GetIO().WantTextInput
+        && ImGui::IsKeyPressed(ImGuiKey_F2, false) && scene_hierarchy_context_.has_selected_entity())
+    {
+        scene_hierarchy_context_.request_rename(scene, scene_hierarchy_context_.get_selected_entity());
+        scene_hierarchy_context_.set_forced_open_selected_parents(true);
+    }
+    // Delete deletes the selection, from the same places (a runtime object asks first)
+    if (editor_view_ == EditorView::eEditor && (hierarchy_focused_ || scene_view_focused_) && !ImGui::GetIO().WantTextInput && !modal_transform_
+        && ImGui::IsKeyPressed(ImGuiKey_Delete, false) && scene_hierarchy_context_.has_selected_entity())
+    {
+        delete_entity(scene_hierarchy_context_.get_selected_entity(), scene, commands_, scene_hierarchy_context_);
+    }
 
     camera_context_.on_scene_update_post(scene, editor_delta_time);
 }
@@ -1578,6 +1653,7 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
         scene_hierarchy_context_.deselect_all(scene, commands_);
     }
     display_delete_without_undo_popup(scene);
+    hierarchy_focused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
     ImGui::End(); // scene panel
 }
 
@@ -1620,16 +1696,193 @@ void engine::ApplicationEditor::display_delete_without_undo_popup(class Scene* s
     ImGui::EndPopup();
 }
 
+namespace
+{
+// a component of the engine in the properties panel: drawn while the game object has it, offered by Add Component
+// otherwise
+struct engine_component_entry_t
+{
+    const char* name;
+    const char* category;
+    std::function<bool(const engine::Scene&, entt::entity)> has;
+    std::function<void(engine::Scene&, entt::entity)> add;
+    std::function<void(engine::Scene*, engine::CommandManager&, entt::entity)> draw;
+};
+
+template<typename T>
+engine_component_entry_t make_engine_component_entry(const char* name, const char* category, bool (*fn)(engine::Scene*, T&))
+{
+    return engine_component_entry_t{ name, category,
+        [](const engine::Scene& scene, entt::entity e) { return scene.has_component<T>(e); },
+        [](engine::Scene& scene, entt::entity e) { scene.add_component<T>(e); },
+        [name, fn](engine::Scene* scene, engine::CommandManager& commands, entt::entity e) { display_component<T>(name, scene, commands, e, fn); } };
+}
+
+// in the order the panel draws them, and the categories in the order Add Component lists them
+const std::vector<engine_component_entry_t>& get_engine_component_entries()
+{
+    static const std::vector<engine_component_entry_t> entries = []()
+    {
+        std::vector<engine_component_entry_t> ret = {
+            make_engine_component_entry<engine_folder_component_t>("Folder", "Scene", display_folder_component),
+            make_engine_component_entry<engine_transform_component_t>("Transform", "Scene", display_transform_component),
+            make_engine_component_entry<engine_light_component_t>("Light", "Rendering", display_light_component),
+            make_engine_component_entry<engine_camera_component_t>("Camera", "Rendering", display_camera_component),
+            make_engine_component_entry<engine_mesh_component_t>("Mesh", "Rendering", display_mesh_component),
+            make_engine_component_entry<engine_skinned_mesh_component_t>("Skinned Mesh", "Rendering", display_skinned_mesh_component),
+            make_engine_component_entry<engine_material_component_t>("Material", "Rendering", display_material_component),
+            make_engine_component_entry<engine_skin_component_t>("Skin", "Animation", display_skin_component),
+            make_engine_component_entry<engine_joint_attachment_component_t>("Joint Attachment", "Animation", display_joint_attachment_component),
+            make_engine_component_entry<engine_animation_controller_component_t>("Animation controller", "Animation", display_animation_controller_component),
+            make_engine_component_entry<engine_collider_component_t>("Collider", "Physics", display_collider_component),
+            make_engine_component_entry<engine_rigid_body_component_t>("Rigid Body", "Physics", display_rigidbody_component),
+            make_engine_component_entry<engine_character_controller_component_t>("Character Controller", "Physics", display_character_controller_component),
+            make_engine_component_entry<engine_nav_surface_component_t>("Nav Surface", "Navigation", display_nav_surface_component),
+            make_engine_component_entry<engine_nav_modifier_component_t>("Nav Modifier", "Navigation", display_nav_modifier_component),
+        };
+        // like a bake: nothing rebuilds the nav mesh automatically, so after editing the nav surface, nav modifiers or
+        // static colliders, build it again to see (and play with) the result
+        for (auto& entry : ret)
+        {
+            if (std::string_view(entry.name) == "Nav Surface")
+            {
+                entry.draw = [draw = entry.draw](engine::Scene* scene, engine::CommandManager& commands, entt::entity e)
+                {
+                    draw(scene, commands, e);
+                    if (scene->has_component<engine_nav_surface_component_t>(e) && ImGui::Button("Build nav mesh"))
+                    {
+                        scene->build_nav_mesh();
+                    }
+                };
+            }
+        }
+        return ret;
+    }();
+    return entries;
+}
+
+// the game's components have no hand-written panel: drawn from their type descriptions; one category for now
+constexpr const char* GAME_COMPONENTS_CATEGORY = "Game";
+}  // namespace
+
+void engine::ApplicationEditor::display_add_component_button(Scene* scene, entt::entity entity)
+{
+    constexpr const char* popup = "##add_component";
+    ImGui::Spacing();
+    if (ImGui::Button("Add Component", ImVec2(-FLT_MIN, 0.0f)))
+    {
+        add_component_filter_.fill('\0');
+        add_component_highlight_ = 0;
+        ImGui::OpenPopup(popup);
+    }
+    if (!ImGui::BeginPopup(popup))
+    {
+        return;
+    }
+    // what the game object doesn't have yet: the engine's components, then the game's
+    const auto& engine_entries = get_engine_component_entries();
+    std::vector<component_choice_t> choices;
+    std::vector<std::function<void()>> adds;
+    for (const auto& entry : engine_entries)
+    {
+        if (!entry.has(*scene, entity))
+        {
+            choices.push_back(component_choice_t{ entry.name, entry.category });
+            adds.push_back([this, scene, entity, &entry]()
+                {
+                    entry.add(*scene, entity);
+                    // adding the engine's components has no undo step yet
+                    commands_.mark_changed();
+                });
+        }
+    }
+    for (const auto* type : get_type_registry().get_components())
+    {
+        if (type->game_defined && !scene->has_component(*type, entity))
+        {
+            choices.push_back(component_choice_t{ type->name, GAME_COMPONENTS_CATEGORY });
+            adds.push_back([this, scene, entity, type]()
+                {
+                    commands_.execute_command(*scene, std::make_unique<CommandAddTypedComponent>(*scene, entity, *type));
+                });
+        }
+    }
+
+    if (ImGui::IsWindowAppearing())
+    {
+        ImGui::SetKeyboardFocusHere();
+    }
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::InputTextWithHint("##filter", "Search", add_component_filter_.data(), add_component_filter_.size()))
+    {
+        add_component_highlight_ = 0;
+    }
+    const auto groups = group_component_choices(choices, add_component_filter_.data());
+    const auto listed = listed_component_choices(groups);
+    // the arrow keys move the highlight through what is listed, Enter adds it (the search field keeps the focus)
+    if (!listed.empty())
+    {
+        const auto count = static_cast<int>(listed.size());
+        if (ImGui::IsKeyPressed(ImGuiKey_DownArrow))
+        {
+            add_component_highlight_ = (add_component_highlight_ + 1) % count;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_UpArrow))
+        {
+            add_component_highlight_ = (add_component_highlight_ + count - 1) % count;
+        }
+        add_component_highlight_ = std::clamp(add_component_highlight_, 0, count - 1);
+    }
+    std::optional<std::size_t> picked;
+    if (!listed.empty() && (ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false)))
+    {
+        picked = listed[static_cast<std::size_t>(add_component_highlight_)];
+    }
+    if (listed.empty())
+    {
+        ImGui::TextDisabled(choices.empty() ? "It has every component" : "No component matches");
+    }
+    int position = 0;
+    for (const auto& group : groups)
+    {
+        ImGui::SeparatorText(group.category.c_str());
+        for (const auto choice : group.choices)
+        {
+            const bool highlighted = position++ == add_component_highlight_;
+            ImGui::PushID(static_cast<int>(choice));
+            if (ImGui::Selectable(choices[choice].name.c_str(), highlighted))
+            {
+                picked = choice;
+            }
+            if (highlighted)
+            {
+                ImGui::SetItemDefaultFocus();
+                if (ImGui::IsKeyPressed(ImGuiKey_DownArrow) || ImGui::IsKeyPressed(ImGuiKey_UpArrow))
+                {
+                    ImGui::SetScrollHereY();
+                }
+            }
+            ImGui::PopID();
+        }
+    }
+    if (picked)
+    {
+        adds[*picked]();
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+}
+
 void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scene, float /*dt*/)
 {
-    /*
-    here all components should be visible
-        - the one which are not avaialbe in the entitiy (Grayd out) and a "+" button to add them
-        - the one which are available in the entity (whatever color) and a "-" button to remove them
-    */
     ImGui::Begin(editor_windows_context_.get_window_right());
     // one thing is selected, like in Unity's inspector: a file or a game object (selecting one deselects the other,
     // CommandSetSelection)
+    if (!scene_hierarchy_context_.has_selected_entity())
+    {
+        // the name field isn't drawn, so it is no longer edited
+        name_field_active_ = false;
+    }
     if (asset_browser_.has_selection())
     {
         ImGui::SeparatorText("Asset properties.");
@@ -1639,35 +1892,23 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
     {
         ImGui::SeparatorText("Entity properties.");
         const auto selected = scene_hierarchy_context_.get_selected_entity();
-        display_component<engine_folder_component_t>("Folder", scene, commands_, selected, display_folder_component);
-        display_component<engine_transform_component_t>("Transform", scene, commands_, selected, display_transform_component);
-        display_component<engine_light_component_t>("Light", scene, commands_, selected, display_light_component);
-        display_component<engine_camera_component_t>("Camera", scene, commands_, selected, display_camera_component);
-        display_component<engine_mesh_component_t>("Mesh", scene, commands_, selected, display_mesh_component);
-        display_component<engine_skinned_mesh_component_t>("Skinned Mesh", scene, commands_, selected, display_skinned_mesh_component);
-        display_component<engine_skin_component_t>("Skin", scene, commands_, selected, display_skin_component);
-        display_component<engine_joint_attachment_component_t>("Joint Attachment", scene, commands_, selected, display_joint_attachment_component);
-        display_component<engine_animation_controller_component_t>("Animation controller", scene, commands_, selected, display_animation_controller_component);
-        display_component<engine_material_component_t>("Material", scene, commands_, selected, display_material_component);
-        display_component<engine_collider_component_t>("Collider", scene, commands_, selected, display_collider_component);
-        display_component<engine_rigid_body_component_t>("Rigid Body", scene, commands_, selected, display_rigidbody_component);
-        display_component<engine_character_controller_component_t>("Character Controller", scene, commands_, selected, display_character_controller_component);
-        display_component<engine_nav_surface_component_t>("Nav Surface", scene, commands_, selected, display_nav_surface_component);
-        // like a bake: nothing rebuilds the nav mesh automatically, so after editing the nav surface, nav modifiers or
-        // static colliders, build it again to see (and play with) the result
-        if (scene->has_component<engine_nav_surface_component_t>(selected) && ImGui::Button("Build nav mesh"))
+        display_name_field(scene, selected);
+        // like Unity's inspector: only the components it has, the others are added with Add Component
+        for (const auto& entry : get_engine_component_entries())
         {
-            scene->build_nav_mesh();
+            if (entry.has(*scene, selected))
+            {
+                entry.draw(scene, commands_, selected);
+            }
         }
-        display_component<engine_nav_modifier_component_t>("Nav Modifier", scene, commands_, selected, display_nav_modifier_component);
-        // the game's components have no hand-written panel: drawn from their type descriptions
         for (const auto* type : get_type_registry().get_components())
         {
-            if (type->game_defined)
+            if (type->game_defined && scene->has_component(*type, selected))
             {
                 display_typed_component(*type, scene, commands_, selected);
             }
         }
+        display_add_component_button(scene, selected);
     }
     else
     {
@@ -1675,6 +1916,29 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
         ImGui::Text("Select entity to display its components.");
     }
     ImGui::End();
+}
+
+void engine::ApplicationEditor::display_name_field(Scene* scene, entt::entity entity)
+{
+    if (!name_field_active_)
+    {
+        // not being edited: shows the name as it is now (an undo or a script may have changed it)
+        name_field_entity_ = entity;
+        const auto* name = scene->has_component<engine_name_component_t>(entity) ? scene->get_component<engine_name_component_t>(entity) : nullptr;
+        if (!name)
+        {
+            return;
+        }
+        std::strncpy(name_field_buffer_.data(), name->name, name_field_buffer_.size() - 1);
+        name_field_buffer_.back() = '\0';
+    }
+    ImGui::InputText("Name", name_field_buffer_.data(), name_field_buffer_.size());
+    name_field_active_ = ImGui::IsItemActive();
+    // like the hierarchy's rename: Enter or clicking away renames it (one undo step), Escape gives the name back
+    if (ImGui::IsItemDeactivated())
+    {
+        rename_entity(name_field_entity_, name_field_buffer_.data(), scene, commands_);
+    }
 }
 
 void engine::ApplicationEditor::render_asset_browser_panel(Scene* scene)
@@ -1727,18 +1991,7 @@ void engine::ApplicationEditor::handle_asset_drop(Scene* scene)
         }
         if (payload && camera_entity != entt::null)
         {
-            const modal_transform_view_t view{ scene->get_camera_view(camera_entity), scene->get_camera_projection(camera_entity),
-                glm::vec2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)) };
-            const auto& io = ImGui::GetIO();
-            const glm::vec2 mouse(io.MousePos.x - static_cast<float>(viewport.x), io.MousePos.y - static_cast<float>(viewport.y));
-            glm::vec3 origin{};
-            glm::vec3 direction{};
-            mouse_ray(view, mouse, origin, direction);
-            engine_ray_hit_t hit{};
-            // nothing beyond the far plane: it couldn't be seen there
-            const float max_distance = scene->get_component<engine_camera_component_t>(camera_entity)->clip_plane_far;
-            const auto position = scene->physics().raycast(origin, direction, max_distance, {}, false, hit)
-                ? glm::vec3(hit.position[0], hit.position[1], hit.position[2]) : get_ground_point(origin, direction, max_distance);
+            const auto position = get_mouse_scene_point(scene, camera_entity, get_scene_view_mouse());
             commands_.execute_command(*scene, std::make_unique<CommandPlacePrefab>(*scene, asset_browser_, static_cast<const char*>(payload->Data), position,
                 scene_hierarchy_context_.get_selected_entity()));
             scene_hierarchy_context_.sync_selected_from_scene(scene);
@@ -1961,25 +2214,12 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
     // Alt + left mouse button orbits the editor camera instead (either Alt, like the camera reads it)
     if (mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT) && !ImGui::GetIO().KeyAlt)
     {
-        const auto scene_viewport = get_scene_viewport();
-        const auto mouse_coords = mouse_get_coords();
-        if (mouse_coords.x < 0.0f || mouse_coords.y < 0.0f)
-        {
-            return;  // held since a click over the scene, but moved off it
-        }
-        // entity ids come from the previous frame, which is what was visible on the screen when the user clicked
-        std::uint32_t picked_id = ENGINE_INVALID_GAME_OBJECT_ID;
-        const auto x = static_cast<std::uint32_t>(mouse_coords.x * scene_viewport.width);
-        const auto y = static_cast<std::uint32_t>(mouse_coords.y * scene_viewport.height);
-        if (!renderer_.read_entity_id(x, y, picked_id))
+        const auto picked = pick_entity_under_mouse();
+        if (!picked)
         {
             return;
         }
-        entt::entity entity_id = entt::null;
-        if (picked_id != ENGINE_INVALID_GAME_OBJECT_ID)
-        {
-            entity_id = static_cast<entt::entity>(picked_id);
-        }
+        const auto entity_id = *picked;
         if (entity_id == entt::null)
         {
             // empty space, like Unity: nothing stays selected, a file neither
@@ -1989,6 +2229,125 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
         scene_hierarchy_context_.set_selected_entity(scene, entity_id, commands_);
         scene_hierarchy_context_.set_forced_open_selected_parents(true);
     }
+}
+
+std::optional<entt::entity> engine::ApplicationEditor::pick_entity_under_mouse()
+{
+    const auto scene_viewport = get_scene_viewport();
+    const auto mouse_coords = mouse_get_coords();
+    if (mouse_coords.x < 0.0f || mouse_coords.y < 0.0f)
+    {
+        return std::nullopt;  // held since a click over the scene, but moved off it
+    }
+    // entity ids come from the previous frame, which is what was visible on the screen when the user clicked
+    std::uint32_t picked_id = ENGINE_INVALID_GAME_OBJECT_ID;
+    const auto x = static_cast<std::uint32_t>(mouse_coords.x * scene_viewport.width);
+    const auto y = static_cast<std::uint32_t>(mouse_coords.y * scene_viewport.height);
+    if (!renderer_.read_entity_id(x, y, picked_id))
+    {
+        return std::nullopt;
+    }
+    return picked_id == ENGINE_INVALID_GAME_OBJECT_ID ? entt::entity{ entt::null } : static_cast<entt::entity>(picked_id);
+}
+
+glm::vec2 engine::ApplicationEditor::get_scene_view_mouse() const
+{
+    const auto& io = ImGui::GetIO();
+    const auto viewport = get_scene_viewport();
+    return glm::vec2(io.MousePos.x - static_cast<float>(viewport.x), io.MousePos.y - static_cast<float>(viewport.y));
+}
+
+glm::vec3 engine::ApplicationEditor::get_mouse_scene_point(Scene* scene, entt::entity camera_entity, const glm::vec2& mouse) const
+{
+    const auto viewport = get_scene_viewport();
+    const modal_transform_view_t view{ scene->get_camera_view(camera_entity), scene->get_camera_projection(camera_entity),
+        glm::vec2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)) };
+    glm::vec3 origin{};
+    glm::vec3 direction{};
+    mouse_ray(view, mouse, origin, direction);
+    engine_ray_hit_t hit{};
+    // nothing beyond the far plane: it couldn't be seen there
+    const float max_distance = scene->get_component<engine_camera_component_t>(camera_entity)->clip_plane_far;
+    return scene->physics().raycast(origin, direction, max_distance, {}, false, hit)
+        ? glm::vec3(hit.position[0], hit.position[1], hit.position[2]) : get_ground_point(origin, direction, max_distance);
+}
+
+void engine::ApplicationEditor::handle_scene_view_context_menu(Scene* scene)
+{
+    constexpr const char* popup = "##scene_view_context_menu";
+    const bool can_open = render_imgui_ && editor_view_ == EditorView::eEditor && !modal_transform_ && !mouse_consumed_
+        && is_mouse_over_scene() && !ImGuizmo::IsUsingAny() && !gizmo_hovered_handle_;
+    // fed every frame, so a press which started while it couldn't open isn't taken for a click later
+    const bool clicked = context_click_.update(read_editor_camera_input(), can_open);
+    // Begin appends to the scene view's window, so the popup belongs to it
+    ImGui::Begin(editor_windows_context_.get_window_scene());
+    if (clicked && can_open)
+    {
+        // like Unreal's: right-clicking a game object which isn't selected selects it; empty space keeps the selection
+        if (const auto picked = pick_entity_under_mouse(); picked && *picked != entt::null && *picked != scene_hierarchy_context_.get_selected_entity())
+        {
+            scene_hierarchy_context_.set_selected_entity(scene, *picked, commands_);
+            scene_hierarchy_context_.set_forced_open_selected_parents(true);
+        }
+        context_menu_mouse_ = get_scene_view_mouse();
+        ImGui::OpenPopup(popup);
+    }
+    if (ImGui::BeginPopup(popup))
+    {
+        const auto selected = scene_hierarchy_context_.get_selected_entity();
+        if (selected != entt::null && scene->is_valid_entity(selected))
+        {
+            if (const auto* name = scene->has_component<engine_name_component_t>(selected) ? scene->get_component<engine_name_component_t>(selected) : nullptr)
+            {
+                ImGui::SeparatorText(name->name);
+            }
+            if (ImGui::MenuItem("Frame selected", "F"))
+            {
+                camera_context_.frame_entity(scene, selected);
+            }
+            display_game_object_menu_items(selected, scene, commands_, scene_hierarchy_context_);
+            ImGui::Separator();
+            const bool can_transform = scene->has_component<engine_transform_component_t>(selected);
+            if (ImGui::MenuItem("Move", "G", false, can_transform))
+            {
+                start_modal_transform(scene, ModalTransformMode::eGrab);
+            }
+            if (ImGui::MenuItem("Rotate", "R", false, can_transform))
+            {
+                start_modal_transform(scene, ModalTransformMode::eRotate);
+            }
+            if (ImGui::MenuItem("Scale", "S", false, can_transform))
+            {
+                start_modal_transform(scene, ModalTransformMode::eScale);
+            }
+        }
+        else if (ImGui::MenuItem("Create empty game object here"))
+        {
+            // where the menu was opened: on what was clicked, or the ground
+            const auto camera_entity = camera_context_.get_camera_entity(scene);
+            commands_.execute_command(*scene, std::make_unique<CommandAddEntity>(camera_entity == entt::null ? glm::vec3(0.0f)
+                : get_mouse_scene_point(scene, camera_entity, context_menu_mouse_)));
+        }
+        ImGui::EndPopup();
+    }
+    ImGui::End();
+}
+
+void engine::ApplicationEditor::start_modal_transform(Scene* scene, ModalTransformMode mode)
+{
+    const auto entity = scene_hierarchy_context_.get_selected_entity();
+    const auto camera_entity = camera_context_.get_camera_entity(scene);
+    if (modal_transform_ || entity == entt::null || camera_entity == entt::null || !scene->is_valid_entity(entity)
+        || !scene->has_component<engine_transform_component_t>(entity) || !scene->has_component<world_transform_internal_component_t>(entity))
+    {
+        return;
+    }
+    const auto viewport = get_scene_viewport();
+    const modal_transform_view_t view{ scene->get_camera_view(camera_entity), scene->get_camera_projection(camera_entity),
+        glm::vec2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)) };
+    modal_transform_.emplace(mode, scene->get_component<world_transform_internal_component_t>(entity)->local_to_world, get_scene_view_mouse(), view, snap_steps_);
+    modal_transform_entity_ = entity;
+    modal_transform_original_ = *scene->get_component<engine_transform_component_t>(entity);
 }
 
 void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
@@ -2012,19 +2371,10 @@ void engine::ApplicationEditor::handle_modal_transform(Scene* scene)
         {
             return;
         }
-        const auto mode = pressed_mode();
-        const auto entity = scene_hierarchy_context_.get_selected_entity();
-        const auto camera_entity = camera_context_.get_camera_entity(scene);
-        if (!mode || entity == entt::null || camera_entity == entt::null || !scene->is_valid_entity(entity)
-            || !scene->has_component<engine_transform_component_t>(entity) || !scene->has_component<world_transform_internal_component_t>(entity))
+        if (const auto mode = pressed_mode())
         {
-            return;
+            start_modal_transform(scene, *mode);
         }
-        const modal_transform_view_t view{ scene->get_camera_view(camera_entity), scene->get_camera_projection(camera_entity),
-            glm::vec2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)) };
-        modal_transform_.emplace(*mode, scene->get_component<world_transform_internal_component_t>(entity)->local_to_world, mouse, view, snap_steps_);
-        modal_transform_entity_ = entity;
-        modal_transform_original_ = *scene->get_component<engine_transform_component_t>(entity);
         return;
     }
 
@@ -2255,25 +2605,7 @@ void engine::CameraScript::update(float dt, entt::entity selected, bool accepts_
     const auto& io = ImGui::GetIO();
     if (accepts_input && app_->is_mouse_over_scene() && !ImGuizmo::IsUsingAny())
     {
-        editor_camera_input_t input{};
-        if (ImGui::IsMousePosValid() && ImGui::IsMousePosValid(&io.MousePosPrev))
-        {
-            input.mouse_delta = { io.MouseDelta.x, io.MouseDelta.y };
-        }
-        input.wheel = io.MouseWheel;
-        input.lmb = io.MouseDown[ImGuiMouseButton_Left];
-        input.mmb = io.MouseDown[ImGuiMouseButton_Middle];
-        input.rmb = io.MouseDown[ImGuiMouseButton_Right];
-        input.alt = io.KeyAlt;
-        input.shift = io.KeyShift;
-        input.ctrl = io.KeyCtrl;
-        input.move_forward = ImGui::IsKeyDown(ImGuiKey_W);
-        input.move_back = ImGui::IsKeyDown(ImGuiKey_S);
-        input.move_left = ImGui::IsKeyDown(ImGuiKey_A);
-        input.move_right = ImGui::IsKeyDown(ImGuiKey_D);
-        input.move_down = ImGui::IsKeyDown(ImGuiKey_Q);
-        input.move_up = ImGui::IsKeyDown(ImGuiKey_E);
-        camera_.update(input, dt, static_cast<float>(app_->get_scene_viewport().height), get_fov_y());
+        camera_.update(read_editor_camera_input(), dt, static_cast<float>(app_->get_scene_viewport().height), get_fov_y());
 
         // shortcuts while the mouse is over the scene, like Blender's
         if (!io.WantTextInput && !camera_.is_flying())
@@ -2431,6 +2763,14 @@ entt::entity engine::ApplicationEditor::CameraContext::get_camera_entity(engine:
     return it == cameras_.end() ? entt::null : it->second.camera.get_entity();
 }
 
+void engine::ApplicationEditor::CameraContext::frame_entity(engine::Scene* scene, entt::entity entity)
+{
+    if (const auto it = cameras_.find(scene); it != cameras_.end())
+    {
+        it->second.camera.frame_entity(entity);
+    }
+}
+
 engine::EditorCamera* engine::ApplicationEditor::CameraContext::get_camera(engine::Scene* scene)
 {
     const auto it = cameras_.find(scene);
@@ -2490,6 +2830,25 @@ entt::entity engine::SceneHierarchyContext::take_delete_without_undo_request()
     return std::exchange(delete_without_undo_, entt::entity{ entt::null });
 }
 
+void engine::SceneHierarchyContext::request_rename(const engine::Scene* scene, entt::entity e)
+{
+    if (e == entt::null || !scene->is_valid_entity(e) || !scene->has_component<engine_name_component_t>(e))
+    {
+        return;
+    }
+    renaming_ = e;
+    std::strncpy(rename_buffer_.data(), scene->get_component<engine_name_component_t>(e)->name, rename_buffer_.size() - 1);
+    rename_buffer_.back() = '\0';
+    rename_focus_ = true;
+    rename_frame_ = ImGui::GetFrameCount();
+}
+
+bool engine::SceneHierarchyContext::is_rename_starting() const
+{
+    // the focus asked for in one frame activates the field in the next
+    return ImGui::GetFrameCount() <= rename_frame_ + 2;
+}
+
 void engine::SceneHierarchyContext::sync_selected_from_scene(engine::Scene* scene)
 {
     // Find an entity that currently has the guizmo component (the editor selection marker)
@@ -2527,6 +2886,7 @@ void engine::SceneHierarchyContext::reset()
     selected_ = entt::null;
     selected_ref_ = {};
     delete_without_undo_ = entt::null;
+    renaming_ = entt::null;
 }
 
 void engine::ApplicationEditor::EditorWindowsContext::initialize(std::uint32_t dockspace_id)
