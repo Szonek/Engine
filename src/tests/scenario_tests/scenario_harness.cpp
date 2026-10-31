@@ -44,6 +44,13 @@ void scenario::ScenarioTest::step(std::uint32_t frames)
     }
 }
 
+void scenario::ScenarioTest::stop()
+{
+    ASSERT_EQ(enginePlayModeExit(), ENGINE_RESULT_CODE_OK);
+    step();
+    EXPECT_EQ(enginePlayModeGetState(), ENGINE_PLAY_MODE_EDIT);
+}
+
 void scenario::ScenarioTest::TearDown()
 {
     release_all_input();

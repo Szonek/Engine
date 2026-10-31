@@ -227,11 +227,7 @@ engine_result_code_t enginePlayModeStep()
 
 engine_result_code_t enginePlayModeExit()
 {
-    if (!G_ACTIVE_APP || !G_ACTIVE_SCENE)
-    {
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    return api_cast(G_ACTIVE_APP)->exit_play_mode(*api_cast(G_ACTIVE_SCENE));
+    return G_ACTIVE_APP ? api_cast(G_ACTIVE_APP)->exit_play_mode() : ENGINE_RESULT_CODE_FAIL;
 }
 
 uint32_t enginePlayModeGetSessionCount()
@@ -354,7 +350,14 @@ engine_application_frame_end_info_t engineFrameEnd()
         return {};
     }
 	auto* app = api_cast(G_ACTIVE_APP);
-	return app->end_frame();
+	const auto ret = app->end_frame();
+    // the play session's last frame is over (rendered too): Stop loads the edit state back into the active scene; with
+    // none (the game released it), it waits for the next one
+    if (app->is_play_mode_exit_due() && G_ACTIVE_SCENE)
+    {
+        app->finish_exit_play_mode(*api_cast(G_ACTIVE_SCENE));
+    }
+    return ret;
 }
 
 engine_result_code_t engineShaderCreate(const engine_shader_create_desc_t* desc, const char* name, engine_shader_t* out)

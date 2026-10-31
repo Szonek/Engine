@@ -103,9 +103,9 @@ public:
     virtual std::string get_shader_name(std::uint32_t idx) const;
     virtual void release_shader(std::uint32_t idx);
 
-    // play mode (see enginePlayModeGetState); Enter saves `scene` and Exit loads it back into `scene`: the active one,
-    // which may be another scene than at Enter (the game replaced its scene while playing). Enter and Exit are refused
-    // (logged) during a scene update, when the editor has changed the scene for it (see update_scene).
+    // play mode (see enginePlayModeGetState); Enter saves `scene` and the end of a Stop loads it back into `scene`: the
+    // active one, which may be another scene than at Enter (the game replaced its scene while playing). Enter and Exit
+    // are refused (logged) during a scene update, when the editor has changed the scene for it (see update_scene).
     engine_play_mode_state_t get_play_mode_state() const { return play_mode_.get_state(); }
     // whether the game plays this frame (scripts tick)
     bool is_playing() const { return play_mode_.is_playing(); }
@@ -113,7 +113,11 @@ public:
     engine_result_code_t enter_play_mode(class Scene& scene);
     engine_result_code_t set_play_mode_paused(bool paused);
     engine_result_code_t step_play_mode();
-    engine_result_code_t exit_play_mode(class Scene& scene);
+    // Stop: Exiting, the next frame is the play session's last (see PlayMode)
+    engine_result_code_t exit_play_mode();
+    // the frame which began in Exiting has ended: finish_exit_play_mode is due (engineFrameEnd)
+    bool is_play_mode_exit_due() const { return play_mode_.is_exit_due(); }
+    engine_result_code_t finish_exit_play_mode(class Scene& scene);
 
     // the types scene files hold (see serialization/scene_serializer.h)
     const TypeRegistry& get_type_registry() const { return types_; }

@@ -48,12 +48,7 @@ project_c::BuildingPart::BuildingPart(engine::IScene* my_scene, engine_game_obje
 
 project_c::BuildingPart::~BuildingPart()
 {
-    // a part the house hid (its script replaced or removed while the player is inside) is shown again; after Stop the
-    // part is gone (or loaded back as it was at Play)
-    if (!has_game_object())
-    {
-        return;
-    }
+    // a part the house hid (its script replaced or removed while the player is inside) is shown again
     const auto hide = get_hide_when_inside();
     if (hide != BUILDING_PART_HIDE_NEVER)
     {

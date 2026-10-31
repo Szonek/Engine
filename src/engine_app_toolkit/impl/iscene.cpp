@@ -208,8 +208,9 @@ engine::IScript* engine::IScene::attach_script(engine_game_object_t go, const st
     {
         engineGameObjectUpdateDataComponent(go, component_type, &component);
     }
-    // no scripts in Edit mode: the component is data, the script is created when a play session starts
-    if (enginePlayModeGetState() == ENGINE_PLAY_MODE_EDIT)
+    // no scripts in Edit mode (nor while a Stop ends the session): the component is data, the script is created when a
+    // play session starts
+    if (!is_play_session_state())
     {
         add_required_components(go, index);
         return nullptr;
@@ -359,7 +360,8 @@ void engine::IScene::begin_play_session()
 
 void engine::IScene::end_play_session()
 {
-    // the game objects stay: Stop loaded the scene saved at Play back (they are gone, or the edit state's again)
+    // the game objects stay: they are the play session's, which Stop throws away at the end of this frame, loading the
+    // scene saved at Play back. Every game object still exists, so the scripts' destructors clean up as always.
     for (auto& [go, script] : scripts_)
     {
         script->destroys_game_object_ = false;
@@ -378,6 +380,27 @@ void engine::IScene::end_play_session()
     on_play_end();
 }
 
+void engine::IScene::drop_scripts_of_destroyed_game_objects()
+{
+    // a dropped script's destructor may destroy other game objects with scripts (its runtime parts): until none is left
+    for (;;)
+    {
+        const auto it = std::ranges::find_if(scripts_, [](const auto& entry) { return !engineGameObjectIsValid(entry.first); });
+        if (it == scripts_.end())
+        {
+            return;
+        }
+        const auto go = it->first;
+        auto script = std::move(it->second);
+        scripts_.erase(it);
+        component_scripts_.erase(go);
+        std::erase(scripts_to_start_, go);
+        std::erase(scripts_unregister_queue_, script.get());
+        // out of the map before its destructor runs
+        script.reset();
+    }
+}
+
 engine_result_code_t engine::IScene::update(float dt)
 {
     engine::ScopedProfiler prof("engine::IScene::update");
@@ -386,7 +409,8 @@ engine_result_code_t engine::IScene::update(float dt)
         return ENGINE_RESULT_CODE_OK;
     }
 
-    // a Stop since the last update ends this scene's session; Play (or an application which starts playing) begins one
+    // a Stop ends this scene's session in its last frame, while the scene is still there; Play (or an application which
+    // starts playing) begins one
     const auto changes = play_session_.update();
     if (changes.ended)
     {
@@ -396,11 +420,12 @@ engine_result_code_t engine::IScene::update(float dt)
     {
         begin_play_session();
     }
-    const bool in_play = enginePlayModeGetState() != ENGINE_PLAY_MODE_EDIT;
-    const bool gameplay_paused = !in_play || !engineEditorIsPlaying();
+    const bool gameplay_paused = !is_play_session_state() || !engineEditorIsPlaying();
     // in Edit mode no scripts exist
     if (play_session_.in_session())
     {
+        // destroyed since the last update (by the game outside of it): nothing ticks on a dead game object
+        drop_scripts_of_destroyed_game_objects();
         sync_scripts_with_components();
         flush_register_queue(!gameplay_paused);
     }
@@ -419,14 +444,8 @@ engine_result_code_t engine::IScene::update(float dt)
         return ENGINE_RESULT_CODE_FAIL;
     }
     
-    // editor could destroy game object (engine shouldn't do it), clean up scripts
-    for (auto& [go, script] : scripts_)
-    {
-        if (!engineGameObjectIsValid(go))
-        {
-            unregister_script(script.get());
-        }
-    }
+    // destroyed during this update (by a script, or the editor's delete)
+    drop_scripts_of_destroyed_game_objects();
 
     if (!gameplay_paused)
     {

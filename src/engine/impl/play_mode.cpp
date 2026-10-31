@@ -22,6 +22,11 @@ bool engine::PlayMode::set_paused(bool paused)
         log::log(log::LogLevel::eError, "Play mode: there is nothing to pause or resume in Edit mode.\n");
         return false;
     }
+    if (state_ == ENGINE_PLAY_MODE_EXITING)
+    {
+        log::log(log::LogLevel::eError, "Play mode: the play session is stopping.\n");
+        return false;
+    }
     state_ = paused ? ENGINE_PLAY_MODE_PAUSED : ENGINE_PLAY_MODE_PLAYING;
     if (!paused)
     {
@@ -41,7 +46,7 @@ bool engine::PlayMode::step()
     return true;
 }
 
-bool engine::PlayMode::exit(const std::function<bool(const PlaySnapshot&)>& restore)
+bool engine::PlayMode::exit()
 {
     if (!exit_allowed_)
     {
@@ -53,15 +58,37 @@ bool engine::PlayMode::exit(const std::function<bool(const PlaySnapshot&)>& rest
         log::log(log::LogLevel::eError, "Play mode: Stop in Edit mode.\n");
         return false;
     }
+    if (state_ == ENGINE_PLAY_MODE_EXITING)
+    {
+        log::log(log::LogLevel::eError, "Play mode: the play session is stopping already.\n");
+        return false;
+    }
+    exited_from_ = state_;
+    state_ = ENGINE_PLAY_MODE_EXITING;
+    step_requested_ = false;
+    step_frame_ = false;
+    // the frame which begins next is the session's last
+    exit_frame_ = false;
+    return true;
+}
+
+bool engine::PlayMode::finish_exit(const std::function<bool(const PlaySnapshot&)>& restore)
+{
+    if (state_ != ENGINE_PLAY_MODE_EXITING)
+    {
+        log::log(log::LogLevel::eError, "Play mode: there is no Stop to finish.\n");
+        return false;
+    }
     if (snapshot_ && !restore(*snapshot_))
     {
         log::log(log::LogLevel::eError, "Play mode: the scene saved at Play couldn't be loaded back; the play session goes on.\n");
+        state_ = exited_from_;
+        exit_frame_ = false;
         return false;
     }
     snapshot_.reset();
     state_ = ENGINE_PLAY_MODE_EDIT;
-    step_requested_ = false;
-    step_frame_ = false;
+    exit_frame_ = false;
     session_count_++;
     return true;
 }
@@ -69,4 +96,5 @@ bool engine::PlayMode::exit(const std::function<bool(const PlaySnapshot&)>& rest
 void engine::PlayMode::begin_frame()
 {
     step_frame_ = state_ == ENGINE_PLAY_MODE_PAUSED && std::exchange(step_requested_, false);
+    exit_frame_ = state_ == ENGINE_PLAY_MODE_EXITING;
 }

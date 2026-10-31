@@ -221,8 +221,6 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     engine_application_frame_begine_info_t ret{};
     ret.delta_time = std::min(static_cast<float>(timer_.delta_time().count()) / 1000.0f, max_delta_time_);
     ret.events = ENGINE_EVENT_NONE;
-    // a step asked for while paused plays this frame
-    play_mode_.begin_frame();
 
     // the data assets whose files changed (the editor watches them), before anything reads them this frame
     if (data_assets_changed_.exchange(false))
@@ -323,6 +321,9 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     renderer_.begin_frame();
 
     on_frame_begine(ret);
+    // after the editor's Play and Stop (on_frame_begine): a step asked for while paused plays this frame, a frame
+    // beginning in Exiting is the play session's last
+    play_mode_.begin_frame();
 	return ret;
 }
 
@@ -361,13 +362,18 @@ engine_result_code_t engine::Application::step_play_mode()
     return play_mode_.step() ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
-engine_result_code_t engine::Application::exit_play_mode(Scene& scene)
+engine_result_code_t engine::Application::exit_play_mode()
 {
     if (!is_play_mode_change_allowed())
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    const auto exited = play_mode_.exit([&scene](const PlaySnapshot& snapshot)
+    return play_mode_.exit() ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engine::Application::finish_exit_play_mode(Scene& scene)
+{
+    const auto exited = play_mode_.finish_exit([&scene](const PlaySnapshot& snapshot)
         {
             // the scene is left as it is when the snapshot can't be loaded
             if (!scene.replace(snapshot.scene, "play mode snapshot"))

@@ -8,9 +8,12 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <memory>
+#include <optional>
 #include <string>
 
 // Play sessions in the toolkit and the game: scripts exist only while playing, Play creates them from their
@@ -33,6 +36,41 @@ public:
     static constexpr const char* get_name() { return "play_session_test_edit"; }
 };
 
+// records whether its game object still existed when it was dropped
+class DropProbe : public engine::IScript
+{
+public:
+    DropProbe(engine::IScene* scene, engine_game_object_t go, std::shared_ptr<std::optional<bool>> alive_when_dropped)
+        : IScript(scene, go)
+        , alive_when_dropped_(std::move(alive_when_dropped))
+    {
+    }
+    ~DropProbe() override { *alive_when_dropped_ = engineGameObjectIsValid(go_); }
+
+private:
+    std::shared_ptr<std::optional<bool>> alive_when_dropped_;
+};
+
+// the number of game objects of the active scene with this name
+std::size_t count_named(const char* name)
+{
+    std::size_t count = 0;
+    engine_component_view_t view{};
+    engineComponentViewCreate(&view);
+    engineComponentViewAttachNameComponent(view);
+    engine_component_iterator_t it{};
+    engine_component_iterator_t end{};
+    engineComponentViewCreateBeginComponentIterator(view, &it);
+    engineComponentViewCreateEndComponentIterator(view, &end);
+    for (; !engineComponentIteratorCheckEqual(it, end); engineComponentIteratorNext(it))
+    {
+        count += std::strcmp(engineGameObjectGetNameComponent(engineComponentIteratorGetGameObject(it)).name, name) == 0;
+    }
+    engineComponentIteratorDelete(it);
+    engineComponentIteratorDelete(end);
+    engineComponentViewDestroy(view);
+    return count;
+}
 class PlaySessionTest : public scenario::ScenarioTest
 {
 protected:
@@ -41,7 +79,7 @@ protected:
         // the app starts playing; these tests start in Edit mode, as the editor does. Stop loads the (empty) scene the
         // last session was started in into the active scene: one which goes with it
         scenario::app().register_scene<NextTestsScene>()->activate();
-        ASSERT_EQ(enginePlayModeExit(), ENGINE_RESULT_CODE_OK);
+        stop();
         scenario::app().unregister_scene(NextTestsScene::get_name());
     }
 
@@ -50,7 +88,7 @@ protected:
         // this test's session is thrown away: its snapshot would be loaded into the next test's scene by its Stop
         if (enginePlayModeGetState() != ENGINE_PLAY_MODE_EDIT)
         {
-            enginePlayModeExit();
+            stop();
         }
         std::filesystem::remove(file_);
         ScenarioTest::TearDown();
@@ -85,8 +123,7 @@ TEST_F(PlaySessionTest, ScriptsExistOnlyWhilePlaying)
     step();
     ASSERT_EQ(scene->get_scripts<project_c::Chest>().size(), 1u);
 
-    ASSERT_EQ(enginePlayModeExit(), ENGINE_RESULT_CODE_OK);
-    step();
+    stop();
     EXPECT_TRUE(scene->get_scripts<project_c::Chest>().empty());
 
     // the next session creates it again, from the chest loaded back by Stop
@@ -115,8 +152,7 @@ TEST_F(PlaySessionTest, StopGivesBackTheLevelWithoutItsPlayer)
     // what a session changes outside the scene
     scenario::app().set_level_path("somewhere_else.json", "back_door");
 
-    ASSERT_EQ(enginePlayModeExit(), ENGINE_RESULT_CODE_OK);
-    step();
+    stop();
     EXPECT_EQ(scene->find_script<project_c::Player>(), nullptr);
     // saving after Stop gives what saving before Play gave: no player, no spawned enemy, nothing moved
     EXPECT_EQ(saved(), edit_state);
@@ -155,5 +191,39 @@ TEST_F(PlaySessionTest, StepPlaysOneFrameOfTheScripts)
     step(5);
     EXPECT_EQ(position(), stepped_to);
     release_all_input();
+}
+
+TEST_F(PlaySessionTest, StopDropsTheScriptsWhileTheirGameObjectsStillExist)
+{
+    auto* scene = load_scene<EditScene>();
+    ASSERT_EQ(enginePlayModeEnter(), ENGINE_RESULT_CODE_OK);
+    step();
+    auto alive_when_dropped = std::make_shared<std::optional<bool>>();
+    scene->register_script<DropProbe>(engineGameObjectCreate(), alive_when_dropped);
+    step();
+
+    ASSERT_EQ(enginePlayModeExit(), ENGINE_RESULT_CODE_OK);
+    EXPECT_FALSE(alive_when_dropped->has_value());
+    // the session's last frame drops the scripts, the edit state comes back at its end
+    step();
+    ASSERT_TRUE(alive_when_dropped->has_value());
+    EXPECT_TRUE(**alive_when_dropped);
+    EXPECT_EQ(enginePlayModeGetState(), ENGINE_PLAY_MODE_EDIT);
+}
+
+TEST_F(PlaySessionTest, APlayerDestroyedWhilePlayingTakesItsRuntimePartsAlong)
+{
+    auto* scene = load_scene<project_c::LevelScene>();
+    ASSERT_EQ(enginePlayModeEnter(), ENGINE_RESULT_CODE_OK);
+    step();
+    const auto* player = scene->find_script<project_c::Player>();
+    ASSERT_NE(player, nullptr);
+    ASSERT_EQ(count_named("attack-trigger"), 1u);
+
+    // as the editor's delete does: the scene drops the script once it sees its game object gone
+    engineGameObjectDestroy(player->get_game_object());
+    step(2);
+    EXPECT_EQ(scene->find_script<project_c::Player>(), nullptr);
+    EXPECT_EQ(count_named("attack-trigger"), 0u);
 }
 }  // namespace

@@ -1194,7 +1194,8 @@ void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_b
         }
         else
         {
-            exit_play_mode(*play_mode_scene_);
+            // this frame is the play session's last, the edit state comes back at its end (engineFrameEnd)
+            exit_play_mode();
         }
     }
     ImGui_ImplSDL3_NewFrame();
@@ -1379,11 +1380,12 @@ engine::viewport_t engine::ApplicationEditor::get_scene_viewport() const
 void engine::ApplicationEditor::handle_play_mode_shortcuts()
 {
     // Unity's shortcuts: Ctrl+P plays and stops, Ctrl+Shift+P pauses and resumes, Ctrl+Alt+P steps
-    if (ImGui::GetIO().WantTextInput)
+    const auto play_mode = get_play_mode_state();
+    // nothing to play, pause or step in the frame a Stop ends the session in
+    if (ImGui::GetIO().WantTextInput || play_mode == ENGINE_PLAY_MODE_EXITING)
     {
         return;
     }
-    const auto play_mode = get_play_mode_state();
     if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_P))
     {
         play_mode_request_ = play_mode == ENGINE_PLAY_MODE_EDIT ? PlayModeRequest::ePlay : PlayModeRequest::eStop;
@@ -1424,14 +1426,18 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float
         editor_view_ = EditorView::eEditor;
     }
     ImGui::SameLine();
-    // Play and Stop happen at the start of the next frame (on_frame_begine)
+    // Play and Stop happen at the start of the next frame (on_frame_begine); nothing can be done in the frame a Stop
+    // ends the session in
+    const bool exiting = play_mode == ENGINE_PLAY_MODE_EXITING;
+    ImGui::BeginDisabled(exiting);
     if (ImGui::Button(in_play ? "Stop" : "Play"))
     {
         play_mode_request_ = in_play ? PlayModeRequest::eStop : PlayModeRequest::ePlay;
     }
     ImGui::SetItemTooltip(in_play ? "Back to the scene as it was at Play (Ctrl+P)" : "Start a play session (Ctrl+P)");
+    ImGui::EndDisabled();
     ImGui::SameLine();
-    ImGui::BeginDisabled(!in_play);
+    ImGui::BeginDisabled(!in_play || exiting);
     if (ImGui::Button(play_mode == ENGINE_PLAY_MODE_PAUSED ? "Resume" : "Pause"))
     {
         set_play_mode_paused(play_mode == ENGINE_PLAY_MODE_PLAYING);
@@ -1447,7 +1453,9 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float
     ImGui::SetItemTooltip("One frame (Ctrl+Alt+P)");
     ImGui::EndDisabled();
     ImGui::SameLine();
-    ImGui::TextUnformatted(play_mode == ENGINE_PLAY_MODE_EDIT ? "Edit" : play_mode == ENGINE_PLAY_MODE_PAUSED ? "Paused" : "Playing");
+    ImGui::TextUnformatted(play_mode == ENGINE_PLAY_MODE_EDIT ? "Edit"
+        : play_mode == ENGINE_PLAY_MODE_PAUSED ? "Paused"
+        : exiting ? "Stopping" : "Playing");
     ImGui::End();
     handle_play_mode_shortcuts();
 }

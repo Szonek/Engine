@@ -49,6 +49,9 @@ protected:
     // AppProjectC::update as the game's main loop
     void step(std::uint32_t frames = 1);
 
+    // Stop (enginePlayModeExit) and the frame it ends the play session in: the edit state is back afterwards
+    void stop();
+
     // player input seen by gameplay from the next step() on; it stays until changed
     void set_input(const project_c::PlayerInput& input) { app().set_player_input(input); }
     void release_all_input() { app().set_player_input({}); }

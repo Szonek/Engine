@@ -156,7 +156,7 @@ engine_result_code_t project_c::LevelScene::update(float dt)
 {
     const auto result = IScene::update(dt);
     // the scripts from the file exist after the first update of a play session
-    if (!level_scripts_found_ && enginePlayModeGetState() != ENGINE_PLAY_MODE_EDIT)
+    if (!level_scripts_found_ && engine::is_play_session_state())
     {
         find_level_scripts();
     }

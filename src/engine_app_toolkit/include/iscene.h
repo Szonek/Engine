@@ -56,9 +56,10 @@ class IApplication;
 // nothing ticks. When a play session starts (Play, or the first update of an application which starts playing),
 // on_play_begin() runs, then the scripts are created from their components. Their order among themselves is unspecified
 // (like Unity's): a script may rely on the others of its frame being in the scene in its on_start, never on which of
-// them started first. When it ends
-// (Stop: the session count moves, the engine loaded the scene saved at Play back) every script is dropped, keeping its
-// game object, then on_play_end() runs. State outside the scene (the application's, engine settings a script changes)
+// them started first. When it ends (Stop: the session's last frame, ENGINE_PLAY_MODE_EXITING, in which the scene is still
+// there; the engine loads the scene saved at Play back at its end) every script is dropped, keeping its game object, then
+// on_play_end() runs. Every game object still exists when the scripts are dropped, so their destructors clean up as
+// they do for any removal. State outside the scene (the application's, engine settings a script changes)
 // isn't given back by Stop: reset what a session changes there in on_play_begin (Unity's rule for statics).
 //
 // Scripts from data: a game object with a `script` component (see ScriptRegistry) gets the script it names, created at
@@ -176,7 +177,8 @@ protected:
     // a play session starts in this scene (Unreal's BeginPlay on the GameMode), before its scripts are created: spawn
     // what only exists while playing (the player at its player start) and reset what the last session changed
     virtual void on_play_begin() {}
-    // the play session ended (Stop), after its scripts were dropped; the scene holds the edit state again
+    // the play session ended (Stop), after its scripts were dropped; the scene still holds the session's game objects, the
+    // edit state comes back at the end of this frame
     virtual void on_play_end() {}
 
 private:
@@ -193,6 +195,8 @@ private:
     IScript* create_script_from_component(engine_game_object_t go, std::int32_t index);
     // adds the components the script type `index` requires which the game object doesn't have, with their defaults
     void add_required_components(engine_game_object_t go, std::int32_t index);
+    // drops (deletes) the scripts whose game object is gone, destroyed outside of them
+    void drop_scripts_of_destroyed_game_objects();
     // on_play_begin, then the scripts from their components (see the class comment)
     void begin_play_session();
     // drops every script, keeping the game objects, then on_play_end

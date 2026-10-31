@@ -35,7 +35,7 @@ protected:
     {
         ModelTest::SetUp();
         // the app starts playing; the tests start in Edit mode, as the editor will
-        ASSERT_EQ(enginePlayModeExit(), ENGINE_RESULT_CODE_OK);
+        stop();
     }
 
     void TearDown() override
@@ -43,7 +43,7 @@ protected:
         // this test's play session is thrown away: its snapshot would be loaded into the next test's scene by its Stop
         if (enginePlayModeGetState() != ENGINE_PLAY_MODE_EDIT)
         {
-            enginePlayModeExit();
+            stop();
         }
         for (const auto& file : files_)
         {
@@ -125,7 +125,12 @@ TEST_F(PlayModeTest, StopGivesBackTheEditStateWithNewHandles)
     engineGameObjectDestroy(edit_crate[0]);
     step();
 
+    // Stop: the session's last frame still has its game objects, the edit state comes back at its end
     ASSERT_EQ(enginePlayModeExit(), ENGINE_RESULT_CODE_OK);
+    EXPECT_EQ(enginePlayModeGetState(), ENGINE_PLAY_MODE_EXITING);
+    EXPECT_EQ(named("coin").size(), 1u);
+    EXPECT_EQ(enginePlayModeGetSessionCount(), sessions);
+    step();
     EXPECT_EQ(enginePlayModeGetState(), ENGINE_PLAY_MODE_EDIT);
     EXPECT_EQ(enginePlayModeGetSessionCount(), sessions + 1);
     EXPECT_TRUE(named("coin").empty());
@@ -152,7 +157,7 @@ TEST_F(PlayModeTest, StopReleasesOnlyTheAssetsThePlaySessionLoaded)
     ASSERT_NE(enginePrefabGetByName("test_fixtures/textured_a.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
     step();
 
-    ASSERT_EQ(enginePlayModeExit(), ENGINE_RESULT_CODE_OK);
+    stop();
     EXPECT_EQ(enginePrefabGetByName("test_fixtures/textured_a.gltf"), ENGINE_INVALID_OBJECT_HANDLE);
     // the same handle: the model both use was never released and loaded again
     EXPECT_EQ(enginePrefabGetByName("test_fixtures/crate.gltf"), crate);
