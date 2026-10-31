@@ -749,6 +749,9 @@ ENGINE_API bool                 engineGameObjectIsValid(engine_game_object_t gam
 // user input hangling
 ENGINE_API bool engineKeyboardIsButtonDown(engine_keyboard_keys_t key);
 ENGINE_API bool engineKeyboardIsButtonUp(engine_keyboard_keys_t key);
+// The key went down since the previous engineFrameBegin (not a held key's repeat) while the game got the keyboard: a
+// key held from a press the editor took (Escape closing a dialog) is never pressed for the game.
+ENGINE_API bool engineKeyboardIsButtonPressed(engine_keyboard_keys_t key);
 
 // Relative to the scene: (0, 0) left bottom, (1, 1) right top. While the game doesn't get the mouse (in the editor:
 // over another panel or outside the window) it stays at the last position the game got.

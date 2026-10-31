@@ -58,9 +58,9 @@ std::optional<std::string> get_asset_id(const asset_entry_t& entry);
 
 // The scene file Save As writes for the name typed into its dialog in `folder` (relative to the assets folder,
 // "scenes" or one under it), as its asset ID (its path under assets/scenes, "rooms/room_a.json"), ".json" added when
-// the name has no extension. Nothing for a name which isn't one file name (empty, ".", "..", a path, other characters
-// file systems refuse), has another extension than .json, or a folder outside assets/scenes: like Unreal's Save As, a
-// scene is saved inside the content folder, where it has an asset ID and can be placed as a prefab.
+// the name has no extension. Nothing for a name which isn't one file name (empty, ".", "..", a path, a Windows device
+// name such as "nul", other characters file systems refuse), has another extension than .json, or a folder outside
+// assets/scenes: like Unreal's Save As, a scene is saved inside the content folder, where it has an asset ID and can be placed as a prefab.
 std::optional<std::string> get_scene_save_path(std::string_view folder, std::string_view name);
 
 // The assets created from a model (asset IDs "<model ID>#<name>", see asset_id.h) among `assets` (an atlas' handles and

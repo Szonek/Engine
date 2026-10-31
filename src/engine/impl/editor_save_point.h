@@ -44,9 +44,10 @@ public:
         steps_.push_back(changes_scene);
         position_++;
     }
-    // A step may merge into the last one (a drag of the same value) only when that one isn't the saved state: the
-    // merged step would change the scene past the save point without moving away from it.
-    bool can_merge() const { return !saved_ || *saved_ != position_; }
+    // A step may merge into the last one (a drag of the same value) only when that one isn't the saved state (the
+    // merged step would change the scene past the save point without moving away from it) and nothing is undone (a
+    // merge keeps the undone steps, so redoing them up to the save point would reach a state which isn't the saved one).
+    bool can_merge() const { return (!saved_ || *saved_ != position_) && position_ == steps_.size(); }
     // a step was merged into the last one
     void on_merge(bool changes_scene)
     {

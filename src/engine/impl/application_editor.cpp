@@ -1475,7 +1475,7 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float
         : exiting ? "Stopping" : "Playing");
     // the scene's file, * while it has unsaved changes (the edit state's, also while playing)
     ImGui::SameLine();
-    ImGui::TextDisabled("|  %s%s", scene->get_file_path().empty() ? "Untitled" : scene->get_file_path().c_str(), commands_.is_dirty() ? "*" : "");
+    ImGui::TextDisabled("|  %s%s", scene_display_name(*scene).c_str(), commands_.is_dirty() ? "*" : "");
     ImGui::End();
     handle_play_mode_shortcuts();
     handle_file_shortcuts(scene);

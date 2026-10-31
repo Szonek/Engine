@@ -282,6 +282,16 @@ bool engineKeyboardIsButtonUp(engine_keyboard_keys_t key)
 	return !engineKeyboardIsButtonDown(key);
 }
 
+bool engineKeyboardIsButtonPressed(engine_keyboard_keys_t key)
+{
+    if (!G_ACTIVE_APP)
+    {
+        return false;
+    }
+    auto* app = api_cast(G_ACTIVE_APP);
+    return app->is_keyboard_enabled() && app->keyboard_is_key_pressed(key);
+}
+
 engine_fvec2_t engineMouseCoordsGet()
 {
     if (!G_ACTIVE_APP)

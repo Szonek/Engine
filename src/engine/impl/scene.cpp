@@ -838,7 +838,7 @@ bool engine::Scene::open(std::string_view json, std::string_view file_name, bool
         return false;
     }
     // the files of the old content aren't the scene's any more: they can be placed in it now
-    prefabs_.clear_scene_files();
+    prefabs_.set_scene_files({});
     file_path_ = as_new ? std::string() : std::string(file_name);
     if (!as_new)
     {

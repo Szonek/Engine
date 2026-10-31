@@ -245,11 +245,16 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     */
     //Handle events on queue
     SDL_Event e;
+    keys_pressed_.clear();
     while (SDL_PollEvent(&e) != 0)
     {
         on_sdl_event(e);
         ui_manager_.parse_sdl_event(e);
 
+        if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat)
+        {
+            keys_pressed_.push_back(static_cast<engine_keyboard_keys_t>(e.key.scancode));
+        }
         if (e.type == SDL_EVENT_QUIT)
         {
             request_quit();
@@ -355,7 +360,8 @@ engine_result_code_t engine::Application::enter_play_mode(Scene& scene)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    const auto entered = play_mode_.enter([&scene]() { return PlaySnapshot{ scene.save(), scene.get_nav_mesh() != nullptr, scene.get_file_path() }; });
+    const auto entered = play_mode_.enter([&scene]() { return PlaySnapshot{ scene.save(), scene.get_nav_mesh() != nullptr, scene.get_file_path(),
+        scene.prefabs().get_scene_files() }; });
     if (!entered)
     {
         return ENGINE_RESULT_CODE_FAIL;
@@ -392,12 +398,9 @@ engine_result_code_t engine::Application::finish_exit_play_mode(Scene& scene)
             {
                 return false;
             }
-            // the scene the game loaded while playing (a level exit) is the one at Play again
+            // the scene the game loaded while playing (a level exit) is the one at Play again, with its files
             scene.set_file_path(snapshot.path);
-            if (!snapshot.path.empty())
-            {
-                scene.prefabs().add_scene_file(snapshot.path);
-            }
+            scene.prefabs().set_scene_files(snapshot.scene_files);
             // derived data, gone with its game object
             if (snapshot.had_nav_mesh)
             {
@@ -781,6 +784,11 @@ bool engine::Application::keyboard_is_key_down(engine_keyboard_keys_t key)
 {
     const auto state = SDL_GetKeyboardState(nullptr);
     return static_cast<bool>(state[key]);
+}
+
+bool engine::Application::keyboard_is_key_pressed(engine_keyboard_keys_t key) const
+{
+    return std::ranges::find(keys_pressed_, key) != keys_pressed_.end();
 }
 
 engine_fvec2_t engine::Application::mouse_get_coords()

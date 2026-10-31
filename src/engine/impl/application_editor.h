@@ -16,6 +16,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace engine
 {
@@ -181,6 +182,8 @@ private:
     void forget_game_objects();
     // "<title> - <scene file>*" while there are unsaved changes
     void update_window_title(class Scene* scene);
+    // the scene's file as the toolbar, the title and the prompt show it ("Untitled" without one)
+    static std::string scene_display_name(const class Scene& scene);
     void render_entity_properties_panel(class Scene* scene, float dt);
     void render_debug_panel(class Scene* scene, float dt);
     void render_guizmo(class Scene* scene);
@@ -295,6 +298,13 @@ private:
     std::string scene_file_dialog_folder_ = "scenes";
     std::array<char, 128> scene_file_dialog_name_{};
     std::string scene_file_dialog_picked_;
+    // read from disk when the folder or the save path changes, not every frame: the folder's entries as listed, and
+    // whether the checked save path exists and is a file the scene places
+    std::optional<std::string> scene_file_dialog_listed_folder_;
+    std::vector<asset_entry_t> scene_file_dialog_entries_;
+    std::optional<std::string> scene_file_dialog_checked_path_;
+    bool scene_file_dialog_path_exists_ = false;
+    bool scene_file_dialog_path_placed_ = false;
     // the window's title as the game created it, and as it is shown
     std::string window_title_base_;
     std::string window_title_;

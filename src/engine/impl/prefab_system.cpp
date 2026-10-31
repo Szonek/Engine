@@ -101,11 +101,6 @@ bool engine::PrefabSystem::is_scene_file(std::string_view file_name) const
     return std::ranges::find(scene_files_, scene_file_key(file_name)) != scene_files_.end();
 }
 
-void engine::PrefabSystem::clear_scene_files()
-{
-    scene_files_.clear();
-}
-
 bool engine::PrefabSystem::places_scene_file(std::string_view file_name) const
 {
     const auto key = scene_file_key(file_name);

@@ -2,9 +2,11 @@
 #include <engine.h>
 
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace engine
 {
@@ -17,6 +19,8 @@ struct PlaySnapshot
     bool had_nav_mesh = false;
     // the scene's file (Scene::get_file_path): a scene the game loaded while playing (a level exit) had another one
     std::string path;
+    // the files it was loaded from or saved to (PrefabSystem::get_scene_files), without the ones the play session loaded
+    std::vector<std::filesystem::path> scene_files;
 };
 
 // The play state of an application (Edit, Playing, Paused, Exiting) and the snapshot taken at Play, like Unity's

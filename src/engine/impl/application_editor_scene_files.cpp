@@ -24,12 +24,6 @@ constexpr const char* STOP_TO_SAVE = "Stop to save: nothing of a play session is
 // the templates File > New offers, a folder of ordinary scene files (relative to assets/)
 constexpr std::string_view TEMPLATES_FOLDER = "scenes/templates";
 
-// the scene's file as the toolbar and the title show it
-std::string scene_display_name(const engine::Scene& scene)
-{
-    return scene.get_file_path().empty() ? std::string("Untitled") : scene.get_file_path();
-}
-
 // the folder (relative to assets/) of a scene file's asset ID, for the dialog to start in
 std::string scenes_folder_of(const std::string& asset_id)
 {
@@ -42,6 +36,11 @@ std::filesystem::path assets_root()
     return engine::AssetStore::get_instance().get_scenes_base_path().parent_path();
 }
 }  // namespace
+
+std::string engine::ApplicationEditor::scene_display_name(const Scene& scene)
+{
+    return scene.get_file_path().empty() ? std::string("Untitled") : scene.get_file_path();
+}
 
 bool engine::ApplicationEditor::on_quit_requested()
 {
@@ -225,6 +224,9 @@ void engine::ApplicationEditor::open_scene_file_dialog(SceneFileDialog dialog, S
     open_scene_file_dialog_popup_ = true;
     scene_file_dialog_picked_.clear();
     scene_file_dialog_name_.fill('\0');
+    // files may have changed since the dialog was last open
+    scene_file_dialog_listed_folder_.reset();
+    scene_file_dialog_checked_path_.reset();
     const auto& path = scene->get_file_path();
     const bool in_scenes = !path.empty() && !std::filesystem::path(path).is_absolute();
     if (dialog == SceneFileDialog::eNew)
@@ -297,7 +299,12 @@ void engine::ApplicationEditor::render_scene_file_dialog(Scene* scene)
         {
             scene_file_dialog_folder_ = std::filesystem::path(scene_file_dialog_folder_).parent_path().generic_string();
         }
-        for (const auto& entry : list_asset_folder(assets_root(), scene_file_dialog_folder_))
+        if (scene_file_dialog_listed_folder_ != scene_file_dialog_folder_)
+        {
+            scene_file_dialog_entries_ = list_asset_folder(assets_root(), scene_file_dialog_folder_);
+            scene_file_dialog_listed_folder_ = scene_file_dialog_folder_;
+        }
+        for (const auto& entry : scene_file_dialog_entries_)
         {
             if (entry.kind == AssetFileKind::eFolder)
             {
@@ -341,22 +348,27 @@ void engine::ApplicationEditor::render_scene_file_dialog(Scene* scene)
     {
         ImGui::InputText("Name", scene_file_dialog_name_.data(), scene_file_dialog_name_.size());
         save_path = get_scene_save_path(scene_file_dialog_folder_, scene_file_dialog_name_.data());
+        if (save_path && save_path != scene_file_dialog_checked_path_)
+        {
+            std::error_code error;
+            scene_file_dialog_path_exists_ = std::filesystem::exists(AssetStore::get_instance().get_scenes_base_path() / *save_path, error);
+            scene_file_dialog_path_placed_ = scene->prefabs().places_scene_file(*save_path);
+            scene_file_dialog_checked_path_ = save_path;
+        }
         if (!save_path)
         {
             ImGui::TextDisabled("A file name, saved as .json in this folder.");
         }
         // a file the scene places (directly or not) would be placed inside itself once saved: the guard of
         // engineSceneLoad can't be bypassed by saving over it
-        else if (scene->prefabs().places_scene_file(*save_path))
+        else if (scene_file_dialog_path_placed_)
         {
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "The scene places %s: it can't be saved into it.", save_path->c_str());
             save_path.reset();
         }
         else
         {
-            std::error_code error;
-            const bool exists = std::filesystem::exists(AssetStore::get_instance().get_scenes_base_path() / *save_path, error);
-            if (exists && *save_path != scene->get_file_path())
+            if (scene_file_dialog_path_exists_ && *save_path != scene->get_file_path())
             {
                 ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "%s exists: saving replaces it.", save_path->c_str());
             }

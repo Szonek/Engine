@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <set>
+#include <vector>
 
 
 namespace engine
@@ -138,6 +139,8 @@ public:
     virtual bool is_keyboard_enabled() { return true; }
 
     virtual bool keyboard_is_key_down(engine_keyboard_keys_t key);
+    // the key went down since the start of the last frame (a key event, not a held key's repeat)
+    bool keyboard_is_key_pressed(engine_keyboard_keys_t key) const;
 
     virtual engine_fvec2_t mouse_get_coords();
     // What the game sees: mouse_get_coords() while the mouse is enabled, otherwise (i.e. over an editor panel)
@@ -197,6 +200,8 @@ protected:
     std::array<engine_finger_info_t, 10> finger_info_buffer;
     // the centre of the scene until the game gets the mouse
     engine_fvec2_t last_game_mouse_coords_{ 0.5f, 0.5f };
+    // the keys pressed since the start of the frame (their key events)
+    std::vector<engine_keyboard_keys_t> keys_pressed_;
 
     Renderer renderer_;
     // with the editor or play_mode_control, play sessions can be stopped

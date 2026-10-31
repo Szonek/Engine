@@ -12,7 +12,8 @@ project_c::PlayerInput project_c::read_player_input_from_devices()
     input.interact = engineMouseIsButtonDown(ENGINE_MOUSE_BUTTON_LEFT);
     input.drop_weapon = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_F);
     input.restart = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_R);
-    input.quit = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_ESCAPE);
+    // a press: Escape also closes the editor's dialogs, and the key is still down when the game gets the keyboard back
+    input.quit = engineKeyboardIsButtonPressed(ENGINE_KEYBOARD_KEY_ESCAPE);
     input.debug_reset_position = engineKeyboardIsButtonDown(ENGINE_KEYBOARD_KEY_0);
     input.cursor = engineMouseCoordsGet();
     return input;

@@ -106,6 +106,20 @@ TEST(EditorSavePoint, NoStepMergesIntoTheSavedOne)
     EXPECT_TRUE(save_point.is_dirty());
 }
 
+TEST(EditorSavePoint, NoStepMergesWhileStepsAreUndone)
+{
+    SavePoint save_point;
+    save_point.on_execute(true);
+    save_point.on_execute(true);
+    save_point.mark_saved();
+    save_point.on_undo();
+    // a merge into the first step would keep the second for redo, which then leads back to "saved" with the merged change
+    EXPECT_FALSE(save_point.can_merge());
+    // the step is new instead, and the save point it replaced can't be reached any more
+    save_point.on_execute(true);
+    EXPECT_TRUE(save_point.is_dirty());
+}
+
 TEST(EditorSavePoint, AChangeWithoutAnUndoStepStaysUnsavedUntilTheNextSave)
 {
     SavePoint save_point;
