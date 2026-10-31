@@ -27,6 +27,10 @@ public:
     virtual ~ICommand() = default;
     virtual void execute(Scene& sc) = 0;
     virtual void undo(Scene& sc) = 0;
+    // Takes in `other`, the next step of the same continuous edit (a drag of a slider or the gizmo, typing in a
+    // field), so the whole edit is one undo step, like Qt's QUndoCommand::mergeWith: true when this step now ends
+    // where `other` does. `other` is executed but not kept. Only asked while the edit goes on (see
+    // CommandManager::end_continuous_edit).
     virtual bool merge_with(const ICommand* /*other*/)
     {
         return false;
@@ -54,15 +58,11 @@ public:
     void execute_command(Scene& sc, std::unique_ptr<ICommand> cmd)
     {
         // a step merged into the saved one would change the scene without leaving the save point
-        if (!undo_stack_.empty() && save_point_.can_merge())
+        if (!edit_ended_ && !undo_stack_.empty() && save_point_.can_merge() && undo_stack_.back()->merge_with(cmd.get()))
         {
-            const auto last = undo_stack_.back().get();
-            if (last->merge_with(cmd.get()))
-            {
-                // dont push new cmd, merged with last
-                save_point_.on_merge(cmd->changes_scene());
-                return;
-            }
+            cmd->execute(sc);
+            save_point_.on_merge(cmd->changes_scene());
+            return;
         }
         cmd->execute(sc);
         if (!cmd->has_effect())
@@ -72,6 +72,7 @@ public:
         save_point_.on_execute(cmd->changes_scene());
         undo_stack_.push_back(std::move(cmd));
         redo_stack_.clear();
+        edit_ended_ = false;
         if (undo_stack_.size() > max_history_)
         {
             undo_stack_.erase(undo_stack_.begin());
@@ -79,8 +80,14 @@ public:
         }
     }
 
+    // No widget is being edited and the gizmo isn't dragged (the editor calls it every frame then): the next step
+    // starts a new undo step instead of merging into the last one (ICommand::merge_with). A click is one step, a drag
+    // from press to release is one step.
+    void end_continuous_edit() { edit_ended_ = true; }
+
     void undo(Scene& sc)
     {
+        edit_ended_ = true;
         if (undo_stack_.empty())
         {
             return;
@@ -94,6 +101,7 @@ public:
 
     void redo(Scene& sc)
     {
+        edit_ended_ = true;
         if (redo_stack_.empty())
         {
             return;
@@ -173,6 +181,8 @@ private:
     std::optional<History> edit_history_;
     // where the history (the edit history, or the play session's while playing) stands relative to the last save
     SavePoint save_point_;
+    // the last step's edit is over: nothing merges into it
+    bool edit_ended_ = true;
     const std::size_t max_history_ = 100;
 };
 
@@ -197,6 +207,19 @@ public:
         apply(sc, prev_);
     }
 
+    // the same component of the same game object, changed again by the same edit: one step from before the edit to
+    // after it
+    bool merge_with(const ICommand* other) override
+    {
+        const auto* next = dynamic_cast<const CommandUpdateComponent<TComp>*>(other);
+        if (!next || next->ref_ != ref_)
+        {
+            return false;
+        }
+        new_ = next->new_;
+        return true;
+    }
+
 private:
     void apply(Scene& sc, const TComp& value)
     {
@@ -211,7 +234,7 @@ private:
 
     const GameObjectRef ref_;
     const TComp prev_;
-    const TComp new_;
+    TComp new_;
 };
 
 // Like CommandUpdateComponent, for a component known only by its type description (game-defined components).
@@ -222,6 +245,8 @@ public:
 
     void execute(Scene& sc) override;
     void undo(Scene& sc) override;
+    // like CommandUpdateComponent's
+    bool merge_with(const ICommand* other) override;
 
 private:
     // nothing happens when the component was removed meanwhile
