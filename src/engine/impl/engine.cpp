@@ -277,11 +277,6 @@ bool engineKeyboardIsButtonDown(engine_keyboard_keys_t key)
 	return app->keyboard_is_key_down(key);
 }
 
-bool engineKeyboardIsButtonUp(engine_keyboard_keys_t key)
-{
-	return !engineKeyboardIsButtonDown(key);
-}
-
 bool engineKeyboardIsButtonPressed(engine_keyboard_keys_t key)
 {
     if (!G_ACTIVE_APP)
@@ -314,11 +309,6 @@ bool engineMouseIsButtonDown(engine_mouse_button_t button)
         return false;
     }
 	return app->mouse_is_button_down(button);
-}
-
-bool engineMouseIsButtonUp(engine_mouse_button_t button)
-{
-	return !engineMouseIsButtonDown(button);
 }
 
 //bool engineApplicationGetFingerInfo(engine_application_t handle, engine_fingers_infos_list_t* infos_list)
