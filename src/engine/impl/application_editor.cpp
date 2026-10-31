@@ -73,6 +73,41 @@ void duplicate_entity(entt::entity e, engine::Scene* scene, engine::CommandManag
     ctx.sync_selected_from_scene(scene);
 }
 
+// renames the game object with an undo step; an empty or unchanged name changes nothing
+void rename_entity(entt::entity e, std::string_view name, engine::Scene* scene, engine::CommandManager& commands)
+{
+    if (name.empty() || !scene->is_valid_entity(e) || !scene->has_component<engine_name_component_t>(e)
+        || name == scene->get_component<engine_name_component_t>(e)->name)
+    {
+        return;
+    }
+    commands.execute_command(*scene, std::make_unique<engine::CommandRenameEntity>(*scene, e, name));
+}
+
+// the text field in the row of the game object renamed in place (SceneHierarchyContext::request_rename)
+void display_rename_field(entt::entity e, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
+{
+    auto& buffer = ctx.get_rename_buffer();
+    ImGui::SameLine();
+    if (ctx.take_rename_focus())
+    {
+        ImGui::SetKeyboardFocusHere();
+    }
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputText("##rename", buffer.data(), buffer.size(), ImGuiInputTextFlags_AutoSelectAll);
+    // Enter and clicking away rename it; Escape has given the field its starting text back, which renames nothing
+    if (ImGui::IsItemDeactivated())
+    {
+        rename_entity(e, buffer.data(), scene, commands);
+        ctx.end_rename();
+    }
+    else if (!ImGui::IsItemActive() && !ctx.is_rename_starting())
+    {
+        // the field never got the keyboard focus (another window took it)
+        ctx.end_rename();
+    }
+}
+
 inline void display_node(entity_node_t* node, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_node");
@@ -98,7 +133,9 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
         }
     }
 
-    const auto entity_id = std::string(node->name) + "##" + std::to_string(static_cast<std::uint32_t>(node->entity));
+    // while it is renamed, the text field next to the arrow shows the name
+    const bool renaming = ctx.is_renaming(node->entity);
+    const auto entity_id = (renaming ? std::string() : node->name) + "##" + std::to_string(static_cast<std::uint32_t>(node->entity));
     // a collapsed node returns false but can still be clicked, dragged etc., so its item is handled either way
     const bool open = ImGui::TreeNodeEx(entity_id.c_str(), dispaly_flags);
     // a game object its prefab instance created stays under its instance's root, like Unity's (which can't be
@@ -118,7 +155,12 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
             ctx.set_selected_entity(scene, node->entity, commands);
         }
     }
-    
+    // a double-click renames it, like Godot's scene dock
+    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && !ImGui::IsItemToggledOpen())
+    {
+        ctx.request_rename(scene, node->entity);
+    }
+
     // context menu with RMB
     if (ImGui::BeginPopupContextItem())
     {
@@ -157,16 +199,10 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
                 : "A part of a prefab instance is under it without its instance's root: move it back to its instance first");
         }
 
-        //rename entity
-        static decltype(engine_name_component_t::name) new_name = "New name";
-        if(ImGui::Button("Rename"))
+        if (ImGui::MenuItem("Rename", "F2", false, scene->has_component<engine_name_component_t>(node->entity)))
         {
-            commands.execute_command(*scene, std::make_unique<engine::CommandRenameEntity>(*scene, node->entity, new_name));
-            // reset static new name
-            std::strcpy(new_name, "New name");
+            ctx.request_rename(scene, node->entity);
         }
-        ImGui::SameLine();        
-        ImGui::InputText("##edit", new_name, IM_ARRAYSIZE(new_name));
         ImGui::EndPopup();
     }
 
@@ -207,6 +243,11 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
             }
         }
         ImGui::EndDragDropTarget();
+    }
+
+    if (renaming)
+    {
+        display_rename_field(node->entity, scene, commands, ctx);
     }
 
     if (open)
@@ -1327,6 +1368,14 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     }
     ctrl_d_prev = ctrl_d_curr;
 
+    // F2 renames the selection in its hierarchy row, like Unity's and Godot's, from the hierarchy or the scene view
+    if (editor_view_ == EditorView::eEditor && (hierarchy_focused_ || scene_view_focused_) && !ImGui::GetIO().WantTextInput
+        && ImGui::IsKeyPressed(ImGuiKey_F2, false) && scene_hierarchy_context_.has_selected_entity())
+    {
+        scene_hierarchy_context_.request_rename(scene, scene_hierarchy_context_.get_selected_entity());
+        scene_hierarchy_context_.set_forced_open_selected_parents(true);
+    }
+
     camera_context_.on_scene_update_post(scene, editor_delta_time);
 }
 
@@ -1578,6 +1627,7 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
         scene_hierarchy_context_.deselect_all(scene, commands_);
     }
     display_delete_without_undo_popup(scene);
+    hierarchy_focused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
     ImGui::End(); // scene panel
 }
 
@@ -1630,6 +1680,11 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
     ImGui::Begin(editor_windows_context_.get_window_right());
     // one thing is selected, like in Unity's inspector: a file or a game object (selecting one deselects the other,
     // CommandSetSelection)
+    if (!scene_hierarchy_context_.has_selected_entity())
+    {
+        // the name field isn't drawn, so it is no longer edited
+        name_field_active_ = false;
+    }
     if (asset_browser_.has_selection())
     {
         ImGui::SeparatorText("Asset properties.");
@@ -1639,6 +1694,7 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
     {
         ImGui::SeparatorText("Entity properties.");
         const auto selected = scene_hierarchy_context_.get_selected_entity();
+        display_name_field(scene, selected);
         display_component<engine_folder_component_t>("Folder", scene, commands_, selected, display_folder_component);
         display_component<engine_transform_component_t>("Transform", scene, commands_, selected, display_transform_component);
         display_component<engine_light_component_t>("Light", scene, commands_, selected, display_light_component);
@@ -1675,6 +1731,29 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
         ImGui::Text("Select entity to display its components.");
     }
     ImGui::End();
+}
+
+void engine::ApplicationEditor::display_name_field(Scene* scene, entt::entity entity)
+{
+    if (!name_field_active_)
+    {
+        // not being edited: shows the name as it is now (an undo or a script may have changed it)
+        name_field_entity_ = entity;
+        const auto* name = scene->has_component<engine_name_component_t>(entity) ? scene->get_component<engine_name_component_t>(entity) : nullptr;
+        if (!name)
+        {
+            return;
+        }
+        std::strncpy(name_field_buffer_.data(), name->name, name_field_buffer_.size() - 1);
+        name_field_buffer_.back() = '\0';
+    }
+    ImGui::InputText("Name", name_field_buffer_.data(), name_field_buffer_.size());
+    name_field_active_ = ImGui::IsItemActive();
+    // like the hierarchy's rename: Enter or clicking away renames it (one undo step), Escape gives the name back
+    if (ImGui::IsItemDeactivated())
+    {
+        rename_entity(name_field_entity_, name_field_buffer_.data(), scene, commands_);
+    }
 }
 
 void engine::ApplicationEditor::render_asset_browser_panel(Scene* scene)
@@ -2490,6 +2569,25 @@ entt::entity engine::SceneHierarchyContext::take_delete_without_undo_request()
     return std::exchange(delete_without_undo_, entt::entity{ entt::null });
 }
 
+void engine::SceneHierarchyContext::request_rename(const engine::Scene* scene, entt::entity e)
+{
+    if (e == entt::null || !scene->is_valid_entity(e) || !scene->has_component<engine_name_component_t>(e))
+    {
+        return;
+    }
+    renaming_ = e;
+    std::strncpy(rename_buffer_.data(), scene->get_component<engine_name_component_t>(e)->name, rename_buffer_.size() - 1);
+    rename_buffer_.back() = '\0';
+    rename_focus_ = true;
+    rename_frame_ = ImGui::GetFrameCount();
+}
+
+bool engine::SceneHierarchyContext::is_rename_starting() const
+{
+    // the focus asked for in one frame activates the field in the next
+    return ImGui::GetFrameCount() <= rename_frame_ + 2;
+}
+
 void engine::SceneHierarchyContext::sync_selected_from_scene(engine::Scene* scene)
 {
     // Find an entity that currently has the guizmo component (the editor selection marker)
@@ -2527,6 +2625,7 @@ void engine::SceneHierarchyContext::reset()
     selected_ = entt::null;
     selected_ref_ = {};
     delete_without_undo_ = entt::null;
+    renaming_ = entt::null;
 }
 
 void engine::ApplicationEditor::EditorWindowsContext::initialize(std::uint32_t dockspace_id)
