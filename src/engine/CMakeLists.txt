@@ -18,6 +18,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/editor_camera.cpp
 	${ENGINE_SOURCES_DIR}/editor_camera.h
 	${ENGINE_SOURCES_DIR}/editor_context_click.h
+	${ENGINE_SOURCES_DIR}/editor_component_list.h
 	${ENGINE_SOURCES_DIR}/editor_modal_transform.cpp
 	${ENGINE_SOURCES_DIR}/editor_modal_transform.h
 	${ENGINE_SOURCES_DIR}/editor_snap.h

@@ -6,6 +6,7 @@
 #include "editor_asset_panel.h"
 #include "editor_camera.h"
 #include "editor_context_click.h"
+#include "editor_component_list.h"
 #include "editor_modal_transform.h"
 #include "render/outline_feature.h"
 #include "render/grid_feature.h"
@@ -207,6 +208,8 @@ private:
     void render_entity_properties_panel(class Scene* scene, float dt);
     // the selected game object's name, at the top of the properties panel (like Unity's inspector header)
     void display_name_field(class Scene* scene, entt::entity entity);
+    // below its components: a list of the ones it doesn't have, by category, with a search field (like Unity's)
+    void display_add_component_button(class Scene* scene, entt::entity entity);
     void render_debug_panel(class Scene* scene, float dt);
     void render_guizmo(class Scene* scene);
     void handle_mouse_picking(class Scene* scene);
@@ -330,6 +333,9 @@ private:
     std::array<char, ENGINE_ENTITY_NAME_MAX_LENGTH> name_field_buffer_{};
     entt::entity name_field_entity_ = entt::null;
     bool name_field_active_ = false;
+    // the Add Component list's search text, and the listed component Enter adds
+    std::array<char, 64> add_component_filter_{};
+    int add_component_highlight_ = 0;
     // the hierarchy panel has the keyboard focus (F2 renames the selection there and in the scene view)
     bool hierarchy_focused_ = false;
     // a Save, Open or New done at the start of the next frame, like Play and Stop: never during a scene update (the

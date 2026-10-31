@@ -433,55 +433,51 @@ inline void display_folder(const std::string& name, folder_node_t& folder, engin
     }
 }
 
+// The header of a component the game object has, with its menu (like Unity's ⋮ menu): opened by right-clicking the
+// header or by its button at the header's right. Returns whether the header is open; `remove` is set when Remove was
+// picked.
+bool display_component_header(const char* name, bool& remove)
+{
+    const bool open = ImGui::CollapsingHeader(name, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap);
+    constexpr const char* menu = "##component_menu";
+    ImGui::OpenPopupOnItemClick(menu, ImGuiPopupFlags_MouseButtonRight);
+    const char* button = "...";
+    ImGui::SameLine(ImGui::GetContentRegionMax().x - ImGui::CalcTextSize(button).x - ImGui::GetStyle().FramePadding.x * 2.0f);
+    if (ImGui::SmallButton(button))
+    {
+        ImGui::OpenPopup(menu);
+    }
+    remove = false;
+    if (ImGui::BeginPopup(menu))
+    {
+        remove = ImGui::MenuItem("Remove");
+        ImGui::EndPopup();
+    }
+    return open;
+}
+
+// a component of the engine the game object has, with its hand-written panel `fn`
 template<typename T>
 inline void display_component(std::string_view name, engine::Scene* scene, engine::CommandManager& commands, entt::entity entity, std::function<bool(engine::Scene* scene, T& comp)> fn)
 {
     ENGINE_PROFILE_SECTION_N("editor-display_component");
-    const bool has_component = scene->has_component<T>(entity);
-    if (!has_component)
+    ImGui::PushID(name.data());
+    bool remove = false;
+    if (display_component_header(name.data(), remove) && !remove)
     {
-        ImGui::BeginDisabled();
-    }
-    if (ImGui::CollapsingHeader(name.data(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_AllowItemOverlap))
-    {
-        if (has_component)
+        auto comp = *scene->get_component<T>(entity);
+        if (fn(scene, comp))
         {
-            auto comp = *scene->get_component<T>(entity);
-            if (fn(scene, comp))
-            {
-                //scene->update_component<T>(entity, comp);
-                commands.execute_command(*scene, std::make_unique<engine::CommandUpdateComponent<T>>(*scene, entity, comp));
-            }
-
+            commands.execute_command(*scene, std::make_unique<engine::CommandUpdateComponent<T>>(*scene, entity, comp));
         }
     }
-    else
+    if (remove)
     {
-        ImGui::SameLine();
+        scene->remove_component<T>(entity);
+        // adding and removing the engine's components have no undo step yet
+        commands.mark_changed();
     }
-    if (!has_component)
-    {
-        ImGui::EndDisabled();
-    }
-    if (has_component)
-    {
-        const std::string label = std::string("Remove##") + std::string(name);
-        if (ImGui::Button(label.c_str()))
-        {
-            scene->remove_component<T>(entity);
-            // adding and removing the engine's components have no undo step yet
-            commands.mark_changed();
-        }
-    }
-    else
-    {
-        const std::string label = std::string("Add##") + std::string(name);
-        if (ImGui::Button(label.c_str()))
-        {
-            scene->add_component<T>(entity);
-            commands.mark_changed();
-        }
-    }
+    ImGui::PopID();
 }
 
 // Combo box picking a resource by its asset ID (atlas name) instead of typing its index; "None" selects
@@ -791,42 +787,20 @@ void display_typed_component(const engine::TypeInfo& type, engine::Scene* scene,
 {
     ENGINE_PROFILE_SECTION_N("editor-display_typed_component");
     ImGui::PushID(type.name.c_str());
-    const bool has_component = scene->has_component(type, entity);
-    if (!has_component)
+    bool remove = false;
+    if (display_component_header(type.name.c_str(), remove) && !remove)
     {
-        ImGui::BeginDisabled();
-    }
-    if (ImGui::CollapsingHeader(type.name.c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_AllowItemOverlap))
-    {
-        if (has_component)
+        engine::ValueBuffer value(type.size);
+        scene->get_component(type, entity, value.get());
+        if (TypeInspector(scene).draw_struct(type, value.get()))
         {
-            engine::ValueBuffer value(type.size);
-            scene->get_component(type, entity, value.get());
-            if (TypeInspector(scene).draw_struct(type, value.get()))
-            {
-                // with the components the new value requires (a script's config), in the same undo step
-                commands.execute_command(*scene, engine::make_update_typed_component_command(*scene, entity, type, value.get()));
-            }
+            // with the components the new value requires (a script's config), in the same undo step
+            commands.execute_command(*scene, engine::make_update_typed_component_command(*scene, entity, type, value.get()));
         }
     }
-    else
+    if (remove)
     {
-        ImGui::SameLine();
-    }
-    if (!has_component)
-    {
-        ImGui::EndDisabled();
-    }
-    if (ImGui::Button(has_component ? "Remove" : "Add"))
-    {
-        if (has_component)
-        {
-            commands.execute_command(*scene, std::make_unique<engine::CommandRemoveTypedComponent>(*scene, entity, type));
-        }
-        else
-        {
-            commands.execute_command(*scene, std::make_unique<engine::CommandAddTypedComponent>(*scene, entity, type));
-        }
+        commands.execute_command(*scene, std::make_unique<engine::CommandRemoveTypedComponent>(*scene, entity, type));
     }
     ImGui::PopID();
 }
@@ -1722,13 +1696,185 @@ void engine::ApplicationEditor::display_delete_without_undo_popup(class Scene* s
     ImGui::EndPopup();
 }
 
+namespace
+{
+// a component of the engine in the properties panel: drawn while the game object has it, offered by Add Component
+// otherwise
+struct engine_component_entry_t
+{
+    const char* name;
+    const char* category;
+    std::function<bool(const engine::Scene&, entt::entity)> has;
+    std::function<void(engine::Scene&, entt::entity)> add;
+    std::function<void(engine::Scene*, engine::CommandManager&, entt::entity)> draw;
+};
+
+template<typename T>
+engine_component_entry_t make_engine_component_entry(const char* name, const char* category, bool (*fn)(engine::Scene*, T&))
+{
+    return engine_component_entry_t{ name, category,
+        [](const engine::Scene& scene, entt::entity e) { return scene.has_component<T>(e); },
+        [](engine::Scene& scene, entt::entity e) { scene.add_component<T>(e); },
+        [name, fn](engine::Scene* scene, engine::CommandManager& commands, entt::entity e) { display_component<T>(name, scene, commands, e, fn); } };
+}
+
+// in the order the panel draws them, and the categories in the order Add Component lists them
+const std::vector<engine_component_entry_t>& get_engine_component_entries()
+{
+    static const std::vector<engine_component_entry_t> entries = []()
+    {
+        std::vector<engine_component_entry_t> ret = {
+            make_engine_component_entry<engine_folder_component_t>("Folder", "Scene", display_folder_component),
+            make_engine_component_entry<engine_transform_component_t>("Transform", "Scene", display_transform_component),
+            make_engine_component_entry<engine_light_component_t>("Light", "Rendering", display_light_component),
+            make_engine_component_entry<engine_camera_component_t>("Camera", "Rendering", display_camera_component),
+            make_engine_component_entry<engine_mesh_component_t>("Mesh", "Rendering", display_mesh_component),
+            make_engine_component_entry<engine_skinned_mesh_component_t>("Skinned Mesh", "Rendering", display_skinned_mesh_component),
+            make_engine_component_entry<engine_material_component_t>("Material", "Rendering", display_material_component),
+            make_engine_component_entry<engine_skin_component_t>("Skin", "Animation", display_skin_component),
+            make_engine_component_entry<engine_joint_attachment_component_t>("Joint Attachment", "Animation", display_joint_attachment_component),
+            make_engine_component_entry<engine_animation_controller_component_t>("Animation controller", "Animation", display_animation_controller_component),
+            make_engine_component_entry<engine_collider_component_t>("Collider", "Physics", display_collider_component),
+            make_engine_component_entry<engine_rigid_body_component_t>("Rigid Body", "Physics", display_rigidbody_component),
+            make_engine_component_entry<engine_character_controller_component_t>("Character Controller", "Physics", display_character_controller_component),
+            make_engine_component_entry<engine_nav_surface_component_t>("Nav Surface", "Navigation", display_nav_surface_component),
+            make_engine_component_entry<engine_nav_modifier_component_t>("Nav Modifier", "Navigation", display_nav_modifier_component),
+        };
+        // like a bake: nothing rebuilds the nav mesh automatically, so after editing the nav surface, nav modifiers or
+        // static colliders, build it again to see (and play with) the result
+        for (auto& entry : ret)
+        {
+            if (std::string_view(entry.name) == "Nav Surface")
+            {
+                entry.draw = [draw = entry.draw](engine::Scene* scene, engine::CommandManager& commands, entt::entity e)
+                {
+                    draw(scene, commands, e);
+                    if (scene->has_component<engine_nav_surface_component_t>(e) && ImGui::Button("Build nav mesh"))
+                    {
+                        scene->build_nav_mesh();
+                    }
+                };
+            }
+        }
+        return ret;
+    }();
+    return entries;
+}
+
+// the game's components have no hand-written panel: drawn from their type descriptions; one category for now
+constexpr const char* GAME_COMPONENTS_CATEGORY = "Game";
+}  // namespace
+
+void engine::ApplicationEditor::display_add_component_button(Scene* scene, entt::entity entity)
+{
+    constexpr const char* popup = "##add_component";
+    ImGui::Spacing();
+    if (ImGui::Button("Add Component", ImVec2(-FLT_MIN, 0.0f)))
+    {
+        add_component_filter_.fill('\0');
+        add_component_highlight_ = 0;
+        ImGui::OpenPopup(popup);
+    }
+    if (!ImGui::BeginPopup(popup))
+    {
+        return;
+    }
+    // what the game object doesn't have yet: the engine's components, then the game's
+    const auto& engine_entries = get_engine_component_entries();
+    std::vector<component_choice_t> choices;
+    std::vector<std::function<void()>> adds;
+    for (const auto& entry : engine_entries)
+    {
+        if (!entry.has(*scene, entity))
+        {
+            choices.push_back(component_choice_t{ entry.name, entry.category });
+            adds.push_back([this, scene, entity, &entry]()
+                {
+                    entry.add(*scene, entity);
+                    // adding the engine's components has no undo step yet
+                    commands_.mark_changed();
+                });
+        }
+    }
+    for (const auto* type : get_type_registry().get_components())
+    {
+        if (type->game_defined && !scene->has_component(*type, entity))
+        {
+            choices.push_back(component_choice_t{ type->name, GAME_COMPONENTS_CATEGORY });
+            adds.push_back([this, scene, entity, type]()
+                {
+                    commands_.execute_command(*scene, std::make_unique<CommandAddTypedComponent>(*scene, entity, *type));
+                });
+        }
+    }
+
+    if (ImGui::IsWindowAppearing())
+    {
+        ImGui::SetKeyboardFocusHere();
+    }
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::InputTextWithHint("##filter", "Search", add_component_filter_.data(), add_component_filter_.size()))
+    {
+        add_component_highlight_ = 0;
+    }
+    const auto groups = group_component_choices(choices, add_component_filter_.data());
+    const auto listed = listed_component_choices(groups);
+    // the arrow keys move the highlight through what is listed, Enter adds it (the search field keeps the focus)
+    if (!listed.empty())
+    {
+        const auto count = static_cast<int>(listed.size());
+        if (ImGui::IsKeyPressed(ImGuiKey_DownArrow))
+        {
+            add_component_highlight_ = (add_component_highlight_ + 1) % count;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_UpArrow))
+        {
+            add_component_highlight_ = (add_component_highlight_ + count - 1) % count;
+        }
+        add_component_highlight_ = std::clamp(add_component_highlight_, 0, count - 1);
+    }
+    std::optional<std::size_t> picked;
+    if (!listed.empty() && (ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false)))
+    {
+        picked = listed[static_cast<std::size_t>(add_component_highlight_)];
+    }
+    if (listed.empty())
+    {
+        ImGui::TextDisabled(choices.empty() ? "It has every component" : "No component matches");
+    }
+    int position = 0;
+    for (const auto& group : groups)
+    {
+        ImGui::SeparatorText(group.category.c_str());
+        for (const auto choice : group.choices)
+        {
+            const bool highlighted = position++ == add_component_highlight_;
+            ImGui::PushID(static_cast<int>(choice));
+            if (ImGui::Selectable(choices[choice].name.c_str(), highlighted))
+            {
+                picked = choice;
+            }
+            if (highlighted)
+            {
+                ImGui::SetItemDefaultFocus();
+                if (ImGui::IsKeyPressed(ImGuiKey_DownArrow) || ImGui::IsKeyPressed(ImGuiKey_UpArrow))
+                {
+                    ImGui::SetScrollHereY();
+                }
+            }
+            ImGui::PopID();
+        }
+    }
+    if (picked)
+    {
+        adds[*picked]();
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+}
+
 void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scene, float /*dt*/)
 {
-    /*
-    here all components should be visible
-        - the one which are not avaialbe in the entitiy (Grayd out) and a "+" button to add them
-        - the one which are available in the entity (whatever color) and a "-" button to remove them
-    */
     ImGui::Begin(editor_windows_context_.get_window_right());
     // one thing is selected, like in Unity's inspector: a file or a game object (selecting one deselects the other,
     // CommandSetSelection)
@@ -1747,35 +1893,22 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
         ImGui::SeparatorText("Entity properties.");
         const auto selected = scene_hierarchy_context_.get_selected_entity();
         display_name_field(scene, selected);
-        display_component<engine_folder_component_t>("Folder", scene, commands_, selected, display_folder_component);
-        display_component<engine_transform_component_t>("Transform", scene, commands_, selected, display_transform_component);
-        display_component<engine_light_component_t>("Light", scene, commands_, selected, display_light_component);
-        display_component<engine_camera_component_t>("Camera", scene, commands_, selected, display_camera_component);
-        display_component<engine_mesh_component_t>("Mesh", scene, commands_, selected, display_mesh_component);
-        display_component<engine_skinned_mesh_component_t>("Skinned Mesh", scene, commands_, selected, display_skinned_mesh_component);
-        display_component<engine_skin_component_t>("Skin", scene, commands_, selected, display_skin_component);
-        display_component<engine_joint_attachment_component_t>("Joint Attachment", scene, commands_, selected, display_joint_attachment_component);
-        display_component<engine_animation_controller_component_t>("Animation controller", scene, commands_, selected, display_animation_controller_component);
-        display_component<engine_material_component_t>("Material", scene, commands_, selected, display_material_component);
-        display_component<engine_collider_component_t>("Collider", scene, commands_, selected, display_collider_component);
-        display_component<engine_rigid_body_component_t>("Rigid Body", scene, commands_, selected, display_rigidbody_component);
-        display_component<engine_character_controller_component_t>("Character Controller", scene, commands_, selected, display_character_controller_component);
-        display_component<engine_nav_surface_component_t>("Nav Surface", scene, commands_, selected, display_nav_surface_component);
-        // like a bake: nothing rebuilds the nav mesh automatically, so after editing the nav surface, nav modifiers or
-        // static colliders, build it again to see (and play with) the result
-        if (scene->has_component<engine_nav_surface_component_t>(selected) && ImGui::Button("Build nav mesh"))
+        // like Unity's inspector: only the components it has, the others are added with Add Component
+        for (const auto& entry : get_engine_component_entries())
         {
-            scene->build_nav_mesh();
+            if (entry.has(*scene, selected))
+            {
+                entry.draw(scene, commands_, selected);
+            }
         }
-        display_component<engine_nav_modifier_component_t>("Nav Modifier", scene, commands_, selected, display_nav_modifier_component);
-        // the game's components have no hand-written panel: drawn from their type descriptions
         for (const auto* type : get_type_registry().get_components())
         {
-            if (type->game_defined)
+            if (type->game_defined && scene->has_component(*type, selected))
             {
                 display_typed_component(*type, scene, commands_, selected);
             }
         }
+        display_add_component_button(scene, selected);
     }
     else
     {
