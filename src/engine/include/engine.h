@@ -566,13 +566,20 @@ ENGINE_API engine_result_code_t engineSceneSetActive(engine_scene_t handle);
 // never saved) and its components which hold authored data (name, folder, transform, parent, mesh, material, light,
 // nav surface and modifier, rigid body, collider, character controller, and the game-defined components, see
 // engineComponentTypeRegister), with assets referenced by asset ID and game objects by persistent ID. A path is relative to assets/scenes, or absolute.
-// Saves the active scene; fails when the file can't be written.
+// Saves the active scene, which then has the file as its file (engineSceneGetPath). The file is replaced in one step
+// (written next to it, then renamed), so a failed save leaves the old file; fails when it can't be written.
 ENGINE_API engine_result_code_t engineSceneSave(const char* path);
 // Adds the game objects of a scene file to the active scene, with the IDs of the file (one whose ID is used already
 // gets a new one). The models and images it references are loaded when needed and live at least as long as the scene.
-// Fails, without changing the scene, when the file can't be read or isn't a scene file this engine can read; problems
-// inside a scene file (an unknown component, a missing asset, ...) are logged and the rest is loaded.
+// Into a scene without content (no game object with a persistent ID) the file becomes the scene's file; a file added
+// to a scene with content leaves it alone (logged). Fails, without changing the scene, when the file can't be read or
+// isn't a scene file this engine can read; problems inside a scene file (an unknown component, a missing asset, ...)
+// are logged and the rest is loaded.
 ENGINE_API engine_result_code_t engineSceneLoad(const char* path);
+// The active scene's file, like Unity's Scene.path: the file loaded into it while it had no content, or the one it was
+// last saved to (the editor's Open and Save too), as it was given (relative to assets/scenes, or absolute); "" when it
+// has none (a new scene, one built by code) or there is no active scene. Valid until the scene's file changes.
+ENGINE_API const char* engineSceneGetPath();
 
 // Game-defined components: plain C structs the game describes field by field (like the engine's own components), so
 // scene files save them and the editor shows and edits them without code for them. Register a type once, after the

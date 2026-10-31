@@ -18,8 +18,6 @@
 
 #include <algorithm>
 #include <cstring>
-#include <filesystem>
-#include <fstream>
 #include <vector>
 #include <optional>
 #include <utility>
@@ -664,31 +662,13 @@ engine_result_code_t engineSceneSetActive(engine_scene_t handle)
     return ENGINE_RESULT_CODE_OK;
 }
 
-namespace
-{
-std::filesystem::path scene_file_path(const char* path)
-{
-    const std::filesystem::path p(path);
-    return p.is_absolute() ? p : engine::AssetStore::get_instance().get_scenes_base_path() / p;
-}
-}  // namespace
-
 engine_result_code_t engineSceneSave(const char* path)
 {
     if (!G_ACTIVE_SCENE || !path)
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
-    const auto file_path = scene_file_path(path);
-    const auto content = api_cast(G_ACTIVE_SCENE)->save();
-    std::ofstream file(file_path, std::ios::binary | std::ios::trunc);
-    if (!file || !file.write(content.data(), static_cast<std::streamsize>(content.size())))
-    {
-        engine::log::log(engine::log::LogLevel::eError, fmt::format("Scene save: can't write {}.\n", file_path.string()));
-        return ENGINE_RESULT_CODE_FAIL;
-    }
-    api_cast(G_ACTIVE_SCENE)->prefabs().add_scene_file(path);
-    return ENGINE_RESULT_CODE_OK;
+    return api_cast(G_ACTIVE_SCENE)->save_file(path) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
 }
 
 engine_result_code_t engineSceneLoad(const char* path)
@@ -697,21 +677,35 @@ engine_result_code_t engineSceneLoad(const char* path)
     {
         return ENGINE_RESULT_CODE_INVALID_ARG;
     }
-    const auto file_path = scene_file_path(path);
-    std::ifstream file(file_path, std::ios::binary);
-    if (!file)
+    const auto content = engine::read_scene_file(path);
+    if (!content)
     {
-        engine::log::log(engine::log::LogLevel::eError, fmt::format("Scene load: can't read {}.\n", file_path.string()));
         return ENGINE_RESULT_CODE_FAIL;
     }
-    const std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     auto* scene = api_cast(G_ACTIVE_SCENE);
-    if (!scene->load(content, path))
+    // a file added to content the scene has already doesn't become its file (one scene, one file: multi-scene editing
+    // isn't there)
+    const bool had_content = scene->has_content();
+    if (!scene->load(*content, path))
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
     scene->prefabs().add_scene_file(path);
+    if (!had_content)
+    {
+        scene->set_file_path(path);
+    }
+    else
+    {
+        engine::log::log(engine::log::LogLevel::eTrace, fmt::format("Scene load: {} was added to a scene with content; the scene's file stays \"{}\".\n",
+            path, scene->get_file_path()));
+    }
     return ENGINE_RESULT_CODE_OK;
+}
+
+const char* engineSceneGetPath()
+{
+    return G_ACTIVE_SCENE ? api_cast(G_ACTIVE_SCENE)->get_file_path().c_str() : "";
 }
 
 engine_result_code_t engineComponentTypeRegister(const engine_type_desc_t* desc, engine_component_type_t* out)

@@ -343,7 +343,7 @@ engine_result_code_t engine::Application::enter_play_mode(Scene& scene)
     {
         return ENGINE_RESULT_CODE_FAIL;
     }
-    const auto entered = play_mode_.enter([&scene]() { return PlaySnapshot{ scene.save(), scene.get_nav_mesh() != nullptr }; });
+    const auto entered = play_mode_.enter([&scene]() { return PlaySnapshot{ scene.save(), scene.get_nav_mesh() != nullptr, scene.get_file_path() }; });
     if (!entered)
     {
         return ENGINE_RESULT_CODE_FAIL;
@@ -379,6 +379,12 @@ engine_result_code_t engine::Application::finish_exit_play_mode(Scene& scene)
             if (!scene.replace(snapshot.scene, "play mode snapshot"))
             {
                 return false;
+            }
+            // the scene the game loaded while playing (a level exit) is the one at Play again
+            scene.set_file_path(snapshot.path);
+            if (!snapshot.path.empty())
+            {
+                scene.prefabs().add_scene_file(snapshot.path);
             }
             // derived data, gone with its game object
             if (snapshot.had_nav_mesh)

@@ -101,6 +101,26 @@ bool engine::PrefabSystem::is_scene_file(std::string_view file_name) const
     return std::ranges::find(scene_files_, scene_file_key(file_name)) != scene_files_.end();
 }
 
+void engine::PrefabSystem::clear_scene_files()
+{
+    scene_files_.clear();
+}
+
+bool engine::PrefabSystem::places_scene_file(std::string_view file_name) const
+{
+    const auto key = scene_file_key(file_name);
+    // the roots of nested instances are marked too, so every file placed directly or not is found
+    for (const auto& [entity, instance] : registry_.view<const prefab_instance_internal_component_t>().each())
+    {
+        const auto& prefab = instance.get_info().prefab;
+        if (is_scene_prefab_id(prefab) && scene_file_key(prefab) == key)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 engine::prefab_instance_internal_component_t::prefab_instance_internal_component_t(Application& app, std::uint32_t prefab, PrefabInstanceInfo&& info)
     : app_(&app)
     , prefab_(prefab)

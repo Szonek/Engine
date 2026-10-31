@@ -104,6 +104,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/data_asset.cpp
 	${ENGINE_SOURCES_DIR}/prefab_system.h
 	${ENGINE_SOURCES_DIR}/prefab_system.cpp
+	${ENGINE_SOURCES_DIR}/file_io.h
+	${ENGINE_SOURCES_DIR}/file_io.cpp
 	${ENGINE_SOURCES_DIR}/play_mode.h
 	${ENGINE_SOURCES_DIR}/play_mode.cpp
 	${ENGINE_SOURCES_DIR}/serialization/type_registry.h

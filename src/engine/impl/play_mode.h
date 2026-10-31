@@ -15,6 +15,8 @@ struct PlaySnapshot
     std::string scene;
     // whether it had a built nav mesh: derived data, not in the file, so Stop builds it again
     bool had_nav_mesh = false;
+    // the scene's file (Scene::get_file_path): a scene the game loaded while playing (a level exit) had another one
+    std::string path;
 };
 
 // The play state of an application (Edit, Playing, Paused, Exiting) and the snapshot taken at Play, like Unity's

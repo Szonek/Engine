@@ -15,6 +15,7 @@
 
 #include <optional>
 #include <span>
+#include <string>
 
 namespace engine
 {
@@ -24,6 +25,9 @@ class Skin;
 struct SkinPose;
 class AnimationController;
 class NavMesh;
+// the content of a scene file (a path under assets/scenes, or absolute), nullopt (logged) when it can't be read
+std::optional<std::string> read_scene_file(std::string_view path);
+
 class Scene
 {
 public:
@@ -105,6 +109,23 @@ public:
     // loaded, so the ones both use aren't loaded again (Stop loading the scene saved at Play). The game objects get the
     // file's persistent IDs and new handles. False (logged), with the scene unchanged, when the file can't be loaded.
     bool replace(std::string_view json, std::string_view file_name);
+    // Writes the scene to the file (a path under assets/scenes, or absolute) in one step (write_file_atomic), which then
+    // is the scene's file (engineSceneSave, the editor's Save). False (logged) when it can't be written.
+    bool save_file(std::string_view path);
+    // Open (the editor's File menu, like Unity's EditorSceneManager.OpenScene): replace() with the file, which becomes
+    // the scene's file, or with a template (`as_new`: the scene gets no file, a new scene); the nav mesh is built when
+    // the file has a nav surface, like the editor's Build button. False (logged), with the scene unchanged, when the
+    // file can't be loaded.
+    bool open(std::string_view json, std::string_view file_name, bool as_new);
+
+    // The scene's file, like Unity's Scene.path and Godot's scene_file_path: the file loaded into it while it had no
+    // content (engineSceneLoad, open()) or the file it was last saved to (engineSceneSave); "" for a scene which has
+    // none (a new one, or one built by code). A path under assets/scenes or absolute, as it was given. Stop gives back
+    // the one it had at Play.
+    const std::string& get_file_path() const { return file_path_; }
+    void set_file_path(std::string path) { file_path_ = std::move(path); }
+    // whether the scene has scene content: a game object with a persistent ID (the editor's and runtime ones have none)
+    bool has_content() const;
 
     entt::runtime_view create_runtime_view();
 
@@ -225,5 +246,6 @@ private:
     PrefabSystem prefabs_;
 
     bool nav_mesh_debug_draw_ = false;
+    std::string file_path_;
 };
 }  // namespace engine

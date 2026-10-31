@@ -44,6 +44,11 @@ public:
     // scene prefab of one of them placed in the scene (the editor's drop) would place that file inside itself once saved.
     void add_scene_file(std::string_view file_name);
     bool is_scene_file(std::string_view file_name) const;
+    // the scene holds other content now (the editor opened a file)
+    void clear_scene_files();
+    // Whether a prefab instance in the scene, however deep, is an instance of the scene file: saving the scene to that
+    // file would place the file inside itself.
+    bool places_scene_file(std::string_view file_name) const;
 
 private:
     Application& app_;
