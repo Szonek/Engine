@@ -255,6 +255,14 @@ engine_result_code_t engineApplicationSetActive(engine_application_t handle)
     return ENGINE_RESULT_CODE_OK;
 }
 
+void engineApplicationRequestQuit()
+{
+    if (G_ACTIVE_APP)
+    {
+        api_cast(G_ACTIVE_APP)->request_quit();
+    }
+}
+
 bool engineKeyboardIsButtonDown(engine_keyboard_keys_t key)
 {
     if (!G_ACTIVE_APP)

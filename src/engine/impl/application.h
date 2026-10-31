@@ -38,6 +38,9 @@ public:
     virtual engine_result_code_t update_scene(class Scene* scene, float delta_time);
     virtual engine_application_frame_begine_info_t begine_frame();
     virtual engine_application_frame_end_info_t end_frame();
+    // Asks to close the application (engineApplicationRequestQuit, the window's close button): the start of a following
+    // frame reports ENGINE_EVENT_QUIT, unless on_quit_requested holds it.
+    void request_quit();
 
     virtual std::uint32_t add_texture(const TextureDesc& desc);
     virtual std::uint32_t add_texture_from_file(std::string_view file_name, std::string_view texture_name, engine_texture_color_space_t color_space);
@@ -156,6 +159,10 @@ protected:
     virtual void on_play_mode_enter(class Scene* /*scene*/) {}
     // a play session ended (Stop): `scene` holds the edit state again
     virtual void on_play_mode_exit(class Scene* /*scene*/) {}
+    // a quit was asked for (request_quit); false holds it: whoever held it calls confirm_quit() later, or never (cancelled)
+    virtual bool on_quit_requested() { return true; }
+    // the next frame (or this one, during on_frame_begine) reports ENGINE_EVENT_QUIT
+    void confirm_quit() { quit_confirmed_ = true; }
 
 private:
     // reads the data assets whose files changed again
@@ -196,6 +203,8 @@ protected:
     PlayMode play_mode_;
     // inside update_scene's scene update, see enter_play_mode
     bool scene_update_running_ = false;
+    // a quit nothing holds (any more): every frame from now on reports ENGINE_EVENT_QUIT
+    bool quit_confirmed_ = false;
 
 private:
     bool is_play_mode_change_allowed() const;

@@ -121,6 +121,7 @@ typedef enum _engine_play_mode_state_t
 typedef enum _engine_begin_frame_event_flags_t
 {
     ENGINE_EVENT_NONE = 0x0,
+    // the window was closed or the game asked to quit (engineApplicationRequestQuit), and nothing held it
     ENGINE_EVENT_QUIT = 0x2,
     ENGINE_EVENT_WINDOW_MOVED = 0x4,
     ENGINE_EVENT_WINDOW_RESIZED = 0x8,
@@ -528,6 +529,10 @@ ENGINE_API void engineProfileZoneEnd(engine_profiler_ctx_t* ctx);
 ENGINE_API engine_result_code_t engineApplicationCreate(engine_application_t* handle, engine_application_create_desc_t create_desc);
 ENGINE_API void engineApplicationDestroy(engine_application_t handle);
 ENGINE_API engine_result_code_t engineApplicationSetActive(engine_application_t handle);
+// Asks to close the application, like closing its window: a following engineFrameBegin reports ENGINE_EVENT_QUIT. The
+// editor holds it while the scene has unsaved changes and asks to save them first; then it is reported once they were
+// saved or discarded, and never when the prompt was cancelled. Asking again while it is held changes nothing.
+ENGINE_API void engineApplicationRequestQuit();
 
 // editor
 ENGINE_API bool engineEditorIsEnabled();

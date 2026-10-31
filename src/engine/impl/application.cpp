@@ -252,7 +252,7 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
 
         if (e.type == SDL_EVENT_QUIT)
         {
-            ret.events |= ENGINE_EVENT_QUIT;
+            request_quit();
         }
         else if (e.type == SDL_EVENT_WINDOW_RESIZED)
         {
@@ -324,7 +324,19 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     // after the editor's Play and Stop (on_frame_begine): a step asked for while paused plays this frame, a frame
     // beginning in Exiting is the play session's last
     play_mode_.begin_frame();
+    if (quit_confirmed_)
+    {
+        ret.events |= ENGINE_EVENT_QUIT;
+    }
 	return ret;
+}
+
+void engine::Application::request_quit()
+{
+    if (!quit_confirmed_ && on_quit_requested())
+    {
+        confirm_quit();
+    }
 }
 
 bool engine::Application::is_play_mode_change_allowed() const
