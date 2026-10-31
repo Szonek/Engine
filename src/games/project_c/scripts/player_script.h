@@ -245,7 +245,6 @@ private:
     float attack_elapsed_ = 0.0f;
     float attack_buffer_remaining_ = 0.0f;
     bool attack_buffered_ = false;
-    bool attack_input_was_down_ = false;
     bool attack_press_pending_ = false;
     bool drop_weapon_press_pending_ = false;
     AttackPhase attack_phase_ = AttackPhase::eIdle;

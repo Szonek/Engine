@@ -566,8 +566,7 @@ void project_c::Player::update(float dt)
 
     // presses are detected every frame, also during hit-stop, and kept until the player can act on them;
     // otherwise a press during a hit-stop (e.g. the next combo attack right after a confirmed hit) is lost
-    attack_press_pending_ = attack_press_pending_ || (input().attack && !attack_input_was_down_);
-    attack_input_was_down_ = input().attack;
+    attack_press_pending_ = attack_press_pending_ || input().attack;
     dodge_press_pending_ = dodge_press_pending_ || input().dodge;
     drop_weapon_press_pending_ = drop_weapon_press_pending_ || input().drop_weapon;
 

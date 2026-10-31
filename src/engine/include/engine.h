@@ -756,6 +756,9 @@ ENGINE_API bool engineKeyboardIsButtonPressed(engine_keyboard_keys_t key);
 // over another panel or outside the window) it stays at the last position the game got.
 ENGINE_API engine_fvec2_t engineMouseCoordsGet();
 ENGINE_API bool engineMouseIsButtonDown(engine_mouse_button_t mb);
+// The button went down since the previous engineFrameBegin while the game got the mouse: a button held down over an
+// editor panel and moved into the scene is never pressed for the game.
+ENGINE_API bool engineMouseIsButtonPressed(engine_mouse_button_t mb);
 
 //frame handling
 ENGINE_API engine_application_frame_begine_info_t engineFrameBegin();

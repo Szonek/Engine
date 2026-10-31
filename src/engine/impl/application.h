@@ -147,6 +147,8 @@ public:
     // the last position it saw, so the cursor stays where it left the scene instead of jumping.
     engine_fvec2_t mouse_get_game_coords();
     virtual bool mouse_is_button_down(engine_mouse_button_t button);
+    // the button went down since the start of the last frame (a button event)
+    bool mouse_is_button_pressed(engine_mouse_button_t button) const;
 
     virtual std::array<engine_finger_info_t, 10> get_finger_info_events() const;
 
@@ -200,8 +202,9 @@ protected:
     std::array<engine_finger_info_t, 10> finger_info_buffer;
     // the centre of the scene until the game gets the mouse
     engine_fvec2_t last_game_mouse_coords_{ 0.5f, 0.5f };
-    // the keys pressed since the start of the frame (their key events)
+    // the keys and mouse buttons pressed since the start of the frame (their events)
     std::vector<engine_keyboard_keys_t> keys_pressed_;
+    std::vector<engine_mouse_button_t> mouse_buttons_pressed_;
 
     Renderer renderer_;
     // with the editor or play_mode_control, play sessions can be stopped

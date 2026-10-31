@@ -5,18 +5,17 @@ namespace project_c
 {
 // What the player asks for this frame, in game terms. Gameplay scripts read it (AppProjectC::player_input()) instead of
 // the keyboard and mouse, so the key bindings live in one place and the game can be driven without devices (tests).
-// One-shot actions (dodge, drop weapon, restart, quit, debug reset) are true only in the frame their key was pressed,
-// so a test sets them for one frame. The others are true while held; scripts detect an attack press on the up -> down
-// change of `attack` (the mouse has no press of its own yet), so holding it for several frames is a single attack.
+// One-shot actions (attack, dodge, interact, drop weapon, restart, quit, debug reset) are true only in the frame their
+// key or button was pressed, so a test sets them for one frame. The move directions are true while held.
 struct PlayerInput
 {
     bool forward = false;               // W
     bool back = false;                  // S
     bool left = false;                  // A
     bool right = false;                 // D
-    bool attack = false;                // right mouse button
+    bool attack = false;                // right mouse button pressed
     bool dodge = false;                 // space pressed (also lets go of a wall)
-    bool interact = false;              // left mouse button
+    bool interact = false;              // left mouse button pressed
     bool drop_weapon = false;           // F pressed
     bool restart = false;               // R pressed (restarts the level once the encounter is over)
     bool quit = false;                  // Escape pressed this frame (handled by the main loop: closes the game)

@@ -311,6 +311,16 @@ bool engineMouseIsButtonDown(engine_mouse_button_t button)
 	return app->mouse_is_button_down(button);
 }
 
+bool engineMouseIsButtonPressed(engine_mouse_button_t button)
+{
+    if (!G_ACTIVE_APP)
+    {
+        return false;
+    }
+    auto* app = api_cast(G_ACTIVE_APP);
+    return app->is_mouse_enabled() && app->mouse_is_button_pressed(button);
+}
+
 //bool engineApplicationGetFingerInfo(engine_application_t handle, engine_fingers_infos_list_t* infos_list)
 //{
 //    if (!infos_list)

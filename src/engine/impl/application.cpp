@@ -246,6 +246,7 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
     //Handle events on queue
     SDL_Event e;
     keys_pressed_.clear();
+    mouse_buttons_pressed_.clear();
     while (SDL_PollEvent(&e) != 0)
     {
         on_sdl_event(e);
@@ -254,6 +255,10 @@ engine_application_frame_begine_info_t engine::Application::begine_frame()
         if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat)
         {
             keys_pressed_.push_back(static_cast<engine_keyboard_keys_t>(e.key.scancode));
+        }
+        if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+        {
+            mouse_buttons_pressed_.push_back(static_cast<engine_mouse_button_t>(e.button.button));
         }
         if (e.type == SDL_EVENT_QUIT)
         {
@@ -828,6 +833,11 @@ bool engine::Application::mouse_is_button_down(engine_mouse_button_t button)
 {
     const auto state = SDL_GetMouseState(nullptr, nullptr);
     return state & SDL_BUTTON_MASK(button);
+}
+
+bool engine::Application::mouse_is_button_pressed(engine_mouse_button_t button) const
+{
+    return std::ranges::find(mouse_buttons_pressed_, button) != mouse_buttons_pressed_.end();
 }
 
 std::array<engine_finger_info_t, 10> engine::Application::get_finger_info_events() const
