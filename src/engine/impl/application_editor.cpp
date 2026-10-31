@@ -465,8 +465,10 @@ inline void display_component(std::string_view name, engine::Scene* scene, engin
     bool remove = false;
     if (display_component_header(name.data(), remove) && !remove)
     {
-        auto comp = *scene->get_component<T>(entity);
-        if (fn(scene, comp))
+        const auto original = *scene->get_component<T>(entity);
+        auto comp = original;
+        // only a real change is an undo step (and an update, which rebuilds what depends on the component)
+        if (fn(scene, comp) && std::memcmp(&comp, &original, sizeof(T)) != 0)
         {
             commands.execute_command(*scene, std::make_unique<engine::CommandUpdateComponent<T>>(*scene, entity, comp));
         }
@@ -824,12 +826,10 @@ bool display_transform_component(engine::Scene* /*scene*/, engine_transform_comp
 bool display_mesh_component(engine::Scene* scene, engine_mesh_component_t& c)
 {
     bool enabled = !c.disable;
-    if (ImGui::Checkbox("Enabled", &enabled))
-    {
-        c.disable = !c.disable;
-    }
-    display_geometry_combo(scene, c.geometry);
-    return true;
+    bool changed = ImGui::Checkbox("Enabled", &enabled);
+    c.disable = !enabled;
+    changed |= display_geometry_combo(scene, c.geometry);
+    return changed;
 }
 
 // "<name> (ID <persistent id>)" of the game object owning a skin instance, or "None"
@@ -847,13 +847,11 @@ std::string skin_owner_label(const engine::Scene* scene, engine_game_object_t sk
 bool display_skinned_mesh_component(engine::Scene* scene, engine_skinned_mesh_component_t& c)
 {
     bool enabled = !c.disable;
-    if (ImGui::Checkbox("Enabled", &enabled))
-    {
-        c.disable = !c.disable;
-    }
-    display_geometry_combo(scene, c.geometry);
+    bool changed = ImGui::Checkbox("Enabled", &enabled);
+    c.disable = !enabled;
+    changed |= display_geometry_combo(scene, c.geometry);
     ImGui::Text("Skin of: %s", skin_owner_label(scene, c.skin).c_str());
-    return true;
+    return changed;
 }
 
 bool display_skin_component(engine::Scene* scene, engine_skin_component_t& c)
@@ -1403,6 +1401,12 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     }
 
     camera_context_.on_scene_update_post(scene, editor_delta_time);
+
+    // a drag of a widget or the gizmo, or typing into a field, is one undo step from its start to its end
+    if (!ImGui::IsAnyItemActive() && !ImGuizmo::IsUsingAny())
+    {
+        commands_.end_continuous_edit();
+    }
 }
 
 void engine::ApplicationEditor::render_scene_view()
