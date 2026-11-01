@@ -321,6 +321,115 @@ TEST_F(DataAssetTest, SecondAssetOfAFileLeavesTheWatchToTheFirst)
     watcher.unregister_callback(file_);
 }
 
+TEST_F(DataAssetTest, SetValueIsDirtyUntilSavedAndLoadsBackTheSame)
+{
+    write_file(R"({ "version": 1, "type": "tuning", "value": { "hp": 30 } })");
+    auto asset = load_asset();
+    ASSERT_NE(asset, nullptr);
+    EXPECT_FALSE(asset->is_dirty());
+
+    Tuning edited = value_of(*asset);
+    edited.hp = 45;
+    edited.icon = 4;
+    const auto text = engine::save_data_asset(*tuning_, reinterpret_cast<const std::byte*>(&edited), assets_);
+    ASSERT_TRUE(asset->set_value_text(text));
+    EXPECT_EQ(value_of(*asset).hp, 45u);
+    EXPECT_EQ(asset->get_value_text(), text);
+    EXPECT_EQ(asset->get_reload_count(), 1u);
+    EXPECT_TRUE(asset->is_dirty());
+
+    // setting the file's value back is clean again (undo)
+    Tuning original = edited;
+    original.hp = 30;
+    original.icon = ENGINE_INVALID_OBJECT_HANDLE;
+    ASSERT_TRUE(asset->set_value_text(engine::save_data_asset(*tuning_, reinterpret_cast<const std::byte*>(&original), assets_)));
+    EXPECT_FALSE(asset->is_dirty());
+    ASSERT_TRUE(asset->set_value_text(text));
+
+    ASSERT_TRUE(asset->save());
+    EXPECT_FALSE(asset->is_dirty());
+    auto loaded = load_asset();
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(value_of(*loaded).hp, 45u);
+    EXPECT_EQ(value_of(*loaded).icon, 4u);
+    EXPECT_EQ(loaded->get_value_text(), asset->get_value_text());
+}
+
+TEST_F(DataAssetTest, SetValueHoldsItsAssetsThroughANewResolver)
+{
+    write_file(R"({ "version": 1, "type": "tuning", "value": { "hp": 30 } })");
+    auto asset = load_asset();
+    ASSERT_NE(asset, nullptr);
+    EXPECT_EQ(alive_resolvers_, 1);
+    ASSERT_TRUE(asset->set_value_text(R"({ "version": 1, "type": "tuning", "value": { "icon": "textures/icon.png" } })"));
+    EXPECT_EQ(value_of(*asset).icon, 4u);
+    // the old value's resolver was released, the new one holds the icon
+    EXPECT_EQ(alive_resolvers_, 1);
+    // the fields the text leaves out have the type's defaults, like a file's
+    EXPECT_EQ(value_of(*asset).hp, 20u);
+}
+
+TEST_F(DataAssetTest, SetValueOfAnotherTypeIsRefused)
+{
+    struct Other
+    {
+        float x;
+    };
+    const engine_field_desc_t x = field("x", ENGINE_FIELD_KIND_FLOAT, offsetof(Other, x));
+    const engine_type_desc_t desc{ "other", 1, sizeof(Other), alignof(Other), nullptr, &x, 1 };
+    ASSERT_NE(engine::register_game_type(types_, desc, false), nullptr);
+
+    write_file(R"({ "version": 1, "type": "tuning", "value": { "hp": 30 } })");
+    auto asset = load_asset();
+    ASSERT_NE(asset, nullptr);
+    EXPECT_FALSE(asset->set_value_text(R"({ "version": 1, "type": "other", "value": { "x": 1 } })"));
+    EXPECT_FALSE(asset->set_value_text("{ not json"));
+    EXPECT_EQ(value_of(*asset).hp, 30u);
+    EXPECT_FALSE(asset->is_dirty());
+    EXPECT_TRUE(test_logger::logged("the new value is a other instead of a tuning"));
+}
+
+TEST_F(DataAssetTest, OwnSaveIsNotReadAgain)
+{
+    write_file(R"({ "version": 1, "type": "tuning", "value": { "hp": 30 } })");
+    auto asset = load_asset();
+    ASSERT_NE(asset, nullptr);
+    ASSERT_TRUE(asset->set_value_text(R"({ "version": 1, "type": "tuning", "value": { "hp": 50 } })"));
+    ASSERT_TRUE(asset->save());
+    const auto count = asset->get_reload_count();
+
+    // the watcher's change event for the save
+    asset->mark_changed();
+    EXPECT_FALSE(asset->reload_if_changed());
+    EXPECT_EQ(asset->get_reload_count(), count);
+
+    // a change made to the file afterwards is
+    write_file(R"({ "version": 1, "type": "tuning", "value": { "hp": 60 } })");
+    asset->mark_changed();
+    EXPECT_TRUE(asset->reload_if_changed());
+    EXPECT_EQ(value_of(*asset).hp, 60u);
+    EXPECT_FALSE(asset->is_dirty());
+}
+
+TEST_F(DataAssetTest, FileChangedWhileDirtyKeepsTheEditorsValue)
+{
+    write_file(R"({ "version": 1, "type": "tuning", "value": { "hp": 30 } })");
+    auto asset = load_asset();
+    ASSERT_NE(asset, nullptr);
+    ASSERT_TRUE(asset->set_value_text(R"({ "version": 1, "type": "tuning", "value": { "hp": 50 } })"));
+
+    write_file(R"({ "version": 1, "type": "tuning", "value": { "hp": 60 } })");
+    asset->mark_changed();
+    EXPECT_FALSE(asset->reload_if_changed());
+    EXPECT_EQ(value_of(*asset).hp, 50u);
+    EXPECT_TRUE(asset->is_dirty());
+    EXPECT_TRUE(test_logger::logged("its file changed while it has unsaved changes in the editor"));
+
+    // it is dirty against what the file holds now: setting that value is clean
+    ASSERT_TRUE(asset->set_value_text(R"({ "version": 1, "type": "tuning", "value": { "hp": 60 } })"));
+    EXPECT_FALSE(asset->is_dirty());
+}
+
 TEST_F(DataAssetTest, MissingFileIsNotLoaded)
 {
     EXPECT_EQ(load_asset(), nullptr);
