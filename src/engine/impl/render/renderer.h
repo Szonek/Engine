@@ -11,6 +11,7 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -28,7 +29,7 @@ namespace engine
 //           Shadow Map      (depth of meshes seen from the directional light)
 //           Depth Pre-pass  (depth of meshes seen from the camera)
 //           SSAO, SSAO Blur (ambient occlusion computed from the depth)
-//           Forward (static + skinned meshes, uses the shadow map and the ambient occlusion) -> Sprites -> Debug Lines
+//           Forward (static + skinned meshes, uses the shadow map and the ambient occlusion) -> Sprites -> Debug Lines -> Debug Lines Pick
 //       RenderStage::ePostProcess features    (i.e. editor outline)
 //       Present                               (scene color -> scene output: the backbuffer or the texture set with set_scene_output())
 //       RenderStage::eOverlay features        (i.e. game UI, drawn onto the scene output)
@@ -54,9 +55,20 @@ public:
     // Features of the same stage are executed in ascending order, ties in registration order.
     void add_feature(std::shared_ptr<RenderFeature> feature, RenderStage stage, int order = 0);
 
-    // Entity id rendered at given pixel (0,0 is the left bottom corner) during the previous frame.
-    // Returns false if there is no such data (nothing was rendered yet or the pixel is outside).
-    bool read_entity_id(std::uint32_t x, std::uint32_t y, std::uint32_t& out_entity_id);
+    // The entity ids rendered during the previous frame in the square of pixels `radius` around (x, y) (0,0 is the left
+    // bottom corner), cut to the image, row by row from the bottom: Forward writes the meshes', Debug Lines Pick the
+    // owners' of debug lines.
+    struct EntityIdArea
+    {
+        std::vector<std::uint32_t> ids;
+        std::uint32_t width = 0;
+        std::uint32_t height = 0;
+        // where (x, y) is in the area
+        std::uint32_t center_x = 0;
+        std::uint32_t center_y = 0;
+    };
+    // nullopt if there is no such data (nothing was rendered yet or the pixel is outside)
+    std::optional<EntityIdArea> read_entity_ids(std::uint32_t x, std::uint32_t y, std::uint32_t radius);
 
     RenderContext& get_context() { return rdx_; }
     // Shadows, ambient occlusion... Changes are applied to the next rendered frame.
@@ -139,7 +151,7 @@ private:
     // camera_ubo: camera of the view or of the light
     void draw_meshes_depth_only(const FrameView& view, const UniformBuffer& camera_ubo);
     void draw_sprites(const FrameView& view);
-    void draw_debug_lines(const FrameView& view);
+    void draw_debug_lines(const FrameView& view, Shader& shader);
 
 private:
     RenderContext& rdx_;
@@ -168,6 +180,8 @@ private:
     MaterialSprite material_sprite_;
 
     Shader shader_debug_lines_;
+    // the lines' owners into the entity ids, for picking
+    Shader shader_debug_lines_pick_;
     Geometry geometry_debug_line_;
     Shader shader_full_screen_quad_;
     Geometry geometry_full_screen_quad_;

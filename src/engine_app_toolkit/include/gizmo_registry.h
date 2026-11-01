@@ -13,7 +13,8 @@ namespace engine
 // static methods, not per script: scripts exist only while playing, a drawer needs no running instance, so gizmos show
 // in Edit mode too, also on game objects without a script. Every scene calls the drawers each frame while the editor
 // shows gizmos (engineEditorAreGizmosVisible), in every play state, before the engine's scene update draws them.
-// A drawer only draws (engineDebugDraw*), it never changes the scene.
+// A drawer only draws (engineDebugDraw*), it never changes the scene. What it draws is owned by its game object
+// (engineDebugDrawSetOwner), so clicking it in the editor selects the game object.
 class ENGINE_APP_TOOLKIT_API GizmoRegistry
 {
 public:

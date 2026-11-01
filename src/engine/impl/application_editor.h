@@ -202,9 +202,9 @@ private:
     void render_debug_panel(class Scene* scene, float dt);
     void render_guizmo(class Scene* scene);
     void handle_mouse_picking(class Scene* scene);
-    // the game object under the mouse in the scene view (entt::null: empty space), as the previous frame showed it;
-    // nothing when it can't be read
-    std::optional<entt::entity> pick_entity_under_mouse();
+    // the game object under the mouse in the scene view (entt::null: empty space), as the previous frame showed it, a
+    // gizmo's within a few pixels winning; nothing when it can't be read
+    std::optional<entt::entity> pick_entity_under_mouse(const Scene& scene);
     // where the ray through `mouse` (pixels in the scene view) hits a collider, or the ground, seen through the camera
     // (a placed asset or a created game object goes there)
     glm::vec3 get_mouse_scene_point(class Scene* scene, entt::entity camera_entity, const glm::vec2& mouse) const;

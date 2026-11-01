@@ -113,3 +113,57 @@ TEST(DebugDrawList, CircleWithoutANormalDrawsNothing)
     list.add_circle(glm::vec3(0.0f), glm::vec3(0.0f), 1.0f, glm::vec3(1.0f));
     EXPECT_TRUE(list.lines().empty());
 }
+
+TEST(DebugDrawList, ShapesDrawnAfterAnOwnerBelongToIt)
+{
+    engine::DebugDrawList list;
+    list.add_line(glm::vec3(0.0f), glm::vec3(1.0f), glm::vec3(1.0f));
+    list.set_owner(7);
+    list.add_sphere(glm::vec3(0.0f), 1.0f, glm::vec3(1.0f));
+    list.set_owner(3);
+    list.add_line(glm::vec3(0.0f), glm::vec3(2.0f), glm::vec3(1.0f));
+    list.set_owner(0);
+    list.add_line(glm::vec3(0.0f), glm::vec3(3.0f), glm::vec3(1.0f));
+
+    const auto lines = list.take_lines();
+    EXPECT_EQ(lines.front().owner, 0u);
+    EXPECT_EQ(lines[1].owner, 7u);
+    EXPECT_EQ(lines[lines.size() - 2].owner, 3u);
+    EXPECT_EQ(lines.back().owner, 0u);
+    // what is on the screen now, each owner once
+    EXPECT_EQ(list.last_owners(), (std::vector<std::uint32_t>{ 3u, 7u }));
+}
+
+TEST(DebugDrawList, TheOwnerEndsWithTheFrame)
+{
+    engine::DebugDrawList list;
+    list.set_owner(5);
+    list.add_line(glm::vec3(0.0f), glm::vec3(1.0f), glm::vec3(1.0f));
+    list.take_lines();
+
+    list.add_line(glm::vec3(0.0f), glm::vec3(1.0f), glm::vec3(1.0f));
+    EXPECT_EQ(list.take_lines().front().owner, 0u);
+    EXPECT_TRUE(list.last_owners().empty());
+}
+
+TEST(PickGameObject, TheNearestGizmoLineNearTheClickWins)
+{
+    // 5 x 5 pixels around the click at (2, 2): a mesh (1) everywhere, a gizmo of 9 one pixel away, one of 8 further
+    std::vector<std::uint32_t> ids(25, 1u);
+    ids[2 * 5 + 3] = 9u;
+    ids[0 * 5 + 0] = 8u;
+    const std::vector<std::uint32_t> owners{ 8u, 9u };
+    EXPECT_EQ(engine::pick_game_object(ids, 5, 5, 2, 2, owners), 9u);
+}
+
+TEST(PickGameObject, WithoutAGizmoNearTheClickThePixelUnderItIsPicked)
+{
+    std::vector<std::uint32_t> ids(9, 0u);
+    ids[1 * 3 + 1] = 4u;
+    // 6 is a mesh, not a gizmo owner: it doesn't win from a distance
+    ids[0] = 6u;
+    EXPECT_EQ(engine::pick_game_object(ids, 3, 3, 1, 1, std::vector<std::uint32_t>{ 2u }), 4u);
+    // empty space under the click
+    ids[1 * 3 + 1] = 0u;
+    EXPECT_EQ(engine::pick_game_object(ids, 3, 3, 1, 1, std::vector<std::uint32_t>{ 2u }), 0u);
+}

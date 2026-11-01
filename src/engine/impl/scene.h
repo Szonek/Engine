@@ -53,6 +53,7 @@ public:
     bool is_nav_mesh_debug_draw_enabled() const;
     // the shapes engineDebugDraw* add this frame, drawn and cleared by the next update
     DebugDrawList& debug_draw();
+    const DebugDrawList& debug_draw() const;
     engine_result_code_t update(float dt);
 
     // Entity 0 has the value of ENGINE_INVALID_GAME_OBJECT_ID, so every scene reserves it when created: it has no

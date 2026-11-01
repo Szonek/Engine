@@ -2303,7 +2303,7 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
     // Alt + left mouse button orbits the editor camera instead (either Alt, like the camera reads it)
     if (mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT) && !ImGui::GetIO().KeyAlt)
     {
-        const auto picked = pick_entity_under_mouse();
+        const auto picked = pick_entity_under_mouse(*scene);
         if (!picked)
         {
             return;
@@ -2320,7 +2320,7 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
     }
 }
 
-std::optional<entt::entity> engine::ApplicationEditor::pick_entity_under_mouse()
+std::optional<entt::entity> engine::ApplicationEditor::pick_entity_under_mouse(const Scene& scene)
 {
     const auto scene_viewport = get_scene_viewport();
     const auto mouse_coords = mouse_get_coords();
@@ -2328,14 +2328,17 @@ std::optional<entt::entity> engine::ApplicationEditor::pick_entity_under_mouse()
     {
         return std::nullopt;  // held since a click over the scene, but moved off it
     }
-    // entity ids come from the previous frame, which is what was visible on the screen when the user clicked
-    std::uint32_t picked_id = ENGINE_INVALID_GAME_OBJECT_ID;
+    // entity ids come from the previous frame, which is what was visible on the screen when the user clicked; gizmo
+    // lines are a pixel wide, so the ones within a few pixels of the click are picked too (pick_game_object)
+    constexpr std::uint32_t GIZMO_PICK_RADIUS = 4;
     const auto x = static_cast<std::uint32_t>(mouse_coords.x * scene_viewport.width);
     const auto y = static_cast<std::uint32_t>(mouse_coords.y * scene_viewport.height);
-    if (!renderer_.read_entity_id(x, y, picked_id))
+    const auto area = renderer_.read_entity_ids(x, y, GIZMO_PICK_RADIUS);
+    if (!area)
     {
         return std::nullopt;
     }
+    const auto picked_id = pick_game_object(area->ids, area->width, area->height, area->center_x, area->center_y, scene.debug_draw().last_owners());
     return picked_id == ENGINE_INVALID_GAME_OBJECT_ID ? entt::entity{ entt::null } : static_cast<entt::entity>(picked_id);
 }
 

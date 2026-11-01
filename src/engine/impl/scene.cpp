@@ -198,6 +198,11 @@ engine::DebugDrawList& engine::Scene::debug_draw()
     return debug_draw_;
 }
 
+const engine::DebugDrawList& engine::Scene::debug_draw() const
+{
+    return debug_draw_;
+}
+
 engine_result_code_t engine::Scene::build_nav_mesh()
 {
     ENGINE_PROFILE_SECTION;
@@ -588,6 +593,7 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
         gpu_line.from = line.from;
         gpu_line.to = line.to;
         gpu_line.color = line.color;
+        gpu_line.owner = line.owner;
         render_data.debug_lines.push_back(gpu_line);
     }
 

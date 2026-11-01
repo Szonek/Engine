@@ -2,13 +2,15 @@
 
 #include <glm/gtc/constants.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <utility>
 
 void engine::DebugDrawList::add_line(const glm::vec3& from, const glm::vec3& to, const glm::vec3& color)
 {
-    lines_.push_back(DebugDrawLine{ from, to, color });
+    lines_.push_back(DebugDrawLine{ from, to, color, owner_ });
 }
 
 void engine::DebugDrawList::add_box(const glm::mat4& transform, const glm::vec3& half_extents, const glm::vec3& color)
@@ -68,5 +70,47 @@ void engine::DebugDrawList::add_sphere(const glm::vec3& center, float radius, co
 
 std::vector<engine::DebugDrawLine> engine::DebugDrawList::take_lines()
 {
+    last_owners_.clear();
+    for (const auto& line : lines_)
+    {
+        if (line.owner != 0)
+        {
+            last_owners_.push_back(line.owner);
+        }
+    }
+    std::ranges::sort(last_owners_);
+    const auto duplicates = std::ranges::unique(last_owners_);
+    last_owners_.erase(duplicates.begin(), duplicates.end());
+    owner_ = 0;
     return std::exchange(lines_, {});
+}
+
+std::uint32_t engine::pick_game_object(std::span<const std::uint32_t> ids, std::uint32_t width, std::uint32_t height,
+    std::uint32_t center_x, std::uint32_t center_y, std::span<const std::uint32_t> owners)
+{
+    if (center_x >= width || center_y >= height || ids.size() < static_cast<std::size_t>(width) * height)
+    {
+        return 0;
+    }
+    std::uint32_t nearest_owner = 0;
+    auto nearest_distance = std::numeric_limits<std::int64_t>::max();
+    for (std::uint32_t y = 0; y < height; y++)
+    {
+        for (std::uint32_t x = 0; x < width; x++)
+        {
+            const auto id = ids[static_cast<std::size_t>(y) * width + x];
+            if (id == 0 || !std::ranges::binary_search(owners, id))
+            {
+                continue;
+            }
+            const auto dx = static_cast<std::int64_t>(x) - center_x;
+            const auto dy = static_cast<std::int64_t>(y) - center_y;
+            if (dx * dx + dy * dy < nearest_distance)
+            {
+                nearest_distance = dx * dx + dy * dy;
+                nearest_owner = id;
+            }
+        }
+    }
+    return nearest_owner != 0 ? nearest_owner : ids[static_cast<std::size_t>(center_y) * width + center_x];
 }

@@ -16,7 +16,10 @@ std::size_t engine::GizmoRegistry::draw(engine_game_object_t selected) const
     {
         for (const auto go : get_game_objects_with_data_component(entry.component_type))
         {
+            // a click on what it draws selects the game object
+            engineDebugDrawSetOwner(go);
             entry.drawer(go, go == selected);
+            engineDebugDrawSetOwner(ENGINE_INVALID_GAME_OBJECT_ID);
             calls++;
         }
     }

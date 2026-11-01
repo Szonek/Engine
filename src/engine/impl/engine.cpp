@@ -1056,6 +1056,14 @@ void engineDebugDrawCircle(const float center[3], const float normal[3], float r
     }
 }
 
+void engineDebugDrawSetOwner(engine_game_object_t owner)
+{
+    if (G_ACTIVE_SCENE)
+    {
+        api_cast(G_ACTIVE_SCENE)->debug_draw().set_owner(static_cast<std::uint32_t>(owner));
+    }
+}
+
 void engineDebugDrawSphere(const float center[3], float radius, const float color[3])
 {
     if (G_ACTIVE_SCENE && center && color)

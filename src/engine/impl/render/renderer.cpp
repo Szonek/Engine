@@ -41,6 +41,7 @@ engine::Renderer::Renderer(RenderContext& rdx)
     : rdx_(rdx)
     , backend_(rdx)
     , shader_debug_lines_({ "debug_physics_lines_ssbo.vs" }, { "debug_physics_lines_ssbo.fs" })
+    , shader_debug_lines_pick_({ "debug_physics_lines_ssbo.vs" }, { "debug_lines_pick.fs" })
     , geometry_debug_line_(2)
     , shader_full_screen_quad_({ "full_screen_quad.vs" }, { "full_screen_quad.fs" })
     , geometry_full_screen_quad_(6)
@@ -69,20 +70,27 @@ void engine::Renderer::add_feature(std::shared_ptr<RenderFeature> feature, Rende
     features_.insert(position, FeatureEntry{ std::move(feature), stage, order });
 }
 
-bool engine::Renderer::read_entity_id(std::uint32_t x, std::uint32_t y, std::uint32_t& out_entity_id)
+std::optional<engine::Renderer::EntityIdArea> engine::Renderer::read_entity_ids(std::uint32_t x, std::uint32_t y, std::uint32_t radius)
 {
     if (!entity_id_texture_ || x >= entity_id_desc_.width || y >= entity_id_desc_.height)
     {
-        return false;
+        return std::nullopt;
     }
+    const auto x0 = x > radius ? x - radius : 0;
+    const auto y0 = y > radius ? y - radius : 0;
+    const auto x1 = std::min(x + radius + 1, entity_id_desc_.width);
+    const auto y1 = std::min(y + radius + 1, entity_id_desc_.height);
+    EntityIdArea area{ .width = x1 - x0, .height = y1 - y0, .center_x = x - x0, .center_y = y - y0 };
+
     readback_targets_.set_color_attachment(0, entity_id_texture_.get());
-    const auto pixels = readback_targets_.read_pixels(0, { x, y, 1, 1 }, DataLayout::eR_U32);
+    const auto pixels = readback_targets_.read_pixels(0, { x0, y0, area.width, area.height }, DataLayout::eR_U32);
     readback_targets_.set_color_attachment(0, nullptr);
     RenderTargetSet::bind_default();
 
-    assert(pixels.size() == sizeof(std::uint32_t));
-    std::memcpy(&out_entity_id, pixels.data(), sizeof(std::uint32_t));
-    return true;
+    area.ids.resize(static_cast<std::size_t>(area.width) * area.height);
+    assert(pixels.size() == area.ids.size() * sizeof(std::uint32_t));
+    std::memcpy(area.ids.data(), pixels.data(), pixels.size());
+    return area;
 }
 
 engine::Renderer::SceneGpu& engine::Renderer::get_scene_gpu(std::size_t scene_index)
@@ -370,7 +378,24 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
                 },
                 [this, view](const rg::NoPassData&, rg::PassContext&)
                 {
-                    draw_debug_lines(view);
+                    draw_debug_lines(view, shader_debug_lines_);
+                });
+        }
+        // lines with an owner (gizmos) are picked like meshes: their owner's id where they are visible
+        const auto& lines = view.scene->debug_lines;
+        if (std::any_of(lines.begin(), lines.end(), [](const DebugLineGpuData& line) { return line.owner != ENGINE_INVALID_GAME_OBJECT_ID; }))
+        {
+            frame.graph.add_pass(fmt::format("Debug Lines Pick{}", suffix),
+                [&](rg::Builder& builder, rg::NoPassData&)
+                {
+                    builder.write_color(0, frame.entity_id, rg::LoadOp::eLoad);
+                    builder.write_depth(frame.scene_depth, rg::LoadOp::eLoad);
+                },
+                [this, view](const rg::NoPassData&, rg::PassContext&)
+                {
+                    // the Debug Lines pass wrote the lines' depth: the same lines are drawn exactly at it
+                    rdx_.set_depth_func(RenderContext::DepthFunc::eLessOrEqual);
+                    draw_debug_lines(view, shader_debug_lines_pick_);
                 });
         }
     }
@@ -482,14 +507,14 @@ void engine::Renderer::draw_sprites(const FrameView& view)
     }
 }
 
-void engine::Renderer::draw_debug_lines(const FrameView& view)
+void engine::Renderer::draw_debug_lines(const FrameView& view, Shader& shader)
 {
     ENGINE_PROFILE_SECTION_N("Renderer::draw_debug_lines");
     const auto& scene = *view.scene;
 
-    shader_debug_lines_.bind();
-    shader_debug_lines_.set_uniform_mat_f4("view", { glm::value_ptr(view.camera->view), 16 });
-    shader_debug_lines_.set_uniform_mat_f4("projection", { glm::value_ptr(view.camera->projection), 16 });
+    shader.bind();
+    shader.set_uniform_mat_f4("view", { glm::value_ptr(view.camera->view), 16 });
+    shader.set_uniform_mat_f4("projection", { glm::value_ptr(view.camera->projection), 16 });
     view.debug_lines_ssbo->bind(static_cast<std::uint32_t>(ShaderBindingSlot::DEBUG_PHYSICS));
     geometry_debug_line_.bind();
     geometry_debug_line_.draw_instances(Geometry::Mode::eLines, static_cast<std::uint32_t>(scene.debug_lines.size()));
