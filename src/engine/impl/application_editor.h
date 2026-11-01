@@ -68,8 +68,11 @@ public:
     entt::entity get_selected_entity() const;
     bool has_selected_entity() const;
 
-    void set_forced_open_selected_parents(bool value);
-    bool is_forced_open_selected_parents() const;
+    // the hierarchy opens the selection's parents and folders the next time it is drawn (and only then), for a
+    // selection made outside it
+    void reveal_selection();
+    bool is_revealing_selection() const;
+    void end_reveal_selection();
     void sync_selected_from_scene(engine::Scene* scene);
     // The selection refers to its game object by persistent ID (GameObjectRef): when the game object got a new handle
     // (Stop loaded the scene saved at Play back), the selection follows it and marks it again; when it is gone (a script
@@ -100,7 +103,7 @@ private:
     // the selected game object's handle, found again from selected_ref_ by resolve_selection
     entt::entity selected_ = entt::null;
     GameObjectRef selected_ref_;
-    bool force_open_selected_parents_ = false;
+    bool reveal_selection_ = false;
     entt::entity delete_without_undo_ = entt::null;
     entt::entity renaming_ = entt::null;
     std::array<char, ENGINE_ENTITY_NAME_MAX_LENGTH> rename_buffer_{};

@@ -156,7 +156,7 @@ void display_game_object_menu_items(entt::entity e, engine::Scene* scene, engine
     if (ImGui::MenuItem("Rename", "F2", false, scene->has_component<engine_name_component_t>(e)))
     {
         ctx.request_rename(scene, e);
-        ctx.set_forced_open_selected_parents(true);
+        ctx.reveal_selection();
     }
 
     const auto can_duplicate = engine::CommandDuplicateEntity::can_duplicate(*scene, e);
@@ -207,13 +207,11 @@ inline void display_node(entity_node_t* node, engine::Scene* scene, engine::Comm
         dispaly_flags |= ImGuiTreeNodeFlags_OpenOnArrow;
     }
 
-    // if we have selected entity by mouse then open all parents of selected entity for easier naviation in the scene panel
-    if (ctx.has_selected_entity())
+    // a selection made outside the hierarchy (picked in the scene view, F2) opens its parents once, like Unity's: the
+    // other nodes keep what the user opened or closed
+    if (ctx.has_selected_entity() && ctx.is_revealing_selection() && is_entity_parent_of(node->entity, ctx.get_selected_entity(), scene))
     {
-        if (ctx.is_forced_open_selected_parents())
-        {
-            ImGui::SetNextItemOpen(is_entity_parent_of(node->entity, ctx.get_selected_entity(), scene));
-        }
+        ImGui::SetNextItemOpen(true);
     }
 
     // while it is renamed, the text field next to the arrow shows the name
@@ -387,10 +385,10 @@ inline std::string get_listed_folder_path(const engine::Scene* scene, entt::enti
 
 inline void display_folder(const std::string& name, folder_node_t& folder, engine::Scene* scene, engine::CommandManager& commands, engine::SceneHierarchyContext& ctx)
 {
-    // if we have selected entity by mouse then open all folders of selected entity for easier naviation in the scene panel
-    if (ctx.has_selected_entity() && ctx.is_forced_open_selected_parents())
+    // the folders of a selection made outside the hierarchy open once, like its parents (display_node)
+    if (ctx.has_selected_entity() && ctx.is_revealing_selection() && is_folder_on_path(folder.path, get_listed_folder_path(scene, ctx.get_selected_entity())))
     {
-        ImGui::SetNextItemOpen(is_folder_on_path(folder.path, get_listed_folder_path(scene, ctx.get_selected_entity())));
+        ImGui::SetNextItemOpen(true);
     }
     const auto label = fmt::format("{} ({})##folder:{}", name, count_folder_entities(folder), folder.path);
     const bool open = ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth);
@@ -1393,7 +1391,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
         && ImGui::IsKeyPressed(ImGuiKey_F2, false) && scene_hierarchy_context_.has_selected_entity())
     {
         scene_hierarchy_context_.request_rename(scene, scene_hierarchy_context_.get_selected_entity());
-        scene_hierarchy_context_.set_forced_open_selected_parents(true);
+        scene_hierarchy_context_.reveal_selection();
     }
     // Delete deletes the selection, from the same places (a runtime object asks first)
     if (editor_view_ == EditorView::eEditor && (hierarchy_focused_ || scene_view_focused_) && !ImGui::GetIO().WantTextInput && !modal_transform_
@@ -1659,6 +1657,8 @@ void engine::ApplicationEditor::render_scene_hierarchy_panel(Scene* scene, float
         scene_hierarchy_context_.deselect_all(scene, commands_);
     }
     display_delete_without_undo_popup(scene);
+    // revealed: from now on the user opens and closes them
+    scene_hierarchy_context_.end_reveal_selection();
     hierarchy_focused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
     ImGui::End(); // scene panel
 }
@@ -2001,7 +2001,7 @@ void engine::ApplicationEditor::handle_asset_drop(Scene* scene)
             commands_.execute_command(*scene, std::make_unique<CommandPlacePrefab>(*scene, asset_browser_, static_cast<const char*>(payload->Data), position,
                 scene_hierarchy_context_.get_selected_entity()));
             scene_hierarchy_context_.sync_selected_from_scene(scene);
-            scene_hierarchy_context_.set_forced_open_selected_parents(true);
+            scene_hierarchy_context_.reveal_selection();
         }
         ImGui::EndDragDropTarget();
     }
@@ -2233,7 +2233,7 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
             return;
         }
         scene_hierarchy_context_.set_selected_entity(scene, entity_id, commands_);
-        scene_hierarchy_context_.set_forced_open_selected_parents(true);
+        scene_hierarchy_context_.reveal_selection();
     }
 }
 
@@ -2812,14 +2812,19 @@ bool engine::SceneHierarchyContext::has_selected_entity() const
     return selected_ != entt::null;
 }
 
-void engine::SceneHierarchyContext::set_forced_open_selected_parents(bool value)
+void engine::SceneHierarchyContext::reveal_selection()
 {
-    force_open_selected_parents_ = value;
+    reveal_selection_ = true;
 }
 
-bool engine::SceneHierarchyContext::is_forced_open_selected_parents() const
+bool engine::SceneHierarchyContext::is_revealing_selection() const
 {
-    return force_open_selected_parents_;
+    return reveal_selection_;
+}
+
+void engine::SceneHierarchyContext::end_reveal_selection()
+{
+    reveal_selection_ = false;
 }
 
 void engine::SceneHierarchyContext::request_delete_without_undo(entt::entity e)
