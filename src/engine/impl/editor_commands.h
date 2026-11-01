@@ -8,6 +8,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "components_internals/guizmo_component.h"
 #include "components_internals/outline_component.h"
@@ -18,7 +19,7 @@ namespace engine
 // An undo step. Commands refer to game objects with GameObjectRef (by persistent ID), never by handle, and get the scene
 // when they run: they find their game objects again after Stop gave them new handles, or after undo brought a deleted
 // one back. The editor drops the steps recorded while playing at Stop (CommandManager::end_play_session), so a step
-// never writes play session values into the edit state, and all of them when a scene is released
+// never writes play session values into the edit state (but a data asset's, see get_data_asset), and all of them when a scene is released
 // (CommandManager::clear), so a step never acts on another scene's game objects. A command whose game object isn't there (any more) changes
 // nothing and logs it (log_missing).
 class ICommand
@@ -47,6 +48,13 @@ public:
     {
         return true;
     }
+    // the asset ID of the data asset the step changes, empty for a step of the scene. A data asset is a file, not
+    // scene content, so its steps are kept at Stop (like Unity's ScriptableObject edits) and dropped when its file is
+    // read again (CommandManager::drop_data_asset_steps).
+    virtual std::string_view get_data_asset() const
+    {
+        return {};
+    }
 };
 
 // logs that the game object an undo step changes isn't in the scene (any more)
@@ -69,15 +77,7 @@ public:
         {
             return;
         }
-        save_point_.on_execute(cmd->changes_scene());
-        undo_stack_.push_back(std::move(cmd));
-        redo_stack_.clear();
-        edit_ended_ = false;
-        if (undo_stack_.size() > max_history_)
-        {
-            undo_stack_.erase(undo_stack_.begin());
-            save_point_.on_drop_oldest();
-        }
+        push(std::move(cmd));
     }
 
     // No widget is being edited and the gizmo isn't dragged (the editor calls it every frame then): the next step
@@ -161,13 +161,77 @@ public:
         {
             return;
         }
+        // the data asset edits stay (they are files, not the scene Stop gives back), and so do their steps, done after
+        // the edit history's (its undone ones are gone then, as after any new step)
+        std::vector<std::unique_ptr<ICommand>> kept;
+        for (auto& cmd : undo_stack_)
+        {
+            if (!cmd->get_data_asset().empty())
+            {
+                kept.push_back(std::move(cmd));
+            }
+        }
         undo_stack_ = std::move(edit_history_->undo);
         redo_stack_ = std::move(edit_history_->redo);
         save_point_ = edit_history_->save_point;
         edit_history_.reset();
+        for (auto& cmd : kept)
+        {
+            push(std::move(cmd));
+        }
+        edit_ended_ = true;
+    }
+
+    // drops the steps changing the data asset (ICommand::get_data_asset), the edit history's too: its file was read
+    // again, and an undo would bring back an older value over the file's change
+    void drop_data_asset_steps(std::string_view asset_id)
+    {
+        drop_data_asset_steps(undo_stack_, redo_stack_, save_point_, asset_id);
+        if (edit_history_)
+        {
+            drop_data_asset_steps(edit_history_->undo, edit_history_->redo, edit_history_->save_point, asset_id);
+        }
+        edit_ended_ = true;
     }
 
 private:
+    // a new step, done
+    void push(std::unique_ptr<ICommand> cmd)
+    {
+        save_point_.on_execute(cmd->changes_scene());
+        undo_stack_.push_back(std::move(cmd));
+        redo_stack_.clear();
+        edit_ended_ = false;
+        if (undo_stack_.size() > max_history_)
+        {
+            undo_stack_.erase(undo_stack_.begin());
+            save_point_.on_drop_oldest();
+        }
+    }
+
+    static void drop_data_asset_steps(std::vector<std::unique_ptr<ICommand>>& undo, std::vector<std::unique_ptr<ICommand>>& redo, SavePoint& save_point,
+        std::string_view asset_id)
+    {
+        const auto changes = [asset_id](const std::unique_ptr<ICommand>& cmd) { return cmd->get_data_asset() == asset_id; };
+        // from the newest step: the undone ones (the redo stack's first is the newest), then the done ones
+        for (std::size_t i = 0; i < redo.size(); i++)
+        {
+            if (changes(redo[i]))
+            {
+                save_point.on_erase(undo.size() + redo.size() - 1 - i);
+            }
+        }
+        for (std::size_t i = undo.size(); i-- > 0;)
+        {
+            if (changes(undo[i]))
+            {
+                save_point.on_erase(i);
+            }
+        }
+        std::erase_if(undo, changes);
+        std::erase_if(redo, changes);
+    }
+
     struct History
     {
         std::vector<std::unique_ptr<ICommand>> undo;
@@ -478,6 +542,53 @@ private:
     // undo destroys the instance the way a delete does, redo is that delete's undo
     std::unique_ptr<CommandDestroyEntity> destroy_instance_;
     std::unique_ptr<CommandSetSelection> select_instance_;
+};
+
+// Gives the editor's undo steps the data assets: GL-free, so the steps can be tested without an application.
+class IDataAssetValues
+{
+public:
+    virtual ~IDataAssetValues() = default;
+    // Gives the data asset (loaded when it isn't any more) the value, as its file would hold it (DataAsset::set_value_text);
+    // false (logged) when it can't be loaded or the value can't be used.
+    virtual bool set_data_asset_value_text(std::string_view asset_id, std::string_view text) = 0;
+};
+
+// Changes a data asset's value, like an asset edited in Unity's inspector: one undo step on the editor's history,
+// which changes no scene (the asset is dirty until it is saved, DataAsset::is_dirty). The values are kept as the
+// file's text, asset references by asset ID, so undo finds them whatever was released meanwhile.
+class CommandUpdateDataAsset : public ICommand
+{
+public:
+    CommandUpdateDataAsset(IDataAssetValues& assets, std::string_view asset_id, std::string prev_text, std::string new_text)
+        : assets_(assets)
+        , asset_id_(asset_id)
+        , prev_(std::move(prev_text))
+        , new_(std::move(new_text))
+    {
+    }
+
+    void execute(Scene& /*sc*/) override { assets_.set_data_asset_value_text(asset_id_, new_); }
+    void undo(Scene& /*sc*/) override { assets_.set_data_asset_value_text(asset_id_, prev_); }
+    // the same data asset, changed again by the same edit
+    bool merge_with(const ICommand* other) override
+    {
+        const auto* next = dynamic_cast<const CommandUpdateDataAsset*>(other);
+        if (!next || next->asset_id_ != asset_id_)
+        {
+            return false;
+        }
+        new_ = next->new_;
+        return true;
+    }
+    bool changes_scene() const override { return false; }
+    std::string_view get_data_asset() const override { return asset_id_; }
+
+private:
+    IDataAssetValues& assets_;
+    const std::string asset_id_;
+    const std::string prev_;
+    std::string new_;
 };
 
 class CommandSetPhysicsDebugDraw: public ICommand
