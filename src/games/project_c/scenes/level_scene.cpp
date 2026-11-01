@@ -19,22 +19,7 @@ namespace
 // the level's player starts, in the order of the scene's storage
 std::vector<engine_game_object_t> find_player_starts()
 {
-    std::vector<engine_game_object_t> starts;
-    engine_component_view_t view = nullptr;
-    engineComponentViewCreate(&view);
-    engineComponentViewAttachDataComponent(view, project_c::game_components().player_start);
-    engine_component_iterator_t it = nullptr;
-    engine_component_iterator_t end = nullptr;
-    engineComponentViewCreateBeginComponentIterator(view, &it);
-    engineComponentViewCreateEndComponentIterator(view, &end);
-    for (; !engineComponentIteratorCheckEqual(it, end); engineComponentIteratorNext(it))
-    {
-        starts.push_back(engineComponentIteratorGetGameObject(it));
-    }
-    engineComponentIteratorDelete(it);
-    engineComponentIteratorDelete(end);
-    engineComponentViewDestroy(view);
-    return starts;
+    return get_game_objects_with_data_component(project_c::game_components().player_start);
 }
 
 // the start with the id; ENGINE_INVALID_GAME_OBJECT_ID when the level has none

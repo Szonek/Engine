@@ -290,23 +290,8 @@ void engine::IScene::sync_scripts_with_components()
     }
 
     // the game objects with a script component and the script each names
-    std::vector<engine_game_object_t> with_script;
-    engine_component_view_t view = nullptr;
-    engineComponentViewCreate(&view);
-    engineComponentViewAttachDataComponent(view, component_type);
-    engine_component_iterator_t it = nullptr;
-    engine_component_iterator_t end = nullptr;
-    engineComponentViewCreateBeginComponentIterator(view, &it);
-    engineComponentViewCreateEndComponentIterator(view, &end);
-    for (; !engineComponentIteratorCheckEqual(it, end); engineComponentIteratorNext(it))
-    {
-        with_script.push_back(engineComponentIteratorGetGameObject(it));
-    }
-    engineComponentIteratorDelete(it);
-    engineComponentIteratorDelete(end);
-    engineComponentViewDestroy(view);
     std::vector<std::pair<engine_game_object_t, std::int32_t>> wanted;
-    for (const auto go : with_script)
+    for (const auto go : get_game_objects_with_data_component(component_type))
     {
         ScriptComponent component{};
         engineGameObjectGetDataComponent(go, component_type, &component);
