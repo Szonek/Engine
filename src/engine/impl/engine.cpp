@@ -1056,6 +1056,14 @@ void engineDebugDrawCircle(const float center[3], const float normal[3], float r
     }
 }
 
+void engineDebugDrawSphere(const float center[3], float radius, const float color[3])
+{
+    if (G_ACTIVE_SCENE && center && color)
+    {
+        api_cast(G_ACTIVE_SCENE)->debug_draw().add_sphere(glm::make_vec3(center), radius, glm::make_vec3(color));
+    }
+}
+
 engine_result_code_t engineUiDocumentCreateDataHandle(const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)
 {
     if (!G_ACTIVE_APP || (bindings_count == 0 && !bindings))

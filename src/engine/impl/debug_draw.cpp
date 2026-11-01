@@ -59,6 +59,13 @@ void engine::DebugDrawList::add_circle(const glm::vec3& center, const glm::vec3&
     }
 }
 
+void engine::DebugDrawList::add_sphere(const glm::vec3& center, float radius, const glm::vec3& color)
+{
+    add_circle(center, glm::vec3(1.0f, 0.0f, 0.0f), radius, color);
+    add_circle(center, glm::vec3(0.0f, 1.0f, 0.0f), radius, color);
+    add_circle(center, glm::vec3(0.0f, 0.0f, 1.0f), radius, color);
+}
+
 std::vector<engine::DebugDrawLine> engine::DebugDrawList::take_lines()
 {
     return std::exchange(lines_, {});

@@ -91,6 +91,22 @@ TEST(DebugDrawList, CircleLiesInThePlaneOfItsNormalAtItsRadius)
     }
 }
 
+TEST(DebugDrawList, SphereIsThreeCirclesAroundTheAxesAtItsRadius)
+{
+    engine::DebugDrawList list;
+    const glm::vec3 center(1.0f, 2.0f, 3.0f);
+    list.add_sphere(center, 0.5f, glm::vec3(1.0f));
+
+    const auto& lines = list.lines();
+    ASSERT_EQ(lines.size(), 3 * engine::DebugDrawList::CIRCLE_SEGMENTS);
+    for (const auto& line : lines)
+    {
+        EXPECT_NEAR(glm::length(line.from - center), 0.5f, 1e-4f);
+    }
+    // the points where the axes leave the sphere are on it
+    EXPECT_TRUE(has_point(lines, center + glm::vec3(0.0f, 0.5f, 0.0f)) || has_point(lines, center + glm::vec3(0.0f, -0.5f, 0.0f)));
+}
+
 TEST(DebugDrawList, CircleWithoutANormalDrawsNothing)
 {
     engine::DebugDrawList list;

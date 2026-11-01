@@ -15,7 +15,7 @@ namespace
 // the spawner's area is flat: drawn as a box this high, standing on the spawner's origin
 constexpr float SPAWNER_AREA_HEIGHT = 0.5f;
 constexpr float PLAYER_START_ARROW_LENGTH = 0.5f;
-constexpr float PLAYER_START_RADIUS = 0.2f;
+constexpr float PLAYER_START_RADIUS = 0.15f;
 
 glm::vec3 gizmo_color(const glm::vec3& color, bool selected)
 {
@@ -67,7 +67,9 @@ void draw_player_start(engine_game_object_t go, bool selected)
     const auto tip = origin + forward * PLAYER_START_ARROW_LENGTH;
     const auto head = PLAYER_START_ARROW_LENGTH * 0.3f;
     const auto color = gizmo_color(glm::vec3(0.2f, 1.0f, 0.3f), selected);
-    engineDebugDrawCircle(glm::value_ptr(origin), glm::value_ptr(up), PLAYER_START_RADIUS, glm::value_ptr(color));
+    // standing on the start's origin, where the player's feet go
+    const auto sphere_center = origin + up * PLAYER_START_RADIUS;
+    engineDebugDrawSphere(glm::value_ptr(sphere_center), PLAYER_START_RADIUS, glm::value_ptr(color));
     engineDebugDrawLine(glm::value_ptr(origin), glm::value_ptr(tip), glm::value_ptr(color));
     for (const float side : { -1.0f, 1.0f })
     {

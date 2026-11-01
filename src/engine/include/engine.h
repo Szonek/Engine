@@ -819,6 +819,8 @@ ENGINE_API void engineDebugDrawLine(const float from[3], const float to[3], cons
 ENGINE_API void engineDebugDrawBox(const float transform[16], const float half_extents[3], const float color[3]);
 // the circle of `radius` around `center` in the plane perpendicular to `normal`
 ENGINE_API void engineDebugDrawCircle(const float center[3], const float normal[3], float radius, const float color[3]);
+// the sphere of `radius` around `center`, as its three circles around the world axes (like Unity's Gizmos.DrawWireSphere)
+ENGINE_API void engineDebugDrawSphere(const float center[3], float radius, const float color[3]);
 
 // ui
 // create data handel first, before loading document!

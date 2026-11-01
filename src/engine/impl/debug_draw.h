@@ -29,6 +29,8 @@ public:
     // the circle around `center` in the plane `normal` is perpendicular to, as CIRCLE_SEGMENTS lines; nothing when the
     // normal has no length
     void add_circle(const glm::vec3& center, const glm::vec3& normal, float radius, const glm::vec3& color);
+    // the sphere as its three great circles around the world axes (like Unity's Gizmos.DrawWireSphere)
+    void add_sphere(const glm::vec3& center, float radius, const glm::vec3& color);
 
     const std::vector<DebugDrawLine>& lines() const { return lines_; }
     // the lines added since the last take, leaving the list empty
