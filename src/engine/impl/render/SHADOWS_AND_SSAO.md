@@ -135,8 +135,11 @@ averaged: **percentage closer filtering**. With `pcf_radius = 1` a 3x3 texel box
 and the shadow value is the fraction of tests which passed. Texels on the border of the box are weighted by how much
 of them the box covers, so the edge moves smoothly instead of jumping one texel at a time.
 
-`pcf_radius = 0` does a single test and gives hard, blocky edges. For the pixelated look this may be exactly what's
-wanted, together with a small `map_size`.
+`pcf_radius = 0` does a single test and gives hard, blocky edges.
+
+`hard_edges` thresholds the filtered value at one half: the edge is crisp again, but it sits where the filtered shadow
+crosses one half, which moves smoothly with the caster instead of jumping one texel at a time. It's meant for the pixel
+art look (PIXEL_ART.md), with texels much smaller than a scene pixel.
 
 ### Fade out
 
@@ -152,6 +155,7 @@ over the last 15% of the distance.
 | `caster_distance` | shadows of tall/far objects are cut off            | less depth precision                  |
 | `normal_offset`, `depth_bias` | lit surfaces show stripes (acne)       | shadow separates from the object      |
 | `pcf_radius`      | edges are too hard                                 | (2r+2)^2 texture reads per pixel      |
+| `hard_edges`      | edges should be crisp (pixel art), needs `pcf_radius` > 0 | none                           |
 
 ---
 
@@ -272,8 +276,9 @@ All of them come from "the depth buffer is the only geometry":
 
 Nothing here is tied to the screen resolution. Scene targets and the AO texture take their size from the render graph
 descriptions in `Renderer::add_scene_passes`, so rendering the scene to a small target and upscaling it with nearest
-filtering in the Present pass will pixelate shadows and AO together with everything else. Worth trying with it:
-`pcf_radius = 0` (hard shadow edges), a smaller `map_size`, and SSAO `blur` off for a dithered occlusion pattern.
+filtering in the Present pass pixelates shadows and AO together with everything else (PIXEL_ART.md). Don't make shadow
+map texels as big as scene pixels (small `map_size`, `pcf_radius = 0`): the two grids alias into ragged, jittering edges.
+Use small texels with `hard_edges` instead, as the pixel art preset does. SSAO `blur` off gives a dithered occlusion pattern.
 
 ## Possible next steps
 

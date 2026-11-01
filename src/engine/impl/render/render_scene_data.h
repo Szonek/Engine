@@ -29,7 +29,7 @@ struct SceneGpuData
     float pad3_;
 };
 
-// Shadow and ambient occlusion parameters of one camera. Layout has to match ViewLightingData in shadow_helpers.h.
+// Shadow, ambient occlusion and stylized lighting parameters of one camera. Layout has to match ViewLightingData in shadow_helpers.h.
 struct ViewLightingGpuData
 {
     // world space -> shadow map clip space
@@ -44,9 +44,23 @@ struct ViewLightingGpuData
     float ssao_enabled = 0.0f;
     float ssao_direct_light_occlusion = 0.0f;
     std::uint32_t debug_view = 0;       // RenderDebugView
-    float pad0_ = 0.0f;
+    float shadow_hard_edges = 0.0f;
     float pad1_ = 0.0f;
+    // stylized lighting (StylizedLightingSettings), ignored while stylized_enabled is 0
+    glm::vec4 stylized_sky_ambient{ 1.0f };     // rgb
+    glm::vec4 stylized_ground_ambient{ 1.0f };  // rgb
+    glm::vec4 stylized_shadow_color{ 0.0f };    // rgb
+    glm::vec4 stylized_rim_color{ 0.0f };       // rgb: color * strength
+    float stylized_enabled = 0.0f;
+    float stylized_bands = 1.0f;
+    float stylized_band_softness = 1.0f;
+    float stylized_rim_power = 1.0f;
+    float stylized_rim_static_meshes = 0.0f;
+    float pad2_ = 0.0f;
+    float pad3_ = 0.0f;
+    float pad4_ = 0.0f;
 };
+static_assert(sizeof(ViewLightingGpuData) == 208, "has to match the std140 size of ViewLightingData in shadow_helpers.h");
 
 struct LightGpuData
 {
@@ -81,6 +95,9 @@ struct StaticMeshDrawItem
     std::uint32_t entity_id = 0;
     const Geometry* geometry = nullptr;
     glm::mat4 model{ 1.0f };
+    // world position of the root of the object's hierarchy: everything in a hierarchy (a character, its parts and its
+    // weapon) is snapped to the pixel grid by the same offset, so it stays together (pixel_art.h)
+    glm::vec3 snap_origin{ 0.0f };
     glm::vec4 diffuse_color{ 1.0f };
     float shininess = 0.0f;
     const Texture2D* texture_diffuse = nullptr;
@@ -105,6 +122,7 @@ struct OutlineDrawItem
 {
     const Geometry* geometry = nullptr;
     glm::mat4 model{ 1.0f };
+    glm::vec3 snap_origin{ 0.0f };  // see StaticMeshDrawItem::snap_origin
 };
 
 struct SceneRenderData

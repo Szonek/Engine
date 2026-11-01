@@ -5,7 +5,7 @@
 #include "profiler.h"
 
 engine::MaterialStaticGeometryLit::MaterialStaticGeometryLit()
-    : shader_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "lit_helpers.h", "shadow_helpers.h", "lit.fs" }))
+    : shader_(Shader({ "simple_vertex_definitions.h", "simple.vs" }, { "shadow_helpers.h", "lit_helpers.h", "lit.fs" }))
 {
 }
 
@@ -25,6 +25,8 @@ void engine::MaterialStaticGeometryLit::draw(const Geometry& geometry, const Dra
 
     shader_.set_uniform_f4("diffuse_color", {ctx.color_diffuse, 4});
     shader_.set_uniform_f1("shininess", ctx.shininess);
+    // stylized rim light only on characters, unless enabled for all meshes in the render settings
+    shader_.set_uniform_f1("rim_mask", 0.0f);
 
     shader_.set_texture_with_sampler("texture_diffuse", &ctx.texture_diffuse);
     shader_.set_texture_with_sampler("texture_specular", &ctx.texture_specular);
@@ -34,7 +36,7 @@ void engine::MaterialStaticGeometryLit::draw(const Geometry& geometry, const Dra
 }
 
 engine::MaterialSkinnedGeometryLit::MaterialSkinnedGeometryLit()
-    : shader_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "lit_helpers.h", "shadow_helpers.h", "lit.fs" }))
+    : shader_(Shader({ "simple_vertex_definitions.h", "vertex_skinning.vs" }, { "shadow_helpers.h", "lit_helpers.h", "lit.fs" }))
 {
 }
 
@@ -55,6 +57,8 @@ void engine::MaterialSkinnedGeometryLit::draw(const Geometry& geometry, const Dr
 
     shader_.set_uniform_f4("diffuse_color", { ctx.color_diffuse, 4 });
     shader_.set_uniform_f1("shininess", ctx.shininess);
+    // skinned meshes are the characters: they get the stylized rim light
+    shader_.set_uniform_f1("rim_mask", 1.0f);
 
     shader_.set_texture_with_sampler("texture_diffuse", &ctx.texture_diffuse);
     shader_.set_texture_with_sampler("texture_specular", &ctx.texture_specular);
