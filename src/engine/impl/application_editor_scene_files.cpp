@@ -50,15 +50,15 @@ void engine::ApplicationEditor::request_scene_file_action(Scene* scene, SceneFil
         log::log(log::LogLevel::eError, "Scene files: stop the play session first (nothing of it is saved).\n");
         return;
     }
-    // Save All: the data assets are written now, whatever happens to the scene's save (they are files of their own)
-    if (action == SceneFileAction::eSave)
-    {
-        data_assets_.save_all();
-    }
     // a new scene has no file yet
     if (scene_files_.request(action, std::move(path), scene->get_file_path(), has_unsaved_changes()))
     {
         scene_file_dialog_.open(SceneFileDialog::Kind::eSaveAs, *scene);
+    }
+    // Save All: the data assets are written with the scene (after Save As was confirmed, when the scene has no file)
+    else if (action == SceneFileAction::eSave)
+    {
+        data_assets_.save_all();
     }
 }
 
