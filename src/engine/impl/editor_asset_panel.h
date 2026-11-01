@@ -1,5 +1,6 @@
 #pragma once
 #include "editor_asset_browser.h"
+#include "editor_data_assets.h"
 
 #include <engine.h>
 
@@ -31,8 +32,8 @@ class Application;
 class AssetBrowserPanel : public IAssetSelection
 {
 public:
-    // `app` must outlive the panel
-    explicit AssetBrowserPanel(Application& app);
+    // `app` and `edited` (the data assets with unsaved changes, marked "*") must outlive the panel
+    AssetBrowserPanel(Application& app, const EditedDataAssets& edited);
     AssetBrowserPanel(const AssetBrowserPanel&) = delete;
     AssetBrowserPanel& operator=(const AssetBrowserPanel&) = delete;
     ~AssetBrowserPanel() override;
@@ -91,6 +92,7 @@ private:
 
 private:
     Application& app_;
+    const EditedDataAssets& edited_;
     std::filesystem::path assets_root_;
     // relative to the assets folder, "" for the root
     std::string current_folder_;

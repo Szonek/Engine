@@ -707,9 +707,9 @@ void engine::Application::reload_changed_data_assets()
             continue;
         }
         loading_data_assets_.insert(name);
-        const bool reloaded = (*asset)->reload_if_changed();
+        const auto reloaded = (*asset)->reload_if_changed();
         loading_data_assets_.erase(name);
-        if (reloaded)
+        if (reloaded != DataAsset::ReloadResult::eNone)
         {
             on_data_asset_reloaded(handle);
         }
@@ -747,11 +747,6 @@ const engine::DataAsset* engine::Application::get_data_asset(std::uint32_t idx) 
 {
     const auto* asset = data_assets_atlas_.get_object(idx);
     return asset ? asset->get() : nullptr;
-}
-
-std::uint32_t engine::Application::find_data_asset(std::string_view name) const
-{
-    return data_assets_atlas_.get_object(name);
 }
 
 bool engine::Application::set_data_asset_value_text(std::uint32_t idx, std::string_view text)

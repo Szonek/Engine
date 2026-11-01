@@ -49,11 +49,17 @@ public:
 
     // the file changed; any thread
     void mark_changed() { changed_ = true; }
+    enum class ReloadResult
+    {
+        eNone,       // nothing new: no change, the file's own save, or a file which can't be used (logged)
+        eReloaded,   // the value is the file's new one
+        eKeptValue,  // the file changed while the asset is dirty: it keeps its value (logged), dirty against the file's new one
+    };
     // Reads the file again when it changed. The value changes only when the file is a data asset of the same type
     // (otherwise logged, the old value stays, and it is read again on the next change) and holds something else than
     // what was last read from it or written to it (so a save doesn't read the file again). A dirty asset keeps its
-    // value (logged): the editor's edits win, and the next save writes them over the file. Returns whether it changed.
-    bool reload_if_changed();
+    // value (logged): the editor's edits win, and the next save writes them over the file.
+    ReloadResult reload_if_changed();
 
     // A new value, as a data asset file of the same type (save_data_asset's text: asset references by asset ID). Its
     // assets are held through a new resolver, like a reload, and the old value's released after them. False (logged)

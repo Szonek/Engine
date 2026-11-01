@@ -32,6 +32,10 @@ public:
     // every data asset with unsaved changes; false when one can't be written (the others are)
     bool save_all();
     bool has_unsaved() const { return !held_.empty(); }
+    bool is_unsaved(std::string_view asset_id) const { return held_.contains(asset_id); }
+    // the data asset's file was read again: it is dirty against the file's new value, or clean (the file now holds
+    // what the editor gave it), and held while it is dirty
+    void on_reloaded(std::string_view asset_id);
     // the asset IDs of the data assets with unsaved changes
     std::vector<std::string> get_unsaved() const;
 

@@ -224,11 +224,11 @@ TEST_F(DataAssetTest, ChangedFileIsReadAgainIntoTheSameAsset)
 
     // nothing happens until the watcher reports a change
     write_file(R"({ "version": 1, "type": "tuning", "value": { "hp": 40 } })");
-    EXPECT_FALSE(asset->reload_if_changed());
+    EXPECT_EQ(asset->reload_if_changed(), engine::DataAsset::ReloadResult::eNone);
     EXPECT_EQ(value_of(*asset).hp, 30u);
 
     asset->mark_changed();
-    EXPECT_TRUE(asset->reload_if_changed());
+    EXPECT_EQ(asset->reload_if_changed(), engine::DataAsset::ReloadResult::eReloaded);
     EXPECT_EQ(value_of(*asset).hp, 40u);
     EXPECT_EQ(value_of(*asset).icon, ENGINE_INVALID_OBJECT_HANDLE);
     // the old value's assets were released with its resolver
@@ -246,14 +246,14 @@ TEST_F(DataAssetTest, BrokenFileKeepsTheValue)
 
     write_file(R"({ "version": 1, "type": "tuning", "value": { "hp": )");
     asset->mark_changed();
-    EXPECT_FALSE(asset->reload_if_changed());
+    EXPECT_EQ(asset->reload_if_changed(), engine::DataAsset::ReloadResult::eNone);
     EXPECT_EQ(value_of(*asset).hp, 30u);
     EXPECT_TRUE(test_logger::logged("keeps its value until its file can be read again"));
 
     // fixed: read on the next change
     write_file(R"({ "version": 1, "type": "tuning", "value": { "hp": 31 } })");
     asset->mark_changed();
-    EXPECT_TRUE(asset->reload_if_changed());
+    EXPECT_EQ(asset->reload_if_changed(), engine::DataAsset::ReloadResult::eReloaded);
     EXPECT_EQ(value_of(*asset).hp, 31u);
 }
 
@@ -272,7 +272,7 @@ TEST_F(DataAssetTest, FileHoldingAnotherTypeKeepsTheValue)
     ASSERT_NE(asset, nullptr);
     write_file(R"({ "version": 1, "type": "other", "value": { "x": 1 } })");
     asset->mark_changed();
-    EXPECT_FALSE(asset->reload_if_changed());
+    EXPECT_EQ(asset->reload_if_changed(), engine::DataAsset::ReloadResult::eNone);
     EXPECT_EQ(&asset->get_type(), tuning_);
     EXPECT_EQ(value_of(*asset).hp, 30u);
     EXPECT_TRUE(test_logger::logged("now holds a other instead of a tuning"));
@@ -298,7 +298,7 @@ TEST_F(DataAssetTest, KnowsTheDataAssetsItReferences)
 
     write_file(R"({ "version": 1, "type": "holder", "value": {} })");
     asset->mark_changed();
-    EXPECT_TRUE(asset->reload_if_changed());
+    EXPECT_EQ(asset->reload_if_changed(), engine::DataAsset::ReloadResult::eReloaded);
     EXPECT_TRUE(asset->get_data_assets().empty());
     EXPECT_EQ(asset->get_reload_count(), 1u);
 }
@@ -400,13 +400,13 @@ TEST_F(DataAssetTest, OwnSaveIsNotReadAgain)
 
     // the watcher's change event for the save
     asset->mark_changed();
-    EXPECT_FALSE(asset->reload_if_changed());
+    EXPECT_EQ(asset->reload_if_changed(), engine::DataAsset::ReloadResult::eNone);
     EXPECT_EQ(asset->get_reload_count(), count);
 
     // a change made to the file afterwards is
     write_file(R"({ "version": 1, "type": "tuning", "value": { "hp": 60 } })");
     asset->mark_changed();
-    EXPECT_TRUE(asset->reload_if_changed());
+    EXPECT_EQ(asset->reload_if_changed(), engine::DataAsset::ReloadResult::eReloaded);
     EXPECT_EQ(value_of(*asset).hp, 60u);
     EXPECT_FALSE(asset->is_dirty());
 }
@@ -420,7 +420,7 @@ TEST_F(DataAssetTest, FileChangedWhileDirtyKeepsTheEditorsValue)
 
     write_file(R"({ "version": 1, "type": "tuning", "value": { "hp": 60 } })");
     asset->mark_changed();
-    EXPECT_FALSE(asset->reload_if_changed());
+    EXPECT_EQ(asset->reload_if_changed(), engine::DataAsset::ReloadResult::eKeptValue);
     EXPECT_EQ(value_of(*asset).hp, 50u);
     EXPECT_TRUE(asset->is_dirty());
     EXPECT_TRUE(test_logger::logged("its file changed while it has unsaved changes in the editor"));

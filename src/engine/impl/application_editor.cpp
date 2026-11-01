@@ -2662,7 +2662,9 @@ void engine::ApplicationEditor::on_scene_release(Scene* scene)
 
 void engine::ApplicationEditor::on_data_asset_reloaded(std::uint32_t idx)
 {
-    commands_.drop_data_asset_steps(get_data_asset_name(idx));
+    const auto asset_id = get_data_asset_name(idx);
+    commands_.drop_data_asset_steps(asset_id);
+    data_assets_.on_reloaded(asset_id);
 }
 
 void engine::ApplicationEditor::on_play_mode_enter(Scene* /*scene*/)

@@ -55,6 +55,14 @@ bool engine::EditedDataAssets::save_all()
     return saved;
 }
 
+void engine::EditedDataAssets::on_reloaded(std::string_view asset_id)
+{
+    if (const auto it = held_.find(asset_id); it != held_.end())
+    {
+        hold_while_dirty(it->first, it->second);
+    }
+}
+
 std::vector<std::string> engine::EditedDataAssets::get_unsaved() const
 {
     std::vector<std::string> unsaved;

@@ -122,8 +122,9 @@ constexpr const char* SCENE_TOOLTIP = "Drag into the scene view to place it, dou
 constexpr const char* DATA_ASSET_TOOLTIP = "Drag onto a data asset field of the properties panel";
 }  // namespace
 
-engine::AssetBrowserPanel::AssetBrowserPanel(Application& app)
+engine::AssetBrowserPanel::AssetBrowserPanel(Application& app, const EditedDataAssets& edited)
     : app_(app)
+    , edited_(edited)
     , assets_root_(AssetStore::get_instance().get_models_base_path().parent_path())
 {
 }
@@ -405,9 +406,8 @@ std::optional<std::string> engine::AssetBrowserPanel::draw_files()
         draw_icon(entry.kind, icon_size);
         ImGui::SameLine();
         const bool is_selected = selected_ && selected_->path == entry.path;
-        // a loaded data asset with unsaved changes (the editor holds it)
-        const auto* data_asset = entry.kind == AssetFileKind::eData && asset_id ? app_.get_data_asset(app_.find_data_asset(*asset_id)) : nullptr;
-        const auto label = data_asset && data_asset->is_dirty() ? entry.name + " *" : entry.name;
+        const bool unsaved = entry.kind == AssetFileKind::eData && asset_id && edited_.is_unsaved(*asset_id);
+        const auto label = unsaved ? entry.name + " *" : entry.name;
         if (ImGui::Selectable(fmt::format("{}###{}", label, entry.name).c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
         {
             if (entry.kind == AssetFileKind::eFolder)

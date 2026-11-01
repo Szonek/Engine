@@ -99,8 +99,6 @@ public:
     virtual std::uint32_t load_data_asset(std::string_view path);
     virtual void release_data_asset(std::uint32_t idx);
     virtual const DataAsset* get_data_asset(std::uint32_t idx) const;
-    // the loaded data asset with the asset ID, ENGINE_INVALID_OBJECT_HANDLE when it isn't loaded (nothing is loaded)
-    virtual std::uint32_t find_data_asset(std::string_view name) const;
     // the editor's edits (see DataAsset::set_value_text and save); false (logged) when it can't be done
     virtual bool set_data_asset_value_text(std::uint32_t idx, std::string_view text);
     virtual bool save_data_asset_file(std::uint32_t idx);
@@ -169,7 +167,8 @@ protected:
     virtual void on_play_mode_enter(class Scene* /*scene*/) {}
     // a play session ended (Stop): `scene` holds the edit state again
     virtual void on_play_mode_exit(class Scene* /*scene*/) {}
-    // the data asset's file changed and it was read again (not after a save of its own, nor while it is dirty)
+    // the data asset's file changed and was read again (not after a save of its own): the asset has the file's value,
+    // or kept its unsaved one, which is dirty against the file's new value now
     virtual void on_data_asset_reloaded(std::uint32_t /*idx*/) {}
     // a quit was asked for (request_quit); false holds it: whoever held it calls confirm_quit() later, or never (cancelled)
     virtual bool on_quit_requested() { return true; }

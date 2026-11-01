@@ -141,7 +141,8 @@ protected:
     void on_play_mode_exit(class Scene* scene) override;
     // closing the window (or the game's quit) with unsaved changes asks to save them first
     bool on_quit_requested() override;
-    // the data asset's undo steps are dropped: undo would bring back an older value over the file's change
+    // the data asset's undo steps are dropped (undo would bring back an older value over the file's change), and it
+    // may be clean now
     void on_data_asset_reloaded(std::uint32_t idx) override;
 
 private:
@@ -317,7 +318,7 @@ private:
     bool scene_view_focused_ = false;
     // the properties panel shows the file selected in it while no game object is selected (selecting one deselects the
     // other); before the hierarchy context, which uses its selection
-    AssetBrowserPanel asset_browser_{ *this };
+    AssetBrowserPanel asset_browser_{ *this, data_assets_ };
     SceneHierarchyContext scene_hierarchy_context_{ asset_browser_ };
     // the game object whose delete without undo waits for its confirmation
     entt::entity delete_without_undo_ = entt::null;

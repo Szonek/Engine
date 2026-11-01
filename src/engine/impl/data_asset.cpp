@@ -79,17 +79,17 @@ engine::DataAsset::~DataAsset()
     }
 }
 
-bool engine::DataAsset::reload_if_changed()
+engine::DataAsset::ReloadResult engine::DataAsset::reload_if_changed()
 {
     if (!changed_.exchange(false))
     {
-        return false;
+        return ReloadResult::eNone;
     }
     auto contents = read_text_file(file_path_, fmt::format("Data asset {}", name_));
     // what was last read or written (the change event of a save): nothing new
     if (contents && *contents == file_contents_)
     {
-        return false;
+        return ReloadResult::eNone;
     }
     DataAssetValue value;
     std::unique_ptr<IAssetResolver> assets;
@@ -97,13 +97,13 @@ bool engine::DataAsset::reload_if_changed()
     if (!contents || !parse(*contents, value, assets, data_assets))
     {
         log::log(log::LogLevel::eError, fmt::format("Data asset {}: it keeps its value until its file can be read again.\n", name_));
-        return false;
+        return ReloadResult::eNone;
     }
     if (value.type != type_)
     {
         // the handle is referenced as a value of its type (checked when a scene file is loaded)
         log::log(log::LogLevel::eError, fmt::format("Data asset {}: its file now holds a {} instead of a {}, it keeps its value.\n", name_, value.type->name, type_->name));
-        return false;
+        return ReloadResult::eNone;
     }
     file_contents_ = std::move(*contents);
     if (is_dirty())
@@ -112,13 +112,13 @@ bool engine::DataAsset::reload_if_changed()
         file_value_text_ = save_data_asset(*value.type, value.value->get(), *assets);
         log::log(log::LogLevel::eError, fmt::format("Data asset {}: its file changed while it has unsaved changes in the editor; it keeps the editor's value, "
             "and saving it writes that over the file.\n", name_));
-        return false;
+        return ReloadResult::eKeptValue;
     }
     take(std::move(value), std::move(assets), std::move(data_assets));
     file_value_text_ = value_text_;
     reload_count_++;
     log::log(log::LogLevel::eTrace, fmt::format("Data asset {} reloaded.\n", name_));
-    return true;
+    return ReloadResult::eReloaded;
 }
 
 bool engine::DataAsset::set_value_text(std::string_view text)
