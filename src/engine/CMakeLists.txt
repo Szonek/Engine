@@ -17,6 +17,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/application_editor.h
 	${ENGINE_SOURCES_DIR}/editor_camera.cpp
 	${ENGINE_SOURCES_DIR}/editor_camera.h
+	${ENGINE_SOURCES_DIR}/editor_command_manager.h
 	${ENGINE_SOURCES_DIR}/editor_context_click.h
 	${ENGINE_SOURCES_DIR}/editor_data_assets.cpp
 	${ENGINE_SOURCES_DIR}/editor_data_assets.h
