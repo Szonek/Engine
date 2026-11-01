@@ -31,6 +31,8 @@ set(LIB_SOURCES
 	scripts/level_exit_script.cpp
 	scripts/enemy_spawner_script.h
 	scripts/enemy_spawner_script.cpp
+	scripts/gizmos.h
+	scripts/gizmos.cpp
 	scripts/coin_script.h
 	scripts/coin_script.cpp
 	scripts/encounter_script.h
