@@ -1401,6 +1401,12 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     {
         delete_entity(scene_hierarchy_context_.get_selected_entity(), scene, commands_, scene_hierarchy_context_);
     }
+    // Alt+A deselects everything, a file too, like Blender's
+    if (editor_view_ == EditorView::eEditor && (hierarchy_focused_ || scene_view_focused_) && !ImGui::GetIO().WantTextInput && !modal_transform_
+        && ImGui::GetIO().KeyAlt && !ImGui::GetIO().KeyCtrl && !ImGui::GetIO().KeyShift && ImGui::IsKeyPressed(ImGuiKey_A, false))
+    {
+        scene_hierarchy_context_.deselect_all(scene, commands_);
+    }
 
     camera_context_.on_scene_update_post(scene, editor_delta_time);
 }
@@ -2283,12 +2289,8 @@ void engine::ApplicationEditor::handle_scene_view_context_menu(Scene* scene)
     ImGui::Begin(editor_windows_context_.get_window_scene());
     if (clicked && can_open)
     {
-        // like Unreal's: right-clicking a game object which isn't selected selects it; empty space keeps the selection
-        if (const auto picked = pick_entity_under_mouse(); picked && *picked != entt::null && *picked != scene_hierarchy_context_.get_selected_entity())
-        {
-            scene_hierarchy_context_.set_selected_entity(scene, *picked, commands_);
-            scene_hierarchy_context_.set_forced_open_selected_parents(true);
-        }
+        // like Unity's: the menu acts on the selection, a right-click never changes it (in a level nearly every click
+        // lands on something, e.g. the floor, which would take the selection)
         context_menu_mouse_ = get_scene_view_mouse();
         ImGui::OpenPopup(popup);
     }

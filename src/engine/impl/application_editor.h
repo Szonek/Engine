@@ -196,8 +196,8 @@ private:
     // the mouse in pixels from the scene view's top left corner
     glm::vec2 get_scene_view_mouse() const;
     // a right-click (not a drag, which flies the camera) in the scene view opens a menu, like Unreal's and Unity's:
-    // what can be done to the game object clicked on (it is selected first) or the selected one, or what can be
-    // created where nothing is
+    // what can be done to the selected game object, or with nothing selected what can be created where it was opened;
+    // it never changes the selection
     void handle_scene_view_context_menu(class Scene* scene);
     void start_modal_transform(class Scene* scene, ModalTransformMode mode);
     // Blender's G / R / S on the selected game object: starts, follows the mouse, confirms (one undo step) or cancels
