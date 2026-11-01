@@ -1,0 +1,38 @@
+#pragma once
+#include "engine.h"
+#include "utils.h"
+
+#include <cstddef>
+#include <functional>
+#include <vector>
+
+namespace engine
+{
+// Gizmos: the shapes the editor shows for what a component does, such as an enemy spawner's area or the facing of a
+// player start. A drawer is registered per component type, like Unreal's component visualizers or Unity's [DrawGizmo]
+// static methods, not per script: scripts exist only while playing, a drawer needs no running instance, so gizmos show
+// in Edit mode too, also on game objects without a script. Every scene calls the drawers each frame while the editor
+// shows gizmos (engineEditorAreGizmosVisible), in every play state, before the engine's scene update draws them.
+// A drawer only draws (engineDebugDraw*), it never changes the scene.
+class ENGINE_APP_TOOLKIT_API GizmoRegistry
+{
+public:
+    // `selected`: the game object is the one selected in the editor (draw it brighter, or with more detail)
+    using Drawer = std::function<void(engine_game_object_t go, bool selected)>;
+
+    // the drawer of a game-defined component type (engineComponentTypeRegister); a type may have several
+    void add(engine_component_type_t component_type, Drawer drawer);
+
+    // calls each drawer for every game object of the active scene with its component; `selected` is the editor's
+    // selection (ENGINE_INVALID_GAME_OBJECT_ID for none). Returns the number of drawer calls.
+    std::size_t draw(engine_game_object_t selected) const;
+
+private:
+    struct Entry
+    {
+        engine_component_type_t component_type;
+        Drawer drawer;
+    };
+    std::vector<Entry> drawers_;
+};
+}  // namespace engine
