@@ -70,19 +70,17 @@ void engine::DebugDrawList::add_sphere(const glm::vec3& center, float radius, co
 
 std::vector<engine::DebugDrawLine> engine::DebugDrawList::take_lines()
 {
-    last_owners_.clear();
-    for (const auto& line : lines_)
-    {
-        if (line.owner != 0)
-        {
-            last_owners_.push_back(line.owner);
-        }
-    }
-    std::ranges::sort(last_owners_);
-    const auto duplicates = std::ranges::unique(last_owners_);
-    last_owners_.erase(duplicates.begin(), duplicates.end());
     owner_ = 0;
     return std::exchange(lines_, {});
+}
+
+std::vector<std::uint32_t> engine::unique_owners(std::vector<std::uint32_t> owners)
+{
+    std::erase(owners, 0u);
+    std::ranges::sort(owners);
+    const auto duplicates = std::ranges::unique(owners);
+    owners.erase(duplicates.begin(), duplicates.end());
+    return owners;
 }
 
 std::uint32_t engine::pick_game_object(std::span<const std::uint32_t> ids, std::uint32_t width, std::uint32_t height,

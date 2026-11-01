@@ -819,12 +819,12 @@ ENGINE_API void engineDebugDrawLine(const float from[3], const float to[3], cons
 ENGINE_API void engineDebugDrawBox(const float transform[16], const float half_extents[3], const float color[3]);
 // the circle of `radius` around `center` in the plane perpendicular to `normal`
 ENGINE_API void engineDebugDrawCircle(const float center[3], const float normal[3], float radius, const float color[3]);
+// the sphere of `radius` around `center`, as its three circles around the world axes (like Unity's Gizmos.DrawWireSphere)
+ENGINE_API void engineDebugDrawSphere(const float center[3], float radius, const float color[3]);
 // The game object the shapes drawn after this call belong to (like Unreal's hit proxies): clicking one of their lines in
 // the editor selects it. ENGINE_INVALID_GAME_OBJECT_ID (the default, and again at the end of every frame) for none.
 // Gizmo drawers get it set by the toolkit.
 ENGINE_API void engineDebugDrawSetOwner(engine_game_object_t owner);
-// the sphere of `radius` around `center`, as its three circles around the world axes (like Unity's Gizmos.DrawWireSphere)
-ENGINE_API void engineDebugDrawSphere(const float center[3], float radius, const float color[3]);
 
 // ui
 // create data handel first, before loading document!

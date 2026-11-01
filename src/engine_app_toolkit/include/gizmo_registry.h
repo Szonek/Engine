@@ -29,11 +29,12 @@ public:
     std::size_t draw(engine_game_object_t selected) const;
 
 private:
+    // the drawers of each component type, so its game objects are listed once per frame
     struct Entry
     {
         engine_component_type_t component_type;
-        Drawer drawer;
+        std::vector<Drawer> drawers;
     };
-    std::vector<Entry> drawers_;
+    std::vector<Entry> types_;
 };
 }  // namespace engine

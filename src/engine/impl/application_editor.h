@@ -124,8 +124,9 @@ public:
     bool is_game_view() const;
     // the game draws its gizmos: the editor's own view is shown, with Gizmos on (the debug panel)
     bool are_gizmos_visible() const;
-    // the selected game object, entt::null when none is
-    entt::entity get_selected_entity() const;
+    // the selected game object in the scene, found again by its persistent ID first (Stop gave it a new handle);
+    // entt::null when none is
+    entt::entity get_selected_entity(Scene& scene);
     // The mouse is over the scene panel (or a button pressed over it is still held), not over another editor panel.
     bool is_mouse_over_scene() const;
     // the scene panel, or the whole window while ImGui is hidden (F1)
@@ -204,7 +205,7 @@ private:
     void handle_mouse_picking(class Scene* scene);
     // the game object under the mouse in the scene view (entt::null: empty space), as the previous frame showed it, a
     // gizmo's within a few pixels winning; nothing when it can't be read
-    std::optional<entt::entity> pick_entity_under_mouse(const Scene& scene);
+    std::optional<entt::entity> pick_entity_under_mouse();
     // where the ray through `mouse` (pixels in the scene view) hits a collider, or the ground, seen through the camera
     // (a placed asset or a created game object goes there)
     glm::vec3 get_mouse_scene_point(class Scene* scene, entt::entity camera_entity, const glm::vec2& mouse) const;
@@ -302,7 +303,8 @@ private:
     EditorView editor_view_ = EditorView::eGame;
     EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;
-    bool draw_gizmos_ = true;
+    // the game's gizmos (engineEditorAreGizmosVisible), not the transform handle above
+    bool draw_component_gizmos_ = true;
     float frame_delta_time_ = 0.0f;
     PlayModeRequest play_mode_request_ = PlayModeRequest::eNone;
     // the scene Play and Stop act on: the one the toolbar was last drawn for, none once it is released

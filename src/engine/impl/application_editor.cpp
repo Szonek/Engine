@@ -1300,11 +1300,13 @@ bool engine::ApplicationEditor::is_game_view() const
 
 bool engine::ApplicationEditor::are_gizmos_visible() const
 {
-    return draw_gizmos_ && editor_view_ == EditorView::eEditor;
+    return draw_component_gizmos_ && editor_view_ == EditorView::eEditor;
 }
 
-entt::entity engine::ApplicationEditor::get_selected_entity() const
+entt::entity engine::ApplicationEditor::get_selected_entity(Scene& scene)
 {
+    // the game asks before this frame's scene update, which is where the editor resolves it otherwise
+    scene_hierarchy_context_.resolve_selection(&scene);
     return scene_hierarchy_context_.get_selected_entity();
 }
 
@@ -2101,7 +2103,7 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
         draw_guizmo_ = !draw_guizmo_;
     }
     ImGui::Checkbox("Grid", &draw_grid_);
-    ImGui::Checkbox("Gizmos", &draw_gizmos_);
+    ImGui::Checkbox("Component gizmos", &draw_component_gizmos_);
     ImGui::SetItemTooltip("What the game draws for its components in the editor view, such as an enemy spawner's area");
     if (auto* camera = camera_context_.get_camera(scene))
     {
@@ -2303,7 +2305,7 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
     // Alt + left mouse button orbits the editor camera instead (either Alt, like the camera reads it)
     if (mouse_is_button_down(ENGINE_MOUSE_BUTTON_LEFT) && !ImGui::GetIO().KeyAlt)
     {
-        const auto picked = pick_entity_under_mouse(*scene);
+        const auto picked = pick_entity_under_mouse();
         if (!picked)
         {
             return;
@@ -2320,7 +2322,7 @@ void engine::ApplicationEditor::handle_mouse_picking(Scene* scene)
     }
 }
 
-std::optional<entt::entity> engine::ApplicationEditor::pick_entity_under_mouse(const Scene& scene)
+std::optional<entt::entity> engine::ApplicationEditor::pick_entity_under_mouse()
 {
     const auto scene_viewport = get_scene_viewport();
     const auto mouse_coords = mouse_get_coords();
@@ -2338,7 +2340,7 @@ std::optional<entt::entity> engine::ApplicationEditor::pick_entity_under_mouse(c
     {
         return std::nullopt;
     }
-    const auto picked_id = pick_game_object(area->ids, area->width, area->height, area->center_x, area->center_y, scene.debug_draw().last_owners());
+    const auto picked_id = pick_game_object(area->ids, area->width, area->height, area->center_x, area->center_y, area->owners);
     return picked_id == ENGINE_INVALID_GAME_OBJECT_ID ? entt::entity{ entt::null } : static_cast<entt::entity>(picked_id);
 }
 

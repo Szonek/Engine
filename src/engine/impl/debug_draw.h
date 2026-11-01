@@ -42,21 +42,20 @@ public:
     void set_owner(std::uint32_t owner) { owner_ = owner; }
 
     const std::vector<DebugDrawLine>& lines() const { return lines_; }
-    // the lines added since the last take, leaving the list empty and without an owner; their owners are kept as the
-    // last owners
+    // the lines added since the last take, leaving the list empty and without an owner
     std::vector<DebugDrawLine> take_lines();
-    // the owners of the lines last taken (what is on the screen), sorted, each once
-    const std::vector<std::uint32_t>& last_owners() const { return last_owners_; }
 
 private:
     std::vector<DebugDrawLine> lines_;
     std::uint32_t owner_ = 0;
-    std::vector<std::uint32_t> last_owners_;
 };
 
 // What a click picks from the game object IDs of the pixels around it (`ids`, `width` x `height` row by row, the click
 // at (center_x, center_y)): debug lines are a pixel wide, so the nearest pixel of an owner of debug lines (`owners`,
 // sorted) within the area wins, like a gizmo in Unity or Unreal; without one, the pixel under the click. 0 for nothing.
+// the owners in `owners` but 0, sorted, each once: what pick_game_object takes
+std::vector<std::uint32_t> unique_owners(std::vector<std::uint32_t> owners);
+
 std::uint32_t pick_game_object(std::span<const std::uint32_t> ids, std::uint32_t width, std::uint32_t height,
     std::uint32_t center_x, std::uint32_t center_y, std::span<const std::uint32_t> owners);
 }  // namespace engine

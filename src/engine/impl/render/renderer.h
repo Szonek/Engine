@@ -66,6 +66,8 @@ public:
         // where (x, y) is in the area
         std::uint32_t center_x = 0;
         std::uint32_t center_y = 0;
+        // the owners of the debug lines of the same frame (sorted, each once), for pick_game_object
+        std::vector<std::uint32_t> owners;
     };
     // nullopt if there is no such data (nothing was rendered yet or the pixel is outside)
     std::optional<EntityIdArea> read_entity_ids(std::uint32_t x, std::uint32_t y, std::uint32_t radius);
@@ -171,6 +173,8 @@ private:
     // entity ids of the previous frame, used for picking
     std::shared_ptr<Texture2D> entity_id_texture_;
     rg::TextureDesc entity_id_desc_;
+    // the owners of the debug lines rendered into entity_id_texture_ (unique_owners)
+    std::vector<std::uint32_t> entity_id_owners_;
     RenderTargetSet readback_targets_;
 
     MaterialStaticGeometryLit material_static_geometry_lit_;

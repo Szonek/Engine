@@ -22,10 +22,12 @@ glm::vec3 gizmo_color(const glm::vec3& color, bool selected)
     return selected ? color : color * 0.55f;
 }
 
+// computed from the current transforms: drawers run before this frame's scene update, which draws the meshes where
+// they are now (the world transform component is the last update's, a frame behind a gizmo drag)
 std::optional<glm::mat4> world_matrix(engine_game_object_t go)
 {
     float world[16] = {};
-    if (engineGameObjectGetWorldTransform(go, world) != ENGINE_RESULT_CODE_OK)
+    if (engineGameObjectComputeWorldTransform(go, world) != ENGINE_RESULT_CODE_OK)
     {
         return std::nullopt;
     }

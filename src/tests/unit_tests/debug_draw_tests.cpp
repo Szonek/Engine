@@ -130,8 +130,6 @@ TEST(DebugDrawList, ShapesDrawnAfterAnOwnerBelongToIt)
     EXPECT_EQ(lines[1].owner, 7u);
     EXPECT_EQ(lines[lines.size() - 2].owner, 3u);
     EXPECT_EQ(lines.back().owner, 0u);
-    // what is on the screen now, each owner once
-    EXPECT_EQ(list.last_owners(), (std::vector<std::uint32_t>{ 3u, 7u }));
 }
 
 TEST(DebugDrawList, TheOwnerEndsWithTheFrame)
@@ -143,7 +141,12 @@ TEST(DebugDrawList, TheOwnerEndsWithTheFrame)
 
     list.add_line(glm::vec3(0.0f), glm::vec3(1.0f), glm::vec3(1.0f));
     EXPECT_EQ(list.take_lines().front().owner, 0u);
-    EXPECT_TRUE(list.last_owners().empty());
+}
+
+TEST(DebugDrawList, UniqueOwnersAreSortedWithoutNone)
+{
+    EXPECT_EQ(engine::unique_owners({ 7u, 0u, 3u, 7u, 0u, 3u }), (std::vector<std::uint32_t>{ 3u, 7u }));
+    EXPECT_TRUE(engine::unique_owners({ 0u, 0u }).empty());
 }
 
 TEST(PickGameObject, TheNearestGizmoLineNearTheClickWins)

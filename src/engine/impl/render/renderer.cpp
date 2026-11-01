@@ -1,5 +1,6 @@
 #include "renderer.h"
 #include "shadows.h"
+#include "../debug_draw.h"
 #include "../logger.h"
 #include "../profiler.h"
 #include "../shaders_binding_slots.h"
@@ -80,7 +81,7 @@ std::optional<engine::Renderer::EntityIdArea> engine::Renderer::read_entity_ids(
     const auto y0 = y > radius ? y - radius : 0;
     const auto x1 = std::min(x + radius + 1, entity_id_desc_.width);
     const auto y1 = std::min(y + radius + 1, entity_id_desc_.height);
-    EntityIdArea area{ .ids = {}, .width = x1 - x0, .height = y1 - y0, .center_x = x - x0, .center_y = y - y0 };
+    EntityIdArea area{ .ids = {}, .width = x1 - x0, .height = y1 - y0, .center_x = x - x0, .center_y = y - y0, .owners = entity_id_owners_ };
 
     readback_targets_.set_color_attachment(0, entity_id_texture_.get());
     const auto pixels = readback_targets_.read_pixels(0, { x0, y0, area.width, area.height }, DataLayout::eR_U32);
@@ -242,6 +243,16 @@ void engine::Renderer::render_frame()
     add_features_passes(frame, RenderStage::eScreen);
 
     graph_.extract_texture(frame.entity_id, &entity_id_texture_);
+    // the image and the owners of the lines drawn into it always come from the same frame
+    std::vector<std::uint32_t> owners;
+    for (const auto& scene : frame_scenes_)
+    {
+        for (const auto& line : scene.debug_lines)
+        {
+            owners.push_back(line.owner);
+        }
+    }
+    entity_id_owners_ = unique_owners(std::move(owners));
     entity_id_desc_ = rg::TextureDesc{ width, height, DataLayout::eR_U32 };
 
     graph_.compile();

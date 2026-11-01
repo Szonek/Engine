@@ -241,8 +241,8 @@ bool engineEditorAreGizmosVisible()
 
 engine_game_object_t engineEditorGetSelectedGameObject()
 {
-    const auto* editor = G_ACTIVE_APP ? dynamic_cast<engine::ApplicationEditor*>(api_cast(G_ACTIVE_APP)) : nullptr;
-    const auto selected = editor ? editor->get_selected_entity() : entt::entity{ entt::null };
+    auto* editor = G_ACTIVE_APP ? dynamic_cast<engine::ApplicationEditor*>(api_cast(G_ACTIVE_APP)) : nullptr;
+    const auto selected = editor && G_ACTIVE_SCENE ? editor->get_selected_entity(*api_cast(G_ACTIVE_SCENE)) : entt::entity{ entt::null };
     return selected == entt::null ? ENGINE_INVALID_GAME_OBJECT_ID : static_cast<engine_game_object_t>(selected);
 }
 
@@ -1056,19 +1056,19 @@ void engineDebugDrawCircle(const float center[3], const float normal[3], float r
     }
 }
 
-void engineDebugDrawSetOwner(engine_game_object_t owner)
-{
-    if (G_ACTIVE_SCENE)
-    {
-        api_cast(G_ACTIVE_SCENE)->debug_draw().set_owner(static_cast<std::uint32_t>(owner));
-    }
-}
-
 void engineDebugDrawSphere(const float center[3], float radius, const float color[3])
 {
     if (G_ACTIVE_SCENE && center && color)
     {
         api_cast(G_ACTIVE_SCENE)->debug_draw().add_sphere(glm::make_vec3(center), radius, glm::make_vec3(color));
+    }
+}
+
+void engineDebugDrawSetOwner(engine_game_object_t owner)
+{
+    if (G_ACTIVE_SCENE)
+    {
+        api_cast(G_ACTIVE_SCENE)->debug_draw().set_owner(static_cast<std::uint32_t>(owner));
     }
 }
 
