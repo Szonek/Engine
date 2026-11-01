@@ -183,22 +183,6 @@ TEST_F(SceneFileTest, FileWhichCantBeReadFailsTheLoad)
     EXPECT_EQ(engineSceneLoad(write_file("not a scene").c_str()), ENGINE_RESULT_CODE_FAIL);
 }
 
-TEST_F(SceneFileTest, TheFileLoadedIntoAnEmptySceneIsItsFile)
-{
-    create_file_scene();
-    EXPECT_STREQ(engineSceneGetPath(), "");
-    const auto path = write_file(scene_with_mesh("test_fixtures/crate.gltf#Plate"));
-    ASSERT_EQ(engineSceneLoad(path.c_str()), ENGINE_RESULT_CODE_OK);
-    EXPECT_EQ(std::string(engineSceneGetPath()), path);
-
-    // a file added to its content doesn't become its file
-    const auto other = std::filesystem::temp_directory_path() / "project_c_scene_file_test_other.json";
-    std::ofstream(other, std::ios::binary) << scene_with_mesh("test_fixtures/crate.gltf#Plate");
-    ASSERT_EQ(engineSceneLoad(other.string().c_str()), ENGINE_RESULT_CODE_OK);
-    std::filesystem::remove(other);
-    EXPECT_EQ(std::string(engineSceneGetPath()), path);
-}
-
 TEST_F(SceneFileTest, SavedSceneOpenedAndSavedAgainGivesTheSameBytes)
 {
     create_file_scene();
@@ -206,8 +190,6 @@ TEST_F(SceneFileTest, SavedSceneOpenedAndSavedAgainGivesTheSameBytes)
     const auto first = std::filesystem::temp_directory_path() / "project_c_scene_file_test_first.json";
     const auto second = std::filesystem::temp_directory_path() / "project_c_scene_file_test_second.json";
     ASSERT_EQ(engineSceneSave(first.string().c_str()), ENGINE_RESULT_CODE_OK);
-    // saved to it: the file is the scene's file now (File > Save As)
-    EXPECT_EQ(std::string(engineSceneGetPath()), first.string());
     destroy_file_scene();
 
     create_file_scene();
@@ -220,14 +202,13 @@ TEST_F(SceneFileTest, SavedSceneOpenedAndSavedAgainGivesTheSameBytes)
     std::filesystem::remove(second);
 }
 
-TEST_F(SceneFileTest, SaveToAFileWhichCantBeWrittenFailsAndKeepsTheScenesFile)
+TEST_F(SceneFileTest, SaveToAFileWhichCantBeWrittenFails)
 {
     create_file_scene();
     const auto path = write_file(scene_with_mesh("test_fixtures/crate.gltf#Plate"));
     ASSERT_EQ(engineSceneLoad(path.c_str()), ENGINE_RESULT_CODE_OK);
     const auto missing_folder = std::filesystem::temp_directory_path() / "project_c_no_such_folder" / "scene.json";
     EXPECT_EQ(engineSceneSave(missing_folder.string().c_str()), ENGINE_RESULT_CODE_FAIL);
-    EXPECT_EQ(std::string(engineSceneGetPath()), path);
 }
 
 // File > New's templates are scene files which load (the level's has what a level needs, the room's nothing a placed

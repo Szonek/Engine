@@ -223,10 +223,10 @@ void project_c::GameplayHud::update_encounter_status()
     switch (encounter->get_state())
     {
     case Encounter::State::eCleared:
-        set_status("Encounter clear! Press R to restart.");
+        set_status("Encounter clear!");
         break;
     case Encounter::State::eDefeated:
-        set_status("You were defeated. Press R to restart.");
+        set_status("You were defeated.");
         break;
     case Encounter::State::eInProgress:
         break;

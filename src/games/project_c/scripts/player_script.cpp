@@ -490,7 +490,7 @@ project_c::PlayerTuning project_c::Player::tuning() const
 
 void project_c::Player::on_start()
 {
-    // the level starts with what the player entered it with (also after a restart); a fresh player at the start of
+    // the level starts with what the player entered it with; a fresh player at the start of
     // the game
     const auto& app = *static_cast<const AppProjectC*>(my_scene_->get_app());
     auto& stats = edit_state();

@@ -171,26 +171,8 @@ engine_result_code_t project_c::LevelScene::update(float dt)
     if (auto travel = app->take_level_travel_request())
     {
         app->set_level_path(std::move(travel->level_path), std::move(travel->entrance));
-        // what the player has now is what they enter the next level with (and get back when they restart it)
+        // what the player has now is what they enter the next level with
         app->set_level_entry_state(app->player_state());
-        app->request_scene_reload<LevelScene>();
-        return result;
-    }
-
-    // once the encounter is over (cleared or player dead), restart loads the level again (with what the player had
-    // when entering it, at the same entrance)
-    const auto* encounter = get_script<Encounter>(encounter_go_);
-    if (encounter && encounter->is_over() && app->player_input().restart)
-    {
-        // the scene's file restarts: the level the editor opened (or saved under another name), not the one the game
-        // started with
-        const std::string scene_path = engineSceneGetPath();
-        if (scene_path.empty())
-        {
-            log("The level has no file (a new scene not saved yet), so it can't be loaded again to restart it.\n");
-            return result;
-        }
-        app->set_level_path(scene_path, app->get_level_entrance());
         app->request_scene_reload<LevelScene>();
     }
     return result;

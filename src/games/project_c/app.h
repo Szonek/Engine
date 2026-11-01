@@ -80,7 +80,7 @@ public:
     PlayerState& player_state() { return player_state_; }
     const PlayerState& player_state() const { return player_state_; }
     // What the player entered the current level with, a snapshot taken when they travel (LevelScene): the Player
-    // starts the level with it, so a restart gives it back. None when the game starts (a fresh player).
+    // starts the level with it. None when the game starts (a fresh player).
     const std::optional<PlayerState>& get_level_entry_state() const { return level_entry_state_; }
     void set_level_entry_state(std::optional<PlayerState> state) { level_entry_state_ = state; }
 
@@ -96,7 +96,7 @@ public:
     void set_player_input(const PlayerInput& input) { player_input_ = input; }
 
     // Replaces scene T with a fresh instance at the end of this frame's update(): a scene can't destroy and
-    // re-create itself while it is being updated (e.g. a level restarting itself).
+    // re-create itself while it is being updated (e.g. a level replaced by the next one).
     template<typename T>
     void request_scene_reload()
     {
@@ -108,7 +108,7 @@ public:
     }
 
 protected:
-    // The level, entrance and player state a play session may change (a level exit, a restart, the player's hp) are
+    // The level, entrance and player state a play session may change (a level exit, the player's hp) are
     // remembered at Play and put back at Stop, so the editor returns to the level it had open with the player it had.
     void on_play_begin() override;
     void on_play_end() override;

@@ -1189,7 +1189,7 @@ void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_b
     frame_delta_time_ = frame_begin_info.delta_time;
     // Play and Stop pressed last frame, before anything of this frame runs: not during a scene update (the editor
     // camera has the game's cameras disabled then, the snapshot would keep them so) nor while the game's scripts run
-    // when the scene was released since (a level exit, a restart), the request waits for the toolbar of the next one
+    // when the scene was released since (a level exit), the request waits for the toolbar of the next one
     if (play_mode_request_ != PlayModeRequest::eNone && play_mode_scene_)
     {
         const auto request = std::exchange(play_mode_request_, PlayModeRequest::eNone);
@@ -2165,7 +2165,7 @@ void engine::ApplicationEditor::on_scene_release(Scene* scene)
         play_mode_scene_ = nullptr;
     }
     // persistent IDs are per scene: the steps and the selection would find other game objects in the next one. While
-    // playing (the game replaced its scene: a restart, a level exit) only the play session's steps go: Stop loads the
+    // playing (the game replaced its scene: a level exit) only the play session's steps go: Stop loads the
     // scene saved at Play into the next scene, where the edit history finds its game objects again.
     if (get_play_mode_state() == ENGINE_PLAY_MODE_EDIT)
     {

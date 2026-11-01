@@ -721,11 +721,6 @@ engine_result_code_t engineSceneLoad(const char* path)
     return ENGINE_RESULT_CODE_OK;
 }
 
-const char* engineSceneGetPath()
-{
-    return G_ACTIVE_SCENE ? api_cast(G_ACTIVE_SCENE)->get_file_path().c_str() : "";
-}
-
 engine_result_code_t engineComponentTypeRegister(const engine_type_desc_t* desc, engine_component_type_t* out)
 {
     if (!G_ACTIVE_APP || !desc || !out)

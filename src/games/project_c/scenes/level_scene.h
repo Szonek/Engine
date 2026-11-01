@@ -11,7 +11,7 @@ class GameplayHud;
 // from it and, while playing, the player spawned at the player start of the entrance (AppProjectC::get_level_entrance)
 // with what they carry (AppProjectC::player_state). Everything else (the camera, the Encounter, the GameplayHud, the level exits)
 // is in the file. Gameplay scripts don't depend on it; it only adds the level rules (going through a level exit to the
-// next level, restart, HUD visibility).
+// next level, HUD visibility).
 class LevelScene : public engine::IScene
 {
 public:

@@ -9,7 +9,7 @@ namespace project_c
 // Spawns the enemies its enemy_spawner component describes when it starts, at random points of its area snapped onto
 // the nav mesh, at least the minimum spacing apart (like Unreal's spawn volumes or a Diablo-style monster pack). Level
 // content: the level holds the spawner (LevelBuilder::enemy_spawner), its enemies are runtime objects, never saved. The
-// same seed places the same enemies, so a restart gives the same level. Needs the level's nav mesh, built before the
+// same seed places the same enemies, so the level is the same every time it is played. Needs the level's nav mesh, built before the
 // first update.
 class EnemySpawner : public BaseNode
 {
