@@ -2,6 +2,7 @@
 #include "utils.h"
 #include "engine.h"
 
+#include "gizmo_registry.h"
 #include "play_session_tracker.h"
 #include "scene_manager.h"
 #include "script_registry.h"
@@ -44,6 +45,8 @@ public:
 
     // the script types scene files and the editor can put on game objects (see ScriptRegistry)
     ScriptRegistry& scripts() { return scripts_; }
+    // what the editor draws for the game's components (see GizmoRegistry)
+    GizmoRegistry& gizmos() { return gizmos_; }
 
 protected:
     // A play session starts (Play, or the first frame of an application which starts playing), before any scene's
@@ -57,6 +60,7 @@ private:
     engine_application_t app_handle_;
     PlaySessionTracker play_session_;
     ScriptRegistry scripts_;
+    GizmoRegistry gizmos_;
     SceneManager scene_manager_;
 };
 

@@ -8,6 +8,7 @@
 #include "scripts/enviorment_script.h"
 #include "scripts/game_components.h"
 #include "scripts/gameplay_hud_script.h"
+#include "scripts/gizmos.h"
 #include "scripts/interactable_script.h"
 #include "scripts/level_exit_script.h"
 #include "scripts/player_script.h"
@@ -118,6 +119,7 @@ void project_c::AppProjectC::register_script_types()
     {
         log("Failed registering the script component: scene files can't create scripts.\n");
     }
+    register_gizmos(gizmos());
 }
 
 project_c::AppProjectC::~AppProjectC()

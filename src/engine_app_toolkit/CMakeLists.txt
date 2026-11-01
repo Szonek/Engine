@@ -10,6 +10,7 @@ set(APP_TOOLKIT_SOURCES_API_SOURCES
 	${APP_TOOLKIT_SOURCES_API}/iapplication.h
 	${APP_TOOLKIT_SOURCES_API}/scene_manager.h
 	${APP_TOOLKIT_SOURCES_API}/script_registry.h
+	${APP_TOOLKIT_SOURCES_API}/gizmo_registry.h
 	${APP_TOOLKIT_SOURCES_API}/profiler.h
 	${APP_TOOLKIT_SOURCES_API}/play_session_tracker.h
 )
@@ -21,6 +22,7 @@ set(APP_TOOLKIT_SOURCES
 	${APP_TOOLKIT_SOURCES_IMPL}/iscene.cpp
 	${APP_TOOLKIT_SOURCES_IMPL}/scene_manager.cpp
 	${APP_TOOLKIT_SOURCES_IMPL}/script_registry.cpp
+	${APP_TOOLKIT_SOURCES_IMPL}/gizmo_registry.cpp
 )
 
 set(APP_TOOLKIT_ALL_SOURCES ${APP_TOOLKIT_SOURCES_API_SOURCES} ${APP_TOOLKIT_SOURCES})

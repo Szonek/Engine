@@ -193,6 +193,16 @@ bool engine::Scene::is_nav_mesh_debug_draw_enabled() const
     return nav_mesh_debug_draw_;
 }
 
+engine::DebugDrawList& engine::Scene::debug_draw()
+{
+    return debug_draw_;
+}
+
+const engine::DebugDrawList& engine::Scene::debug_draw() const
+{
+    return debug_draw_;
+}
+
 engine_result_code_t engine::Scene::build_nav_mesh()
 {
     ENGINE_PROFILE_SECTION;
@@ -575,6 +585,16 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
         {
             collect_nav_mesh_debug_lines(*nav_mesh, render_data.debug_lines);
         }
+    }
+    // this frame's engineDebugDraw* shapes, cleared for the next one
+    for (const auto& line : debug_draw_.take_lines())
+    {
+        DebugLineGpuData gpu_line{};
+        gpu_line.from = line.from;
+        gpu_line.to = line.to;
+        gpu_line.color = line.color;
+        gpu_line.owner = line.owner;
+        render_data.debug_lines.push_back(gpu_line);
     }
 
     renderer_.submit_scene(std::move(render_data));

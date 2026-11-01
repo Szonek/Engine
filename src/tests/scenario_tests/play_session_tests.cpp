@@ -2,6 +2,8 @@
 
 #include <scenes/level_builder.h>
 #include <scenes/level_scene.h>
+#include <scripts/enemy_spawner_script.h>
+#include <scripts/game_components.h>
 #include <scripts/interactable_script.h>
 #include <scripts/player_script.h>
 
@@ -130,6 +132,19 @@ TEST_F(PlaySessionTest, ScriptsExistOnlyWhilePlaying)
     ASSERT_EQ(enginePlayModeEnter(), ENGINE_RESULT_CODE_OK);
     step();
     EXPECT_EQ(scene->get_scripts<project_c::Chest>().size(), 1u);
+}
+
+TEST_F(PlaySessionTest, GizmosAreDrawnInEditModeWithoutScripts)
+{
+    auto* scene = load_scene<EditScene>();
+    project_c::LevelBuilder builder(scenario::app(), *scene);
+    builder.enemy_spawner(0.0f, 0.0f, project_c::default_enemy_spawner());
+    builder.player_start(2.0f, 0.0f, 90.0f, "default");
+    step();
+    EXPECT_TRUE(scene->get_scripts<project_c::EnemySpawner>().empty());
+
+    // a drawer per component type, no script needed: the spawner's and the player start's
+    EXPECT_EQ(scenario::app().gizmos().draw(ENGINE_INVALID_GAME_OBJECT_ID), 2u);
 }
 
 TEST_F(PlaySessionTest, StopGivesBackTheLevelWithoutItsPlayer)

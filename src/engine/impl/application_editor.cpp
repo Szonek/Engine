@@ -1298,6 +1298,18 @@ bool engine::ApplicationEditor::is_game_view() const
     return editor_view_ == EditorView::eGame;
 }
 
+bool engine::ApplicationEditor::are_gizmos_visible() const
+{
+    return draw_component_gizmos_ && editor_view_ == EditorView::eEditor;
+}
+
+entt::entity engine::ApplicationEditor::get_selected_entity(Scene& scene)
+{
+    // the game asks before this frame's scene update, which is where the editor resolves it otherwise
+    scene_hierarchy_context_.resolve_selection(&scene);
+    return scene_hierarchy_context_.get_selected_entity();
+}
+
 void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_begine_info_t & frame_begin_info)
 {
     frame_delta_time_ = frame_begin_info.delta_time;
@@ -2091,6 +2103,8 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
         draw_guizmo_ = !draw_guizmo_;
     }
     ImGui::Checkbox("Grid", &draw_grid_);
+    ImGui::Checkbox("Component gizmos", &draw_component_gizmos_);
+    ImGui::SetItemTooltip("What the game draws for its components in the editor view, such as an enemy spawner's area");
     if (auto* camera = camera_context_.get_camera(scene))
     {
         float fly_speed = camera->get_fly_speed();
@@ -2316,14 +2330,17 @@ std::optional<entt::entity> engine::ApplicationEditor::pick_entity_under_mouse()
     {
         return std::nullopt;  // held since a click over the scene, but moved off it
     }
-    // entity ids come from the previous frame, which is what was visible on the screen when the user clicked
-    std::uint32_t picked_id = ENGINE_INVALID_GAME_OBJECT_ID;
+    // entity ids come from the previous frame, which is what was visible on the screen when the user clicked; gizmo
+    // lines are a pixel wide, so the ones within a few pixels of the click are picked too (pick_game_object)
+    constexpr std::uint32_t GIZMO_PICK_RADIUS = 4;
     const auto x = static_cast<std::uint32_t>(mouse_coords.x * scene_viewport.width);
     const auto y = static_cast<std::uint32_t>(mouse_coords.y * scene_viewport.height);
-    if (!renderer_.read_entity_id(x, y, picked_id))
+    const auto area = renderer_.read_entity_ids(x, y, GIZMO_PICK_RADIUS);
+    if (!area)
     {
         return std::nullopt;
     }
+    const auto picked_id = pick_game_object(area->ids, area->width, area->height, area->center_x, area->center_y, area->owners);
     return picked_id == ENGINE_INVALID_GAME_OBJECT_ID ? entt::entity{ entt::null } : static_cast<entt::entity>(picked_id);
 }
 

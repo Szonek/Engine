@@ -4,6 +4,7 @@
 #include <array>
 #include <span>
 #include <string_view>
+#include <vector>
 #include <cassert>
 #include <cstring>
 
@@ -59,4 +60,26 @@ inline std::array<T, S>  to_array(const T(&data)[S])
 inline void log(std::string_view str)
 {
     engineLog(str.data());
+}
+
+// the game objects of the active scene with the game-defined component, in the order of its storage; a copy, so the
+// caller may change the scene while going through them
+inline std::vector<engine_game_object_t> get_game_objects_with_data_component(engine_component_type_t component_type)
+{
+    std::vector<engine_game_object_t> game_objects;
+    engine_component_view_t view = nullptr;
+    engineComponentViewCreate(&view);
+    engineComponentViewAttachDataComponent(view, component_type);
+    engine_component_iterator_t it = nullptr;
+    engine_component_iterator_t end = nullptr;
+    engineComponentViewCreateBeginComponentIterator(view, &it);
+    engineComponentViewCreateEndComponentIterator(view, &end);
+    for (; !engineComponentIteratorCheckEqual(it, end); engineComponentIteratorNext(it))
+    {
+        game_objects.push_back(engineComponentIteratorGetGameObject(it));
+    }
+    engineComponentIteratorDelete(it);
+    engineComponentIteratorDelete(end);
+    engineComponentViewDestroy(view);
+    return game_objects;
 }

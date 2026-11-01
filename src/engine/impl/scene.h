@@ -2,6 +2,7 @@
 #include <engine.h>
 #include "graphics.h"
 
+#include "debug_draw.h"
 #include "physics_system.h"
 #include "entity_id_registry.h"
 #include "game_object_ref.h"
@@ -50,6 +51,9 @@ public:
 
     void enable_nav_mesh_debug_draw(bool enable);
     bool is_nav_mesh_debug_draw_enabled() const;
+    // the shapes engineDebugDraw* add this frame, drawn and cleared by the next update
+    DebugDrawList& debug_draw();
+    const DebugDrawList& debug_draw() const;
     engine_result_code_t update(float dt);
 
     // Entity 0 has the value of ENGINE_INVALID_GAME_OBJECT_ID, so every scene reserves it when created: it has no
@@ -246,6 +250,7 @@ private:
     PrefabSystem prefabs_;
 
     bool nav_mesh_debug_draw_ = false;
+    DebugDrawList debug_draw_;
     std::string file_path_;
 };
 }  // namespace engine

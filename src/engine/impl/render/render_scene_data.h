@@ -73,7 +73,8 @@ struct DebugLineGpuData
     glm::vec3 to;
     float pad1;
     glm::vec3 color;
-    std::int32_t life_time = 0;
+    // the game object a click on the line selects in the editor (DebugDrawLine::owner), 0 for none
+    std::uint32_t owner = 0;
 };
 
 struct StaticMeshDrawItem
