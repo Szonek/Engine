@@ -152,6 +152,18 @@ void CommandUpdateTypedComponent::undo(Scene& sc)
     apply(sc, prev_);
 }
 
+bool CommandUpdateTypedComponent::merge_with(const ICommand* other)
+{
+    const auto* next = dynamic_cast<const CommandUpdateTypedComponent*>(other);
+    if (!next || &next->type_ != &type_ || next->ref_ != ref_)
+    {
+        return false;
+    }
+    // copied like the constructor copies the new value
+    std::memcpy(new_.get(), next->new_.get(), type_.size);
+    return true;
+}
+
 void CommandUpdateTypedComponent::apply(Scene& sc, const ValueBuffer& value)
 {
     if (const auto e = sc.resolve(ref_); e != entt::null && sc.has_component(type_, e))
