@@ -362,7 +362,7 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
 
         if (!view.scene->debug_lines.empty())
         {
-            frame.graph.add_pass(fmt::format("Physics Debug Lines{}", suffix),
+            frame.graph.add_pass(fmt::format("Debug Lines{}", suffix),
                 [&](rg::Builder& builder, rg::NoPassData&)
                 {
                     builder.write_color(0, frame.scene_color, rg::LoadOp::eLoad);

@@ -19,7 +19,7 @@ Passes declared every frame:
 | Shadow Map                                  | built-in, per scene camera | ShadowMap              |
 | Depth Pre-pass                              | built-in, per scene camera | SceneDepth             |
 | SSAO / SSAO Blur                            | built-in, per scene camera | AmbientOcclusion       |
-| Forward / Sprites / Physics Debug Lines     | built-in, per scene camera | SceneColor (+EntityId, SceneDepth) |
+| Forward / Sprites / Debug Lines             | built-in, per scene camera | SceneColor (+EntityId, SceneDepth) |
 | *features of stage* `ePostProcess`          | `RenderFeature` | usually SceneColor                |
 | Present                                     | built-in      | SceneOutput                         |
 | *features of stage* `eOverlay`              | `RenderFeature` | SceneOutput (game UI)             |

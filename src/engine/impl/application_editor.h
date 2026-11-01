@@ -122,6 +122,10 @@ public:
     ApplicationEditor& operator=(ApplicationEditor&&) = delete;
     ~ApplicationEditor();
     bool is_game_view() const;
+    // the game draws its gizmos: the editor's own view is shown, with Gizmos on (the debug panel)
+    bool are_gizmos_visible() const;
+    // the selected game object, entt::null when none is
+    entt::entity get_selected_entity() const;
     // The mouse is over the scene panel (or a button pressed over it is still held), not over another editor panel.
     bool is_mouse_over_scene() const;
     // the scene panel, or the whole window while ImGui is hidden (F1)
@@ -298,6 +302,7 @@ private:
     EditorView editor_view_ = EditorView::eGame;
     EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;
+    bool draw_gizmos_ = true;
     float frame_delta_time_ = 0.0f;
     PlayModeRequest play_mode_request_ = PlayModeRequest::eNone;
     // the scene Play and Stop act on: the one the toolbar was last drawn for, none once it is released

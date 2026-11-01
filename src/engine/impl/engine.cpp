@@ -233,6 +233,19 @@ uint32_t enginePlayModeGetSessionCount()
     return G_ACTIVE_APP ? api_cast(G_ACTIVE_APP)->get_play_session_count() : 0;
 }
 
+bool engineEditorAreGizmosVisible()
+{
+    const auto* editor = G_ACTIVE_APP ? dynamic_cast<engine::ApplicationEditor*>(api_cast(G_ACTIVE_APP)) : nullptr;
+    return editor && editor->are_gizmos_visible();
+}
+
+engine_game_object_t engineEditorGetSelectedGameObject()
+{
+    const auto* editor = G_ACTIVE_APP ? dynamic_cast<engine::ApplicationEditor*>(api_cast(G_ACTIVE_APP)) : nullptr;
+    const auto selected = editor ? editor->get_selected_entity() : entt::entity{ entt::null };
+    return selected == entt::null ? ENGINE_INVALID_GAME_OBJECT_ID : static_cast<engine_game_object_t>(selected);
+}
+
 bool engineEditorIsGameView()
 {
     if (!G_ACTIVE_APP)
@@ -1017,6 +1030,30 @@ engine_result_code_t engineNavFindNearestPoint(const float point[3], const float
     out[1] = nearest->y;
     out[2] = nearest->z;
     return ENGINE_RESULT_CODE_OK;
+}
+
+void engineDebugDrawLine(const float from[3], const float to[3], const float color[3])
+{
+    if (G_ACTIVE_SCENE && from && to && color)
+    {
+        api_cast(G_ACTIVE_SCENE)->debug_draw().add_line(glm::make_vec3(from), glm::make_vec3(to), glm::make_vec3(color));
+    }
+}
+
+void engineDebugDrawBox(const float transform[16], const float half_extents[3], const float color[3])
+{
+    if (G_ACTIVE_SCENE && transform && half_extents && color)
+    {
+        api_cast(G_ACTIVE_SCENE)->debug_draw().add_box(glm::make_mat4(transform), glm::make_vec3(half_extents), glm::make_vec3(color));
+    }
+}
+
+void engineDebugDrawCircle(const float center[3], const float normal[3], float radius, const float color[3])
+{
+    if (G_ACTIVE_SCENE && center && normal && color)
+    {
+        api_cast(G_ACTIVE_SCENE)->debug_draw().add_circle(glm::make_vec3(center), glm::make_vec3(normal), radius, glm::make_vec3(color));
+    }
 }
 
 engine_result_code_t engineUiDocumentCreateDataHandle(const char* name, const engine_ui_document_data_binding_t* bindings, size_t bindings_count, engine_ui_data_handle_t* out)

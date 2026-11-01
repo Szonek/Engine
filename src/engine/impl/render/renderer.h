@@ -28,7 +28,7 @@ namespace engine
 //           Shadow Map      (depth of meshes seen from the directional light)
 //           Depth Pre-pass  (depth of meshes seen from the camera)
 //           SSAO, SSAO Blur (ambient occlusion computed from the depth)
-//           Forward (static + skinned meshes, uses the shadow map and the ambient occlusion) -> Sprites -> Physics Debug Lines
+//           Forward (static + skinned meshes, uses the shadow map and the ambient occlusion) -> Sprites -> Debug Lines
 //       RenderStage::ePostProcess features    (i.e. editor outline)
 //       Present                               (scene color -> scene output: the backbuffer or the texture set with set_scene_output())
 //       RenderStage::eOverlay features        (i.e. game UI, drawn onto the scene output)

@@ -1298,6 +1298,16 @@ bool engine::ApplicationEditor::is_game_view() const
     return editor_view_ == EditorView::eGame;
 }
 
+bool engine::ApplicationEditor::are_gizmos_visible() const
+{
+    return draw_gizmos_ && editor_view_ == EditorView::eEditor;
+}
+
+entt::entity engine::ApplicationEditor::get_selected_entity() const
+{
+    return scene_hierarchy_context_.get_selected_entity();
+}
+
 void engine::ApplicationEditor::on_frame_begine(const engine_application_frame_begine_info_t & frame_begin_info)
 {
     frame_delta_time_ = frame_begin_info.delta_time;
@@ -2091,6 +2101,8 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
         draw_guizmo_ = !draw_guizmo_;
     }
     ImGui::Checkbox("Grid", &draw_grid_);
+    ImGui::Checkbox("Gizmos", &draw_gizmos_);
+    ImGui::SetItemTooltip("What the game draws for its components in the editor view, such as an enemy spawner's area");
     if (auto* camera = camera_context_.get_camera(scene))
     {
         float fly_speed = camera->get_fly_speed();

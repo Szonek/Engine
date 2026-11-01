@@ -102,6 +102,8 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/physics_system.cpp
 	${ENGINE_SOURCES_DIR}/nav_mesh_debug_draw.h
 	${ENGINE_SOURCES_DIR}/nav_mesh_debug_draw.cpp
+	${ENGINE_SOURCES_DIR}/debug_draw.h
+	${ENGINE_SOURCES_DIR}/debug_draw.cpp
 	
 	${ENGINE_SOURCES_DIR}/skin.h
 	${ENGINE_SOURCES_DIR}/skin.cpp

@@ -539,6 +539,12 @@ ENGINE_API bool engineEditorIsEnabled();
 // whether the game plays this frame (scripts tick): play mode is Playing, or Paused with a step taken this frame
 ENGINE_API bool engineEditorIsPlaying();
 ENGINE_API bool engineEditorIsGameView();
+// Whether the game draws its gizmos this frame (the shapes showing what a component does, such as a spawner's area,
+// drawn with engineDebugDraw*): the editor shows its own view (not the game camera's) with Gizmos on, in every play
+// state. Like Unity's Scene view gizmos. False without the editor.
+ENGINE_API bool engineEditorAreGizmosVisible();
+// the game object selected in the editor, ENGINE_INVALID_GAME_OBJECT_ID when none is (or without the editor)
+ENGINE_API engine_game_object_t engineEditorGetSelectedGameObject();
 
 // Play mode, like Unity's EditorApplication.EnterPlaymode / isPaused / Step / ExitPlaymode, which its tests use too:
 // Edit -> Playing (enginePlayModeEnter) saves the active scene in memory; Playing <-> Paused keeps everything;
@@ -803,6 +809,16 @@ ENGINE_API engine_result_code_t engineNavFindPath(const float start[3], const fl
 // The closest point on the nav mesh within the box of search_half_extents around `point`. Fails when the scene has no nav
 // mesh or there is none.
 ENGINE_API engine_result_code_t engineNavFindNearestPoint(const float point[3], const float search_half_extents[3], float out[3]);
+
+// Debug draw, immediate mode like Unreal's DrawDebugLine / DrawDebugBox: lines in world space, in the active scene, for
+// the current frame only (drawn by this frame's scene update, then forgotten; call again every frame to keep a shape),
+// in every view and play state, the game's too. Colours are linear RGB in [0, 1]. Nothing happens without an active scene.
+ENGINE_API void engineDebugDrawLine(const float from[3], const float to[3], const float color[3]);
+// the box from -half_extents to half_extents in the space of `transform` (a column-major world matrix, such as
+// engineGameObjectGetWorldTransform gives), as its 12 edges
+ENGINE_API void engineDebugDrawBox(const float transform[16], const float half_extents[3], const float color[3]);
+// the circle of `radius` around `center` in the plane perpendicular to `normal`
+ENGINE_API void engineDebugDrawCircle(const float center[3], const float normal[3], float radius, const float color[3]);
 
 // ui
 // create data handel first, before loading document!
