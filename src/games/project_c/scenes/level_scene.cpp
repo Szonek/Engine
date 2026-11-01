@@ -112,8 +112,6 @@ void project_c::LevelScene::on_play_end()
     level_scripts_found_ = false;
     hud_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
     encounter_go_ = ENGINE_INVALID_GAME_OBJECT_ID;
-    // a key held at Stop isn't a press of the next session
-    restart_was_down_ = false;
 }
 
 void project_c::LevelScene::find_level_scripts()
@@ -173,20 +171,8 @@ engine_result_code_t project_c::LevelScene::update(float dt)
     if (auto travel = app->take_level_travel_request())
     {
         app->set_level_path(std::move(travel->level_path), std::move(travel->entrance));
-        // what the player has now is what they enter the next level with (and get back when they restart it)
+        // what the player has now is what they enter the next level with
         app->set_level_entry_state(app->player_state());
-        app->request_scene_reload<LevelScene>();
-        return result;
-    }
-
-    // once the encounter is over (cleared or player dead), restart loads the level again (with what the player had
-    // when entering it, at the same entrance)
-    const bool restart_down = app->player_input().restart;
-    const bool restart_pressed = restart_down && !restart_was_down_;
-    restart_was_down_ = restart_down;
-    const auto* encounter = get_script<Encounter>(encounter_go_);
-    if (encounter && encounter->is_over() && restart_pressed)
-    {
         app->request_scene_reload<LevelScene>();
     }
     return result;

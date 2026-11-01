@@ -6,6 +6,8 @@
 #include "editor_asset_panel.h"
 #include "editor_camera.h"
 #include "editor_modal_transform.h"
+#include "editor_scene_file_dialog.h"
+#include "editor_scene_file_flow.h"
 #include "render/outline_feature.h"
 #include "render/grid_feature.h"
 
@@ -13,7 +15,9 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace engine
 {
@@ -109,6 +113,8 @@ protected:
     void on_scene_release(class Scene* scene) override;
     void on_play_mode_enter(class Scene* scene) override;
     void on_play_mode_exit(class Scene* scene) override;
+    // closing the window (or the game's quit) with unsaved changes asks to save them first
+    bool on_quit_requested() override;
 
 private:
     // Play or Stop asked for by the toolbar or a shortcut, done at the start of the next frame
@@ -134,6 +140,23 @@ private:
     void handle_asset_drop(class Scene* scene);
     // asks to confirm deleting a game object undo can't bring back (SceneHierarchyContext::request_delete_without_undo)
     void display_delete_without_undo_popup(class Scene* scene);
+    // the File menu, in the toolbar's menu bar, and its shortcuts (Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Shift+S)
+    void render_file_menu(class Scene* scene);
+    void handle_file_shortcuts(class Scene* scene);
+    // the Save As / Open / New dialog and the unsaved changes prompt
+    void render_scene_file_dialogs(class Scene* scene);
+    void render_unsaved_changes_prompt(class Scene* scene);
+    // Save (Save As when the scene has no file), Open or New, see SceneFileFlow. Only in Edit mode, like Unity: nothing
+    // of a play session is saved.
+    void request_scene_file_action(class Scene* scene, SceneFileAction action, std::string path = {});
+    // the File menu's request, at the start of the frame (on_frame_begine)
+    void apply_scene_file_request();
+    // what the editor holds of the scene's game objects (gizmo, modal transform), which are gone (Stop, Open, New)
+    void forget_game_objects();
+    // "<title> - <scene file>*" while there are unsaved changes
+    void update_window_title(class Scene* scene);
+    // the scene's file as the toolbar, the title and the prompt show it ("Untitled" without one)
+    static std::string scene_display_name(const class Scene& scene);
     void render_entity_properties_panel(class Scene* scene, float dt);
     void render_debug_panel(class Scene* scene, float dt);
     void render_guizmo(class Scene* scene);
@@ -236,6 +259,13 @@ private:
     SceneHierarchyContext scene_hierarchy_context_{ asset_browser_ };
     // the game object whose delete without undo waits for its confirmation
     entt::entity delete_without_undo_ = entt::null;
+    // the File menu's Save, Open and New, done at the start of the next frame like Play and Stop: never during a scene
+    // update (the editor camera has the game's cameras disabled then, a save would keep them so)
+    SceneFileFlow scene_files_;
+    SceneFileDialog scene_file_dialog_;
+    // the window's title as the game created it, and as it is shown
+    std::string window_title_base_;
+    std::string window_title_;
 };
 
 } // namespace engine

@@ -24,7 +24,8 @@ class Application;
 // (ASSET_PAYLOAD_GEOMETRY, ASSET_PAYLOAD_TEXTURE). Dragging doesn't select, so a file can be dropped on the selected
 // game object's fields.
 // Selecting a model, an image or a data asset, or opening a model, loads it to show what it holds, and holds it until the selection
-// changes or the model is closed. The folders are listed once and again after Refresh.
+// changes or the model is closed. The folders are listed once and again after Refresh (and after the editor saved a
+// scene). Double-clicking a scene file asks the editor to open it.
 // The selection is the editor's (IAssetSelection): a click asks for it, and the editor selects the file with an undo
 // step which deselects the game object.
 class AssetBrowserPanel : public IAssetSelection
@@ -46,6 +47,12 @@ public:
     std::string get_selected_asset() const override;
     // selects the file (a path under assets/), or nothing for ""
     void set_selected_asset(const std::string& path) override;
+    // the scene file double-clicked since the last call (its asset ID, a path under assets/scenes), for the editor to
+    // open (File > Open)
+    std::optional<std::string> take_open_scene_request() { return std::exchange(open_scene_request_, std::nullopt); }
+
+    // lists the folders again; opened models, the selection and the open folder whose files are gone are dropped
+    void refresh();
 
 private:
     void clear_selection();
@@ -68,8 +75,6 @@ private:
     opened_model_t open_model(const std::string& model_id);
     void close_model(opened_model_t& model);
 
-    // lists the folders again; opened models, the selection and the open folder whose files are gone are dropped
-    void refresh();
     // the folder's entries, listed when first asked for
     const std::vector<asset_entry_t>& get_folder(const std::string& folder);
     void draw_folder_tree(const std::string& folder, std::string_view name);
@@ -100,5 +105,6 @@ private:
     std::uint64_t inspected_data_value_reloads_ = 0;
     // the opened models by path, each held while open
     std::map<std::string, opened_model_t> expanded_models_;
+    std::optional<std::string> open_scene_request_;
 };
 }  // namespace engine

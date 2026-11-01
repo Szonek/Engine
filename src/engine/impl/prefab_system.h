@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace engine
@@ -44,6 +45,12 @@ public:
     // scene prefab of one of them placed in the scene (the editor's drop) would place that file inside itself once saved.
     void add_scene_file(std::string_view file_name);
     bool is_scene_file(std::string_view file_name) const;
+    // all of them: the editor's Open gives the scene other content, Stop gives back the ones it had at Play
+    const std::vector<std::filesystem::path>& get_scene_files() const { return scene_files_; }
+    void set_scene_files(std::vector<std::filesystem::path> files) { scene_files_ = std::move(files); }
+    // Whether a prefab instance in the scene, however deep, is an instance of the scene file: saving the scene to that
+    // file would place the file inside itself.
+    bool places_scene_file(std::string_view file_name) const;
 
 private:
     Application& app_;

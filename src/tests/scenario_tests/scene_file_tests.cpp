@@ -183,6 +183,51 @@ TEST_F(SceneFileTest, FileWhichCantBeReadFailsTheLoad)
     EXPECT_EQ(engineSceneLoad(write_file("not a scene").c_str()), ENGINE_RESULT_CODE_FAIL);
 }
 
+TEST_F(SceneFileTest, SavedSceneOpenedAndSavedAgainGivesTheSameBytes)
+{
+    create_file_scene();
+    ASSERT_EQ(engineSceneLoad(write_file(scene_with_mesh("test_fixtures/crate.gltf#Plate")).c_str()), ENGINE_RESULT_CODE_OK);
+    const auto first = std::filesystem::temp_directory_path() / "project_c_scene_file_test_first.json";
+    const auto second = std::filesystem::temp_directory_path() / "project_c_scene_file_test_second.json";
+    ASSERT_EQ(engineSceneSave(first.string().c_str()), ENGINE_RESULT_CODE_OK);
+    destroy_file_scene();
+
+    create_file_scene();
+    ASSERT_EQ(engineSceneLoad(first.string().c_str()), ENGINE_RESULT_CODE_OK);
+    ASSERT_EQ(engineSceneSave(second.string().c_str()), ENGINE_RESULT_CODE_OK);
+    const auto first_bytes = read_file(first);
+    EXPECT_FALSE(first_bytes.empty());
+    EXPECT_EQ(read_file(second), first_bytes);
+    std::filesystem::remove(first);
+    std::filesystem::remove(second);
+}
+
+TEST_F(SceneFileTest, SaveToAFileWhichCantBeWrittenFails)
+{
+    create_file_scene();
+    const auto path = write_file(scene_with_mesh("test_fixtures/crate.gltf#Plate"));
+    ASSERT_EQ(engineSceneLoad(path.c_str()), ENGINE_RESULT_CODE_OK);
+    const auto missing_folder = std::filesystem::temp_directory_path() / "project_c_no_such_folder" / "scene.json";
+    EXPECT_EQ(engineSceneSave(missing_folder.string().c_str()), ENGINE_RESULT_CODE_FAIL);
+}
+
+// File > New's templates are scene files which load (the level's has what a level needs, the room's nothing a placed
+// file mustn't have)
+TEST_F(SceneFileTest, NewSceneTemplatesLoad)
+{
+    create_file_scene();
+    ASSERT_EQ(engineSceneLoad("templates/level.json"), ENGINE_RESULT_CODE_OK);
+    EXPECT_NE(find_with(engineGameObjectHasCameraComponent), ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_NE(find_with(engineGameObjectHasNavSurfaceComponent), ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_EQ(engineNavMeshBuild(), ENGINE_RESULT_CODE_OK);
+    destroy_file_scene();
+
+    create_file_scene();
+    ASSERT_EQ(engineSceneLoad("templates/room.json"), ENGINE_RESULT_CODE_OK);
+    EXPECT_EQ(find_with(engineGameObjectHasNavSurfaceComponent), ENGINE_INVALID_GAME_OBJECT_ID);
+    EXPECT_EQ(find_with(engineGameObjectHasCameraComponent), ENGINE_INVALID_GAME_OBJECT_ID);
+}
+
 TEST_F(SceneFileTest, LoadedColliderIsHitAtItsWorldPosition)
 {
     // a box under a parent moved to x = 5: saved, then loaded into another scene

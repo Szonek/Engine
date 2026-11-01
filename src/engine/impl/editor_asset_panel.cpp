@@ -118,6 +118,7 @@ void draw_model_asset_rows(const std::vector<std::pair<std::uint32_t, std::strin
 constexpr const char* MESH_TOOLTIP = "Drag onto a geometry field of the properties panel";
 constexpr const char* IMAGE_TOOLTIP = "Drag onto a texture field of the properties panel";
 constexpr const char* PLACE_TOOLTIP = "Drag into the scene view to place it";
+constexpr const char* SCENE_TOOLTIP = "Drag into the scene view to place it, double-click to open it";
 }  // namespace
 
 engine::AssetBrowserPanel::AssetBrowserPanel(Application& app)
@@ -412,15 +413,23 @@ std::optional<std::string> engine::AssetBrowserPanel::draw_files()
                     open_folder = entry.path;
                 }
             }
-            else if (!is_selected)
+            else
             {
-                clicked = entry.path;
+                if (!is_selected)
+                {
+                    clicked = entry.path;
+                }
+                // like Unity's Project window: a scene opens on a double-click
+                if (entry.kind == AssetFileKind::eScene && asset_id && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                {
+                    open_scene_request_ = *asset_id;
+                }
             }
         }
         const auto* payload_type = get_payload_type(entry.kind);
         if (asset_id && payload_type)
         {
-            const auto* hint = entry.kind == AssetFileKind::eTexture ? IMAGE_TOOLTIP : PLACE_TOOLTIP;
+            const auto* hint = entry.kind == AssetFileKind::eTexture ? IMAGE_TOOLTIP : entry.kind == AssetFileKind::eScene ? SCENE_TOOLTIP : PLACE_TOOLTIP;
             ImGui::SetItemTooltip("%s\n%s", asset_id->c_str(), hint);
             asset_drag_source(payload_type, *asset_id, entry.kind, entry.name);
         }

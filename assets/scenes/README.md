@@ -4,8 +4,11 @@ A scene file is a level (or any scene) as data: its game objects and their compo
 level from `test_level.json` here (`LevelScene`; another file with `project_c_game --level <path>`, relative to this
 folder or absolute). Files are read at runtime from the source tree's `assets`, so editing one needs no rebuild.
 
-The engine writes them (`engineSceneSave`, `scene_serializer.cpp`) and reads them (`engineSceneLoad`). Until the editor
-can save scenes, a level is changed by editing its file (or building it in code and saving it with `engineSceneSave`).
+The engine writes them (`engineSceneSave`, `scene_serializer.cpp`) and reads them (`engineSceneLoad`). The editor's File
+menu saves (Ctrl+S, Save As), opens (Ctrl+O, or double-click a file in the asset browser) and creates them (New, from a
+template in `templates/`: `level.json` has a camera, light, nav surface, floor and player start, `room.json` is empty,
+as a file placed in a level must be). Save As stays inside this folder, so every scene has an asset ID and can be
+placed; keep rooms under `rooms/` here.
 After a format change (a component gains a field), old files keep loading with the new field at its default; saving
 the level writes the new format.
 

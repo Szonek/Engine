@@ -34,15 +34,15 @@ void run(project_c::AppProjectC& app)
 
         if (frame_begin.events & ENGINE_EVENT_QUIT)
         {
-            log(fmt::format("Engine requested app quit. Exiting.\n"));
+            log(fmt::format("Quit (the window was closed or the quit key pressed). Exiting.\n"));
             break;
         }
 
         const auto input = project_c::read_player_input_from_devices();
+        // reported by a following frame's begin; the editor asks to save unsaved changes first
         if (input.quit)
         {
-            log(fmt::format("User requested quit. Exiting.\n"));
-            break;
+            engineApplicationRequestQuit();
         }
 
         fps_counter.frames_count += 1;
