@@ -20,9 +20,9 @@ class Application;
 // tree, the folders and files of the open one with an icon per kind (double-click a folder to open it), and the
 // details of the selected file for the properties panel. Models and scene files are dragged into the scene view to
 // place them (ASSET_PAYLOAD_PREFAB); images, and the meshes and images of a model (listed under it when it is opened
-// with its arrow, like Unity's sub-assets, and in its details), onto the asset fields of the properties panel
-// (ASSET_PAYLOAD_GEOMETRY, ASSET_PAYLOAD_TEXTURE). Dragging doesn't select, so a file can be dropped on the selected
-// game object's fields.
+// with its arrow, like Unity's sub-assets, and in its details), and data assets onto the asset fields of the properties
+// panel (ASSET_PAYLOAD_GEOMETRY, ASSET_PAYLOAD_TEXTURE, ASSET_PAYLOAD_DATA_ASSET). Dragging doesn't select, so a file can
+// be dropped on the selected game object's fields. A data asset with unsaved changes shows "*" after its name.
 // Selecting a model, an image or a data asset, or opening a model, loads it to show what it holds, and holds it until the selection
 // changes or the model is closed. The folders are listed once and again after Refresh (and after the editor saved a
 // scene). Double-clicking a scene file asks the editor to open it.
@@ -40,8 +40,11 @@ public:
     // The panel's contents, in the current ImGui window. The path of the file clicked this frame when it isn't the
     // selected one, for the editor to select.
     std::optional<std::string> draw();
-    // the selected file's details, in the current ImGui window
+    // the selected file's details, in the current ImGui window (a data asset's value is the editor's to draw, see
+    // get_inspected_data_asset)
     void draw_inspector();
+    // the selected data asset, held while it is selected; ENGINE_INVALID_OBJECT_HANDLE when none is (or it couldn't be loaded)
+    std::uint32_t get_inspected_data_asset() const { return inspected_data_asset_; }
 
     bool has_selection() const { return selected_.has_value(); }
     std::string get_selected_asset() const override;
@@ -99,10 +102,6 @@ private:
     opened_model_t inspected_model_;
     std::uint32_t inspected_texture_ = ENGINE_INVALID_OBJECT_HANDLE;
     std::uint32_t inspected_data_asset_ = ENGINE_INVALID_OBJECT_HANDLE;
-    // the inspected data asset's value as its file has it, written again when the selection or the value changes
-    std::string inspected_data_value_;
-    std::uint32_t inspected_data_value_of_ = ENGINE_INVALID_OBJECT_HANDLE;
-    std::uint64_t inspected_data_value_reloads_ = 0;
     // the opened models by path, each held while open
     std::map<std::string, opened_model_t> expanded_models_;
     std::optional<std::string> open_scene_request_;

@@ -7,6 +7,8 @@
 #include "profiler.h"
 #include "animation_controller.h"
 #include "engine_string_impl_def.h"
+#include "data_asset.h"
+#include "serialization/scene_assets.h"
 
 #include "components_internals/camera_internal_component.h"
 #include "components_internals/editor_object_internal_component.h"
@@ -482,32 +484,39 @@ inline void display_component(std::string_view name, engine::Scene* scene, engin
 
 // Combo box picking a resource by its asset ID (atlas name) instead of typing its index; "None" selects
 // ENGINE_INVALID_OBJECT_HANDLE. The list of assets is only built while the combo is open. An asset of the field's kind
-// dragged from the asset browser can be dropped on it (like Unity's object fields); the scene then holds the file it
-// comes from (SceneAssets). Returns true when the selection changed.
-bool display_asset_combo(engine::Scene* scene, engine::AssetKind kind, const char* label, std::uint32_t& handle, std::string_view current_name,
-    const std::function<std::vector<std::pair<std::uint32_t, std::string>>()>& get_assets)
+// dragged from the asset browser can be dropped on it (like Unity's object fields), when `accepts` takes it (a data
+// asset of the field's type); `assets` (the scene's SceneAssets) then holds the file it comes from, and so it does a
+// data asset or prefab picked in the list. Returns true when the selection changed.
+bool display_asset_combo(engine::IAssetResolver& assets, engine::AssetKind kind, const char* label, std::uint32_t& handle, std::string_view current_name,
+    const std::function<std::vector<std::pair<std::uint32_t, std::string>>()>& get_assets, const std::function<bool(std::uint32_t)>& accepts = {})
 {
     const auto preview = handle == ENGINE_INVALID_OBJECT_HANDLE ? std::string("None")
         : current_name.empty() ? fmt::format("<missing #{}>", handle) : std::string(current_name);
     bool changed = false;
     const bool open = ImGui::BeginCombo(label, preview.c_str());
-    // while the combo is closed, the last item is its preview; the browser drags meshes, images, models and scene files
+    // while the combo is closed, the last item is its preview; the browser drags meshes, images, models, scene files
+    // and data assets
     const auto* payload_type = kind == engine::AssetKind::eGeometry ? engine::ASSET_PAYLOAD_GEOMETRY
         : kind == engine::AssetKind::eTexture ? engine::ASSET_PAYLOAD_TEXTURE
-        : kind == engine::AssetKind::ePrefab ? engine::ASSET_PAYLOAD_PREFAB : nullptr;
+        : kind == engine::AssetKind::ePrefab ? engine::ASSET_PAYLOAD_PREFAB
+        : kind == engine::AssetKind::eDataAsset ? engine::ASSET_PAYLOAD_DATA_ASSET : nullptr;
     if (!open && payload_type && ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payload_type))
         {
             const std::string_view asset_id(static_cast<const char*>(payload->Data));
-            if (const auto dropped = scene->assets().resolve(kind, asset_id); dropped != ENGINE_INVALID_OBJECT_HANDLE)
+            if (const auto dropped = assets.resolve(kind, asset_id); dropped == ENGINE_INVALID_OBJECT_HANDLE)
             {
-                changed = dropped != handle;
-                handle = dropped;
+                engine::log::log(engine::log::LogLevel::eError, fmt::format("Editor: the asset {} dropped on {} can't be found.\n", asset_id, label));
+            }
+            else if (accepts && !accepts(dropped))
+            {
+                engine::log::log(engine::log::LogLevel::eError, fmt::format("Editor: the asset {} can't be dropped on {}: it holds another type.\n", asset_id, label));
             }
             else
             {
-                engine::log::log(engine::log::LogLevel::eError, fmt::format("Editor: the asset {} dropped on {} can't be found.\n", asset_id, label));
+                changed = dropped != handle;
+                handle = dropped;
             }
         }
         ImGui::EndDragDropTarget();
@@ -527,7 +536,7 @@ bool display_asset_combo(engine::Scene* scene, engine::AssetKind kind, const cha
                 changed |= !selected;
                 // the scene holds a data asset or prefab it references (whoever loaded it may release it); the other
                 // kinds are held by whoever created them
-                handle = kind == engine::AssetKind::eDataAsset || kind == engine::AssetKind::ePrefab ? scene->assets().resolve(kind, name) : idx;
+                handle = kind == engine::AssetKind::eDataAsset || kind == engine::AssetKind::ePrefab ? assets.resolve(kind, name) : idx;
             }
             if (selected)
             {
@@ -542,21 +551,23 @@ bool display_asset_combo(engine::Scene* scene, engine::AssetKind kind, const cha
 bool display_geometry_combo(engine::Scene* scene, std::uint32_t& geometry)
 {
     const auto* app = scene->get_application();
-    return display_asset_combo(scene, engine::AssetKind::eGeometry, "Geometry", geometry, app->get_geometry_name(geometry), [app] { return app->get_geometry_names(); });
+    return display_asset_combo(scene->assets(), engine::AssetKind::eGeometry, "Geometry", geometry, app->get_geometry_name(geometry), [app] { return app->get_geometry_names(); });
 }
 
 bool display_texture_combo(engine::Scene* scene, const char* label, std::uint32_t& texture)
 {
     const auto* app = scene->get_application();
-    return display_asset_combo(scene, engine::AssetKind::eTexture, label, texture, app->get_texture_name(texture), [app] { return app->get_texture_names(); });
+    return display_asset_combo(scene->assets(), engine::AssetKind::eTexture, label, texture, app->get_texture_name(texture), [app] { return app->get_texture_names(); });
 }
 
 // Draws a value of a game-defined type from its description, a widget per field kind (game types have no unions; the
 // engine's components have hand-written panels). Edits the value in place and returns true when a field changed.
+// `assets` holds the assets the asset fields pick (the scene's for a component, see display_asset_combo); game objects
+// are picked in `scene`.
 class TypeInspector
 {
 public:
-    explicit TypeInspector(engine::Scene* scene) : scene_(scene) {}
+    TypeInspector(engine::Scene* scene, engine::IAssetResolver& assets) : scene_(scene), assets_(assets) {}
 
     bool draw_struct(const engine::TypeInfo& type, std::byte* value)
     {
@@ -644,22 +655,28 @@ private:
             switch (field.asset_kind)
             {
             case engine::AssetKind::eGeometry:
-                changed = display_asset_combo(scene_, field.asset_kind, label, handle, app->get_geometry_name(handle), [app] { return app->get_geometry_names(); });
+                changed = display_asset_combo(assets_, field.asset_kind, label, handle, app->get_geometry_name(handle), [app] { return app->get_geometry_names(); });
                 break;
             case engine::AssetKind::eDataAsset:
                 // the loaded data assets holding the field's type
-                changed = display_asset_combo(scene_, field.asset_kind, label, handle, app->get_data_asset_name(handle), [app, &field] {
-                    auto assets = app->get_data_asset_names();
-                    std::erase_if(assets, [&](const auto& asset) { return &app->get_data_asset(asset.first)->get_type() != field.data_type; });
-                    return assets;
-                });
+                {
+                    const auto holds_type = [app, &field](std::uint32_t asset) {
+                        const auto* data_asset = app->get_data_asset(asset);
+                        return data_asset && &data_asset->get_type() == field.data_type;
+                    };
+                    changed = display_asset_combo(assets_, field.asset_kind, label, handle, app->get_data_asset_name(handle), [app, &holds_type] {
+                        auto assets = app->get_data_asset_names();
+                        std::erase_if(assets, [&](const auto& asset) { return !holds_type(asset.first); });
+                        return assets;
+                    }, holds_type);
+                }
                 break;
             case engine::AssetKind::ePrefab:
                 // the loaded models and scene files; others are dropped from the asset browser
-                changed = display_asset_combo(scene_, field.asset_kind, label, handle, app->get_prefab_name(handle), [app] { return app->get_prefab_names(); });
+                changed = display_asset_combo(assets_, field.asset_kind, label, handle, app->get_prefab_name(handle), [app] { return app->get_prefab_names(); });
                 break;
             default:
-                changed = display_asset_combo(scene_, field.asset_kind, label, handle, app->get_texture_name(handle), [app] { return app->get_texture_names(); });
+                changed = display_asset_combo(assets_, field.asset_kind, label, handle, app->get_texture_name(handle), [app] { return app->get_texture_names(); });
                 break;
             }
             std::memcpy(p, &handle, sizeof(handle));
@@ -780,6 +797,7 @@ private:
     }
 
     engine::Scene* scene_;
+    engine::IAssetResolver& assets_;
 };
 
 // display_component for a component known only by its type description, drawn by the TypeInspector
@@ -792,7 +810,7 @@ void display_typed_component(const engine::TypeInfo& type, engine::Scene* scene,
     {
         engine::ValueBuffer value(type.size);
         scene->get_component(type, entity, value.get());
-        if (TypeInspector(scene).draw_struct(type, value.get()))
+        if (TypeInspector(scene, scene->assets()).draw_struct(type, value.get()))
         {
             // with the components the new value requires (a script's config), in the same undo step
             commands.execute_command(*scene, engine::make_update_typed_component_command(*scene, entity, type, value.get()));
@@ -1188,6 +1206,46 @@ std::array<float, 3> get_gizmo_snap_values(engine::ModalTransformMode handle, co
 
 } // namespace anonymous
 
+void engine::ApplicationEditor::display_data_asset_value(Scene* scene, std::uint32_t data_asset)
+{
+    const auto* asset = get_data_asset(data_asset);
+    if (!asset)
+    {
+        return;
+    }
+    const auto& asset_id = asset->get_name();
+    const auto& type = asset->get_type();
+    ImGui::PushID(asset_id.c_str());
+    ImGui::SeparatorText(asset->is_dirty() ? "Value *" : "Value");
+    if (asset->is_dirty())
+    {
+        if (ImGui::Button("Save"))
+        {
+            data_assets_.save(asset_id);
+        }
+        ImGui::SetItemTooltip("Write it to its file (Ctrl+S saves it with the scene)");
+        ImGui::SameLine();
+        ImGui::TextDisabled("Unsaved changes");
+    }
+    // like Unity's ScriptableObjects: Stop gives back the scene, not the assets
+    if (get_play_mode_state() != ENGINE_PLAY_MODE_EDIT)
+    {
+        ImGui::TextDisabled("Shared asset: changes are kept after Stop");
+    }
+    // holds what an asset field picks until the new value holds it itself
+    SceneAssets picked(*this);
+    ValueBuffer value(type.size);
+    std::memcpy(value.get(), asset->get_value(), type.size);
+    if (TypeInspector(scene, picked).draw_struct(type, value.get()))
+    {
+        auto text = save_data_asset(type, value.get(), picked);
+        if (text != asset->get_value_text())
+        {
+            commands_.execute_command(*scene, std::make_unique<CommandUpdateDataAsset>(data_assets_, asset_id, asset->get_value_text(), std::move(text)));
+        }
+    }
+    ImGui::PopID();
+}
 
 engine::ApplicationEditor::ApplicationEditor(const engine_application_create_desc_t& desc, RenderContext&& rdx, engine_result_code_t& out_code)
     : Application(desc, std::move(rdx), out_code)
@@ -1902,6 +1960,10 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
     {
         ImGui::SeparatorText("Asset properties.");
         asset_browser_.draw_inspector();
+        if (const auto data_asset = asset_browser_.get_inspected_data_asset(); data_asset != ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            display_data_asset_value(scene, data_asset);
+        }
     }
     else if (scene_hierarchy_context_.has_selected_entity())
     {
@@ -2598,6 +2660,11 @@ void engine::ApplicationEditor::on_scene_release(Scene* scene)
     scene_hierarchy_context_.reset();
 }
 
+void engine::ApplicationEditor::on_data_asset_reloaded(std::uint32_t idx)
+{
+    commands_.drop_data_asset_steps(get_data_asset_name(idx));
+}
+
 void engine::ApplicationEditor::on_play_mode_enter(Scene* /*scene*/)
 {
     commands_.begin_play_session();
@@ -2606,7 +2673,7 @@ void engine::ApplicationEditor::on_play_mode_enter(Scene* /*scene*/)
 void engine::ApplicationEditor::on_play_mode_exit(Scene* /*scene*/)
 {
     // the steps recorded while playing would write play session values into the edit state; the ones from before Play
-    // come back and find their game objects by persistent ID
+    // come back and find their game objects by persistent ID (the data assets' stay: their edits are kept)
     commands_.end_play_session();
     // what the editor held of the play session's game objects
     forget_game_objects();

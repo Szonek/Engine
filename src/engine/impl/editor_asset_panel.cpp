@@ -3,7 +3,7 @@
 #include "application.h"
 #include "asset_store.h"
 #include "animation_controller.h"
-#include "serialization/scene_assets.h"
+#include "data_asset.h"
 
 #include "imgui/imgui.h"
 
@@ -71,7 +71,7 @@ const char* get_payload_type(engine::AssetFileKind kind)
     case engine::AssetFileKind::eModel:
     case engine::AssetFileKind::eScene: return engine::ASSET_PAYLOAD_PREFAB;
     case engine::AssetFileKind::eTexture: return engine::ASSET_PAYLOAD_TEXTURE;
-    case engine::AssetFileKind::eData:
+    case engine::AssetFileKind::eData: return engine::ASSET_PAYLOAD_DATA_ASSET;
     case engine::AssetFileKind::eFolder:
     case engine::AssetFileKind::eOther: break;
     }
@@ -119,6 +119,7 @@ constexpr const char* MESH_TOOLTIP = "Drag onto a geometry field of the properti
 constexpr const char* IMAGE_TOOLTIP = "Drag onto a texture field of the properties panel";
 constexpr const char* PLACE_TOOLTIP = "Drag into the scene view to place it";
 constexpr const char* SCENE_TOOLTIP = "Drag into the scene view to place it, double-click to open it";
+constexpr const char* DATA_ASSET_TOOLTIP = "Drag onto a data asset field of the properties panel";
 }  // namespace
 
 engine::AssetBrowserPanel::AssetBrowserPanel(Application& app)
@@ -404,7 +405,10 @@ std::optional<std::string> engine::AssetBrowserPanel::draw_files()
         draw_icon(entry.kind, icon_size);
         ImGui::SameLine();
         const bool is_selected = selected_ && selected_->path == entry.path;
-        if (ImGui::Selectable(entry.name.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
+        // a loaded data asset with unsaved changes (the editor holds it)
+        const auto* data_asset = entry.kind == AssetFileKind::eData && asset_id ? app_.get_data_asset(app_.find_data_asset(*asset_id)) : nullptr;
+        const auto label = data_asset && data_asset->is_dirty() ? entry.name + " *" : entry.name;
+        if (ImGui::Selectable(fmt::format("{}###{}", label, entry.name).c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
         {
             if (entry.kind == AssetFileKind::eFolder)
             {
@@ -429,7 +433,9 @@ std::optional<std::string> engine::AssetBrowserPanel::draw_files()
         const auto* payload_type = get_payload_type(entry.kind);
         if (asset_id && payload_type)
         {
-            const auto* hint = entry.kind == AssetFileKind::eTexture ? IMAGE_TOOLTIP : entry.kind == AssetFileKind::eScene ? SCENE_TOOLTIP : PLACE_TOOLTIP;
+            const auto* hint = entry.kind == AssetFileKind::eTexture ? IMAGE_TOOLTIP
+                : entry.kind == AssetFileKind::eScene ? SCENE_TOOLTIP
+                : entry.kind == AssetFileKind::eData ? DATA_ASSET_TOOLTIP : PLACE_TOOLTIP;
             ImGui::SetItemTooltip("%s\n%s", asset_id->c_str(), hint);
             asset_drag_source(payload_type, *asset_id, entry.kind, entry.name);
         }
@@ -514,17 +520,7 @@ void engine::AssetBrowserPanel::draw_data_asset_details()
         return;
     }
     ImGui::Text("Type: %s", asset->get_type().name.c_str());
-    ImGui::TextWrapped("Edit its file: the change shows here and in the game at once.");
-    // its value as the file has it, read-only (editing it here comes with saving from the editor)
-    if (inspected_data_value_of_ != inspected_data_asset_ || inspected_data_value_reloads_ != asset->get_reload_count())
-    {
-        const SceneAssets assets(app_);
-        inspected_data_value_ = save_data_asset(asset->get_type(), asset->get_value(), assets);
-        inspected_data_value_of_ = inspected_data_asset_;
-        inspected_data_value_reloads_ = asset->get_reload_count();
-    }
-    ImGui::SeparatorText("Value");
-    ImGui::TextUnformatted(inspected_data_value_.c_str());
+    ImGui::TextWrapped("Edits take effect in the game at once. Drag it onto a data asset field of the properties panel.");
 }
 
 void engine::AssetBrowserPanel::draw_model_details()

@@ -35,7 +35,12 @@ std::string engine::ApplicationEditor::scene_display_name(const Scene& scene)
 
 bool engine::ApplicationEditor::on_quit_requested()
 {
-    return scene_files_.request_quit(commands_.is_dirty());
+    return scene_files_.request_quit(has_unsaved_changes());
+}
+
+bool engine::ApplicationEditor::has_unsaved_changes() const
+{
+    return commands_.is_dirty() || data_assets_.has_unsaved();
 }
 
 void engine::ApplicationEditor::request_scene_file_action(Scene* scene, SceneFileAction action, std::string path)
@@ -45,8 +50,13 @@ void engine::ApplicationEditor::request_scene_file_action(Scene* scene, SceneFil
         log::log(log::LogLevel::eError, "Scene files: stop the play session first (nothing of it is saved).\n");
         return;
     }
+    // Save All: the data assets are written now, whatever happens to the scene's save (they are files of their own)
+    if (action == SceneFileAction::eSave)
+    {
+        data_assets_.save_all();
+    }
     // a new scene has no file yet
-    if (scene_files_.request(action, std::move(path), scene->get_file_path(), commands_.is_dirty()))
+    if (scene_files_.request(action, std::move(path), scene->get_file_path(), has_unsaved_changes()))
     {
         scene_file_dialog_.open(SceneFileDialog::Kind::eSaveAs, *scene);
     }
@@ -208,7 +218,20 @@ void engine::ApplicationEditor::render_unsaved_changes_prompt(Scene* scene)
         ImGui::EndPopup();
         return;
     }
-    ImGui::Text("%s has unsaved changes.", scene_display_name(*scene).c_str());
+    const bool scene_dirty = commands_.is_dirty();
+    if (scene_dirty)
+    {
+        ImGui::Text("%s has unsaved changes.", scene_display_name(*scene).c_str());
+    }
+    // like Unreal's Save Content dialog: the data assets are saved with the scene
+    if (const auto assets = data_assets_.get_unsaved(); !assets.empty())
+    {
+        ImGui::TextUnformatted(scene_dirty ? "So do these data assets:" : "These data assets have unsaved changes:");
+        for (const auto& asset : assets)
+        {
+            ImGui::BulletText("%s", asset.c_str());
+        }
+    }
     ImGui::TextUnformatted(waiting == SceneFileAction::eQuit ? "Save them before closing?" : "Save them first?");
     const bool in_edit = get_play_mode_state() == ENGINE_PLAY_MODE_EDIT;
     ImGui::BeginDisabled(!in_edit);
@@ -225,9 +248,21 @@ void engine::ApplicationEditor::render_unsaved_changes_prompt(Scene* scene)
     if (save && in_edit)
     {
         ImGui::CloseCurrentPopup();
+        if (!data_assets_.save_all())
+        {
+            // logged; what waited doesn't go on without its save
+            scene_files_.cancel_waiting();
+        }
         // what waited goes on once the file is written (apply_scene_file_request); a scene without a file is saved as
         // first
-        if (scene_files_.prompt_save(scene->get_file_path()))
+        else if (!scene_dirty)
+        {
+            if (scene_files_.on_saved())
+            {
+                confirm_quit();
+            }
+        }
+        else if (scene_files_.prompt_save(scene->get_file_path()))
         {
             scene_file_dialog_.open(SceneFileDialog::Kind::eSaveAs, *scene);
         }
@@ -235,6 +270,7 @@ void engine::ApplicationEditor::render_unsaved_changes_prompt(Scene* scene)
     else if (discard)
     {
         ImGui::CloseCurrentPopup();
+        // the data assets keep their changes in memory, still unsaved, unless the editor closes (like Unreal's Don't Save)
         if (scene_files_.prompt_discard())
         {
             confirm_quit();
