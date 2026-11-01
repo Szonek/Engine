@@ -27,6 +27,9 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/editor_commands.cpp
 	${ENGINE_SOURCES_DIR}/editor_commands.h
 	${ENGINE_SOURCES_DIR}/editor_save_point.h
+	${ENGINE_SOURCES_DIR}/editor_scene_file_dialog.cpp
+	${ENGINE_SOURCES_DIR}/editor_scene_file_dialog.h
+	${ENGINE_SOURCES_DIR}/editor_scene_file_flow.h
 	${ENGINE_SOURCES_DIR}/copy_name.h
 	${ENGINE_SOURCES_DIR}/engine.cpp
 	${ENGINE_SOURCES_DIR}/engine_string_impl_def.h
