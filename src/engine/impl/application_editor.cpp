@@ -2559,13 +2559,16 @@ void engine::ApplicationEditor::update_preview_light(Scene* scene)
         scene->remove_component<engine_light_component_t>(light);
         return;
     }
-    // a daylight from above, like the levels' own
+    // A neutral white sun, like the default sun of Unity's new scenes: 50 degrees above the horizon and turned 30
+    // degrees off the axes, so the faces of a box seen from any side get different shades; a moderate ambient keeps
+    // the shadowed sides readable. (With physically based lighting this becomes a preview sun and sky, like Godot's.)
     engine_light_component_t c = *scene->add_component<engine_light_component_t>(light);
     c.type = ENGINE_LIGHT_TYPE_DIRECTIONAL;
-    const float ambient[3] = { 0.45f, 0.45f, 0.45f };
-    const float diffuse[3] = { 0.75f, 0.75f, 0.75f };
+    const float ambient[3] = { 0.3f, 0.3f, 0.3f };
+    const float diffuse[3] = { 0.8f, 0.8f, 0.8f };
     const float specular[3] = { 0.1f, 0.1f, 0.1f };
-    const float direction[3] = { 0.4f, 1.0f, 0.3f };
+    // toward the light: (cos 50 * sin 30, sin 50, cos 50 * cos 30)
+    const float direction[3] = { 0.321f, 0.766f, 0.557f };
     std::memcpy(c.intensity.ambient, ambient, sizeof(ambient));
     std::memcpy(c.intensity.diffuse, diffuse, sizeof(diffuse));
     std::memcpy(c.intensity.specular, specular, sizeof(specular));
