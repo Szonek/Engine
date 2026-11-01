@@ -128,4 +128,43 @@ TEST(EditorSavePoint, AChangeWithoutAnUndoStepStaysUnsavedUntilTheNextSave)
     save_point.mark_saved();
     EXPECT_FALSE(save_point.is_dirty());
 }
+
+TEST(EditorSavePoint, ErasingAStepWhichChangesNoSceneKeepsTheSavePoint)
+{
+    // scene edit, data asset edit (saved here), scene edit
+    SavePoint save_point;
+    save_point.on_execute(true);
+    save_point.on_execute(false);
+    save_point.mark_saved();
+    save_point.on_execute(true);
+    // the data asset step goes (its file was read again): undoing the last scene edit is the saved state still
+    save_point.on_erase(1);
+    EXPECT_TRUE(save_point.is_dirty());
+    save_point.on_undo();
+    EXPECT_FALSE(save_point.is_dirty());
+    save_point.on_undo();
+    EXPECT_TRUE(save_point.is_dirty());
+    save_point.on_redo();
+    EXPECT_FALSE(save_point.is_dirty());
+}
+
+TEST(EditorSavePoint, ErasingAnUndoneStepKeepsWhereTheHistoryStands)
+{
+    SavePoint save_point;
+    save_point.on_execute(true);
+    save_point.mark_saved();
+    save_point.on_execute(false);
+    save_point.on_execute(true);
+    save_point.on_undo();
+    save_point.on_undo();
+    // the undone data asset step goes; the undone scene edit is still there to redo
+    save_point.on_erase(1);
+    EXPECT_FALSE(save_point.is_dirty());
+    save_point.on_redo();
+    EXPECT_TRUE(save_point.is_dirty());
+    save_point.on_redo();
+    EXPECT_TRUE(save_point.is_dirty());
+    save_point.on_undo();
+    EXPECT_FALSE(save_point.is_dirty());
+}
 }  // namespace

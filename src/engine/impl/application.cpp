@@ -707,8 +707,12 @@ void engine::Application::reload_changed_data_assets()
             continue;
         }
         loading_data_assets_.insert(name);
-        (*asset)->reload_if_changed();
+        const auto reloaded = (*asset)->reload_if_changed();
         loading_data_assets_.erase(name);
+        if (reloaded != DataAsset::ReloadResult::eNone)
+        {
+            on_data_asset_reloaded(handle);
+        }
     }
 }
 
@@ -743,6 +747,33 @@ const engine::DataAsset* engine::Application::get_data_asset(std::uint32_t idx) 
 {
     const auto* asset = data_assets_atlas_.get_object(idx);
     return asset ? asset->get() : nullptr;
+}
+
+bool engine::Application::set_data_asset_value_text(std::uint32_t idx, std::string_view text)
+{
+    auto* asset = data_assets_atlas_.get_object(idx);
+    if (!asset)
+    {
+        log::log(log::LogLevel::eError, fmt::format("Data asset #{} isn't loaded, its value can't be set.\n", idx));
+        return false;
+    }
+    // the new value's references are resolved like a reload's, so one referencing the asset itself is caught
+    const auto name = (*asset)->get_name();
+    loading_data_assets_.insert(name);
+    const bool set = (*asset)->set_value_text(text);
+    loading_data_assets_.erase(name);
+    return set;
+}
+
+bool engine::Application::save_data_asset_file(std::uint32_t idx)
+{
+    auto* asset = data_assets_atlas_.get_object(idx);
+    if (!asset)
+    {
+        log::log(log::LogLevel::eError, fmt::format("Data asset #{} isn't loaded, it can't be saved.\n", idx));
+        return false;
+    }
+    return (*asset)->save();
 }
 
 std::string engine::Application::get_data_asset_name(std::uint32_t idx) const

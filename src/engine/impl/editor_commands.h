@@ -1,190 +1,22 @@
 #pragma once
 #include "scene.h"
 #include "editor_asset_browser.h"
-#include "editor_save_point.h"
+#include "editor_command_manager.h"
 
 #include <algorithm>
 #include <optional>
 #include <vector>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "components_internals/guizmo_component.h"
 #include "components_internals/outline_component.h"
 
 namespace engine
 {
-
-// An undo step. Commands refer to game objects with GameObjectRef (by persistent ID), never by handle, and get the scene
-// when they run: they find their game objects again after Stop gave them new handles, or after undo brought a deleted
-// one back. The editor drops the steps recorded while playing at Stop (CommandManager::end_play_session), so a step
-// never writes play session values into the edit state, and all of them when a scene is released
-// (CommandManager::clear), so a step never acts on another scene's game objects. A command whose game object isn't there (any more) changes
-// nothing and logs it (log_missing).
-class ICommand
-{
-public:
-    virtual ~ICommand() = default;
-    virtual void execute(Scene& sc) = 0;
-    virtual void undo(Scene& sc) = 0;
-    // Takes in `other`, the next step of the same continuous edit (a drag of a slider or the gizmo, typing in a
-    // field), so the whole edit is one undo step, like Qt's QUndoCommand::mergeWith: true when this step now ends
-    // where `other` does. `other` is executed but not kept. Only asked while the edit goes on (see
-    // CommandManager::end_continuous_edit).
-    virtual bool merge_with(const ICommand* /*other*/)
-    {
-        return false;
-    }
-    // false when the first execute() changed nothing (e.g. a copy which couldn't be made): the command isn't kept, so
-    // undo doesn't take an empty step and redo doesn't try it again
-    virtual bool has_effect() const
-    {
-        return true;
-    }
-    // false for a step which changes nothing a scene file holds (the selection, debug draw): it doesn't make the scene
-    // unsaved (SavePoint)
-    virtual bool changes_scene() const
-    {
-        return true;
-    }
-};
-
 // logs that the game object an undo step changes isn't in the scene (any more)
 void log_missing(std::string_view command);
-
-class CommandManager
-{
-public:
-    void execute_command(Scene& sc, std::unique_ptr<ICommand> cmd)
-    {
-        // a step merged into the saved one would change the scene without leaving the save point
-        if (!edit_ended_ && !undo_stack_.empty() && save_point_.can_merge() && undo_stack_.back()->merge_with(cmd.get()))
-        {
-            cmd->execute(sc);
-            save_point_.on_merge(cmd->changes_scene());
-            return;
-        }
-        cmd->execute(sc);
-        if (!cmd->has_effect())
-        {
-            return;
-        }
-        save_point_.on_execute(cmd->changes_scene());
-        undo_stack_.push_back(std::move(cmd));
-        redo_stack_.clear();
-        edit_ended_ = false;
-        if (undo_stack_.size() > max_history_)
-        {
-            undo_stack_.erase(undo_stack_.begin());
-            save_point_.on_drop_oldest();
-        }
-    }
-
-    // No widget is being edited and the gizmo isn't dragged (the editor calls it every frame then): the next step
-    // starts a new undo step instead of merging into the last one (ICommand::merge_with). A click is one step, a drag
-    // from press to release is one step.
-    void end_continuous_edit() { edit_ended_ = true; }
-
-    void undo(Scene& sc)
-    {
-        edit_ended_ = true;
-        if (undo_stack_.empty())
-        {
-            return;
-        }
-        auto cmd = std::move(undo_stack_.back());
-        undo_stack_.pop_back();
-        cmd->undo(sc);
-        redo_stack_.push_back(std::move(cmd));
-        save_point_.on_undo();
-    }
-
-    void redo(Scene& sc)
-    {
-        edit_ended_ = true;
-        if (redo_stack_.empty())
-        {
-            return;
-        }
-        auto cmd = std::move(redo_stack_.back());
-        redo_stack_.pop_back();
-        cmd->execute(sc);
-        undo_stack_.push_back(std::move(cmd));
-        save_point_.on_redo();
-    }
-
-    // Whether the edit state has changes which aren't saved (see SavePoint); while playing, the edit state Stop gives
-    // back: what a play session does is never saved.
-    bool is_dirty() const { return edit_history_ ? edit_history_->save_point.is_dirty() : save_point_.is_dirty(); }
-    // the scene was saved as it is now
-    void mark_saved() { save_point_.mark_saved(); }
-    // the scene changed without an undo step (an editor edit which has none yet): unsaved until the next save
-    void mark_changed() { save_point_.mark_changed(); }
-
-    // drops every step, the edit history kept for a play session too: when the scene they were recorded in was
-    // released, they would find other game objects with the same persistent IDs in the next one. The scene is clean
-    // then: it was just loaded (or is new).
-    void clear()
-    {
-        undo_stack_.clear();
-        redo_stack_.clear();
-        edit_history_.reset();
-        save_point_ = SavePoint();
-    }
-
-    // Play: the edit history is put aside and the play session records its own steps (Unreal's Play In Editor
-    // transactions), so undo while playing never reaches into the edit state
-    void begin_play_session()
-    {
-        edit_history_.emplace(History{ std::move(undo_stack_), std::move(redo_stack_), save_point_ });
-        undo_stack_.clear();
-        redo_stack_.clear();
-        save_point_ = SavePoint();
-    }
-
-    // the steps recorded in this play session, keeping the edit history put aside (the scene they were recorded in was
-    // released while playing)
-    void drop_play_session_steps()
-    {
-        undo_stack_.clear();
-        redo_stack_.clear();
-        save_point_ = SavePoint();
-    }
-
-    // Stop: the play session's steps are dropped (they would write play session values into the edit state, which
-    // Stop gave back) and the edit history comes back, its steps finding their game objects by persistent ID. A
-    // session begun without begin_play_session (the one the application starts in, whose Stop keeps the scene as it
-    // is) keeps its steps.
-    void end_play_session()
-    {
-        if (!edit_history_)
-        {
-            return;
-        }
-        undo_stack_ = std::move(edit_history_->undo);
-        redo_stack_ = std::move(edit_history_->redo);
-        save_point_ = edit_history_->save_point;
-        edit_history_.reset();
-    }
-
-private:
-    struct History
-    {
-        std::vector<std::unique_ptr<ICommand>> undo;
-        std::vector<std::unique_ptr<ICommand>> redo;
-        SavePoint save_point;
-    };
-
-    std::vector<std::unique_ptr<ICommand>> undo_stack_;
-    std::vector<std::unique_ptr<ICommand>> redo_stack_;
-    // the edit history while a play session runs
-    std::optional<History> edit_history_;
-    // where the history (the edit history, or the play session's while playing) stands relative to the last save
-    SavePoint save_point_;
-    // the last step's edit is over: nothing merges into it
-    bool edit_ended_ = true;
-    const std::size_t max_history_ = 100;
-};
 
 template<typename TComp>
 class CommandUpdateComponent : public ICommand
@@ -479,6 +311,7 @@ private:
     std::unique_ptr<CommandDestroyEntity> destroy_instance_;
     std::unique_ptr<CommandSetSelection> select_instance_;
 };
+
 
 class CommandSetPhysicsDebugDraw: public ICommand
 {

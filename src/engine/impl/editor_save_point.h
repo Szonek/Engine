@@ -94,6 +94,36 @@ public:
             }
         }
     }
+    // A step which changes nothing a scene file holds was added after the done steps, keeping the undone ones (a data
+    // asset's step kept from a play session): the save point stays where it was among the other steps.
+    void on_insert_done()
+    {
+        steps_.insert(steps_.begin() + static_cast<std::ptrdiff_t>(position_), false);
+        if (saved_ && *saved_ > position_)
+        {
+            (*saved_)++;
+        }
+        position_++;
+    }
+    // A step which changes nothing a scene file holds was taken out of the history (`index`: its place, the oldest 0;
+    // done ones before the undone ones). The states before and after it are the same scene, so the save point stays
+    // where it was among the other steps.
+    void on_erase(std::size_t index)
+    {
+        if (index >= steps_.size())
+        {
+            return;
+        }
+        steps_.erase(steps_.begin() + static_cast<std::ptrdiff_t>(index));
+        if (position_ > index)
+        {
+            position_--;
+        }
+        if (saved_ && *saved_ > index)
+        {
+            (*saved_)--;
+        }
+    }
 
 private:
     // whether each step of the history changes the scene, the oldest first; the ones from position_ on are undone

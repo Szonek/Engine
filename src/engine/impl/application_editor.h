@@ -6,6 +6,7 @@
 #include "editor_asset_panel.h"
 #include "editor_camera.h"
 #include "editor_context_click.h"
+#include "editor_data_assets.h"
 #include "editor_component_list.h"
 #include "editor_modal_transform.h"
 #include "editor_scene_file_dialog.h"
@@ -140,6 +141,9 @@ protected:
     void on_play_mode_exit(class Scene* scene) override;
     // closing the window (or the game's quit) with unsaved changes asks to save them first
     bool on_quit_requested() override;
+    // the data asset's undo steps are dropped (undo would bring back an older value over the file's change), and it
+    // may be clean now
+    void on_data_asset_reloaded(std::uint32_t idx) override;
 
 private:
     // Play or Stop asked for by the toolbar or a shortcut, done at the start of the next frame
@@ -172,8 +176,10 @@ private:
     void render_scene_file_dialogs(class Scene* scene);
     void render_unsaved_changes_prompt(class Scene* scene);
     // Save (Save As when the scene has no file), Open or New, see SceneFileFlow. Only in Edit mode, like Unity: nothing
-    // of a play session is saved.
+    // of a play session is saved. Save saves the data assets with unsaved changes too (Unreal's Save All).
     void request_scene_file_action(class Scene* scene, SceneFileAction action, std::string path = {});
+    // the scene or a data asset has unsaved changes (Open, New and quit ask first)
+    bool has_unsaved_changes() const;
     // the File menu's request, at the start of the frame (on_frame_begine)
     void apply_scene_file_request();
     // what the editor holds of the scene's game objects (gizmo, modal transform), which are gone (Stop, Open, New)
@@ -183,6 +189,8 @@ private:
     // the scene's file as the toolbar, the title and the prompt show it ("Untitled" without one)
     static std::string scene_display_name(const class Scene& scene);
     void render_entity_properties_panel(class Scene* scene, float dt);
+    // the selected data asset's value, edited like a component (CommandUpdateDataAsset), with its Save button
+    void display_data_asset_value(class Scene* scene, std::uint32_t data_asset);
     // the selected game object's name, at the top of the properties panel (like Unity's inspector header)
     void display_name_field(class Scene* scene, entt::entity entity);
     // below its components: a list of the ones it doesn't have, by category, with a search field (like Unity's)
@@ -294,6 +302,8 @@ private:
     PlayModeRequest play_mode_request_ = PlayModeRequest::eNone;
     // the scene Play and Stop act on: the one the toolbar was last drawn for, none once it is released
     class Scene* play_mode_scene_ = nullptr;
+    // the data assets with unsaved changes; before the undo steps changing them
+    EditedDataAssets data_assets_{ *this };
     CommandManager commands_;
     std::shared_ptr<OutlineFeature> outline_feature_;
     std::shared_ptr<GridFeature> grid_feature_;
@@ -308,7 +318,7 @@ private:
     bool scene_view_focused_ = false;
     // the properties panel shows the file selected in it while no game object is selected (selecting one deselects the
     // other); before the hierarchy context, which uses its selection
-    AssetBrowserPanel asset_browser_{ *this };
+    AssetBrowserPanel asset_browser_{ *this, data_assets_ };
     SceneHierarchyContext scene_hierarchy_context_{ asset_browser_ };
     // the game object whose delete without undo waits for its confirmation
     entt::entity delete_without_undo_ = entt::null;

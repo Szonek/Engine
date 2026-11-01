@@ -73,6 +73,7 @@ std::vector<std::pair<std::uint32_t, std::string>> get_model_assets(const std::v
 inline constexpr const char* ASSET_PAYLOAD_PREFAB = "ASSET_PREFAB";      // a model or a scene file, placed in the scene
 inline constexpr const char* ASSET_PAYLOAD_GEOMETRY = "ASSET_GEOMETRY";  // a mesh of a model, "<model path>#<name>"
 inline constexpr const char* ASSET_PAYLOAD_TEXTURE = "ASSET_TEXTURE";    // an image file, or an image of a model
+inline constexpr const char* ASSET_PAYLOAD_DATA_ASSET = "ASSET_DATA";    // a data asset (a file under assets/data)
 
 // Where an asset dropped along the ray lands when it hits no collider: on the ground plane (y = 0) when the ray goes
 // down to it within `max_distance` (the camera's far plane: farther, it couldn't be seen), otherwise `fallback_distance`
