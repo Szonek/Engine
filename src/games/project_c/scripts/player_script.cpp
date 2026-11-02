@@ -503,6 +503,7 @@ void project_c::Player::update(float dt)
 {
     engine::ScopedProfiler prof("project_c::Player::update");
     const auto t = tuning();
+    const auto traversal = traversal_tuning();
     auto check_state_bit = [&](States state)
         {
             return (state_ & state) != 0;
@@ -592,14 +593,14 @@ void project_c::Player::update(float dt)
     switch (movement_mode_)
     {
     case MovementMode::eAirborne:
-        set_movement_mode(traversal_.update_airborne(move_direction, t.move_speed, t.movement_acceleration, traversal_tuning(), dt / 1000.0f));
+        set_movement_mode(traversal_.update_airborne(move_direction, t.move_speed, t.movement_acceleration, traversal, dt / 1000.0f), traversal);
         return;
     case MovementMode::eClimbing:
         // space lets go of the wall
-        set_movement_mode(traversal_.update_climbing(glm::vec3(move_input.x, 0.0f, move_input.y), dodge_pressed, traversal_tuning(), dt / 1000.0f));
+        set_movement_mode(traversal_.update_climbing(glm::vec3(move_input.x, 0.0f, move_input.y), dodge_pressed, traversal, dt / 1000.0f), traversal);
         return;
     case MovementMode::eScriptedMove:
-        set_movement_mode(traversal_.update_scripted_move(dt / 1000.0f));
+        set_movement_mode(traversal_.update_scripted_move(dt / 1000.0f), traversal);
         return;
     case MovementMode::eGrounded:
         break;
@@ -672,14 +673,14 @@ void project_c::Player::update(float dt)
     traversal_input.approach_speed = glm::dot(ground_velocity_, move_direction);
     traversal_input.can_start = !check_state_bit(States::ATTACK) && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f && !recovering;
     traversal_input.leap_pressed = can_dodge && traversal_input.can_start;
-    if (const auto mode = traversal_.update_grounded(traversal_input, traversal_tuning(), delta_seconds); mode != MovementMode::eGrounded)
+    if (const auto mode = traversal_.update_grounded(traversal_input, traversal, delta_seconds); mode != MovementMode::eGrounded)
     {
         if (mode == MovementMode::eAirborne)
         {
             // the leap was the dodge
             dodge_cooldown_remaining_seconds_ = t.dodge_cooldown_seconds;
         }
-        set_movement_mode(mode);
+        set_movement_mode(mode, traversal);
         return;
     }
 
@@ -751,7 +752,7 @@ void project_c::Player::update(float dt)
         ungrounded_seconds_ = move_result.grounded ? 0.0f : ungrounded_seconds_ + delta_seconds;
         if (ungrounded_seconds_ >= FALL_DELAY_SECONDS)
         {
-            set_movement_mode(traversal_.start_falling(ground_velocity_));
+            set_movement_mode(traversal_.start_falling(ground_velocity_), traversal);
             return;
         }
     }
@@ -948,7 +949,7 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
     {
         // fall off the wall
         traversal_.cancel();
-        set_movement_mode(MovementMode::eGrounded);
+        set_movement_mode(MovementMode::eGrounded, traversal_tuning());
         state_ |= States::DEAD;
         movement_velocity_ = glm::vec2(0.0f);
         knockback_velocity_ = glm::vec3(0.0f);
@@ -1177,7 +1178,7 @@ bool project_c::Player::start_dodge(const glm::vec2& move_input, const glm::quat
     return true;
 }
 
-void project_c::Player::set_movement_mode(MovementMode mode)
+void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuning& traversal)
 {
     const auto previous = std::exchange(movement_mode_, mode);
     if (previous == mode)
@@ -1196,7 +1197,7 @@ void project_c::Player::set_movement_mode(MovementMode mode)
     if (mode == MovementMode::eGrounded)
     {
         engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
-        landing_recovery_remaining_seconds_ = previous == MovementMode::eAirborne ? traversal_tuning().landing_recovery_seconds : 0.0f;
+        landing_recovery_remaining_seconds_ = previous == MovementMode::eAirborne ? traversal.landing_recovery_seconds : 0.0f;
         if (landing_recovery_remaining_seconds_ > 0.0f)
         {
             // the landing plays out before the player acts again (the grounded update ends it)

@@ -231,7 +231,7 @@ private:
     MovementMode movement_mode_ = MovementMode::eGrounded;
     // the transitions between the modes: what leaving one and entering the next changes (the combat layer, the
     // locomotion layer's settings)
-    void set_movement_mode(MovementMode mode);
+    void set_movement_mode(MovementMode mode, const TraversalTuning& traversal);
     // the attack, dodge and stun in progress end (the player leaves the ground)
     void cancel_combat_actions();
     // the horizontal velocity the character controller moved the player with in the last grounded frame
