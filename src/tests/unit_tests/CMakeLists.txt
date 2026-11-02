@@ -34,6 +34,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	editor_scene_file_flow_tests.cpp
 	debug_draw_tests.cpp
 	traversal_math_tests.cpp
+	overlap_results_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
@@ -105,6 +106,8 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/data_asset.h
 	${ENGINE_IMPL_DIR}/file_watcher.cpp
 	${ENGINE_IMPL_DIR}/file_watcher.h
+	# header-only: the order and truncation of overlap query results
+	${ENGINE_IMPL_DIR}/overlap_results.h
 	# header-only: the maths of the game's player traversal (glm only)
 	${GAME_SCRIPTS_DIR}/traversal_math.h
 )

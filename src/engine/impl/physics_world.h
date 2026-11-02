@@ -1,6 +1,7 @@
 #pragma once
 #include "engine.h"
 #include "collision_desc.h"
+#include "overlap_results.h"
 
 #ifdef _MSC_VER
 #pragma warning(disable: 4127) // disable warning
@@ -102,6 +103,13 @@ public:
     // the closest hit along origin + direction * t, t in [0, max_distance] (direction need not be normalized), skipping the
     // ignored game objects and, unless hit_triggers, triggers. False without a hit or for an empty ray.
     bool raycast(const glm::vec3& origin, const glm::vec3& direction, float max_distance, std::span<const engine_game_object_t> ignore_list, bool hit_triggers, engine_ray_hit_t& out_hit);
+    // The game objects whose bodies overlap `shape` at `pose` (a query shape, never added to the world), each with the
+    // distance from the shape's surface to theirs at the deepest contact (negative: penetration), unsorted, into `out`
+    void overlap(const btCollisionShape& shape, const btTransform& pose, std::span<const engine_game_object_t> ignore_list, bool hit_triggers,
+        std::vector<OverlapHit>& out) const;
+    // the game objects overlapping the sphere, with the distance from its center to their surface (negative inside), into `out`
+    void overlap_sphere(const glm::vec3& center, float radius, std::span<const engine_game_object_t> ignore_list, bool hit_triggers,
+        std::vector<OverlapHit>& out) const;
 
 private:
     static constexpr float FIXED_TIME_STEP = 1.0f / 60.0f;

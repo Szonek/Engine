@@ -157,6 +157,15 @@ bool engine::PhysicsSystem::raycast(const glm::vec3& origin, const glm::vec3& di
     return world_.raycast(origin, direction, max_distance, ignore_list, hit_triggers, out_hit);
 }
 
+void engine::PhysicsSystem::overlap_sphere(const glm::vec3& center, float radius, std::span<const engine_game_object_t> ignore_list, bool hit_triggers,
+    std::vector<OverlapHit>& out)
+{
+    ENGINE_PROFILE_SECTION;
+    // what scripts moved earlier this frame is found where it is now
+    sync_bodies_to_transforms(false);
+    world_.overlap_sphere(center, radius, ignore_list, hit_triggers, out);
+}
+
 bool engine::PhysicsSystem::add_force(entt::entity entity, std::array<float, 3> force, engine_force_type_t type)
 {
     ENGINE_PROFILE_SECTION;

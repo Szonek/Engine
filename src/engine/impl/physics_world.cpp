@@ -47,6 +47,17 @@ std::optional<BodyPose> to_body_pose(const glm::mat4& local_to_world)
     pose.scale = btVector3(scale.x, scale.y, scale.z);
     return pose;
 }
+
+// What every physics query (ray casts, overlaps) skips, by engine_physics_query_filter_t: triggers unless asked for,
+// and the ignored game objects
+bool passes_query_filter(const btCollisionObject* object, std::span<const engine_game_object_t> ignore, bool hit_triggers)
+{
+    if (!hit_triggers && (object->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE))
+    {
+        return false;
+    }
+    return std::none_of(ignore.begin(), ignore.end(), [object](engine_game_object_t go) { return object->getUserIndex() == static_cast<int>(go); });
+}
 }  // namespace
 
 
@@ -562,19 +573,8 @@ bool engine::PhysicsWorld::raycast(const glm::vec3& origin, const glm::vec3& dir
 
         bool needsCollision(btBroadphaseProxy* proxy) const override
         {
-            const auto* object = static_cast<const btCollisionObject*>(proxy->m_clientObject);
-            if (!hit_triggers_ && (object->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE))
-            {
-                return false;
-            }
-            for (const auto go : ignore_list_)
-            {
-                if (object->getUserIndex() == static_cast<int>(go))
-                {
-                    return false;
-                }
-            }
-            return ClosestRayResultCallback::needsCollision(proxy);
+            return passes_query_filter(static_cast<const btCollisionObject*>(proxy->m_clientObject), ignore_list_, hit_triggers_)
+                && ClosestRayResultCallback::needsCollision(proxy);
         }
 
     private:
@@ -606,6 +606,84 @@ bool engine::PhysicsWorld::raycast(const glm::vec3& origin, const glm::vec3& dir
     out_hit.normal[2] = normal.getZ();
     out_hit.distance = closest_hit.m_closestHitFraction * max_distance;
     return true;
+}
+
+void engine::PhysicsWorld::overlap(const btCollisionShape& shape, const btTransform& pose, std::span<const engine_game_object_t> ignore_list, bool hit_triggers,
+    std::vector<OverlapHit>& out) const
+{
+    // the deepest contact of each game object the query object touches
+    struct OverlapCallback : public btCollisionWorld::ContactResultCallback
+    {
+        OverlapCallback(const btCollisionObject* query, std::span<const engine_game_object_t> ignore_list, bool hit_triggers, std::vector<OverlapHit>& hits)
+            : query_(query)
+            , ignore_list_(ignore_list)
+            , hit_triggers_(hit_triggers)
+            , hits_(hits)
+        {
+            // statics are in StaticFilter, kinematics in KinematicFilter: the query sees every group
+            m_collisionFilterGroup = btBroadphaseProxy::AllFilter;
+            m_collisionFilterMask = btBroadphaseProxy::AllFilter;
+        }
+
+        bool needsCollision(btBroadphaseProxy* proxy) const override
+        {
+            return passes_query_filter(static_cast<const btCollisionObject*>(proxy->m_clientObject), ignore_list_, hit_triggers_)
+                && ContactResultCallback::needsCollision(proxy);
+        }
+
+        btScalar addSingleResult(btManifoldPoint& point, const btCollisionObjectWrapper* object0, int, int, const btCollisionObjectWrapper* object1, int, int) override
+        {
+            // contacts are reported a little before they touch: only overlaps count
+            if (point.getDistance() > 0.0f)
+            {
+                return 0.0f;
+            }
+            const auto* other = object0->getCollisionObject() == query_ ? object1->getCollisionObject() : object0->getCollisionObject();
+            const auto go = static_cast<engine_game_object_t>(other->getUserIndex());
+            const auto it = std::find_if(hits_.begin(), hits_.end(), [go](const OverlapHit& hit) { return hit.go == go; });
+            if (it == hits_.end())
+            {
+                hits_.push_back({ go, point.getDistance() });
+            }
+            else
+            {
+                it->distance = std::min(it->distance, point.getDistance());
+            }
+            return 0.0f;
+        }
+
+    private:
+        const btCollisionObject* query_;
+        std::span<const engine_game_object_t> ignore_list_;
+        bool hit_triggers_;
+        std::vector<OverlapHit>& hits_;
+    };
+
+    btCollisionObject query;
+    query.setCollisionShape(const_cast<btCollisionShape*>(&shape));
+    query.setWorldTransform(pose);
+    OverlapCallback callback(&query, ignore_list, hit_triggers, out);
+    dynamics_world_->contactTest(&query, callback);
+}
+
+void engine::PhysicsWorld::overlap_sphere(const glm::vec3& center, float radius, std::span<const engine_game_object_t> ignore_list, bool hit_triggers,
+    std::vector<OverlapHit>& out) const
+{
+    if (!(radius > 0.0f))
+    {
+        return;
+    }
+    btSphereShape sphere(radius);
+    btTransform pose;
+    pose.setIdentity();
+    pose.setOrigin(btVector3(center.x, center.y, center.z));
+    const auto first = out.size();
+    overlap(sphere, pose, ignore_list, hit_triggers, out);
+    // contact distances are from the sphere's surface: from its center instead (negative: the center is inside)
+    for (auto it = out.begin() + static_cast<std::ptrdiff_t>(first); it != out.end(); ++it)
+    {
+        it->distance += radius;
+    }
 }
 
 void engine::PhysicsWorld::DebugDrawer::drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
