@@ -164,7 +164,7 @@ project_c::PlayerTraversal::ProbeHit project_c::PlayerTraversal::probe(const glm
     {
         ignore_list[1] = held_weapon_;
     }
-    engine_ray_cast_filter_t filter{};
+    engine_physics_query_filter_t filter{};
     filter.ignore = ignore_list.data();
     filter.ignore_count = ignore_list.size();
 

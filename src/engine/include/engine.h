@@ -253,13 +253,13 @@ typedef struct _engine_ray_hit_t
     float distance;  // from the ray's origin
 } engine_ray_hit_t;
 
-// what enginePhysicsRayCast skips; a zero-initialized filter (or none) hits everything but triggers
-typedef struct _engine_ray_cast_filter_t
+// what a physics query (enginePhysicsRayCast) skips; a zero-initialized filter (or none) finds everything but triggers
+typedef struct _engine_physics_query_filter_t
 {
-    const engine_game_object_t* ignore;  // game objects whose colliders the ray passes through
+    const engine_game_object_t* ignore;  // game objects whose colliders the query passes over
     size_t ignore_count;
     bool hit_triggers;                   // false: triggers (hitboxes, pickups) are skipped
-} engine_ray_cast_filter_t;
+} engine_physics_query_filter_t;
 
 typedef enum _engine_ui_event_type_t
 {
@@ -794,7 +794,7 @@ ENGINE_API const engine_collision_desc_t* enginePhysicsGetCollisionDesc(size_t i
 // The closest collider hit along origin + direction * t, t in [0, max_distance] (direction need not be normalized; for a
 // segment from a to b pass b - a and its length). Sees this frame's state, like every physics query. filter may be NULL
 // (everything but triggers). Returns true and fills out_hit on a hit; false on a miss, for an empty ray or no active scene.
-ENGINE_API bool enginePhysicsRayCast(const float origin[3], const float direction[3], float max_distance, const engine_ray_cast_filter_t* filter, engine_ray_hit_t* out_hit);
+ENGINE_API bool enginePhysicsRayCast(const float origin[3], const float direction[3], float max_distance, const engine_physics_query_filter_t* filter, engine_ray_hit_t* out_hit);
 ENGINE_API bool enginePhysicsAddForce(engine_game_object_t go, const float force[3], engine_force_type_t type);
 
 // navigation: the scene's nav mesh is built from its static colliders with the settings of its nav surface component

@@ -964,13 +964,13 @@ const engine_collision_desc_t* enginePhysicsGetCollisionDesc(size_t idx)
     return api_cast(sc->physics().get_collisions().at(idx));
 }
 
-bool enginePhysicsRayCast(const float origin[3], const float direction[3], float max_distance, const engine_ray_cast_filter_t* filter, engine_ray_hit_t* out_hit)
+bool enginePhysicsRayCast(const float origin[3], const float direction[3], float max_distance, const engine_physics_query_filter_t* filter, engine_ray_hit_t* out_hit)
 {
     if (!G_ACTIVE_SCENE || !origin || !direction || !out_hit)
     {
         return false;
     }
-    const engine_ray_cast_filter_t no_filter{};
+    const engine_physics_query_filter_t no_filter{};
     const auto& f = filter ? *filter : no_filter;
     const std::span<const engine_game_object_t> ignore = f.ignore ? std::span(f.ignore, f.ignore_count) : std::span<const engine_game_object_t>{};
     auto sc = api_cast(G_ACTIVE_SCENE);

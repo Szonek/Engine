@@ -134,7 +134,7 @@ engine_game_object_t collider_below(float x, float z)
 }
 
 // a ray from x = -10 along +x (direction of length 2, not normalized) at y = z = 0
-bool cast_along_x(float max_distance, const engine_ray_cast_filter_t* filter, engine_ray_hit_t& hit)
+bool cast_along_x(float max_distance, const engine_physics_query_filter_t* filter, engine_ray_hit_t& hit)
 {
     const float origin[3] = { -10.0f, 0.0f, 0.0f };
     const float direction[3] = { 2.0f, 0.0f, 0.0f };
@@ -436,7 +436,7 @@ TEST_F(PhysicsTest, RayCastSkipsTriggersUnlessAsked)
     ASSERT_TRUE(cast_along_x(100.0f, nullptr, hit));
     EXPECT_EQ(hit.go, wall);
 
-    engine_ray_cast_filter_t filter{};
+    engine_physics_query_filter_t filter{};
     filter.hit_triggers = true;
     ASSERT_TRUE(cast_along_x(100.0f, &filter, hit));
     EXPECT_EQ(hit.go, trigger);
@@ -452,7 +452,7 @@ TEST_F(PhysicsTest, DisabledColliderHasNoBody)
     add_box_collider(wall);
 
     // not even a ray cast asking for triggers sees it
-    engine_ray_cast_filter_t filter{};
+    engine_physics_query_filter_t filter{};
     filter.hit_triggers = true;
     engine_ray_hit_t hit{};
     ASSERT_TRUE(cast_along_x(100.0f, &filter, hit));
@@ -502,7 +502,7 @@ TEST_F(PhysicsTest, RayCastPassesThroughIgnoredGameObjects)
     const auto far_box = create_object(5.0f, 0.0f, 0.0f);
     add_box_collider(far_box);
 
-    engine_ray_cast_filter_t filter{};
+    engine_physics_query_filter_t filter{};
     filter.ignore = &near_box;
     filter.ignore_count = 1;
     engine_ray_hit_t hit{};

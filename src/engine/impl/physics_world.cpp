@@ -47,6 +47,17 @@ std::optional<BodyPose> to_body_pose(const glm::mat4& local_to_world)
     pose.scale = btVector3(scale.x, scale.y, scale.z);
     return pose;
 }
+
+// What every physics query (ray casts, overlaps) skips, by engine_physics_query_filter_t: triggers unless asked for,
+// and the ignored game objects
+bool passes_query_filter(const btCollisionObject* object, std::span<const engine_game_object_t> ignore, bool hit_triggers)
+{
+    if (!hit_triggers && (object->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE))
+    {
+        return false;
+    }
+    return std::none_of(ignore.begin(), ignore.end(), [object](engine_game_object_t go) { return object->getUserIndex() == static_cast<int>(go); });
+}
 }  // namespace
 
 
@@ -562,19 +573,8 @@ bool engine::PhysicsWorld::raycast(const glm::vec3& origin, const glm::vec3& dir
 
         bool needsCollision(btBroadphaseProxy* proxy) const override
         {
-            const auto* object = static_cast<const btCollisionObject*>(proxy->m_clientObject);
-            if (!hit_triggers_ && (object->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE))
-            {
-                return false;
-            }
-            for (const auto go : ignore_list_)
-            {
-                if (object->getUserIndex() == static_cast<int>(go))
-                {
-                    return false;
-                }
-            }
-            return ClosestRayResultCallback::needsCollision(proxy);
+            return passes_query_filter(static_cast<const btCollisionObject*>(proxy->m_clientObject), ignore_list_, hit_triggers_)
+                && ClosestRayResultCallback::needsCollision(proxy);
         }
 
     private:
