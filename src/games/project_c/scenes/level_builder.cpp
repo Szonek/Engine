@@ -273,6 +273,7 @@ project_c::Player* project_c::LevelBuilder::set_up_player(engine_game_object_t g
     add_character_controller(go, 0.15f, Player::MODEL_SCALE);
     auto config = default_player_config();
     config.tuning = app_.get_player_tuning();
+    config.traversal = app_.get_traversal_tuning();
     engineGameObjectAddDataComponent(go, game_components().player_config, &config);
     return scene_.attach_script<Player>(go);
 }

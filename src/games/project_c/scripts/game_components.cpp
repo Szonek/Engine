@@ -119,6 +119,17 @@ project_c::PlayerTuning project_c::default_player_tuning()
     return t;
 }
 
+project_c::TraversalTuning project_c::default_traversal_tuning()
+{
+    TraversalTuning t{};
+    t.climb_speed_vertical = 2.0f;
+    t.climb_speed_lateral = 1.6f;
+    t.mantle_duration_seconds = 0.4f;
+    t.vault_duration_seconds = 0.45f;
+    t.climb_down_duration_seconds = 0.35f;
+    return t;
+}
+
 project_c::EnemyConfig project_c::default_enemy_config()
 {
     return EnemyConfig{ ENGINE_INVALID_OBJECT_HANDLE };
@@ -126,7 +137,7 @@ project_c::EnemyConfig project_c::default_enemy_config()
 
 project_c::PlayerConfig project_c::default_player_config()
 {
-    return PlayerConfig{ ENGINE_INVALID_OBJECT_HANDLE };
+    return PlayerConfig{ ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE };
 }
 
 project_c::BuildingPartConfig project_c::default_building_part_config()
@@ -205,6 +216,19 @@ void project_c::register_game_components()
         ranged(field("knockback_speed", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, knockback_speed), "metres per second the player is pushed back when hit"), 0.0f, 20.0f),
     }, default_player_tuning());
 
+    g_types.traversal_tuning = register_data_asset_type("traversal_tuning", {
+        ranged(field("climb_speed_vertical", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, climb_speed_vertical),
+            "metres per second up and down a wall"), 0.1f, 10.0f),
+        ranged(field("climb_speed_lateral", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, climb_speed_lateral),
+            "metres per second sideways along a wall"), 0.1f, 10.0f),
+        ranged(field("mantle_duration_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, mantle_duration_seconds),
+            "pulling up from the top of a wall onto the ledge"), 0.05f, 2.0f),
+        ranged(field("vault_duration_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, vault_duration_seconds),
+            "vaulting through a window or over a low wall"), 0.05f, 2.0f),
+        ranged(field("climb_down_duration_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, climb_down_duration_seconds),
+            "stepping over a roof edge onto the wall below"), 0.05f, 2.0f),
+    }, default_traversal_tuning());
+
     // version 2: the tuning moved to the data assets
     g_types.enemy_config = register_component("enemy_config", {
         data_asset("type", offsetof(EnemyConfig, type), "enemy_type", "the kind of enemy: its tuning, shared by the enemies of the kind (assets/data/enemies)"),
@@ -212,6 +236,7 @@ void project_c::register_game_components()
 
     g_types.player_config = register_component("player_config", {
         data_asset("tuning", offsetof(PlayerConfig, tuning), "player_tuning", "the player's tuning (assets/data/player)"),
+        data_asset("traversal", offsetof(PlayerConfig, traversal), "traversal_tuning", "how the player climbs and vaults (assets/data/player)"),
     }, default_player_config(), 2);
 
     static const engine_enum_value_desc_t hide_values[] = {

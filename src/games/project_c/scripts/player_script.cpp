@@ -436,6 +436,12 @@ project_c::PlayerTuning project_c::Player::tuning() const
     return get_data_asset(get_game_component(go_, types.player_config, default_player_config()).tuning, types.player_tuning, default_player_tuning());
 }
 
+project_c::TraversalTuning project_c::Player::traversal_tuning() const
+{
+    const auto& types = game_components();
+    return get_data_asset(get_game_component(go_, types.player_config, default_player_config()).traversal, types.traversal_tuning, default_traversal_tuning());
+}
+
 void project_c::Player::on_start()
 {
     // the level starts with what the player entered it with; a fresh player at the start of
@@ -575,7 +581,7 @@ void project_c::Player::update(float dt)
     {
     case MovementMode::eClimbing:
         // space lets go of the wall
-        set_movement_mode(traversal_.update_climbing(glm::vec3(move_input.x, 0.0f, move_input.y), dodge_pressed, dt / 1000.0f));
+        set_movement_mode(traversal_.update_climbing(glm::vec3(move_input.x, 0.0f, move_input.y), dodge_pressed, traversal_tuning(), dt / 1000.0f));
         return;
     case MovementMode::eScriptedMove:
         set_movement_mode(traversal_.update_scripted_move(dt / 1000.0f));
@@ -633,7 +639,7 @@ void project_c::Player::update(float dt)
         traversal_input.move_direction = glm::normalize(glm::vec3(move_input.x, 0.0f, move_input.y));
     }
     traversal_input.can_start = !check_state_bit(States::ATTACK) && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f;
-    if (const auto mode = traversal_.update_grounded(traversal_input, dt / 1000.0f); mode != MovementMode::eGrounded)
+    if (const auto mode = traversal_.update_grounded(traversal_input, traversal_tuning(), dt / 1000.0f); mode != MovementMode::eGrounded)
     {
         set_movement_mode(mode);
         return;

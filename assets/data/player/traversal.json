@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "type": "traversal_tuning",
+  "type_version": 1,
+  "value": {
+    "climb_speed_vertical": 2,
+    "climb_speed_lateral": 1.6,
+    "mantle_duration_seconds": 0.4,
+    "vault_duration_seconds": 0.45,
+    "climb_down_duration_seconds": 0.35
+  }
+}

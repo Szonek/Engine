@@ -1,4 +1,5 @@
 #pragma once
+#include "game_components.h"
 #include "traversal_math.h"
 
 #include <engine.h>
@@ -57,10 +58,10 @@ public:
     };
     // On the ground: shows the marker at the traversal ahead (or the nearest one) and starts the one the player walked
     // into. Returns the mode the player is in now: eGrounded when nothing started.
-    MovementMode update_grounded(const GroundInput& input, float delta_seconds);
+    MovementMode update_grounded(const GroundInput& input, const TraversalTuning& tuning, float delta_seconds);
     // On a wall: `move_input` is the movement input in world space (as on the ground: toward the wall climbs up, away
     // climbs down, along it shimmies), `drop_pressed` lets go. Returns the mode the player is in now.
-    MovementMode update_climbing(const glm::vec3& move_input, bool drop_pressed, float delta_seconds);
+    MovementMode update_climbing(const glm::vec3& move_input, bool drop_pressed, const TraversalTuning& tuning, float delta_seconds);
     // in a scripted move; returns the mode the player is in now
     MovementMode update_scripted_move(float delta_seconds);
     // the traversal ends from outside (the player died): hides the marker, the player falls
@@ -102,7 +103,7 @@ private:
         glm::vec3 marker{ 0.0f };           // where the indicator is shown
         glm::vec3 wall_normal{ 0.0f };
         glm::vec3 climb_position{ 0.0f };   // eClimb only
-        TraversalMove move{};               // eVault and eClimbDown only
+        TraversalMove move{};               // eVault and eClimbDown only, without its duration (tuned)
     };
 
     ProbeHit probe(const glm::vec3& from, const glm::vec3& to) const;
@@ -110,8 +111,8 @@ private:
     TraversalPlan find_nearest_traversal(const glm::vec3& position) const;
     TraversalPlan plan_vault(const glm::vec3& position, const ProbeHit& low_hit) const;
     TraversalPlan plan_climb_down(const glm::vec3& position, const glm::vec3& direction) const;
-    MovementMode execute_traversal(const TraversalPlan& plan);
-    bool try_start_mantle(const glm::vec3& position);
+    MovementMode execute_traversal(const TraversalPlan& plan, const TraversalTuning& tuning);
+    bool try_start_mantle(const glm::vec3& position, const TraversalTuning& tuning);
     MovementMode start_climbing(const glm::vec3& wall_normal, const glm::vec3& position);
     MovementMode start_move(const TraversalMove& move, const char* animation_name);
     // back on the ground: no new traversal starts for `regrab_cooldown` seconds

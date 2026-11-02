@@ -154,6 +154,8 @@ public:
 
     // its tuning (the player_tuning data asset its player_config component references), read on every use
     PlayerTuning tuning() const;
+    // its traversal tuning (the traversal_tuning data asset of its player_config), read on every use
+    TraversalTuning traversal_tuning() const;
 
     void on_start() override;
     void update(float dt);

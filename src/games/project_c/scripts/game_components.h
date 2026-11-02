@@ -80,10 +80,25 @@ struct PlayerTuning
     float knockback_speed;
 };
 
+// how the player gets around obstacles: climbing, vaulting, mantling (a data asset, assets/data/player); the geometry
+// of the probes stays in player_traversal.cpp
+struct TraversalTuning
+{
+    // metres per second on a wall
+    float climb_speed_vertical;
+    float climb_speed_lateral;
+    // the scripted moves
+    float mantle_duration_seconds;
+    float vault_duration_seconds;
+    float climb_down_duration_seconds;
+};
+
 struct PlayerConfig
 {
     // a PlayerTuning data asset; with none, the player has default_player_tuning()
     engine_data_asset_t tuning;
+    // a TraversalTuning data asset; with none, the player has default_traversal_tuning()
+    engine_data_asset_t traversal;
 };
 
 // what the House hides while the player is inside it
@@ -157,6 +172,7 @@ struct GameComponentTypes
     engine_component_type_t enemy_attack = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_type = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_tuning = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_component_type_t traversal_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t building_part_config = ENGINE_INVALID_OBJECT_HANDLE;
@@ -175,6 +191,7 @@ const GameComponentTypes& game_components();
 // have
 EnemyType default_enemy_type();
 PlayerTuning default_player_tuning();
+TraversalTuning default_traversal_tuning();
 EnemyConfig default_enemy_config();
 PlayerConfig default_player_config();
 BuildingPartConfig default_building_part_config();

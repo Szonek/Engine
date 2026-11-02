@@ -32,21 +32,16 @@ constexpr float TRAVERSAL_DROP_REGRAB_COOLDOWN = 0.8f;  // after letting go with
 constexpr float CLIMB_INPUT_DEADZONE = 0.3f;
 constexpr float CLIMB_WALL_OFFSET = 0.2f;               // distance between wall surface and the player while climbing
 constexpr float CLIMB_PROBE_DEPTH = 0.25f;              // how far behind the expected wall surface probes still count as a hit
-constexpr float CLIMB_SPEED_VERTICAL = 2.0f;
-constexpr float CLIMB_SPEED_LATERAL = 1.6f;
 constexpr float CLIMB_DROP_PUSH = 0.15f;
 constexpr float MANTLE_LEDGE_DEPTH = 0.25f;             // how far behind the wall surface ledge is looked for
 constexpr float MANTLE_MAX_LEDGE_HEIGHT = 1.4f;
-constexpr float MANTLE_DURATION = 0.4f;
 constexpr float VAULT_MAX_HEIGHT = 0.7f;
 constexpr float VAULT_MAX_DEPTH = 1.0f;
 constexpr float VAULT_CLEARANCE = 0.12f;
 constexpr float VAULT_LANDING_DISTANCE = 0.35f;
 constexpr float VAULT_MAX_ALIGNMENT = 0.6f;
-constexpr float VAULT_DURATION = 0.45f;
 constexpr float CLIMB_DOWN_EDGE_DISTANCE = 0.45f;
 constexpr float CLIMB_DOWN_HANG_DEPTH = 0.95f;
-constexpr float CLIMB_DOWN_DURATION = 0.35f;
 // No dedicated climbing clips in the KayKit pack, closest matches are used.
 constexpr const char* CLIMB_ANIMATION = "Jump_Idle";
 constexpr const char* VAULT_ANIMATION = "Jump_Full_Short";
@@ -85,7 +80,7 @@ project_c::PlayerTraversal::~PlayerTraversal()
     }
 }
 
-project_c::MovementMode project_c::PlayerTraversal::update_grounded(const GroundInput& input, float delta_seconds)
+project_c::MovementMode project_c::PlayerTraversal::update_grounded(const GroundInput& input, const TraversalTuning& tuning, float delta_seconds)
 {
     regrab_cooldown_ = std::max(0.0f, regrab_cooldown_ - delta_seconds);
 
@@ -101,7 +96,7 @@ project_c::MovementMode project_c::PlayerTraversal::update_grounded(const Ground
         && plan.distance <= TRAVERSAL_TRIGGER_DISTANCE
         && regrab_cooldown_ <= 0.0f)
     {
-        return execute_traversal(plan);
+        return execute_traversal(plan, tuning);
     }
     return MovementMode::eGrounded;
 }
@@ -258,7 +253,6 @@ project_c::PlayerTraversal::TraversalPlan project_c::PlayerTraversal::plan_vault
     plan.move.path.p1 = glm::vec3(middle.x, top_y + VAULT_CLEARANCE, middle.z) + tangent * lateral_offset;
     plan.move.path.p2 = glm::vec3(landing.x, ground_hit.position.y + 0.01f, landing.z);
     plan.move.path.curved = true;
-    plan.move.duration = VAULT_DURATION;
     plan.move.yaw = yaw_from_direction(forward);
     // on top of the sill
     plan.marker = glm::vec3(middle.x, top_y + TRAVERSAL_MARKER_SIZE, middle.z) + tangent * lateral_offset;
@@ -300,7 +294,6 @@ project_c::PlayerTraversal::TraversalPlan project_c::PlayerTraversal::plan_climb
         plan.move.path.p1 = glm::vec3(hang_position.x, position.y + 0.1f, hang_position.z);
         plan.move.path.p2 = hang_position;
         plan.move.path.split = 0.4f;
-        plan.move.duration = CLIMB_DOWN_DURATION;
         plan.move.yaw = yaw_from_direction(-wall_normal);
         plan.move.climb_after = true;
         // on the edge
@@ -310,23 +303,26 @@ project_c::PlayerTraversal::TraversalPlan project_c::PlayerTraversal::plan_climb
     return {};
 }
 
-project_c::MovementMode project_c::PlayerTraversal::execute_traversal(const TraversalPlan& plan)
+project_c::MovementMode project_c::PlayerTraversal::execute_traversal(const TraversalPlan& plan, const TraversalTuning& tuning)
 {
+    auto move = plan.move;
     switch (plan.type)
     {
     case TraversalPlan::Type::eClimb:
         return start_climbing(plan.wall_normal, plan.climb_position);
     case TraversalPlan::Type::eVault:
-        return start_move(plan.move, VAULT_ANIMATION);
+        move.duration = tuning.vault_duration_seconds;
+        return start_move(move, VAULT_ANIMATION);
     case TraversalPlan::Type::eClimbDown:
         climb_wall_normal_ = plan.wall_normal;
-        return start_move(plan.move, CLIMB_ANIMATION);
+        move.duration = tuning.climb_down_duration_seconds;
+        return start_move(move, CLIMB_ANIMATION);
     default:
         return MovementMode::eGrounded;
     }
 }
 
-bool project_c::PlayerTraversal::try_start_mantle(const glm::vec3& position)
+bool project_c::PlayerTraversal::try_start_mantle(const glm::vec3& position, const TraversalTuning& tuning)
 {
     const glm::vec3 into_wall = -climb_wall_normal_;
     const glm::vec3 ledge_xz = position + into_wall * (CLIMB_WALL_OFFSET + MANTLE_LEDGE_DEPTH);
@@ -357,7 +353,7 @@ bool project_c::PlayerTraversal::try_start_mantle(const glm::vec3& position)
     move.path.p2 = position + into_wall * (CLIMB_WALL_OFFSET + MANTLE_LEDGE_DEPTH + 0.15f);
     move.path.p2.y = ledge_y + 0.02f;
     move.path.split = 0.55f;
-    move.duration = MANTLE_DURATION;
+    move.duration = tuning.mantle_duration_seconds;
     move.yaw = yaw_from_direction(into_wall);
     start_move(move, MANTLE_ANIMATION);
     return true;
@@ -419,7 +415,8 @@ project_c::MovementMode project_c::PlayerTraversal::update_scripted_move(float d
     return end(TRAVERSAL_REGRAB_COOLDOWN);
 }
 
-project_c::MovementMode project_c::PlayerTraversal::update_climbing(const glm::vec3& move_input, bool drop_pressed, float delta_seconds)
+project_c::MovementMode project_c::PlayerTraversal::update_climbing(const glm::vec3& move_input, bool drop_pressed, const TraversalTuning& tuning,
+    float delta_seconds)
 {
     update_marker({}, delta_seconds);
     const auto tc = engineGameObjectGetTransformComponent(go_);
@@ -460,7 +457,7 @@ project_c::MovementMode project_c::PlayerTraversal::update_climbing(const glm::v
     if (lateral_input != 0.0f)
     {
         const float lateral_sign = lateral_input > 0.0f ? 1.0f : -1.0f;
-        const glm::vec3 candidate = position + tangent * (lateral_input * CLIMB_SPEED_LATERAL * delta_seconds);
+        const glm::vec3 candidate = position + tangent * (lateral_input * tuning.climb_speed_lateral * delta_seconds);
         // leading side of the body has to stay on the wall, so the player does not hang over a corner
         if (touches_wall(candidate + tangent * (lateral_sign * PLAYER_HALF_WIDTH)))
         {
@@ -470,11 +467,11 @@ project_c::MovementMode project_c::PlayerTraversal::update_climbing(const glm::v
 
     if (vertical_input > 0.0f)
     {
-        const glm::vec3 candidate = position + WORLD_UP * (vertical_input * CLIMB_SPEED_VERTICAL * delta_seconds);
+        const glm::vec3 candidate = position + WORLD_UP * (vertical_input * tuning.climb_speed_vertical * delta_seconds);
         if (!wall_probe(candidate, PROBE_HEAD_HEIGHT).climbable)
         {
             // head above the wall: pull up onto the ledge if there is one
-            if (try_start_mantle(position))
+            if (try_start_mantle(position, tuning))
             {
                 return MovementMode::eScriptedMove;
             }
@@ -490,7 +487,7 @@ project_c::MovementMode project_c::PlayerTraversal::update_climbing(const glm::v
     }
     else if (vertical_input < 0.0f)
     {
-        const glm::vec3 candidate = position + WORLD_UP * (vertical_input * CLIMB_SPEED_VERTICAL * delta_seconds);
+        const glm::vec3 candidate = position + WORLD_UP * (vertical_input * tuning.climb_speed_vertical * delta_seconds);
         const auto ground_hit = probe(position + WORLD_UP * 0.05f, candidate - WORLD_UP * 0.02f);
         if (ground_hit.hit && ground_hit.normal.y > 0.7f)
         {
