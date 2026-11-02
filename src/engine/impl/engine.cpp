@@ -8,6 +8,7 @@
 #include "asset_store.h"
 #include "ui_document.h"
 #include "collision_desc.h"
+#include "overlap_results.h"
 #include "components_internals/prefab_instance_component.h"
 #include "animation_controller.h"
 #include "profiler.h"
@@ -975,6 +976,22 @@ bool enginePhysicsRayCast(const float origin[3], const float direction[3], float
     const std::span<const engine_game_object_t> ignore = f.ignore ? std::span(f.ignore, f.ignore_count) : std::span<const engine_game_object_t>{};
     auto sc = api_cast(G_ACTIVE_SCENE);
     return sc->physics().raycast(glm::make_vec3(origin), glm::make_vec3(direction), max_distance, ignore, f.hit_triggers, *out_hit);
+}
+
+size_t enginePhysicsOverlapSphere(const float center[3], float radius, const engine_physics_query_filter_t* filter, engine_game_object_t* out_game_objects, size_t capacity)
+{
+    if (!G_ACTIVE_SCENE || !center || !(radius > 0.0f))
+    {
+        return 0;
+    }
+    const engine_physics_query_filter_t no_filter{};
+    const auto& f = filter ? *filter : no_filter;
+    const std::span<const engine_game_object_t> ignore = f.ignore ? std::span(f.ignore, f.ignore_count) : std::span<const engine_game_object_t>{};
+    auto sc = api_cast(G_ACTIVE_SCENE);
+    std::vector<engine::OverlapHit> hits;
+    sc->physics().overlap_sphere(glm::make_vec3(center), radius, ignore, f.hit_triggers, hits);
+    const auto out = out_game_objects ? std::span(out_game_objects, capacity) : std::span<engine_game_object_t>{};
+    return engine::write_nearest_first(hits, out);
 }
 
 bool enginePhysicsAddForce(engine_game_object_t go, const float force[3], engine_force_type_t type)
