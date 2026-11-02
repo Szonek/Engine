@@ -142,6 +142,10 @@ private:
     TraversalPlan plan_climb_down(const glm::vec3& position, const glm::vec3& direction) const;
     MovementMode start_action(traversal_math::GroundAction action, const glm::vec3& position, const TraversalPlan& plan, const TraversalTuning& tuning);
     MovementMode start_leap(const glm::vec3& position, const glm::vec3& direction, float drop, const TraversalTuning& tuning);
+    // The path from `start` (on the wall, facing `into_wall`) up the wall and onto the ledge behind its top, `split`
+    // of the time going up: the top is looked for from `max_height` above `start` down to the knee, a building's flat
+    // top with room to stand on it and nothing above the way up. nullopt without one (the mantle and the run-up).
+    std::optional<traversal_math::MovePath> plan_ledge_move(const glm::vec3& start, const glm::vec3& into_wall, float max_height, float split) const;
     bool try_start_mantle(const glm::vec3& position, const TraversalTuning& tuning);
     // the move of a run-up from `position` at the wall of the climb plan: over its top, or up to the run-up height
     // and climbing; nullopt when the wall can't be run up (the player climbs it)

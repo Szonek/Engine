@@ -460,37 +460,51 @@ project_c::MovementMode project_c::PlayerTraversal::update_airborne(const glm::v
     return result.grounded ? MovementMode::eGrounded : MovementMode::eAirborne;
 }
 
-bool project_c::PlayerTraversal::try_start_mantle(const glm::vec3& position, const TraversalTuning& tuning)
+std::optional<project_c::traversal_math::MovePath> project_c::PlayerTraversal::plan_ledge_move(const glm::vec3& start, const glm::vec3& into_wall,
+    float max_height, float split) const
 {
-    const glm::vec3 into_wall = -climb_wall_normal_;
-    const glm::vec3 ledge_xz = position + into_wall * (CLIMB_WALL_OFFSET + MANTLE_LEDGE_DEPTH);
+    const glm::vec3 ledge_xz = start + into_wall * (CLIMB_WALL_OFFSET + MANTLE_LEDGE_DEPTH);
     const auto ledge_hit = probe(
-        glm::vec3(ledge_xz.x, position.y + MANTLE_MAX_LEDGE_HEIGHT, ledge_xz.z),
-        glm::vec3(ledge_xz.x, position.y + PROBE_KNEE_HEIGHT, ledge_xz.z));
+        glm::vec3(ledge_xz.x, start.y + max_height, ledge_xz.z),
+        glm::vec3(ledge_xz.x, start.y + PROBE_KNEE_HEIGHT, ledge_xz.z));
     if (!ledge_hit.building || ledge_hit.normal.y < 0.7f)
     {
-        return false;
+        return std::nullopt;
     }
 
     // standing room above the ledge
     if (probe(ledge_hit.position + WORLD_UP * 0.02f, ledge_hit.position + WORLD_UP * PLAYER_HEIGHT).hit)
     {
-        return false;
+        return std::nullopt;
     }
 
     // nothing above the player on the way up (i.e. ceiling when climbing on the inner side of a wall)
     const float ledge_y = ledge_hit.position.y;
-    if (probe(position + WORLD_UP * PROBE_CHEST_HEIGHT, glm::vec3(position.x, ledge_y + PLAYER_HEIGHT, position.z)).hit)
+    if (probe(start + WORLD_UP * PROBE_CHEST_HEIGHT, glm::vec3(start.x, ledge_y + PLAYER_HEIGHT, start.z)).hit)
+    {
+        return std::nullopt;
+    }
+
+    traversal_math::MovePath path{};
+    path.p0 = start;
+    path.p1 = glm::vec3(start.x, ledge_y + 0.05f, start.z);
+    path.p2 = start + into_wall * (CLIMB_WALL_OFFSET + MANTLE_LEDGE_DEPTH + 0.15f);
+    path.p2.y = ledge_y + 0.02f;
+    path.split = split;
+    return path;
+}
+
+bool project_c::PlayerTraversal::try_start_mantle(const glm::vec3& position, const TraversalTuning& tuning)
+{
+    const glm::vec3 into_wall = -climb_wall_normal_;
+    const auto path = plan_ledge_move(position, into_wall, MANTLE_MAX_LEDGE_HEIGHT, 0.55f);
+    if (!path)
     {
         return false;
     }
 
     TraversalMove move{};
-    move.path.p0 = position;
-    move.path.p1 = glm::vec3(position.x, ledge_y + 0.05f, position.z);
-    move.path.p2 = position + into_wall * (CLIMB_WALL_OFFSET + MANTLE_LEDGE_DEPTH + 0.15f);
-    move.path.p2.y = ledge_y + 0.02f;
-    move.path.split = 0.55f;
+    move.path = path.value();
     move.duration = tuning.mantle_duration_seconds;
     move.yaw = yaw_from_direction(into_wall);
     start_move(move, MANTLE_ANIMATION);
@@ -505,30 +519,13 @@ std::optional<project_c::PlayerTraversal::TraversalMove> project_c::PlayerTraver
     const glm::vec3& start = plan.climb_position;
 
     TraversalMove move{};
-    move.path.p0 = position;
     move.yaw = yaw_from_direction(into_wall);
 
-    // the top of the wall, with the mantle's ledge probe from the run-up height down
-    const glm::vec3 ledge_xz = start + into_wall * (CLIMB_WALL_OFFSET + MANTLE_LEDGE_DEPTH);
-    const auto ledge_hit = probe(
-        glm::vec3(ledge_xz.x, position.y + tuning.run_up_max_height, ledge_xz.z),
-        glm::vec3(ledge_xz.x, position.y + PROBE_KNEE_HEIGHT, ledge_xz.z));
-    const bool ledge = ledge_hit.building
-        && ledge_hit.normal.y >= 0.7f
-        // standing room above the ledge
-        && !probe(ledge_hit.position + WORLD_UP * 0.02f, ledge_hit.position + WORLD_UP * PLAYER_HEIGHT).hit;
-    if (ledge)
+    // the top of the wall within the run-up height: up the wall and over the edge onto the ledge, from where the player is
+    if (const auto path = plan_ledge_move(start, into_wall, tuning.run_up_max_height - (start.y - position.y), RUN_UP_WALL_FRACTION))
     {
-        // up the wall and over the edge onto the ledge, unless something is above the way up
-        const float ledge_y = ledge_hit.position.y;
-        if (probe(start + WORLD_UP * PROBE_CHEST_HEIGHT, glm::vec3(start.x, ledge_y + PLAYER_HEIGHT, start.z)).hit)
-        {
-            return std::nullopt;
-        }
-        move.path.p1 = glm::vec3(start.x, ledge_y + 0.05f, start.z);
-        move.path.p2 = start + into_wall * (CLIMB_WALL_OFFSET + MANTLE_LEDGE_DEPTH + 0.15f);
-        move.path.p2.y = ledge_y + 0.02f;
-        move.path.split = RUN_UP_WALL_FRACTION;
+        move.path = path.value();
+        move.path.p0 = position;
         move.duration = tuning.run_up_duration_seconds;
         move.finish_animation = RUN_UP_FINISH_ANIMATION;
         return move;
@@ -542,6 +539,7 @@ std::optional<project_c::PlayerTraversal::TraversalMove> project_c::PlayerTraver
     {
         return std::nullopt;
     }
+    move.path.p0 = position;
     move.path.p1 = end;
     // where climbing starts (update_scripted_move)
     move.path.p2 = end;
