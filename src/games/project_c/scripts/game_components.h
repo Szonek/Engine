@@ -80,10 +80,41 @@ struct PlayerTuning
     float knockback_speed;
 };
 
+// how the player gets around obstacles: climbing, vaulting, mantling (a data asset, assets/data/player); the geometry
+// of the probes stays in player_traversal.cpp
+struct TraversalTuning
+{
+    // metres per second on a wall
+    float climb_speed_vertical;
+    float climb_speed_lateral;
+    // the scripted moves
+    float mantle_duration_seconds;
+    float vault_duration_seconds;
+    float climb_down_duration_seconds;
+    // metres per second: from this speed on the player runs, running up walls and off edges
+    float run_min_speed;
+    // running up a wall: the highest ledge it reaches (a higher wall is run up this far, then climbed), its duration
+    float run_up_max_height;
+    float run_up_duration_seconds;
+    // walking into a wall climbs it once the input has pushed into it this long
+    float climb_intent_seconds;
+    // the safe height of a fall: a higher edge is always climbed down
+    float max_safe_drop;
+    // the leap (a dodge at an edge): metres to the landing, metres above the takeoff at the top of the arc
+    float leap_distance;
+    float leap_height;
+    // the fraction of the ground acceleration the input has in the air
+    float air_control;
+    // seconds without control after landing
+    float landing_recovery_seconds;
+};
+
 struct PlayerConfig
 {
     // a PlayerTuning data asset; with none, the player has default_player_tuning()
     engine_data_asset_t tuning;
+    // a TraversalTuning data asset; with none, the player has default_traversal_tuning()
+    engine_data_asset_t traversal;
 };
 
 // what the House hides while the player is inside it
@@ -157,6 +188,7 @@ struct GameComponentTypes
     engine_component_type_t enemy_attack = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_type = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_tuning = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_component_type_t traversal_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t building_part_config = ENGINE_INVALID_OBJECT_HANDLE;
@@ -175,6 +207,7 @@ const GameComponentTypes& game_components();
 // have
 EnemyType default_enemy_type();
 PlayerTuning default_player_tuning();
+TraversalTuning default_traversal_tuning();
 EnemyConfig default_enemy_config();
 PlayerConfig default_player_config();
 BuildingPartConfig default_building_part_config();

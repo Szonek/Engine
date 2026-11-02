@@ -255,6 +255,46 @@ TEST_F(CharacterControllerTest, IsBlockedByATooSteepSlope)
     EXPECT_TRUE(result.hit_wall);
 }
 
+// landing on a slope too steep to stand on: held up (blocked below, it stops falling), but not grounded
+TEST_F(CharacterControllerTest, IsHeldUpButNotGroundedOnATooSteepSlope)
+{
+    create_ramp(60.0f);
+    // above the ramp's middle, whose surface there is ~2.6 high
+    const auto character = create_character({ 2.5f, 4.0f, 0.0f });
+
+    walk(character, glm::vec3(0.0f), 90);
+    const auto resting = position_of(character);
+    const auto result = walk(character, glm::vec3(0.0f), 10);
+
+    EXPECT_TRUE(result.blocked_below);
+    EXPECT_FALSE(result.grounded);
+    EXPECT_GT(resting.y, 1.5f);
+    EXPECT_NEAR(position_of(character).y, resting.y, 0.01f);
+}
+
+// on walkable ground it is both
+TEST_F(CharacterControllerTest, IsBlockedBelowOnTheFloor)
+{
+    const auto character = create_character({ 0.0f, 0.0f, 0.0f });
+    const auto result = walk(character, glm::vec3(0.0f), 10);
+    EXPECT_TRUE(result.grounded);
+    EXPECT_TRUE(result.blocked_below);
+}
+
+TEST_F(CharacterControllerTest, ReportsTheGravity)
+{
+    float gravity[3] = {};
+    enginePhysicsGetGravityVector(gravity);
+    EXPECT_FLOAT_EQ(gravity[1], -10.0f);
+
+    const float low[3] = { 0.0f, -2.0f, 0.0f };
+    enginePhysicsSetGravityVector(low);
+    enginePhysicsGetGravityVector(gravity);
+    EXPECT_FLOAT_EQ(gravity[0], 0.0f);
+    EXPECT_FLOAT_EQ(gravity[1], -2.0f);
+    EXPECT_FLOAT_EQ(gravity[2], 0.0f);
+}
+
 TEST_F(CharacterControllerTest, IsBlockedByAnotherCharacter)
 {
     const auto character = create_character({ 0.0f, 0.0f, 0.0f });

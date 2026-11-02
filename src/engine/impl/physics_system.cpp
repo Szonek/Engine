@@ -143,6 +143,7 @@ engine_result_code_t engine::PhysicsSystem::move_character(entt::entity entity, 
     std::memcpy(updated.position, glm::value_ptr(result.position), sizeof(updated.position));
     registry_.replace<engine_transform_component_t>(entity, updated);
     out_result.grounded = result.grounded;
+    out_result.blocked_below = result.blocked_below;
     out_result.hit_wall = result.hit_wall;
     out_result.hit_ceiling = result.hit_ceiling;
     return ENGINE_RESULT_CODE_OK;
@@ -176,6 +177,11 @@ void engine::PhysicsSystem::set_gravity(std::array<float, 3> gravity)
 {
     ENGINE_PROFILE_SECTION;
     world_.set_gravity(gravity);
+}
+
+glm::vec3 engine::PhysicsSystem::get_gravity() const
+{
+    return world_.get_gravity();
 }
 
 const std::vector<engine::CollisionDesc>& engine::PhysicsSystem::get_collisions() const

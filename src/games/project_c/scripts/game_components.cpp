@@ -119,6 +119,26 @@ project_c::PlayerTuning project_c::default_player_tuning()
     return t;
 }
 
+project_c::TraversalTuning project_c::default_traversal_tuning()
+{
+    TraversalTuning t{};
+    t.climb_speed_vertical = 3.0f;
+    t.climb_speed_lateral = 1.6f;
+    t.mantle_duration_seconds = 0.3f;
+    t.vault_duration_seconds = 0.45f;
+    t.climb_down_duration_seconds = 0.35f;
+    t.run_min_speed = 2.0f;
+    t.run_up_max_height = 2.4f;
+    t.run_up_duration_seconds = 0.5f;
+    t.climb_intent_seconds = 0.1f;
+    t.max_safe_drop = 3.0f;
+    t.leap_distance = 3.0f;
+    t.leap_height = 0.6f;
+    t.air_control = 0.3f;
+    t.landing_recovery_seconds = 0.15f;
+    return t;
+}
+
 project_c::EnemyConfig project_c::default_enemy_config()
 {
     return EnemyConfig{ ENGINE_INVALID_OBJECT_HANDLE };
@@ -126,7 +146,7 @@ project_c::EnemyConfig project_c::default_enemy_config()
 
 project_c::PlayerConfig project_c::default_player_config()
 {
-    return PlayerConfig{ ENGINE_INVALID_OBJECT_HANDLE };
+    return PlayerConfig{ ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE };
 }
 
 project_c::BuildingPartConfig project_c::default_building_part_config()
@@ -205,6 +225,37 @@ void project_c::register_game_components()
         ranged(field("knockback_speed", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, knockback_speed), "metres per second the player is pushed back when hit"), 0.0f, 20.0f),
     }, default_player_tuning());
 
+    g_types.traversal_tuning = register_data_asset_type("traversal_tuning", {
+        ranged(field("climb_speed_vertical", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, climb_speed_vertical),
+            "metres per second up and down a wall"), 0.1f, 10.0f),
+        ranged(field("climb_speed_lateral", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, climb_speed_lateral),
+            "metres per second sideways along a wall"), 0.1f, 10.0f),
+        ranged(field("mantle_duration_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, mantle_duration_seconds),
+            "pulling up from the top of a wall onto the ledge"), 0.05f, 2.0f),
+        ranged(field("vault_duration_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, vault_duration_seconds),
+            "vaulting through a window or over a low wall"), 0.05f, 2.0f),
+        ranged(field("climb_down_duration_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, climb_down_duration_seconds),
+            "stepping over a roof edge onto the wall below"), 0.05f, 2.0f),
+        ranged(field("run_min_speed", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, run_min_speed),
+            "metres per second: approaching faster, the player runs up walls and off edges instead of climbing"), 0.0f, 10.0f),
+        ranged(field("run_up_max_height", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, run_up_max_height),
+            "metres: the highest ledge a run-up reaches; a higher wall is run up this far, then climbed"), 0.0f, 10.0f),
+        ranged(field("run_up_duration_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, run_up_duration_seconds),
+            "running up a wall and over its edge"), 0.05f, 2.0f),
+        ranged(field("climb_intent_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, climb_intent_seconds),
+            "walking into a wall climbs it once the input has pushed into it this long"), 0.0f, 1.0f),
+        ranged(field("max_safe_drop", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, max_safe_drop),
+            "metres: a higher edge is always climbed down, also when running"), 0.0f, 20.0f),
+        ranged(field("leap_distance", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, leap_distance),
+            "metres from the takeoff to the landing of a leap (a dodge at an edge)"), 0.0f, 20.0f),
+        ranged(field("leap_height", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, leap_height),
+            "metres above the takeoff at the top of a leap"), 0.0f, 5.0f),
+        ranged(field("air_control", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, air_control),
+            "the fraction of the ground acceleration the input has in the air"), 0.0f, 1.0f),
+        ranged(field("landing_recovery_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, landing_recovery_seconds),
+            "seconds without control after landing"), 0.0f, 2.0f),
+    }, default_traversal_tuning());
+
     // version 2: the tuning moved to the data assets
     g_types.enemy_config = register_component("enemy_config", {
         data_asset("type", offsetof(EnemyConfig, type), "enemy_type", "the kind of enemy: its tuning, shared by the enemies of the kind (assets/data/enemies)"),
@@ -212,6 +263,7 @@ void project_c::register_game_components()
 
     g_types.player_config = register_component("player_config", {
         data_asset("tuning", offsetof(PlayerConfig, tuning), "player_tuning", "the player's tuning (assets/data/player)"),
+        data_asset("traversal", offsetof(PlayerConfig, traversal), "traversal_tuning", "how the player climbs and vaults (assets/data/player)"),
     }, default_player_config(), 2);
 
     static const engine_enum_value_desc_t hide_values[] = {

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "type": "traversal_tuning",
+  "type_version": 1,
+  "value": {
+    "climb_speed_vertical": 3,
+    "climb_speed_lateral": 1.6,
+    "mantle_duration_seconds": 0.3,
+    "vault_duration_seconds": 0.45,
+    "climb_down_duration_seconds": 0.35,
+    "run_min_speed": 2,
+    "run_up_max_height": 2.4,
+    "run_up_duration_seconds": 0.5,
+    "climb_intent_seconds": 0.1,
+    "max_safe_drop": 3,
+    "leap_distance": 3,
+    "leap_height": 0.6,
+    "air_control": 0.3,
+    "landing_recovery_seconds": 0.15
+  }
+}

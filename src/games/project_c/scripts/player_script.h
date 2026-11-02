@@ -1,6 +1,7 @@
 #pragma once
 #include "base_script.h"
 #include "game_components.h"
+#include "player_traversal.h"
 #include "../player_input.h"
 #include "../player_state.h"
 
@@ -142,57 +143,6 @@ private:
         eRecovery
     };
 
-    // Environment traversal (climbing walls, vaulting through windows, mantling onto roofs).
-    // While traversing the player's transform is set by the traversal code; its character controller doesn't move it.
-    enum class TraversalState
-    {
-        eNone,
-        eClimbing,      // attached to a wall, WASD moves on the wall
-        eScriptedMove   // vault / mantle / climb down transitions, follows a fixed path
-    };
-
-    struct TraversalMove
-    {
-        glm::vec3 p0{ 0.0f };
-        glm::vec3 p1{ 0.0f };
-        glm::vec3 p2{ 0.0f };
-        float duration = 0.0f;
-        float elapsed = 0.0f;
-        bool curved = false;        // quadratic curve through p1 (vault), otherwise two linear segments (mantle, climb down)
-        float split = 0.5f;         // linear segments only: fraction of the time spent on p0->p1
-        float yaw = 0.0f;
-        bool climb_after = false;   // enter climbing when done (climb down from roof), otherwise back to locomotion
-    };
-
-    struct ProbeHit
-    {
-        bool hit = false;           // anything (except player itself) was hit
-        bool building = false;      // hit object is a BuildingPart
-        bool climbable = false;     // hit object is a climbable BuildingPart
-        engine_game_object_t go = ENGINE_INVALID_GAME_OBJECT_ID;
-        glm::vec3 position{ 0.0f };
-        glm::vec3 normal{ 0.0f };
-    };
-
-    // Traversal available in the movement direction. Shown by the marker while approaching,
-    // started automatically once the player reaches the obstacle.
-    struct TraversalPlan
-    {
-        enum class Type
-        {
-            eNone,
-            eClimb,
-            eVault,
-            eClimbDown
-        };
-        Type type = Type::eNone;
-        float distance = 0.0f;              // how far the player still has to go before the traversal starts
-        glm::vec3 marker{ 0.0f };           // where the indicator is shown
-        glm::vec3 wall_normal{ 0.0f };
-        glm::vec3 climb_position{ 0.0f };   // eClimb only
-        TraversalMove move{};               // eVault and eClimbDown only
-    };
-
 public:
     // the scale of the player's model in the level
     static constexpr float MODEL_SCALE = 0.35f;
@@ -204,6 +154,8 @@ public:
 
     // its tuning (the player_tuning data asset its player_config component references), read on every use
     PlayerTuning tuning() const;
+    // its traversal tuning (the traversal_tuning data asset of its player_config), read on every use
+    TraversalTuning traversal_tuning() const;
 
     void on_start() override;
     void update(float dt);
@@ -219,6 +171,7 @@ public:
 
     void add_coin(std::uint64_t amount);
     std::uint64_t get_coins() const { return state().coins; }
+    MovementMode movement_mode() const { return movement_mode_; }
     // its stats (hp, coins, weapon), kept by the app so they outlive the level (AppProjectC::player_state)
     const PlayerState& state() const;
     // what a player who has nothing carried starts with
@@ -274,28 +227,18 @@ private:
     bool start_attack(std::size_t combo_index);
     bool start_dodge(const glm::vec2& move_input, const glm::quat& rotation);
 
-    // traversal
-    TraversalState traversal_state_ = TraversalState::eNone;
-    TraversalMove traversal_move_{};
-    glm::vec3 climb_wall_normal_{ 0.0f, 0.0f, 1.0f };
-    float traversal_regrab_cooldown_ = 0.0f;
-    engine_game_object_t traversal_marker_ = ENGINE_INVALID_GAME_OBJECT_ID;
-    TraversalPlan::Type traversal_marker_type_ = TraversalPlan::Type::eNone;
-    float traversal_marker_time_ = 0.0f;
-
-    ProbeHit probe(const glm::vec3& from, const glm::vec3& to) const;
-    TraversalPlan find_traversal(const glm::vec3& position, const glm::vec3& direction) const;
-    TraversalPlan find_nearest_traversal(const glm::vec3& position) const;
-    TraversalPlan plan_vault(const glm::vec3& position, const ProbeHit& low_hit) const;
-    TraversalPlan plan_climb_down(const glm::vec3& position, const glm::vec3& direction) const;
-    void execute_traversal(const TraversalPlan& plan);
-    bool try_start_mantle(const glm::vec3& position);
-    void start_climbing(const glm::vec3& wall_normal, const glm::vec3& position);
-    void start_traversal_move(const TraversalMove& move, const char* animation_name);
-    void update_traversal(float delta_seconds, bool drop_pressed);
-    void stop_traversal(float regrab_cooldown);
-    void create_traversal_marker();
-    void update_traversal_marker(const TraversalPlan& plan, float delta_seconds);
-    void set_position_and_yaw(const glm::vec3& position, float yaw);
+    // how the player moves now; changed only by set_movement_mode
+    MovementMode movement_mode_ = MovementMode::eGrounded;
+    // the transitions between the modes: what leaving one and entering the next changes (the combat layer, the
+    // locomotion layer's settings)
+    void set_movement_mode(MovementMode mode, const TraversalTuning& traversal);
+    // the attack, dodge and stun in progress end (the player leaves the ground)
+    void cancel_combat_actions();
+    // the horizontal velocity the character controller moved the player with in the last grounded frame
+    glm::vec3 ground_velocity_{ 0.0f };
+    // how long the character controller hasn't stood the player on the ground
+    float ungrounded_seconds_ = 0.0f;
+    float landing_recovery_remaining_seconds_ = 0.0f;
+    PlayerTraversal traversal_;
 };
 } //namespace project_c

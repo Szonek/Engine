@@ -22,6 +22,8 @@ typedef struct _engine_character_controller_component_t
 typedef struct _engine_character_controller_move_result_t
 {
     bool grounded;     // stands on walkable ground after the move (not on an edge or a too steep slope)
+    bool blocked_below;  // something holds it up after the move, walkable or not (also an edge or a too steep slope;
+                         // like Unity's CollisionFlags.Below): it doesn't fall
     bool hit_wall;     // the move was blocked sideways (it slid along what blocked it)
     bool hit_ceiling;  // an upward move was blocked
 } engine_character_controller_move_result_t;

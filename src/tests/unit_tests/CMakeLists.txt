@@ -4,6 +4,7 @@
 # into this executable. Add new GL-free tests here rather than creating another executable.
 set(ENGINE_LOGIC_TESTS_NAME "engine_logic_tests")
 set(ENGINE_IMPL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/impl)
+set(GAME_SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../games/project_c/scripts)
 add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	test_logger.cpp
 	test_logger.h
@@ -32,6 +33,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	editor_command_manager_tests.cpp
 	editor_scene_file_flow_tests.cpp
 	debug_draw_tests.cpp
+	traversal_math_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
@@ -103,8 +105,10 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/data_asset.h
 	${ENGINE_IMPL_DIR}/file_watcher.cpp
 	${ENGINE_IMPL_DIR}/file_watcher.h
+	# header-only: the maths of the game's player traversal (glm only)
+	${GAME_SCRIPTS_DIR}/traversal_math.h
 )
-target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/include ${RAPIDJSON_INCLUDE_DIR})
+target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/include ${RAPIDJSON_INCLUDE_DIR} ${GAME_SCRIPTS_DIR})
 # profiler.h includes Tracy and RmlUi headers: only their headers, without TRACY_ENABLE the profiling macros are empty
 target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE
 	$<TARGET_PROPERTY:TracyClient,INTERFACE_INCLUDE_DIRECTORIES>
