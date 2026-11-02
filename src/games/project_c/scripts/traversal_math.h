@@ -91,26 +91,35 @@ struct GroundSituation
     bool running = false;
     // eEdge: how far below the ground past the edge is (infinity when there is none)
     float drop = 0.0f;
+    // how long the movement input has pushed into it
+    float pushed_seconds = 0.0f;
 };
 
 enum class GroundAction
 {
     eNone,
     eClimb,
+    // up the wall at running speed (over its top when it is low enough)
+    eRunUp,
     eVault,
     eClimbDown,
     // keep running: off the edge, falling
     eRunOff
 };
 
-// What the player does at what it reached: running at an edge runs off it when the drop is safe; otherwise the
-// obstacle is traversed.
-inline GroundAction choose_ground_action(const GroundSituation& situation, float max_safe_drop)
+// What the player does at what it reached: running into a wall runs up it, walking into it climbs it once the input
+// has pushed into it for `climb_intent_seconds` (so brushing a wall mid-fight doesn't climb it); running at an edge runs
+// off it when the drop is safe; otherwise the obstacle is traversed.
+inline GroundAction choose_ground_action(const GroundSituation& situation, float max_safe_drop, float climb_intent_seconds)
 {
     switch (situation.obstacle)
     {
     case Obstacle::eWall:
-        return GroundAction::eClimb;
+        if (situation.running)
+        {
+            return GroundAction::eRunUp;
+        }
+        return situation.pushed_seconds >= climb_intent_seconds ? GroundAction::eClimb : GroundAction::eNone;
     case Obstacle::eWindow:
         return GroundAction::eVault;
     case Obstacle::eEdge:

@@ -91,6 +91,10 @@ private:
         float elapsed = 0.0f;
         float yaw = 0.0f;
         bool climb_after = false;   // enter climbing when done (climb down from roof), otherwise back to the ground
+        // the clip of the second segment, stretched over it (the run-up's jump over the edge); nullptr: the first clip
+        // is stretched over the whole move
+        const char* finish_animation = nullptr;
+        bool finish_started = false;
     };
 
     struct ProbeHit
@@ -136,9 +140,13 @@ private:
     TraversalPlan find_nearest_traversal(const glm::vec3& position) const;
     TraversalPlan plan_vault(const glm::vec3& position, const ProbeHit& low_hit) const;
     TraversalPlan plan_climb_down(const glm::vec3& position, const glm::vec3& direction) const;
-    MovementMode start_action(traversal_math::GroundAction action, const TraversalPlan& plan, const TraversalTuning& tuning);
+    MovementMode start_action(traversal_math::GroundAction action, const glm::vec3& position, const TraversalPlan& plan, const TraversalTuning& tuning);
     MovementMode start_leap(const glm::vec3& position, const glm::vec3& direction, float drop, const TraversalTuning& tuning);
     bool try_start_mantle(const glm::vec3& position, const TraversalTuning& tuning);
+    // the move of a run-up from `position` at the wall of the climb plan: over its top, or up to the run-up height
+    // and climbing; nullopt when the wall can't be run up (the player climbs it)
+    std::optional<TraversalMove> plan_run_up(const glm::vec3& position, const TraversalPlan& plan, const TraversalTuning& tuning) const;
+    MovementMode start_run_up(const TraversalMove& move, const glm::vec3& wall_normal);
     MovementMode start_climbing(const glm::vec3& wall_normal, const glm::vec3& position);
     MovementMode start_move(const TraversalMove& move, const char* animation_name);
     // back on the ground: no new traversal starts for `regrab_cooldown` seconds
@@ -160,6 +168,8 @@ private:
     {
         TraversalPlan::Type type = TraversalPlan::Type::eNone;
         bool running = false;
+        // how long the input has pushed into it since
+        float pushed_seconds = 0.0f;
     };
     std::optional<Approach> approach_;
     // in the air: the horizontal velocity, and the vertical one of the leap's launch (the character controller adds

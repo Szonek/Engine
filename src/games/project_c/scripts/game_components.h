@@ -91,8 +91,13 @@ struct TraversalTuning
     float mantle_duration_seconds;
     float vault_duration_seconds;
     float climb_down_duration_seconds;
-    // metres per second: from this speed on the player runs, running off edges
+    // metres per second: from this speed on the player runs, running up walls and off edges
     float run_min_speed;
+    // running up a wall: the highest ledge it reaches (a higher wall is run up this far, then climbed), its duration
+    float run_up_max_height;
+    float run_up_duration_seconds;
+    // walking into a wall climbs it once the input has pushed into it this long
+    float climb_intent_seconds;
     // the safe height of a fall: a higher edge is always climbed down
     float max_safe_drop;
     // the leap (a dodge at an edge): metres to the landing, metres above the takeoff at the top of the arc

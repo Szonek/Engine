@@ -122,12 +122,15 @@ project_c::PlayerTuning project_c::default_player_tuning()
 project_c::TraversalTuning project_c::default_traversal_tuning()
 {
     TraversalTuning t{};
-    t.climb_speed_vertical = 2.0f;
+    t.climb_speed_vertical = 3.0f;
     t.climb_speed_lateral = 1.6f;
-    t.mantle_duration_seconds = 0.4f;
+    t.mantle_duration_seconds = 0.3f;
     t.vault_duration_seconds = 0.45f;
     t.climb_down_duration_seconds = 0.35f;
     t.run_min_speed = 2.0f;
+    t.run_up_max_height = 2.4f;
+    t.run_up_duration_seconds = 0.5f;
+    t.climb_intent_seconds = 0.1f;
     t.max_safe_drop = 3.0f;
     t.leap_distance = 3.0f;
     t.leap_height = 0.6f;
@@ -234,7 +237,13 @@ void project_c::register_game_components()
         ranged(field("climb_down_duration_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, climb_down_duration_seconds),
             "stepping over a roof edge onto the wall below"), 0.05f, 2.0f),
         ranged(field("run_min_speed", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, run_min_speed),
-            "metres per second: approaching faster, the player runs off edges instead of climbing down"), 0.0f, 10.0f),
+            "metres per second: approaching faster, the player runs up walls and off edges instead of climbing"), 0.0f, 10.0f),
+        ranged(field("run_up_max_height", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, run_up_max_height),
+            "metres: the highest ledge a run-up reaches; a higher wall is run up this far, then climbed"), 0.0f, 10.0f),
+        ranged(field("run_up_duration_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, run_up_duration_seconds),
+            "running up a wall and over its edge"), 0.05f, 2.0f),
+        ranged(field("climb_intent_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, climb_intent_seconds),
+            "walking into a wall climbs it once the input has pushed into it this long"), 0.0f, 1.0f),
         ranged(field("max_safe_drop", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, max_safe_drop),
             "metres: a higher edge is always climbed down, also when running"), 0.0f, 20.0f),
         ranged(field("leap_distance", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, leap_distance),

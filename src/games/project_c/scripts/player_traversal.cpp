@@ -55,6 +55,12 @@ constexpr const char* CLIMB_ANIMATION = "Jump_Idle";
 constexpr const char* VAULT_ANIMATION = "Jump_Full_Short";
 constexpr const char* MANTLE_ANIMATION = "Jump_Full_Short";
 constexpr const char* LEAP_ANIMATION = "Jump_Start";
+// the run-up: running up the wall (sped up), then the jump over its edge
+constexpr const char* RUN_UP_ANIMATION = "Running_A";
+constexpr const char* RUN_UP_FINISH_ANIMATION = "Jump_Full_Short";
+constexpr float RUN_UP_ANIMATION_RATE = 1.6f;
+// the part of the run-up spent on the wall, the rest goes over the edge
+constexpr float RUN_UP_WALL_FRACTION = 0.7f;
 constexpr const char* AIRBORNE_ANIMATION = "Jump_Idle";
 constexpr float CLIMB_ANIMATION_RATE_MOVING = 1.6f;
 constexpr float CLIMB_ANIMATION_RATE_IDLE = 0.2f;
@@ -121,7 +127,11 @@ project_c::MovementMode project_c::PlayerTraversal::update_grounded(const Ground
     }
     if (!approach_ || approach_->type != plan.type)
     {
-        approach_ = Approach{ plan.type, input.approach_speed >= tuning.run_min_speed };
+        approach_ = Approach{ plan.type, input.approach_speed >= tuning.run_min_speed, 0.0f };
+    }
+    else
+    {
+        approach_->pushed_seconds += delta_seconds;
     }
     if (regrab_cooldown_ > 0.0f)
     {
@@ -138,7 +148,9 @@ project_c::MovementMode project_c::PlayerTraversal::update_grounded(const Ground
     }
     situation.running = approach_->running;
     situation.drop = plan.drop;
-    return start_action(traversal_math::choose_ground_action(situation, tuning.max_safe_drop), plan, tuning);
+    situation.pushed_seconds = approach_->pushed_seconds;
+    const auto action = traversal_math::choose_ground_action(situation, tuning.max_safe_drop, tuning.climb_intent_seconds);
+    return start_action(action, input.position, plan, tuning);
 }
 
 void project_c::PlayerTraversal::cancel()
@@ -355,11 +367,18 @@ project_c::PlayerTraversal::TraversalPlan project_c::PlayerTraversal::plan_climb
     return plan;
 }
 
-project_c::MovementMode project_c::PlayerTraversal::start_action(traversal_math::GroundAction action, const TraversalPlan& plan, const TraversalTuning& tuning)
+project_c::MovementMode project_c::PlayerTraversal::start_action(traversal_math::GroundAction action, const glm::vec3& position, const TraversalPlan& plan,
+    const TraversalTuning& tuning)
 {
     auto move = plan.move;
     switch (action)
     {
+    case traversal_math::GroundAction::eRunUp:
+        if (const auto run_up = plan_run_up(position, plan, tuning))
+        {
+            return start_run_up(run_up.value(), plan.wall_normal);
+        }
+        return start_climbing(plan.wall_normal, plan.climb_position);
     case traversal_math::GroundAction::eClimb:
         return start_climbing(plan.wall_normal, plan.climb_position);
     case traversal_math::GroundAction::eVault:
@@ -478,6 +497,74 @@ bool project_c::PlayerTraversal::try_start_mantle(const glm::vec3& position, con
     return true;
 }
 
+std::optional<project_c::PlayerTraversal::TraversalMove> project_c::PlayerTraversal::plan_run_up(const glm::vec3& position, const TraversalPlan& plan,
+    const TraversalTuning& tuning) const
+{
+    const glm::vec3 wall_normal = plan.wall_normal;
+    const glm::vec3 into_wall = -wall_normal;
+    const glm::vec3& start = plan.climb_position;
+
+    TraversalMove move{};
+    move.path.p0 = position;
+    move.yaw = yaw_from_direction(into_wall);
+
+    // the top of the wall, with the mantle's ledge probe from the run-up height down
+    const glm::vec3 ledge_xz = start + into_wall * (CLIMB_WALL_OFFSET + MANTLE_LEDGE_DEPTH);
+    const auto ledge_hit = probe(
+        glm::vec3(ledge_xz.x, position.y + tuning.run_up_max_height, ledge_xz.z),
+        glm::vec3(ledge_xz.x, position.y + PROBE_KNEE_HEIGHT, ledge_xz.z));
+    const bool ledge = ledge_hit.building
+        && ledge_hit.normal.y >= 0.7f
+        // standing room above the ledge
+        && !probe(ledge_hit.position + WORLD_UP * 0.02f, ledge_hit.position + WORLD_UP * PLAYER_HEIGHT).hit;
+    if (ledge)
+    {
+        // up the wall and over the edge onto the ledge, unless something is above the way up
+        const float ledge_y = ledge_hit.position.y;
+        if (probe(start + WORLD_UP * PROBE_CHEST_HEIGHT, glm::vec3(start.x, ledge_y + PLAYER_HEIGHT, start.z)).hit)
+        {
+            return std::nullopt;
+        }
+        move.path.p1 = glm::vec3(start.x, ledge_y + 0.05f, start.z);
+        move.path.p2 = start + into_wall * (CLIMB_WALL_OFFSET + MANTLE_LEDGE_DEPTH + 0.15f);
+        move.path.p2.y = ledge_y + 0.02f;
+        move.path.split = RUN_UP_WALL_FRACTION;
+        move.duration = tuning.run_up_duration_seconds;
+        move.finish_animation = RUN_UP_FINISH_ANIMATION;
+        return move;
+    }
+
+    // higher: up to where the hands reach the run-up height, then climbing, while the wall goes on and nothing is above
+    const glm::vec3 end(start.x, position.y + std::max(tuning.run_up_max_height - PLAYER_HEIGHT, 0.0f), start.z);
+    const glm::vec3 grab = end + WORLD_UP * PROBE_HEAD_HEIGHT;
+    if (!probe(grab, grab - wall_normal * (CLIMB_WALL_OFFSET + CLIMB_PROBE_DEPTH)).climbable
+        || probe(start + WORLD_UP * PROBE_CHEST_HEIGHT, grab).hit)
+    {
+        return std::nullopt;
+    }
+    move.path.p1 = end;
+    move.path.split = 1.0f;
+    move.duration = tuning.run_up_duration_seconds * RUN_UP_WALL_FRACTION;
+    move.climb_after = true;
+    return move;
+}
+
+project_c::MovementMode project_c::PlayerTraversal::start_run_up(const TraversalMove& move, const glm::vec3& wall_normal)
+{
+    climb_wall_normal_ = wall_normal;
+    move_ = move;
+    move_.elapsed = 0.0f;
+    move_.finish_started = false;
+    // running up the wall; the jump over the edge starts with the move's second segment (update_scripted_move)
+    engineAnimationControllerLayerSetLooping(go_, locomotion_layer_, true);
+    engineAnimationControllerLayerSetPlaybackRate(go_, locomotion_layer_, RUN_UP_ANIMATION_RATE);
+    if (!engineAnimationControllerIsAnimationPlayingOnLayer(go_, RUN_UP_ANIMATION, locomotion_layer_))
+    {
+        engineAnimationControllerAnimationCrossFade(go_, RUN_UP_ANIMATION, locomotion_layer_, 0.05f);
+    }
+    return MovementMode::eScriptedMove;
+}
+
 project_c::MovementMode project_c::PlayerTraversal::start_climbing(const glm::vec3& wall_normal, const glm::vec3& position)
 {
     climb_wall_normal_ = wall_normal;
@@ -522,6 +609,18 @@ project_c::MovementMode project_c::PlayerTraversal::update_scripted_move(float d
     move_.elapsed = std::min(move_.elapsed + delta_seconds, move_.duration);
     const float t = move_.duration > 0.0f ? move_.elapsed / move_.duration : 1.0f;
     set_position_and_yaw(traversal_math::evaluate_move_path(move_.path, t), move_.yaw);
+    if (move_.finish_animation && !move_.finish_started && t >= move_.path.split)
+    {
+        // the second segment's clip, stretched over it
+        move_.finish_started = true;
+        float duration = 0.0f;
+        engineAnimationControllerAnimationGetDuration(go_, move_.finish_animation, &duration);
+        const float segment_seconds = move_.duration * (1.0f - move_.path.split);
+        const float playback_rate = duration > 0.0f && segment_seconds > 0.0f ? std::clamp(duration / segment_seconds, 0.25f, 4.0f) : 1.0f;
+        engineAnimationControllerLayerSetLooping(go_, locomotion_layer_, false);
+        engineAnimationControllerLayerSetPlaybackRate(go_, locomotion_layer_, playback_rate);
+        engineAnimationControllerAnimationCrossFade(go_, move_.finish_animation, locomotion_layer_, 0.05f);
+    }
 
     if (move_.elapsed < move_.duration)
     {
