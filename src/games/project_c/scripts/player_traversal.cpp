@@ -543,6 +543,8 @@ std::optional<project_c::PlayerTraversal::TraversalMove> project_c::PlayerTraver
         return std::nullopt;
     }
     move.path.p1 = end;
+    // where climbing starts (update_scripted_move)
+    move.path.p2 = end;
     move.path.split = 1.0f;
     move.duration = tuning.run_up_duration_seconds * RUN_UP_WALL_FRACTION;
     move.climb_after = true;

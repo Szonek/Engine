@@ -38,13 +38,14 @@ float seconds(std::uint32_t frames)
 class TraversalTest : public scenario::GameplayTest
 {
 protected:
-    // a house centered on the origin standing on `ground_y` (on an invisible block when above the floor), on a floor
-    // reaching well past it, and the player at (x, z) above the floor
-    Player* build(float player_x, float player_z, float ground_y = 0.0f)
+    // a house centered on the origin standing on `ground_y` (on an invisible block when above the floor and `on_block`,
+    // floating otherwise), on a floor reaching well past it, and the player at (x, z) above the floor
+    Player* build(float player_x, float player_z, float ground_y = 0.0f, bool on_block = true)
     {
-        auto* scene = load_sandbox_scene();
+        scene_ = load_sandbox_scene();
+        auto* scene = scene_;
         scene->build().floor_area(-7.0f, -7.0f, 7.0f, 7.0f);
-        if (ground_y > 0.0f)
+        if (ground_y > 0.0f && on_block)
         {
             const float block = (project_c::House::half_size + project_c::House::wall_thickness * 0.5f) * 2.0f;
             scene->build().obstacle(glm::vec3(0.0f, ground_y * 0.5f, 0.0f), glm::vec3(block, ground_y, block));
@@ -93,6 +94,7 @@ protected:
         return position_of(player_->get_game_object());
     }
 
+    scenario::SandboxScene* scene_ = nullptr;
     Player* player_ = nullptr;
     std::vector<MovementMode> modes_seen_;
     float house_ground_y_ = 0.0f;
@@ -132,6 +134,30 @@ TEST_F(TraversalTest, RunningIntoWallRunsUpOntoRoof)
     EXPECT_GT(player_position().y, ROOF_TOP - 0.1f);
     EXPECT_LT(player_position().x, EAST_WALL_FACE_X);
     EXPECT_FALSE(went_through(MovementMode::eClimbing));
+}
+
+// a wall higher than the run-up reaches is run up that far, then climbed: the player stays on the wall (regression: it
+// was put at the world origin)
+TEST_F(TraversalTest, RunningIntoHighWallRunsUpThenClimbs)
+{
+    // a house floating a little above the floor: its roof is above the run-up height, its walls reach down below the
+    // player's chest (so they are climbed) and its gap above the floor is too low to walk under
+    constexpr float FLOAT_Y = 0.7f;
+    player_ = build(EAST_WALL_FACE_X + 3.0f, EAST_WALL_Z, FLOAT_Y, false);
+    ASSERT_NE(player_, nullptr);
+    step(SETTLE_FRAMES);
+    const float floor_y = player_position().y;
+
+    const auto climbing = step_until(moving_left(), 180, [&] { return player_->movement_mode() == MovementMode::eClimbing; });
+    ASSERT_LE(climbing, 180u);
+    EXPECT_TRUE(went_through(MovementMode::eScriptedMove));
+    // on the wall, about the run-up height up
+    const auto on_wall = player_position();
+    EXPECT_NEAR(on_wall.x, EAST_WALL_FACE_X + 0.2f, 0.1f);
+    EXPECT_NEAR(on_wall.z, EAST_WALL_Z, 0.3f);
+    const float hands_reach = project_c::default_traversal_tuning().run_up_max_height;
+    EXPECT_GT(on_wall.y - floor_y, hands_reach - 1.3f);
+    EXPECT_LT(on_wall.y - floor_y, hands_reach);
 }
 
 // walking into the wall from right next to it (no run-up) starts a climb at the bottom of the wall
