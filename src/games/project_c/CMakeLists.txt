@@ -47,6 +47,9 @@ set(LIB_SOURCES
 	scripts/gameplay_hud_script.cpp
 	scripts/player_script.h
 	scripts/player_script.cpp
+	scripts/player_traversal.h
+	scripts/player_traversal.cpp
+	scripts/traversal_math.h
 	
 	scripts/scripts_utils.h
 	scripts/scripts_utils.cpp
