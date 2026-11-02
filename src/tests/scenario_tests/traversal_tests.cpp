@@ -136,6 +136,30 @@ TEST_F(TraversalTest, RunningIntoWallRunsUpOntoRoof)
     EXPECT_FALSE(went_through(MovementMode::eClimbing));
 }
 
+// an attack pressed during a run-up isn't lost: it is done once the player stands on the roof
+TEST_F(TraversalTest, AttackPressedDuringRunUpIsDoneAfterIt)
+{
+    player_ = build(EAST_WALL_FACE_X + 3.0f, EAST_WALL_Z);
+    ASSERT_NE(player_, nullptr);
+    step(SETTLE_FRAMES);
+    const auto reached = step_until(moving_left(), 180, [&] { return player_->movement_mode() == MovementMode::eScriptedMove; });
+    ASSERT_LE(reached, 180u);
+
+    PlayerInput attack{};
+    attack.attack = true;
+    step_until(attack, 1, [] { return true; });
+    ASSERT_EQ(player_->movement_mode(), MovementMode::eScriptedMove);
+    const auto on_roof = step_until({}, 60, [&] { return player_->movement_mode() == MovementMode::eGrounded; });
+    ASSERT_LE(on_roof, 60u);
+
+    // the first attack of the combo plays on the combat layer
+    const auto attacking = step_until({}, 5, [&]
+        {
+            return engineAnimationControllerIsAnimationPlayingOnLayer(player_->get_game_object(), "Dualwield_Melee_Attack_Chop", 1);
+        });
+    EXPECT_LE(attacking, 5u);
+}
+
 // a wall higher than the run-up reaches is run up that far, then climbed: the player stays on the wall (regression: it
 // was put at the world origin)
 TEST_F(TraversalTest, RunningIntoHighWallRunsUpThenClimbs)

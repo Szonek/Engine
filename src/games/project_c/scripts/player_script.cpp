@@ -563,10 +563,13 @@ void project_c::Player::update(float dt)
     const bool cursor_hit = enginePhysicsRayCast(glm::value_ptr(ray.origin), glm::value_ptr(ray.direction), glm::length(ray.direction), nullptr, &hit_info);
 
     const auto lmb = input().interact;
-    // like during hit-stop, an attack or dodge pressed while landing waits until the player can act
-    const bool landing = movement_mode_ == MovementMode::eGrounded && landing_recovery_remaining_seconds_ > 0.0f;
-    const bool attack_pressed = !landing && std::exchange(attack_press_pending_, false);
-    const bool dodge_pressed = !landing && std::exchange(dodge_press_pending_, false);
+    // like during hit-stop, an attack or dodge pressed in the air, during a scripted move or while landing waits until
+    // the player can act (on a wall the dodge press lets go of it)
+    const bool presses_wait = movement_mode_ == MovementMode::eAirborne
+        || movement_mode_ == MovementMode::eScriptedMove
+        || (movement_mode_ == MovementMode::eGrounded && landing_recovery_remaining_seconds_ > 0.0f);
+    const bool attack_pressed = !presses_wait && std::exchange(attack_press_pending_, false);
+    const bool dodge_pressed = !presses_wait && std::exchange(dodge_press_pending_, false);
     const bool drop_weapon_pressed = std::exchange(drop_weapon_press_pending_, false);
 
     const auto button_A = input().left;
@@ -944,7 +947,9 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
     {
         knockback_direction = glm::make_quat(player_transform.rotation) * glm::vec3(0.0f, 0.0f, 1.0f);
     }
-    knockback_velocity_ = glm::normalize(knockback_direction) * t.knockback_speed;
+    // off the ground the hit hurts but neither stuns nor pushes (they are only applied on the ground)
+    const bool grounded = movement_mode_ == MovementMode::eGrounded;
+    knockback_velocity_ = grounded ? glm::normalize(knockback_direction) * t.knockback_speed : glm::vec3(0.0f);
 
     if (hp == 0)
     {
@@ -986,7 +991,7 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
             }
         }
 
-        hit_stun_remaining_seconds_ = t.hit_stun_seconds;
+        hit_stun_remaining_seconds_ = grounded ? t.hit_stun_seconds : 0.0f;
         hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, 0.04f);
         hit_stop_just_started_ = true;
         if (!engineAnimationControllerSetPaused(go_, true))
@@ -1192,13 +1197,21 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
         cancel_combat_actions();
         engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 0.0f);
         movement_velocity_ = glm::vec2(0.0f);
+        ground_velocity_ = glm::vec3(0.0f);
         ungrounded_seconds_ = 0.0f;
         landing_recovery_remaining_seconds_ = 0.0f;
     }
     if (mode == MovementMode::eGrounded)
     {
+        // nothing from before is carried onto the ground: the next grounded move measures the speed again (a traversal
+        // started on the first frame must not see the speed from before the fall or the climb), and a hit taken off
+        // the ground neither stuns nor pushes
+        ground_velocity_ = glm::vec3(0.0f);
+        hit_stun_remaining_seconds_ = 0.0f;
+        knockback_velocity_ = glm::vec3(0.0f);
         engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
-        landing_recovery_remaining_seconds_ = previous == MovementMode::eAirborne ? traversal.landing_recovery_seconds : 0.0f;
+        // a landing, unless the player died in the air (its death plays instead)
+        landing_recovery_remaining_seconds_ = previous == MovementMode::eAirborne && !is_dead() ? traversal.landing_recovery_seconds : 0.0f;
         if (landing_recovery_remaining_seconds_ > 0.0f)
         {
             // the landing plays out before the player acts again (the grounded update ends it)
