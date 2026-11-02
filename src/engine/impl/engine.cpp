@@ -936,6 +936,14 @@ void enginePhysicsSetGravityVector(const float gravity[3])
     sc->physics().set_gravity(std::array<float, 3>{gravity[0], gravity[1], gravity[2]});
 }
 
+void enginePhysicsGetGravityVector(float out_gravity[3])
+{
+    const auto gravity = G_ACTIVE_SCENE ? api_cast(G_ACTIVE_SCENE)->physics().get_gravity() : glm::vec3(0.0f);
+    out_gravity[0] = gravity.x;
+    out_gravity[1] = gravity.y;
+    out_gravity[2] = gravity.z;
+}
+
 size_t enginePhysicsGetNumCollisions()
 {
     if (!G_ACTIVE_SCENE)

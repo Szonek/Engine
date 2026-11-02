@@ -42,6 +42,7 @@ public:
     // applied with the next update (a body created this frame isn't simulated yet); false without a body or an unknown type
     bool add_force(entt::entity entity, std::array<float, 3> force, engine_force_type_t type);
     void set_gravity(std::array<float, 3> gravity);
+    glm::vec3 get_gravity() const;
     // the contacts of the last step
     const std::vector<CollisionDesc>& get_collisions() const;
 

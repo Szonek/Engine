@@ -787,6 +787,8 @@ ENGINE_API void engineTexture2DRelease(engine_texture2d_t tex2d);
 
 // physics 
 ENGINE_API void enginePhysicsSetGravityVector(const float gravity[3]);
+// the active scene's gravity (metres per second per second; (0, -10, 0) unless set), zeros without an active scene
+ENGINE_API void enginePhysicsGetGravityVector(float out_gravity[3]);
 ENGINE_API size_t enginePhysicsGetNumCollisions();
 ENGINE_API const engine_collision_desc_t* enginePhysicsGetCollisionDesc(size_t idx);
 // The closest collider hit along origin + direction * t, t in [0, max_distance] (direction need not be normalized; for a
