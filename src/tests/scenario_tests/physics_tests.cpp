@@ -6,7 +6,9 @@
 
 #include <glm/glm.hpp>
 
+#include <algorithm>
 #include <optional>
+#include <vector>
 
 // Engine physics seen through the game: colliders follow their game objects (including children) on the frame
 // the objects move, not a frame later. Transforms are local to the parent, bodies are in world space.
@@ -139,6 +141,21 @@ bool cast_along_x(float max_distance, const engine_physics_query_filter_t* filte
     const float origin[3] = { -10.0f, 0.0f, 0.0f };
     const float direction[3] = { 2.0f, 0.0f, 0.0f };
     return enginePhysicsRayCast(origin, direction, max_distance, filter, &hit);
+}
+
+// the game objects overlapping a sphere at (x, y, z), nearest first
+std::vector<engine_game_object_t> overlap_sphere(const glm::vec3& center, float radius, const engine_physics_query_filter_t* filter = nullptr)
+{
+    std::vector<engine_game_object_t> found(16, ENGINE_INVALID_GAME_OBJECT_ID);
+    const auto count = enginePhysicsOverlapSphere(&center.x, radius, filter, found.data(), found.size());
+    EXPECT_LE(count, found.size());
+    found.resize(std::min(count, found.size()));
+    return found;
+}
+
+bool contains(const std::vector<engine_game_object_t>& found, engine_game_object_t go)
+{
+    return std::find(found.begin(), found.end(), go) != found.end();
 }
 
 class PhysicsTest : public scenario::ScenarioTest
@@ -537,5 +554,174 @@ TEST_F(PhysicsTest, StaticCollidersDontCollideWithEachOther)
     step(2);
 
     EXPECT_FALSE(collided(a, b));
+}
+
+// a box inside the sphere and one touching its edge (1 mm in) overlap it, one just outside doesn't
+TEST_F(PhysicsTest, OverlapSphereFindsOverlappingColliders)
+{
+    load_scene<PhysicsScene>();
+    const auto inside = create_object(0.5f, 0.0f, 0.0f);
+    add_box_collider(inside);
+    const auto touching = create_object(-1.249f, 0.0f, 0.0f);
+    add_box_collider(touching);
+    const auto outside = create_object(0.0f, 0.0f, 1.3f);
+    add_box_collider(outside);
+    step();
+
+    const auto found = overlap_sphere(glm::vec3(0.0f), 1.0f);
+    EXPECT_EQ(found.size(), 2u);
+    EXPECT_TRUE(contains(found, inside));
+    EXPECT_TRUE(contains(found, touching));
+    EXPECT_FALSE(contains(found, outside));
+}
+
+TEST_F(PhysicsTest, OverlapSphereFindsAStaticAndAKinematicBody)
+{
+    load_scene<PhysicsScene>();
+    const auto wall = create_object(0.5f, 0.0f, 0.0f);
+    add_box_collider(wall);
+    const auto mover = create_object(-0.5f, 0.0f, 0.0f);
+    add_box_collider(mover);
+    set_body_type(mover, ENGINE_RIGID_BODY_TYPE_KINEMATIC);
+    step();
+
+    const auto found = overlap_sphere(glm::vec3(0.0f), 1.0f);
+    EXPECT_TRUE(contains(found, wall));
+    EXPECT_TRUE(contains(found, mover));
+}
+
+TEST_F(PhysicsTest, OverlapSphereFindsACharacterController)
+{
+    load_scene<PhysicsScene>();
+    const auto character = create_object(0.5f, 0.0f, 0.0f);
+    auto controller = engineGameObjectAddCharacterControllerComponent(character);
+    controller.radius = 0.3f;
+    controller.height = 1.8f;
+    controller.step_height = 0.3f;
+    engineGameObjectUpdateCharacterControllerComponent(character, &controller);
+    step();
+
+    // the capsule stands on its origin: its side is 0.2 from the center at the height of the sphere
+    const auto found = overlap_sphere(glm::vec3(0.0f, 0.9f, 0.0f), 0.3f);
+    EXPECT_EQ(found, std::vector<engine_game_object_t>{ character });
+}
+
+TEST_F(PhysicsTest, OverlapSphereSkipsTriggersUnlessAsked)
+{
+    load_scene<PhysicsScene>();
+    const auto trigger = create_object(0.5f, 0.0f, 0.0f);
+    add_box_collider(trigger);
+    make_trigger(trigger);
+    step();
+
+    EXPECT_TRUE(overlap_sphere(glm::vec3(0.0f), 1.0f).empty());
+
+    engine_physics_query_filter_t filter{};
+    filter.hit_triggers = true;
+    EXPECT_EQ(overlap_sphere(glm::vec3(0.0f), 1.0f, &filter), std::vector<engine_game_object_t>{ trigger });
+}
+
+TEST_F(PhysicsTest, OverlapSphereSkipsIgnoredAndDisabledColliders)
+{
+    load_scene<PhysicsScene>();
+    const auto ignored = create_object(0.5f, 0.0f, 0.0f);
+    add_box_collider(ignored);
+    const auto disabled = create_object(-0.5f, 0.0f, 0.0f);
+    add_box_collider(disabled);
+    set_collider_disabled(disabled, true);
+    const auto kept = create_object(0.0f, 0.0f, 0.5f);
+    add_box_collider(kept);
+    step();
+
+    engine_physics_query_filter_t filter{};
+    filter.ignore = &ignored;
+    filter.ignore_count = 1;
+    EXPECT_EQ(overlap_sphere(glm::vec3(0.0f), 1.0f, &filter), std::vector<engine_game_object_t>{ kept });
+}
+
+TEST_F(PhysicsTest, OverlapSphereSeesAColliderCreatedInTheSameFrame)
+{
+    load_scene<PhysicsScene>();
+    step();
+    const auto go = create_object(2.0f, 0.0f, 0.0f);
+    add_box_collider(go);
+
+    EXPECT_EQ(overlap_sphere(glm::vec3(2.0f, 0.0f, 0.0f), 0.5f), std::vector<engine_game_object_t>{ go });
+}
+
+TEST_F(PhysicsTest, OverlapSphereSeesAColliderMovedInTheSameFrame)
+{
+    load_scene<PhysicsScene>();
+    const auto go = create_object(0.0f, 0.0f, 0.0f);
+    add_box_collider(go);
+    set_body_type(go, ENGINE_RIGID_BODY_TYPE_KINEMATIC);
+    step();
+
+    move_to(go, 3.0f, 0.0f);
+
+    EXPECT_EQ(overlap_sphere(glm::vec3(3.0f, 0.0f, 0.0f), 0.5f), std::vector<engine_game_object_t>{ go });
+    EXPECT_TRUE(overlap_sphere(glm::vec3(0.0f), 0.5f).empty());
+}
+
+TEST_F(PhysicsTest, OverlapSphereSeesAChildWhereItsParentWasMovedInTheSameFrame)
+{
+    load_scene<PhysicsScene>();
+    const auto parent = create_object(0.0f, 0.0f, 0.0f);
+    const auto child = create_object(1.0f, 0.0f, 0.0f);
+    set_parent(child, parent);
+    add_box_collider(child);
+    step();
+
+    move_to(parent, 0.0f, 4.0f);
+
+    EXPECT_EQ(overlap_sphere(glm::vec3(1.0f, 0.0f, 4.0f), 0.5f), std::vector<engine_game_object_t>{ child });
+    EXPECT_TRUE(overlap_sphere(glm::vec3(1.0f, 0.0f, 0.0f), 0.5f).empty());
+}
+
+TEST_F(PhysicsTest, OverlapSphereReturnsNearestFirst)
+{
+    load_scene<PhysicsScene>();
+    // their surfaces are 0.65, 0.25 and 0.55 from the center
+    const auto far = create_object(0.0f, 0.0f, 0.9f);
+    add_box_collider(far);
+    const auto nearest = create_object(0.5f, 0.0f, 0.0f);
+    add_box_collider(nearest);
+    const auto middle = create_object(-0.8f, 0.0f, 0.0f);
+    add_box_collider(middle);
+    step();
+
+    EXPECT_EQ(overlap_sphere(glm::vec3(0.0f), 1.0f), (std::vector<engine_game_object_t>{ nearest, middle, far }));
+}
+
+TEST_F(PhysicsTest, OverlapSphereKeepsTheNearestWhenTheBufferIsFull)
+{
+    load_scene<PhysicsScene>();
+    const auto far = create_object(0.0f, 0.0f, 0.9f);
+    add_box_collider(far);
+    const auto nearest = create_object(0.5f, 0.0f, 0.0f);
+    add_box_collider(nearest);
+    step();
+
+    const float center[3] = { 0.0f, 0.0f, 0.0f };
+    engine_game_object_t one = ENGINE_INVALID_GAME_OBJECT_ID;
+    EXPECT_EQ(enginePhysicsOverlapSphere(center, 1.0f, nullptr, &one, 1), 2u);
+    EXPECT_EQ(one, nearest);
+    // without a buffer it only counts
+    EXPECT_EQ(enginePhysicsOverlapSphere(center, 1.0f, nullptr, nullptr, 0), 2u);
+}
+
+TEST_F(PhysicsTest, OverlapSphereWithZeroRadiusFindsNothing)
+{
+    load_scene<PhysicsScene>();
+    const auto go = create_object(0.0f, 0.0f, 0.0f);
+    add_box_collider(go);
+    step();
+
+    const float center[3] = { 0.0f, 0.0f, 0.0f };
+    engine_game_object_t found[4]{};
+    EXPECT_EQ(enginePhysicsOverlapSphere(center, 0.0f, nullptr, found, 4), 0u);
+    EXPECT_EQ(enginePhysicsOverlapSphere(center, -1.0f, nullptr, found, 4), 0u);
+    EXPECT_EQ(enginePhysicsOverlapSphere(nullptr, 1.0f, nullptr, found, 4), 0u);
+    EXPECT_EQ(found[0], ENGINE_INVALID_GAME_OBJECT_ID);
 }
 }  // namespace
