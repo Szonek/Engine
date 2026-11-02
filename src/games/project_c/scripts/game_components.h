@@ -91,6 +91,17 @@ struct TraversalTuning
     float mantle_duration_seconds;
     float vault_duration_seconds;
     float climb_down_duration_seconds;
+    // metres per second: from this speed on the player runs, running off edges
+    float run_min_speed;
+    // the safe height of a fall: a higher edge is always climbed down
+    float max_safe_drop;
+    // the leap (a dodge at an edge): metres to the landing, metres above the takeoff at the top of the arc
+    float leap_distance;
+    float leap_height;
+    // the fraction of the ground acceleration the input has in the air
+    float air_control;
+    // seconds without control after landing
+    float landing_recovery_seconds;
 };
 
 struct PlayerConfig

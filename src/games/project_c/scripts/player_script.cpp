@@ -30,6 +30,10 @@ constexpr float PLAYER_SCALE = project_c::Player::MODEL_SCALE;
 constexpr float PLAYER_WALK_ANIMATION_SPEED = 1.875f;
 constexpr float PLAYER_RUN_ANIMATION_SPEED = 2.5f;
 constexpr float PLAYER_IDLE_SPEED_THRESHOLD = 0.05f;
+// the player falls (airborne) when the character controller hasn't stood it on the ground for this long, so a frame
+// on the edge of a step isn't a fall
+constexpr float FALL_DELAY_SECONDS = 0.1f;
+constexpr const char* LANDING_ANIMATION = "Jump_Land";
 
 void attack_window_open_callback(const engine_animation_event_info_t* info, void* user_data)
 {
@@ -558,8 +562,10 @@ void project_c::Player::update(float dt)
     const bool cursor_hit = enginePhysicsRayCast(glm::value_ptr(ray.origin), glm::value_ptr(ray.direction), glm::length(ray.direction), nullptr, &hit_info);
 
     const auto lmb = input().interact;
-    const bool attack_pressed = std::exchange(attack_press_pending_, false);
-    const bool dodge_pressed = std::exchange(dodge_press_pending_, false);
+    // like during hit-stop, an attack or dodge pressed while landing waits until the player can act
+    const bool landing = movement_mode_ == MovementMode::eGrounded && landing_recovery_remaining_seconds_ > 0.0f;
+    const bool attack_pressed = !landing && std::exchange(attack_press_pending_, false);
+    const bool dodge_pressed = !landing && std::exchange(dodge_press_pending_, false);
     const bool drop_weapon_pressed = std::exchange(drop_weapon_press_pending_, false);
 
     const auto button_A = input().left;
@@ -576,9 +582,18 @@ void project_c::Player::update(float dt)
         move_input = glm::normalize(move_input);
     }
 
+    glm::vec3 move_direction(0.0f);
+    if (glm::length(move_input) > 0.0f)
+    {
+        move_direction = glm::normalize(glm::vec3(move_input.x, 0.0f, move_input.y));
+    }
+
     traversal_.set_held_weapon(weapon_go_);
     switch (movement_mode_)
     {
+    case MovementMode::eAirborne:
+        set_movement_mode(traversal_.update_airborne(move_direction, t.move_speed, t.movement_acceleration, traversal_tuning(), dt / 1000.0f));
+        return;
     case MovementMode::eClimbing:
         // space lets go of the wall
         set_movement_mode(traversal_.update_climbing(glm::vec3(move_input.x, 0.0f, move_input.y), dodge_pressed, traversal_tuning(), dt / 1000.0f));
@@ -590,7 +605,20 @@ void project_c::Player::update(float dt)
         break;
     }
 
-    if (weapon() && attack_pressed && !dodge_pressed && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
+    const float delta_seconds = dt / 1000.0f;
+    // after a landing the player can't act for a moment
+    const bool recovering = landing_recovery_remaining_seconds_ > 0.0f;
+    if (recovering)
+    {
+        landing_recovery_remaining_seconds_ = std::max(0.0f, landing_recovery_remaining_seconds_ - delta_seconds);
+        if (landing_recovery_remaining_seconds_ <= 0.0f)
+        {
+            engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
+            engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
+        }
+    }
+
+    if (weapon() && attack_pressed && !dodge_pressed && !recovering && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
     {
         if (!check_state_bit(States::ATTACK))
         {
@@ -631,29 +659,35 @@ void project_c::Player::update(float dt)
     const glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
     const glm::vec3 right = rotation * glm::vec3(1.0f, 0.0f, 0.0f);
 
-    // walking into a wall / window / roof edge starts a traversal (not in the middle of an attack, a dodge or a stun)
+    // walking into a wall / window / roof edge starts a traversal, a dodge at an edge leaps off it (not in the middle of
+    // an attack, a dodge, a stun or a landing)
+    const bool can_dodge = dodge_pressed
+        && dodge_cooldown_remaining_seconds_ <= 0.0f
+        && hit_stun_remaining_seconds_ <= 0.0f
+        && !check_state_bit(States::ATTACK)
+        && !recovering;
     PlayerTraversal::GroundInput traversal_input{};
     traversal_input.position = glm::vec3(tc.position[0], tc.position[1], tc.position[2]);
-    if (glm::length(move_input) > 0.0f)
+    traversal_input.move_direction = move_direction;
+    traversal_input.approach_speed = glm::dot(ground_velocity_, move_direction);
+    traversal_input.can_start = !check_state_bit(States::ATTACK) && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f && !recovering;
+    traversal_input.leap_pressed = can_dodge && traversal_input.can_start;
+    if (const auto mode = traversal_.update_grounded(traversal_input, traversal_tuning(), delta_seconds); mode != MovementMode::eGrounded)
     {
-        traversal_input.move_direction = glm::normalize(glm::vec3(move_input.x, 0.0f, move_input.y));
-    }
-    traversal_input.can_start = !check_state_bit(States::ATTACK) && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f;
-    if (const auto mode = traversal_.update_grounded(traversal_input, traversal_tuning(), dt / 1000.0f); mode != MovementMode::eGrounded)
-    {
+        if (mode == MovementMode::eAirborne)
+        {
+            // the leap was the dodge
+            dodge_cooldown_remaining_seconds_ = t.dodge_cooldown_seconds;
+        }
         set_movement_mode(mode);
         return;
     }
 
-    if (dodge_pressed
-        && dodge_cooldown_remaining_seconds_ <= 0.0f
-        && hit_stun_remaining_seconds_ <= 0.0f
-        && !check_state_bit(States::ATTACK))
+    if (can_dodge)
     {
         start_dodge(move_input, rotation);
     }
 
-    const float delta_seconds = dt / 1000.0f;
     bool dodging_this_frame = dodge_remaining_seconds_ > 0.0f;
     float movement_speed = 0.0f;
     // horizontal velocity of this frame; the character controller adds falling and collisions
@@ -680,10 +714,12 @@ void project_c::Player::update(float dt)
     }
     else
     {
+        // landing: brakes, whatever the input
+        const glm::vec2 wanted = recovering ? glm::vec2(0.0f) : move_input;
         const float target_speed = t.move_speed;
-        const glm::vec2 target_velocity = move_input * target_speed;
+        const glm::vec2 target_velocity = wanted * target_speed;
         const glm::vec2 velocity_delta = target_velocity - movement_velocity_;
-        const float max_velocity_change = (glm::length(move_input) > 0.0f ? t.movement_acceleration : t.movement_braking) * delta_seconds;
+        const float max_velocity_change = (glm::length(wanted) > 0.0f ? t.movement_acceleration : t.movement_braking) * delta_seconds;
         const float velocity_delta_length = glm::length(velocity_delta);
         if (velocity_delta_length > max_velocity_change && velocity_delta_length > 0.0f)
         {
@@ -695,19 +731,33 @@ void project_c::Player::update(float dt)
         }
 
         movement_speed = glm::length(movement_velocity_);
-        if (movement_speed < PLAYER_IDLE_SPEED_THRESHOLD && glm::length(move_input) == 0.0f)
+        if (movement_speed < PLAYER_IDLE_SPEED_THRESHOLD && glm::length(wanted) == 0.0f)
         {
             movement_velocity_ = glm::vec2(0.0f);
             movement_speed = 0.0f;
         }
         velocity = glm::vec3(movement_velocity_.x, 0.0f, movement_velocity_.y);
     }
-    if (engineCharacterControllerMove(go_, glm::value_ptr(velocity), dt, nullptr) != ENGINE_RESULT_CODE_OK)
+    engine_character_controller_move_result_t move_result{};
+    if (engineCharacterControllerMove(go_, glm::value_ptr(velocity), dt, &move_result) != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed to move the player.\n");
     }
+    else if (delta_seconds > 0.0f)
+    {
+        const auto moved = engineGameObjectGetTransformComponent(go_);
+        ground_velocity_ = glm::vec3(moved.position[0] - tc.position[0], 0.0f, moved.position[2] - tc.position[2]) / delta_seconds;
+        // walked (or dodged) off the ground: falling
+        ungrounded_seconds_ = move_result.grounded ? 0.0f : ungrounded_seconds_ + delta_seconds;
+        if (ungrounded_seconds_ >= FALL_DELAY_SECONDS)
+        {
+            set_movement_mode(traversal_.start_falling(ground_velocity_));
+            return;
+        }
+    }
 
-    if (!dodging_this_frame && movement_speed > PLAYER_IDLE_SPEED_THRESHOLD)
+    // while recovering, the landing animation plays
+    if (!recovering && !dodging_this_frame && movement_speed > PLAYER_IDLE_SPEED_THRESHOLD)
     {
         const glm::vec3 move_direction(movement_velocity_.x / movement_speed, 0.0f, movement_velocity_.y / movement_speed);
         const glm::vec3 character_forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
@@ -736,7 +786,7 @@ void project_c::Player::update(float dt)
             engineAnimationControllerAnimationCrossFade(go_, animation_name, LOCOMOTION_LAYER_ID, 0.15f);
         }
     }
-    else
+    else if (!recovering)
     {
         const bool playback_rate_set = engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
         assert(playback_rate_set);
@@ -1136,15 +1186,48 @@ void project_c::Player::set_movement_mode(MovementMode mode)
     }
     if (previous == MovementMode::eGrounded)
     {
-        // combat (the upper body layer) and walking stop while traversing
+        // combat (the upper body layer) and walking stop off the ground
+        cancel_combat_actions();
         engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 0.0f);
         movement_velocity_ = glm::vec2(0.0f);
+        ungrounded_seconds_ = 0.0f;
+        landing_recovery_remaining_seconds_ = 0.0f;
     }
     if (mode == MovementMode::eGrounded)
     {
-        // locomotion code picks idle/run animation in the next update
-        engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
         engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
-        engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
+        landing_recovery_remaining_seconds_ = previous == MovementMode::eAirborne ? traversal_tuning().landing_recovery_seconds : 0.0f;
+        if (landing_recovery_remaining_seconds_ > 0.0f)
+        {
+            // the landing plays out before the player acts again (the grounded update ends it)
+            engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, false);
+            engineAnimationControllerAnimationCrossFade(go_, LANDING_ANIMATION, LOCOMOTION_LAYER_ID, 0.05f);
+        }
+        else
+        {
+            // locomotion code picks idle/run animation in the next update
+            engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
+            engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
+        }
     }
+}
+
+void project_c::Player::cancel_combat_actions()
+{
+    if ((state_ & States::ATTACK) != 0)
+    {
+        state_ &= ~States::ATTACK;
+        attack_phase_ = AttackPhase::eIdle;
+        attack_buffered_ = false;
+        set_attack_window_active(false);
+        engineAnimationControllerLayerSetPlaybackRate(go_, COMBAT_LAYER_ID, 1.0f);
+        if (engineAnimationControllerAnimationCrossFade(go_, "Unarmed_Idle", COMBAT_LAYER_ID, 0.1f))
+        {
+            engineAnimationControllerLayerSetLooping(go_, COMBAT_LAYER_ID, true);
+        }
+    }
+    dodge_remaining_seconds_ = 0.0f;
+    dodge_invulnerability_remaining_seconds_ = 0.0f;
+    hit_stun_remaining_seconds_ = 0.0f;
+    knockback_velocity_ = glm::vec3(0.0f);
 }

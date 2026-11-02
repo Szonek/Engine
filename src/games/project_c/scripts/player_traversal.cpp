@@ -15,6 +15,7 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <limits>
 
 namespace
 {
@@ -42,10 +43,19 @@ constexpr float VAULT_LANDING_DISTANCE = 0.35f;
 constexpr float VAULT_MAX_ALIGNMENT = 0.6f;
 constexpr float CLIMB_DOWN_EDGE_DISTANCE = 0.45f;
 constexpr float CLIMB_DOWN_HANG_DEPTH = 0.95f;
+// where edges are looked for ahead of the player: the first point without floor is the edge; the furthest is the reach
+// of a leap
+constexpr std::array<float, 3> EDGE_SAMPLE_DISTANCES = { CLIMB_DOWN_EDGE_DISTANCE, CLIMB_DOWN_EDGE_DISTANCE + 0.4f, CLIMB_DOWN_EDGE_DISTANCE + 0.8f };
+// how deep the ground below an edge is looked for
+constexpr float EDGE_DROP_PROBE_DEPTH = 20.0f;
+// the physics' gravity (the engine's default, which the game doesn't change), metres per second per second
+constexpr float GRAVITY = 10.0f;
 // No dedicated climbing clips in the KayKit pack, closest matches are used.
 constexpr const char* CLIMB_ANIMATION = "Jump_Idle";
 constexpr const char* VAULT_ANIMATION = "Jump_Full_Short";
 constexpr const char* MANTLE_ANIMATION = "Jump_Full_Short";
+constexpr const char* LEAP_ANIMATION = "Jump_Start";
+constexpr const char* AIRBORNE_ANIMATION = "Jump_Idle";
 constexpr float CLIMB_ANIMATION_RATE_MOVING = 1.6f;
 constexpr float CLIMB_ANIMATION_RATE_IDLE = 0.2f;
 constexpr float TRAVERSAL_MARKER_SIZE = 0.05f;           // Primitive_Cube_Small is 2 units big, pivot at the bottom
@@ -83,22 +93,52 @@ project_c::PlayerTraversal::~PlayerTraversal()
 project_c::MovementMode project_c::PlayerTraversal::update_grounded(const GroundInput& input, const TraversalTuning& tuning, float delta_seconds)
 {
     regrab_cooldown_ = std::max(0.0f, regrab_cooldown_ - delta_seconds);
+    const bool moving = glm::length(input.move_direction) > 0.0f;
+
+    // a dodge toward an edge leaps off it
+    if (input.leap_pressed && moving)
+    {
+        if (const auto edge = find_edge(input.position, input.move_direction))
+        {
+            approach_.reset();
+            update_marker({}, delta_seconds);
+            return start_leap(input.position, input.move_direction, edge->drop, tuning);
+        }
+    }
 
     // walking into a wall / window / roof edge: show marker while approaching, start traversal on contact
     TraversalPlan plan{};
-    if (input.can_start && glm::length(input.move_direction) > 0.0f)
+    if (input.can_start && moving)
     {
         plan = find_traversal(input.position, input.move_direction);
     }
     // marker stays visible whenever player is close to something traversable, even when standing still or walking along it
     update_marker(plan.type != TraversalPlan::Type::eNone ? plan : find_nearest_traversal(input.position), delta_seconds);
-    if (plan.type != TraversalPlan::Type::eNone
-        && plan.distance <= TRAVERSAL_TRIGGER_DISTANCE
-        && regrab_cooldown_ <= 0.0f)
+    if (plan.type == TraversalPlan::Type::eNone || plan.distance > TRAVERSAL_TRIGGER_DISTANCE)
     {
-        return execute_traversal(plan, tuning);
+        approach_.reset();
+        return MovementMode::eGrounded;
     }
-    return MovementMode::eGrounded;
+    if (!approach_ || approach_->type != plan.type)
+    {
+        approach_ = Approach{ plan.type, input.approach_speed >= tuning.run_min_speed };
+    }
+    if (regrab_cooldown_ > 0.0f)
+    {
+        return MovementMode::eGrounded;
+    }
+
+    traversal_math::GroundSituation situation{};
+    switch (plan.type)
+    {
+    case TraversalPlan::Type::eClimb: situation.obstacle = traversal_math::Obstacle::eWall; break;
+    case TraversalPlan::Type::eVault: situation.obstacle = traversal_math::Obstacle::eWindow; break;
+    case TraversalPlan::Type::eClimbDown: situation.obstacle = traversal_math::Obstacle::eEdge; break;
+    default: break;
+    }
+    situation.running = approach_->running;
+    situation.drop = plan.drop;
+    return start_action(traversal_math::choose_ground_action(situation, tuning.max_safe_drop), plan, tuning);
 }
 
 void project_c::PlayerTraversal::cancel()
@@ -259,67 +299,146 @@ project_c::PlayerTraversal::TraversalPlan project_c::PlayerTraversal::plan_vault
     return plan;
 }
 
-project_c::PlayerTraversal::TraversalPlan project_c::PlayerTraversal::plan_climb_down(const glm::vec3& position, const glm::vec3& direction) const
+std::optional<project_c::PlayerTraversal::Edge> project_c::PlayerTraversal::find_edge(const glm::vec3& position, const glm::vec3& direction) const
 {
     // sample a few points ahead, first one without floor below is the edge
-    for (const float edge_distance : { CLIMB_DOWN_EDGE_DISTANCE, CLIMB_DOWN_EDGE_DISTANCE + 0.4f, CLIMB_DOWN_EDGE_DISTANCE + 0.8f })
+    for (const float edge_distance : EDGE_SAMPLE_DISTANCES)
     {
         const glm::vec3 edge_point = position + direction * edge_distance;
         if (probe(edge_point + WORLD_UP * 0.2f, edge_point - WORLD_UP * 0.5f).hit)
         {
             continue;
         }
-
-        // look back at the wall below the edge
-        const glm::vec3 below = -WORLD_UP * (PLAYER_HEIGHT * 0.7f);
-        const auto wall_hit = probe(position + direction * (edge_distance + CLIMB_DOWN_EDGE_DISTANCE) + below, position + below);
-        if (!wall_hit.climbable)
-        {
-            return {};
-        }
-        const glm::vec3 wall_normal = flatten(wall_hit.normal);
-        if (glm::dot(wall_normal, direction) < TRAVERSAL_MIN_APPROACH_DOT)
-        {
-            return {};
-        }
-
-        glm::vec3 hang_position = wall_hit.position + wall_normal * CLIMB_WALL_OFFSET;
-        hang_position.y = position.y - CLIMB_DOWN_HANG_DEPTH;
-
-        TraversalPlan plan{};
-        plan.type = TraversalPlan::Type::eClimbDown;
-        plan.distance = edge_distance - CLIMB_DOWN_EDGE_DISTANCE;
-        plan.wall_normal = wall_normal;
-        plan.move.path.p0 = position;
-        plan.move.path.p1 = glm::vec3(hang_position.x, position.y + 0.1f, hang_position.z);
-        plan.move.path.p2 = hang_position;
-        plan.move.path.split = 0.4f;
-        plan.move.yaw = yaw_from_direction(-wall_normal);
-        plan.move.climb_after = true;
-        // on the edge
-        plan.marker = glm::vec3(wall_hit.position.x, position.y + TRAVERSAL_MARKER_SIZE, wall_hit.position.z) - wall_normal * TRAVERSAL_MARKER_SIZE;
-        return plan;
+        const auto ground_hit = probe(edge_point - WORLD_UP * 0.5f, edge_point - WORLD_UP * EDGE_DROP_PROBE_DEPTH);
+        return Edge{ edge_distance, ground_hit.hit ? position.y - ground_hit.position.y : std::numeric_limits<float>::infinity() };
     }
-    return {};
+    return std::nullopt;
 }
 
-project_c::MovementMode project_c::PlayerTraversal::execute_traversal(const TraversalPlan& plan, const TraversalTuning& tuning)
+project_c::PlayerTraversal::TraversalPlan project_c::PlayerTraversal::plan_climb_down(const glm::vec3& position, const glm::vec3& direction) const
+{
+    const auto edge = find_edge(position, direction);
+    if (!edge)
+    {
+        return {};
+    }
+
+    // look back at the wall below the edge
+    const glm::vec3 below = -WORLD_UP * (PLAYER_HEIGHT * 0.7f);
+    const auto wall_hit = probe(position + direction * (edge->distance + CLIMB_DOWN_EDGE_DISTANCE) + below, position + below);
+    if (!wall_hit.climbable)
+    {
+        return {};
+    }
+    const glm::vec3 wall_normal = flatten(wall_hit.normal);
+    if (glm::dot(wall_normal, direction) < TRAVERSAL_MIN_APPROACH_DOT)
+    {
+        return {};
+    }
+
+    glm::vec3 hang_position = wall_hit.position + wall_normal * CLIMB_WALL_OFFSET;
+    hang_position.y = position.y - CLIMB_DOWN_HANG_DEPTH;
+
+    TraversalPlan plan{};
+    plan.type = TraversalPlan::Type::eClimbDown;
+    plan.distance = edge->distance - CLIMB_DOWN_EDGE_DISTANCE;
+    plan.drop = edge->drop;
+    plan.wall_normal = wall_normal;
+    plan.move.path.p0 = position;
+    plan.move.path.p1 = glm::vec3(hang_position.x, position.y + 0.1f, hang_position.z);
+    plan.move.path.p2 = hang_position;
+    plan.move.path.split = 0.4f;
+    plan.move.yaw = yaw_from_direction(-wall_normal);
+    plan.move.climb_after = true;
+    // on the edge
+    plan.marker = glm::vec3(wall_hit.position.x, position.y + TRAVERSAL_MARKER_SIZE, wall_hit.position.z) - wall_normal * TRAVERSAL_MARKER_SIZE;
+    return plan;
+}
+
+project_c::MovementMode project_c::PlayerTraversal::start_action(traversal_math::GroundAction action, const TraversalPlan& plan, const TraversalTuning& tuning)
 {
     auto move = plan.move;
-    switch (plan.type)
+    switch (action)
     {
-    case TraversalPlan::Type::eClimb:
+    case traversal_math::GroundAction::eClimb:
         return start_climbing(plan.wall_normal, plan.climb_position);
-    case TraversalPlan::Type::eVault:
+    case traversal_math::GroundAction::eVault:
         move.duration = tuning.vault_duration_seconds;
         return start_move(move, VAULT_ANIMATION);
-    case TraversalPlan::Type::eClimbDown:
+    case traversal_math::GroundAction::eClimbDown:
         climb_wall_normal_ = plan.wall_normal;
         move.duration = tuning.climb_down_duration_seconds;
         return start_move(move, CLIMB_ANIMATION);
-    default:
+    case traversal_math::GroundAction::eRunOff:
+    case traversal_math::GroundAction::eNone:
+        // walking on: past the edge the character controller lets the player fall
+        break;
+    }
+    return MovementMode::eGrounded;
+}
+
+project_c::MovementMode project_c::PlayerTraversal::start_leap(const glm::vec3& position, const glm::vec3& direction, float drop, const TraversalTuning& tuning)
+{
+    // aimed at the ground below the edge; with none, at the takeoff's height
+    const auto launch = traversal_math::leap_launch(tuning.leap_distance, tuning.leap_height, std::isfinite(drop) ? drop : 0.0f, GRAVITY);
+    air_velocity_ = glm::vec2(direction.x, direction.z) * launch.horizontal_speed;
+    launch_vertical_speed_ = launch.vertical_speed;
+    set_position_and_yaw(position, yaw_from_direction(direction));
+
+    engineAnimationControllerLayerSetLooping(go_, locomotion_layer_, false);
+    engineAnimationControllerLayerSetPlaybackRate(go_, locomotion_layer_, 1.0f);
+    engineAnimationControllerAnimationCrossFade(go_, LEAP_ANIMATION, locomotion_layer_, 0.05f);
+    return MovementMode::eAirborne;
+}
+
+project_c::MovementMode project_c::PlayerTraversal::start_falling(const glm::vec3& velocity)
+{
+    approach_.reset();
+    update_marker({}, 0.0f);
+    air_velocity_ = glm::vec2(velocity.x, velocity.z);
+    launch_vertical_speed_ = 0.0f;
+    engineAnimationControllerLayerSetLooping(go_, locomotion_layer_, true);
+    engineAnimationControllerLayerSetPlaybackRate(go_, locomotion_layer_, 1.0f);
+    engineAnimationControllerAnimationCrossFade(go_, AIRBORNE_ANIMATION, locomotion_layer_, 0.15f);
+    return MovementMode::eAirborne;
+}
+
+project_c::MovementMode project_c::PlayerTraversal::update_airborne(const glm::vec3& move_direction, float move_speed, float acceleration,
+    const TraversalTuning& tuning, float delta_seconds)
+{
+    update_marker({}, delta_seconds);
+    if (delta_seconds <= 0.0f)
+    {
+        return MovementMode::eAirborne;
+    }
+    air_velocity_ = traversal_math::air_control(air_velocity_, glm::vec2(move_direction.x, move_direction.z), move_speed,
+        tuning.air_control * acceleration, delta_seconds);
+
+    // the leap's launch keeps pushing up and the character controller adds the fall (its gravity): the arc
+    const auto before = engineGameObjectGetTransformComponent(go_);
+    const glm::vec3 velocity(air_velocity_.x, launch_vertical_speed_, air_velocity_.y);
+    engine_character_controller_move_result_t result{};
+    if (engineCharacterControllerMove(go_, glm::value_ptr(velocity), delta_seconds * 1000.0f, &result) != ENGINE_RESULT_CODE_OK)
+    {
+        engineLog("Failed to move the player in the air.\n");
         return MovementMode::eGrounded;
     }
+    if (result.hit_ceiling)
+    {
+        launch_vertical_speed_ = 0.0f;
+    }
+    // what blocked it (a wall) took its speed
+    const auto after = engineGameObjectGetTransformComponent(go_);
+    air_velocity_ = glm::vec2(after.position[0] - before.position[0], after.position[2] - before.position[2]) / delta_seconds;
+
+    // after the leap's takeoff, the pose in the air
+    if (!engineAnimationControllerIsAnimationPlayingOnLayer(go_, LEAP_ANIMATION, locomotion_layer_)
+        && !engineAnimationControllerIsAnimationPlayingOnLayer(go_, AIRBORNE_ANIMATION, locomotion_layer_))
+    {
+        engineAnimationControllerLayerSetLooping(go_, locomotion_layer_, true);
+        engineAnimationControllerAnimationCrossFade(go_, AIRBORNE_ANIMATION, locomotion_layer_, 0.1f);
+    }
+    return result.grounded ? MovementMode::eGrounded : MovementMode::eAirborne;
 }
 
 bool project_c::PlayerTraversal::try_start_mantle(const glm::vec3& position, const TraversalTuning& tuning)

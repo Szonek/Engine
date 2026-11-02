@@ -127,6 +127,12 @@ project_c::TraversalTuning project_c::default_traversal_tuning()
     t.mantle_duration_seconds = 0.4f;
     t.vault_duration_seconds = 0.45f;
     t.climb_down_duration_seconds = 0.35f;
+    t.run_min_speed = 2.0f;
+    t.max_safe_drop = 3.0f;
+    t.leap_distance = 3.0f;
+    t.leap_height = 0.6f;
+    t.air_control = 0.3f;
+    t.landing_recovery_seconds = 0.15f;
     return t;
 }
 
@@ -227,6 +233,18 @@ void project_c::register_game_components()
             "vaulting through a window or over a low wall"), 0.05f, 2.0f),
         ranged(field("climb_down_duration_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, climb_down_duration_seconds),
             "stepping over a roof edge onto the wall below"), 0.05f, 2.0f),
+        ranged(field("run_min_speed", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, run_min_speed),
+            "metres per second: approaching faster, the player runs off edges instead of climbing down"), 0.0f, 10.0f),
+        ranged(field("max_safe_drop", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, max_safe_drop),
+            "metres: a higher edge is always climbed down, also when running"), 0.0f, 20.0f),
+        ranged(field("leap_distance", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, leap_distance),
+            "metres from the takeoff to the landing of a leap (a dodge at an edge)"), 0.0f, 20.0f),
+        ranged(field("leap_height", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, leap_height),
+            "metres above the takeoff at the top of a leap"), 0.0f, 5.0f),
+        ranged(field("air_control", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, air_control),
+            "the fraction of the ground acceleration the input has in the air"), 0.0f, 1.0f),
+        ranged(field("landing_recovery_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, landing_recovery_seconds),
+            "seconds without control after landing"), 0.0f, 2.0f),
     }, default_traversal_tuning());
 
     // version 2: the tuning moved to the data assets

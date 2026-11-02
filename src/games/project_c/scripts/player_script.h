@@ -232,6 +232,13 @@ private:
     // the transitions between the modes: what leaving one and entering the next changes (the combat layer, the
     // locomotion layer's settings)
     void set_movement_mode(MovementMode mode);
+    // the attack, dodge and stun in progress end (the player leaves the ground)
+    void cancel_combat_actions();
+    // the horizontal velocity the character controller moved the player with in the last grounded frame
+    glm::vec3 ground_velocity_{ 0.0f };
+    // how long the character controller hasn't stood the player on the ground
+    float ungrounded_seconds_ = 0.0f;
+    float landing_recovery_remaining_seconds_ = 0.0f;
     PlayerTraversal traversal_;
 };
 } //namespace project_c
