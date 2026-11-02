@@ -132,7 +132,9 @@ In more detail:
   launch's vertical speed (the controller adds the fall: its gravity), so a leap is a ballistic arc
   (`traversal_math::leap_launch` gives the launch from `leap_distance` and `leap_height`, aimed at the ground below the
   edge). The input steers it with `air_control` times the ground acceleration; nothing brakes in the air. A wall it hits
-  takes its speed. It lands when the controller reports it grounded; there is no fall damage.
+  takes its speed. The launch is computed with the scene's gravity (`enginePhysicsGetGravityVector`). It lands when the
+  controller reports it grounded, or held up by something it can't stand on (`blocked_below`: a too steep slope, an
+  edge), where it walks on as on the ground; there is no fall damage.
 
 ### Physics while traversing
 

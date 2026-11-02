@@ -748,8 +748,9 @@ void project_c::Player::update(float dt)
     {
         const auto moved = engineGameObjectGetTransformComponent(go_);
         ground_velocity_ = glm::vec3(moved.position[0] - tc.position[0], 0.0f, moved.position[2] - tc.position[2]) / delta_seconds;
-        // walked (or dodged) off the ground: falling
-        ungrounded_seconds_ = move_result.grounded ? 0.0f : ungrounded_seconds_ + delta_seconds;
+        // walked (or dodged) off the ground: falling; held up by what isn't walkable ground (a too steep slope, an
+        // edge) it walks on
+        ungrounded_seconds_ = move_result.grounded || move_result.blocked_below ? 0.0f : ungrounded_seconds_ + delta_seconds;
         if (ungrounded_seconds_ >= FALL_DELAY_SECONDS)
         {
             set_movement_mode(traversal_.start_falling(ground_velocity_), traversal);

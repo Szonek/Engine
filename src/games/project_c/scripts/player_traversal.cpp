@@ -48,8 +48,6 @@ constexpr float CLIMB_DOWN_HANG_DEPTH = 0.95f;
 constexpr std::array<float, 3> EDGE_SAMPLE_DISTANCES = { CLIMB_DOWN_EDGE_DISTANCE, CLIMB_DOWN_EDGE_DISTANCE + 0.4f, CLIMB_DOWN_EDGE_DISTANCE + 0.8f };
 // how deep the ground below an edge is looked for
 constexpr float EDGE_DROP_PROBE_DEPTH = 20.0f;
-// the physics' gravity (the engine's default, which the game doesn't change), metres per second per second
-constexpr float GRAVITY = 10.0f;
 // No dedicated climbing clips in the KayKit pack, closest matches are used.
 constexpr const char* CLIMB_ANIMATION = "Jump_Idle";
 constexpr const char* VAULT_ANIMATION = "Jump_Full_Short";
@@ -399,7 +397,10 @@ project_c::MovementMode project_c::PlayerTraversal::start_action(traversal_math:
 project_c::MovementMode project_c::PlayerTraversal::start_leap(const glm::vec3& position, const glm::vec3& direction, float drop, const TraversalTuning& tuning)
 {
     // aimed at the ground below the edge; with none, at the takeoff's height
-    const auto launch = traversal_math::leap_launch(tuning.leap_distance, tuning.leap_height, std::isfinite(drop) ? drop : 0.0f, GRAVITY);
+    // the gravity the character controller falls with
+    float gravity[3] = {};
+    enginePhysicsGetGravityVector(gravity);
+    const auto launch = traversal_math::leap_launch(tuning.leap_distance, tuning.leap_height, std::isfinite(drop) ? drop : 0.0f, -gravity[1]);
     air_velocity_ = glm::vec2(direction.x, direction.z) * launch.horizontal_speed;
     launch_vertical_speed_ = launch.vertical_speed;
     set_position_and_yaw(position, yaw_from_direction(direction));
@@ -457,7 +458,9 @@ project_c::MovementMode project_c::PlayerTraversal::update_airborne(const glm::v
         engineAnimationControllerLayerSetLooping(go_, locomotion_layer_, true);
         engineAnimationControllerAnimationCrossFade(go_, AIRBORNE_ANIMATION, locomotion_layer_, 0.1f);
     }
-    return result.grounded ? MovementMode::eGrounded : MovementMode::eAirborne;
+    // landed: on walkable ground, or held up by something which isn't (a too steep slope, an edge), where the player
+    // walks on as before (it would never land there otherwise)
+    return result.grounded || result.blocked_below ? MovementMode::eGrounded : MovementMode::eAirborne;
 }
 
 std::optional<project_c::traversal_math::MovePath> project_c::PlayerTraversal::plan_ledge_move(const glm::vec3& start, const glm::vec3& into_wall,

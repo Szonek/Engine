@@ -77,7 +77,8 @@ public:
     // velocity; returns eAirborne.
     MovementMode start_falling(const glm::vec3& velocity);
     // In the air: steered by `move_direction` (flat, normalized, zero without input) with air control, a fraction of
-    // the ground's `acceleration` toward `move_speed`. Returns eGrounded once it landed.
+    // the ground's `acceleration` toward `move_speed`. Returns eGrounded once it landed: the character controller
+    // stood it on the ground or something else holds it up.
     MovementMode update_airborne(const glm::vec3& move_direction, float move_speed, float acceleration, const TraversalTuning& tuning,
         float delta_seconds);
     // the traversal ends from outside (the player died): hides the marker, the player falls

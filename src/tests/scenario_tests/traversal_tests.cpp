@@ -208,6 +208,25 @@ TEST_F(TraversalTest, LeapOffRoofLandsNearTunedDistance)
     EXPECT_LT(player_position().x, before_walking.x - 0.3f);
 }
 
+// the leap is aimed with the scene's gravity: with a weaker one it still lands near the tuned distance
+TEST_F(TraversalTest, LeapUsesTheSceneGravity)
+{
+    player_ = build(1.2f, EAST_WALL_Z);
+    ASSERT_NE(player_, nullptr);
+    const float low_gravity[3] = { 0.0f, -5.0f, 0.0f };
+    enginePhysicsSetGravityVector(low_gravity);
+    place_on_roof(player_, 1.2f, EAST_WALL_Z);
+    step(SETTLE_FRAMES);
+    const auto takeoff = player_position();
+
+    PlayerInput leap = moving_right();
+    leap.dodge = true;
+    step_until(leap, 1, [] { return true; });
+    const auto landed = step_until({}, 240, [&] { return player_->movement_mode() == MovementMode::eGrounded; });
+    ASSERT_LE(landed, 240u);
+    EXPECT_NEAR(player_position().x - takeoff.x, project_c::default_traversal_tuning().leap_distance, 0.4f);
+}
+
 // running across the roof off its edge falls (no climb down) and lands below
 TEST_F(TraversalTest, RunningOffRoofEdgeFallsAndLands)
 {
