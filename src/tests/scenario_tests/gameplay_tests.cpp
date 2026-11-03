@@ -6,6 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <algorithm>
 #include <limits>
 
@@ -22,6 +25,8 @@ constexpr std::uint32_t LANDING_FRAMES = 30;
 // where scenarios spawn the player
 constexpr float PLAYER_X = 1.0f;
 constexpr float PLAYER_Z = 1.0f;
+// an enemy placed at a greater z than the player faces it with this yaw (toward -z), so it sees the player
+constexpr float FACING_PLAYER = 180.0f;
 
 float seconds(std::uint32_t frames)
 {
@@ -183,8 +188,8 @@ TEST_F(CombatTest, AttackComboKillsEnemyAndClearsEncounter)
     EXPECT_EQ(scene->encounter()->get_remaining_enemies(), 0u);
 }
 
-// enemies close in until their blade reaches the player, from right next to it up to the end of their nav path
-// range; they used to stop and swing from up to 1.15 m although the blade only hits within ~0.5 m
+// an enemy facing the player sees it, is alerted and closes in until its blade reaches the player, from right next to
+// it up to further away; they used to stop and swing from up to 1.15 m although the blade only hits within ~0.5 m
 TEST_F(CombatTest, EnemyNearbyDamagesIdlePlayer)
 {
     for (const float distance : { 0.4f, 0.8f, 2.0f })
@@ -193,10 +198,11 @@ TEST_F(CombatTest, EnemyNearbyDamagesIdlePlayer)
         auto* scene = load_sandbox_scene();
         scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
         auto* player = scene->build().player(PLAYER_X, PLAYER_Z);
-        scene->build().enemy(PLAYER_X, PLAYER_Z + distance);
+        auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + distance, FACING_PLAYER);
         scene->snap_camera_to_player();
 
         step(LANDING_FRAMES + 240);
+        EXPECT_EQ(enemy->awareness().state(), project_c::Awareness::eAlert);
 
         EXPECT_LT(player->get_hp(), player->get_max_hp());
         EXPECT_FALSE(player->is_dead());
@@ -205,18 +211,26 @@ TEST_F(CombatTest, EnemyNearbyDamagesIdlePlayer)
     }
 }
 
-// the nav mesh is built from the static colliders: the enemy walks around an obstacle between it and the player
+// the nav mesh is built from the static colliders: the enemy walks around an obstacle between it and the player (which
+// hides the player, so the player's attacks are what it hears)
 TEST_F(CombatTest, EnemyWalksAroundObstacleToPlayer)
 {
     auto* scene = load_sandbox_scene();
     scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
     auto* player = scene->build().player(PLAYER_X, PLAYER_Z);
     scene->build().obstacle({ PLAYER_X, 0.625f, PLAYER_Z + 1.0f }, { 0.8f, 1.0f, 0.3f });
-    auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + 2.0f);
+    auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + 2.0f, FACING_PLAYER);
     ASSERT_NE(enemy, nullptr);
     scene->snap_camera_to_player();
+    step(LANDING_FRAMES);
+    EXPECT_EQ(enemy->awareness().state(), project_c::Awareness::eUnaware);
 
-    step(LANDING_FRAMES + 300);
+    // two swings at nothing: loud enough to alert it
+    for (int swing = 0; swing < 2; swing++)
+    {
+        attack(position_of(enemy->get_game_object()), 70);
+    }
+    step(300);
 
     EXPECT_LT(player->get_hp(), player->get_max_hp());
     EXPECT_FALSE(player->is_dead());
@@ -277,7 +291,7 @@ TEST_F(CombatTest, EnemiesAndHouseFindTheNextPlayerWhenThePlayerIsDestroyed)
     scene->build().floor_area(-8.0f, -8.0f, 4.0f, 4.0f);
     scene->build().house(-5.0f, -5.0f, 0.125f);
     const auto first_player = scene->build().player(PLAYER_X, PLAYER_Z)->get_game_object();
-    auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + 0.8f);
+    auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + 0.8f, FACING_PLAYER);
     scene->snap_camera_to_player();
     step(LANDING_FRAMES);
 
@@ -285,9 +299,11 @@ TEST_F(CombatTest, EnemiesAndHouseFindTheNextPlayerWhenThePlayerIsDestroyed)
     step(30);
     EXPECT_FALSE(engineGameObjectIsValid(first_player));
 
-    // next to where the enemy walked to (on it, the player would be out of its reach)
+    // in front of where the enemy walked to, so it sees the player (on it, the player would be out of its reach)
     const auto enemy_position = position_of(enemy->get_game_object());
-    auto* player = scene->build().player(enemy_position.x + 1.0f, enemy_position.z);
+    const auto enemy_rotation = engineGameObjectGetTransformComponent(enemy->get_game_object()).rotation;
+    const glm::vec3 enemy_forward = glm::make_quat(enemy_rotation) * glm::vec3(0.0f, 0.0f, 1.0f);
+    auto* player = scene->build().player(enemy_position.x + enemy_forward.x, enemy_position.z + enemy_forward.z);
     step(LANDING_FRAMES + 240);
     EXPECT_LT(player->get_hp(), player->get_max_hp());
 }

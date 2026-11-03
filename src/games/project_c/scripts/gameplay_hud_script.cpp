@@ -57,7 +57,7 @@ project_c::GameplayHud::GameplayHud(engine::IScene* my_scene, engine_game_object
     gameplay_started_ = !app->is_editor_enabled();
     visible_ = engineEditorIsGameView();
     encounter_status_ = engineStringCreate(
-        gameplay_started_ ? "Defeat all enemies. WASD move, RMB attack, SPACE dodge. Walk into walls to climb." : "Paused. Click Play in the editor toolbar to start.");
+        gameplay_started_ ? "Defeat all enemies. WASD move, SHIFT sneak, RMB attack, SPACE dodge. Walk into walls to climb." : "Paused. Click Play in the editor toolbar to start.");
     assert(encounter_status_);
 
     std::vector<engine_ui_document_data_binding_t> bindings{};

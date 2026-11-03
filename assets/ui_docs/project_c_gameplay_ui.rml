@@ -9,7 +9,7 @@
 		<div id="player_hud" class="player_hud">
 			<div>Health</div>
 			<progress class="player_healthbar" data-attr-max="player_max_health" data-attr-value="player_health"></progress>
-			<div class="controls">WASD move | RMB attack | SPACE dodge</div>
+			<div class="controls">WASD move | SHIFT sneak | RMB attack | SPACE dodge</div>
 		</div>
 		<div id="encounter_status" class="encounter_status">{{encounter_status}}</div>
 

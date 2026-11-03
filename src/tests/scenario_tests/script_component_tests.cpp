@@ -116,7 +116,8 @@ TEST_F(ScriptComponentTest, LevelSavedAndLoadedPlaysTheSame)
     auto* sandbox = load_sandbox_scene();
     sandbox->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
     sandbox->build().player(1.0f, 1.0f);
-    sandbox->build().enemy(1.0f, 2.5f);
+    // facing the player, so it sees it
+    sandbox->build().enemy(1.0f, 2.5f, 180.0f);
     // the scripts exist and are saved before the level ever played
     auto* scene = save_and_load_into_file_scene(scenario::SandboxScene::get_name());
     step(1);
@@ -130,7 +131,7 @@ TEST_F(ScriptComponentTest, LevelSavedAndLoadedPlaysTheSame)
     EXPECT_NE(scene->find_script<project_c::Weapon>(), nullptr);
     EXPECT_EQ(player->get_hp(), player->get_max_hp());
 
-    // the loaded enemy finds the loaded player, walks to it and hits it
+    // the loaded enemy finds the loaded player, sees it, walks to it and hits it
     step(LANDING_FRAMES + 240);
     EXPECT_LT(player->get_hp(), player->get_max_hp());
     EXPECT_FALSE(player->is_dead());
@@ -142,7 +143,8 @@ TEST_F(ScriptComponentTest, EnemyTypeChangedWhilePlayingTakesEffect)
     auto* scene = load_sandbox_scene();
     scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
     scene->build().player(1.0f, 1.0f);
-    auto* enemy = scene->build().enemy(1.0f, 3.5f);
+    // facing the player, so it sees it
+    auto* enemy = scene->build().enemy(1.0f, 3.5f, 180.0f);
     ASSERT_NE(enemy, nullptr);
     const auto go = enemy->get_game_object();
     const auto type = project_c::game_components().enemy_config;
@@ -150,9 +152,10 @@ TEST_F(ScriptComponentTest, EnemyTypeChangedWhilePlayingTakesEffect)
     const auto skeleton = config.type;
     ASSERT_NE(skeleton, ENGINE_INVALID_OBJECT_HANDLE);
 
-    // a kind of enemy which can't move (a data asset of its own, by its absolute path): the enemy stays where it is
+    // a kind of enemy which can't move, alert or not (a data asset of its own, by its absolute path): the enemy stays where
+    // it is
     const auto file = std::filesystem::temp_directory_path() / "project_c_scenario_rooted_enemy.json";
-    std::ofstream(file, std::ios::binary) << R"({ "version": 1, "type": "enemy_type", "value": { "move_speed": 0 } })";
+    std::ofstream(file, std::ios::binary) << R"({ "version": 1, "type": "enemy_type", "value": { "move_speed": 0, "perception": { "suspicious_move_speed": 0 } } })";
     const auto rooted = engineDataAssetLoad(file.generic_string().c_str());
     std::filesystem::remove(file);
     ASSERT_NE(rooted, ENGINE_INVALID_OBJECT_HANDLE);
@@ -239,7 +242,8 @@ TEST_F(ScriptComponentTest, RemovingTheEnemysScriptRemovesItsBlade)
     auto* scene = load_sandbox_scene();
     scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
     auto* player = scene->build().player(1.0f, 1.0f);
-    auto* enemy = scene->build().enemy(1.0f, 2.0f);
+    // facing the player, so it sees it
+    auto* enemy = scene->build().enemy(1.0f, 2.0f, 180.0f);
     ASSERT_NE(player, nullptr);
     ASSERT_NE(enemy, nullptr);
     const auto enemy_go = enemy->get_game_object();

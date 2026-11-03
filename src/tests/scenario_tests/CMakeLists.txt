@@ -10,6 +10,7 @@ add_executable(${SCENARIO_TESTS_NAME}
 	test_models.h
 
 	animation_controller_tests.cpp
+	awareness_tests.cpp
 	asset_name_tests.cpp
 	character_asset_tests.cpp
 	character_controller_tests.cpp
