@@ -84,6 +84,7 @@ void project_c::EnemySpawner::on_start()
             break;
         }
         placed.push_back(on_nav_mesh);
+        enemy->set_pack(go_);
         spawned_.push_back(enemy->get_game_object());
     }
     if (placed.size() < cfg.count)
@@ -91,4 +92,26 @@ void project_c::EnemySpawner::on_start()
         log(fmt::format("An enemy spawner placed {} of its {} enemies: its area has no room for more, {} m apart, on the nav mesh.\n",
             placed.size(), cfg.count, cfg.min_spacing));
     }
+}
+
+void project_c::EnemySpawner::update(float /*dt*/)
+{
+    PackState state{};
+    for (const auto go : spawned_)
+    {
+        const auto* enemy = my_scene_->get_script<Enemy>(go);
+        if (!enemy)
+        {
+            // dead or gone
+            continue;
+        }
+        const auto& awareness = enemy->awareness();
+        state.alert = state.alert || awareness.state() == Awareness::eAlert;
+        if (awareness.seconds_since_perceived() < state.seconds_since_perceived)
+        {
+            state.seconds_since_perceived = awareness.seconds_since_perceived();
+            state.last_known_position = awareness.last_known_position();
+        }
+    }
+    pack_state_ = state;
 }

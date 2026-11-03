@@ -15,6 +15,20 @@
       { "animation": "1H_Melee_Attack_Slice_Diagonal", "active_start": 0.32, "active_end": 0.5 },
       { "animation": "", "active_start": 0, "active_end": 0 },
       { "animation": "", "active_start": 0, "active_end": 0 }
-    ]
+    ],
+    "perception": {
+      "sight_range": 7,
+      "sight_half_angle_degrees": 55,
+      "close_range": 0.8,
+      "eye_height": 0.6,
+      "detect_seconds_near": 0.25,
+      "detect_seconds_far": 1.5,
+      "above_sight_multiplier": 0.35,
+      "hearing_fill_seconds": 1,
+      "loud_noise_fill": 0.6,
+      "meter_decay_seconds": 3,
+      "lose_seconds": 4,
+      "suspicious_move_speed": 0.8
+    }
   }
 }

@@ -1,4 +1,6 @@
 #pragma once
+#include "enemy_awareness.h"
+
 #include <engine.h>
 
 #include <cstdint>
@@ -42,6 +44,8 @@ struct EnemyType
     float hit_flash_color[3];
     // used in turn, in this order; the ones without an animation are skipped
     EnemyAttack attacks[ENEMY_TYPE_MAX_ATTACKS];
+    // how it notices the player (sight, hearing, how fast it forgets)
+    EnemyPerception perception;
 };
 
 struct EnemyConfig
@@ -192,6 +196,7 @@ struct LevelExitConfig
 struct GameComponentTypes
 {
     engine_component_type_t enemy_attack = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_component_type_t enemy_perception = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_type = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t traversal_tuning = ENGINE_INVALID_OBJECT_HANDLE;
@@ -211,6 +216,7 @@ const GameComponentTypes& game_components();
 
 // the default values: what a new component of the type holds, what a data asset holds in the fields its file doesn't
 // have
+EnemyPerception default_enemy_perception();
 EnemyType default_enemy_type();
 PlayerTuning default_player_tuning();
 TraversalTuning default_traversal_tuning();

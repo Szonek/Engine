@@ -1,6 +1,10 @@
 #pragma once
 #include "base_script.h"
+#include "enemy_awareness.h"
 #include "game_components.h"
+
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 #include <array>
 #include <cstdint>
@@ -63,13 +67,23 @@ public:
     void on_start() override;
 
     void update(float dt);
+    // a hit by the player: it and its pack are alerted at once
     void receive_attack_hit(std::uint32_t damage, float hit_stop_seconds);
     void set_attack_window_active(bool active);
     void on_weapon_hit_player(engine_game_object_t player_go);
 
+    // what it knows of the player (its detection meter and state)
+    const EnemyAwareness& awareness() const { return awareness_; }
+    // Its pack: the EnemySpawner which spawned it (runtime state, never saved), whose members alert each other;
+    // ENGINE_INVALID_GAME_OBJECT_ID for a placed enemy, a pack of one (and so is one whose spawner is gone).
+    void set_pack(engine_game_object_t spawner) { pack_ = spawner; }
+    engine_game_object_t get_pack() const { return pack_; }
+
 private:
     // the player's game object, or none (a scene without a player, or the player is gone)
     void find_player();
+    // what it sees, hears and was told by its pack this frame, standing at `position` facing `forward`
+    EnemyStimuli perceive(const EnemyPerception& perception, const glm::vec3& position, const glm::vec3& forward) const;
 
     struct HitFlashMaterial
     {
@@ -106,5 +120,11 @@ private:
     float hit_stop_remaining_seconds_ = 0.0f;
     float attack_cooldown_remaining_seconds_ = 0.0f;
     bool hit_stop_just_started_ = false;
+
+    EnemyAwareness awareness_;
+    engine_game_object_t pack_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    // a hit since the last update, and where the player was then
+    bool damaged_ = false;
+    glm::vec3 damage_position_{ 0.0f };
 };
 } //namespace project_c

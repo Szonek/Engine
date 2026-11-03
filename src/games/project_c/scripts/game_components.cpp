@@ -80,6 +80,24 @@ engine_component_type_t register_data_asset_type(const char* name, const std::ve
 }
 }  // namespace
 
+project_c::EnemyPerception project_c::default_enemy_perception()
+{
+    EnemyPerception p{};
+    p.sight_range = 7.0f;
+    p.sight_half_angle_degrees = 55.0f;
+    p.close_range = 0.8f;
+    p.eye_height = 0.6f;
+    p.detect_seconds_near = 0.25f;
+    p.detect_seconds_far = 1.5f;
+    p.above_sight_multiplier = 0.35f;
+    p.hearing_fill_seconds = 1.0f;
+    p.loud_noise_fill = 0.6f;
+    p.meter_decay_seconds = 3.0f;
+    p.lose_seconds = 4.0f;
+    p.suspicious_move_speed = 0.8f;
+    return p;
+}
+
 project_c::EnemyType project_c::default_enemy_type()
 {
     // the skeleton warrior's attacks; the windows were measured by sampling the "handslot.r" joint of
@@ -92,7 +110,7 @@ project_c::EnemyType project_c::default_enemy_type()
     return EnemyType{ ENGINE_INVALID_OBJECT_HANDLE, 20, 2, 2.0f, 0.5f, 0.8f, { 1.0f, 0.32f, 0.22f }, {
         { "1H_Melee_Attack_Slice_Horizontal", 0.18f, 0.36f },
         { "1H_Melee_Attack_Slice_Diagonal", 0.32f, 0.50f },
-    } };
+    }, default_enemy_perception() };
 }
 
 project_c::PlayerTuning project_c::default_player_tuning()
@@ -188,6 +206,33 @@ void project_c::register_game_components()
             0.0f, 1.0f),
     }, EnemyAttack{});
 
+    const auto perception_field = [](const char* name, std::size_t offset, const char* tooltip, float max_value)
+        {
+            return ranged(field(name, ENGINE_FIELD_KIND_FLOAT, offset, tooltip), 0.0f, max_value);
+        };
+    g_types.enemy_perception = register_data_asset_type("enemy_perception", {
+        perception_field("sight_range", offsetof(EnemyPerception, sight_range), "metres: how far it sees in its sight cone", 50.0f),
+        perception_field("sight_half_angle_degrees", offsetof(EnemyPerception, sight_half_angle_degrees), "half the sight cone's angle, from its facing", 180.0f),
+        perception_field("close_range", offsetof(EnemyPerception, close_range), "metres: it sees the player this close in any direction", 10.0f),
+        perception_field("eye_height", offsetof(EnemyPerception, eye_height), "metres above its feet it sees from", 5.0f),
+        perception_field("detect_seconds_near", offsetof(EnemyPerception, detect_seconds_near),
+            "seconds the meter takes to fill while it sees the player right next to it", 10.0f),
+        perception_field("detect_seconds_far", offsetof(EnemyPerception, detect_seconds_far),
+            "seconds the meter takes to fill while it sees the player at sight_range (linear in between)", 10.0f),
+        perception_field("above_sight_multiplier", offsetof(EnemyPerception, above_sight_multiplier),
+            "a player above its reach (on a roof) fills the meter this many times as fast; below 1 is slower", 5.0f),
+        perception_field("hearing_fill_seconds", offsetof(EnemyPerception, hearing_fill_seconds),
+            "seconds heard footsteps take to fill the meter", 10.0f),
+        perception_field("loud_noise_fill", offsetof(EnemyPerception, loud_noise_fill),
+            "what a heard loud noise (attack, dodge, landing) adds to the meter at once", 1.0f),
+        perception_field("meter_decay_seconds", offsetof(EnemyPerception, meter_decay_seconds),
+            "a full meter empties in this long when it perceives nothing", 60.0f),
+        perception_field("lose_seconds", offsetof(EnemyPerception, lose_seconds),
+            "seconds it searches for a lost player; its pack calms down when no member perceived the player this long", 60.0f),
+        perception_field("suspicious_move_speed", offsetof(EnemyPerception, suspicious_move_speed),
+            "metres per second while it walks to what it noticed, or searches", 10.0f),
+    }, default_enemy_perception());
+
     g_types.enemy_type = register_data_asset_type("enemy_type", {
         field("prefab", ENGINE_FIELD_KIND_PREFAB, offsetof(EnemyType, prefab), "the model the enemies of the kind are made of"),
         ranged(field("max_hp", ENGINE_FIELD_KIND_UINT32, offsetof(EnemyType, max_hp), "hit points of a fresh enemy"), 1.0f, 1000.0f),
@@ -197,6 +242,7 @@ void project_c::register_game_components()
         ranged(field("attack_cooldown_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(EnemyType, attack_cooldown_seconds), "seconds between two attacks"), 0.0f, 10.0f),
         field("hit_flash_color", ENGINE_FIELD_KIND_COLOR, offsetof(EnemyType, hit_flash_color), "the colour the enemy flashes when hit", 3),
         structs("attacks", offsetof(EnemyType, attacks), "enemy_attack", "used in turn; the ones without an animation are skipped", ENEMY_TYPE_MAX_ATTACKS),
+        structs("perception", offsetof(EnemyType, perception), "enemy_perception", "how it notices the player: sight, hearing, how fast it forgets", 0),
     }, default_enemy_type());
 
     g_types.player_tuning = register_data_asset_type("player_tuning", {

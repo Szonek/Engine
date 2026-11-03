@@ -3,6 +3,7 @@
 #include "enviorment_script.h"
 #include "scripts_utils.h"
 #include "coin_script.h"
+#include "enemy_spawner_script.h"
 
 #include "../app.h"
 #include "encounter_script.h"
@@ -43,8 +44,12 @@ bool same_attacks(const project_c::EnemyAttack (&a)[project_c::ENEMY_TYPE_MAX_AT
 // swinging from further away always misses
 // closer than this there is no nav mesh path to follow: the enemy walks straight at the player
 constexpr float ENEMY_DIRECT_APPROACH_RANGE = 0.8f;
-// the enemy starts chasing a player whose path is shorter than this
-constexpr float ENEMY_CHASE_START_PATH_LENGTH = 3.0f;
+// a suspicious or searching enemy has reached the spot it walks to this close
+constexpr float ENEMY_ARRIVE_DISTANCE = 0.5f;
+// a searching enemy looks around (turns) this fast where the player was lost
+constexpr float ENEMY_LOOK_AROUND_DEGREES_PER_SECOND = 60.0f;
+// what it looks at to see the player: the chest, above the player's feet
+constexpr float PLAYER_CHEST_HEIGHT = 0.5f;
 // corners of the path to the player, including the enemy's own position; only the next one is walked to
 constexpr std::size_t ENEMY_MAX_PATH_POINTS = 16;
 // how far from the enemy and the player the nav mesh is searched for the ends of the path (the player can stand on the
@@ -306,14 +311,24 @@ void project_c::Enemy::update(float dt)
 
     attack_cooldown_remaining_seconds_ = std::max(0.0f, attack_cooldown_remaining_seconds_ - dt / 1000.0f);
 
-    // a scene without a player (e.g. a test scene), or the player was destroyed (e.g. deleted in the editor)
+    // what it notices of the player (also when there is none: it forgets), then what it does about it; a player
+    // destroyed since (e.g. deleted in the editor) is looked for again
     if (!engineGameObjectIsValid(player_go_))
     {
         find_player();
-        if (player_go_ == ENGINE_INVALID_GAME_OBJECT_ID)
-        {
-            return;
-        }
+    }
+    if (state_ != States::DIE && hp > 0)
+    {
+        const auto own = engineGameObjectGetTransformComponent(go_);
+        const glm::vec3 forward = glm::make_quat(own.rotation) * glm::vec3(0.0f, 0.0f, 1.0f);
+        awareness_.update(dt / 1000.0f, perceive(cfg.perception, glm::vec3(own.position[0], own.position[1], own.position[2]), forward), cfg.perception);
+    }
+    damaged_ = false;
+
+    // a scene without a player (e.g. a test scene), or the player was destroyed (e.g. deleted in the editor)
+    if (!engineGameObjectIsValid(player_go_))
+    {
+        return;
     }
 
     for (auto& s : debug_scripts_)
@@ -324,28 +339,43 @@ void project_c::Enemy::update(float dt)
 
     auto tc = engineGameObjectGetTransformComponent(go_);
     auto ec = engineGameObjectGetTransformComponent(player_go_);
+    const glm::vec3 position(tc.position[0], tc.position[1], tc.position[2]);
+    const glm::vec3 player_position(ec.position[0], ec.position[1], ec.position[2]);
+
+    const auto awareness = awareness_.state();
+    const bool alert = awareness == Awareness::eAlert;
+    // an alert enemy hunts the player it perceives; otherwise it goes where it last noticed the player
+    const bool hunting_player = alert && awareness_.perceived_this_frame();
+    const glm::vec3 target = hunting_player ? player_position : awareness_.last_known_position();
+    bool goes_to_target = awareness != Awareness::eUnaware;
+    const float move_speed = alert ? cfg.move_speed : cfg.perception.suspicious_move_speed;
+
     const bool player_out_of_reach = std::abs(ec.position[1] - tc.position[1]) > ENEMY_MAX_REACH_HEIGHT;
-    const auto distance_to_player = player_out_of_reach
+    // only a player it hunts is attacked
+    const auto distance_to_player = player_out_of_reach || !hunting_player
         ? std::numeric_limits<float>::max()
         : glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(ec.position[0], ec.position[2]));
+    const float distance_to_target = std::abs(target.y - tc.position[1]) > ENEMY_MAX_REACH_HEIGHT
+        ? std::numeric_limits<float>::max()
+        : glm::distance(glm::vec2(tc.position[0], tc.position[2]), glm::vec2(target.x, target.z));
+    // a target out of its reach (on a roof, or while one of them falls) isn't walked to
+    goes_to_target = goes_to_target && distance_to_target < std::numeric_limits<float>::max();
 
-    // path[0] is the enemy's own position (on the nav mesh), path[1] the next corner to walk to; a player it can't reach
-    // (a partial path) is not chased
+    // path[0] is the enemy's own position (on the nav mesh), path[1] the next corner to walk to; a target it can't reach
+    // (a partial path) is not walked to
     std::array<glm::vec3, ENEMY_MAX_PATH_POINTS> path{};
     std::size_t path_points_count = 0;
     engine_nav_path_status_t path_status = ENGINE_NAV_PATH_STATUS_COMPLETE;
-    if (distance_to_player >= ENEMY_DIRECT_APPROACH_RANGE
-        && (engineNavFindPath(tc.position, ec.position, ENEMY_PATH_SEARCH_HALF_EXTENTS, glm::value_ptr(path[0]), path.size(), &path_points_count, &path_status) != ENGINE_RESULT_CODE_OK
-            || path_status == ENGINE_NAV_PATH_STATUS_PARTIAL))
+    if (!goes_to_target
+        || distance_to_target < ENEMY_DIRECT_APPROACH_RANGE
+        || engineNavFindPath(tc.position, glm::value_ptr(target), ENEMY_PATH_SEARCH_HALF_EXTENTS, glm::value_ptr(path[0]), path.size(), &path_points_count, &path_status) != ENGINE_RESULT_CODE_OK
+        || path_status == ENGINE_NAV_PATH_STATUS_PARTIAL)
     {
         path_points_count = 0;
     }
     const bool has_path = path_points_count >= 2;
-    float path_length = 0.0f;
-    for (std::size_t i = 1; i < path_points_count; i++)
-    {
-        path_length += glm::distance(path[i - 1], path[i]);
-    }
+    // a hunted player is reached at attack range, a spot it walks to a little closer
+    const float arrive_distance = hunting_player ? cfg.attack_range : ENEMY_ARRIVE_DISTANCE;
 
     if (hp <= 0 && state_ != States::DIE)
     {
@@ -403,15 +433,7 @@ void project_c::Enemy::update(float dt)
                 }
             }
         }
-        else if (distance_to_player <= cfg.attack_range)
-        {
-            state_ = States::IDLE;
-        }
-        else if (has_path && path_length < ENEMY_CHASE_START_PATH_LENGTH)
-        {
-            state_ = States::MOVE;
-        }
-        else if (distance_to_player < ENEMY_DIRECT_APPROACH_RANGE)
+        else if (goes_to_target && distance_to_target > arrive_distance && (has_path || distance_to_target < ENEMY_DIRECT_APPROACH_RANGE))
         {
             state_ = States::MOVE;
         }
@@ -430,6 +452,21 @@ void project_c::Enemy::update(float dt)
         if (!engineAnimationControllerIsAnimationPlaying(go_, "Idle"))
         {
             engineAnimationControllerAnimationPlay(go_, "Idle", 0);
+        }
+        // where the player was lost it looks around; a suspicious one faces what it noticed
+        if (awareness == Awareness::eSearching)
+        {
+            const auto turn = glm::angleAxis(glm::radians(ENEMY_LOOK_AROUND_DEGREES_PER_SECOND) * dt / 1000.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+            const auto quat = turn * glm::make_quat(tc.rotation);
+            std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
+            engineGameObjectUpdateTransformComponent(go_, &tc);
+        }
+        else if (awareness == Awareness::eSuspicious && distance_to_target > 0.05f && distance_to_target < std::numeric_limits<float>::max())
+        {
+            auto quat = utils::rotate_toward(position, glm::vec3(target.x, position.y, target.z));
+            quat = glm::slerp(glm::make_quat(tc.rotation), quat, std::min(1.0f, 0.005f * dt));
+            std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
+            engineGameObjectUpdateTransformComponent(go_, &tc);
         }
         state_ = States::DECISION_MAKE;
         break;
@@ -463,8 +500,8 @@ void project_c::Enemy::update(float dt)
     {
         // path is computed per_frame, but decision was made frame before
         // so it can happen that target has moved and new position is not reachable or close to current position
-        const bool direct_approach = !has_path && distance_to_player < ENEMY_DIRECT_APPROACH_RANGE;
-        if (distance_to_player <= cfg.attack_range || (!has_path && !direct_approach))
+        const bool direct_approach = !has_path && distance_to_target < ENEMY_DIRECT_APPROACH_RANGE;
+        if (!goes_to_target || distance_to_player <= cfg.attack_range || distance_to_target <= arrive_distance || (!has_path && !direct_approach))
         {
             state_ = States::DECISION_MAKE;
             break;
@@ -473,24 +510,26 @@ void project_c::Enemy::update(float dt)
         {
             engineLog("Failed to enable looping for enemy movement.\n");
         }
-        if (!engineAnimationControllerIsAnimationPlaying(go_, "Running_A"))
+        // alert it runs, otherwise it walks
+        const char* move_animation = alert ? "Running_A" : "Walking_A";
+        if (!engineAnimationControllerIsAnimationPlaying(go_, move_animation))
         {
-            engineAnimationControllerAnimationPlay(go_, "Running_A", 0);
+            engineAnimationControllerAnimationPlay(go_, move_animation, 0);
         }
         for (std::size_t i = 1; i < path_points_count; i++)
         {
             debug_scripts_.push_back(my_scene_->register_script<project_c::DebugPathNode>(engineGameObjectCreateTransient(), path[i].x, path[i].z));
         }
-        const glm::vec3 target = direct_approach
-            ? glm::vec3(ec.position[0], tc.position[1], ec.position[2])
+        const glm::vec3 next = direct_approach
+            ? glm::vec3(target.x, tc.position[1], target.z)
             : path[1];
-        auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), target);
+        auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), next);
         //auto quat = utils::rotate_toward(glm::vec3(tc.position[0], tc.position[1], tc.position[2]), glm::vec3(ec.position[0], ec.position[1], ec.position[2]));
         quat = glm::slerp(glm::make_quat(tc.rotation), quat, 0.005f * dt);
         std::memcpy(tc.rotation, glm::value_ptr(quat), sizeof(tc.rotation));
         engineGameObjectUpdateTransformComponent(go_, &tc);
         const glm::vec3 forward = glm::normalize(quat * glm::vec3(0.0f, 0.0f, 1.0f));
-        velocity = glm::vec3(forward.x, 0.0f, forward.z) * cfg.move_speed;
+        velocity = glm::vec3(forward.x, 0.0f, forward.z) * move_speed;
         //state_ = States::DECISION_MAKE;
         break;
     }
@@ -530,6 +569,13 @@ void project_c::Enemy::on_weapon_hit_player(engine_game_object_t player_go)
 
 void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_seconds)
 {
+    // alerted at the next update, with where the player is now
+    damaged_ = true;
+    if (engineGameObjectIsValid(player_go_))
+    {
+        const auto ptc = engineGameObjectGetTransformComponent(player_go_);
+        damage_position_ = glm::vec3(ptc.position[0], ptc.position[1], ptc.position[2]);
+    }
     set_attack_window_active(false);
     hp = damage >= hp ? 0 : hp - damage;
     hit_flash_remaining_seconds_ = 0.12f;
@@ -541,6 +587,71 @@ void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_s
     {
         engineLog("Failed to pause enemy animation for hit-stop.\n");
     }
+}
+
+project_c::EnemyStimuli project_c::Enemy::perceive(const EnemyPerception& perception, const glm::vec3& position, const glm::vec3& forward) const
+{
+    EnemyStimuli stimuli{};
+    stimuli.damaged = damaged_;
+    stimuli.damage_position = damage_position_;
+
+    // its pack: alert while a member perceived the player recently
+    if (const auto* pack = my_scene_->get_script<EnemySpawner>(pack_))
+    {
+        const auto state = pack->pack_state();
+        if (state.alert && state.seconds_since_perceived < perception.lose_seconds)
+        {
+            stimuli.pack_alert = true;
+            stimuli.pack_position = state.last_known_position;
+        }
+    }
+
+    const auto* player = my_scene_->get_script<Player>(player_go_);
+    if (!player || player->is_dead())
+    {
+        return stimuli;
+    }
+    const auto ptc = engineGameObjectGetTransformComponent(player_go_);
+    const glm::vec3 player_position(ptc.position[0], ptc.position[1], ptc.position[2]);
+    const float distance = glm::distance(glm::vec2(position.x, position.z), glm::vec2(player_position.x, player_position.z));
+
+    // sight: in view, and nothing in the way from its eyes to the player's chest
+    if (in_sight_cone(position, forward, player_position, perception))
+    {
+        const glm::vec3 eye = position + glm::vec3(0.0f, perception.eye_height, 0.0f);
+        const glm::vec3 chest = player_position + glm::vec3(0.0f, PLAYER_CHEST_HEIGHT, 0.0f);
+        const glm::vec3 direction = chest - eye;
+        engine_physics_query_filter_t filter{};
+        filter.ignore = &go_;
+        filter.ignore_count = 1;
+        engine_ray_hit_t hit{};
+        if (glm::length(direction) > 0.0f
+            && enginePhysicsRayCast(glm::value_ptr(eye), glm::value_ptr(direction), glm::length(direction), &filter, &hit)
+            && hit.go == player_go_)
+        {
+            stimuli.seen = true;
+            stimuli.seen_distance = distance;
+            stimuli.seen_above = player_position.y - position.y > ENEMY_MAX_REACH_HEIGHT;
+            stimuli.seen_position = player_position;
+        }
+    }
+
+    // hearing: the player's noise of this frame reaches it (walls don't block it)
+    const float noise = player->noise_radius();
+    if (noise > 0.0f && glm::distance(position, player_position) <= noise)
+    {
+        if (player->noise_is_loud())
+        {
+            stimuli.heard_loud_noise = true;
+            stimuli.loud_noise_position = player_position;
+        }
+        else
+        {
+            stimuli.heard_footsteps = true;
+            stimuli.footsteps_position = player_position;
+        }
+    }
+    return stimuli;
 }
 
 void project_c::Enemy::collect_hit_flash_materials(engine_game_object_t game_object)
