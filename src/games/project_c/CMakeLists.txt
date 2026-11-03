@@ -39,6 +39,7 @@ set(LIB_SOURCES
 	scripts/encounter_script.cpp
 	scripts/enemy_script.h
 	scripts/enemy_script.cpp
+	scripts/enemy_awareness.h
 	scripts/enviorment_script.h
 	scripts/enviorment_script.cpp
 	scripts/game_components.h
