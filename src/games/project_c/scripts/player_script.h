@@ -172,6 +172,11 @@ public:
     void add_coin(std::uint64_t amount);
     std::uint64_t get_coins() const { return state().coins; }
     MovementMode movement_mode() const { return movement_mode_; }
+    // The noise the player makes this frame, which enemies within the radius hear (walls don't block it): 0 while
+    // sneaking, standing or off the ground, the footstep radius while walking, the loud radius for one frame on an
+    // attack, a dodge or a hard landing (noise_is_loud).
+    float noise_radius() const { return noise_radius_; }
+    bool noise_is_loud() const { return noise_is_loud_; }
     // its stats (hp, coins, weapon), kept by the app so they outlive the level (AppProjectC::player_state)
     const PlayerState& state() const;
     // what a player who has nothing carried starts with
@@ -239,6 +244,16 @@ private:
     // how long the character controller hasn't stood the player on the ground
     float ungrounded_seconds_ = 0.0f;
     float landing_recovery_remaining_seconds_ = 0.0f;
+    // the feet's height when the player left the ground, to tell a hard landing
+    float airborne_start_y_ = 0.0f;
+
+    // this frame's noise (noise_radius), and the ring shown on the ground for a loud one
+    void make_loud_noise(const PlayerTuning& t);
+    float noise_radius_ = 0.0f;
+    bool noise_is_loud_ = false;
+    glm::vec3 noise_ring_center_{ 0.0f };
+    float noise_ring_radius_ = 0.0f;
+    float noise_ring_remaining_seconds_ = 0.0f;
     PlayerTraversal traversal_;
 };
 } //namespace project_c

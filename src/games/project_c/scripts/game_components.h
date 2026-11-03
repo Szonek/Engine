@@ -78,6 +78,12 @@ struct PlayerTuning
     // being hit
     float hit_stun_seconds;
     float knockback_speed;
+    // metres per second while sneaking (below the traversal's run_min_speed: a sneaking player climbs, never runs up)
+    float sneak_speed;
+    // metres: enemies this close hear the player's footsteps (not while sneaking or standing), and an attack, a dodge
+    // or a hard landing (a loud noise)
+    float footstep_noise_radius;
+    float loud_noise_radius;
 };
 
 // how the player gets around obstacles: climbing, vaulting, mantling (a data asset, assets/data/player); the geometry

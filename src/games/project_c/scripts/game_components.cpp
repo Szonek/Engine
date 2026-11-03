@@ -116,6 +116,9 @@ project_c::PlayerTuning project_c::default_player_tuning()
     t.hit_camera_shake_seconds = 0.08f;
     t.hit_stun_seconds = 0.0f;
     t.knockback_speed = 2.5f;
+    t.sneak_speed = 1.2f;
+    t.footstep_noise_radius = 2.5f;
+    t.loud_noise_radius = 5.0f;
     return t;
 }
 
@@ -223,6 +226,12 @@ void project_c::register_game_components()
         ranged(field("hit_camera_shake_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, hit_camera_shake_seconds), "how long the camera shakes"), 0.0f, 1.0f),
         ranged(field("hit_stun_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, hit_stun_seconds), "seconds without control when the player is hit"), 0.0f, 2.0f),
         ranged(field("knockback_speed", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, knockback_speed), "metres per second the player is pushed back when hit"), 0.0f, 20.0f),
+        ranged(field("sneak_speed", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, sneak_speed),
+            "metres per second while sneaking (Shift); keep it below the traversal's run_min_speed"), 0.0f, 10.0f),
+        ranged(field("footstep_noise_radius", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, footstep_noise_radius),
+            "metres: enemies this close hear the player walk (not sneaking)"), 0.0f, 30.0f),
+        ranged(field("loud_noise_radius", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, loud_noise_radius),
+            "metres: enemies this close hear an attack, a dodge or a hard landing"), 0.0f, 30.0f),
     }, default_player_tuning());
 
     g_types.traversal_tuning = register_data_asset_type("traversal_tuning", {

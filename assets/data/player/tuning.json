@@ -20,6 +20,9 @@
     "hit_camera_shake_intensity": 0.035,
     "hit_camera_shake_seconds": 0.08,
     "hit_stun_seconds": 0,
-    "knockback_speed": 2.5
+    "knockback_speed": 2.5,
+    "sneak_speed": 1.2,
+    "footstep_noise_radius": 2.5,
+    "loud_noise_radius": 5
   }
 }
