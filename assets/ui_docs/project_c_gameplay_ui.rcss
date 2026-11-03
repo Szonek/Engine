@@ -25,6 +25,16 @@ body {
 	 margin: -2px;
 }
 
+.awareness
+{
+	position: absolute;
+	width: 10%;
+	text-align: center;
+	font-size: 24px;
+	color: #ffd21f;
+	font-effect: outline(2px black);
+}
+
 .healthbar
 {
 	position: absolute;

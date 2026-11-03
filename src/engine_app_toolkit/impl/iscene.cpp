@@ -426,7 +426,7 @@ engine_result_code_t engine::IScene::update(float dt)
     // in every play state, before the scene update draws this frame's shapes
     if (engineEditorAreGizmosVisible())
     {
-        app_->gizmos().draw(engineEditorGetSelectedGameObject());
+        app_->gizmos().draw(*this, engineEditorGetSelectedGameObject());
     }
 
     if (engineFrameSceneUpdate(gameplay_paused ? 0.0f : dt) != ENGINE_RESULT_CODE_OK)

@@ -144,7 +144,7 @@ TEST_F(PlaySessionTest, GizmosAreDrawnInEditModeWithoutScripts)
     EXPECT_TRUE(scene->get_scripts<project_c::EnemySpawner>().empty());
 
     // a drawer per component type, no script needed: the spawner's and the player start's
-    EXPECT_EQ(scenario::app().gizmos().draw(ENGINE_INVALID_GAME_OBJECT_ID), 2u);
+    EXPECT_EQ(scenario::app().gizmos().draw(*scene, ENGINE_INVALID_GAME_OBJECT_ID), 2u);
 }
 
 TEST_F(PlaySessionTest, StopGivesBackTheLevelWithoutItsPlayer)
