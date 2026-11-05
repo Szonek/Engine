@@ -11,7 +11,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <unordered_map>
 #include <initializer_list>
+#include <memory>
 #include <optional>
 
 namespace
@@ -104,7 +107,36 @@ glm::vec3 awareness_color(const project_c::Enemy* enemy)
     return glm::vec3(0.6f);
 }
 
-void draw_enemy(const engine::IScene& scene, engine_game_object_t go, bool selected)
+// The perception of each enemy type, read from its data asset once per draw pass (the asset can change between passes:
+// an edit, a reload), not per enemy.
+class EnemyPerceptionCache
+{
+public:
+    explicit EnemyPerceptionCache(const engine::GizmoRegistry& gizmos) : gizmos_(gizmos) {}
+
+    const project_c::EnemyPerception& get(engine_data_asset_t type)
+    {
+        if (pass_ != gizmos_.pass())
+        {
+            pass_ = gizmos_.pass();
+            perceptions_.clear();
+        }
+        auto it = perceptions_.find(type);
+        if (it == perceptions_.end())
+        {
+            const auto& types = project_c::game_components();
+            it = perceptions_.emplace(type, project_c::get_data_asset(type, types.enemy_type, project_c::default_enemy_type()).perception).first;
+        }
+        return it->second;
+    }
+
+private:
+    const engine::GizmoRegistry& gizmos_;
+    std::uint64_t pass_ = 0;
+    std::unordered_map<engine_data_asset_t, project_c::EnemyPerception> perceptions_;
+};
+
+void draw_enemy(EnemyPerceptionCache& cache, const engine::IScene& scene, engine_game_object_t go, bool selected)
 {
     const auto world = world_matrix(go);
     if (!world)
@@ -113,7 +145,7 @@ void draw_enemy(const engine::IScene& scene, engine_game_object_t go, bool selec
     }
     const auto& types = project_c::game_components();
     const auto config = project_c::get_game_component(go, types.enemy_config, project_c::default_enemy_config());
-    const auto perception = project_c::get_data_asset(config.type, types.enemy_type, project_c::default_enemy_type()).perception;
+    const auto& perception = cache.get(config.type);
     // its facing, flat: +z of its game object
     auto forward = glm::vec3((*world)[2]);
     forward.y = 0.0f;
@@ -153,5 +185,9 @@ void project_c::register_gizmos(engine::GizmoRegistry& gizmos)
 {
     gizmos.add(game_components().enemy_spawner, &draw_enemy_spawner);
     gizmos.add(game_components().player_start, &draw_player_start);
-    gizmos.add(game_components().enemy_config, &draw_enemy);
+    // the registry outlives its drawers (it holds them)
+    gizmos.add(game_components().enemy_config, [cache = std::make_shared<EnemyPerceptionCache>(gizmos)](const engine::IScene& scene, engine_game_object_t go, bool selected)
+        {
+            draw_enemy(*cache, scene, go, selected);
+        });
 }

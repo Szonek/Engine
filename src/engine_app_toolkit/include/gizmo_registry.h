@@ -3,6 +3,7 @@
 #include "utils.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <vector>
 
@@ -30,6 +31,9 @@ public:
     // calls each drawer for every game object of the active scene (`scene`) with its component; `selected` is the
     // editor's selection (ENGINE_INVALID_GAME_OBJECT_ID for none). Returns the number of drawer calls.
     std::size_t draw(const IScene& scene, engine_game_object_t selected) const;
+    // counts the draw passes (draw calls), so a drawer can compute what all its game objects share once per pass
+    // (e.g. read a data asset), not once per game object
+    std::uint64_t pass() const { return passes_; }
 
 private:
     // the drawers of each component type, so its game objects are listed once per frame
@@ -39,5 +43,6 @@ private:
         std::vector<Drawer> drawers;
     };
     std::vector<Entry> types_;
+    mutable std::uint64_t passes_ = 0;
 };
 }  // namespace engine

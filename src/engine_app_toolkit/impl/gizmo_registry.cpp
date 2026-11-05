@@ -18,6 +18,7 @@ void engine::GizmoRegistry::add(engine_component_type_t component_type, Drawer d
 std::size_t engine::GizmoRegistry::draw(const IScene& scene, engine_game_object_t selected) const
 {
     engine::ScopedProfiler prof("engine::GizmoRegistry::draw");
+    passes_++;
     std::size_t calls = 0;
     for (const auto& entry : types_)
     {
