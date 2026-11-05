@@ -23,8 +23,6 @@ public:
     EnemySpawnerConfig config() const;
 
     void on_start() override;
-    // the pack's state, from its members' awareness
-    void update(float dt) override;
 
     // what the pack knows of the player
     struct PackState
@@ -36,14 +34,14 @@ public:
         // since a member perceived the player itself (infinite when none did)
         float seconds_since_perceived = std::numeric_limits<float>::infinity();
     };
-    // as of its last update (a frame behind its members at most)
-    const PackState& pack_state() const { return pack_state_; }
+    // What the members other than `reader` know of the player, from their awareness now: a member's own perception never
+    // keeps it alert through its pack, so a pack member forgets like a placed enemy.
+    PackState pack_state(engine_game_object_t reader) const;
 
     // the enemies it spawned (they can be destroyed since)
     const std::vector<engine_game_object_t>& get_spawned() const { return spawned_; }
 
 private:
     std::vector<engine_game_object_t> spawned_;
-    PackState pack_state_;
 };
 }  // namespace project_c

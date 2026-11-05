@@ -94,15 +94,15 @@ void project_c::EnemySpawner::on_start()
     }
 }
 
-void project_c::EnemySpawner::update(float /*dt*/)
+project_c::EnemySpawner::PackState project_c::EnemySpawner::pack_state(engine_game_object_t reader) const
 {
     PackState state{};
     for (const auto go : spawned_)
     {
-        const auto* enemy = my_scene_->get_script<Enemy>(go);
+        const auto* enemy = go == reader ? nullptr : my_scene_->get_script<Enemy>(go);
         if (!enemy)
         {
-            // dead or gone
+            // the reader, or dead or gone
             continue;
         }
         const auto& awareness = enemy->awareness();
@@ -113,5 +113,5 @@ void project_c::EnemySpawner::update(float /*dt*/)
             state.last_known_position = awareness.last_known_position();
         }
     }
-    pack_state_ = state;
+    return state;
 }

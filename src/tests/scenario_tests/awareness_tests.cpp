@@ -257,7 +257,7 @@ TEST_F(AwarenessTest, AlertingOneEnemyAlertsItsPack)
     EXPECT_TRUE(all_in(others, Awareness::eUnaware));
 }
 
-// once no member has perceived the player for lose_seconds, the pack searches, gives up and forgets
+// once no member perceives the player any more, the pack searches, gives up and forgets
 TEST_F(AwarenessTest, PackCalmsDownAfterLosingThePlayer)
 {
     auto* scene = sandbox(10.0f);
@@ -275,13 +275,60 @@ TEST_F(AwarenessTest, PackCalmsDownAfterLosingThePlayer)
 
     // the player is gone: nothing is perceived any more
     engineGameObjectDestroy(player->get_game_object());
-    const float lose_seconds = project_c::default_enemy_perception().lose_seconds;
-    // the pack holds on while the hit is recent
-    step(static_cast<std::uint32_t>(lose_seconds * 0.5f * 60.0f));
-    EXPECT_TRUE(all_in(pack_members, Awareness::eAlert));
-    // searching, suspicious, then unaware: lose_seconds twice plus the meter's decay, with a margin
-    const auto calm = step_until({}, 60 * 20, [&] { return all_in(pack_members, Awareness::eUnaware); });
-    EXPECT_LE(calm, 60u * 20u);
+    // both search where the player was, give up and forget: the grace time, lose_seconds and the meter's decay, with
+    // a margin
+    bool searched = false;
+    const auto calm = step_until({}, 60 * 15, [&] { return all_in(pack_members, Awareness::eUnaware); },
+        [&] { searched = searched || all_in(pack_members, Awareness::eSearching); });
+    EXPECT_TRUE(searched);
+    EXPECT_LE(calm, 60u * 15u);
+}
+
+// a pack of one forgets the player as fast as a placed enemy (regression: its own perception kept it alert through
+// its pack for lose_seconds)
+TEST_F(AwarenessTest, PackMemberForgetsLikeAPlacedEnemy)
+{
+    auto* scene = sandbox(10.0f);
+    auto* player = scene->build().player(0.0f, -6.0f);
+    auto* placed = scene->build().enemy(6.0f, 0.0f);
+    auto config = project_c::default_enemy_spawner();
+    config.enemy_type = scenario::app().get_skeleton_warrior_type();
+    config.count = 1;
+    config.area_half_extents[0] = 0.5f;
+    config.area_half_extents[1] = 0.5f;
+    auto* spawner = scene->build().enemy_spawner(-6.0f, 0.0f, config);
+    ASSERT_NE(placed, nullptr);
+    scene->snap_camera_to_player();
+    step(2);
+    const auto pack_members = members(*spawner);
+    ASSERT_EQ(pack_members.size(), 1u);
+    auto* spawned = pack_members[0];
+    step(SETTLE_FRAMES);
+
+    placed->receive_attack_hit(0, 0.0f);
+    spawned->receive_attack_hit(0, 0.0f);
+    step(1);
+    ASSERT_EQ(placed->awareness().state(), Awareness::eAlert);
+    ASSERT_EQ(spawned->awareness().state(), Awareness::eAlert);
+    engineGameObjectDestroy(player->get_game_object());
+
+    std::uint32_t placed_searching = 0;
+    std::uint32_t spawned_searching = 0;
+    for (std::uint32_t frame = 1; frame <= 600 && (placed_searching == 0 || spawned_searching == 0); frame++)
+    {
+        step();
+        if (placed_searching == 0 && placed->awareness().state() == Awareness::eSearching)
+        {
+            placed_searching = frame;
+        }
+        if (spawned_searching == 0 && spawned->awareness().state() == Awareness::eSearching)
+        {
+            spawned_searching = frame;
+        }
+    }
+    ASSERT_GT(placed_searching, 0u);
+    ASSERT_GT(spawned_searching, 0u);
+    EXPECT_NEAR(static_cast<float>(spawned_searching), static_cast<float>(placed_searching), 2.0f);
 }
 
 // a hit on an unaware enemy alerts it and its pack at once, with the player's position as the last known one

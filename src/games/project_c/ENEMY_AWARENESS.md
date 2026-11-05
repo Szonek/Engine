@@ -52,8 +52,9 @@ a loud noise is seen by every enemy exactly once.
 ## Packs
 
 The enemies an `EnemySpawner` spawned are a pack. Each enemy knows its spawner's game object (`Enemy::set_pack`, set
-when spawned, runtime state, never saved) and reads its `pack_state()`, which the spawner computes from its members each
-frame: alert when a member is, the newest last known position, and the time since a member perceived the player itself.
+when spawned, runtime state, never saved) and reads its `pack_state(reader)`, which the spawner computes from its other members
+when asked: alert when one of them is, the newest last known position, and the time since one of them perceived the
+player itself. The reader's own perception doesn't count, so a pack member forgets like a placed enemy.
 An enemy of an alert pack whose members perceived the player within `lose_seconds` is alerted too (a frame later at
 most), so a pack calms down only once none of them has perceived the player for `lose_seconds`. A placed enemy, or one
 whose spawner is gone, is a pack of one.

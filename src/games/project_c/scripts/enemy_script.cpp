@@ -596,10 +596,10 @@ project_c::EnemyStimuli project_c::Enemy::perceive(const EnemyPerception& percep
     stimuli.damaged = damaged_;
     stimuli.damage_position = damage_position_;
 
-    // its pack: alert while a member perceived the player recently
+    // its pack: alert while another member perceived the player recently
     if (const auto* pack = my_scene_->get_script<EnemySpawner>(pack_))
     {
-        const auto state = pack->pack_state();
+        const auto state = pack->pack_state(go_);
         if (state.alert && state.seconds_since_perceived < perception.lose_seconds)
         {
             stimuli.pack_alert = true;
