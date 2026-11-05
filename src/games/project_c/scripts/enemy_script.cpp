@@ -48,6 +48,8 @@ constexpr float ENEMY_DIRECT_APPROACH_RANGE = 0.8f;
 constexpr float ENEMY_ARRIVE_DISTANCE = 0.5f;
 // a searching enemy looks around (turns) this fast where the player was lost
 constexpr float ENEMY_LOOK_AROUND_DEGREES_PER_SECOND = 60.0f;
+// a killed enemy alerts its pack for this long after the killing blow (the members read it), then it leaves the pack
+constexpr float ENEMY_DEATH_ALARM_SECONDS = 0.2f;
 // what it looks at to see the player: the chest, above the player's feet
 constexpr float PLAYER_CHEST_HEIGHT = 0.5f;
 // corners of the path to the player, including the enemy's own position; only the next one is walked to
@@ -289,13 +291,18 @@ void project_c::Enemy::update(float dt)
     {
         find_player();
     }
-    if (state_ != States::DIE && hp > 0)
+    // also for the killing blow (it isn't dying yet), so the hit alerts it and its pack
+    if (state_ != States::DIE)
     {
         const auto own = engineGameObjectGetTransformComponent(go_);
         const glm::vec3 forward = glm::make_quat(own.rotation) * glm::vec3(0.0f, 0.0f, 1.0f);
         awareness_.update(dt / 1000.0f, perceive(cfg.perception, glm::vec3(own.position[0], own.position[1], own.position[2]), forward), cfg.perception);
     }
     damaged_ = false;
+    if (hp == 0)
+    {
+        dying_seconds_ += dt / 1000.0f;
+    }
 
     if (hit_stop_remaining_seconds_ > 0.0f)
     {
@@ -589,6 +596,11 @@ void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_s
     {
         engineLog("Failed to pause enemy animation for hit-stop.\n");
     }
+}
+
+bool project_c::Enemy::was_just_killed() const
+{
+    return is_dying() && awareness_.state() == Awareness::eAlert && dying_seconds_ < ENEMY_DEATH_ALARM_SECONDS;
 }
 
 project_c::EnemyStimuli project_c::Enemy::perceive(const EnemyPerception& perception, const glm::vec3& position, const glm::vec3& forward) const

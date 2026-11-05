@@ -44,7 +44,8 @@ meter empties in `meter_decay_seconds`).
   tested): while the player walks, a faint ring at the footstep radius pulses with the steps (every
   `footstep_ring_interval_seconds`, `show_footstep_ring` turns it off); while it sneaks or stands there is none; a loud
   noise shows a bright double ring of its radius for 0.3 s.
-* **Damage**: a hit alerts the enemy at once, with the player's position as the last known position.
+* **Damage**: a hit alerts the enemy at once (also during its hit stop, and a killing blow), with the player's position as
+  the last known position.
 
 Enemies read the player (scripts read each other, nothing reports), so the order the scripts update in doesn't matter:
 a loud noise is seen by every enemy exactly once.
@@ -54,7 +55,9 @@ a loud noise is seen by every enemy exactly once.
 The enemies an `EnemySpawner` spawned are a pack. Each enemy knows its spawner's game object (`Enemy::set_pack`, set
 when spawned, runtime state, never saved) and reads its `pack_state(reader)`, which the spawner computes from its other members
 when asked: alert when one of them is, the newest last known position, and the time since one of them perceived the
-player itself. The reader's own perception doesn't count, so a pack member forgets like a placed enemy.
+player itself. The reader's own perception doesn't count, so a pack member forgets like a placed enemy. A dying member leaves the pack, but
+its killing blow alerts the rest of it (for 0.2 s, with the player's position then), so a one-hit kill still alerts the
+pack and a corpse never keeps it alert.
 An enemy of an alert pack whose members perceived the player within `lose_seconds` is alerted too (a frame later at
 most), so a pack calms down only once none of them has perceived the player for `lose_seconds`. A placed enemy, or one
 whose spawner is gone, is a pack of one.

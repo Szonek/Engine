@@ -35,7 +35,8 @@ public:
         float seconds_since_perceived = std::numeric_limits<float>::infinity();
     };
     // What the members other than `reader` know of the player, from their awareness now: a member's own perception never
-    // keeps it alert through its pack, so a pack member forgets like a placed enemy.
+    // keeps it alert through its pack, so a pack member forgets like a placed enemy. A dying member is left out, but
+    // its killing blow alerts the pack (Enemy::was_just_killed).
     PackState pack_state(engine_game_object_t reader) const;
 
     // the enemies it spawned (they can be destroyed since)

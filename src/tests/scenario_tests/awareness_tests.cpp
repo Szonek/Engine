@@ -371,3 +371,29 @@ TEST_F(AwarenessTest, HitAlertsDuringTheHitStop)
     step(1);
     EXPECT_EQ(enemy->awareness().state(), Awareness::eAlert);
 }
+
+// a killing blow alerts the pack too, and the corpse doesn't keep it alert (regression: a one-hit kill alerted nobody,
+// and an enemy killed while alert held its pack alert during its death)
+TEST_F(AwarenessTest, KillingBlowAlertsThePackButTheCorpseDoesNotHoldIt)
+{
+    auto* scene = sandbox(10.0f);
+    auto* player = scene->build().player(0.0f, -6.0f);
+    auto* spawner = pack(-6.0f, 0.0f, 1);
+    scene->snap_camera_to_player();
+    step(2);
+    const auto pack_members = members(*spawner);
+    ASSERT_EQ(pack_members.size(), 2u);
+    step(SETTLE_FRAMES);
+    ASSERT_TRUE(all_in(pack_members, Awareness::eUnaware));
+
+    auto* survivor = pack_members[1];
+    pack_members[0]->receive_attack_hit(pack_members[0]->get_max_hp(), 0.0f);
+    const auto alert = step_until({}, 10, [&] { return survivor->awareness().state() == Awareness::eAlert; });
+    EXPECT_LE(alert, 10u);
+
+    // nothing perceives the player any more: the survivor searches after its grace time, while the corpse's death
+    // still plays
+    engineGameObjectDestroy(player->get_game_object());
+    const auto searching = step_until({}, 120, [&] { return survivor->awareness().state() == Awareness::eSearching; });
+    EXPECT_LE(seconds(searching), project_c::default_enemy_perception().lose_sight_grace_seconds + 0.5f);
+}

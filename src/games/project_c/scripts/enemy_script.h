@@ -74,6 +74,10 @@ public:
 
     // what it knows of the player (its detection meter and state)
     const EnemyAwareness& awareness() const { return awareness_; }
+    // killed (its death plays): it is no longer part of its pack, except to alert it right after the killing blow
+    bool is_dying() const { return hp == 0; }
+    // killed a moment ago by a hit: its pack takes the alert (the hit's position is its last known position)
+    bool was_just_killed() const;
     // Its pack: the EnemySpawner which spawned it (runtime state, never saved), whose members alert each other;
     // ENGINE_INVALID_GAME_OBJECT_ID for a placed enemy, a pack of one (and so is one whose spawner is gone).
     void set_pack(engine_game_object_t spawner) { pack_ = spawner; }
@@ -126,5 +130,6 @@ private:
     // a hit since the last update, and where the player was then
     bool damaged_ = false;
     glm::vec3 damage_position_{ 0.0f };
+    float dying_seconds_ = 0.0f;
 };
 } //namespace project_c

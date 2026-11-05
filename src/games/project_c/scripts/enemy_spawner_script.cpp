@@ -106,6 +106,17 @@ project_c::EnemySpawner::PackState project_c::EnemySpawner::pack_state(engine_ga
             continue;
         }
         const auto& awareness = enemy->awareness();
+        if (enemy->is_dying())
+        {
+            // a corpse doesn't keep its pack alert; its killing blow alerts the pack, where the player was
+            if (enemy->was_just_killed())
+            {
+                state.alert = true;
+                state.seconds_since_perceived = 0.0f;
+                state.last_known_position = awareness.last_known_position();
+            }
+            continue;
+        }
         state.alert = state.alert || awareness.state() == Awareness::eAlert;
         if (awareness.seconds_since_perceived() < state.seconds_since_perceived)
         {
