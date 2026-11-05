@@ -1,6 +1,7 @@
 #pragma once
 #include "base_script.h"
 #include "game_components.h"
+#include "noise_rings.h"
 #include "player_traversal.h"
 #include "../player_input.h"
 #include "../player_state.h"
@@ -247,13 +248,13 @@ private:
     // the feet's height when the player left the ground, to tell a hard landing
     float airborne_start_y_ = 0.0f;
 
-    // this frame's noise (noise_radius), and the ring shown on the ground for a loud one
+    // this frame's noise (noise_radius) and where it was made, and the rings showing it on the ground
     void make_loud_noise(const PlayerTuning& t);
+    void draw_noise_rings() const;
     float noise_radius_ = 0.0f;
     bool noise_is_loud_ = false;
-    glm::vec3 noise_ring_center_{ 0.0f };
-    float noise_ring_radius_ = 0.0f;
-    float noise_ring_remaining_seconds_ = 0.0f;
+    glm::vec3 noise_position_{ 0.0f };
+    NoiseRings noise_rings_;
     PlayerTraversal traversal_;
 };
 } //namespace project_c

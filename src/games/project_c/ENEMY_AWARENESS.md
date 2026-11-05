@@ -8,10 +8,11 @@ How enemies notice the player and what they do about it: sight, hearing, packs a
 | `scripts/enemy_script.h/.cpp`                | `Enemy::perceive` (the stimuli of a frame) and the behaviour per state    |
 | `scripts/enemy_spawner_script.h/.cpp`        | The pack: `EnemySpawner::pack_state`, computed from its members           |
 | `scripts/player_script.h/.cpp`               | Sneaking and the player's noise (`Player::noise_radius`, `noise_is_loud`) |
+| `scripts/noise_rings.h`                      | The rings showing the noise on the ground (engine-free, unit tested)     |
 | `scripts/gameplay_hud_script.cpp`            | The `?` / `!` above each enemy's health bar                               |
 | `scripts/gizmos.cpp`                         | The sight cone gizmo of the `enemy_config` component                      |
 | `assets/data/enemies/skeleton_warrior.json`  | `perception`: the enemy type's sight, hearing and memory values           |
-| `assets/data/player/tuning.json`             | `sneak_speed`, `footstep_noise_radius`, `loud_noise_radius`               |
+| `assets/data/player/tuning.json`             | `sneak_speed`, `footstep_noise_radius`, `loud_noise_radius`, `show_footstep_ring`, `footstep_ring_interval_seconds` |
 
 ## States
 
@@ -38,7 +39,10 @@ meter empties in `meter_decay_seconds`).
 * **Hearing**: the player's noise of the frame (`Player::noise_radius`), which walls don't block: 0 while sneaking,
   standing or off the ground, `footstep_noise_radius` while walking, `loud_noise_radius` for one frame on an attack, a
   dodge or a landing from 1.5 m or higher. Heard footsteps fill the meter in `hearing_fill_seconds`, a loud noise adds
-  `loud_noise_fill` at once. A loud noise shows its radius as a ring on the ground for 0.3 s.
+  `loud_noise_fill` at once. The noise shows on the ground, like Mark of the Ninja's (`scripts/noise_rings.h`, unit
+  tested): while the player walks, a faint ring at the footstep radius pulses with the steps (every
+  `footstep_ring_interval_seconds`, `show_footstep_ring` turns it off); while it sneaks or stands there is none; a loud
+  noise shows a bright double ring of its radius for 0.3 s.
 * **Damage**: a hit alerts the enemy at once, with the player's position as the last known position.
 
 Enemies read the player (scripts read each other, nothing reports), so the order the scripts update in doesn't matter:

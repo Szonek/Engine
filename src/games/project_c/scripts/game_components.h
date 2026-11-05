@@ -88,6 +88,10 @@ struct PlayerTuning
     // or a hard landing (a loud noise)
     float footstep_noise_radius;
     float loud_noise_radius;
+    // a faint ring at the footstep radius pulses on the ground every footstep_ring_interval_seconds while the player
+    // walks (a loud noise always shows its ring)
+    bool show_footstep_ring;
+    float footstep_ring_interval_seconds;
 };
 
 // how the player gets around obstacles: climbing, vaulting, mantling (a data asset, assets/data/player); the geometry

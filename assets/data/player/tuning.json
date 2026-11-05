@@ -23,6 +23,8 @@
     "knockback_speed": 2.5,
     "sneak_speed": 1.2,
     "footstep_noise_radius": 2.5,
-    "loud_noise_radius": 5
+    "loud_noise_radius": 5,
+    "show_footstep_ring": true,
+    "footstep_ring_interval_seconds": 0.4
   }
 }

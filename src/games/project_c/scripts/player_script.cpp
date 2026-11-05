@@ -36,8 +36,6 @@ constexpr float FALL_DELAY_SECONDS = 0.1f;
 constexpr const char* LANDING_ANIMATION = "Jump_Land";
 // a landing from at least this high is loud (not a step down, nor the drop of a player spawned above the floor)
 constexpr float LOUD_LANDING_MIN_DROP = 1.5f;
-// how long the ring of a loud noise is shown on the ground
-constexpr float NOISE_RING_SECONDS = 0.3f;
 
 void attack_window_open_callback(const engine_animation_event_info_t* info, void* user_data)
 {
@@ -508,16 +506,12 @@ void project_c::Player::update(float dt)
     engine::ScopedProfiler prof("project_c::Player::update");
     const auto t = tuning();
     const auto traversal = traversal_tuning();
-    // the noise of this frame is made below (none when the player can't move)
+    // the rings of the noise made in the last frame, then this frame's noise is made below (none when the player
+    // can't move)
+    noise_rings_.update(dt / 1000.0f, noise_radius_, noise_is_loud_, noise_position_, t.show_footstep_ring, t.footstep_ring_interval_seconds);
+    draw_noise_rings();
     noise_radius_ = 0.0f;
     noise_is_loud_ = false;
-    if (noise_ring_remaining_seconds_ > 0.0f)
-    {
-        noise_ring_remaining_seconds_ = std::max(0.0f, noise_ring_remaining_seconds_ - dt / 1000.0f);
-        const glm::vec3 up(0.0f, 1.0f, 0.0f);
-        const glm::vec3 color(1.0f, 0.9f, 0.4f);
-        engineDebugDrawCircle(glm::value_ptr(noise_ring_center_), glm::value_ptr(up), noise_ring_radius_, glm::value_ptr(color));
-    }
     auto check_state_bit = [&](States state)
         {
             return (state_ & state) != 0;
@@ -780,6 +774,7 @@ void project_c::Player::update(float dt)
         if (!noise_is_loud_ && !input().sneak && glm::length(ground_velocity_) > PLAYER_IDLE_SPEED_THRESHOLD)
         {
             noise_radius_ = t.footstep_noise_radius;
+            noise_position_ = glm::vec3(moved.position[0], moved.position[1], moved.position[2]);
         }
     }
 
@@ -1261,9 +1256,29 @@ void project_c::Player::make_loud_noise(const PlayerTuning& t)
     const auto tc = engineGameObjectGetTransformComponent(go_);
     noise_radius_ = t.loud_noise_radius;
     noise_is_loud_ = true;
-    noise_ring_center_ = glm::vec3(tc.position[0], tc.position[1] + 0.02f, tc.position[2]);
-    noise_ring_radius_ = t.loud_noise_radius;
-    noise_ring_remaining_seconds_ = NOISE_RING_SECONDS;
+    noise_position_ = glm::vec3(tc.position[0], tc.position[1], tc.position[2]);
+}
+
+void project_c::Player::draw_noise_rings() const
+{
+    const glm::vec3 up(0.0f, 1.0f, 0.0f);
+    // a little above the ground, so the floor doesn't hide them
+    const glm::vec3 lift(0.0f, 0.02f, 0.0f);
+    if (const auto& ring = noise_rings_.footstep_ring())
+    {
+        // faint: the footsteps the enemies around hear
+        const glm::vec3 color(0.55f, 0.55f, 0.5f);
+        const auto center = ring->center + lift;
+        engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), ring->radius, glm::value_ptr(color));
+    }
+    if (const auto& ring = noise_rings_.loud_ring())
+    {
+        // bright and doubled: a loud noise
+        const glm::vec3 color(1.0f, 0.85f, 0.2f);
+        const auto center = ring->center + lift;
+        engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), ring->radius, glm::value_ptr(color));
+        engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), ring->radius * 0.93f, glm::value_ptr(color));
+    }
 }
 
 void project_c::Player::cancel_combat_actions()

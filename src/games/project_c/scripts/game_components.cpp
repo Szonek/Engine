@@ -137,6 +137,8 @@ project_c::PlayerTuning project_c::default_player_tuning()
     t.sneak_speed = 1.2f;
     t.footstep_noise_radius = 2.5f;
     t.loud_noise_radius = 5.0f;
+    t.show_footstep_ring = true;
+    t.footstep_ring_interval_seconds = 0.4f;
     return t;
 }
 
@@ -278,6 +280,10 @@ void project_c::register_game_components()
             "metres: enemies this close hear the player walk (not sneaking)"), 0.0f, 30.0f),
         ranged(field("loud_noise_radius", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, loud_noise_radius),
             "metres: enemies this close hear an attack, a dodge or a hard landing"), 0.0f, 30.0f),
+        field("show_footstep_ring", ENGINE_FIELD_KIND_BOOL, offsetof(PlayerTuning, show_footstep_ring),
+            "a faint ring at the footstep radius pulses with the steps while the player walks (none while sneaking)"),
+        ranged(field("footstep_ring_interval_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, footstep_ring_interval_seconds),
+            "seconds between two pulses of the footstep ring"), 0.05f, 5.0f),
     }, default_player_tuning());
 
     g_types.traversal_tuning = register_data_asset_type("traversal_tuning", {

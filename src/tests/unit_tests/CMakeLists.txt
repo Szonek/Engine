@@ -36,6 +36,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	debug_draw_tests.cpp
 	traversal_math_tests.cpp
 	enemy_awareness_tests.cpp
+	noise_rings_tests.cpp
 	overlap_results_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
@@ -116,6 +117,8 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${GAME_SCRIPTS_DIR}/traversal_math.h
 	# header-only: the game's enemy awareness model (glm only)
 	${GAME_SCRIPTS_DIR}/enemy_awareness.h
+	# header-only: the rings showing the player's noise
+	${GAME_SCRIPTS_DIR}/noise_rings.h
 )
 target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/include ${RAPIDJSON_INCLUDE_DIR} ${GAME_SCRIPTS_DIR})
 # profiler.h includes Tracy and RmlUi headers: only their headers, without TRACY_ENABLE the profiling macros are empty
