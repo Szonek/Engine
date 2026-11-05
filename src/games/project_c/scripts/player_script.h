@@ -245,7 +245,7 @@ private:
     // how long the character controller hasn't stood the player on the ground
     float ungrounded_seconds_ = 0.0f;
     float landing_recovery_remaining_seconds_ = 0.0f;
-    // the feet's height when the player left the ground, to tell a hard landing
+    // the feet's height when the player started falling (entered eAirborne), to tell a hard landing
     float airborne_start_y_ = 0.0f;
 
     // this frame's noise (noise_radius) and where it was made, and the rings showing it on the ground

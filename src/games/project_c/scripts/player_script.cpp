@@ -1217,8 +1217,12 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
         movement_velocity_ = glm::vec2(0.0f);
         ground_velocity_ = glm::vec3(0.0f);
         ungrounded_seconds_ = 0.0f;
-        airborne_start_y_ = engineGameObjectGetTransformComponent(go_).position[1];
         landing_recovery_remaining_seconds_ = 0.0f;
+    }
+    if (mode == MovementMode::eAirborne)
+    {
+        // where the fall starts, however the player left the ground (also letting go of a wall)
+        airborne_start_y_ = engineGameObjectGetTransformComponent(go_).position[1];
     }
     if (mode == MovementMode::eGrounded)
     {
