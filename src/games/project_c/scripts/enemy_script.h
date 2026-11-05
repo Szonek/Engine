@@ -88,6 +88,9 @@ private:
     void find_player();
     // what it sees, hears and was told by its pack this frame, standing at `position` facing `forward`
     EnemyStimuli perceive(const EnemyPerception& perception, const glm::vec3& position, const glm::vec3& forward) const;
+    // the ray from its eyes to the player's chest reaches the player: only level geometry hides it, not other
+    // characters nor dynamic bodies
+    bool sees(const glm::vec3& eye, const glm::vec3& to_player) const;
 
     struct HitFlashMaterial
     {

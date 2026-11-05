@@ -397,3 +397,20 @@ TEST_F(AwarenessTest, KillingBlowAlertsThePackButTheCorpseDoesNotHoldIt)
     const auto searching = step_until({}, 120, [&] { return survivor->awareness().state() == Awareness::eSearching; });
     EXPECT_LE(seconds(searching), project_c::default_enemy_perception().lose_sight_grace_seconds + 0.5f);
 }
+
+// another enemy between them doesn't hide the player, only level geometry does (regression: the rear one of a file of
+// enemies never saw the player)
+TEST_F(AwarenessTest, OtherEnemiesDoNotBlockSight)
+{
+    auto* scene = sandbox();
+    scene->build().player(0.0f, 0.0f);
+    // placed enemies: packs of one, so the rear one can only see the player itself
+    auto* front = scene->build().enemy(0.0f, 1.5f, FACING_MINUS_Z);
+    auto* rear = scene->build().enemy(0.0f, 3.0f, FACING_MINUS_Z);
+    ASSERT_NE(front, nullptr);
+    ASSERT_NE(rear, nullptr);
+    scene->snap_camera_to_player();
+
+    const auto alert = step_until({}, 180, [&] { return rear->awareness().state() == Awareness::eAlert; });
+    EXPECT_LE(alert, 180u);
+}

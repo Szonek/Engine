@@ -50,6 +50,8 @@ constexpr float ENEMY_ARRIVE_DISTANCE = 0.5f;
 constexpr float ENEMY_LOOK_AROUND_DEGREES_PER_SECOND = 60.0f;
 // a killed enemy alerts its pack for this long after the killing blow (the members read it), then it leaves the pack
 constexpr float ENEMY_DEATH_ALARM_SECONDS = 0.2f;
+// the sight ray sees past this many characters and dynamic bodies (other enemies, a dropped weapon) on its way
+constexpr std::size_t ENEMY_SIGHT_MAX_SEE_THROUGH = 4;
 // what it looks at to see the player: the chest, above the player's feet
 constexpr float PLAYER_CHEST_HEIGHT = 0.5f;
 // corners of the path to the player, including the enemy's own position; only the next one is walked to
@@ -598,6 +600,41 @@ void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_s
     }
 }
 
+bool project_c::Enemy::sees(const glm::vec3& eye, const glm::vec3& to_player) const
+{
+    // only level geometry (static and kinematic bodies) hides the player: the ray is cast again past the characters and
+    // dynamic bodies it hits
+    std::array<engine_game_object_t, ENEMY_SIGHT_MAX_SEE_THROUGH + 1> ignore{ go_ };
+    engine_physics_query_filter_t filter{};
+    filter.ignore = ignore.data();
+    filter.ignore_count = 1;
+    for (std::size_t cast = 0; cast <= ENEMY_SIGHT_MAX_SEE_THROUGH; cast++)
+    {
+        engine_ray_hit_t hit{};
+        if (!enginePhysicsRayCast(glm::value_ptr(eye), glm::value_ptr(to_player), glm::length(to_player), &filter, &hit))
+        {
+            return false;
+        }
+        if (hit.go == player_go_)
+        {
+            return true;
+        }
+        const bool character = engineGameObjectHasCharacterControllerComponent(hit.go);
+        bool dynamic = false;
+        if (engineGameObjectHasRigidBodyComponent(hit.go))
+        {
+            const auto body = engineGameObjectGetRigidBodyComponent(hit.go);
+            dynamic = body.type == ENGINE_RIGID_BODY_TYPE_DYNAMIC && body.mass > 0.0f;
+        }
+        if ((!character && !dynamic) || filter.ignore_count == ignore.size())
+        {
+            return false;
+        }
+        ignore[filter.ignore_count++] = hit.go;
+    }
+    return false;
+}
+
 bool project_c::Enemy::was_just_killed() const
 {
     return is_dying() && awareness_.state() == Awareness::eAlert && dying_seconds_ < ENEMY_DEATH_ALARM_SECONDS;
@@ -635,13 +672,7 @@ project_c::EnemyStimuli project_c::Enemy::perceive(const EnemyPerception& percep
         const glm::vec3 eye = position + glm::vec3(0.0f, perception.eye_height, 0.0f);
         const glm::vec3 chest = player_position + glm::vec3(0.0f, PLAYER_CHEST_HEIGHT, 0.0f);
         const glm::vec3 direction = chest - eye;
-        engine_physics_query_filter_t filter{};
-        filter.ignore = &go_;
-        filter.ignore_count = 1;
-        engine_ray_hit_t hit{};
-        if (glm::length(direction) > 0.0f
-            && enginePhysicsRayCast(glm::value_ptr(eye), glm::value_ptr(direction), glm::length(direction), &filter, &hit)
-            && hit.go == player_go_)
+        if (glm::length(direction) > 0.0f && sees(eye, direction))
         {
             stimuli.seen = true;
             stimuli.seen_distance = distance;
