@@ -355,3 +355,19 @@ TEST_F(AwarenessTest, HitWhileUnawareAlertsThePack)
     step(2);
     EXPECT_TRUE(all_in(pack_members, Awareness::eAlert));
 }
+
+// the alert doesn't wait for the hit stop to end (regression: the enemy stayed unaware for the whole hit stop)
+TEST_F(AwarenessTest, HitAlertsDuringTheHitStop)
+{
+    auto* scene = sandbox();
+    scene->build().player(0.0f, -6.0f);
+    auto* enemy = scene->build().enemy(0.0f, 0.0f);
+    ASSERT_NE(enemy, nullptr);
+    scene->snap_camera_to_player();
+    step(SETTLE_FRAMES);
+    ASSERT_EQ(enemy->awareness().state(), Awareness::eUnaware);
+
+    enemy->receive_attack_hit(0, 0.5f);
+    step(1);
+    EXPECT_EQ(enemy->awareness().state(), Awareness::eAlert);
+}

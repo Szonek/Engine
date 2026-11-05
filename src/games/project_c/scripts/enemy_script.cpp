@@ -282,6 +282,21 @@ void project_c::Enemy::update(float dt)
     // the attack timings of the type changed (an edit of its file, or another type)
     sync_attack_events(cfg);
 
+    // what it notices of the player (also when there is none: it forgets), then (after a hit stop) what it does about
+    // it: a hit alerts it at once, also during the hit stop. A player destroyed since (e.g. deleted in the editor) is
+    // looked for again.
+    if (!engineGameObjectIsValid(player_go_))
+    {
+        find_player();
+    }
+    if (state_ != States::DIE && hp > 0)
+    {
+        const auto own = engineGameObjectGetTransformComponent(go_);
+        const glm::vec3 forward = glm::make_quat(own.rotation) * glm::vec3(0.0f, 0.0f, 1.0f);
+        awareness_.update(dt / 1000.0f, perceive(cfg.perception, glm::vec3(own.position[0], own.position[1], own.position[2]), forward), cfg.perception);
+    }
+    damaged_ = false;
+
     if (hit_stop_remaining_seconds_ > 0.0f)
     {
         if (hit_stop_just_started_)
@@ -310,20 +325,6 @@ void project_c::Enemy::update(float dt)
     }
 
     attack_cooldown_remaining_seconds_ = std::max(0.0f, attack_cooldown_remaining_seconds_ - dt / 1000.0f);
-
-    // what it notices of the player (also when there is none: it forgets), then what it does about it; a player
-    // destroyed since (e.g. deleted in the editor) is looked for again
-    if (!engineGameObjectIsValid(player_go_))
-    {
-        find_player();
-    }
-    if (state_ != States::DIE && hp > 0)
-    {
-        const auto own = engineGameObjectGetTransformComponent(go_);
-        const glm::vec3 forward = glm::make_quat(own.rotation) * glm::vec3(0.0f, 0.0f, 1.0f);
-        awareness_.update(dt / 1000.0f, perceive(cfg.perception, glm::vec3(own.position[0], own.position[1], own.position[2]), forward), cfg.perception);
-    }
-    damaged_ = false;
 
     // a scene without a player (e.g. a test scene), or the player was destroyed (e.g. deleted in the editor)
     if (!engineGameObjectIsValid(player_go_))
