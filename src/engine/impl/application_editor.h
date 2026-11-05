@@ -6,6 +6,7 @@
 #include "editor_asset_panel.h"
 #include "editor_camera.h"
 #include "editor_context_click.h"
+#include "editor_gizmo_visibility.h"
 #include "editor_data_assets.h"
 #include "editor_component_list.h"
 #include "editor_modal_transform.h"
@@ -303,8 +304,10 @@ private:
     EditorView editor_view_ = EditorView::eGame;
     EditorWindowsContext editor_windows_context_;
     bool draw_guizmo_ = true;
-    // the game's gizmos (engineEditorAreGizmosVisible), not the transform handle above
+    // the game's gizmos (engineEditorAreGizmosVisible), not the transform handle above: in the editor view, and in the
+    // game camera's view (off by default, like Unity's Game view Gizmos)
     bool draw_component_gizmos_ = true;
+    bool draw_game_view_gizmos_ = false;
     float frame_delta_time_ = 0.0f;
     PlayModeRequest play_mode_request_ = PlayModeRequest::eNone;
     // the scene Play and Stop act on: the one the toolbar was last drawn for, none once it is released

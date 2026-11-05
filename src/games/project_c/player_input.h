@@ -13,6 +13,7 @@ struct PlayerInput
     bool back = false;                  // S
     bool left = false;                  // A
     bool right = false;                 // D
+    bool sneak = false;                 // Left Shift held: slow and silent
     bool attack = false;                // right mouse button pressed
     bool dodge = false;                 // space pressed (also lets go of a wall)
     bool interact = false;              // left mouse button pressed

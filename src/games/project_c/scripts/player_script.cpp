@@ -34,6 +34,8 @@ constexpr float PLAYER_IDLE_SPEED_THRESHOLD = 0.05f;
 // on the edge of a step isn't a fall
 constexpr float FALL_DELAY_SECONDS = 0.1f;
 constexpr const char* LANDING_ANIMATION = "Jump_Land";
+// a landing from at least this high is loud (not a step down, nor the drop of a player spawned above the floor)
+constexpr float LOUD_LANDING_MIN_DROP = 1.5f;
 
 void attack_window_open_callback(const engine_animation_event_info_t* info, void* user_data)
 {
@@ -504,6 +506,12 @@ void project_c::Player::update(float dt)
     engine::ScopedProfiler prof("project_c::Player::update");
     const auto t = tuning();
     const auto traversal = traversal_tuning();
+    // the rings of the noise made in the last frame, then this frame's noise is made below (none when the player
+    // can't move)
+    noise_rings_.update(dt / 1000.0f, noise_radius_, noise_is_loud_, noise_position_, t.show_footstep_ring, t.footstep_ring_interval_seconds);
+    draw_noise_rings();
+    noise_radius_ = 0.0f;
+    noise_is_loud_ = false;
     auto check_state_bit = [&](States state)
         {
             return (state_ & state) != 0;
@@ -689,7 +697,10 @@ void project_c::Player::update(float dt)
 
     if (can_dodge)
     {
-        start_dodge(move_input, rotation);
+        if (start_dodge(move_input, rotation))
+        {
+            make_loud_noise(t);
+        }
     }
 
     bool dodging_this_frame = dodge_remaining_seconds_ > 0.0f;
@@ -720,7 +731,7 @@ void project_c::Player::update(float dt)
     {
         // landing: brakes, whatever the input
         const glm::vec2 wanted = recovering ? glm::vec2(0.0f) : move_input;
-        const float target_speed = t.move_speed;
+        const float target_speed = input().sneak ? t.sneak_speed : t.move_speed;
         const glm::vec2 target_velocity = wanted * target_speed;
         const glm::vec2 velocity_delta = target_velocity - movement_velocity_;
         const float max_velocity_change = (glm::length(wanted) > 0.0f ? t.movement_acceleration : t.movement_braking) * delta_seconds;
@@ -758,6 +769,12 @@ void project_c::Player::update(float dt)
         {
             set_movement_mode(traversal_.start_falling(ground_velocity_), traversal);
             return;
+        }
+        // footsteps, unless sneaking (or the frame already made a loud noise)
+        if (!noise_is_loud_ && !input().sneak && glm::length(ground_velocity_) > PLAYER_IDLE_SPEED_THRESHOLD)
+        {
+            noise_radius_ = t.footstep_noise_radius;
+            noise_position_ = glm::vec3(moved.position[0], moved.position[1], moved.position[2]);
         }
     }
 
@@ -1132,6 +1149,7 @@ bool project_c::Player::start_attack(std::size_t combo_index)
     attack_buffered_ = false;
     state_ |= States::ATTACK;
     combat_layer_has_pose_ = true;
+    make_loud_noise(t);
     return true;
 }
 
@@ -1201,6 +1219,11 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
         ungrounded_seconds_ = 0.0f;
         landing_recovery_remaining_seconds_ = 0.0f;
     }
+    if (mode == MovementMode::eAirborne)
+    {
+        // where the fall starts, however the player left the ground (also letting go of a wall)
+        airborne_start_y_ = engineGameObjectGetTransformComponent(go_).position[1];
+    }
     if (mode == MovementMode::eGrounded)
     {
         // nothing from before is carried onto the ground: the next grounded move measures the speed again (a traversal
@@ -1210,8 +1233,13 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
         hit_stun_remaining_seconds_ = 0.0f;
         knockback_velocity_ = glm::vec3(0.0f);
         engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
-        // a landing, unless the player died in the air (its death plays instead)
-        landing_recovery_remaining_seconds_ = previous == MovementMode::eAirborne && !is_dead() ? traversal.landing_recovery_seconds : 0.0f;
+        // a landing, unless the player died in the air (its death plays instead); loud after a fall from high enough
+        const bool landing = previous == MovementMode::eAirborne && !is_dead();
+        landing_recovery_remaining_seconds_ = landing ? traversal.landing_recovery_seconds : 0.0f;
+        if (landing && airborne_start_y_ - engineGameObjectGetTransformComponent(go_).position[1] >= LOUD_LANDING_MIN_DROP)
+        {
+            make_loud_noise(tuning());
+        }
         if (landing_recovery_remaining_seconds_ > 0.0f)
         {
             // the landing plays out before the player acts again (the grounded update ends it)
@@ -1224,6 +1252,36 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
             engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
             engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
         }
+    }
+}
+
+void project_c::Player::make_loud_noise(const PlayerTuning& t)
+{
+    const auto tc = engineGameObjectGetTransformComponent(go_);
+    noise_radius_ = t.loud_noise_radius;
+    noise_is_loud_ = true;
+    noise_position_ = glm::vec3(tc.position[0], tc.position[1], tc.position[2]);
+}
+
+void project_c::Player::draw_noise_rings() const
+{
+    const glm::vec3 up(0.0f, 1.0f, 0.0f);
+    // a little above the ground, so the floor doesn't hide them
+    const glm::vec3 lift(0.0f, 0.02f, 0.0f);
+    if (const auto& ring = noise_rings_.footstep_ring())
+    {
+        // faint: the footsteps the enemies around hear
+        const glm::vec3 color(0.55f, 0.55f, 0.5f);
+        const auto center = ring->center + lift;
+        engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), ring->radius, glm::value_ptr(color));
+    }
+    if (const auto& ring = noise_rings_.loud_ring())
+    {
+        // bright and doubled: a loud noise
+        const glm::vec3 color(1.0f, 0.85f, 0.2f);
+        const auto center = ring->center + lift;
+        engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), ring->radius, glm::value_ptr(color));
+        engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), ring->radius * 0.93f, glm::value_ptr(color));
     }
 }
 

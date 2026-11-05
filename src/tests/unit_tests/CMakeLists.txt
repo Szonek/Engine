@@ -24,6 +24,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	copy_name_tests.cpp
 	editor_camera_tests.cpp
 	editor_context_click_tests.cpp
+	editor_gizmo_visibility_tests.cpp
 	editor_component_list_tests.cpp
 	editor_modal_transform_tests.cpp
 	editor_asset_browser_tests.cpp
@@ -34,6 +35,8 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	editor_scene_file_flow_tests.cpp
 	debug_draw_tests.cpp
 	traversal_math_tests.cpp
+	enemy_awareness_tests.cpp
+	noise_rings_tests.cpp
 	overlap_results_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
@@ -71,6 +74,8 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/editor_snap.h
 	# header-only: a right-click in the scene view, told from flying the camera
 	${ENGINE_IMPL_DIR}/editor_context_click.h
+	# header-only: in which view the game's gizmos are drawn
+	${ENGINE_IMPL_DIR}/editor_gizmo_visibility.h
 	# header-only: what the properties panel's Add Component list offers
 	${ENGINE_IMPL_DIR}/editor_component_list.h
 	# header-only: whether the editor's scene has unsaved changes
@@ -110,6 +115,10 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/overlap_results.h
 	# header-only: the maths of the game's player traversal (glm only)
 	${GAME_SCRIPTS_DIR}/traversal_math.h
+	# header-only: the game's enemy awareness model (glm only)
+	${GAME_SCRIPTS_DIR}/enemy_awareness.h
+	# header-only: the rings showing the player's noise
+	${GAME_SCRIPTS_DIR}/noise_rings.h
 )
 target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/include ${RAPIDJSON_INCLUDE_DIR} ${GAME_SCRIPTS_DIR})
 # profiler.h includes Tracy and RmlUi headers: only their headers, without TRACY_ENABLE the profiling macros are empty
