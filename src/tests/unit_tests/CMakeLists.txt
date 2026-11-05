@@ -24,6 +24,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	copy_name_tests.cpp
 	editor_camera_tests.cpp
 	editor_context_click_tests.cpp
+	editor_gizmo_visibility_tests.cpp
 	editor_component_list_tests.cpp
 	editor_modal_transform_tests.cpp
 	editor_asset_browser_tests.cpp
@@ -72,6 +73,8 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/editor_snap.h
 	# header-only: a right-click in the scene view, told from flying the camera
 	${ENGINE_IMPL_DIR}/editor_context_click.h
+	# header-only: in which view the game's gizmos are drawn
+	${ENGINE_IMPL_DIR}/editor_gizmo_visibility.h
 	# header-only: what the properties panel's Add Component list offers
 	${ENGINE_IMPL_DIR}/editor_component_list.h
 	# header-only: whether the editor's scene has unsaved changes
