@@ -95,6 +95,7 @@ project_c::EnemyPerception project_c::default_enemy_perception()
     p.meter_decay_seconds = 3.0f;
     p.lose_seconds = 4.0f;
     p.suspicious_move_speed = 0.8f;
+    p.lose_sight_grace_seconds = 0.5f;
     return p;
 }
 
@@ -231,6 +232,8 @@ void project_c::register_game_components()
             "a full meter empties in this long when it perceives nothing", 60.0f),
         perception_field("lose_seconds", offsetof(EnemyPerception, lose_seconds),
             "seconds it searches for a lost player; its pack calms down when no member perceived the player this long", 60.0f),
+        perception_field("lose_sight_grace_seconds", offsetof(EnemyPerception, lose_sight_grace_seconds),
+            "seconds an alert enemy keeps hunting a player it stopped perceiving before it searches", 10.0f),
         perception_field("suspicious_move_speed", offsetof(EnemyPerception, suspicious_move_speed),
             "metres per second while it walks to what it noticed, or searches", 10.0f),
     }, default_enemy_perception());

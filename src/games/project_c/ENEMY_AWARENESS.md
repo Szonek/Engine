@@ -25,7 +25,8 @@ Each enemy has a detection meter from 0 to 1 and one state (`EnemyAwareness::upd
 | Alert        | `!`  | the meter is full, it is hit, or its pack is alert | chases and attacks: the player while it perceives it, otherwise its last known position |
 | Searching    | `?`  | alert and it lost the player                  | walks to the last known position and looks around            |
 
-Searching ends after `lose_seconds` (back to Suspicious, with a full meter which then decays) or when the player is
+An alert enemy which stops perceiving the player keeps hunting it where it is for `lose_sight_grace_seconds` (0.5), so a
+frame without line of sight (another enemy passing between them) doesn't stop a chase; then it searches. Searching ends after `lose_seconds` (back to Suspicious, with a full meter which then decays) or when the player is
 perceived again (Alert). The meter stays full while Alert or Searching and decays only when nothing is perceived (a full
 meter empties in `meter_decay_seconds`).
 

@@ -344,8 +344,9 @@ void project_c::Enemy::update(float dt)
 
     const auto awareness = awareness_.state();
     const bool alert = awareness == Awareness::eAlert;
-    // an alert enemy hunts the player it perceives; otherwise it goes where it last noticed the player
-    const bool hunting_player = alert && awareness_.perceived_this_frame();
+    // an alert enemy hunts the player it perceives (or did a moment ago); otherwise it goes where it last noticed the
+    // player
+    const bool hunting_player = awareness_.hunting(cfg.perception);
     const glm::vec3 target = hunting_player ? player_position : awareness_.last_known_position();
     bool goes_to_target = awareness != Awareness::eUnaware;
     const float move_speed = alert ? cfg.move_speed : cfg.perception.suspicious_move_speed;

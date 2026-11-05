@@ -25,6 +25,7 @@ EnemyPerception perception()
     p.meter_decay_seconds = 3.0f;
     p.lose_seconds = 4.0f;
     p.suspicious_move_speed = 0.8f;
+    p.lose_sight_grace_seconds = 0.5f;
     return p;
 }
 
@@ -174,14 +175,40 @@ TEST(EnemyAwareness, DamageAlertsAtOnce)
 TEST(EnemyAwareness, LosingThePlayerSearchesThenGivesUp)
 {
     auto awareness = alerted();
-    // the player is lost at once: searching
-    awareness.update(DT, {}, perception());
-    EXPECT_EQ(awareness.state(), Awareness::eSearching);
+    // after the grace time without the player: searching
+    EXPECT_NEAR(run_until(awareness, {}, 1.0f, Awareness::eSearching), 0.5f, 2.0f * DT);
     // for lose_seconds, then suspicious with a full meter
-    EXPECT_NEAR(DT + run_until(awareness, {}, 5.0f, Awareness::eSuspicious), 4.0f + DT, 2.0f * DT);
+    EXPECT_NEAR(run_until(awareness, {}, 5.0f, Awareness::eSuspicious), 4.0f, 2.0f * DT);
     EXPECT_FLOAT_EQ(awareness.meter(), 1.0f);
     // which decays to unaware
     EXPECT_NEAR(run_until(awareness, {}, 4.0f, Awareness::eUnaware), 3.0f, 2.0f * DT);
+}
+
+// a frame or two without line of sight doesn't stop the chase (regression: the enemy flickered to searching)
+TEST(EnemyAwareness, BrieflyLosingThePlayerKeepsHunting)
+{
+    auto awareness = alerted();
+    EXPECT_TRUE(awareness.hunting(perception()));
+    run(awareness, {}, 0.25f);
+    EXPECT_EQ(awareness.state(), Awareness::eAlert);
+    EXPECT_TRUE(awareness.hunting(perception()));
+    awareness.update(DT, seen_at(2.0f), perception());
+    EXPECT_EQ(awareness.state(), Awareness::eAlert);
+    // lost for longer than the grace time: no longer hunting the player itself
+    run(awareness, {}, 0.6f);
+    EXPECT_FALSE(awareness.hunting(perception()));
+    EXPECT_EQ(awareness.state(), Awareness::eSearching);
+}
+
+// alerted by its pack only, it never hunts the player itself: it goes to the last known position
+TEST(EnemyAwareness, PackAlertAloneDoesNotHunt)
+{
+    EnemyStimuli pack{};
+    pack.pack_alert = true;
+    EnemyAwareness awareness;
+    awareness.update(DT, pack, perception());
+    EXPECT_EQ(awareness.state(), Awareness::eAlert);
+    EXPECT_FALSE(awareness.hunting(perception()));
 }
 
 TEST(EnemyAwareness, SeeingThePlayerWhileSearchingAlerts)

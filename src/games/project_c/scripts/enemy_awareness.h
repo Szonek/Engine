@@ -33,6 +33,9 @@ struct EnemyPerception
     float lose_seconds;
     // metres per second while suspicious (walking to what it noticed) and searching
     float suspicious_move_speed;
+    // seconds an alert enemy keeps hunting a player it stopped perceiving before it searches (a frame without line of
+    // sight doesn't stop a chase)
+    float lose_sight_grace_seconds;
 };
 
 enum class Awareness
@@ -158,9 +161,9 @@ public:
             }
             break;
         case Awareness::eAlert:
-            // the meter stays full while it hunts
+            // the meter stays full while it hunts; it searches once it hasn't perceived the player for the grace time
             meter_ = 1.0f;
-            if (!perceived_ && !stimuli.pack_alert)
+            if (!perceived_ && !stimuli.pack_alert && seconds_since_perceived_ >= perception.lose_sight_grace_seconds)
             {
                 set_state(Awareness::eSearching);
             }
@@ -192,6 +195,12 @@ public:
     bool perceived_this_frame() const { return perceived_; }
     // since it last perceived the player itself (infinite when it never did)
     float seconds_since_perceived() const { return seconds_since_perceived_; }
+    // alert and it perceived the player itself within the grace time: it chases and attacks the player where it is
+    // (otherwise it goes to the last known position)
+    bool hunting(const EnemyPerception& perception) const
+    {
+        return state_ == Awareness::eAlert && seconds_since_perceived_ <= perception.lose_sight_grace_seconds;
+    }
 
 private:
     // what a meter filling (or emptying) in `seconds` changes by in `delta_seconds`: all of it at once for 0 seconds

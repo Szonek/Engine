@@ -28,7 +28,8 @@
       "loud_noise_fill": 0.6,
       "meter_decay_seconds": 3,
       "lose_seconds": 4,
-      "suspicious_move_speed": 0.8
+      "suspicious_move_speed": 0.8,
+      "lose_sight_grace_seconds": 0.5
     }
   }
 }
