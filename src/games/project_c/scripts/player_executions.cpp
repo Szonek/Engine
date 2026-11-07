@@ -19,6 +19,8 @@ namespace
 {
 // where the player strikes from: this far behind the victim, facing its back
 constexpr float EXECUTION_SPOT_OFFSET = 0.6f;
+// the player's capsule: the strike spot keeps this far from walls
+constexpr float PLAYER_RADIUS = 0.3f;
 // the chest, above the feet: the line between the player and its target must be free of level geometry
 constexpr float CHEST_HEIGHT = 0.5f;
 // the height difference the ground execution and the chain allow
@@ -128,11 +130,34 @@ project_c::MovementMode project_c::PlayerExecutions::try_ground(const Context& c
         // a normal attack: the chain ends
         return MovementMode::eGrounded;
     }
-    const auto spot = execution_math::execution_spot(position_of(go), forward_of(go), EXECUTION_SPOT_OFFSET);
+    const auto spot = strike_spot(go, context.position);
     const float move_seconds = chain
         ? execution_math::move_seconds(glm::distance(context.position, spot), tuning.chain_dash_speed, CHAIN_DASH_MIN_SECONDS)
         : tuning.execution_lunge_seconds;
-    return start(Target{ go, enemy }, context, move_seconds, tuning);
+    return start(Target{ go, enemy }, context, spot, move_seconds, tuning);
+}
+
+glm::vec3 project_c::PlayerExecutions::strike_spot(engine_game_object_t target, const glm::vec3& from) const
+{
+    const auto victim = position_of(target);
+    const auto behind = execution_math::execution_spot(victim, forward_of(target), EXECUTION_SPOT_OFFSET);
+    const std::array<engine_game_object_t, 2> ignore = { go_, target };
+    const auto chest = WORLD_UP * CHEST_HEIGHT;
+    const auto to_behind = behind - victim;
+    const auto margin = glm::length(to_behind) > 0.0f ? glm::normalize(to_behind) * PLAYER_RADIUS : glm::vec3(0.0f);
+    if (!utils::level_geometry_between(victim + chest, behind + chest + margin, ignore))
+    {
+        return behind;
+    }
+    // a wall right behind it: from the side the player comes from, along the line between them, which is free of level
+    // geometry (the target is reachable)
+    glm::vec3 toward_player(from.x - victim.x, 0.0f, from.z - victim.z);
+    const float distance = glm::length(toward_player);
+    if (distance <= 0.0f)
+    {
+        return from;
+    }
+    return victim + toward_player / distance * std::min(EXECUTION_SPOT_OFFSET, distance);
 }
 
 void project_c::PlayerExecutions::observe_air(const glm::vec3& position, float delta_seconds)
@@ -237,15 +262,18 @@ project_c::MovementMode project_c::PlayerExecutions::try_plunge(const glm::vec3&
     return MovementMode::eExecuting;
 }
 
-project_c::MovementMode project_c::PlayerExecutions::start(const Target& target, const Context& context, float move_seconds, const ExecutionTuning& tuning)
+project_c::MovementMode project_c::PlayerExecutions::start(const Target& target, const Context& context, const glm::vec3& spot, float move_seconds,
+    const ExecutionTuning& tuning)
 {
     target.enemy->begin_execution();
     victim_ = target.go;
-    const auto victim_forward = forward_of(target.go);
     move_from_ = context.position;
-    move_to_ = execution_math::execution_spot(position_of(target.go), victim_forward, EXECUTION_SPOT_OFFSET);
-    // facing its back
-    yaw_ = std::atan2(victim_forward.x, victim_forward.z);
+    move_to_ = spot;
+    // facing the victim (its back, from the usual spot)
+    const auto victim = position_of(target.go);
+    const glm::vec2 facing(victim.x - spot.x, victim.z - spot.z);
+    const auto victim_forward = forward_of(target.go);
+    yaw_ = glm::length(facing) > 0.0f ? std::atan2(facing.x, facing.y) : std::atan2(victim_forward.x, victim_forward.z);
     elapsed_ = 0.0f;
     move_seconds_ = move_seconds;
     clip_ = context.armed ? ARMED_CLIP : UNARMED_CLIP;

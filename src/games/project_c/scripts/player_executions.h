@@ -87,8 +87,10 @@ private:
     };
     // of the enemies within `range` of `center` (flat), the nearest executable by `rules` (measured from `from`)
     Target pick(const glm::vec3& center, float range, const execution_math::Rules& rules, const glm::vec3& from) const;
-    // a move to the back of `target` taking `move_seconds`, then the strike
-    MovementMode start(const Target& target, const Context& context, float move_seconds, const ExecutionTuning& tuning);
+    // where the player strikes `target` from: behind it, or (when a wall is there) on the side the player comes from
+    glm::vec3 strike_spot(engine_game_object_t target, const glm::vec3& from) const;
+    // a move to `spot` taking `move_seconds`, then the strike
+    MovementMode start(const Target& target, const Context& context, const glm::vec3& spot, float move_seconds, const ExecutionTuning& tuning);
     void set_position_and_yaw(const glm::vec3& position, float yaw);
 
     engine::IScene* scene_;

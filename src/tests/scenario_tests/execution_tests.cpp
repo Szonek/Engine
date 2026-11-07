@@ -633,3 +633,24 @@ TEST_F(ExecutionTest, PlungeKnocksDownOnlyEnemiesOnTheSameLevel)
     EXPECT_TRUE(is_dead(victim->get_game_object()));
     EXPECT_FALSE(above->is_knocked_down());
 }
+
+// an enemy with its back close to a wall: the player strikes from where it comes from, not from inside the wall
+TEST_F(ExecutionTest, ExecutionNextToAWallKeepsThePlayerOutOfIt)
+{
+    auto* scene = sandbox();
+    constexpr float WALL_FACE_Z = 0.75f;
+    scene->build().obstacle(glm::vec3(0.0f, 0.75f, WALL_FACE_Z + 0.05f), glm::vec3(4.0f, 1.5f, 0.1f));
+    auto* player = scene->build().player(0.75f, 0.4f);
+    // its back to the wall
+    auto* enemy = scene->build().enemy(0.0f, 0.0f, FACING_MINUS_Z);
+    ASSERT_NE(enemy, nullptr);
+    scene->snap_camera_to_player();
+    step(SETTLE_FRAMES);
+    ASSERT_EQ(player->execution_target(), enemy->get_game_object());
+
+    press_attack();
+    EXPECT_TRUE(went_through(MovementMode::eExecuting));
+    EXPECT_TRUE(is_dead(enemy->get_game_object()));
+    // the capsule (0.3 m) stays in front of the wall
+    EXPECT_LT(position_of(player->get_game_object()).z, WALL_FACE_Z - 0.25f);
+}
