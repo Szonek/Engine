@@ -27,7 +27,9 @@ enum class MovementMode
     // attached to a wall, WASD moves on the wall
     eClimbing,
     // vault / mantle / climb down: follows a fixed path, input is ignored until it ends
-    eScriptedMove
+    eScriptedMove,
+    // an execution (PlayerExecutions): the lunge or dash to the victim and the strike; invulnerable
+    eExecuting
 };
 
 // The player's environment traversal: climbing walls, vaulting through windows, mantling onto roofs, climbing down or

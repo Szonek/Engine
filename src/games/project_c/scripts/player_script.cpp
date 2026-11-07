@@ -355,6 +355,7 @@ project_c::Player::Player(engine::IScene* my_scene, engine_game_object_t go)
     : BaseNode(my_scene, go)
     , state_(States::IDLE)
     , traversal_(my_scene, go, LOCOMOTION_LAYER_ID)
+    , executions_(my_scene, go, LOCOMOTION_LAYER_ID)
 {
     // the model's own weapons aren't used: the player equips a Weapon
     constexpr std::array<const char*, 5> unused_model_parts = { "Knife", "Knife_Offhand", "1H_Crossbow", "2H_Crossbow", "Throwable" };
@@ -442,6 +443,12 @@ project_c::PlayerTuning project_c::Player::tuning() const
     return get_data_asset(get_game_component(go_, types.player_config, default_player_config()).tuning, types.player_tuning, default_player_tuning());
 }
 
+project_c::ExecutionTuning project_c::Player::execution_tuning() const
+{
+    const auto& types = game_components();
+    return get_data_asset(get_game_component(go_, types.player_config, default_player_config()).executions, types.execution_tuning, default_execution_tuning());
+}
+
 project_c::TraversalTuning project_c::Player::traversal_tuning() const
 {
     const auto& types = game_components();
@@ -506,6 +513,7 @@ void project_c::Player::update(float dt)
     engine::ScopedProfiler prof("project_c::Player::update");
     const auto t = tuning();
     const auto traversal = traversal_tuning();
+    const auto executions = execution_tuning();
     // the rings of the noise made in the last frame, then this frame's noise is made below (none when the player
     // can't move)
     noise_rings_.update(dt / 1000.0f, noise_radius_, noise_is_loud_, noise_position_, t.show_footstep_ring, t.footstep_ring_interval_seconds);
@@ -575,6 +583,7 @@ void project_c::Player::update(float dt)
     // the player can act (on a wall the dodge press lets go of it)
     const bool presses_wait = movement_mode_ == MovementMode::eAirborne
         || movement_mode_ == MovementMode::eScriptedMove
+        || movement_mode_ == MovementMode::eExecuting
         || (movement_mode_ == MovementMode::eGrounded && landing_recovery_remaining_seconds_ > 0.0f);
     const bool attack_pressed = !presses_wait && std::exchange(attack_press_pending_, false);
     const bool dodge_pressed = !presses_wait && std::exchange(dodge_press_pending_, false);
@@ -613,6 +622,16 @@ void project_c::Player::update(float dt)
     case MovementMode::eScriptedMove:
         set_movement_mode(traversal_.update_scripted_move(dt / 1000.0f), traversal);
         return;
+    case MovementMode::eExecuting:
+    {
+        const auto execution = executions_.update(executions, dt / 1000.0f);
+        if (execution.struck)
+        {
+            on_execution_strike(t, executions);
+        }
+        set_movement_mode(execution.mode, traversal);
+        return;
+    }
     case MovementMode::eGrounded:
         break;
     }
@@ -628,6 +647,19 @@ void project_c::Player::update(float dt)
             engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
             engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
         }
+    }
+
+    // an execution: on the target the attack press would execute (also in the middle of a combo, whose swing it
+    // cancels; with or without a weapon); otherwise the press is a normal attack
+    executions_.update_chain_window(delta_seconds);
+    const bool can_execute = !dodge_pressed && !recovering && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f;
+    const PlayerExecutions::Context execution_context{ position_of(), weapon() != nullptr };
+    execution_target_ = can_execute ? executions_.find_ground_target(execution_context, executions) : ENGINE_INVALID_GAME_OBJECT_ID;
+    if (attack_pressed && can_execute && executions_.try_ground(execution_context, executions) == MovementMode::eExecuting)
+    {
+        execution_target_ = ENGINE_INVALID_GAME_OBJECT_ID;
+        set_movement_mode(MovementMode::eExecuting, traversal);
+        return;
     }
 
     if (weapon() && attack_pressed && !dodge_pressed && !recovering && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
@@ -948,7 +980,8 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
 {
     const auto t = tuning();
     auto& hp = edit_state().hp;
-    if (hp == 0 || dodge_invulnerability_remaining_seconds_ > 0.0f)
+    // invulnerable while dodging and executing
+    if (hp == 0 || dodge_invulnerability_remaining_seconds_ > 0.0f || movement_mode_ == MovementMode::eExecuting)
     {
         return false;
     }
@@ -1283,6 +1316,34 @@ void project_c::Player::draw_noise_rings() const
         engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), ring->radius, glm::value_ptr(color));
         engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), ring->radius * 0.93f, glm::value_ptr(color));
     }
+}
+
+glm::vec3 project_c::Player::position_of() const
+{
+    const auto tc = engineGameObjectGetTransformComponent(go_);
+    return glm::vec3(tc.position[0], tc.position[1], tc.position[2]);
+}
+
+void project_c::Player::on_execution_strike(const PlayerTuning& t, const ExecutionTuning& executions)
+{
+    hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, executions.execution_hit_stop_seconds);
+    hit_stop_just_started_ = true;
+    if (!engineAnimationControllerSetPaused(go_, true))
+    {
+        engineLog("Failed to pause player animation for the execution's hit-stop.\n");
+    }
+    const auto cameras = utils::get_active_camera_game_objects();
+    if (!cameras.empty())
+    {
+        if (auto* camera = my_scene_->get_script<CameraScript>(cameras.front()))
+        {
+            camera->shake(t.hit_camera_shake_intensity, t.hit_camera_shake_seconds);
+        }
+    }
+    // the kill is heard like footsteps, not loud
+    noise_radius_ = executions.execution_noise_radius;
+    noise_is_loud_ = false;
+    noise_position_ = position_of();
 }
 
 void project_c::Player::cancel_combat_actions()
