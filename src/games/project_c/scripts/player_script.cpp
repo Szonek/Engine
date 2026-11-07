@@ -613,6 +613,8 @@ void project_c::Player::update(float dt)
     }
 
     traversal_.set_held_weapon(weapon_go_);
+    // the chain window closes after its time in every mode (a climb or a fall doesn't keep it open)
+    executions_.update_chain_window(dt / 1000.0f);
     switch (movement_mode_)
     {
     case MovementMode::eAirborne:
@@ -674,7 +676,6 @@ void project_c::Player::update(float dt)
 
     // an execution: on the target the attack press would execute (also in the middle of a combo, whose swing it
     // cancels; with or without a weapon); otherwise the press is a normal attack
-    executions_.update_chain_window(delta_seconds);
     const bool can_execute = !dodge_pressed && !recovering && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f;
     const PlayerExecutions::Context execution_context{ position_of(), weapon() != nullptr };
     execution_target_ = can_execute ? executions_.find_ground_target(execution_context, executions) : ENGINE_INVALID_GAME_OBJECT_ID;

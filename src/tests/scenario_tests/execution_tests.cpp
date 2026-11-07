@@ -468,3 +468,35 @@ TEST_F(ExecutionTest, PlungeLandingWithoutRecoveryEndsInvulnerability)
     EXPECT_LT(player->get_hp(), hp);
     engineDataAssetRelease(traversal);
 }
+
+// the chain window counts down off the ground too: a fall right after an execution doesn't keep it open
+TEST_F(ExecutionTest, ChainWindowClosesDuringAFall)
+{
+    sandbox();
+    constexpr float HIGH_BLOCK = 6.0f;
+    scene_->build().obstacle(glm::vec3(0.0f, HIGH_BLOCK * 0.5f, 0.0f), glm::vec3(BLOCK_EDGE_X * 2.0f, HIGH_BLOCK, BLOCK_EDGE_X * 2.0f));
+    auto* player = scene_->build().player(1.5f, 0.0f);
+    // on the block, facing away from the player (toward -x)
+    auto* enemy = scene_->build().enemy(0.5f, 0.0f, -FACING_PLUS_X);
+    ASSERT_NE(enemy, nullptr);
+    for (const auto go : { player->get_game_object(), enemy->get_game_object() })
+    {
+        auto tc = engineGameObjectGetTransformComponent(go);
+        tc.position[1] = HIGH_BLOCK + 0.05f;
+        engineGameObjectUpdateTransformComponent(go, &tc);
+    }
+    scene_->snap_camera_to_player();
+    step(SETTLE_FRAMES);
+
+    // the execution, until the player is back on its feet
+    press_attack(1);
+    ASSERT_TRUE(step_until({}, EXECUTION_FRAMES, [&] { return player->movement_mode() == MovementMode::eGrounded; }));
+    ASSERT_TRUE(is_dead(enemy->get_game_object()));
+    ASSERT_TRUE(player->is_chain_window_open());
+    // off the edge right away, down 6 m
+    ASSERT_TRUE(step_until(moving_right(), 240, [&]
+        {
+            return went_through(MovementMode::eAirborne) && player->movement_mode() == MovementMode::eGrounded;
+        }));
+    EXPECT_FALSE(player->is_chain_window_open());
+}
