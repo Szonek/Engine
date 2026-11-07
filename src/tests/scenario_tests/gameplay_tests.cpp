@@ -168,14 +168,15 @@ TEST_F(CombatTest, AttackComboKillsEnemyAndClearsEncounter)
     auto* scene = load_sandbox_scene();
     scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
     scene->build().player(PLAYER_X, PLAYER_Z);
-    auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + 0.5f);
+    auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + 0.5f, FACING_PLAYER);
     ASSERT_NE(enemy, nullptr);
     const auto enemy_go = enemy->get_game_object();
     scene->snap_camera_to_player();
     step(LANDING_FRAMES);
     EXPECT_EQ(scene->encounter()->get_state(), Encounter::State::eInProgress);
 
-    // the 3-hit combo, one press per swing; a 20 hp enemy needs two of the 10 damage hits
+    // the 3-hit combo, one press per swing; a 20 hp enemy needs two of the 10 damage hits (facing the player it sees
+    // it, so the presses are attacks, not an execution)
     const auto target = position_of(enemy_go) + glm::vec3(0.0f, 0.35f, 0.0f);
     for (int press = 0; press < 3 && enemy->hp > 0; press++)
     {
@@ -242,7 +243,7 @@ TEST_F(CombatTest, AttackPressedDuringHitStopIsNotLost)
     auto* scene = load_sandbox_scene();
     scene->build().floor_area(-3.0f, -3.0f, 4.0f, 4.0f);
     auto* player = scene->build().player(PLAYER_X, PLAYER_Z);
-    auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + 0.5f);
+    auto* enemy = scene->build().enemy(PLAYER_X, PLAYER_Z + 0.5f, FACING_PLAYER);
     ASSERT_NE(enemy, nullptr);
     const auto target = position_of(enemy->get_game_object()) + glm::vec3(0.0f, 0.35f, 0.0f);
     scene->snap_camera_to_player();
