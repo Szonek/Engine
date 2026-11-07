@@ -581,3 +581,24 @@ TEST_F(ExecutionTest, PlungeStraightDownOntoAnEnemy)
     EXPECT_TRUE(went_through(MovementMode::eAirborne));
     EXPECT_TRUE(targeted);
 }
+
+// an enemy under a roof isn't plunged onto through the roof
+TEST_F(ExecutionTest, NoPlungeThroughARoof)
+{
+    auto* player = player_on_block();
+    // a thin roof over the enemy, below the block's top
+    scene_->build().obstacle(glm::vec3(5.25f, 1.9f, 0.0f), glm::vec3(5.5f, 0.2f, 4.0f));
+    auto* enemy = scene_->build().enemy(5.0f, 0.0f, FACING_PLUS_X);
+    ASSERT_NE(enemy, nullptr);
+    step(SETTLE_FRAMES);
+
+    bool targeted = false;
+    step_until(moving_right(), 120, [&]
+        {
+            targeted = targeted || player->execution_target() == enemy->get_game_object();
+            return went_through(MovementMode::eAirborne) && player->movement_mode() == MovementMode::eGrounded;
+        });
+    EXPECT_TRUE(went_through(MovementMode::eAirborne));
+    EXPECT_FALSE(targeted);
+    EXPECT_FALSE(is_dead(enemy->get_game_object()));
+}

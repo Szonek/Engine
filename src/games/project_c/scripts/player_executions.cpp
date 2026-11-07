@@ -158,6 +158,11 @@ engine_game_object_t project_c::PlayerExecutions::find_plunge_target(const glm::
     float gravity[3] = {};
     enginePhysicsGetGravityVector(gravity);
 
+    execution_math::Rules rules{};
+    rules.range = tuning.aerial_aim_radius;
+    rules.max_height_difference = std::numeric_limits<float>::infinity();
+    rules.any_awareness = true;
+    rules.allow_knocked_down = false;
     // where the fall comes down to each enemy below, and how far the enemy is from there
     std::vector<execution_math::Candidate> candidates;
     std::vector<engine_game_object_t> targets;
@@ -177,15 +182,19 @@ engine_game_object_t project_c::PlayerExecutions::find_plunge_target(const glm::
         candidate.knocked_down = enemy->is_knocked_down();
         candidate.unavailable = enemy->is_dying() || enemy->is_being_executed();
         candidate.distance = glm::distance(glm::vec2(landing->point.x, landing->point.z), glm::vec2(enemy_position.x, enemy_position.z));
+        // the plunge is a straight line: no roof or wall on the way (the ray only for the ones the other rules let
+        // through)
+        candidate.reachable = true;
+        if (!execution_math::executable(candidate, rules))
+        {
+            continue;
+        }
+        const std::array<engine_game_object_t, 2> ignore_both = { go_, go };
+        candidate.reachable = !utils::level_geometry_between(position + WORLD_UP * CHEST_HEIGHT, enemy_position + WORLD_UP * CHEST_HEIGHT, ignore_both);
         candidates.push_back(candidate);
         targets.push_back(go);
         drops.push_back(position.y - enemy_position.y);
     }
-    execution_math::Rules rules{};
-    rules.range = tuning.aerial_aim_radius;
-    rules.max_height_difference = std::numeric_limits<float>::infinity();
-    rules.any_awareness = true;
-    rules.allow_knocked_down = false;
     const auto best = execution_math::pick_target(candidates, rules);
     if (!best)
     {
