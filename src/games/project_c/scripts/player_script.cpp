@@ -615,6 +615,17 @@ void project_c::Player::update(float dt)
     traversal_.set_held_weapon(weapon_go_);
     // the chain window closes after its time in every mode (a climb or a fall doesn't keep it open)
     executions_.update_chain_window(dt / 1000.0f);
+    if (movement_mode_ != MovementMode::eAirborne)
+    {
+        // the plunge measures the fall's velocity from the frames in the air only (a climb between two falls isn't one)
+        executions_.leave_air();
+    }
+    if (movement_mode_ != MovementMode::eAirborne && movement_mode_ != MovementMode::eGrounded)
+    {
+        // climbing, vaulting or executing: an attack press executes nothing, so nothing is marked
+        execution_target_ = ENGINE_INVALID_GAME_OBJECT_ID;
+        plunge_knockdown_radius_ = 0.0f;
+    }
     switch (movement_mode_)
     {
     case MovementMode::eAirborne:
@@ -653,7 +664,6 @@ void project_c::Player::update(float dt)
         return;
     }
     case MovementMode::eGrounded:
-        executions_.leave_air();
         break;
     }
 

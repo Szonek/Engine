@@ -500,3 +500,33 @@ TEST_F(ExecutionTest, ChainWindowClosesDuringAFall)
         }));
     EXPECT_FALSE(player->is_chain_window_open());
 }
+
+// climbing, nothing is marked for execution (an attack press executes nobody there)
+TEST_F(ExecutionTest, NothingIsMarkedWhileClimbing)
+{
+    sandbox();
+    scene_->build().house(0.0f, 0.0f, 0.0f);
+    const float wall_face_x = project_c::House::half_size + project_c::House::wall_thickness * 0.5f;
+    const float wall_z = project_c::House::half_size * 0.5f;
+    auto* player = scene_->build().player(wall_face_x + 0.3f, wall_z);
+    // next to the wall, its back to the player
+    auto* enemy = scene_->build().enemy(wall_face_x + 0.6f, wall_z + 1.0f, FACING_PLUS_Z);
+    ASSERT_NE(enemy, nullptr);
+    scene_->snap_camera_to_player();
+    step(SETTLE_FRAMES);
+    ASSERT_EQ(player->execution_target(), enemy->get_game_object());
+
+    // sneaking, so the enemy keeps not noticing the player
+    PlayerInput left{};
+    left.left = true;
+    left.sneak = true;
+    ASSERT_TRUE(step_until(left, 60, [&] { return player->movement_mode() == MovementMode::eClimbing; }));
+    ASSERT_EQ(enemy->awareness().state(), project_c::Awareness::eUnaware);
+    // up the wall (and over it onto the roof, a scripted move): never marked
+    for (int frame = 0; frame < 20; frame++)
+    {
+        step_seeing();
+        EXPECT_NE(player->movement_mode(), MovementMode::eGrounded);
+        EXPECT_EQ(player->execution_target(), ENGINE_INVALID_GAME_OBJECT_ID);
+    }
+}
