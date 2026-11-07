@@ -23,6 +23,7 @@ namespace
 constexpr const char* SKELETON_WARRIOR_TYPE_PATH = "enemies/skeleton_warrior.json";
 constexpr const char* PLAYER_TUNING_PATH = "player/tuning.json";
 constexpr const char* TRAVERSAL_TUNING_PATH = "player/traversal.json";
+constexpr const char* EXECUTION_TUNING_PATH = "player/executions.json";
 
 inline engine_application_create_desc_t app_cd(const project_c::AppConfig& config)
 {
@@ -75,6 +76,7 @@ project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppCo
     skeleton_warrior_type_ = engineDataAssetLoad(SKELETON_WARRIOR_TYPE_PATH);
     player_tuning_ = engineDataAssetLoad(PLAYER_TUNING_PATH);
     traversal_tuning_ = engineDataAssetLoad(TRAVERSAL_TUNING_PATH);
+    execution_tuning_ = engineDataAssetLoad(EXECUTION_TUNING_PATH);
     prefabs_.fill(ENGINE_INVALID_OBJECT_HANDLE);
     const auto load_start = std::chrono::high_resolution_clock::now();
 
@@ -126,7 +128,7 @@ void project_c::AppProjectC::register_script_types()
 
 project_c::AppProjectC::~AppProjectC()
 {
-    for (const auto asset : { skeleton_warrior_type_, player_tuning_, traversal_tuning_ })
+    for (const auto asset : { skeleton_warrior_type_, player_tuning_, traversal_tuning_, execution_tuning_ })
     {
         if (asset != ENGINE_INVALID_OBJECT_HANDLE)
         {

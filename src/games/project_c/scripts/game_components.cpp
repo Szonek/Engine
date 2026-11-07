@@ -111,7 +111,7 @@ project_c::EnemyType project_c::default_enemy_type()
     return EnemyType{ ENGINE_INVALID_OBJECT_HANDLE, 20, 2, 2.0f, 0.5f, 0.8f, { 1.0f, 0.32f, 0.22f }, {
         { "1H_Melee_Attack_Slice_Horizontal", 0.18f, 0.36f },
         { "1H_Melee_Attack_Slice_Diagonal", 0.32f, 0.50f },
-    }, default_enemy_perception() };
+    }, default_enemy_perception(), true };
 }
 
 project_c::PlayerTuning project_c::default_player_tuning()
@@ -163,6 +163,28 @@ project_c::TraversalTuning project_c::default_traversal_tuning()
     return t;
 }
 
+project_c::ExecutionTuning project_c::default_execution_tuning()
+{
+    ExecutionTuning t{};
+    t.execution_range = 1.4f;
+    t.execution_behind_half_angle_degrees = 70.0f;
+    t.execution_lunge_seconds = 0.15f;
+    t.execution_seconds = 0.55f;
+    t.execution_hit_stop_seconds = 0.1f;
+    t.execution_damage = 60.0f;
+    t.execution_noise_radius = 2.5f;
+    t.aerial_min_drop = 1.0f;
+    t.aerial_aim_radius = 2.5f;
+    t.plunge_speed = 14.0f;
+    t.knockdown_radius_per_metre = 0.6f;
+    t.knockdown_max_radius = 3.0f;
+    t.knockdown_seconds = 1.5f;
+    t.chain_window_seconds = 1.0f;
+    t.chain_range = 6.0f;
+    t.chain_dash_speed = 12.0f;
+    return t;
+}
+
 project_c::EnemyConfig project_c::default_enemy_config()
 {
     return EnemyConfig{ ENGINE_INVALID_OBJECT_HANDLE };
@@ -170,7 +192,7 @@ project_c::EnemyConfig project_c::default_enemy_config()
 
 project_c::PlayerConfig project_c::default_player_config()
 {
-    return PlayerConfig{ ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE };
+    return PlayerConfig{ ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE };
 }
 
 project_c::BuildingPartConfig project_c::default_building_part_config()
@@ -248,6 +270,8 @@ void project_c::register_game_components()
         field("hit_flash_color", ENGINE_FIELD_KIND_COLOR, offsetof(EnemyType, hit_flash_color), "the colour the enemy flashes when hit", 3),
         structs("attacks", offsetof(EnemyType, attacks), "enemy_attack", "used in turn; the ones without an animation are skipped", ENEMY_TYPE_MAX_ATTACKS),
         structs("perception", offsetof(EnemyType, perception), "enemy_perception", "how it notices the player: sight, hearing, how fast it forgets", 0),
+        field("execution_kills", ENGINE_FIELD_KIND_BOOL, offsetof(EnemyType, execution_kills),
+            "an execution kills it; otherwise it takes the execution's damage and is alerted (heavies, the target)"),
     }, default_enemy_type());
 
     g_types.player_tuning = register_data_asset_type("player_tuning", {
@@ -320,6 +344,41 @@ void project_c::register_game_components()
             "seconds without control after landing"), 0.0f, 2.0f),
     }, default_traversal_tuning());
 
+    g_types.execution_tuning = register_data_asset_type("execution_tuning", {
+        ranged(field("execution_range", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, execution_range),
+            "metres: an enemy is executed from this close (flat)"), 0.0f, 10.0f),
+        ranged(field("execution_behind_half_angle_degrees", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, execution_behind_half_angle_degrees),
+            "degrees off its back direction the player can be: half the arc at its back"), 0.0f, 180.0f),
+        ranged(field("execution_lunge_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, execution_lunge_seconds),
+            "seconds of the lunge to the spot behind the enemy"), 0.0f, 2.0f),
+        ranged(field("execution_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, execution_seconds),
+            "seconds of the whole execution, lunge included"), 0.0f, 5.0f),
+        ranged(field("execution_hit_stop_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, execution_hit_stop_seconds),
+            "the freeze when the strike lands"), 0.0f, 1.0f),
+        ranged(field("execution_damage", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, execution_damage),
+            "damage of an execution on an enemy whose type it doesn't kill"), 0.0f, 1000.0f),
+        ranged(field("execution_noise_radius", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, execution_noise_radius),
+            "metres: enemies this close hear the kill (like footsteps, not loud)"), 0.0f, 30.0f),
+        ranged(field("aerial_min_drop", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, aerial_min_drop),
+            "metres above the ground the player must be for an aerial assassination"), 0.0f, 20.0f),
+        ranged(field("aerial_aim_radius", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, aerial_aim_radius),
+            "metres around the predicted landing point the plunge finds its target"), 0.0f, 20.0f),
+        ranged(field("plunge_speed", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, plunge_speed),
+            "metres per second of the plunge onto the target"), 0.0f, 100.0f),
+        ranged(field("knockdown_radius_per_metre", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, knockdown_radius_per_metre),
+            "metres of knockdown radius around the plunge's target per metre of drop"), 0.0f, 10.0f),
+        ranged(field("knockdown_max_radius", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, knockdown_max_radius),
+            "metres: the knockdown radius is never larger"), 0.0f, 20.0f),
+        ranged(field("knockdown_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, knockdown_seconds),
+            "seconds a knocked down enemy lies"), 0.0f, 10.0f),
+        ranged(field("chain_window_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, chain_window_seconds),
+            "seconds after an execution or a plunge in which attack continues the chain"), 0.0f, 10.0f),
+        ranged(field("chain_range", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, chain_range),
+            "metres: the chain reaches the next enemy this close"), 0.0f, 30.0f),
+        ranged(field("chain_dash_speed", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, chain_dash_speed),
+            "metres per second of the dash to the next enemy of the chain"), 0.0f, 100.0f),
+    }, default_execution_tuning());
+
     // version 2: the tuning moved to the data assets
     g_types.enemy_config = register_component("enemy_config", {
         data_asset("type", offsetof(EnemyConfig, type), "enemy_type", "the kind of enemy: its tuning, shared by the enemies of the kind (assets/data/enemies)"),
@@ -328,6 +387,7 @@ void project_c::register_game_components()
     g_types.player_config = register_component("player_config", {
         data_asset("tuning", offsetof(PlayerConfig, tuning), "player_tuning", "the player's tuning (assets/data/player)"),
         data_asset("traversal", offsetof(PlayerConfig, traversal), "traversal_tuning", "how the player climbs and vaults (assets/data/player)"),
+        data_asset("executions", offsetof(PlayerConfig, executions), "execution_tuning", "how the player executes enemies (assets/data/player)"),
     }, default_player_config(), 2);
 
     static const engine_enum_value_desc_t hide_values[] = {
