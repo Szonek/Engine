@@ -15,6 +15,7 @@ add_executable(${SCENARIO_TESTS_NAME}
 	character_asset_tests.cpp
 	character_controller_tests.cpp
 	enemy_spawner_tests.cpp
+	execution_tests.cpp
 	gameplay_tests.cpp
 	hierarchy_tests.cpp
 	harness_tests.cpp

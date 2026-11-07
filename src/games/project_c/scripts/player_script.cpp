@@ -36,6 +36,8 @@ constexpr float FALL_DELAY_SECONDS = 0.1f;
 constexpr const char* LANDING_ANIMATION = "Jump_Land";
 // a landing from at least this high is loud (not a step down, nor the drop of a player spawned above the floor)
 constexpr float LOUD_LANDING_MIN_DROP = 1.5f;
+// the ring at the feet of the plunge's target
+constexpr float PLUNGE_TARGET_RING_RADIUS = 0.5f;
 
 void attack_window_open_callback(const engine_animation_event_info_t* info, void* user_data)
 {
@@ -355,6 +357,7 @@ project_c::Player::Player(engine::IScene* my_scene, engine_game_object_t go)
     : BaseNode(my_scene, go)
     , state_(States::IDLE)
     , traversal_(my_scene, go, LOCOMOTION_LAYER_ID)
+    , executions_(my_scene, go, LOCOMOTION_LAYER_ID)
 {
     // the model's own weapons aren't used: the player equips a Weapon
     constexpr std::array<const char*, 5> unused_model_parts = { "Knife", "Knife_Offhand", "1H_Crossbow", "2H_Crossbow", "Throwable" };
@@ -442,6 +445,12 @@ project_c::PlayerTuning project_c::Player::tuning() const
     return get_data_asset(get_game_component(go_, types.player_config, default_player_config()).tuning, types.player_tuning, default_player_tuning());
 }
 
+project_c::ExecutionTuning project_c::Player::execution_tuning() const
+{
+    const auto& types = game_components();
+    return get_data_asset(get_game_component(go_, types.player_config, default_player_config()).executions, types.execution_tuning, default_execution_tuning());
+}
+
 project_c::TraversalTuning project_c::Player::traversal_tuning() const
 {
     const auto& types = game_components();
@@ -506,10 +515,12 @@ void project_c::Player::update(float dt)
     engine::ScopedProfiler prof("project_c::Player::update");
     const auto t = tuning();
     const auto traversal = traversal_tuning();
+    const auto executions = execution_tuning();
     // the rings of the noise made in the last frame, then this frame's noise is made below (none when the player
     // can't move)
     noise_rings_.update(dt / 1000.0f, noise_radius_, noise_is_loud_, noise_position_, t.show_footstep_ring, t.footstep_ring_interval_seconds);
     draw_noise_rings();
+    draw_execution_cues();
     noise_radius_ = 0.0f;
     noise_is_loud_ = false;
     auto check_state_bit = [&](States state)
@@ -575,6 +586,7 @@ void project_c::Player::update(float dt)
     // the player can act (on a wall the dodge press lets go of it)
     const bool presses_wait = movement_mode_ == MovementMode::eAirborne
         || movement_mode_ == MovementMode::eScriptedMove
+        || movement_mode_ == MovementMode::eExecuting
         || (movement_mode_ == MovementMode::eGrounded && landing_recovery_remaining_seconds_ > 0.0f);
     const bool attack_pressed = !presses_wait && std::exchange(attack_press_pending_, false);
     const bool dodge_pressed = !presses_wait && std::exchange(dodge_press_pending_, false);
@@ -601,11 +613,37 @@ void project_c::Player::update(float dt)
     }
 
     traversal_.set_held_weapon(weapon_go_);
+    // the chain window closes after its time in every mode (a climb or a fall doesn't keep it open)
+    executions_.update_chain_window(dt / 1000.0f);
+    if (movement_mode_ != MovementMode::eAirborne)
+    {
+        // the plunge measures the fall's velocity from the frames in the air only (a climb between two falls isn't one)
+        executions_.leave_air();
+    }
+    if (movement_mode_ != MovementMode::eAirborne && movement_mode_ != MovementMode::eGrounded)
+    {
+        // climbing, vaulting or executing: an attack press executes nothing, so nothing is marked
+        execution_target_ = ENGINE_INVALID_GAME_OBJECT_ID;
+        plunge_knockdown_radius_ = 0.0f;
+    }
     switch (movement_mode_)
     {
     case MovementMode::eAirborne:
+    {
+        // an attack press plunges onto the enemy below the landing; without one it waits for the landing
+        executions_.observe_air(position_of(), dt / 1000.0f);
+        execution_target_ = executions_.find_plunge_target(position_of(), executions, &plunge_knockdown_radius_);
+        if (attack_press_pending_ && execution_target_ != ENGINE_INVALID_GAME_OBJECT_ID
+            && executions_.try_plunge(position_of(), executions) == MovementMode::eExecuting)
+        {
+            attack_press_pending_ = false;
+            execution_target_ = ENGINE_INVALID_GAME_OBJECT_ID;
+            set_movement_mode(MovementMode::eExecuting, traversal);
+            return;
+        }
         set_movement_mode(traversal_.update_airborne(move_direction, t.move_speed, t.movement_acceleration, traversal, dt / 1000.0f), traversal);
         return;
+    }
     case MovementMode::eClimbing:
         // space lets go of the wall
         set_movement_mode(traversal_.update_climbing(glm::vec3(move_input.x, 0.0f, move_input.y), dodge_pressed, traversal, dt / 1000.0f), traversal);
@@ -613,6 +651,18 @@ void project_c::Player::update(float dt)
     case MovementMode::eScriptedMove:
         set_movement_mode(traversal_.update_scripted_move(dt / 1000.0f), traversal);
         return;
+    case MovementMode::eExecuting:
+    {
+        const auto execution = executions_.update(executions, dt / 1000.0f);
+        if (execution.struck)
+        {
+            on_execution_strike(t, executions);
+        }
+        // the plunge ends in a (hard) landing
+        plunge_landing_ = execution.plunged;
+        set_movement_mode(execution.mode, traversal);
+        return;
+    }
     case MovementMode::eGrounded:
         break;
     }
@@ -627,7 +677,23 @@ void project_c::Player::update(float dt)
         {
             engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
             engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
+            if (std::exchange(plunge_landing_, false))
+            {
+                executions_.open_chain_window(executions);
+            }
         }
+    }
+
+    // an execution: on the target the attack press would execute (also in the middle of a combo, whose swing it
+    // cancels; with or without a weapon); otherwise the press is a normal attack
+    const bool can_execute = !dodge_pressed && !recovering && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f;
+    const PlayerExecutions::Context execution_context{ position_of(), weapon() != nullptr };
+    execution_target_ = can_execute ? executions_.find_ground_target(execution_context, executions) : ENGINE_INVALID_GAME_OBJECT_ID;
+    if (attack_pressed && can_execute && executions_.try_ground(execution_context, executions, execution_target_) == MovementMode::eExecuting)
+    {
+        execution_target_ = ENGINE_INVALID_GAME_OBJECT_ID;
+        set_movement_mode(MovementMode::eExecuting, traversal);
+        return;
     }
 
     if (weapon() && attack_pressed && !dodge_pressed && !recovering && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
@@ -948,7 +1014,8 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
 {
     const auto t = tuning();
     auto& hp = edit_state().hp;
-    if (hp == 0 || dodge_invulnerability_remaining_seconds_ > 0.0f)
+    // invulnerable while dodging, executing and landing from a plunge
+    if (hp == 0 || dodge_invulnerability_remaining_seconds_ > 0.0f || movement_mode_ == MovementMode::eExecuting || plunge_landing_)
     {
         return false;
     }
@@ -1209,6 +1276,11 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
     {
         return;
     }
+    if (mode != MovementMode::eGrounded)
+    {
+        // off the ground the plunge's landing (its invulnerability and its chain window) is over
+        plunge_landing_ = false;
+    }
     if (previous == MovementMode::eGrounded)
     {
         // combat (the upper body layer) and walking stop off the ground
@@ -1233,10 +1305,21 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
         hit_stun_remaining_seconds_ = 0.0f;
         knockback_velocity_ = glm::vec3(0.0f);
         engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
-        // a landing, unless the player died in the air (its death plays instead); loud after a fall from high enough
-        const bool landing = previous == MovementMode::eAirborne && !is_dead();
+        // a landing (also the plunge's), unless the player died in the air (its death plays instead); loud after a fall
+        // from high enough, and after a plunge
+        const bool plunge_landing = previous == MovementMode::eExecuting && plunge_landing_;
+        const bool landing = (previous == MovementMode::eAirborne || plunge_landing) && !is_dead();
         landing_recovery_remaining_seconds_ = landing ? traversal.landing_recovery_seconds : 0.0f;
-        if (landing && airborne_start_y_ - engineGameObjectGetTransformComponent(go_).position[1] >= LOUD_LANDING_MIN_DROP)
+        if (plunge_landing_ && landing_recovery_remaining_seconds_ <= 0.0f)
+        {
+            // no recovery to wait for: the chain window opens at once (none when the player died)
+            plunge_landing_ = false;
+            if (landing)
+            {
+                executions_.open_chain_window(execution_tuning());
+            }
+        }
+        if (landing && (plunge_landing || airborne_start_y_ - engineGameObjectGetTransformComponent(go_).position[1] >= LOUD_LANDING_MIN_DROP))
         {
             make_loud_noise(tuning());
         }
@@ -1283,6 +1366,62 @@ void project_c::Player::draw_noise_rings() const
         engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), ring->radius, glm::value_ptr(color));
         engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), ring->radius * 0.93f, glm::value_ptr(color));
     }
+}
+
+void project_c::Player::draw_execution_cues() const
+{
+    if (!engineGameObjectIsValid(execution_target_))
+    {
+        return;
+    }
+    const glm::vec3 up(0.0f, 1.0f, 0.0f);
+    const auto target_tc = engineGameObjectGetTransformComponent(execution_target_);
+    const glm::vec3 target(target_tc.position[0], target_tc.position[1], target_tc.position[2]);
+    if (movement_mode_ == MovementMode::eAirborne)
+    {
+        // where the plunge lands, and (faint) how far around it the others are knocked down
+        const auto center = target + up * 0.02f;
+        const glm::vec3 color(0.95f, 0.15f, 0.1f);
+        const glm::vec3 faint(0.5f, 0.15f, 0.12f);
+        engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), PLUNGE_TARGET_RING_RADIUS, glm::value_ptr(color));
+        engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), plunge_knockdown_radius_, glm::value_ptr(faint));
+    }
+    else if (movement_mode_ == MovementMode::eGrounded && executions_.is_chain_window_open())
+    {
+        // the chain's next target
+        const auto from = position_of() + up * 0.5f;
+        const auto to = target + up * 0.5f;
+        const glm::vec3 color(0.95f, 0.15f, 0.1f);
+        engineDebugDrawLine(glm::value_ptr(from), glm::value_ptr(to), glm::value_ptr(color));
+    }
+}
+
+glm::vec3 project_c::Player::position_of() const
+{
+    const auto tc = engineGameObjectGetTransformComponent(go_);
+    return glm::vec3(tc.position[0], tc.position[1], tc.position[2]);
+}
+
+void project_c::Player::on_execution_strike(const PlayerTuning& t, const ExecutionTuning& executions)
+{
+    hit_stop_remaining_seconds_ = std::max(hit_stop_remaining_seconds_, executions.execution_hit_stop_seconds);
+    hit_stop_just_started_ = true;
+    if (!engineAnimationControllerSetPaused(go_, true))
+    {
+        engineLog("Failed to pause player animation for the execution's hit-stop.\n");
+    }
+    const auto cameras = utils::get_active_camera_game_objects();
+    if (!cameras.empty())
+    {
+        if (auto* camera = my_scene_->get_script<CameraScript>(cameras.front()))
+        {
+            camera->shake(t.hit_camera_shake_intensity, t.hit_camera_shake_seconds);
+        }
+    }
+    // the kill is heard like footsteps, not loud
+    noise_radius_ = executions.execution_noise_radius;
+    noise_is_loud_ = false;
+    noise_position_ = position_of();
 }
 
 void project_c::Player::cancel_combat_actions()

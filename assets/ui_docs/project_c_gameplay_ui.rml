@@ -22,7 +22,7 @@
 		</div>
 		
 		<div data-for="enemy_go, idx : enemies_go">
-			<div class="awareness" data-style-left="enemies_pos_x[idx]" data-style-bottom="enemies_awareness_pos_y[idx]">{{enemies_awareness[idx]}}</div>
+			<div class="awareness" data-class-execution="enemies_execution_target[idx] == 1" data-style-left="enemies_pos_x[idx]" data-style-bottom="enemies_awareness_pos_y[idx]">{{enemies_awareness[idx]}}</div>
 			<progress class="healthbar"  max="100" data-attr-value="enemies_health[idx]"
 				data-style-left="enemies_pos_x[idx]" data-style-bottom="enemies_pos_y[idx]"></progress>
 		</div>

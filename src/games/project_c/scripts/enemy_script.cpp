@@ -50,8 +50,6 @@ constexpr float ENEMY_ARRIVE_DISTANCE = 0.5f;
 constexpr float ENEMY_LOOK_AROUND_DEGREES_PER_SECOND = 60.0f;
 // a killed enemy alerts its pack for this long after the killing blow (the members read it), then it leaves the pack
 constexpr float ENEMY_DEATH_ALARM_SECONDS = 0.2f;
-// the sight ray sees past this many characters and dynamic bodies (other enemies, a dropped weapon) on its way
-constexpr std::size_t ENEMY_SIGHT_MAX_SEE_THROUGH = 4;
 // what it looks at to see the player: the chest, above the player's feet
 constexpr float PLAYER_CHEST_HEIGHT = 0.5f;
 // corners of the path to the player, including the enemy's own position; only the next one is walked to
@@ -293,8 +291,9 @@ void project_c::Enemy::update(float dt)
     {
         find_player();
     }
-    // also for the killing blow (it isn't dying yet), so the hit alerts it and its pack
-    if (state_ != States::DIE)
+    // also for the killing blow (it isn't dying yet), so the hit alerts it and its pack; not while the player executes
+    // it (from right behind it, in its close range): an execution is silent
+    if (state_ != States::DIE && !being_executed_)
     {
         const auto own = engineGameObjectGetTransformComponent(go_);
         const glm::vec3 forward = glm::make_quat(own.rotation) * glm::vec3(0.0f, 0.0f, 1.0f);
@@ -396,7 +395,7 @@ void project_c::Enemy::update(float dt)
         {
             engineLog("Failed to disable looping for enemy death.\n");
         }
-        if (!engineAnimationControllerAnimationPlay(go_, "Death_A", 0))
+        if (!engineAnimationControllerAnimationPlay(go_, death_animation_.c_str(), 0))
         {
             engineLog("Failed to play enemy death animation.\n");
         }
@@ -411,6 +410,11 @@ void project_c::Enemy::update(float dt)
 
     const auto* encounter = my_scene_->find_script<Encounter>();
     if (encounter && encounter->is_over() && state_ != States::DIE)
+    {
+        return;
+    }
+    // held by the player's execution
+    if (being_executed_ && state_ != States::DIE)
     {
         return;
     }
@@ -499,9 +503,31 @@ void project_c::Enemy::update(float dt)
 
         break;
     }
+    case States::KNOCKED_DOWN:
+    {
+        knocked_down_remaining_seconds_ = std::max(0.0f, knocked_down_remaining_seconds_ - dt / 1000.0f);
+        if (knocked_down_remaining_seconds_ > 0.0f)
+        {
+            break;
+        }
+        if (!standing_up_)
+        {
+            standing_up_ = true;
+            if (!engineAnimationControllerAnimationPlay(go_, "Lie_StandUp", 0))
+            {
+                engineLog("Failed to play the enemy's stand up animation.\n");
+            }
+        }
+        else if (!engineAnimationControllerIsAnimationPlaying(go_, "Lie_StandUp"))
+        {
+            standing_up_ = false;
+            state_ = States::DECISION_MAKE;
+        }
+        break;
+    }
     case States::DIE:
     {
-        if (!engineAnimationControllerIsAnimationPlaying(go_, "Death_A"))
+        if (!engineAnimationControllerIsAnimationPlaying(go_, death_animation_.c_str()))
         {
             my_scene_->unregister_script(this);
         }
@@ -578,7 +604,7 @@ void project_c::Enemy::on_weapon_hit_player(engine_game_object_t player_go)
     }
 }
 
-void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_seconds)
+void project_c::Enemy::note_damage_position()
 {
     // alerted at the next update, with where the player is now
     damaged_ = true;
@@ -587,6 +613,56 @@ void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_s
         const auto ptc = engineGameObjectGetTransformComponent(player_go_);
         damage_position_ = glm::vec3(ptc.position[0], ptc.position[1], ptc.position[2]);
     }
+}
+
+void project_c::Enemy::begin_execution()
+{
+    being_executed_ = true;
+    set_attack_window_active(false);
+    if (state_ == States::ATTACK || state_ == States::MOVE)
+    {
+        state_ = States::DECISION_MAKE;
+    }
+}
+
+void project_c::Enemy::receive_execution(std::uint32_t damage)
+{
+    being_executed_ = false;
+    set_attack_window_active(false);
+    hit_flash_remaining_seconds_ = 0.12f;
+    update_hit_flash(1.0f);
+    if (tuning().execution_kills)
+    {
+        // silently: no alert of its own, so its death doesn't alert its pack
+        hp = 0;
+        executed_ = true;
+        death_animation_ = "Death_B";
+        return;
+    }
+    note_damage_position();
+    hp = damage >= hp ? 0 : hp - damage;
+}
+
+void project_c::Enemy::knock_down(float seconds)
+{
+    if (hp == 0)
+    {
+        return;
+    }
+    note_damage_position();
+    set_attack_window_active(false);
+    state_ = States::KNOCKED_DOWN;
+    knocked_down_remaining_seconds_ = seconds;
+    standing_up_ = false;
+    if (!engineAnimationControllerLayerSetLooping(go_, 0, false) || !engineAnimationControllerAnimationPlay(go_, "Lie_Down", 0))
+    {
+        engineLog("Failed to play the enemy's knockdown animation.\n");
+    }
+}
+
+void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_seconds)
+{
+    note_damage_position();
     set_attack_window_active(false);
     hp = damage >= hp ? 0 : hp - damage;
     hit_flash_remaining_seconds_ = 0.12f;
@@ -602,42 +678,15 @@ void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_s
 
 bool project_c::Enemy::sees(const glm::vec3& eye, const glm::vec3& to_player) const
 {
-    // only level geometry (static and kinematic bodies) hides the player: the ray is cast again past the characters and
-    // dynamic bodies it hits
-    std::array<engine_game_object_t, ENEMY_SIGHT_MAX_SEE_THROUGH + 1> ignore{ go_ };
-    engine_physics_query_filter_t filter{};
-    filter.ignore = ignore.data();
-    filter.ignore_count = 1;
-    for (std::size_t cast = 0; cast <= ENEMY_SIGHT_MAX_SEE_THROUGH; cast++)
-    {
-        engine_ray_hit_t hit{};
-        if (!enginePhysicsRayCast(glm::value_ptr(eye), glm::value_ptr(to_player), glm::length(to_player), &filter, &hit))
-        {
-            return false;
-        }
-        if (hit.go == player_go_)
-        {
-            return true;
-        }
-        const bool character = engineGameObjectHasCharacterControllerComponent(hit.go);
-        bool dynamic = false;
-        if (engineGameObjectHasRigidBodyComponent(hit.go))
-        {
-            const auto body = engineGameObjectGetRigidBodyComponent(hit.go);
-            dynamic = body.type == ENGINE_RIGID_BODY_TYPE_DYNAMIC && body.mass > 0.0f;
-        }
-        if ((!character && !dynamic) || filter.ignore_count == ignore.size())
-        {
-            return false;
-        }
-        ignore[filter.ignore_count++] = hit.go;
-    }
-    return false;
+    // only level geometry (static and kinematic bodies) hides the player
+    const std::array<engine_game_object_t, 2> ignore = { go_, player_go_ };
+    return !utils::level_geometry_between(eye, eye + to_player, ignore);
 }
 
 bool project_c::Enemy::was_just_killed() const
 {
-    return is_dying() && awareness_.state() == Awareness::eAlert && dying_seconds_ < ENEMY_DEATH_ALARM_SECONDS;
+    // an execution kills silently
+    return is_dying() && !executed_ && awareness_.state() == Awareness::eAlert && dying_seconds_ < ENEMY_DEATH_ALARM_SECONDS;
 }
 
 project_c::EnemyStimuli project_c::Enemy::perceive(const EnemyPerception& perception, const glm::vec3& position, const glm::vec3& forward) const

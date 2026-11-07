@@ -60,10 +60,12 @@ public:
     // the asset ID of an asset of the type's model, e.g. one of its meshes: "<model path>#<name>"
     std::string model_asset_id(PrefabType type, std::string_view name) const;
     // the data assets the level builder references (loaded at startup, held for the whole run; ENGINE_INVALID_OBJECT_HANDLE
-    // when one failed loading): the skeleton warriors' enemy_type and the player's player_tuning and traversal_tuning
+    // when one failed loading): the skeleton warriors' enemy_type and the player's player_tuning, traversal_tuning and
+    // execution_tuning
     engine_data_asset_t get_skeleton_warrior_type() const { return skeleton_warrior_type_; }
     engine_data_asset_t get_player_tuning() const { return player_tuning_; }
     engine_data_asset_t get_traversal_tuning() const { return traversal_tuning_; }
+    engine_data_asset_t get_execution_tuning() const { return execution_tuning_; }
     // One frame of the game (dt in milliseconds): updates the scenes, then applies scene changes they requested.
     // The caller owns the loop and calls it between engineFrameBegin() and engineFrameEnd() (main.cpp, tests).
     void update(float dt);
@@ -136,6 +138,7 @@ private:
     engine_data_asset_t skeleton_warrior_type_ = ENGINE_INVALID_OBJECT_HANDLE;
     engine_data_asset_t player_tuning_ = ENGINE_INVALID_OBJECT_HANDLE;
     engine_data_asset_t traversal_tuning_ = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_data_asset_t execution_tuning_ = ENGINE_INVALID_OBJECT_HANDLE;
     std::string level_path_;
     std::string level_entrance_ = "default";
     PlayerState player_state_;

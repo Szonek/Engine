@@ -35,6 +35,12 @@ body {
 	font-effect: outline(2px black);
 }
 
+/* the enemy an attack press would execute */
+.awareness.execution
+{
+	color: #e02020;
+}
+
 .healthbar
 {
 	position: absolute;

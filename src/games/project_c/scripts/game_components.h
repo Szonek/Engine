@@ -46,6 +46,8 @@ struct EnemyType
     EnemyAttack attacks[ENEMY_TYPE_MAX_ATTACKS];
     // how it notices the player (sight, hearing, how fast it forgets)
     EnemyPerception perception;
+    // an execution kills it; otherwise it takes the execution's damage and is alerted (heavies, the target)
+    bool execution_kills;
 };
 
 struct EnemyConfig
@@ -123,12 +125,36 @@ struct TraversalTuning
     float landing_recovery_seconds;
 };
 
+// How the player executes enemies: from behind, from above (the plunge) and in a chain (a data asset,
+// assets/data/player; EXECUTIONS.md). Metres, seconds, degrees.
+struct ExecutionTuning
+{
+    float execution_range;
+    float execution_behind_half_angle_degrees;
+    float execution_lunge_seconds;
+    float execution_seconds;
+    float execution_hit_stop_seconds;
+    float execution_damage;
+    float execution_noise_radius;
+    float aerial_min_drop;
+    float aerial_aim_radius;
+    float plunge_speed;
+    float knockdown_radius_per_metre;
+    float knockdown_max_radius;
+    float knockdown_seconds;
+    float chain_window_seconds;
+    float chain_range;
+    float chain_dash_speed;
+};
+
 struct PlayerConfig
 {
     // a PlayerTuning data asset; with none, the player has default_player_tuning()
     engine_data_asset_t tuning;
     // a TraversalTuning data asset; with none, the player has default_traversal_tuning()
     engine_data_asset_t traversal;
+    // an ExecutionTuning data asset; with none, the player has default_execution_tuning()
+    engine_data_asset_t executions;
 };
 
 // what the House hides while the player is inside it
@@ -204,6 +230,7 @@ struct GameComponentTypes
     engine_component_type_t enemy_type = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t traversal_tuning = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_component_type_t execution_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t building_part_config = ENGINE_INVALID_OBJECT_HANDLE;
@@ -224,6 +251,7 @@ EnemyPerception default_enemy_perception();
 EnemyType default_enemy_type();
 PlayerTuning default_player_tuning();
 TraversalTuning default_traversal_tuning();
+ExecutionTuning default_execution_tuning();
 EnemyConfig default_enemy_config();
 PlayerConfig default_player_config();
 BuildingPartConfig default_building_part_config();

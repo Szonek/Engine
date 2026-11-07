@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "type": "execution_tuning",
+  "type_version": 1,
+  "value": {
+    "execution_range": 1.4,
+    "execution_behind_half_angle_degrees": 70,
+    "execution_lunge_seconds": 0.15,
+    "execution_seconds": 0.55,
+    "execution_hit_stop_seconds": 0.1,
+    "execution_damage": 60,
+    "execution_noise_radius": 2.5,
+    "aerial_min_drop": 1,
+    "aerial_aim_radius": 2.5,
+    "plunge_speed": 14,
+    "knockdown_radius_per_metre": 0.6,
+    "knockdown_max_radius": 3,
+    "knockdown_seconds": 1.5,
+    "chain_window_seconds": 1,
+    "chain_range": 6,
+    "chain_dash_speed": 12
+  }
+}

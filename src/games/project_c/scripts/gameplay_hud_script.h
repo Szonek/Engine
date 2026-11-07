@@ -41,8 +41,11 @@ private:
         engine_vector_engine_string_t pos_x = engineVectorCreateEngineString();
         engine_vector_engine_string_t pos_y = engineVectorCreateEngineString();
         engine_vector_uint32_t progressbar_value = engineVectorCreateUint32();  // in range: <0; 100>
-        // what the enemy knows of the player: "", "?" (suspicious or searching), "!" (alert); shown above the bar
+        // what the enemy knows of the player: "", "?" (suspicious or searching), "!" (alert); shown above the bar, or
+        // "†" when an attack press would execute it (the player's execution target)
         engine_vector_engine_string_t awareness = engineVectorCreateEngineString();
+        // 1 for the player's execution target (drawn red), 0 otherwise
+        engine_vector_uint32_t execution_target = engineVectorCreateUint32();
         engine_vector_engine_string_t awareness_pos_y = engineVectorCreateEngineString();
     };
 
