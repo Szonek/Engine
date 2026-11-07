@@ -33,9 +33,11 @@ every frame (`Player::execution_target`); the HUD marks it and a press executes 
 attack.
 
 The execution: the player lunges in `execution_lunge_seconds` (0.15) to `0.6 m` behind the victim, facing its back,
-the clip starts so that it hits as the lunge ends, and the strike lands at the clip's hit time with a hit stop
+or, when a wall is right behind the victim, to `0.6 m` from it on the side the player comes from; the clip starts so
+that it hits as the lunge ends, and the strike lands at the clip's hit time with a hit stop
 (`execution_hit_stop_seconds`, 0.1) and a camera shake; it ends `execution_seconds` (0.55) after the clip started. The
-victim is frozen from the start (`Enemy::begin_execution`) and the player can't be hurt. The kill makes a noise of
+victim is frozen from the start (`Enemy::begin_execution`), perceiving nothing (so it can't alert its pack), and the
+player can't be hurt. The kill makes a noise of
 `execution_noise_radius` (2.5 m) for one frame, heard like footsteps (not loud), so a packmate further away notices
 nothing. The victim dies (`Death_B`) without alerting its pack (`was_just_killed`, the killing blow which alerts it, is false for
 executions). An enemy type
@@ -43,12 +45,13 @@ with `execution_kills` false takes `execution_damage` (60) instead and is alerte
 
 ## Plunge (aerial assassination)
 
-An attack press in the air (`eAirborne`: any fall, the leap) at least `aerial_min_drop` (1 m) above the ground plunges
+An attack press in the air (`eAirborne`: any fall, the leap) at least `aerial_min_drop` (1 m) above the ground (level geometry: characters and dynamic bodies below don't
+count) plunges
 onto the enemy nearest where the player would land (`predict_landing`, from the velocity measured over the last frame and
 the scene's gravity, at the height of each enemy's feet), within `aerial_aim_radius` (2.5 m), in any awareness state but
-dying or knocked down. The plunge is a straight line at `plunge_speed` (14 m/s, at least 0.12 s) to just short of the
+dying or knocked down, with no level geometry on the straight line to it (no plunge through a roof). The plunge is a straight line at `plunge_speed` (14 m/s, at least 0.12 s) to just short of the
 target, in `eExecuting`; air control stops. At the impact the target is executed (`receive_execution`) and every other
-enemy within `knockdown_radius_per_metre` × drop (0.6, at most `knockdown_max_radius`, 3 m) is knocked down for
+enemy on its level (within 1 m of height) and within `knockdown_radius_per_metre` × drop (0.6, at most `knockdown_max_radius`, 3 m) is knocked down for
 `knockdown_seconds` (1.5) and alerted. The landing is the hard one (a loud noise, `Jump_Land`, the landing recovery);
 the player can't be hurt from the plunge's start until the recovery ends. With no target the press waits for the
 landing, like any press in the air.
@@ -58,7 +61,8 @@ While airborne with a target, a red ring is drawn at the target's feet and a fai
 
 ## Chain
 
-After an execution, and after a plunge's landing recovery, the chain window is open for `chain_window_seconds` (1 s).
+After an execution, and after a plunge's landing recovery, the chain window is open for `chain_window_seconds` (1 s),
+counting down in every movement mode (a climb or a fall doesn't keep it open).
 A press in it executes the nearest enemy within `chain_range` (6 m) and 0.5 m of height which hasn't noticed the player
 or is knocked down, and is reachable; no behind rule. The player dashes to its back at `chain_dash_speed` (12 m/s), then
 strikes, and the window opens again; the chain has no cap. A press with no target is a normal attack and ends the chain.
