@@ -42,7 +42,9 @@ private:
         IDLE = 1,
         ATTACK,
         DIE,
-        MOVE
+        MOVE,
+        // knocked down by a plunge: lies, then stands up; it neither moves nor attacks
+        KNOCKED_DOWN
     };
 
     struct IdleStateData {};
@@ -69,6 +71,16 @@ public:
     void update(float dt);
     // a hit by the player: it and its pack are alerted at once
     void receive_attack_hit(std::uint32_t damage, float hit_stop_seconds);
+    // The player's execution starts on it: it is held where it is (no moving, turning or attacking) until
+    // receive_execution.
+    void begin_execution();
+    bool is_being_executed() const { return being_executed_; }
+    // The execution's strike: it dies silently (Death_B; its death doesn't alert the pack) when its type says an
+    // execution kills it, otherwise it takes `damage` and is alerted like by a hit.
+    void receive_execution(std::uint32_t damage);
+    // a plunge landed next to it: it lies for `seconds` and stands up, alerted
+    void knock_down(float seconds);
+    bool is_knocked_down() const { return state_ == States::KNOCKED_DOWN && knocked_down_remaining_seconds_ > 0.0f; }
     void set_attack_window_active(bool active);
     void on_weapon_hit_player(engine_game_object_t player_go);
 
@@ -133,6 +145,14 @@ private:
     // a hit since the last update, and where the player was then
     bool damaged_ = false;
     glm::vec3 damage_position_{ 0.0f };
+    // the player's position now, as the last known position of a hit
+    void note_damage_position();
+    bool being_executed_ = false;
+    // killed by an execution: silently
+    bool executed_ = false;
+    std::string death_animation_ = "Death_A";
+    float knocked_down_remaining_seconds_ = 0.0f;
+    bool standing_up_ = false;
     float dying_seconds_ = 0.0f;
 };
 } //namespace project_c

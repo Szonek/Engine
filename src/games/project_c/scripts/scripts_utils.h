@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstring>
 #include <string_view>
+#include <span>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -49,5 +50,9 @@ struct CursorRay
 // ray through the cursor (PlayerInput::cursor) from the near to the far plane of the camera
 CursorRay get_ray_from_cursor(engine_game_object_t go_camera, engine_fvec2_t cursor);
 
+// Whether level geometry (a static or kinematic body) is on the segment from `from` to `to`: characters and dynamic
+// bodies (other enemies, a dropped weapon) don't count, the ray is cast again past them, up to 4 of them (more count as
+// blocking). `ignore` are skipped too (the ones looking and looked at).
+bool level_geometry_between(const glm::vec3& from, const glm::vec3& to, std::span<const engine_game_object_t> ignore);
 } // namespace utils
 } // namespace project_c

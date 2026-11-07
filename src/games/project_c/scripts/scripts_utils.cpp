@@ -97,3 +97,36 @@ project_c::utils::CursorRay project_c::utils::get_ray_from_cursor(engine_game_ob
     return ray;
 }
 
+bool project_c::utils::level_geometry_between(const glm::vec3& from, const glm::vec3& to, std::span<const engine_game_object_t> ignore)
+{
+    constexpr std::size_t max_see_through = 4;
+    std::vector<engine_game_object_t> skipped(ignore.begin(), ignore.end());
+    const glm::vec3 direction = to - from;
+    if (glm::length(direction) <= 0.0f)
+    {
+        return false;
+    }
+    for (std::size_t cast = 0; cast <= max_see_through; cast++)
+    {
+        engine_physics_query_filter_t filter{};
+        filter.ignore = skipped.data();
+        filter.ignore_count = skipped.size();
+        engine_ray_hit_t hit{};
+        if (!enginePhysicsRayCast(glm::value_ptr(from), glm::value_ptr(direction), glm::length(direction), &filter, &hit))
+        {
+            return false;
+        }
+        bool dynamic = false;
+        if (engineGameObjectHasRigidBodyComponent(hit.go))
+        {
+            const auto body = engineGameObjectGetRigidBodyComponent(hit.go);
+            dynamic = body.type == ENGINE_RIGID_BODY_TYPE_DYNAMIC && body.mass > 0.0f;
+        }
+        if (!dynamic && !engineGameObjectHasCharacterControllerComponent(hit.go))
+        {
+            return true;
+        }
+        skipped.push_back(hit.go);
+    }
+    return true;
+}
