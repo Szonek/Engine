@@ -16,6 +16,7 @@
 #include <initializer_list>
 #include <memory>
 #include <optional>
+#include <utility>
 
 namespace
 {
@@ -136,7 +137,8 @@ private:
     std::unordered_map<engine_data_asset_t, project_c::EnemyPerception> perceptions_;
 };
 
-void draw_enemy(EnemyPerceptionCache& cache, const engine::IScene& scene, engine_game_object_t go, bool selected)
+void draw_enemy(EnemyPerceptionCache& cache, const project_c::ExecutionTuning& executions, const engine::IScene& scene, engine_game_object_t go,
+    bool selected)
 {
     const auto world = world_matrix(go);
     if (!world)
@@ -178,16 +180,37 @@ void draw_enemy(EnemyPerceptionCache& cache, const engine::IScene& scene, engine
     engineDebugDrawLine(glm::value_ptr(origin), glm::value_ptr(previous), glm::value_ptr(color));
     // seen all around this close
     engineDebugDrawCircle(glm::value_ptr(origin), glm::value_ptr(up), perception.close_range, glm::value_ptr(color));
+
+    // where the player executes it from: the arc behind it at the execution's range
+    const auto execution_color = gizmo_color(glm::vec3(0.2f, 0.9f, 0.3f), selected);
+    const float behind_half_angle = glm::radians(executions.execution_behind_half_angle_degrees);
+    const auto behind = [&](float angle)
+        {
+            const float c = std::cos(angle);
+            const float s = std::sin(angle);
+            const glm::vec3 back = -forward;
+            return origin + glm::vec3(back.x * c + back.z * s, 0.0f, -back.x * s + back.z * c) * executions.execution_range;
+        };
+    previous = behind(-behind_half_angle);
+    engineDebugDrawLine(glm::value_ptr(origin), glm::value_ptr(previous), glm::value_ptr(execution_color));
+    for (int i = 1; i <= SIGHT_ARC_SEGMENTS; i++)
+    {
+        const auto point = behind(-behind_half_angle + 2.0f * behind_half_angle * static_cast<float>(i) / static_cast<float>(SIGHT_ARC_SEGMENTS));
+        engineDebugDrawLine(glm::value_ptr(previous), glm::value_ptr(point), glm::value_ptr(execution_color));
+        previous = point;
+    }
+    engineDebugDrawLine(glm::value_ptr(origin), glm::value_ptr(previous), glm::value_ptr(execution_color));
 }
 }  // namespace
 
-void project_c::register_gizmos(engine::GizmoRegistry& gizmos)
+void project_c::register_gizmos(engine::GizmoRegistry& gizmos, std::function<ExecutionTuning()> execution_tuning)
 {
     gizmos.add(game_components().enemy_spawner, &draw_enemy_spawner);
     gizmos.add(game_components().player_start, &draw_player_start);
     // the registry outlives its drawers (it holds them)
-    gizmos.add(game_components().enemy_config, [cache = std::make_shared<EnemyPerceptionCache>(gizmos)](const engine::IScene& scene, engine_game_object_t go, bool selected)
+    gizmos.add(game_components().enemy_config, [cache = std::make_shared<EnemyPerceptionCache>(gizmos), execution_tuning = std::move(execution_tuning)](
+        const engine::IScene& scene, engine_game_object_t go, bool selected)
         {
-            draw_enemy(*cache, scene, go, selected);
+            draw_enemy(*cache, execution_tuning(), scene, go, selected);
         });
 }

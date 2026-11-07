@@ -123,7 +123,10 @@ void project_c::AppProjectC::register_script_types()
     {
         log("Failed registering the script component: scene files can't create scripts.\n");
     }
-    register_gizmos(gizmos());
+    register_gizmos(gizmos(), [this]
+        {
+            return get_data_asset(execution_tuning_, game_components().execution_tuning, default_execution_tuning());
+        });
 }
 
 project_c::AppProjectC::~AppProjectC()

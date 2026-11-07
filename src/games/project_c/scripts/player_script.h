@@ -258,6 +258,8 @@ private:
     // this frame's noise (noise_radius) and where it was made, and the rings showing it on the ground
     void make_loud_noise(const PlayerTuning& t);
     void draw_noise_rings() const;
+    // the plunge's target and knockdown radius in the air, the line to the chain's next target on the ground
+    void draw_execution_cues() const;
     float noise_radius_ = 0.0f;
     bool noise_is_loud_ = false;
     glm::vec3 noise_position_{ 0.0f };

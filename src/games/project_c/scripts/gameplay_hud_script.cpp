@@ -80,6 +80,7 @@ project_c::GameplayHud::GameplayHud(engine::IScene* my_scene, engine_game_object
     add_binding(bindings, "enemies_pos_y", enemies_.pos_y);
     add_binding(bindings, "enemies_awareness", enemies_.awareness);
     add_binding(bindings, "enemies_awareness_pos_y", enemies_.awareness_pos_y);
+    add_binding(bindings, "enemies_execution_target", enemies_.execution_target);
     {
         engine_ui_document_data_binding_t binding{};
         binding.name = "player_health";
@@ -276,6 +277,13 @@ void project_c::GameplayHud::update_enemy(const Enemy* en)
     case Awareness::eUnaware:
         break;
     }
+    // the one enemy an attack press would execute now: a dagger (U+2020) replaces the awareness mark
+    const auto* player = my_scene_->find_script<Player>();
+    const std::uint32_t execution_target = player && player->execution_target() == enemy_go ? 1 : 0;
+    if (execution_target)
+    {
+        awareness_icon = "\xE2\x80\xA0";
+    }
 
     bool found = false;
     for (auto i = 0; i < engineVectorSizeUint32(enemies_.go); i++)
@@ -286,6 +294,7 @@ void project_c::GameplayHud::update_enemy(const Enemy* en)
             found = true;
 
             engineVectorSetUint32(enemies_.progressbar_value, i, health_progress_value);
+            engineVectorSetUint32(enemies_.execution_target, i, execution_target);
 
             auto pos_x_str = engineVectorGetEngineString(enemies_.pos_x, i);
             engineStringSet(pos_x_str, x_str.c_str());
@@ -302,6 +311,7 @@ void project_c::GameplayHud::update_enemy(const Enemy* en)
     {
         engineVectorPushBackUint32(enemies_.go, enemy_go);
         engineVectorPushBackUint32(enemies_.progressbar_value, health_progress_value);
+        engineVectorPushBackUint32(enemies_.execution_target, execution_target);
         engineUiDataHandleDirtyVariable(handle_, "enemies_go");
 
         engineVectorPushBackEngineString(enemies_.pos_x, engineStringCreate(x_str.c_str()));
@@ -315,12 +325,14 @@ void project_c::GameplayHud::update_enemy(const Enemy* en)
     engineUiDataHandleDirtyVariable(handle_, "enemies_pos_y");
     engineUiDataHandleDirtyVariable(handle_, "enemies_awareness");
     engineUiDataHandleDirtyVariable(handle_, "enemies_awareness_pos_y");
+    engineUiDataHandleDirtyVariable(handle_, "enemies_execution_target");
 }
 
 void project_c::GameplayHud::remove_enemy(std::uint32_t index)
 {
     engineVectorEraseUint32(enemies_.go, index);
     engineVectorEraseUint32(enemies_.progressbar_value, index);
+    engineVectorEraseUint32(enemies_.execution_target, index);
     engineVectorEraseEngineString(enemies_.pos_x, index);
     engineVectorEraseEngineString(enemies_.pos_y, index);
     engineVectorEraseEngineString(enemies_.awareness, index);
@@ -332,6 +344,7 @@ void project_c::GameplayHud::remove_enemy(std::uint32_t index)
     engineUiDataHandleDirtyVariable(handle_, "enemies_pos_y");
     engineUiDataHandleDirtyVariable(handle_, "enemies_awareness");
     engineUiDataHandleDirtyVariable(handle_, "enemies_awareness_pos_y");
+    engineUiDataHandleDirtyVariable(handle_, "enemies_execution_target");
 }
 
 void project_c::GameplayHud::update_item_on_ground(const Weapon* weapon)

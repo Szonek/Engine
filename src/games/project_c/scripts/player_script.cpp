@@ -36,6 +36,8 @@ constexpr float FALL_DELAY_SECONDS = 0.1f;
 constexpr const char* LANDING_ANIMATION = "Jump_Land";
 // a landing from at least this high is loud (not a step down, nor the drop of a player spawned above the floor)
 constexpr float LOUD_LANDING_MIN_DROP = 1.5f;
+// the ring at the feet of the plunge's target
+constexpr float PLUNGE_TARGET_RING_RADIUS = 0.5f;
 
 void attack_window_open_callback(const engine_animation_event_info_t* info, void* user_data)
 {
@@ -518,6 +520,7 @@ void project_c::Player::update(float dt)
     // can't move)
     noise_rings_.update(dt / 1000.0f, noise_radius_, noise_is_loud_, noise_position_, t.show_footstep_ring, t.footstep_ring_interval_seconds);
     draw_noise_rings();
+    draw_execution_cues();
     noise_radius_ = 0.0f;
     noise_is_loud_ = false;
     auto check_state_bit = [&](States state)
@@ -1337,6 +1340,34 @@ void project_c::Player::draw_noise_rings() const
         const auto center = ring->center + lift;
         engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), ring->radius, glm::value_ptr(color));
         engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), ring->radius * 0.93f, glm::value_ptr(color));
+    }
+}
+
+void project_c::Player::draw_execution_cues() const
+{
+    if (!engineGameObjectIsValid(execution_target_))
+    {
+        return;
+    }
+    const glm::vec3 up(0.0f, 1.0f, 0.0f);
+    const auto target_tc = engineGameObjectGetTransformComponent(execution_target_);
+    const glm::vec3 target(target_tc.position[0], target_tc.position[1], target_tc.position[2]);
+    if (movement_mode_ == MovementMode::eAirborne)
+    {
+        // where the plunge lands, and (faint) how far around it the others are knocked down
+        const auto center = target + up * 0.02f;
+        const glm::vec3 color(0.95f, 0.15f, 0.1f);
+        const glm::vec3 faint(0.5f, 0.15f, 0.12f);
+        engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), PLUNGE_TARGET_RING_RADIUS, glm::value_ptr(color));
+        engineDebugDrawCircle(glm::value_ptr(center), glm::value_ptr(up), plunge_knockdown_radius_, glm::value_ptr(faint));
+    }
+    else if (movement_mode_ == MovementMode::eGrounded && executions_.is_chain_window_open())
+    {
+        // the chain's next target
+        const auto from = position_of() + up * 0.5f;
+        const auto to = target + up * 0.5f;
+        const glm::vec3 color(0.95f, 0.15f, 0.1f);
+        engineDebugDrawLine(glm::value_ptr(from), glm::value_ptr(to), glm::value_ptr(color));
     }
 }
 
