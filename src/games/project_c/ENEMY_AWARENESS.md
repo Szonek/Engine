@@ -9,7 +9,7 @@ How enemies notice the player and what they do about it: sight, hearing, packs a
 | `scripts/enemy_spawner_script.h/.cpp`        | The pack: `EnemySpawner::pack_state`, computed from its members           |
 | `scripts/player_script.h/.cpp`               | Sneaking and the player's noise (`Player::noise_radius`, `noise_is_loud`) |
 | `scripts/noise_rings.h`                      | The rings showing the noise on the ground (engine-free, unit tested)     |
-| `scripts/gameplay_hud_script.cpp`            | The `?` / `!` above each enemy's health bar                               |
+| `scripts/gameplay_hud_script.cpp`            | The `?` / `!` above each enemy's health bar (a red `†` on the player's execution target instead) |
 | `scripts/gizmos.cpp`                         | The sight cone gizmo of the `enemy_config` component                      |
 | `assets/data/enemies/skeleton_warrior.json`  | `perception`: the enemy type's sight, hearing and memory values           |
 | `assets/data/player/tuning.json`             | `sneak_speed`, `footstep_noise_radius`, `loud_noise_radius`, `show_footstep_ring`, `footstep_ring_interval_seconds` |
@@ -46,7 +46,8 @@ meter empties in `meter_decay_seconds`).
   `footstep_ring_interval_seconds`, `show_footstep_ring` turns it off); while it sneaks or stands there is none; a loud
   noise shows a bright double ring of its radius for 0.3 s.
 * **Damage**: a hit alerts the enemy at once (also during its hit stop, and a killing blow), with the player's position as
-  the last known position.
+  the last known position. So does being knocked down by a plunge. An execution (`EXECUTIONS.md`) kills without alerting
+  anyone: its noise is footstep-like and small (2.5 m), and it isn't a killing blow for the pack.
 
 Enemies read the player (scripts read each other, nothing reports), so the order the scripts update in doesn't matter:
 a loud noise is seen by every enemy exactly once.
@@ -58,7 +59,7 @@ when spawned, runtime state, never saved) and reads its `pack_state(reader)`, wh
 when asked: alert when one of them is, the newest last known position, and the time since one of them perceived the
 player itself. The reader's own perception doesn't count, so a pack member forgets like a placed enemy. A dying member leaves the pack, but
 its killing blow alerts the rest of it (for 0.2 s, with the player's position then), so a one-hit kill still alerts the
-pack and a corpse never keeps it alert.
+pack and a corpse never keeps it alert; an execution isn't one.
 An enemy of an alert pack whose members perceived the player within `lose_seconds` is alerted too (a frame later at
 most), so a pack calms down only once none of them has perceived the player for `lose_seconds`. A placed enemy, or one
 whose spawner is gone, is a pack of one.
@@ -72,4 +73,4 @@ traversal's `run_min_speed`, so a sneaking player climbs walls instead of runnin
 
 The `enemy_config` component's gizmo draws the sight cone (its edges and the arc at `sight_range`) and the `close_range`
 circle, coloured by the enemy's state while it plays (grey unaware or in Edit mode, yellow suspicious, red alert, orange
-searching), brighter when selected. The perception values are edited on the enemy type data asset, while playing too.
+searching), brighter when selected, and in green the arc behind it the player executes it from (`EXECUTIONS.md`). The perception values are edited on the enemy type data asset, while playing too.
