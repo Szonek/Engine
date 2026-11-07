@@ -147,15 +147,11 @@ void project_c::PlayerExecutions::observe_air(const glm::vec3& position, float d
 
 engine_game_object_t project_c::PlayerExecutions::find_plunge_target(const glm::vec3& position, const ExecutionTuning& tuning, float* knockdown_radius) const
 {
-    // high enough above the ground
+    // high enough above the ground: level geometry, not the enemy right below (its capsule) nor a dropped weapon
     const std::array<engine_game_object_t, 1> ignore = { go_ };
-    engine_physics_query_filter_t filter{};
-    filter.ignore = ignore.data();
-    filter.ignore_count = ignore.size();
     const glm::vec3 down(0.0f, -1.0f, 0.0f);
-    engine_ray_hit_t ground{};
-    const bool has_ground = enginePhysicsRayCast(glm::value_ptr(position), glm::value_ptr(down), GROUND_PROBE_DEPTH, &filter, &ground);
-    if (has_ground && position.y - ground.position[1] < tuning.aerial_min_drop)
+    const auto ground = utils::level_geometry_ray(position, down, GROUND_PROBE_DEPTH, ignore);
+    if (ground && position.y - ground->position[1] < tuning.aerial_min_drop)
     {
         return ENGINE_INVALID_GAME_OBJECT_ID;
     }

@@ -555,3 +555,29 @@ TEST_F(ExecutionTest, VictimNoticesNothingDuringTheExecution)
     }
     EXPECT_TRUE(enemy->is_dying());
 }
+
+// falling straight onto an enemy: its height above the ground counts, not above the enemy's head
+TEST_F(ExecutionTest, PlungeStraightDownOntoAnEnemy)
+{
+    auto* scene = sandbox();
+    auto* player = scene->build().player(-3.0f, 0.0f);
+    auto* enemy = scene->build().enemy(0.0f, 0.0f, FACING_PLUS_Z);
+    ASSERT_NE(enemy, nullptr);
+    scene->snap_camera_to_player();
+    step(SETTLE_FRAMES);
+    // 1.7 m right above it
+    auto tc = engineGameObjectGetTransformComponent(player->get_game_object());
+    tc.position[0] = 0.1f;
+    tc.position[1] = 1.7f;
+    tc.position[2] = 0.0f;
+    engineGameObjectUpdateTransformComponent(player->get_game_object(), &tc);
+
+    bool targeted = false;
+    step_until({}, 60, [&]
+        {
+            targeted = targeted || player->execution_target() == enemy->get_game_object();
+            return player->movement_mode() == MovementMode::eGrounded && went_through(MovementMode::eAirborne);
+        });
+    EXPECT_TRUE(went_through(MovementMode::eAirborne));
+    EXPECT_TRUE(targeted);
+}
