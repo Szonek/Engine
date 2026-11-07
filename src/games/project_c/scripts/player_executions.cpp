@@ -29,6 +29,9 @@ constexpr float CHAIN_DASH_MIN_SECONDS = 0.05f;
 constexpr float PLUNGE_MIN_SECONDS = 0.12f;
 // the plunge ends this far short of its target's position (flat), next to its body rather than in it
 constexpr float PLUNGE_STOP_SHORT = 0.35f;
+// the plunge knocks down the enemies around its impact on the same level only (not on a roof above it, nor below a
+// ledge)
+constexpr float KNOCKDOWN_MAX_HEIGHT_DIFFERENCE = 1.0f;
 // how deep the ground below the player is looked for (its height above the ground, for aerial_min_drop)
 constexpr float GROUND_PROBE_DEPTH = 50.0f;
 // the clips, and when in them the strike lands (seconds of the clip)
@@ -286,6 +289,7 @@ project_c::PlayerExecutions::Update project_c::PlayerExecutions::update(const Ex
         {
             const auto other_position = position_of(other->get_game_object());
             if (other != victim && !other->is_dying()
+                && std::abs(other_position.y - impact.y) <= KNOCKDOWN_MAX_HEIGHT_DIFFERENCE
                 && glm::distance(glm::vec2(impact.x, impact.z), glm::vec2(other_position.x, other_position.z)) <= knockdown_radius_)
             {
                 other->knock_down(tuning.knockdown_seconds);

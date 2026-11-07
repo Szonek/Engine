@@ -602,3 +602,34 @@ TEST_F(ExecutionTest, NoPlungeThroughARoof)
     EXPECT_FALSE(targeted);
     EXPECT_FALSE(is_dead(enemy->get_game_object()));
 }
+
+// the plunge knocks down the enemies around the impact on its level only, not one standing on a platform next to it
+TEST_F(ExecutionTest, PlungeKnocksDownOnlyEnemiesOnTheSameLevel)
+{
+    auto* player = player_on_block();
+    constexpr float PLATFORM_HEIGHT = 2.0f;
+    scene_->build().obstacle(glm::vec3(5.0f, PLATFORM_HEIGHT * 0.5f, 1.6f), glm::vec3(1.4f, PLATFORM_HEIGHT, 1.4f));
+    auto* victim = scene_->build().enemy(5.0f, 0.0f, FACING_PLUS_X);
+    auto* above = scene_->build().enemy(5.0f, 1.4f, FACING_PLUS_X);
+    ASSERT_NE(victim, nullptr);
+    ASSERT_NE(above, nullptr);
+    auto tc = engineGameObjectGetTransformComponent(above->get_game_object());
+    tc.position[1] = PLATFORM_HEIGHT + 0.05f;
+    engineGameObjectUpdateTransformComponent(above->get_game_object(), &tc);
+    step(SETTLE_FRAMES);
+    ASSERT_GT(position_of(above->get_game_object()).y, PLATFORM_HEIGHT - 0.1f);
+
+    ASSERT_TRUE(step_until(moving_right(), 120, [&] { return player->execution_target() != ENGINE_INVALID_GAME_OBJECT_ID; }));
+    ASSERT_EQ(player->execution_target(), victim->get_game_object());
+    // within the knockdown radius, flat
+    ASSERT_LT(glm::distance(glm::vec2(5.0f, 0.0f), glm::vec2(position_of(above->get_game_object()).x, position_of(above->get_game_object()).z)),
+        player->plunge_knockdown_radius());
+    PlayerInput attack{};
+    attack.attack = true;
+    attack.right = true;
+    set_input(attack);
+    step_seeing();
+    ASSERT_TRUE(step_until({}, 60, [&] { return player->movement_mode() == MovementMode::eGrounded; }));
+    EXPECT_TRUE(is_dead(victim->get_game_object()));
+    EXPECT_FALSE(above->is_knocked_down());
+}
