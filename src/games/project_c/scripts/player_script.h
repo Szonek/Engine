@@ -178,6 +178,8 @@ public:
     MovementMode movement_mode() const { return movement_mode_; }
     // the enemy an attack press would execute now (the HUD marks it), ENGINE_INVALID_GAME_OBJECT_ID for none
     engine_game_object_t execution_target() const { return execution_target_; }
+    // the radius a plunge onto execution_target() would knock the other enemies down in (0 on the ground)
+    float plunge_knockdown_radius() const { return movement_mode_ == MovementMode::eAirborne ? plunge_knockdown_radius_ : 0.0f; }
     // The noise the player makes this frame, which enemies within the radius hear (walls don't block it): 0 while
     // sneaking, standing or off the ground, the footstep radius while walking, the loud radius for one frame on an
     // attack, a dodge or a hard landing (noise_is_loud).
@@ -263,6 +265,10 @@ private:
     PlayerTraversal traversal_;
     PlayerExecutions executions_;
     engine_game_object_t execution_target_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    // the radius a plunge onto execution_target_ would knock the others down in (in the air)
+    float plunge_knockdown_radius_ = 0.0f;
+    // landing from a plunge: a hard landing, invulnerable until it recovered, then the chain window opens
+    bool plunge_landing_ = false;
     // an execution's strike landed: the hit stop, the camera shake and the kill's noise
     void on_execution_strike(const PlayerTuning& t, const ExecutionTuning& executions);
     // its feet, now

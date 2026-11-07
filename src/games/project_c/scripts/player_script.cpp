@@ -613,8 +613,21 @@ void project_c::Player::update(float dt)
     switch (movement_mode_)
     {
     case MovementMode::eAirborne:
+    {
+        // an attack press plunges onto the enemy below the landing; without one it waits for the landing
+        executions_.observe_air(position_of(), dt / 1000.0f);
+        execution_target_ = executions_.find_plunge_target(position_of(), executions, &plunge_knockdown_radius_);
+        if (attack_press_pending_ && execution_target_ != ENGINE_INVALID_GAME_OBJECT_ID
+            && executions_.try_plunge(position_of(), executions) == MovementMode::eExecuting)
+        {
+            attack_press_pending_ = false;
+            execution_target_ = ENGINE_INVALID_GAME_OBJECT_ID;
+            set_movement_mode(MovementMode::eExecuting, traversal);
+            return;
+        }
         set_movement_mode(traversal_.update_airborne(move_direction, t.move_speed, t.movement_acceleration, traversal, dt / 1000.0f), traversal);
         return;
+    }
     case MovementMode::eClimbing:
         // space lets go of the wall
         set_movement_mode(traversal_.update_climbing(glm::vec3(move_input.x, 0.0f, move_input.y), dodge_pressed, traversal, dt / 1000.0f), traversal);
@@ -629,10 +642,13 @@ void project_c::Player::update(float dt)
         {
             on_execution_strike(t, executions);
         }
+        // the plunge ends in a (hard) landing
+        plunge_landing_ = execution.plunged;
         set_movement_mode(execution.mode, traversal);
         return;
     }
     case MovementMode::eGrounded:
+        executions_.leave_air();
         break;
     }
 
@@ -646,6 +662,10 @@ void project_c::Player::update(float dt)
         {
             engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
             engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
+            if (std::exchange(plunge_landing_, false))
+            {
+                executions_.open_chain_window(executions);
+            }
         }
     }
 
@@ -980,8 +1000,8 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
 {
     const auto t = tuning();
     auto& hp = edit_state().hp;
-    // invulnerable while dodging and executing
-    if (hp == 0 || dodge_invulnerability_remaining_seconds_ > 0.0f || movement_mode_ == MovementMode::eExecuting)
+    // invulnerable while dodging, executing and landing from a plunge
+    if (hp == 0 || dodge_invulnerability_remaining_seconds_ > 0.0f || movement_mode_ == MovementMode::eExecuting || plunge_landing_)
     {
         return false;
     }
@@ -1266,10 +1286,12 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
         hit_stun_remaining_seconds_ = 0.0f;
         knockback_velocity_ = glm::vec3(0.0f);
         engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
-        // a landing, unless the player died in the air (its death plays instead); loud after a fall from high enough
-        const bool landing = previous == MovementMode::eAirborne && !is_dead();
+        // a landing (also the plunge's), unless the player died in the air (its death plays instead); loud after a fall
+        // from high enough, and after a plunge
+        const bool plunge_landing = previous == MovementMode::eExecuting && plunge_landing_;
+        const bool landing = (previous == MovementMode::eAirborne || plunge_landing) && !is_dead();
         landing_recovery_remaining_seconds_ = landing ? traversal.landing_recovery_seconds : 0.0f;
-        if (landing && airborne_start_y_ - engineGameObjectGetTransformComponent(go_).position[1] >= LOUD_LANDING_MIN_DROP)
+        if (landing && (plunge_landing || airborne_start_y_ - engineGameObjectGetTransformComponent(go_).position[1] >= LOUD_LANDING_MIN_DROP))
         {
             make_loud_noise(tuning());
         }

@@ -20,7 +20,8 @@ namespace project_c
 class Enemy;
 
 // The player's executions (EXECUTIONS.md): a lunge to the back of an enemy which hasn't noticed it and a strike which
-// kills it silently, and the chain from one to the next. It finds the target (the nearest of the enemies around the
+// kills it silently, the plunge from the air onto an enemy below (the aerial assassination), and the chain from one to
+// the next. It finds the target (the nearest of the enemies around the
 // player which may be executed), runs the execution in MovementMode::eExecuting (setting the player's transform: the character
 // controller isn't moved then) and plays the locomotion layer's clip for it. The Player says when one may start and
 // applies what it returns (the mode, the strike's hit stop and noise).
@@ -46,12 +47,28 @@ public:
     // (a normal attack, which ends the chain).
     MovementMode try_ground(const Context& context, const ExecutionTuning& tuning);
 
+    // In the air, every frame: where the player is, so the plunge knows where it would land.
+    void observe_air(const glm::vec3& position, float delta_seconds);
+    // not in the air (any more): the next fall starts measuring again
+    void leave_air() { air_position_.reset(); }
+    // The enemy an attack press in the air would plunge onto now: the nearest to where the player would land, in any
+    // awareness state, while the player is at least aerial_min_drop above the ground; ENGINE_INVALID_GAME_OBJECT_ID
+    // for none. `knockdown_radius` is the radius the plunge would knock the others down in.
+    engine_game_object_t find_plunge_target(const glm::vec3& position, const ExecutionTuning& tuning, float* knockdown_radius = nullptr) const;
+    // An attack press in the air: plunges onto find_plunge_target's enemy (eExecuting), otherwise eAirborne (the
+    // press waits for the landing).
+    MovementMode try_plunge(const glm::vec3& position, const ExecutionTuning& tuning);
+    // the landing after a plunge recovered: the chain window opens
+    void open_chain_window(const ExecutionTuning& tuning) { chain_window_.open(tuning.chain_window_seconds); }
+
     // what an execution's frame did
     struct Update
     {
         MovementMode mode = MovementMode::eExecuting;
         // the strike landed this frame (hit stop, camera shake, the kill noise)
         bool struck = false;
+        // the plunge hit its target: the player lands (a hard landing)
+        bool plunged = false;
     };
     // in eExecuting
     Update update(const ExecutionTuning& tuning, float delta_seconds);
@@ -80,6 +97,12 @@ private:
 
     // the execution in progress
     engine_game_object_t victim_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    // a plunge (onto the victim, then a landing) rather than a strike from behind
+    bool plunge_ = false;
+    float knockdown_radius_ = 0.0f;
+    // in the air: the last position and the velocity it gives
+    std::optional<glm::vec3> air_position_;
+    glm::vec3 air_velocity_{ 0.0f };
     glm::vec3 move_from_{ 0.0f };
     glm::vec3 move_to_{ 0.0f };
     float yaw_ = 0.0f;
