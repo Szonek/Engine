@@ -1265,6 +1265,11 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
     {
         return;
     }
+    if (mode != MovementMode::eGrounded)
+    {
+        // off the ground the plunge's landing (its invulnerability and its chain window) is over
+        plunge_landing_ = false;
+    }
     if (previous == MovementMode::eGrounded)
     {
         // combat (the upper body layer) and walking stop off the ground
@@ -1294,6 +1299,15 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
         const bool plunge_landing = previous == MovementMode::eExecuting && plunge_landing_;
         const bool landing = (previous == MovementMode::eAirborne || plunge_landing) && !is_dead();
         landing_recovery_remaining_seconds_ = landing ? traversal.landing_recovery_seconds : 0.0f;
+        if (plunge_landing_ && landing_recovery_remaining_seconds_ <= 0.0f)
+        {
+            // no recovery to wait for: the chain window opens at once (none when the player died)
+            plunge_landing_ = false;
+            if (landing)
+            {
+                executions_.open_chain_window(execution_tuning());
+            }
+        }
         if (landing && (plunge_landing || airborne_start_y_ - engineGameObjectGetTransformComponent(go_).position[1] >= LOUD_LANDING_MIN_DROP))
         {
             make_loud_noise(tuning());

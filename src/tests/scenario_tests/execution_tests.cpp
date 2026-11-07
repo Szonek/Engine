@@ -125,6 +125,32 @@ protected:
         return false;
     }
 
+    // a data asset of `type` holding `value_json`, from a temporary file; release it with engineDataAssetRelease
+    static engine_data_asset_t temporary_data_asset(const char* type, const char* value_json)
+    {
+        const auto file = std::filesystem::temp_directory_path() / (std::string("project_c_scenario_") + type + ".json");
+        std::ofstream(file, std::ios::binary) << "{ \"version\": 1, \"type\": \"" << type << "\", \"value\": " << value_json << " }";
+        const auto asset = engineDataAssetLoad(file.generic_string().c_str());
+        std::filesystem::remove(file);
+        return asset;
+    }
+
+    // runs off the block's east edge until the plunge has a target, then presses attack and steps until the player is
+    // on the ground; false when it never got a target or never landed
+    bool plunge_off_block(Player* player)
+    {
+        if (!step_until(moving_right(), 120, [&] { return player->execution_target() != ENGINE_INVALID_GAME_OBJECT_ID; }))
+        {
+            return false;
+        }
+        PlayerInput attack{};
+        attack.attack = true;
+        attack.right = true;
+        set_input(attack);
+        step_seeing();
+        return step_until({}, 60, [&] { return player->movement_mode() == MovementMode::eGrounded; });
+    }
+
     static PlayerInput moving_right()
     {
         PlayerInput input{};
@@ -416,4 +442,29 @@ TEST_F(ExecutionTest, PlungeWithoutTargetLandsNormally)
     ASSERT_TRUE(step_until({}, 120, [&] { return player->movement_mode() == MovementMode::eGrounded; }));
     EXPECT_FALSE(went_through(MovementMode::eExecuting));
     EXPECT_FALSE(is_dead(far_enemy->get_game_object()));
+}
+
+// with no landing recovery the plunge's landing still ends: the player can be hurt again and the chain window opens
+TEST_F(ExecutionTest, PlungeLandingWithoutRecoveryEndsInvulnerability)
+{
+    auto* player = player_on_block();
+    const auto traversal = temporary_data_asset("traversal_tuning", R"({ "landing_recovery_seconds": 0 })");
+    ASSERT_NE(traversal, ENGINE_INVALID_OBJECT_HANDLE);
+    const auto type = project_c::game_components().player_config;
+    auto config = project_c::get_game_component(player->get_game_object(), type, project_c::default_player_config());
+    config.traversal = traversal;
+    ASSERT_EQ(engineGameObjectUpdateDataComponent(player->get_game_object(), type, &config), ENGINE_RESULT_CODE_OK);
+    auto* enemy = scene_->build().enemy(5.0f, 0.0f, FACING_PLUS_X);
+    ASSERT_NE(enemy, nullptr);
+    step(SETTLE_FRAMES);
+
+    ASSERT_TRUE(plunge_off_block(player));
+    EXPECT_TRUE(went_through(MovementMode::eExecuting));
+    EXPECT_TRUE(is_dead(enemy->get_game_object()));
+    EXPECT_TRUE(player->is_chain_window_open());
+    step(2);
+    const auto hp = player->get_hp();
+    EXPECT_TRUE(player->receive_damage(1, glm::vec3(10.0f, 0.0f, 0.0f)));
+    EXPECT_LT(player->get_hp(), hp);
+    engineDataAssetRelease(traversal);
 }

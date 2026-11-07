@@ -178,6 +178,8 @@ public:
     MovementMode movement_mode() const { return movement_mode_; }
     // the enemy an attack press would execute now (the HUD marks it), ENGINE_INVALID_GAME_OBJECT_ID for none
     engine_game_object_t execution_target() const { return execution_target_; }
+    // after an execution or a plunge's landing: the next press may dash to the next target (EXECUTIONS.md)
+    bool is_chain_window_open() const { return executions_.is_chain_window_open(); }
     // the radius a plunge onto execution_target() would knock the other enemies down in (0 on the ground)
     float plunge_knockdown_radius() const { return movement_mode_ == MovementMode::eAirborne ? plunge_knockdown_radius_ : 0.0f; }
     // The noise the player makes this frame, which enemies within the radius hear (walls don't block it): 0 while
