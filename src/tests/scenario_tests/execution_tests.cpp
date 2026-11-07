@@ -530,3 +530,28 @@ TEST_F(ExecutionTest, NothingIsMarkedWhileClimbing)
         EXPECT_EQ(player->execution_target(), ENGINE_INVALID_GAME_OBJECT_ID);
     }
 }
+
+// the victim notices nothing while the player lunges to its back and strikes (it would sense the player that close)
+TEST_F(ExecutionTest, VictimNoticesNothingDuringTheExecution)
+{
+    auto* scene = sandbox();
+    auto* player = scene->build().player(0.0f, -1.3f);
+    auto* enemy = scene->build().enemy(0.0f, 0.0f, FACING_PLUS_Z);
+    ASSERT_NE(enemy, nullptr);
+    scene->snap_camera_to_player();
+    step(SETTLE_FRAMES);
+    ASSERT_EQ(player->execution_target(), enemy->get_game_object());
+
+    PlayerInput attack{};
+    attack.attack = true;
+    set_input(attack);
+    step_seeing();
+    set_input({});
+    ASSERT_EQ(player->movement_mode(), MovementMode::eExecuting);
+    while (player->movement_mode() == MovementMode::eExecuting && !enemy->is_dying())
+    {
+        EXPECT_EQ(enemy->awareness().state(), Awareness::eUnaware);
+        step_seeing();
+    }
+    EXPECT_TRUE(enemy->is_dying());
+}

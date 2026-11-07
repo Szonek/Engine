@@ -291,8 +291,9 @@ void project_c::Enemy::update(float dt)
     {
         find_player();
     }
-    // also for the killing blow (it isn't dying yet), so the hit alerts it and its pack
-    if (state_ != States::DIE)
+    // also for the killing blow (it isn't dying yet), so the hit alerts it and its pack; not while the player executes
+    // it (from right behind it, in its close range): an execution is silent
+    if (state_ != States::DIE && !being_executed_)
     {
         const auto own = engineGameObjectGetTransformComponent(go_);
         const glm::vec3 forward = glm::make_quat(own.rotation) * glm::vec3(0.0f, 0.0f, 1.0f);
