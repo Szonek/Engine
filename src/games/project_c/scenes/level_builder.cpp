@@ -351,14 +351,17 @@ project_c::LevelExit* project_c::LevelBuilder::level_exit(float x, float z, std:
     return scene_.attach_script<LevelExit>(go);
 }
 
-project_c::Enemy* project_c::LevelBuilder::enemy(float x, float z)
+project_c::Enemy* project_c::LevelBuilder::enemy(float x, float z, float yaw_degrees)
 {
     const auto go = instantiate_enemy(app_.get_skeleton_warrior_type(), false);
     if (go == ENGINE_INVALID_GAME_OBJECT_ID)
     {
         return nullptr;
     }
-    const auto tc = engineGameObjectGetTransformComponent(go);
+    auto tc = engineGameObjectGetTransformComponent(go);
+    const auto rotation = glm::angleAxis(glm::radians(yaw_degrees), glm::vec3(0.0f, 1.0f, 0.0f));
+    set_c_array(tc.rotation, std::array<float, 4>{ rotation.x, rotation.y, rotation.z, rotation.w });
+    engineGameObjectUpdateTransformComponent(go, &tc);
     set_position_and_scale(go, glm::vec3(x, tc.position[1] + 0.25f, z), Enemy::MODEL_SCALE);
     add_character_controller(go, 0.18f, Enemy::MODEL_SCALE);
     return scene_.attach_script<Enemy>(go);

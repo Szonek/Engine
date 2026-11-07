@@ -1,6 +1,7 @@
 #pragma once
 #include "base_script.h"
 #include "game_components.h"
+#include "noise_rings.h"
 #include "player_traversal.h"
 #include "../player_input.h"
 #include "../player_state.h"
@@ -172,6 +173,11 @@ public:
     void add_coin(std::uint64_t amount);
     std::uint64_t get_coins() const { return state().coins; }
     MovementMode movement_mode() const { return movement_mode_; }
+    // The noise the player makes this frame, which enemies within the radius hear (walls don't block it): 0 while
+    // sneaking, standing or off the ground, the footstep radius while walking, the loud radius for one frame on an
+    // attack, a dodge or a hard landing (noise_is_loud).
+    float noise_radius() const { return noise_radius_; }
+    bool noise_is_loud() const { return noise_is_loud_; }
     // its stats (hp, coins, weapon), kept by the app so they outlive the level (AppProjectC::player_state)
     const PlayerState& state() const;
     // what a player who has nothing carried starts with
@@ -239,6 +245,16 @@ private:
     // how long the character controller hasn't stood the player on the ground
     float ungrounded_seconds_ = 0.0f;
     float landing_recovery_remaining_seconds_ = 0.0f;
+    // the feet's height when the player started falling (entered eAirborne), to tell a hard landing
+    float airborne_start_y_ = 0.0f;
+
+    // this frame's noise (noise_radius) and where it was made, and the rings showing it on the ground
+    void make_loud_noise(const PlayerTuning& t);
+    void draw_noise_rings() const;
+    float noise_radius_ = 0.0f;
+    bool noise_is_loud_ = false;
+    glm::vec3 noise_position_{ 0.0f };
+    NoiseRings noise_rings_;
     PlayerTraversal traversal_;
 };
 } //namespace project_c

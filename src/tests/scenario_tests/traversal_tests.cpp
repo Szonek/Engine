@@ -268,6 +268,39 @@ TEST_F(TraversalTest, RunningOffRoofEdgeFallsAndLands)
     EXPECT_FALSE(went_through(MovementMode::eScriptedMove));
     EXPECT_LT(player_position().y, ON_FLOOR_MAX_Y);
     EXPECT_GT(player_position().x, EAST_WALL_FACE_X);
+    // a fall from the roof is a hard landing: loud
+    EXPECT_TRUE(player_->noise_is_loud());
+}
+
+// letting go of the wall near its bottom is a short fall, not a hard landing, however high the climb started
+// (regression: the fall was measured from where the player left the ground, the roof)
+TEST_F(TraversalTest, LettingGoNearTheBottomOfAWallIsQuiet)
+{
+    player_ = build(EAST_WALL_FACE_X - 0.35f, EAST_WALL_Z);
+    ASSERT_NE(player_, nullptr);
+    place_on_roof(player_, EAST_WALL_FACE_X - 0.35f, EAST_WALL_Z);
+    step(SETTLE_FRAMES);
+    const auto climbing = step_until(moving_right(), 60, [&] { return player_->movement_mode() == MovementMode::eClimbing; });
+    ASSERT_LE(climbing, 60u);
+
+    // down the wall (away from it) to under a metre above the floor
+    const auto low = step_until(moving_right(), 180, [&] { return player_position().y < 0.9f; });
+    ASSERT_LE(low, 180u);
+    ASSERT_EQ(player_->movement_mode(), MovementMode::eClimbing);
+    PlayerInput let_go{};
+    let_go.dodge = true;
+    bool loud = false;
+    step_until(let_go, 1, [] { return true; });
+    const auto landed = step_until({}, 120, [&] { return went_through(MovementMode::eAirborne) && player_->movement_mode() == MovementMode::eGrounded; });
+    ASSERT_LE(landed, 120u);
+    // the landing's frame and the next
+    for (int frame = 0; frame < 3; frame++)
+    {
+        loud = loud || player_->noise_is_loud();
+        step();
+    }
+    EXPECT_FALSE(loud);
+    EXPECT_LT(player_position().y, ON_FLOOR_MAX_Y);
 }
 
 // walking from standstill at the roof edge toward it climbs down onto the wall instead

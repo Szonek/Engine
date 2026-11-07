@@ -77,8 +77,8 @@ public:
     // A 1 x 1 m pad on the floor centered on (x, z): walking onto it takes the player to `level` (relative to
     // assets/scenes), entering it at the player start `entrance`.
     LevelExit* level_exit(float x, float z, std::string_view level, std::string_view entrance);
-    // a skeleton warrior (the level's enemy type)
-    Enemy* enemy(float x, float z);
+    // a skeleton warrior (the level's enemy type) facing `yaw_degrees` around +y (0: +z)
+    Enemy* enemy(float x, float z, float yaw_degrees = 0.0f);
     // An enemy of the type as a runtime object (transient, never saved) standing at `position`, facing `yaw_degrees`
     // around +y (0: +z): what an EnemySpawner spawns. nullptr when the type has no prefab.
     Enemy* spawn_enemy(engine_data_asset_t type, const glm::vec3& position, float yaw_degrees);

@@ -1,13 +1,20 @@
 #include "gizmos.h"
 
+#include "enemy_script.h"
 #include "game_components.h"
+
+#include <iscene.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <unordered_map>
 #include <initializer_list>
+#include <memory>
 #include <optional>
 
 namespace
@@ -16,6 +23,9 @@ namespace
 constexpr float SPAWNER_AREA_HEIGHT = 0.5f;
 constexpr float PLAYER_START_ARROW_LENGTH = 0.5f;
 constexpr float PLAYER_START_RADIUS = 0.15f;
+// the sight cone's arc is drawn in this many segments, a little above the enemy's feet
+constexpr int SIGHT_ARC_SEGMENTS = 16;
+constexpr float SIGHT_GIZMO_HEIGHT = 0.05f;
 
 glm::vec3 gizmo_color(const glm::vec3& color, bool selected)
 {
@@ -34,7 +44,7 @@ std::optional<glm::mat4> world_matrix(engine_game_object_t go)
     return glm::make_mat4(world);
 }
 
-void draw_enemy_spawner(engine_game_object_t go, bool selected)
+void draw_enemy_spawner(const engine::IScene&, engine_game_object_t go, bool selected)
 {
     const auto world = world_matrix(go);
     if (!world)
@@ -48,7 +58,7 @@ void draw_enemy_spawner(engine_game_object_t go, bool selected)
     engineDebugDrawBox(glm::value_ptr(box), glm::value_ptr(half_extents), glm::value_ptr(color));
 }
 
-void draw_player_start(engine_game_object_t go, bool selected)
+void draw_player_start(const engine::IScene&, engine_game_object_t go, bool selected)
 {
     const auto world = world_matrix(go);
     if (!world)
@@ -79,10 +89,105 @@ void draw_player_start(engine_game_object_t go, bool selected)
         engineDebugDrawLine(glm::value_ptr(tip), glm::value_ptr(barb), glm::value_ptr(color));
     }
 }
+// the colour of an enemy's awareness: grey unaware (or without a script, in Edit mode), yellow suspicious, red alert,
+// orange searching
+glm::vec3 awareness_color(const project_c::Enemy* enemy)
+{
+    if (!enemy)
+    {
+        return glm::vec3(0.8f);
+    }
+    switch (enemy->awareness().state())
+    {
+    case project_c::Awareness::eSuspicious: return glm::vec3(1.0f, 0.9f, 0.1f);
+    case project_c::Awareness::eAlert: return glm::vec3(1.0f, 0.15f, 0.1f);
+    case project_c::Awareness::eSearching: return glm::vec3(1.0f, 0.55f, 0.1f);
+    case project_c::Awareness::eUnaware: break;
+    }
+    return glm::vec3(0.6f);
+}
+
+// The perception of each enemy type, read from its data asset once per draw pass (the asset can change between passes:
+// an edit, a reload), not per enemy.
+class EnemyPerceptionCache
+{
+public:
+    explicit EnemyPerceptionCache(const engine::GizmoRegistry& gizmos) : gizmos_(gizmos) {}
+
+    const project_c::EnemyPerception& get(engine_data_asset_t type)
+    {
+        if (pass_ != gizmos_.pass())
+        {
+            pass_ = gizmos_.pass();
+            perceptions_.clear();
+        }
+        auto it = perceptions_.find(type);
+        if (it == perceptions_.end())
+        {
+            const auto& types = project_c::game_components();
+            it = perceptions_.emplace(type, project_c::get_data_asset(type, types.enemy_type, project_c::default_enemy_type()).perception).first;
+        }
+        return it->second;
+    }
+
+private:
+    const engine::GizmoRegistry& gizmos_;
+    std::uint64_t pass_ = 0;
+    std::unordered_map<engine_data_asset_t, project_c::EnemyPerception> perceptions_;
+};
+
+void draw_enemy(EnemyPerceptionCache& cache, const engine::IScene& scene, engine_game_object_t go, bool selected)
+{
+    const auto world = world_matrix(go);
+    if (!world)
+    {
+        return;
+    }
+    const auto& types = project_c::game_components();
+    const auto config = project_c::get_game_component(go, types.enemy_config, project_c::default_enemy_config());
+    const auto& perception = cache.get(config.type);
+    // its facing, flat: +z of its game object
+    auto forward = glm::vec3((*world)[2]);
+    forward.y = 0.0f;
+    if (glm::length(forward) <= 0.0f)
+    {
+        return;
+    }
+    forward = glm::normalize(forward);
+    const glm::vec3 up(0.0f, 1.0f, 0.0f);
+    const glm::vec3 origin = glm::vec3((*world)[3]) + up * SIGHT_GIZMO_HEIGHT;
+    const auto color = gizmo_color(awareness_color(scene.get_script<project_c::Enemy>(go)), selected);
+
+    // the cone: its two edges and the arc between them at sight_range
+    const float half_angle = glm::radians(perception.sight_half_angle_degrees);
+    const auto ray = [&](float angle)
+        {
+            const float c = std::cos(angle);
+            const float s = std::sin(angle);
+            // turned around +y from the facing
+            return origin + glm::vec3(forward.x * c + forward.z * s, 0.0f, -forward.x * s + forward.z * c) * perception.sight_range;
+        };
+    auto previous = ray(-half_angle);
+    engineDebugDrawLine(glm::value_ptr(origin), glm::value_ptr(previous), glm::value_ptr(color));
+    for (int i = 1; i <= SIGHT_ARC_SEGMENTS; i++)
+    {
+        const auto point = ray(-half_angle + 2.0f * half_angle * static_cast<float>(i) / static_cast<float>(SIGHT_ARC_SEGMENTS));
+        engineDebugDrawLine(glm::value_ptr(previous), glm::value_ptr(point), glm::value_ptr(color));
+        previous = point;
+    }
+    engineDebugDrawLine(glm::value_ptr(origin), glm::value_ptr(previous), glm::value_ptr(color));
+    // seen all around this close
+    engineDebugDrawCircle(glm::value_ptr(origin), glm::value_ptr(up), perception.close_range, glm::value_ptr(color));
+}
 }  // namespace
 
 void project_c::register_gizmos(engine::GizmoRegistry& gizmos)
 {
     gizmos.add(game_components().enemy_spawner, &draw_enemy_spawner);
     gizmos.add(game_components().player_start, &draw_player_start);
+    // the registry outlives its drawers (it holds them)
+    gizmos.add(game_components().enemy_config, [cache = std::make_shared<EnemyPerceptionCache>(gizmos)](const engine::IScene& scene, engine_game_object_t go, bool selected)
+        {
+            draw_enemy(*cache, scene, go, selected);
+        });
 }

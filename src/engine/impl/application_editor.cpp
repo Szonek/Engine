@@ -1300,7 +1300,7 @@ bool engine::ApplicationEditor::is_game_view() const
 
 bool engine::ApplicationEditor::are_gizmos_visible() const
 {
-    return draw_component_gizmos_ && editor_view_ == EditorView::eEditor;
+    return engine::are_gizmos_visible(editor_view_ == EditorView::eEditor, draw_component_gizmos_, draw_game_view_gizmos_);
 }
 
 entt::entity engine::ApplicationEditor::get_selected_entity(Scene& scene)
@@ -1597,6 +1597,14 @@ void engine::ApplicationEditor::render_editor_controls(class Scene* scene, float
     {
         editor_view_ = EditorView::eEditor;
     }
+    ImGui::SameLine();
+    // the gizmos of the view shown, like the Gizmos button of Unity's Scene and Game views (each view keeps its own)
+    bool& view_gizmos = editor_view_ == EditorView::eEditor ? draw_component_gizmos_ : draw_game_view_gizmos_;
+    if (ImGui::Selectable("Gizmos", view_gizmos, ImGuiSelectableFlags_None, ImVec2(50, 0)))
+    {
+        view_gizmos = !view_gizmos;
+    }
+    ImGui::SetItemTooltip("Draw the game's gizmos (an enemy's sight cone, a spawner's area) in this view");
     ImGui::SameLine();
     // Play and Stop happen at the start of the next frame (on_frame_begine); nothing can be done in the frame a Stop
     // ends the session in
@@ -2105,6 +2113,8 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
     ImGui::Checkbox("Grid", &draw_grid_);
     ImGui::Checkbox("Component gizmos", &draw_component_gizmos_);
     ImGui::SetItemTooltip("What the game draws for its components in the editor view, such as an enemy spawner's area");
+    ImGui::Checkbox("Game view gizmos", &draw_game_view_gizmos_);
+    ImGui::SetItemTooltip("The same in the game camera's view (Scene), e.g. enemies' sight cones while playing; clicking them doesn't select");
     if (auto* camera = camera_context_.get_camera(scene))
     {
         float fly_speed = camera->get_fly_speed();

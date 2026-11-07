@@ -15,9 +15,10 @@ void engine::GizmoRegistry::add(engine_component_type_t component_type, Drawer d
     types_.push_back(Entry{ component_type, { std::move(drawer) } });
 }
 
-std::size_t engine::GizmoRegistry::draw(engine_game_object_t selected) const
+std::size_t engine::GizmoRegistry::draw(const IScene& scene, engine_game_object_t selected) const
 {
     engine::ScopedProfiler prof("engine::GizmoRegistry::draw");
+    passes_++;
     std::size_t calls = 0;
     for (const auto& entry : types_)
     {
@@ -27,7 +28,7 @@ std::size_t engine::GizmoRegistry::draw(engine_game_object_t selected) const
             engineDebugDrawSetOwner(go);
             for (const auto& drawer : entry.drawers)
             {
-                drawer(go, go == selected);
+                drawer(scene, go, go == selected);
                 calls++;
             }
             engineDebugDrawSetOwner(ENGINE_INVALID_GAME_OBJECT_ID);
