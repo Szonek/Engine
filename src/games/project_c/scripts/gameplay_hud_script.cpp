@@ -277,6 +277,11 @@ void project_c::GameplayHud::update_enemy(const Enemy* en)
     case Awareness::eUnaware:
         break;
     }
+    // none on an enemy being executed or dying: what it noticed doesn't matter any more
+    if (en->is_being_executed() || en->is_dying())
+    {
+        awareness_icon = "";
+    }
     // the one enemy an attack press would execute now: a dagger (U+2020) replaces the awareness mark
     const auto* player = my_scene_->find_script<Player>();
     const std::uint32_t execution_target = player && player->execution_target() == enemy_go ? 1 : 0;
