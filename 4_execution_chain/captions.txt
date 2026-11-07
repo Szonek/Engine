@@ -1,0 +1,7 @@
+frame_0000: three unaware skeletons a few metres apart; the player is behind the first (dagger mark)
+frame_0008: attack: execution of the first
+frame_0034: chain window open: a red line leads to the next target, which has the dagger mark
+frame_0040: attack inside the 1 s chain window: dash to the next and execute it
+frame_0065: chain window open: a red line leads to the next target, which has the dagger mark
+frame_0071: attack inside the 1 s chain window: dash to the next and execute it
+frame_0097: the window closes 1 s after the last execution

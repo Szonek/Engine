@@ -1,0 +1,5 @@
+frame_0000: the player stands on a 3 m block; a pack of 3 unaware skeletons below faces away
+frame_0006: running off the edge (airborne)
+frame_0038: a plunge target below: red ring at its feet, faint ring = knockdown radius, red dagger on the HUD
+frame_0040: attack pressed in the air: straight plunge onto the target
+frame_0047: impact: the target is executed, the other two are knocked down (Lie_Down) and alerted; hard, loud landing (yellow ring). Knocked-down enemies can be executed from any side, so the dagger marks one of them

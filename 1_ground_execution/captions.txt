@@ -1,0 +1,4 @@
+frame_0000: the player sneaks (Shift) up behind an unaware skeleton facing away (to the right)
+frame_0079: in range behind it: the red dagger replaces the awareness mark above its health bar
+frame_0097: attack pressed: lunge to its back, stab with hit stop and camera shake
+frame_0112: the skeleton dies (Death_B); the kill makes only a small noise

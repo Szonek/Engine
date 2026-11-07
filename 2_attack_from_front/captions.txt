@@ -1,0 +1,2 @@
+frame_0000: a skeleton facing the player sees it: no dagger mark, the awareness meter fills
+frame_0005: attack pressed: a normal swing, not an execution; the hit alerts it (!)
