@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
+#include <optional>
 #include <string_view>
 #include <span>
 #include <vector>
@@ -54,5 +55,11 @@ CursorRay get_ray_from_cursor(engine_game_object_t go_camera, engine_fvec2_t cur
 // bodies (other enemies, a dropped weapon) don't count, the ray is cast again past them, up to 4 of them (more count as
 // blocking). `ignore` are skipped too (the ones looking and looked at).
 bool level_geometry_between(const glm::vec3& from, const glm::vec3& to, std::span<const engine_game_object_t> ignore);
+// The first level geometry hit by the ray from `origin` along `direction` within `max_distance`, skipping characters
+// and dynamic bodies like level_geometry_between (and `ignore`, at most MAX_LEVEL_RAY_IGNORED of them); none when it
+// reaches nothing (or only more than 4 characters and dynamic bodies).
+inline constexpr std::size_t MAX_LEVEL_RAY_IGNORED = 4;
+std::optional<engine_ray_hit_t> level_geometry_ray(const glm::vec3& origin, const glm::vec3& direction, float max_distance,
+    std::span<const engine_game_object_t> ignore);
 } // namespace utils
 } // namespace project_c

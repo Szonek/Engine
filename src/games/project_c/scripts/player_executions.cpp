@@ -82,6 +82,12 @@ project_c::PlayerExecutions::Target project_c::PlayerExecutions::pick(const glm:
         candidate.distance = glm::distance(glm::vec2(from.x, from.z), glm::vec2(enemy_position.x, enemy_position.z));
         candidate.height_difference = from.y - enemy_position.y;
         candidate.angle_from_facing = execution_math::angle_from_facing(enemy_position, forward_of(go), from);
+        // the ray cast only for the ones the other rules let through
+        candidate.reachable = true;
+        if (!execution_math::executable(candidate, rules))
+        {
+            continue;
+        }
         const std::array<engine_game_object_t, 2> ignore = { go_, go };
         candidate.reachable = !utils::level_geometry_between(from + WORLD_UP * CHEST_HEIGHT, enemy_position + WORLD_UP * CHEST_HEIGHT, ignore);
         candidates.push_back(candidate);
@@ -108,11 +114,10 @@ engine_game_object_t project_c::PlayerExecutions::find_ground_target(const Conte
     return pick(context.position, rules.range, rules, context.position).go;
 }
 
-project_c::MovementMode project_c::PlayerExecutions::try_ground(const Context& context, const ExecutionTuning& tuning)
+project_c::MovementMode project_c::PlayerExecutions::try_ground(const Context& context, const ExecutionTuning& tuning, engine_game_object_t go)
 {
     // the chain's target while its window is open; the press ends the window either way
     const bool chain = chain_window_.is_open();
-    const auto go = find_ground_target(context, tuning);
     chain_window_.close();
     auto* enemy = scene_->get_script<Enemy>(go);
     if (!enemy)

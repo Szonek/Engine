@@ -678,7 +678,7 @@ void project_c::Player::update(float dt)
     const bool can_execute = !dodge_pressed && !recovering && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f;
     const PlayerExecutions::Context execution_context{ position_of(), weapon() != nullptr };
     execution_target_ = can_execute ? executions_.find_ground_target(execution_context, executions) : ENGINE_INVALID_GAME_OBJECT_ID;
-    if (attack_pressed && can_execute && executions_.try_ground(execution_context, executions) == MovementMode::eExecuting)
+    if (attack_pressed && can_execute && executions_.try_ground(execution_context, executions, execution_target_) == MovementMode::eExecuting)
     {
         execution_target_ = ENGINE_INVALID_GAME_OBJECT_ID;
         set_movement_mode(MovementMode::eExecuting, traversal);

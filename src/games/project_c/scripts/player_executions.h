@@ -43,9 +43,9 @@ public:
     // The target an attack press on the ground would execute now (the next one of the chain while its window is
     // open), or ENGINE_INVALID_GAME_OBJECT_ID; what the HUD marks. Call each grounded frame the player can act.
     engine_game_object_t find_ground_target(const Context& context, const ExecutionTuning& tuning) const;
-    // An attack press on the ground: executes the target find_ground_target gives (eExecuting), otherwise eGrounded
-    // (a normal attack, which ends the chain).
-    MovementMode try_ground(const Context& context, const ExecutionTuning& tuning);
+    // An attack press on the ground: executes `target`, what find_ground_target gave this frame (eExecuting); with none,
+    // eGrounded (a normal attack, which ends the chain).
+    MovementMode try_ground(const Context& context, const ExecutionTuning& tuning, engine_game_object_t target);
 
     // In the air, every frame: where the player is, so the plunge knows where it would land.
     void observe_air(const glm::vec3& position, float delta_seconds);
