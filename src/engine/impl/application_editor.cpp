@@ -985,9 +985,14 @@ bool display_material_component(engine::Scene* scene, engine_material_component_
     return requires_component_updated;
 }
 
-// a collision layer's name for the editor: its name, "Layer N" when unnamed
+// a collision layer's name for the editor: its name, "Layer N" when unnamed, "Layer N (invalid)" out of range (drawn
+// every frame, so it asks for the name only within range: enginePhysicsGetLayerName logs otherwise)
 std::string physics_layer_label(std::uint32_t layer)
 {
+    if (layer >= ENGINE_PHYSICS_LAYER_COUNT)
+    {
+        return fmt::format("Layer {} (invalid)", layer);
+    }
     const char* name = enginePhysicsGetLayerName(layer);
     return name && *name ? fmt::format("{}: {}", layer, name) : fmt::format("Layer {}", layer);
 }
