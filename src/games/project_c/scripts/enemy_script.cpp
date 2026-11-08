@@ -797,6 +797,9 @@ void project_c::Enemy::blind(float seconds, const glm::vec3& smoke_centre)
     set_attack_window_active(false);
     standing_up_ = false;
     stagger_remaining_seconds_ = 0.0f;
+    // a kick's pending alert (it was staggered) is dropped: it has just lost track of the player, and the stagger
+    // that would have settled the alert is over
+    alert_after_shove_ = false;
     blinded_remaining_seconds_ = seconds;
     state_ = States::BLINDED;
     engineAnimationControllerLayerSetLooping(go_, 0, false);
