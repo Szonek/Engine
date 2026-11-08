@@ -312,6 +312,7 @@ void project_c::Enemy::update(float dt)
         awareness_.update(dt / 1000.0f, perceive(cfg.perception, glm::vec3(own.position[0], own.position[1], own.position[2]), forward), cfg.perception);
     }
     damaged_ = false;
+    pending_loud_noise_ = false;
     if (hp == 0)
     {
         dying_seconds_ += dt / 1000.0f;
@@ -445,6 +446,22 @@ void project_c::Enemy::update(float dt)
     glm::vec3 velocity(0.0f);
     switch (state_)
     {
+    case States::BLINDED:
+    {
+        // it stands, seeing nothing: the hit reaction, then idle, then it searches (from where it lost the player)
+        blinded_remaining_seconds_ = std::max(0.0f, blinded_remaining_seconds_ - dt / 1000.0f);
+        if (blinded_remaining_seconds_ <= 0.0f)
+        {
+            state_ = States::DECISION_MAKE;
+            break;
+        }
+        if (!engineAnimationControllerIsAnimationPlaying(go_, "Hit_B") && !engineAnimationControllerIsAnimationPlaying(go_, "Idle"))
+        {
+            engineAnimationControllerLayerSetLooping(go_, 0, true);
+            engineAnimationControllerAnimationPlay(go_, "Idle", 0);
+        }
+        break;
+    }
     case States::STAGGERED:
     {
         // pushed back, it can't act; then it is alerted (it knows who kicked it)
@@ -769,6 +786,28 @@ void project_c::Enemy::receive_shove(const glm::vec3& direction, float speed, fl
     }
 }
 
+void project_c::Enemy::blind(float seconds, const glm::vec3& smoke_centre)
+{
+    awareness_.lose_track(smoke_centre);
+    if (hp == 0 || being_executed_ || state_ == States::FALLING || state_ == States::KNOCKED_DOWN)
+    {
+        return;
+    }
+    set_attack_window_active(false);
+    standing_up_ = false;
+    stagger_remaining_seconds_ = 0.0f;
+    blinded_remaining_seconds_ = seconds;
+    state_ = States::BLINDED;
+    engineAnimationControllerLayerSetLooping(go_, 0, false);
+    engineAnimationControllerAnimationPlay(go_, "Hit_B", 0);
+}
+
+void project_c::Enemy::hear_loud_noise(const glm::vec3& position)
+{
+    pending_loud_noise_ = true;
+    pending_loud_noise_position_ = position;
+}
+
 void project_c::Enemy::set_landing_noise(bool on, const glm::vec3& position)
 {
     if (on != landing_noise_)
@@ -860,6 +899,12 @@ void project_c::Enemy::knock_down(float seconds)
 void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_seconds)
 {
     note_damage_position();
+    // a hit ends the smoke's blindness (it is alerted by the hit)
+    if (state_ == States::BLINDED)
+    {
+        blinded_remaining_seconds_ = 0.0f;
+        state_ = States::DECISION_MAKE;
+    }
     set_attack_window_active(false);
     hp = damage >= hp ? 0 : hp - damage;
     hit_flash_remaining_seconds_ = 0.12f;
@@ -911,8 +956,8 @@ project_c::EnemyStimuli project_c::Enemy::perceive(const EnemyPerception& percep
     const glm::vec3 player_position(ptc.position[0], ptc.position[1], ptc.position[2]);
     const float distance = glm::distance(glm::vec2(position.x, position.z), glm::vec2(player_position.x, player_position.z));
 
-    // sight: in view, and nothing in the way from its eyes to the player's chest
-    if (in_sight_cone(position, forward, player_position, perception))
+    // sight: in view, and nothing in the way from its eyes to the player's chest (blinded by smoke it sees nothing)
+    if (state_ != States::BLINDED && in_sight_cone(position, forward, player_position, perception))
     {
         const glm::vec3 eye = position + glm::vec3(0.0f, perception.eye_height, 0.0f);
         const glm::vec3 chest = player_position + glm::vec3(0.0f, PLAYER_CHEST_HEIGHT, 0.0f);
@@ -924,6 +969,13 @@ project_c::EnemyStimuli project_c::Enemy::perceive(const EnemyPerception& percep
             stimuli.seen_above = player_position.y - position.y > ENEMY_MAX_REACH_HEIGHT;
             stimuli.seen_position = player_position;
         }
+    }
+
+    // hearing: a loud noise made at it (a smoke bomb's pop)
+    if (pending_loud_noise_)
+    {
+        stimuli.heard_loud_noise = true;
+        stimuli.loud_noise_position = pending_loud_noise_position_;
     }
 
     // hearing: a body landing near it is a loud noise (only looked for while one landed)

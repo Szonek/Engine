@@ -88,7 +88,7 @@ project_c::PlayerExecutions::Target project_c::PlayerExecutions::pick(const glm:
         execution_math::Candidate candidate{};
         candidate.awareness = enemy->awareness().state();
         candidate.sees_player = enemy->awareness().perceived_this_frame();
-        candidate.any_side = enemy->is_knocked_down();
+        candidate.any_side = enemy->is_knocked_down() || enemy->is_blinded();
         candidate.unavailable = enemy->is_dying() || enemy->is_being_executed();
         candidate.distance = glm::distance(glm::vec2(from.x, from.z), glm::vec2(enemy_position.x, enemy_position.z));
         candidate.height_difference = from.y - enemy_position.y;
