@@ -42,11 +42,12 @@ cloud). Hearing isn't blocked.
 **The pop**, when the cloud starts:
 
 * every enemy within its full radius (measured to its chest) is **blinded** for `blind_seconds` (3 s): it plays `Hit_B`,
-  then idles, can't move, turn or attack, and sees nothing. It **loses track** of the player
+  then idles, can't move, turn or attack, and perceives nothing: no sight, no hearing and no pack (a mate who sees
+  the player neither keeps nor makes it alert, and it tells its pack nothing). It **loses track** of the player
   (`EnemyAwareness::lose_track`): an alert enemy searches, from the cloud's centre, as if it hadn't perceived the
   player for a long time, so it doesn't keep its pack alert. A hit ends the blindness (and alerts it). While blinded
   it can be **executed from any side** (`Candidate::any_side`, like a knocked-down enemy). After the blindness it
-  searches. A dying, executed, falling or knocked-down enemy only loses track.
+  searches, and its pack can alert it again by the usual rules. A dying, executed, falling or knocked-down enemy only loses track.
 * it is a **loud noise** at its centre, heard once by every enemy within `noise_radius` (5 m) which hasn't noticed the
   player (unaware or suspicious, outside the cloud): its meter fills by its `loud_noise_fill`. It alerts nobody by
   itself.
@@ -56,5 +57,5 @@ cloud). Hearing isn't blocked.
 * `src/tests/unit_tests/smoke_tests.cpp`: the cloud's radius over its life, lines of sight through, inside, touching
   and missing a cloud, the throw range. `enemy_awareness_tests.cpp`: `lose_track`.
 * `src/tests/scenario_tests/smoke_tests.cpp`: an alert enemy loses the player and searches the cloud; a cloud between
-  them hides the player until it fades; a blinded enemy doesn't attack and is executed from the front; a hit ends the
-  blindness; the cooldown; the pop's noise radius; a throw beyond the range.
+  them hides the player until it fades; a blinded enemy doesn't attack and is executed from the front; a blinded pack
+  member stays blinded while a mate sees the player; a hit ends the blindness; the cooldown; the pop's noise radius; a throw beyond the range.

@@ -100,9 +100,9 @@ project_c::EnemySpawner::PackState project_c::EnemySpawner::pack_state(engine_ga
     for (const auto go : spawned_)
     {
         const auto* enemy = go == reader ? nullptr : my_scene_->get_script<Enemy>(go);
-        if (!enemy)
+        if (!enemy || enemy->is_blinded())
         {
-            // the reader, or dead or gone
+            // the reader, or dead or gone; a member blinded by smoke perceives nothing, so it tells its pack nothing
             continue;
         }
         const auto& awareness = enemy->awareness();

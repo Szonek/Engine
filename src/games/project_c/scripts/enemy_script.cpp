@@ -936,6 +936,12 @@ project_c::EnemyStimuli project_c::Enemy::perceive(const EnemyPerception& percep
     EnemyStimuli stimuli{};
     stimuli.damaged = damaged_;
     stimuli.damage_position = damage_position_;
+    // blinded by smoke it perceives nothing, its pack neither (a mate seeing the player would undo the lost track at
+    // once); only a hit reaches it, which ends the blindness. Its pack re-alerts it after the blindness, as usual.
+    if (state_ == States::BLINDED)
+    {
+        return stimuli;
+    }
 
     // its pack: alert while another member perceived the player recently
     if (const auto* pack = my_scene_->get_script<EnemySpawner>(pack_))
@@ -957,8 +963,8 @@ project_c::EnemyStimuli project_c::Enemy::perceive(const EnemyPerception& percep
     const glm::vec3 player_position(ptc.position[0], ptc.position[1], ptc.position[2]);
     const float distance = glm::distance(glm::vec2(position.x, position.z), glm::vec2(player_position.x, player_position.z));
 
-    // sight: in view, and nothing in the way from its eyes to the player's chest (blinded by smoke it sees nothing)
-    if (state_ != States::BLINDED && in_sight_cone(position, forward, player_position, perception))
+    // sight: in view, and nothing in the way from its eyes to the player's chest
+    if (in_sight_cone(position, forward, player_position, perception))
     {
         const glm::vec3 eye = position + glm::vec3(0.0f, perception.eye_height, 0.0f);
         const glm::vec3 chest = player_position + glm::vec3(0.0f, PLAYER_CHEST_HEIGHT, 0.0f);

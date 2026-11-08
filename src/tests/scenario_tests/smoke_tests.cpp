@@ -2,6 +2,7 @@
 
 #include <app.h>
 #include <scripts/enemy_script.h>
+#include <scripts/enemy_spawner_script.h>
 #include <scripts/game_components.h>
 #include <scripts/player_script.h>
 #include <scripts/smoke_cloud.h>
@@ -178,6 +179,70 @@ TEST_F(SmokeTest, BlindedEnemyDoesNotAttackAndIsExecutedFromTheFront)
     bool executing = false;
     EXPECT_TRUE(step_until(90, [&] { executing = executing || player_->movement_mode() == MovementMode::eExecuting; return is_dead(go); }));
     EXPECT_TRUE(executing);
+}
+
+// a blinded pack member ignores its pack: a mate outside the cloud who sees the player doesn't alert it while it is
+// blinded (it searches, and stays blinded: it doesn't act); after the blindness its pack alerts it again
+TEST_F(SmokeTest, BlindedPackMemberIgnoresAMateWhoSeesThePlayer)
+{
+    sandbox();
+    place_player(0.0f, 0.0f);
+    auto config = project_c::default_enemy_spawner();
+    config.enemy_type = scenario::app().get_skeleton_warrior_type();
+    config.count = 2;
+    config.area_half_extents[0] = 1.0f;
+    config.area_half_extents[1] = 1.0f;
+    config.min_spacing = 0.8f;
+    auto* spawner = scene_->build().enemy_spawner(0.0f, 8.0f, config);
+    ASSERT_NE(spawner, nullptr);
+    step(2);
+    std::vector<Enemy*> pack;
+    for (const auto go : spawner->get_spawned())
+    {
+        if (auto* enemy = scene_->get_script<Enemy>(go))
+        {
+            pack.push_back(enemy);
+        }
+    }
+    ASSERT_EQ(pack.size(), 2u);
+    // apart: the blinded one 10 m from its mate, both facing the player
+    const auto place = [](Enemy* enemy, float x, float z) {
+        auto tc = engineGameObjectGetTransformComponent(enemy->get_game_object());
+        tc.position[0] = x;
+        tc.position[2] = z;
+        const auto facing = glm::angleAxis(glm::atan(-x, -z), glm::vec3(0.0f, 1.0f, 0.0f));
+        tc.rotation[0] = facing.x;
+        tc.rotation[1] = facing.y;
+        tc.rotation[2] = facing.z;
+        tc.rotation[3] = facing.w;
+        engineGameObjectUpdateTransformComponent(enemy->get_game_object(), &tc);
+    };
+    auto* blinded = pack[0];
+    auto* mate = pack[1];
+    place(blinded, -5.0f, 6.0f);
+    place(mate, 5.0f, 6.0f);
+    step(SETTLE_FRAMES);
+    mate->receive_attack_hit(0, 0.0f);
+    step(2);
+    ASSERT_EQ(mate->awareness().state(), Awareness::eAlert);
+    ASSERT_EQ(blinded->awareness().state(), Awareness::eAlert);
+
+    throw_smoke_at(position_of(blinded->get_game_object()));
+    ASSERT_TRUE(blinded->is_blinded());
+    const float blind = project_c::default_smoke_tuning().blind_seconds;
+    bool alerted = false;
+    bool stayed_blinded = true;
+    step_until(frames(blind - 0.5f), [&] {
+        alerted = alerted || blinded->awareness().state() == Awareness::eAlert;
+        stayed_blinded = stayed_blinded && blinded->is_blinded();
+        return false;
+    });
+    EXPECT_EQ(mate->awareness().state(), Awareness::eAlert);
+    EXPECT_FALSE(alerted);
+    EXPECT_TRUE(stayed_blinded);
+    EXPECT_EQ(blinded->awareness().state(), Awareness::eSearching);
+    // the blindness over, its mate alerts it again
+    EXPECT_TRUE(step_until(frames(3.0f), [&] { return !blinded->is_blinded() && blinded->awareness().state() == Awareness::eAlert; }));
 }
 
 // a hit ends the blindness: the enemy is alerted at once
