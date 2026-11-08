@@ -62,4 +62,6 @@ them (`utils::smoke_blocks`, asked by `Enemy::sees` with the level geometry ray,
   and missing a cloud, the throw range. `enemy_awareness_tests.cpp`: `lose_track`.
 * `src/tests/scenario_tests/smoke_tests.cpp`: an alert enemy loses the player and searches the cloud; a cloud between
   them hides the player until it fades; a blinded enemy doesn't attack and is executed from the front; a blinded pack
-  member stays blinded while a mate sees the player; a hit ends the blindness; the cooldown; the pop's noise radius; a throw beyond the range.
+  member stays blinded while a mate sees the player; a hit, or an execution it survives, ends the blindness; a throw
+  under an overhang lands on the floor; a press in the air is dropped; a throw without recovery still releases; the
+  cooldown; the pop's noise radius; a throw beyond the range.
