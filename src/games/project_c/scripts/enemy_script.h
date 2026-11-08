@@ -89,8 +89,8 @@ public:
     // off the ground, falling (no AI until it lands)
     bool is_falling() const { return state_ == States::FALLING; }
     // The player's kick: pushed along `direction` (flat, normalized) at `speed` metres per second (the push decays; off a
-    // ledge it falls), staggered for `stagger_seconds` and hurt by `damage`. It is alerted once it recovers or lands,
-    // unless the fall kills it.
+    // ledge it falls), staggered for `stagger_seconds` (not while it lies knocked down: it only takes the push) and hurt
+    // by `damage`. It is alerted once it recovers or lands, unless the fall kills it.
     void receive_shove(const glm::vec3& direction, float speed, float stagger_seconds, std::uint32_t damage);
     bool is_staggered() const { return state_ == States::STAGGERED; }
     // a body landed from a fall this frame: a loud noise where it landed, heard by the enemies around

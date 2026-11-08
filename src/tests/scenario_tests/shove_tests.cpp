@@ -531,3 +531,31 @@ TEST_F(ShoveTest, EnemyKickedOffALowStepLandsAlert)
     ASSERT_TRUE(step_until({}, 120, [&] { return is_dead(go); }));
     EXPECT_EQ(player_->momentum(), momentum);
 }
+
+// a knocked-down enemy kicked only slides: it lies on and stands up as it would have (no stagger in between)
+TEST_F(ShoveTest, KickingAKnockedDownEnemyKeepsItsStandUp)
+{
+    auto* enemy = kick_setup(0.0f);
+    ASSERT_NE(enemy, nullptr);
+    const float knockdown_seconds = project_c::default_execution_tuning().knockdown_seconds;
+    enemy->knock_down(knockdown_seconds);
+    step(10);
+    ASSERT_TRUE(enemy->is_knocked_down());
+
+    press_shove();
+    bool staggered = false;
+    bool stood_up = false;
+    const auto frames = static_cast<std::uint32_t>((knockdown_seconds + 4.0f) * 60.0f);
+    step_until({}, frames, [&]
+        {
+            staggered = staggered || enemy->is_staggered();
+            stood_up = !enemy->is_knocked_down();
+            return stood_up;
+        });
+    EXPECT_FALSE(staggered);
+    EXPECT_TRUE(stood_up);
+    // it gets up through its stand-up (no knockdown time left over)
+    step(120);
+    EXPECT_FALSE(enemy->is_knocked_down());
+    EXPECT_FALSE(enemy->is_staggered());
+}

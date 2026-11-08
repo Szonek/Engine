@@ -732,6 +732,11 @@ void project_c::Enemy::receive_shove(const glm::vec3& direction, float speed, fl
         return;
     }
     alert_after_shove_ = true;
+    // lying (knocked down) it only takes the push: it stands up as it would have
+    if (state_ == States::KNOCKED_DOWN)
+    {
+        return;
+    }
     set_attack_window_active(false);
     standing_up_ = false;
     stagger_remaining_seconds_ = stagger_seconds;
