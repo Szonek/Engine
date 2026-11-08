@@ -18,7 +18,7 @@ enum class Layer : std::uint32_t
     eCharacter = 2,
     // attack triggers and enemy blades: they only look for characters
     eHitbox = 3,
-    // coins and weapons on the ground: they land on the level and are picked up by characters
+    // coins and weapons on the ground: they land on the level and on each other, and are picked up by characters
     ePickup = 4,
 };
 
@@ -35,7 +35,7 @@ constexpr std::uint32_t collides_with(Layer layer)
     case Layer::eHitbox:
         return layer_bit(Layer::eCharacter);
     case Layer::ePickup:
-        return layer_bit(Layer::eLevelGeometry) | layer_bit(Layer::eCharacter);
+        return layer_bit(Layer::eLevelGeometry) | layer_bit(Layer::eCharacter) | layer_bit(Layer::ePickup);
     case Layer::eDefault:
     case Layer::eLevelGeometry:
     case Layer::eCharacter:
