@@ -1,5 +1,7 @@
 #include "renderer.h"
 #include "shadows.h"
+#include "transparent_stage.h"
+#include "../particles.h"
 #include "../debug_draw.h"
 #include "../logger.h"
 #include "../profiler.h"
@@ -20,6 +22,7 @@ namespace
 constexpr std::size_t INITIAL_LIGHTS_CAPACITY = 1'000;
 constexpr std::size_t INITIAL_SKINNING_MATRICES_CAPACITY = 4 * 1024;
 constexpr std::size_t INITIAL_DEBUG_LINES_CAPACITY = 8 * 1024;
+constexpr std::size_t INITIAL_PARTICLES_CAPACITY = 4 * 1024;
 // shadow fades out over the last part of the shadow distance
 constexpr float SHADOW_FADE_START = 0.85f;
 constexpr std::uint32_t SHADOW_MAX_PCF_RADIUS = 4;
@@ -43,6 +46,8 @@ engine::Renderer::Renderer(RenderContext& rdx)
     , backend_(rdx)
     , shader_debug_lines_({ "debug_physics_lines_ssbo.vs" }, { "debug_physics_lines_ssbo.fs" })
     , shader_debug_lines_pick_({ "debug_physics_lines_ssbo.vs" }, { "debug_lines_pick.fs" })
+    , shader_particles_({ "particles.vs" }, { "particles.fs" })
+    , geometry_particle_quad_(6)
     , geometry_debug_line_(2)
     , shader_full_screen_quad_({ "full_screen_quad.vs" }, { "full_screen_quad.fs" })
     , geometry_full_screen_quad_(6)
@@ -107,6 +112,7 @@ void engine::Renderer::prepare_gpu_data()
 {
     ENGINE_PROFILE_SECTION;
     frame_views_.clear();
+    frame_particle_draws_.clear();
     for (std::size_t scene_index = 0; scene_index < frame_scenes_.size(); scene_index++)
     {
         const auto& scene = frame_scenes_[scene_index];
@@ -156,6 +162,17 @@ void engine::Renderer::prepare_gpu_data()
             std::memcpy(lines.data, scene.debug_lines.data(), scene.debug_lines.size() * sizeof(DebugLineGpuData));
         }
 
+        // the particles, sorted for each view: the view's copy starts at view index * particle count
+        if (!scene.particles.empty() && !scene.views.empty())
+        {
+            const auto required_size = std::max(scene.particles.size() * scene.views.size(), INITIAL_PARTICLES_CAPACITY) * sizeof(ParticleGpuData);
+            if (ensure_buffer_capacity(frame_ssbos.particles.ssbo, required_size))
+            {
+                frame_ssbos.particles.ptr = frame_ssbos.particles.ssbo.map(false, true);
+            }
+            assert(frame_ssbos.particles.ptr != nullptr);
+        }
+
         while (gpu.views.size() < scene.views.size())
         {
             gpu.views.push_back(std::make_unique<ViewGpu>());
@@ -197,6 +214,12 @@ void engine::Renderer::prepare_gpu_data()
                 *lighting_ubo.data = lighting;
             }
 
+            auto& particle_draws = frame_particle_draws_.emplace_back();
+            if (!scene.particles.empty())
+            {
+                const auto first = static_cast<std::uint32_t>(view_index * scene.particles.size());
+                sort_particles(scene, camera, first, static_cast<ParticleGpuData*>(frame_ssbos.particles.ptr) + first, particle_draws);
+            }
             frame_views_.push_back(FrameView{
                 .scene = &scene,
                 .camera = &camera,
@@ -204,6 +227,7 @@ void engine::Renderer::prepare_gpu_data()
                 .scene_ubo = &gpu.scene_ubo,
                 .lights_ssbo = &frame_ssbos.lights.ssbo,
                 .debug_lines_ssbo = &gpu.debug_lines_ssbo,
+                .particles_ssbo = &frame_ssbos.particles.ssbo,
                 .skinning_ssbo = &frame_ssbos.skinning.ssbo,
                 .lighting_ubo = &view_gpu.lighting_ubo,
                 .shadow_camera_ubo = &view_gpu.shadow_camera_ubo,
@@ -297,6 +321,7 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
     std::size_t view_counter = 0;
     for (const auto& view : frame.views)
     {
+        const auto& particle_draws = frame_particle_draws_[view_counter];
         const bool is_first_view = view_counter == 0;
         const auto suffix = fmt::format(" [View {}]", view_counter++);
 
@@ -376,6 +401,16 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
                 [this, view](const rg::NoPassData&, rg::PassContext&)
                 {
                     draw_sprites(view);
+                });
+        }
+
+        // blended geometry over the opaque scene, before the debug lines (which stay readable on top of it)
+        if (!particle_draws.empty())
+        {
+            add_transparent_pass(frame.graph, fmt::format("Transparent{}", suffix), frame.scene_color, frame.scene_depth,
+                [this, view, &particle_draws](rg::PassContext&)
+                {
+                    draw_particles(view, particle_draws);
                 });
         }
 
@@ -516,6 +551,69 @@ void engine::Renderer::draw_sprites(const FrameView& view)
             .scale = item.scale };
         material_sprite_.draw(ctx);
     }
+}
+
+void engine::Renderer::sort_particles(const SceneRenderData& scene, const CameraGpuData& camera, std::uint32_t first, ParticleGpuData* out, std::vector<ParticleDraw>& draws)
+{
+    ENGINE_PROFILE_SECTION_N("Renderer::sort_particles");
+    // distance in front of the camera
+    const auto depth_of = [&camera](const glm::vec3& position) { return -(camera.view * glm::vec4(position, 1.0f)).z; };
+    // the batches by their emitter's distance, then each batch's particles by theirs
+    std::vector<ParticleSortKey> batch_keys;
+    batch_keys.reserve(scene.particle_batches.size());
+    for (std::uint32_t i = 0; i < scene.particle_batches.size(); i++)
+    {
+        const auto& batch = scene.particle_batches[i];
+        batch_keys.push_back({ depth_of(batch.center), batch.sort_order, i });
+    }
+    sort_back_to_front(batch_keys);
+    std::vector<ParticleSortKey> keys;
+    std::uint32_t written = 0;
+    for (const auto& batch_key : batch_keys)
+    {
+        const auto& batch = scene.particle_batches[batch_key.index];
+        keys.clear();
+        for (std::uint32_t i = 0; i < batch.count; i++)
+        {
+            keys.push_back({ depth_of(scene.particles[batch.offset + i].position), 0, batch.offset + i });
+        }
+        sort_back_to_front(keys);
+        draws.push_back(ParticleDraw{ .first = first + written, .count = batch.count, .texture = batch.texture, .blend = batch.blend });
+        for (const auto& key : keys)
+        {
+            out[written++] = scene.particles[key.index];
+        }
+    }
+}
+
+void engine::Renderer::draw_particles(const FrameView& view, const std::vector<ParticleDraw>& draws)
+{
+    ENGINE_PROFILE_SECTION_N("Renderer::draw_particles");
+    // tested against the scene's depth, never writing it: particles behind each other all show, blended in order
+    rdx_.set_depth_write(false);
+    rdx_.set_cull_face(false);
+    shader_particles_.bind();
+    shader_particles_.set_uniform_mat_f4("view", { glm::value_ptr(view.camera->view), 16 });
+    shader_particles_.set_uniform_mat_f4("projection", { glm::value_ptr(view.camera->projection), 16 });
+    view.particles_ssbo->bind(static_cast<std::uint32_t>(ShaderBindingSlot::PARTICLES));
+    geometry_particle_quad_.bind();
+    using Factor = RenderContext::BlendFactor;
+    for (const auto& draw : draws)
+    {
+        switch (draw.blend)
+        {
+        case ParticleBlend::eAlpha: rdx_.set_blend_mode(true, Factor::eSrcAlpha, Factor::eOneMinusSrcAlpha, Factor::eOne, Factor::eOneMinusSrcAlpha); break;
+        case ParticleBlend::ePremultiplied: rdx_.set_blend_mode(true, Factor::eOne, Factor::eOneMinusSrcAlpha, Factor::eOne, Factor::eOneMinusSrcAlpha); break;
+        case ParticleBlend::eAdditive: rdx_.set_blend_mode(true, Factor::eOne, Factor::eOne, Factor::eZero, Factor::eOne); break;
+        }
+        shader_particles_.set_uniform_ui("blend_mode", static_cast<std::uint32_t>(draw.blend));
+        shader_particles_.set_uniform_ui("has_texture", draw.texture ? 1u : 0u);
+        shader_particles_.set_uniform_ui("first_particle", draw.first);
+        shader_particles_.set_texture_with_sampler("particle_texture", draw.texture ? draw.texture : &white_texture_);
+        geometry_particle_quad_.draw_instances(Geometry::Mode::eTriangles, draw.count);
+    }
+    rdx_.set_blend_mode(false);
+    rdx_.set_depth_write(true);
 }
 
 void engine::Renderer::draw_debug_lines(const FrameView& view, Shader& shader)

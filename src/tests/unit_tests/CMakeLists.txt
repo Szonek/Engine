@@ -45,6 +45,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	particles_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
+	${ENGINE_IMPL_DIR}/render/transparent_stage.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
 	${ENGINE_IMPL_DIR}/render/shadows.h
 	# header-only; test_logger.cpp provides the logger the engine sources use

@@ -24,6 +24,8 @@ struct FrameView
     const UniformBuffer* scene_ubo = nullptr;
     const ShaderStorageBuffer* lights_ssbo = nullptr;
     const ShaderStorageBuffer* debug_lines_ssbo = nullptr;
+    // this frame's particles of the scene, sorted back to front for this view (Renderer's particle draws)
+    const ShaderStorageBuffer* particles_ssbo = nullptr;
     // bone matrices of all skinned meshes of the scene, see SkinnedMeshDrawItem::skinning_matrices_offset
     const ShaderStorageBuffer* skinning_ssbo = nullptr;
     // shadows and ambient occlusion parameters (ViewLightingGpuData)

@@ -17,10 +17,11 @@ enum class ShaderBindingSlot
     TEXTURE_SSAO = 8,
     //
 
-    DEBUG_PHYSICS = 9
+    DEBUG_PHYSICS = 9,
+    PARTICLES = 10
 };
 
-inline constexpr std::array<ShaderBindingSlot, 10> kAllShaderBindingSlots{
+inline constexpr std::array<ShaderBindingSlot, 11> kAllShaderBindingSlots{
     ShaderBindingSlot::CAMERA,
     ShaderBindingSlot::SCENE,
     ShaderBindingSlot::LIGHTS,
@@ -30,7 +31,8 @@ inline constexpr std::array<ShaderBindingSlot, 10> kAllShaderBindingSlots{
     ShaderBindingSlot::TEXTURE_SPECULAR,
     ShaderBindingSlot::TEXTURE_SHADOW_MAP,
     ShaderBindingSlot::TEXTURE_SSAO,
-    ShaderBindingSlot::DEBUG_PHYSICS
+    ShaderBindingSlot::DEBUG_PHYSICS,
+    ShaderBindingSlot::PARTICLES
 };
 
 inline std::string shader_binding_slot_to_str(ShaderBindingSlot s)
@@ -57,6 +59,8 @@ inline std::string shader_binding_slot_to_str(ShaderBindingSlot s)
         return "ENGINE_BINDING_SLOT_TEXTURE_SSAO";
     case ShaderBindingSlot::DEBUG_PHYSICS:
         return "ENGINE_BINDING_SLOT_DEBUG_PHYSICS";
+    case ShaderBindingSlot::PARTICLES:
+        return "ENGINE_BINDING_SLOT_PARTICLES";
     default:
         assert(false && "Unknown binding slot.");
         return "UNKNOWN";

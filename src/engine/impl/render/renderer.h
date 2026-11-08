@@ -29,7 +29,8 @@ namespace engine
 //           Shadow Map      (depth of meshes seen from the directional light)
 //           Depth Pre-pass  (depth of meshes seen from the camera)
 //           SSAO, SSAO Blur (ambient occlusion computed from the depth)
-//           Forward (static + skinned meshes, uses the shadow map and the ambient occlusion) -> Sprites -> Debug Lines -> Debug Lines Pick
+//           Forward (static + skinned meshes, uses the shadow map and the ambient occlusion) -> Sprites
+//           -> Transparent (particles, sorted back to front; only when there are some) -> Debug Lines -> Debug Lines Pick
 //       RenderStage::ePostProcess features    (i.e. editor outline)
 //       Present                               (scene color -> scene output: the backbuffer or the texture set with set_scene_output())
 //       RenderStage::eOverlay features        (i.e. game UI, drawn onto the scene output)
@@ -100,7 +101,17 @@ private:
     {
         MappedSsbo lights;
         MappedSsbo skinning;
+        // the scene's particles, once per view (each sorted for its camera)
+        MappedSsbo particles;
         GpuFence fence;
+    };
+    // one instanced draw of the Transparent pass: a batch's particles, in the view's sorted range of the particle SSBO
+    struct ParticleDraw
+    {
+        std::uint32_t first = 0;
+        std::uint32_t count = 0;
+        const Texture2D* texture = nullptr;
+        ParticleBlend blend = ParticleBlend::eAlpha;
     };
 
     // GPU buffers of a single submitted scene
@@ -154,6 +165,10 @@ private:
     void draw_meshes_depth_only(const FrameView& view, const UniformBuffer& camera_ubo);
     void draw_sprites(const FrameView& view);
     void draw_debug_lines(const FrameView& view, Shader& shader);
+    // sorts the scene's particles back to front for the view's camera into `out` (the view's part of the particle
+    // SSBO, from `first`) and lists the draws, farthest batch first
+    static void sort_particles(const SceneRenderData& scene, const CameraGpuData& camera, std::uint32_t first, ParticleGpuData* out, std::vector<ParticleDraw>& draws);
+    void draw_particles(const FrameView& view, const std::vector<ParticleDraw>& draws);
 
 private:
     RenderContext& rdx_;
@@ -166,6 +181,8 @@ private:
     // selects SceneGpu::frames used by the current frame
     std::size_t frame_slot_ = 0;
     std::vector<FrameView> frame_views_;
+    // the Transparent pass's draws of each view of frame_views_
+    std::vector<std::vector<ParticleDraw>> frame_particle_draws_;
     std::vector<FeatureEntry> features_;
     std::vector<std::string> last_graph_messages_;
     std::shared_ptr<Texture2D> scene_output_;
@@ -186,6 +203,9 @@ private:
     Shader shader_debug_lines_;
     // the lines' owners into the entity ids, for picking
     Shader shader_debug_lines_pick_;
+    Shader shader_particles_;
+    // six vertices without data: a quad made in the vertex shader
+    Geometry geometry_particle_quad_;
     Geometry geometry_debug_line_;
     Shader shader_full_screen_quad_;
     Geometry geometry_full_screen_quad_;

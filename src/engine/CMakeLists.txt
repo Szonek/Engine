@@ -83,6 +83,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/render/render_graph_gl_backend.h
 	${ENGINE_SOURCES_DIR}/render/render_graph_gl_backend.cpp
 	${ENGINE_SOURCES_DIR}/render/render_scene_data.h
+	${ENGINE_SOURCES_DIR}/render/transparent_stage.h
 	${ENGINE_SOURCES_DIR}/render/render_feature.h
 	${ENGINE_SOURCES_DIR}/render/render_settings.h
 	${ENGINE_SOURCES_DIR}/render/shadows.h
