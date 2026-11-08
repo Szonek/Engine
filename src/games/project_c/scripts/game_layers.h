@@ -52,10 +52,9 @@ void set_layer(Component& component, Layer layer)
     component.collides_with = collides_with(layer);
 }
 
-// the names the editor shows
+// the names the editor shows (the engine names layer 0 "Default")
 inline void register_layer_names()
 {
-    enginePhysicsSetLayerName(static_cast<std::uint32_t>(Layer::eDefault), "Default");
     enginePhysicsSetLayerName(static_cast<std::uint32_t>(Layer::eLevelGeometry), "LevelGeometry");
     enginePhysicsSetLayerName(static_cast<std::uint32_t>(Layer::eCharacter), "Character");
     enginePhysicsSetLayerName(static_cast<std::uint32_t>(Layer::eHitbox), "Hitbox");
