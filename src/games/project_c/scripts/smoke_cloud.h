@@ -4,7 +4,8 @@
 
 #include <glm/glm.hpp>
 
-#include <cstdint>
+#include <unordered_map>
+#include <vector>
 
 namespace engine
 {
@@ -32,8 +33,9 @@ public:
     // now (0 before it popped and after it faded)
     float radius() const { return cloud_radius(age_seconds_, tuning_); }
 
-    // how many clouds there are (in every scene): sight only asks them while there is one
-    static std::uint32_t count() { return count_; }
+    // the clouds alive in `scene` (empty when it has none), kept by their constructors and destructors: sight asks
+    // them every frame for every enemy without looking through the scene's scripts
+    static const std::vector<const SmokeCloud*>& live_clouds(const engine::IScene& scene);
 
 private:
     void draw() const;
@@ -41,12 +43,13 @@ private:
     SmokeTuning tuning_;
     glm::vec3 centre_;
     float age_seconds_ = 0.0f;
-    static inline std::uint32_t count_ = 0;
+    // by scene; a scene's entry goes with its last cloud, so a scene destroyed since has none
+    static inline std::unordered_map<const engine::IScene*, std::vector<const SmokeCloud*>> live_;
 };
 
 namespace utils
 {
 // whether a smoke cloud of `scene` is on the line of sight from `from` to `to` (or around either end)
-bool smoke_blocks(engine::IScene& scene, const glm::vec3& from, const glm::vec3& to);
+bool smoke_blocks(const engine::IScene& scene, const glm::vec3& from, const glm::vec3& to);
 }  // namespace utils
 }  // namespace project_c

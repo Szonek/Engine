@@ -38,8 +38,8 @@ turning slowly around its centre).
 
 **Sight.** An enemy's sight ray (its eyes to the player's chest) that touches a cloud (`segment_touches_sphere`
 against its current radius) is blocked, like by a wall: with the player inside, the enemy inside, or a cloud between
-them (`utils::smoke_blocks`, asked by `Enemy::sees` with the level geometry ray; nothing is asked while there is no
-cloud). Hearing isn't blocked.
+them (`utils::smoke_blocks`, asked by `Enemy::sees` with the level geometry ray, goes over the scene's live clouds,
+`SmokeCloud::live_clouds`, kept by the clouds themselves; nothing to go over while there is none). Hearing isn't blocked.
 
 **The pop**, when the cloud starts:
 

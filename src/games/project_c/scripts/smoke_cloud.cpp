@@ -6,6 +6,7 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <algorithm>
 #include <cmath>
 
 namespace
@@ -23,7 +24,7 @@ project_c::SmokeCloud::SmokeCloud(engine::IScene* my_scene, engine_game_object_t
     , tuning_(tuning)
     , centre_(landing + glm::vec3(0.0f, tuning.centre_height, 0.0f))
 {
-    count_++;
+    live_[my_scene_].push_back(this);
     auto tc = engineGameObjectGetTransformComponent(go_);
     tc.position[0] = centre_.x;
     tc.position[1] = centre_.y;
@@ -33,7 +34,22 @@ project_c::SmokeCloud::SmokeCloud(engine::IScene* my_scene, engine_game_object_t
 
 project_c::SmokeCloud::~SmokeCloud()
 {
-    count_--;
+    const auto it = live_.find(my_scene_);
+    if (it != live_.end())
+    {
+        std::erase(it->second, this);
+        if (it->second.empty())
+        {
+            live_.erase(it);
+        }
+    }
+}
+
+const std::vector<const project_c::SmokeCloud*>& project_c::SmokeCloud::live_clouds(const engine::IScene& scene)
+{
+    static const std::vector<const SmokeCloud*> none;
+    const auto it = live_.find(&scene);
+    return it == live_.end() ? none : it->second;
 }
 
 void project_c::SmokeCloud::on_start()
@@ -95,13 +111,9 @@ void project_c::SmokeCloud::draw() const
     }
 }
 
-bool project_c::utils::smoke_blocks(engine::IScene& scene, const glm::vec3& from, const glm::vec3& to)
+bool project_c::utils::smoke_blocks(const engine::IScene& scene, const glm::vec3& from, const glm::vec3& to)
 {
-    if (SmokeCloud::count() == 0)
-    {
-        return false;
-    }
-    for (const auto* cloud : scene.get_scripts<SmokeCloud>())
+    for (const auto* cloud : SmokeCloud::live_clouds(scene))
     {
         if (segment_touches_sphere(from, to, cloud->centre(), cloud->radius()))
         {
