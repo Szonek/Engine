@@ -803,6 +803,15 @@ void project_c::Enemy::blind(float seconds, const glm::vec3& smoke_centre)
     engineAnimationControllerAnimationPlay(go_, "Hit_B", 0);
 }
 
+void project_c::Enemy::end_blindness()
+{
+    if (state_ == States::BLINDED)
+    {
+        blinded_remaining_seconds_ = 0.0f;
+        state_ = States::DECISION_MAKE;
+    }
+}
+
 void project_c::Enemy::hear_loud_noise(const glm::vec3& position)
 {
     pending_loud_noise_ = true;
@@ -876,6 +885,8 @@ void project_c::Enemy::receive_execution(std::uint32_t damage)
         death_animation_ = "Death_B";
         return;
     }
+    // a blow it survives: like a hit, it ends the smoke's blindness and alerts it
+    end_blindness();
     note_damage_position();
     hp = damage >= hp ? 0 : hp - damage;
 }
@@ -901,11 +912,7 @@ void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_s
 {
     note_damage_position();
     // a hit ends the smoke's blindness (it is alerted by the hit)
-    if (state_ == States::BLINDED)
-    {
-        blinded_remaining_seconds_ = 0.0f;
-        state_ = States::DECISION_MAKE;
-    }
+    end_blindness();
     set_attack_window_active(false);
     hp = damage >= hp ? 0 : hp - damage;
     hit_flash_remaining_seconds_ = 0.12f;

@@ -45,7 +45,8 @@ cloud). Hearing isn't blocked.
   then idles, can't move, turn or attack, and perceives nothing: no sight, no hearing and no pack (a mate who sees
   the player neither keeps nor makes it alert, and it tells its pack nothing). It **loses track** of the player
   (`EnemyAwareness::lose_track`): an alert enemy searches, from the cloud's centre, as if it hadn't perceived the
-  player for a long time, so it doesn't keep its pack alert. A hit ends the blindness (and alerts it). While blinded
+  player for a long time, so it doesn't keep its pack alert. A hit, or an execution it survives (an enemy type whose `execution_kills` is false), ends the blindness (and alerts
+  it). While blinded
   it can be **executed from any side** (`Candidate::any_side`, like a knocked-down enemy). After the blindness it
   searches, and its pack can alert it again by the usual rules. A dying, executed, falling or knocked-down enemy only loses track.
 * it is a **loud noise** at its centre, heard once by every enemy within `noise_radius` (5 m) which hasn't noticed the

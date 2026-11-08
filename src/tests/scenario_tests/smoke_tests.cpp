@@ -9,6 +9,9 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
+#include <fstream>
+
 #include <glm/gtc/quaternion.hpp>
 
 #include <cstdint>
@@ -243,6 +246,60 @@ TEST_F(SmokeTest, BlindedPackMemberIgnoresAMateWhoSeesThePlayer)
     EXPECT_EQ(blinded->awareness().state(), Awareness::eSearching);
     // the blindness over, its mate alerts it again
     EXPECT_TRUE(step_until(frames(3.0f), [&] { return !blinded->is_blinded() && blinded->awareness().state() == Awareness::eAlert; }));
+}
+
+// an execution the enemy survives (its type's execution_kills is false) ends the blindness like a hit: it is alerted,
+// and isn't executed from the front again
+TEST_F(SmokeTest, SurvivedExecutionEndsTheBlindness)
+{
+    sandbox();
+    place_player(0.0f, 0.0f);
+    auto* enemy = scene_->build().enemy(0.0f, 1.2f, FACING_MINUS_Z);
+    ASSERT_NE(enemy, nullptr);
+    const auto go = enemy->get_game_object();
+    const auto file = std::filesystem::temp_directory_path() / "project_c_scenario_smoke_heavy_enemy.json";
+    std::ofstream(file, std::ios::binary) << R"({ "version": 1, "type": "enemy_type", "value": { "max_hp": 100, "execution_kills": false } })";
+    const auto heavy = engineDataAssetLoad(file.generic_string().c_str());
+    std::filesystem::remove(file);
+    ASSERT_NE(heavy, ENGINE_INVALID_OBJECT_HANDLE);
+    const auto type = project_c::game_components().enemy_config;
+    auto config = project_c::get_game_component(go, type, project_c::default_enemy_config());
+    config.type = heavy;
+    ASSERT_EQ(engineGameObjectUpdateDataComponent(go, type, &config), ENGINE_RESULT_CODE_OK);
+    step(SETTLE_FRAMES);
+
+    throw_smoke_at(position_of(go));
+    ASSERT_TRUE(enemy->is_blinded());
+    // the throw's recovery
+    step(frames(0.5f));
+    ASSERT_TRUE(enemy->is_blinded());
+    PlayerInput attack{};
+    attack.attack = true;
+    step_aiming(1, attack, position_of(go));
+    bool executing = false;
+    // right after the execution's blow, before anything else hits it
+    bool blinded_after_blow = true;
+    EXPECT_TRUE(step_until(90, [&] {
+        executing = executing || player_->movement_mode() == MovementMode::eExecuting;
+        if (enemy->hp < 100u)
+        {
+            blinded_after_blow = enemy->is_blinded();
+            return true;
+        }
+        return false;
+    }));
+    EXPECT_TRUE(executing);
+    EXPECT_FALSE(blinded_after_blow);
+    step(2);
+    EXPECT_EQ(enemy->awareness().state(), Awareness::eAlert);
+    EXPECT_TRUE(step_until(90, [&] { return player_->movement_mode() != MovementMode::eExecuting; }));
+
+    // it has noticed the player, so from the front it is only attacked
+    step_aiming(1, attack, position_of(go));
+    bool executed_again = false;
+    step_until(60, [&] { executed_again = executed_again || player_->movement_mode() == MovementMode::eExecuting; return false; });
+    EXPECT_FALSE(executed_again);
+    engineDataAssetRelease(heavy);
 }
 
 // a hit ends the blindness: the enemy is alerted at once

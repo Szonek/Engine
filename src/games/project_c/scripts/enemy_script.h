@@ -100,6 +100,8 @@ public:
     // executed, falling or knocked-down enemy only loses track.
     void blind(float seconds, const glm::vec3& smoke_centre);
     bool is_blinded() const { return state_ == States::BLINDED; }
+    // a hit or a blow it survives ends the blindness (it can act again; the blow alerts it)
+    void end_blindness();
     // a loud noise at `position` (the pop of a smoke bomb), heard at its next update like the player's loud noises
     void hear_loud_noise(const glm::vec3& position);
     // a body landed from a fall this frame: a loud noise where it landed, heard by the enemies around
