@@ -49,14 +49,28 @@ std::optional<BodyPose> to_body_pose(const glm::mat4& local_to_world)
 }
 
 // What every physics query (ray casts, overlaps) skips, by engine_physics_query_filter_t: triggers unless asked for,
-// and the ignored game objects
-bool passes_query_filter(const btCollisionObject* object, std::span<const engine_game_object_t> ignore, bool hit_triggers)
+// bodies on layers the query doesn't see (a body's broadphase group is its layer's bit) and the ignored game objects
+bool passes_query_filter(const btBroadphaseProxy* proxy, const engine::PhysicsWorld::QueryFilter& filter)
 {
-    if (!hit_triggers && (object->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE))
+    const auto* object = static_cast<const btCollisionObject*>(proxy->m_clientObject);
+    if (!filter.hit_triggers && (object->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE))
     {
         return false;
     }
-    return std::none_of(ignore.begin(), ignore.end(), [object](engine_game_object_t go) { return object->getUserIndex() == static_cast<int>(go); });
+    if (!engine::query_sees_bit(filter.layer_mask, static_cast<std::uint32_t>(proxy->m_collisionFilterGroup)))
+    {
+        return false;
+    }
+    return std::none_of(filter.ignore.begin(), filter.ignore.end(), [object](engine_game_object_t go) { return object->getUserIndex() == static_cast<int>(go); });
+}
+
+engine::BodyMotion body_motion(const btCollisionObject* object)
+{
+    if (object->isKinematicObject())
+    {
+        return engine::BodyMotion::eKinematic;
+    }
+    return object->isStaticObject() ? engine::BodyMotion::eStatic : engine::BodyMotion::eDynamic;
 }
 }  // namespace
 
@@ -69,9 +83,10 @@ engine::PhysicsWorld::PhysicsWorld()
     collision_config_ = std::make_unique<btDefaultCollisionConfiguration>();
     dispatcher_ = std::make_unique<btCollisionDispatcher>(collision_config_.get());
     // Bullet's debug builds warn once about a pair of static or kinematic bodies: kinematic bodies pair with each other
-    // on purpose (hitboxes and characters, see add_to_world)
+    // on purpose (hitboxes and characters, see PairFilter)
     dispatcher_->setDispatcherFlags(dispatcher_->getDispatcherFlags() | btCollisionDispatcher::CD_STATIC_STATIC_REPORTED);
     overlapping_pair_cache_ = std::make_unique<btDbvtBroadphase>();
+    overlapping_pair_cache_->getOverlappingPairCache()->setOverlapFilterCallback(&pair_filter_);
     solver_ = std::make_unique<btSequentialImpulseConstraintSolver>();
 
     dynamics_world_ = std::make_unique<btDiscreteDynamicsWorld>(dispatcher_.get(), overlapping_pair_cache_.get(), solver_.get(), collision_config_.get());
@@ -208,11 +223,12 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
         // Bullet computes a kinematic body's velocity from its moves, only while it is awake
         ret.rigid_body->setActivationState(DISABLE_DEACTIVATION);
     }
-    add_to_world(ret.rigid_body);
+    add_to_world(ret.rigid_body, collider.layer, collider.collides_with);
     return ret;
 }
 
-engine::physcic_internal_component_t engine::PhysicsWorld::create_character_body(float radius, float height, const glm::mat4& local_to_world, std::int32_t body_index)
+engine::physcic_internal_component_t engine::PhysicsWorld::create_character_body(float radius, float height, std::uint32_t layer, std::uint32_t collides_with,
+    const glm::mat4& local_to_world, std::int32_t body_index)
 {
     physcic_internal_component_t ret{};
     const auto pose = to_body_pose(local_to_world).value_or(BodyPose{ btTransform::getIdentity(), btVector3(1.0f, 1.0f, 1.0f) });
@@ -232,7 +248,7 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_character_body
     ret.rigid_body->setUserIndex(body_index);
     ret.rigid_body->setCollisionFlags(ret.rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
     ret.rigid_body->setActivationState(DISABLE_DEACTIVATION);
-    add_to_world(ret.rigid_body);
+    add_to_world(ret.rigid_body, layer, collides_with);
     return ret;
 }
 
@@ -247,6 +263,10 @@ public:
         , self_(self)
         , direction_((to - from).normalized())
     {
+        // the character's layer and mask: only what it interacts with blocks it (Bullet's group/mask test is the layer
+        // rule, collision_layers.h)
+        m_collisionFilterGroup = self->getBroadphaseHandle()->m_collisionFilterGroup;
+        m_collisionFilterMask = self->getBroadphaseHandle()->m_collisionFilterMask;
     }
 
     bool needsCollision(btBroadphaseProxy* proxy) const override
@@ -286,6 +306,8 @@ public:
         : ClosestRayResultCallback(from, to)
         , self_(self)
     {
+        m_collisionFilterGroup = self->getBroadphaseHandle()->m_collisionFilterGroup;
+        m_collisionFilterMask = self->getBroadphaseHandle()->m_collisionFilterMask;
     }
 
     bool needsCollision(btBroadphaseProxy* proxy) const override
@@ -456,18 +478,21 @@ engine::PhysicsWorld::BodyType engine::PhysicsWorld::get_body_type(const btRigid
     return rigid_body->isStaticObject() ? BodyType::eStatic : BodyType::eDynamic;
 }
 
-void engine::PhysicsWorld::add_to_world(btRigidBody* rigid_body)
+void engine::PhysicsWorld::add_to_world(btRigidBody* rigid_body, std::uint32_t layer, std::uint32_t collides_with)
 {
-    if (rigid_body->isKinematicObject())
+    // a layer out of range has no bit: the body interacts with nothing and no query sees it (logged by PhysicsSystem)
+    dynamics_world_->addRigidBody(rigid_body, static_cast<int>(layer_bit(layer)), static_cast<int>(collides_with));
+}
+
+bool engine::PhysicsWorld::PairFilter::needBroadphaseCollision(btBroadphaseProxy* proxy0, btBroadphaseProxy* proxy1) const
+{
+    if (!layer_bits_interact(static_cast<std::uint32_t>(proxy0->m_collisionFilterGroup), static_cast<std::uint32_t>(proxy0->m_collisionFilterMask),
+        static_cast<std::uint32_t>(proxy1->m_collisionFilterGroup), static_cast<std::uint32_t>(proxy1->m_collisionFilterMask)))
     {
-        // Bullet's default puts kinematic bodies into the static group, which doesn't pair with itself: moving
-        // triggers (hitboxes) wouldn't see a kinematic player then. Kinematic bodies pair with everything but statics.
-        dynamics_world_->addRigidBody(rigid_body, btBroadphaseProxy::KinematicFilter, btBroadphaseProxy::AllFilter ^ btBroadphaseProxy::StaticFilter);
+        return false;
     }
-    else
-    {
-        dynamics_world_->addRigidBody(rigid_body);
-    }
+    return body_motions_interact(body_motion(static_cast<const btCollisionObject*>(proxy0->m_clientObject)),
+        body_motion(static_cast<const btCollisionObject*>(proxy1->m_clientObject)));
 }
 
 bool engine::PhysicsWorld::set_world_transform(btRigidBody* rigid_body, const glm::mat4& local_to_world)
@@ -560,26 +585,24 @@ void engine::PhysicsWorld::set_gravity(std::span<const float> g)
     dynamics_world_->setGravity(btVector3(g[0], g[1], g[2]));
 }
 
-bool engine::PhysicsWorld::raycast(const glm::vec3& origin, const glm::vec3& direction, float max_distance, std::span<const engine_game_object_t> ignore_list, bool hit_triggers, engine_ray_hit_t& out_hit)
+bool engine::PhysicsWorld::raycast(const glm::vec3& origin, const glm::vec3& direction, float max_distance, const QueryFilter& filter, engine_ray_hit_t& out_hit)
 {
     struct ClosestHitWithFilter : public btCollisionWorld::ClosestRayResultCallback
     {
-        ClosestHitWithFilter(const btVector3& ray_from, const btVector3& ray_to, std::span<const engine_game_object_t> ignore_list, bool hit_triggers)
+        ClosestHitWithFilter(const btVector3& ray_from, const btVector3& ray_to, const QueryFilter& filter)
             : btCollisionWorld::ClosestRayResultCallback(ray_from, ray_to)
-            , ignore_list_(ignore_list)
-            , hit_triggers_(hit_triggers)
+            , filter_(filter)
         {
         }
 
+        // the query's filter only: a body's own collides-with mask doesn't matter to queries
         bool needsCollision(btBroadphaseProxy* proxy) const override
         {
-            return passes_query_filter(static_cast<const btCollisionObject*>(proxy->m_clientObject), ignore_list_, hit_triggers_)
-                && ClosestRayResultCallback::needsCollision(proxy);
+            return passes_query_filter(proxy, filter_);
         }
 
     private:
-        std::span<const engine_game_object_t> ignore_list_;
-        bool hit_triggers_;
+        const QueryFilter& filter_;
     };
 
     const float length = glm::length(direction);
@@ -590,7 +613,7 @@ bool engine::PhysicsWorld::raycast(const glm::vec3& origin, const glm::vec3& dir
     const glm::vec3 end = origin + direction * (max_distance / length);
     const btVector3 bt_from(origin.x, origin.y, origin.z);
     const btVector3 bt_to(end.x, end.y, end.z);
-    ClosestHitWithFilter closest_hit(bt_from, bt_to, ignore_list, hit_triggers);
+    ClosestHitWithFilter closest_hit(bt_from, bt_to, filter);
     dynamics_world_->rayTest(bt_from, bt_to, closest_hit);
     if (!closest_hit.hasHit())
     {
@@ -608,27 +631,22 @@ bool engine::PhysicsWorld::raycast(const glm::vec3& origin, const glm::vec3& dir
     return true;
 }
 
-void engine::PhysicsWorld::overlap(const btCollisionShape& shape, const btTransform& pose, std::span<const engine_game_object_t> ignore_list, bool hit_triggers,
-    std::vector<OverlapHit>& out) const
+void engine::PhysicsWorld::overlap(const btCollisionShape& shape, const btTransform& pose, const QueryFilter& filter, std::vector<OverlapHit>& out) const
 {
     // the deepest contact of each game object the query object touches
     struct OverlapCallback : public btCollisionWorld::ContactResultCallback
     {
-        OverlapCallback(const btCollisionObject* query, std::span<const engine_game_object_t> ignore_list, bool hit_triggers, std::vector<OverlapHit>& hits)
+        OverlapCallback(const btCollisionObject* query, const QueryFilter& filter, std::vector<OverlapHit>& hits)
             : query_(query)
-            , ignore_list_(ignore_list)
-            , hit_triggers_(hit_triggers)
+            , filter_(filter)
             , hits_(hits)
         {
-            // statics are in StaticFilter, kinematics in KinematicFilter: the query sees every group
-            m_collisionFilterGroup = btBroadphaseProxy::AllFilter;
-            m_collisionFilterMask = btBroadphaseProxy::AllFilter;
         }
 
+        // the query's filter only: a body's own collides-with mask doesn't matter to queries
         bool needsCollision(btBroadphaseProxy* proxy) const override
         {
-            return passes_query_filter(static_cast<const btCollisionObject*>(proxy->m_clientObject), ignore_list_, hit_triggers_)
-                && ContactResultCallback::needsCollision(proxy);
+            return passes_query_filter(proxy, filter_);
         }
 
         btScalar addSingleResult(btManifoldPoint& point, const btCollisionObjectWrapper* object0, int, int, const btCollisionObjectWrapper* object1, int, int) override
@@ -654,20 +672,18 @@ void engine::PhysicsWorld::overlap(const btCollisionShape& shape, const btTransf
 
     private:
         const btCollisionObject* query_;
-        std::span<const engine_game_object_t> ignore_list_;
-        bool hit_triggers_;
+        const QueryFilter& filter_;
         std::vector<OverlapHit>& hits_;
     };
 
     btCollisionObject query;
     query.setCollisionShape(const_cast<btCollisionShape*>(&shape));
     query.setWorldTransform(pose);
-    OverlapCallback callback(&query, ignore_list, hit_triggers, out);
+    OverlapCallback callback(&query, filter, out);
     dynamics_world_->contactTest(&query, callback);
 }
 
-void engine::PhysicsWorld::overlap_sphere(const glm::vec3& center, float radius, std::span<const engine_game_object_t> ignore_list, bool hit_triggers,
-    std::vector<OverlapHit>& out) const
+void engine::PhysicsWorld::overlap_sphere(const glm::vec3& center, float radius, const QueryFilter& filter, std::vector<OverlapHit>& out) const
 {
     if (!(radius > 0.0f))
     {
@@ -678,7 +694,7 @@ void engine::PhysicsWorld::overlap_sphere(const glm::vec3& center, float radius,
     pose.setIdentity();
     pose.setOrigin(btVector3(center.x, center.y, center.z));
     const auto first = out.size();
-    overlap(sphere, pose, ignore_list, hit_triggers, out);
+    overlap(sphere, pose, filter, out);
     // contact distances are from the sphere's surface: from its center instead (negative: the center is inside)
     for (auto it = out.begin() + static_cast<std::ptrdiff_t>(first); it != out.end(); ++it)
     {

@@ -927,6 +927,34 @@ bool engineGameObjectIsValid(engine_game_object_t game_object)
     return sc->is_valid_entity(api_cast(game_object));
 }
 
+engine_result_code_t enginePhysicsSetLayerName(uint32_t layer, const char* name)
+{
+    if (!G_ACTIVE_APP)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    if (!api_cast(G_ACTIVE_APP)->physics_layer_names().set(layer, name ? name : ""))
+    {
+        engine::log::log(engine::log::LogLevel::eError, fmt::format("enginePhysicsSetLayerName: layer {} is out of range (0..{}).\n", layer, ENGINE_PHYSICS_LAYER_COUNT - 1));
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    return ENGINE_RESULT_CODE_OK;
+}
+
+const char* enginePhysicsGetLayerName(uint32_t layer)
+{
+    if (!G_ACTIVE_APP)
+    {
+        return nullptr;
+    }
+    const char* name = api_cast(G_ACTIVE_APP)->physics_layer_names().get(layer);
+    if (!name)
+    {
+        engine::log::log(engine::log::LogLevel::eError, fmt::format("enginePhysicsGetLayerName: layer {} is out of range (0..{}).\n", layer, ENGINE_PHYSICS_LAYER_COUNT - 1));
+    }
+    return name;
+}
+
 void enginePhysicsSetGravityVector(const float gravity[3])
 {
     if (!G_ACTIVE_SCENE)
@@ -975,7 +1003,7 @@ bool enginePhysicsRayCast(const float origin[3], const float direction[3], float
     const auto& f = filter ? *filter : no_filter;
     const std::span<const engine_game_object_t> ignore = f.ignore ? std::span(f.ignore, f.ignore_count) : std::span<const engine_game_object_t>{};
     auto sc = api_cast(G_ACTIVE_SCENE);
-    return sc->physics().raycast(glm::make_vec3(origin), glm::make_vec3(direction), max_distance, ignore, f.hit_triggers, *out_hit);
+    return sc->physics().raycast(glm::make_vec3(origin), glm::make_vec3(direction), max_distance, { ignore, f.hit_triggers, f.layer_mask }, *out_hit);
 }
 
 size_t enginePhysicsOverlapSphere(const float center[3], float radius, const engine_physics_query_filter_t* filter, engine_game_object_t* out_game_objects, size_t capacity)
@@ -989,7 +1017,7 @@ size_t enginePhysicsOverlapSphere(const float center[3], float radius, const eng
     const std::span<const engine_game_object_t> ignore = f.ignore ? std::span(f.ignore, f.ignore_count) : std::span<const engine_game_object_t>{};
     auto sc = api_cast(G_ACTIVE_SCENE);
     std::vector<engine::OverlapHit> hits;
-    sc->physics().overlap_sphere(glm::make_vec3(center), radius, ignore, f.hit_triggers, hits);
+    sc->physics().overlap_sphere(glm::make_vec3(center), radius, { ignore, f.hit_triggers, f.layer_mask }, hits);
     const auto out = out_game_objects ? std::span(out_game_objects, capacity) : std::span<engine_game_object_t>{};
     return engine::write_nearest_first(hits, out);
 }

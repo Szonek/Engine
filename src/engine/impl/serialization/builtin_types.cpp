@@ -173,6 +173,8 @@ void register_collider(engine::TypeRegistry& registry)
             { ENGINE_COLLIDER_TYPE_COMPOUND, "compound_collider" } })
         .field("bounciness", &T::bounciness)
         .field("friction_static", &T::friction_static)
+        .field("layer", &T::layer)
+        .field("collides_with", &T::collides_with)
         .component();
 }
 }  // namespace
@@ -248,5 +250,7 @@ void engine::register_builtin_types(TypeRegistry& registry)
         .field("height", &engine_character_controller_component_t::height)
         .field("step_height", &engine_character_controller_component_t::step_height)
         .field("max_slope", &engine_character_controller_component_t::max_slope)
+        .field("layer", &engine_character_controller_component_t::layer)
+        .field("collides_with", &engine_character_controller_component_t::collides_with)
         .component();
 }

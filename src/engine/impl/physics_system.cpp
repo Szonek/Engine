@@ -149,21 +149,20 @@ engine_result_code_t engine::PhysicsSystem::move_character(entt::entity entity, 
     return ENGINE_RESULT_CODE_OK;
 }
 
-bool engine::PhysicsSystem::raycast(const glm::vec3& origin, const glm::vec3& direction, float max_distance, std::span<const engine_game_object_t> ignore_list, bool hit_triggers, engine_ray_hit_t& out_hit)
+bool engine::PhysicsSystem::raycast(const glm::vec3& origin, const glm::vec3& direction, float max_distance, const PhysicsWorld::QueryFilter& filter, engine_ray_hit_t& out_hit)
 {
     ENGINE_PROFILE_SECTION;
     // what scripts moved earlier this frame is hit where it is now
     sync_bodies_to_transforms(false);
-    return world_.raycast(origin, direction, max_distance, ignore_list, hit_triggers, out_hit);
+    return world_.raycast(origin, direction, max_distance, filter, out_hit);
 }
 
-void engine::PhysicsSystem::overlap_sphere(const glm::vec3& center, float radius, std::span<const engine_game_object_t> ignore_list, bool hit_triggers,
-    std::vector<OverlapHit>& out)
+void engine::PhysicsSystem::overlap_sphere(const glm::vec3& center, float radius, const PhysicsWorld::QueryFilter& filter, std::vector<OverlapHit>& out)
 {
     ENGINE_PROFILE_SECTION;
     // what scripts moved earlier this frame is found where it is now
     sync_bodies_to_transforms(false);
-    world_.overlap_sphere(center, radius, ignore_list, hit_triggers, out);
+    world_.overlap_sphere(center, radius, filter, out);
 }
 
 bool engine::PhysicsSystem::add_force(entt::entity entity, std::array<float, 3> force, engine_force_type_t type)
@@ -265,6 +264,12 @@ void engine::PhysicsSystem::create_body(entt::entity entity, bool without_rigid_
     {
         return;
     }
+    const auto layer = character ? character->layer : collider->layer;
+    if (layer >= PHYSICS_LAYER_COUNT)
+    {
+        log::log(log::LogLevel::eError, fmt::format("[Entity: {}] is on collision layer {}, out of range (0..{}): it interacts with nothing.\n",
+            static_cast<std::uint32_t>(entity), layer, PHYSICS_LAYER_COUNT - 1));
+    }
     const auto local_to_world = get_world_matrix(entity);
     physcic_internal_component_t physcics_component{};
     if (character)
@@ -273,7 +278,8 @@ void engine::PhysicsSystem::create_body(entt::entity entity, bool without_rigid_
         {
             log::log(log::LogLevel::eError, fmt::format("[Entity: {}] has a collider and a character controller, the collider is ignored.\n", static_cast<std::uint32_t>(entity)));
         }
-        physcics_component = world_.create_character_body(character->radius, character->height, local_to_world, static_cast<std::int32_t>(entity));
+        physcics_component = world_.create_character_body(character->radius, character->height, character->layer, character->collides_with, local_to_world,
+            static_cast<std::int32_t>(entity));
     }
     else
     {

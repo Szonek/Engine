@@ -6,6 +6,8 @@ extern "C"
 #endif // cpp
 #include <stdint.h>
 
+#include "physics_layers.h"
+
 #define ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS 1
 
 /**
@@ -150,6 +152,10 @@ typedef struct _engine_collider_component_t
 
     float bounciness;
     float friction_static;
+    // its collision layer (0..ENGINE_PHYSICS_LAYER_COUNT-1) and the layers it collides with, one bit each (exact: 0
+    // collides with nothing); see physics_layers.h
+    uint32_t layer;
+    uint32_t collides_with;
 } engine_collider_component_t;
 
 #ifdef __cplusplus

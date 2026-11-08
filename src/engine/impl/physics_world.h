@@ -2,6 +2,7 @@
 #include "engine.h"
 #include "collision_desc.h"
 #include "overlap_results.h"
+#include "collision_layers.h"
 
 #ifdef _MSC_VER
 #pragma warning(disable: 4127) // disable warning
@@ -58,8 +59,10 @@ public:
     physcic_internal_component_t create_rigid_body(const engine_collider_component_t& collider, BodyType type, float mass,
         const glm::mat4& local_to_world, std::int32_t body_index);
     static BodyType get_body_type(const btRigidBody* rigid_body);
-    // A character controller's body: a kinematic capsule standing on the origin of local_to_world, scaled by its scale.
-    physcic_internal_component_t create_character_body(float radius, float height, const glm::mat4& local_to_world, std::int32_t body_index);
+    // A character controller's body: a kinematic capsule standing on the origin of local_to_world, scaled by its scale,
+    // on `layer`, colliding with `collides_with` (collision_layers.h).
+    physcic_internal_component_t create_character_body(float radius, float height, std::uint32_t layer, std::uint32_t collides_with,
+        const glm::mat4& local_to_world, std::int32_t body_index);
 
     struct CharacterMoveResult
     {
@@ -100,23 +103,38 @@ public:
 
     void set_gravity(std::span<const float> g);
 
-    // the closest hit along origin + direction * t, t in [0, max_distance] (direction need not be normalized), skipping the
-    // ignored game objects and, unless hit_triggers, triggers. False without a hit or for an empty ray.
-    bool raycast(const glm::vec3& origin, const glm::vec3& direction, float max_distance, std::span<const engine_game_object_t> ignore_list, bool hit_triggers, engine_ray_hit_t& out_hit);
+    // what a query skips (engine_physics_query_filter_t): the ignored game objects, triggers unless hit_triggers, and
+    // bodies on layers not in layer_mask (0: every layer)
+    struct QueryFilter
+    {
+        std::span<const engine_game_object_t> ignore;
+        bool hit_triggers = false;
+        std::uint32_t layer_mask = 0;
+    };
+    // the closest hit along origin + direction * t, t in [0, max_distance] (direction need not be normalized), passing
+    // the filter. False without a hit or for an empty ray.
+    bool raycast(const glm::vec3& origin, const glm::vec3& direction, float max_distance, const QueryFilter& filter, engine_ray_hit_t& out_hit);
     // The game objects whose bodies overlap `shape` at `pose` (a query shape, never added to the world), each with the
     // distance from the shape's surface to theirs at the deepest contact (negative: penetration), unsorted, into `out`
-    void overlap(const btCollisionShape& shape, const btTransform& pose, std::span<const engine_game_object_t> ignore_list, bool hit_triggers,
-        std::vector<OverlapHit>& out) const;
+    void overlap(const btCollisionShape& shape, const btTransform& pose, const QueryFilter& filter, std::vector<OverlapHit>& out) const;
     // the game objects overlapping the sphere, with the distance from its center to their surface (negative inside), into `out`
-    void overlap_sphere(const glm::vec3& center, float radius, std::span<const engine_game_object_t> ignore_list, bool hit_triggers,
-        std::vector<OverlapHit>& out) const;
+    void overlap_sphere(const glm::vec3& center, float radius, const QueryFilter& filter, std::vector<OverlapHit>& out) const;
 
 private:
     static constexpr float FIXED_TIME_STEP = 1.0f / 60.0f;
     static constexpr int MAX_SUB_STEPS = 10;
 
-    // adds the body to the world with the broadphase filter of its type
-    void add_to_world(btRigidBody* rigid_body);
+    // adds the body to the world on its layer: its broadphase group is the layer's bit, its mask the layers it collides
+    // with (the pair filter below decides every pair)
+    void add_to_world(btRigidBody* rigid_body, std::uint32_t layer, std::uint32_t collides_with);
+
+    // The one place deciding which bodies interact: their layers (each in the other's mask), then the fixed body motion
+    // rule (no static-static, no kinematic-static pairs), collision_layers.h.
+    class PairFilter : public btOverlapFilterCallback
+    {
+    public:
+        bool needBroadphaseCollision(btBroadphaseProxy* proxy0, btBroadphaseProxy* proxy1) const override;
+    };
 
     class DebugDrawer : public btIDebugDraw
     {
@@ -148,6 +166,8 @@ private:
     std::unique_ptr<DebugDrawer> debug_drawer_;
     std::unique_ptr<btDefaultCollisionConfiguration> collision_config_;
     std::unique_ptr<btCollisionDispatcher> dispatcher_;
+    // before the broadphase, which keeps a pointer to it
+    PairFilter pair_filter_;
     std::unique_ptr<btBroadphaseInterface> overlapping_pair_cache_;
     std::unique_ptr<btSequentialImpulseConstraintSolver> solver_;
 

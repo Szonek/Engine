@@ -13,6 +13,7 @@
 #include "data_asset.h"
 #include "play_mode.h"
 #include "serialization/type_registry.h"
+#include "collision_layers.h"
 #include "render/renderer.h"
 
 #include <atomic>
@@ -128,6 +129,9 @@ public:
 
     // the types scene files hold (see serialization/scene_serializer.h)
     const TypeRegistry& get_type_registry() const { return types_; }
+    // the names of the collision layers (enginePhysicsSetLayerName), for the editor
+    PhysicsLayerNames& physics_layer_names() { return physics_layer_names_; }
+    const PhysicsLayerNames& physics_layer_names() const { return physics_layer_names_; }
     // a type the game describes, see register_game_type; nullptr (logged) when the description has a mistake
     const TypeInfo* register_game_type(const engine_type_desc_t& desc, bool component);
 
@@ -196,6 +200,7 @@ protected:
     Atlas<std::unique_ptr<Prefab>> prefabs_atlas_;
     Atlas<Shader> shader_atlas_;
     TypeRegistry types_;
+    PhysicsLayerNames physics_layer_names_;
     // set (on the watcher's thread) when a data asset's file changed, so the frame only looks at them then; before the
     // atlas, whose assets' watcher callbacks set it
     std::atomic<bool> data_assets_changed_ = false;

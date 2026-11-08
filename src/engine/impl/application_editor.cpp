@@ -2372,7 +2372,7 @@ glm::vec3 engine::ApplicationEditor::get_mouse_scene_point(Scene* scene, entt::e
     engine_ray_hit_t hit{};
     // nothing beyond the far plane: it couldn't be seen there
     const float max_distance = scene->get_component<engine_camera_component_t>(camera_entity)->clip_plane_far;
-    return scene->physics().raycast(origin, direction, max_distance, {}, false, hit)
+    return scene->physics().raycast(origin, direction, max_distance, {}, hit)
         ? glm::vec3(hit.position[0], hit.position[1], hit.position[2]) : get_ground_point(origin, direction, max_distance);
 }
 

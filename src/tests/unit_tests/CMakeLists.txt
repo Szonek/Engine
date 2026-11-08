@@ -33,6 +33,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	editor_save_point_tests.cpp
 	editor_command_manager_tests.cpp
 	editor_scene_file_flow_tests.cpp
+	collision_layers_tests.cpp
 	debug_draw_tests.cpp
 	traversal_math_tests.cpp
 	enemy_awareness_tests.cpp
@@ -95,6 +96,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/play_mode.cpp
 	${ENGINE_IMPL_DIR}/play_mode.h
 	# the shapes engineDebugDraw* add during a frame (glm only)
+	${ENGINE_IMPL_DIR}/collision_layers.h
 	${ENGINE_IMPL_DIR}/debug_draw.cpp
 	${ENGINE_IMPL_DIR}/debug_draw.h
 	# type registry, the engine's component descriptions, game-defined types and scene files (EnTT registry + rapidjson)

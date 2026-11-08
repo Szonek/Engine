@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 
 #include <algorithm>
+#include <functional>
 #include <optional>
 #include <vector>
 
@@ -725,3 +726,175 @@ TEST_F(PhysicsTest, OverlapSphereWithZeroRadiusFindsNothing)
     EXPECT_EQ(found[0], ENGINE_INVALID_GAME_OBJECT_ID);
 }
 }  // namespace
+
+// collision layers (physics_layers.h): 1 level geometry, 2 characters, 3 hitboxes in these tests
+namespace
+{
+constexpr std::uint32_t LEVEL_LAYER = 1;
+constexpr std::uint32_t CHARACTER_LAYER = 2;
+constexpr std::uint32_t HITBOX_LAYER = 3;
+
+void set_layer(engine_game_object_t go, std::uint32_t layer, std::uint32_t collides_with = 0xFFFFFFFFu)
+{
+    auto cc = engineGameObjectGetColliderComponent(go);
+    cc.layer = layer;
+    cc.collides_with = collides_with;
+    engineGameObjectUpdateColliderComponent(go, &cc);
+}
+
+// a dynamic 0.5 m box at (x, y, 0)
+engine_game_object_t create_falling_box(float x, float y)
+{
+    const auto go = create_object(x, y, 0.0f);
+    add_rigid_body(go, 1.0f);
+    add_box_collider(go);
+    return go;
+}
+
+// a floor whose top is at y = -0.25, on the level geometry layer
+engine_game_object_t create_level_floor()
+{
+    const auto floor = create_object(0.0f, -0.5f, 0.0f);
+    add_box_collider(floor, glm::vec3(5.0f, 0.25f, 5.0f));
+    set_layer(floor, LEVEL_LAYER);
+    return floor;
+}
+
+// moves the parent of a trigger 1 m to its right toward `target`; whether they collided on the way
+bool sweep_hitbox_into(engine_game_object_t parent, engine_game_object_t hitbox, engine_game_object_t target, std::function<void()> step_frame)
+{
+    for (int i = 1; i <= 30; i++)
+    {
+        move_to(parent, i * 0.1f, 0.0f);
+        step_frame();
+        if (collided(hitbox, target))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+}  // namespace
+
+TEST_F(PhysicsTest, NewCollidersAreOnTheDefaultLayerCollidingWithEverything)
+{
+    load_scene<PhysicsScene>();
+    const auto go = create_object(0.0f, 0.0f, 0.0f);
+    add_box_collider(go);
+    const auto cc = engineGameObjectGetColliderComponent(go);
+    EXPECT_EQ(cc.layer, static_cast<std::uint32_t>(ENGINE_PHYSICS_LAYER_DEFAULT));
+    EXPECT_EQ(cc.collides_with, 0xFFFFFFFFu);
+}
+
+// a ray seeing only level geometry passes a character standing in front of the wall
+TEST_F(PhysicsTest, RayCastOnALayerPassesBodiesOnOthers)
+{
+    load_scene<PhysicsScene>();
+    const auto character = create_object(-2.0f, 0.0f, 0.0f);
+    add_box_collider(character);
+    set_layer(character, CHARACTER_LAYER);
+    const auto wall = create_object(2.0f, 0.0f, 0.0f);
+    add_box_collider(wall);
+    set_layer(wall, LEVEL_LAYER);
+    step();
+
+    engine_ray_hit_t hit{};
+    ASSERT_TRUE(cast_along_x(20.0f, nullptr, hit));
+    EXPECT_EQ(hit.go, character);
+    engine_physics_query_filter_t level_only{};
+    level_only.layer_mask = 1u << LEVEL_LAYER;
+    ASSERT_TRUE(cast_along_x(20.0f, &level_only, hit));
+    EXPECT_EQ(hit.go, wall);
+    // a mask with neither layer: nothing
+    engine_physics_query_filter_t hitboxes_only{};
+    hitboxes_only.layer_mask = 1u << HITBOX_LAYER;
+    EXPECT_FALSE(cast_along_x(20.0f, &hitboxes_only, hit));
+}
+
+// an overlap seeing only characters skips the floor under them
+TEST_F(PhysicsTest, OverlapOnALayerReturnsOnlyItsBodies)
+{
+    load_scene<PhysicsScene>();
+    const auto floor = create_level_floor();
+    const auto near_character = create_object(1.0f, 0.5f, 0.0f);
+    add_box_collider(near_character);
+    set_layer(near_character, CHARACTER_LAYER);
+    const auto far_character = create_object(-2.0f, 0.5f, 0.0f);
+    add_box_collider(far_character);
+    set_layer(far_character, CHARACTER_LAYER);
+    step();
+
+    engine_physics_query_filter_t characters{};
+    characters.layer_mask = 1u << CHARACTER_LAYER;
+    EXPECT_EQ(overlap_sphere(glm::vec3(0.0f), 3.0f, &characters), (std::vector<engine_game_object_t>{ near_character, far_character }));
+    // without a layer filter the floor is found too, nearest
+    const auto all = overlap_sphere(glm::vec3(0.0f), 3.0f);
+    ASSERT_EQ(all.size(), 3u);
+    EXPECT_EQ(all.front(), floor);
+}
+
+// two dynamic bodies whose masks exclude each other fall through each other; the floor stops both
+TEST_F(PhysicsTest, BodiesOnExcludedLayersPassThroughEachOther)
+{
+    load_scene<PhysicsScene>();
+    create_level_floor();
+    const auto lower = create_falling_box(0.0f, 0.5f);
+    const auto upper = create_falling_box(0.0f, 2.0f);
+    // the upper one collides with the level only: it passes the lower one (on layer 0)
+    set_layer(upper, CHARACTER_LAYER, 1u << LEVEL_LAYER);
+    step(120);
+
+    EXPECT_NEAR(world_position(lower).y, 0.0f, 0.05f);
+    EXPECT_NEAR(world_position(upper).y, 0.0f, 0.05f);
+}
+
+// a mask of 0 collides with nothing: the body falls through the floor (queries still see it)
+TEST_F(PhysicsTest, ColliderWithAnEmptyMaskCollidesWithNothing)
+{
+    load_scene<PhysicsScene>();
+    create_level_floor();
+    const auto box = create_falling_box(0.0f, 0.5f);
+    set_layer(box, ENGINE_PHYSICS_LAYER_DEFAULT, 0);
+    step(60);
+
+    EXPECT_LT(world_position(box).y, -2.0f);
+    EXPECT_TRUE(contains(overlap_sphere(world_position(box), 0.1f), box));
+}
+
+// a hitbox colliding only with characters never reports a kinematic body on another layer, and does on the characters'
+TEST_F(PhysicsTest, HitboxOnlyDetectsTheLayersInItsMask)
+{
+    load_scene<PhysicsScene>();
+    const auto target = create_object(4.0f, 0.0f, 0.0f);
+    add_box_collider(target);
+    set_body_type(target, ENGINE_RIGID_BODY_TYPE_KINEMATIC);
+    set_layer(target, LEVEL_LAYER);
+    const auto parent = create_object(0.0f, 0.0f, 0.0f);
+    const auto hitbox = create_object(1.0f, 0.0f, 0.0f);
+    set_parent(hitbox, parent);
+    add_box_collider(hitbox);
+    make_trigger(hitbox);
+    set_layer(hitbox, HITBOX_LAYER, 1u << CHARACTER_LAYER);
+    step();
+    EXPECT_FALSE(sweep_hitbox_into(parent, hitbox, target, [this] { step(); }));
+
+    move_to(parent, 0.0f, 0.0f);
+    set_layer(target, CHARACTER_LAYER);
+    step();
+    EXPECT_TRUE(sweep_hitbox_into(parent, hitbox, target, [this] { step(); }));
+}
+
+// a layer changed while playing takes effect at once (the body is added again)
+TEST_F(PhysicsTest, LayerChangedAtRuntimeTakesEffect)
+{
+    load_scene<PhysicsScene>();
+    create_level_floor();
+    const auto box = create_falling_box(0.0f, 0.5f);
+    step(60);
+    ASSERT_NEAR(world_position(box).y, 0.0f, 0.05f);
+
+    // colliding with characters only: it falls through the floor
+    set_layer(box, CHARACTER_LAYER, 1u << CHARACTER_LAYER);
+    step(60);
+    EXPECT_LT(world_position(box).y, -1.0f);
+}

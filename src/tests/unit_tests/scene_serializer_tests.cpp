@@ -383,6 +383,8 @@ protected:
         collider.collider.box = { { 1.0f, 2.0f, 3.0f } };
         collider.bounciness = 0.25f;
         collider.friction_static = 0.75f;
+        collider.layer = 3;
+        collider.collides_with = 0b1010u;
         w.put<engine_collider_component_t>(root, collider);
 
         const auto child = w.create();
@@ -404,7 +406,7 @@ protected:
         const auto level = w.create();
         w.put<engine_nav_surface_component_t>(level, engine_nav_surface_component_t{ 0.4f, 1.8f, 40.0f, 0.3f, 0.2f, 0.1f });
         w.put<engine_nav_modifier_component_t>(level, engine_nav_modifier_component_t{ ENGINE_NAV_MODIFIER_TYPE_NOT_WALKABLE });
-        w.put<engine_character_controller_component_t>(level, engine_character_controller_component_t{ 0.3f, 1.7f, 0.25f, 50.0f });
+        w.put<engine_character_controller_component_t>(level, engine_character_controller_component_t{ 0.3f, 1.7f, 0.25f, 50.0f, 31u, 0x80000005u });
 
         const auto camera = w.create();
         engine_camera_component_t cam{};
