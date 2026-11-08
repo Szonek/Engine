@@ -158,7 +158,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -198,7 +200,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -238,7 +242,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -278,7 +284,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -318,7 +326,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -358,7 +368,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -398,7 +410,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -438,7 +452,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -478,7 +494,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -518,7 +536,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -558,7 +578,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -598,7 +620,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -638,7 +662,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -678,7 +704,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -718,7 +746,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -758,7 +788,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -798,7 +830,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -838,7 +872,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -878,7 +914,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -918,7 +956,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -958,7 +998,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -998,7 +1040,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1038,7 +1082,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1078,7 +1124,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1118,7 +1166,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1158,7 +1208,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1198,7 +1250,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1238,7 +1292,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1278,7 +1334,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1318,7 +1376,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1358,7 +1418,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1398,7 +1460,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1438,7 +1502,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1478,7 +1544,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1518,7 +1586,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1558,7 +1628,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1598,7 +1670,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1638,7 +1712,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1678,7 +1754,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1718,7 +1796,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1758,7 +1838,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1798,7 +1880,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1838,7 +1922,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1878,7 +1964,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1918,7 +2006,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1958,7 +2048,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -1998,7 +2090,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2038,7 +2132,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2078,7 +2174,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2118,7 +2216,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2158,7 +2258,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2198,7 +2300,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2238,7 +2342,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2278,7 +2384,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2318,7 +2426,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2358,7 +2468,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2398,7 +2510,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2438,7 +2552,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2478,7 +2594,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2518,7 +2636,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2558,7 +2678,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2598,7 +2720,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2638,7 +2762,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2678,7 +2804,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2718,7 +2846,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2758,7 +2888,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2798,7 +2930,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2838,7 +2972,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2878,7 +3014,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2918,7 +3056,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2958,7 +3098,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -2998,7 +3140,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3038,7 +3182,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3078,7 +3224,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3118,7 +3266,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3158,7 +3308,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3198,7 +3350,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3238,7 +3392,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3278,7 +3434,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3318,7 +3476,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3358,7 +3518,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3398,7 +3560,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3438,7 +3602,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3478,7 +3644,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3518,7 +3686,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3558,7 +3728,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3598,7 +3770,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3638,7 +3812,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3678,7 +3854,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3718,7 +3896,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3758,7 +3938,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3798,7 +3980,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3838,7 +4022,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3878,7 +4064,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3918,7 +4106,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3958,7 +4148,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -3998,7 +4190,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4038,7 +4232,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4078,7 +4274,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4118,7 +4316,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4158,7 +4358,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4198,7 +4400,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4238,7 +4442,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4278,7 +4484,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4318,7 +4526,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4358,7 +4568,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4398,7 +4610,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4441,7 +4655,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4484,7 +4700,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4527,7 +4745,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4570,7 +4790,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4613,7 +4835,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4653,7 +4877,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4693,7 +4919,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4733,7 +4961,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4773,7 +5003,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4813,7 +5045,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4853,7 +5087,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4893,7 +5129,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4933,7 +5171,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -4976,7 +5216,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5019,7 +5261,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5062,7 +5306,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5105,7 +5351,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5148,7 +5396,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5188,7 +5438,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5228,7 +5480,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5268,7 +5522,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5308,7 +5564,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5348,7 +5606,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5388,7 +5648,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5428,7 +5690,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5468,7 +5732,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5511,7 +5777,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5554,7 +5822,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5597,7 +5867,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5640,7 +5912,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5683,7 +5957,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5723,7 +5999,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5763,7 +6041,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5803,7 +6083,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5843,7 +6125,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5883,7 +6167,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5923,7 +6209,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -5963,7 +6251,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6003,7 +6293,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6046,7 +6338,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6089,7 +6383,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6132,7 +6428,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6175,7 +6473,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6218,7 +6518,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6258,7 +6560,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6298,7 +6602,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6338,7 +6644,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6378,7 +6686,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6418,7 +6728,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6458,7 +6770,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6498,7 +6812,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6538,7 +6854,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6581,7 +6899,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6624,7 +6944,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6667,7 +6989,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6710,7 +7034,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6753,7 +7079,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6793,7 +7121,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6833,7 +7163,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6873,7 +7205,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6913,7 +7247,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6953,7 +7289,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -6993,7 +7331,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7033,7 +7373,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7073,7 +7415,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7113,7 +7457,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7153,7 +7499,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7193,7 +7541,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7233,7 +7583,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7273,7 +7625,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7313,7 +7667,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7353,7 +7709,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7393,7 +7751,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7433,7 +7793,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7473,7 +7835,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7513,7 +7877,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7553,7 +7919,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7593,7 +7961,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7633,7 +8003,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7673,7 +8045,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7713,7 +8087,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7753,7 +8129,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7793,7 +8171,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7833,7 +8213,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7873,7 +8255,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7913,7 +8297,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7953,7 +8339,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -7993,7 +8381,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8033,7 +8423,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8073,7 +8465,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8113,7 +8507,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8153,7 +8549,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8193,7 +8591,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8233,7 +8633,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8273,7 +8675,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8313,7 +8717,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8353,7 +8759,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8393,7 +8801,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8433,7 +8843,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8473,7 +8885,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8513,7 +8927,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8553,7 +8969,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8593,7 +9011,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8633,7 +9053,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8673,7 +9095,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8713,7 +9137,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8753,7 +9179,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8793,7 +9221,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8833,7 +9263,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8873,7 +9305,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8913,7 +9347,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8953,7 +9389,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -8993,7 +9431,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9033,7 +9473,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9073,7 +9515,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9113,7 +9557,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9153,7 +9599,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9193,7 +9641,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9233,7 +9683,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9273,7 +9725,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9313,7 +9767,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9353,7 +9809,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9393,7 +9851,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9433,7 +9893,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9473,7 +9935,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9513,7 +9977,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9553,7 +10019,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9593,7 +10061,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9633,7 +10103,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9673,7 +10145,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9713,7 +10187,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9753,7 +10229,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9793,7 +10271,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9833,7 +10313,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9873,7 +10355,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9913,7 +10397,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9953,7 +10439,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -9993,7 +10481,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10033,7 +10523,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10073,7 +10565,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10113,7 +10607,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10153,7 +10649,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10193,7 +10691,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10233,7 +10733,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10273,7 +10775,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10313,7 +10817,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10353,7 +10859,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10393,7 +10901,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10433,7 +10943,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10473,7 +10985,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10513,7 +11027,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10553,7 +11069,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10593,7 +11111,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10633,7 +11153,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10673,7 +11195,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10713,7 +11237,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10753,7 +11279,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10793,7 +11321,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10833,7 +11363,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10873,7 +11405,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10913,7 +11447,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10953,7 +11489,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -10993,7 +11531,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -11033,7 +11573,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -11073,7 +11615,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -11113,7 +11657,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"
@@ -11189,7 +11735,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "building_part_config": {
               "climbable": true,
@@ -11235,7 +11783,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "building_part_config": {
               "climbable": true,
@@ -11307,7 +11857,9 @@
               }]
           },
           "bounciness": 0.5,
-          "friction_static": 1
+          "friction_static": 1,
+          "layer": 1,
+          "collides_with": 4294967295
         },
         "building_part_config": {
           "climbable": true,
@@ -11348,7 +11900,9 @@
               }]
           },
           "bounciness": 0.5,
-          "friction_static": 1
+          "friction_static": 1,
+          "layer": 1,
+          "collides_with": 4294967295
         },
         "building_part_config": {
           "climbable": true,
@@ -11389,7 +11943,9 @@
               }]
           },
           "bounciness": 0.5,
-          "friction_static": 1
+          "friction_static": 1,
+          "layer": 1,
+          "collides_with": 4294967295
         },
         "building_part_config": {
           "climbable": true,
@@ -11430,7 +11986,9 @@
               }]
           },
           "bounciness": 0.5,
-          "friction_static": 1
+          "friction_static": 1,
+          "layer": 1,
+          "collides_with": 4294967295
         },
         "building_part_config": {
           "climbable": true,
@@ -11474,7 +12032,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "building_part_config": {
               "climbable": true,
@@ -11520,7 +12080,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "building_part_config": {
               "climbable": true,
@@ -11566,7 +12128,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "building_part_config": {
               "climbable": true,
@@ -11612,7 +12176,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "building_part_config": {
               "climbable": true,
@@ -11658,7 +12224,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "building_part_config": {
               "climbable": true,
@@ -11704,7 +12272,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "building_part_config": {
               "climbable": false,
@@ -11747,7 +12317,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "chest"
@@ -11784,7 +12356,9 @@
                   }]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "chest"
@@ -11843,7 +12417,9 @@
               }]
           },
           "bounciness": 0.5,
-          "friction_static": 1
+          "friction_static": 1,
+          "layer": 0,
+          "collides_with": 4294967295
         },
         "level_exit": {
           "level": "test_level_2.json",

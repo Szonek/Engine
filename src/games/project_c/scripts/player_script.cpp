@@ -1,4 +1,5 @@
 #include "player_script.h"
+#include "game_layers.h"
 #include "scripts_utils.h"
 #include "enemy_script.h"
 #include "enviorment_script.h"
@@ -86,6 +87,7 @@ void project_c::Weapon::add_components(engine_game_object_t go, const AppProject
 
     // physics
     auto cc = engineGameObjectAddColliderComponent(go);
+    set_layer(cc, Layer::ePickup);
     cc.bounciness = 0.35f;
     cc.friction_static = 0.9f;
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
@@ -303,6 +305,7 @@ project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_ob
 
     // physics
     auto cc = engineGameObjectAddColliderComponent(go_);
+    set_layer(cc, Layer::eHitbox);
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
     cc.is_trigger = true;
     auto& cc_child = cc.collider.compound.children[0];

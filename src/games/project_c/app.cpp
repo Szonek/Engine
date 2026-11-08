@@ -7,6 +7,7 @@
 #include "scripts/enemy_spawner_script.h"
 #include "scripts/enviorment_script.h"
 #include "scripts/game_components.h"
+#include "scripts/game_layers.h"
 #include "scripts/gameplay_hud_script.h"
 #include "scripts/gizmos.h"
 #include "scripts/interactable_script.h"
@@ -71,6 +72,8 @@ project_c::AppProjectC::AppProjectC(const PrefabsData& prefabs_data, const AppCo
     : engine::IApplication(app_cd(config))
     , level_path_(config.level_path)
 {
+    // the collision layers the game puts its bodies on, named for the editor
+    register_layer_names();
     register_script_types();
     // logged when they fail: enemies and the player then have the types' default values
     skeleton_warrior_type_ = engineDataAssetLoad(SKELETON_WARRIOR_TYPE_PATH);

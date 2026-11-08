@@ -1,4 +1,5 @@
 #include "enemy_script.h"
+#include "game_layers.h"
 #include "player_script.h"
 #include "enviorment_script.h"
 #include "scripts_utils.h"
@@ -97,6 +98,7 @@ project_c::EnemyWeapon::EnemyWeapon(engine::IScene* my_scene, engine_game_object
     engineGameObjectUpdateJointAttachmentComponent(go_, &jac);
 
     auto cc = engineGameObjectAddColliderComponent(go_);
+    set_layer(cc, Layer::eHitbox);
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
     cc.is_trigger = true;
     auto& hitbox = cc.collider.compound.children[0];

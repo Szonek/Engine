@@ -45,6 +45,7 @@ set(LIB_SOURCES
 	scripts/enviorment_script.h
 	scripts/enviorment_script.cpp
 	scripts/game_components.h
+	scripts/game_layers.h
 	scripts/game_components.cpp
 	scripts/gameplay_hud_script.h
 	scripts/gameplay_hud_script.cpp
