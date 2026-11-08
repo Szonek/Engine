@@ -18,10 +18,13 @@ enum class ShaderBindingSlot
     //
 
     DEBUG_PHYSICS = 9,
-    PARTICLES = 10
+    PARTICLES = 10,
+    // the particles' texture, and the copy of the scene's depth soft particles fade against
+    TEXTURE_PARTICLE = 11,
+    TEXTURE_SCENE_DEPTH = 12
 };
 
-inline constexpr std::array<ShaderBindingSlot, 11> kAllShaderBindingSlots{
+inline constexpr std::array<ShaderBindingSlot, 13> kAllShaderBindingSlots{
     ShaderBindingSlot::CAMERA,
     ShaderBindingSlot::SCENE,
     ShaderBindingSlot::LIGHTS,
@@ -32,7 +35,9 @@ inline constexpr std::array<ShaderBindingSlot, 11> kAllShaderBindingSlots{
     ShaderBindingSlot::TEXTURE_SHADOW_MAP,
     ShaderBindingSlot::TEXTURE_SSAO,
     ShaderBindingSlot::DEBUG_PHYSICS,
-    ShaderBindingSlot::PARTICLES
+    ShaderBindingSlot::PARTICLES,
+    ShaderBindingSlot::TEXTURE_PARTICLE,
+    ShaderBindingSlot::TEXTURE_SCENE_DEPTH
 };
 
 inline std::string shader_binding_slot_to_str(ShaderBindingSlot s)
@@ -61,6 +66,10 @@ inline std::string shader_binding_slot_to_str(ShaderBindingSlot s)
         return "ENGINE_BINDING_SLOT_DEBUG_PHYSICS";
     case ShaderBindingSlot::PARTICLES:
         return "ENGINE_BINDING_SLOT_PARTICLES";
+    case ShaderBindingSlot::TEXTURE_PARTICLE:
+        return "ENGINE_BINDING_SLOT_TEXTURE_PARTICLE";
+    case ShaderBindingSlot::TEXTURE_SCENE_DEPTH:
+        return "ENGINE_BINDING_SLOT_TEXTURE_SCENE_DEPTH";
     default:
         assert(false && "Unknown binding slot.");
         return "UNKNOWN";
