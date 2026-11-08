@@ -746,9 +746,15 @@ void project_c::Player::update(float dt)
         }
     }
 
+    // What every action on the ground needs, each adding its own conditions: not landing, kicking or throwing, nor
+    // stunned (not_busy), and, for all but the dodge, not dodging (free_to_act). Asked where each action is decided,
+    // after the ones before it may have started.
+    const auto not_busy = [&] { return !recovering && !in_body_action() && hit_stun_remaining_seconds_ <= 0.0f; };
+    const auto free_to_act = [&] { return not_busy() && dodge_remaining_seconds_ <= 0.0f; };
+
     // an execution: on the target the attack press would execute (also in the middle of a combo, whose swing it
     // cancels; with or without a weapon); otherwise the press is a normal attack
-    const bool can_execute = !dodge_pressed && !recovering && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f && !in_body_action();
+    const bool can_execute = free_to_act() && !dodge_pressed;
     const PlayerExecutions::Context execution_context{ position_of(), weapon() != nullptr };
     execution_target_ = can_execute ? executions_.find_ground_target(execution_context, executions) : ENGINE_INVALID_GAME_OBJECT_ID;
     const bool chain_window_open = executions_.is_chain_window_open();
@@ -761,8 +767,7 @@ void project_c::Player::update(float dt)
     }
 
     // the shove: a kick on its own key, with or without a weapon, not in the middle of another action
-    const bool can_act = !attack_pressed && !dodge_pressed && !recovering && !in_body_action() && !check_state_bit(States::ATTACK)
-        && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f;
+    const bool can_act = free_to_act() && !attack_pressed && !dodge_pressed && !check_state_bit(States::ATTACK);
     if (shove_pressed && can_act && shove_cooldown_remaining_seconds_ <= 0.0f)
     {
         start_shove(t);
@@ -773,7 +778,7 @@ void project_c::Player::update(float dt)
         start_throw(glm::make_vec3(hit_info.position));
     }
 
-    if (weapon() && attack_pressed && !dodge_pressed && !recovering && !in_body_action() && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
+    if (weapon() && attack_pressed && free_to_act() && !dodge_pressed)
     {
         if (!check_state_bit(States::ATTACK))
         {
@@ -816,18 +821,12 @@ void project_c::Player::update(float dt)
 
     // walking into a wall / window / roof edge starts a traversal, a dodge at an edge leaps off it (not in the middle of
     // an attack, a dodge, a stun or a landing)
-    const bool can_dodge = dodge_pressed
-        && dodge_cooldown_remaining_seconds_ <= 0.0f
-        && hit_stun_remaining_seconds_ <= 0.0f
-        && !in_body_action()
-        && !check_state_bit(States::ATTACK)
-        && !recovering;
+    const bool can_dodge = dodge_pressed && dodge_cooldown_remaining_seconds_ <= 0.0f && not_busy() && !check_state_bit(States::ATTACK);
     PlayerTraversal::GroundInput traversal_input{};
     traversal_input.position = glm::vec3(tc.position[0], tc.position[1], tc.position[2]);
     traversal_input.move_direction = move_direction;
     traversal_input.approach_speed = glm::dot(ground_velocity_, move_direction);
-    traversal_input.can_start = !check_state_bit(States::ATTACK) && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f && !recovering
-        && !in_body_action();
+    traversal_input.can_start = free_to_act() && !check_state_bit(States::ATTACK);
     traversal_input.leap_pressed = can_dodge && traversal_input.can_start;
     if (const auto mode = traversal_.update_grounded(traversal_input, traversal, delta_seconds); mode != MovementMode::eGrounded)
     {
