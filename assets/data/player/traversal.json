@@ -16,6 +16,11 @@
     "leap_distance": 3,
     "leap_height": 0.6,
     "air_control": 0.3,
-    "landing_recovery_seconds": 0.15
+    "landing_recovery_seconds": 0.15,
+    "fall": {
+      "min_height": 3,
+      "lethal_height": 8
+    },
+    "roll_window_seconds": 0.25
   }
 }

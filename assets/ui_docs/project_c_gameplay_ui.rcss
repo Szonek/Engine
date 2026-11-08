@@ -81,6 +81,25 @@ body {
 	background-color: #d33b35;
 }
 
+/* the momentum meter (thin, under the health bar); brighter while it drains */
+.player_momentumbar
+{
+	width: 100%;
+	height: 5px;
+	margin-top: 3px;
+	background-color: #1f3a4d;
+}
+
+.player_momentumbar fill
+{
+	background-color: #3fa7e0;
+}
+
+.player_momentumbar.draining fill
+{
+	background-color: #a8e6ff;
+}
+
 .controls
 {
 	font-size: 14px;

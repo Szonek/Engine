@@ -111,7 +111,7 @@ project_c::EnemyType project_c::default_enemy_type()
     return EnemyType{ ENGINE_INVALID_OBJECT_HANDLE, 20, 2, 2.0f, 0.5f, 0.8f, { 1.0f, 0.32f, 0.22f }, {
         { "1H_Melee_Attack_Slice_Horizontal", 0.18f, 0.36f },
         { "1H_Melee_Attack_Slice_Diagonal", 0.32f, 0.50f },
-    }, default_enemy_perception(), true };
+    }, default_enemy_perception(), true, FallDamage{ 1.0f, 2.0f } };
 }
 
 project_c::PlayerTuning project_c::default_player_tuning()
@@ -140,6 +140,12 @@ project_c::PlayerTuning project_c::default_player_tuning()
     t.loud_noise_radius = 5.0f;
     t.show_footstep_ring = true;
     t.footstep_ring_interval_seconds = 0.4f;
+    t.shove_cooldown_seconds = 0.8f;
+    t.shove_range = 1.2f;
+    t.shove_half_angle_degrees = 50.0f;
+    t.shove_speed = 7.0f;
+    t.shove_stagger_seconds = 0.6f;
+    t.shove_damage = 0;
     return t;
 }
 
@@ -160,6 +166,8 @@ project_c::TraversalTuning project_c::default_traversal_tuning()
     t.leap_height = 0.6f;
     t.air_control = 0.3f;
     t.landing_recovery_seconds = 0.15f;
+    t.fall = FallDamage{ 3.0f, 8.0f };
+    t.roll_window_seconds = 0.25f;
     return t;
 }
 
@@ -185,6 +193,11 @@ project_c::ExecutionTuning project_c::default_execution_tuning()
     return t;
 }
 
+project_c::MomentumTuning project_c::default_momentum_tuning()
+{
+    return MomentumTuning{ 0.25f, 0.35f, 0.15f, 0.25f, 0.25f, 0.5f, 0.15f, 0.2f, 8.0f };
+}
+
 project_c::EnemyConfig project_c::default_enemy_config()
 {
     return EnemyConfig{ ENGINE_INVALID_OBJECT_HANDLE };
@@ -192,7 +205,7 @@ project_c::EnemyConfig project_c::default_enemy_config()
 
 project_c::PlayerConfig project_c::default_player_config()
 {
-    return PlayerConfig{ ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE };
+    return PlayerConfig{ ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE };
 }
 
 project_c::BuildingPartConfig project_c::default_building_part_config()
@@ -260,6 +273,13 @@ void project_c::register_game_components()
             "metres per second while it walks to what it noticed, or searches", 10.0f),
     }, default_enemy_perception());
 
+    g_types.fall_damage = register_data_asset_type("fall_damage", {
+        ranged(field("min_height", ENGINE_FIELD_KIND_FLOAT, offsetof(FallDamage, min_height), "metres: a drop up to this height does no damage"),
+            0.0f, 100.0f),
+        ranged(field("lethal_height", ENGINE_FIELD_KIND_FLOAT, offsetof(FallDamage, lethal_height),
+            "metres: a drop from this height or higher kills (linear in between)"), 0.0f, 100.0f),
+    }, FallDamage{ 1.0f, 2.0f });
+
     g_types.enemy_type = register_data_asset_type("enemy_type", {
         field("prefab", ENGINE_FIELD_KIND_PREFAB, offsetof(EnemyType, prefab), "the model the enemies of the kind are made of"),
         ranged(field("max_hp", ENGINE_FIELD_KIND_UINT32, offsetof(EnemyType, max_hp), "hit points of a fresh enemy"), 1.0f, 1000.0f),
@@ -272,6 +292,7 @@ void project_c::register_game_components()
         structs("perception", offsetof(EnemyType, perception), "enemy_perception", "how it notices the player: sight, hearing, how fast it forgets", 0),
         field("execution_kills", ENGINE_FIELD_KIND_BOOL, offsetof(EnemyType, execution_kills),
             "an execution kills it; otherwise it takes the execution's damage and is alerted (heavies, the target)"),
+        structs("fall", offsetof(EnemyType, fall), "fall_damage", "the drops which hurt and kill it (a kick off a roof)", 0),
     }, default_enemy_type());
 
     g_types.player_tuning = register_data_asset_type("player_tuning", {
@@ -311,6 +332,18 @@ void project_c::register_game_components()
             "a faint ring at the footstep radius pulses with the steps while the player walks (none while sneaking)"),
         ranged(field("footstep_ring_interval_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, footstep_ring_interval_seconds),
             "seconds between two pulses of the footstep ring"), 0.05f, 5.0f),
+        ranged(field("shove_cooldown_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, shove_cooldown_seconds),
+            "seconds between two kicks (Q)"), 0.0f, 10.0f),
+        ranged(field("shove_range", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, shove_range),
+            "metres: the enemy kicked is the nearest this close"), 0.0f, 5.0f),
+        ranged(field("shove_half_angle_degrees", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, shove_half_angle_degrees),
+            "degrees off the player's facing an enemy can be to be kicked"), 0.0f, 180.0f),
+        ranged(field("shove_speed", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, shove_speed),
+            "metres per second the kicked enemy is pushed (the push decays)"), 0.0f, 30.0f),
+        ranged(field("shove_stagger_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, shove_stagger_seconds),
+            "seconds the kicked enemy can neither move nor attack"), 0.0f, 5.0f),
+        ranged(field("shove_damage", ENGINE_FIELD_KIND_UINT32, offsetof(PlayerTuning, shove_damage),
+            "damage of the kick itself; the fall is the weapon"), 0.0f, 100.0f),
     }, default_player_tuning());
 
     g_types.traversal_tuning = register_data_asset_type("traversal_tuning", {
@@ -342,7 +375,27 @@ void project_c::register_game_components()
             "the fraction of the ground acceleration the input has in the air"), 0.0f, 1.0f),
         ranged(field("landing_recovery_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, landing_recovery_seconds),
             "seconds without control after landing"), 0.0f, 2.0f),
+        structs("fall", offsetof(TraversalTuning, fall), "fall_damage", "the drops which hurt and kill the player (keep min_height at max_safe_drop)", 0),
+        ranged(field("roll_window_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, roll_window_seconds),
+            "a dodge pressed this long before landing is a roll: half the fall damage"), 0.0f, 2.0f),
     }, default_traversal_tuning());
+
+    const auto momentum_field = [](const char* name, std::size_t offset, const char* tooltip, float max_value)
+        {
+            return ranged(field(name, ENGINE_FIELD_KIND_FLOAT, offset, tooltip), 0.0f, max_value);
+        };
+    g_types.momentum_tuning = register_data_asset_type("momentum_tuning", {
+        momentum_field("ground_execution_fill", offsetof(MomentumTuning, ground_execution_fill), "what an execution from behind fills the meter by", 1.0f),
+        momentum_field("plunge_fill", offsetof(MomentumTuning, plunge_fill), "what a plunge fills the meter by", 1.0f),
+        momentum_field("chain_link_fill", offsetof(MomentumTuning, chain_link_fill), "what each execution after the first of a chain fills it by", 1.0f),
+        momentum_field("fall_kill_fill", offsetof(MomentumTuning, fall_kill_fill), "what an enemy the player kicked dying from its fall fills it by", 1.0f),
+        momentum_field("speed_bonus", offsetof(MomentumTuning, speed_bonus), "move speed x (1 + this) at a full meter", 2.0f),
+        momentum_field("chain_range_bonus", offsetof(MomentumTuning, chain_range_bonus), "chain range x (1 + this) at a full meter", 2.0f),
+        momentum_field("combat_drain_per_second", offsetof(MomentumTuning, combat_drain_per_second),
+            "drained per second on the ground in combat (an alert enemy within combat_radius)", 2.0f),
+        momentum_field("hit_drain", offsetof(MomentumTuning, hit_drain), "drained at once by a hit taken", 1.0f),
+        momentum_field("combat_radius", offsetof(MomentumTuning, combat_radius), "metres: an alert enemy this close means combat", 50.0f),
+    }, default_momentum_tuning());
 
     g_types.execution_tuning = register_data_asset_type("execution_tuning", {
         ranged(field("execution_range", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, execution_range),
@@ -388,6 +441,7 @@ void project_c::register_game_components()
         data_asset("tuning", offsetof(PlayerConfig, tuning), "player_tuning", "the player's tuning (assets/data/player)"),
         data_asset("traversal", offsetof(PlayerConfig, traversal), "traversal_tuning", "how the player climbs and vaults (assets/data/player)"),
         data_asset("executions", offsetof(PlayerConfig, executions), "execution_tuning", "how the player executes enemies (assets/data/player)"),
+        data_asset("momentum", offsetof(PlayerConfig, momentum), "momentum_tuning", "what fills and drains the player's momentum (assets/data/player)"),
     }, default_player_config(), 2);
 
     static const engine_enum_value_desc_t hide_values[] = {

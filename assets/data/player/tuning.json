@@ -25,6 +25,12 @@
     "footstep_noise_radius": 2.5,
     "loud_noise_radius": 5,
     "show_footstep_ring": true,
-    "footstep_ring_interval_seconds": 0.4
+    "footstep_ring_interval_seconds": 0.4,
+    "shove_cooldown_seconds": 0.8,
+    "shove_range": 1.2,
+    "shove_half_angle_degrees": 50,
+    "shove_speed": 7,
+    "shove_stagger_seconds": 0.6,
+    "shove_damage": 0
   }
 }

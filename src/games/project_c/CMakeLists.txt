@@ -42,6 +42,8 @@ set(LIB_SOURCES
 	scripts/enemy_awareness.h
 	scripts/noise_rings.h
 	scripts/execution_math.h
+	scripts/fall_damage.h
+	scripts/momentum.h
 	scripts/enviorment_script.h
 	scripts/enviorment_script.cpp
 	scripts/game_components.h
@@ -55,6 +57,8 @@ set(LIB_SOURCES
 	scripts/player_traversal.cpp
 	scripts/player_executions.h
 	scripts/player_executions.cpp
+	scripts/player_shove.h
+	scripts/player_shove.cpp
 	scripts/traversal_math.h
 	
 	scripts/scripts_utils.h

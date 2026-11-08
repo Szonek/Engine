@@ -1,7 +1,6 @@
 #include "player_executions.h"
 #include "enemy_script.h"
 #include "scripts_utils.h"
-#include "game_layers.h"
 
 #include "iscene.h"
 
@@ -59,20 +58,6 @@ glm::vec3 forward_of(engine_game_object_t go)
 }
 }  // namespace
 
-project_c::PlayerExecutions::CharactersAround project_c::PlayerExecutions::characters_within(const glm::vec3& center, float radius) const
-{
-    // the characters only (Layer::eCharacter), never the player itself
-    engine_physics_query_filter_t filter{};
-    filter.ignore = &go_;
-    filter.ignore_count = 1;
-    filter.layer_mask = layer_bit(Layer::eCharacter);
-    CharactersAround around;
-    const glm::vec3 sphere_center = center + WORLD_UP * CHEST_HEIGHT;
-    const auto count = enginePhysicsOverlapSphere(glm::value_ptr(sphere_center), radius, &filter, around.found.data(), around.found.size());
-    around.count = std::min(count, around.found.size());
-    return around;
-}
-
 project_c::PlayerExecutions::PlayerExecutions(engine::IScene* scene, engine_game_object_t player, std::size_t locomotion_layer)
     : scene_(scene)
     , go_(player)
@@ -85,10 +70,10 @@ project_c::PlayerExecutions::Target project_c::PlayerExecutions::pick(const glm:
 {
     // the characters around: an overlap with the characters' layer (the floor and walls aren't on it); on the stack, this
     // runs every frame the player can execute
-    std::array<execution_math::Candidate, MAX_CHARACTERS_AROUND> candidates{};
-    std::array<Target, MAX_CHARACTERS_AROUND> targets{};
+    std::array<execution_math::Candidate, utils::MAX_CHARACTERS_AROUND> candidates{};
+    std::array<Target, utils::MAX_CHARACTERS_AROUND> targets{};
     std::size_t count = 0;
-    for (const auto go : characters_within(center, range))
+    for (const auto go : utils::characters_around(center + WORLD_UP * CHEST_HEIGHT, range, go_))
     {
         auto* enemy = scene_->get_script<Enemy>(go);
         if (!enemy)
@@ -333,7 +318,7 @@ project_c::PlayerExecutions::Update project_c::PlayerExecutions::update(const Ex
         const auto impact = position_of(victim_);
         // the sphere reaches the characters up and down the height allowed too (it is centered at the impact's chest)
         const float search_radius = std::hypot(knockdown_radius_, KNOCKDOWN_MAX_HEIGHT_DIFFERENCE + CHEST_HEIGHT);
-        for (const auto go : characters_within(impact, search_radius))
+        for (const auto go : utils::characters_around(impact + WORLD_UP * CHEST_HEIGHT, search_radius, go_))
         {
             auto* other = scene_->get_script<Enemy>(go);
             if (!other)

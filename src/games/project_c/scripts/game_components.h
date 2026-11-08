@@ -1,5 +1,7 @@
 #pragma once
 #include "enemy_awareness.h"
+#include "fall_damage.h"
+#include "momentum.h"
 
 #include <engine.h>
 
@@ -48,6 +50,8 @@ struct EnemyType
     EnemyPerception perception;
     // an execution kills it; otherwise it takes the execution's damage and is alerted (heavies, the target)
     bool execution_kills;
+    // what a fall does to it (FALLS_AND_SHOVES.md): a kick off a roof kills a fragile kind
+    FallDamage fall;
 };
 
 struct EnemyConfig
@@ -94,6 +98,16 @@ struct PlayerTuning
     // walks (a loud noise always shows its ring)
     bool show_footstep_ring;
     float footstep_ring_interval_seconds;
+    // the shove (FALLS_AND_SHOVES.md): a kick which pushes the enemy in front, sending it off ledges
+    float shove_cooldown_seconds;
+    // metres and degrees: the enemy kicked is the nearest this close and this far off the facing
+    float shove_range;
+    float shove_half_angle_degrees;
+    // metres per second of the push (it decays), seconds the enemy can't act
+    float shove_speed;
+    float shove_stagger_seconds;
+    // damage of the kick itself (the fall is the weapon)
+    std::uint32_t shove_damage;
 };
 
 // how the player gets around obstacles: climbing, vaulting, mantling (a data asset, assets/data/player); the geometry
@@ -123,6 +137,10 @@ struct TraversalTuning
     float air_control;
     // seconds without control after landing
     float landing_recovery_seconds;
+    // what a fall does to the player (FALLS_AND_SHOVES.md): from max_safe_drop on it hurts
+    FallDamage fall;
+    // a dodge pressed this long before landing is a roll: half the fall damage, the dodge instead of the landing
+    float roll_window_seconds;
 };
 
 // How the player executes enemies: from behind, from above (the plunge) and in a chain (a data asset,
@@ -155,6 +173,8 @@ struct PlayerConfig
     engine_data_asset_t traversal;
     // an ExecutionTuning data asset; with none, the player has default_execution_tuning()
     engine_data_asset_t executions;
+    // a MomentumTuning data asset; with none, the player has default_momentum_tuning()
+    engine_data_asset_t momentum;
 };
 
 // what the House hides while the player is inside it
@@ -227,10 +247,12 @@ struct GameComponentTypes
 {
     engine_component_type_t enemy_attack = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_perception = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_component_type_t fall_damage = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_type = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t traversal_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t execution_tuning = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_component_type_t momentum_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t building_part_config = ENGINE_INVALID_OBJECT_HANDLE;
@@ -252,6 +274,7 @@ EnemyType default_enemy_type();
 PlayerTuning default_player_tuning();
 TraversalTuning default_traversal_tuning();
 ExecutionTuning default_execution_tuning();
+MomentumTuning default_momentum_tuning();
 EnemyConfig default_enemy_config();
 PlayerConfig default_player_config();
 BuildingPartConfig default_building_part_config();

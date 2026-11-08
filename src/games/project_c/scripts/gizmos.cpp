@@ -90,6 +90,44 @@ void draw_player_start(const engine::IScene&, engine_game_object_t go, bool sele
         engineDebugDrawLine(glm::value_ptr(tip), glm::value_ptr(barb), glm::value_ptr(color));
     }
 }
+// the player's shove reach (FALLS_AND_SHOVES.md): the wedge in front of it an enemy is kicked in
+void draw_player_shove(const engine::IScene&, engine_game_object_t go, bool selected)
+{
+    const auto world = world_matrix(go);
+    if (!world)
+    {
+        return;
+    }
+    const auto& types = project_c::game_components();
+    const auto config = project_c::get_game_component(go, types.player_config, project_c::default_player_config());
+    const auto tuning = project_c::get_data_asset(config.tuning, types.player_tuning, project_c::default_player_tuning());
+    auto forward = glm::vec3((*world)[2]);
+    forward.y = 0.0f;
+    if (glm::length(forward) <= 0.0f || tuning.shove_range <= 0.0f)
+    {
+        return;
+    }
+    forward = glm::normalize(forward);
+    const glm::vec3 origin = glm::vec3((*world)[3]) + glm::vec3(0.0f, SIGHT_GIZMO_HEIGHT, 0.0f);
+    const auto color = gizmo_color(glm::vec3(0.95f, 0.6f, 0.15f), selected);
+    const float half_angle = glm::radians(tuning.shove_half_angle_degrees);
+    const auto ray = [&](float angle)
+        {
+            const float c = std::cos(angle);
+            const float s = std::sin(angle);
+            return origin + glm::vec3(forward.x * c + forward.z * s, 0.0f, -forward.x * s + forward.z * c) * tuning.shove_range;
+        };
+    auto previous = ray(-half_angle);
+    engineDebugDrawLine(glm::value_ptr(origin), glm::value_ptr(previous), glm::value_ptr(color));
+    for (int i = 1; i <= SIGHT_ARC_SEGMENTS; i++)
+    {
+        const auto point = ray(-half_angle + 2.0f * half_angle * static_cast<float>(i) / static_cast<float>(SIGHT_ARC_SEGMENTS));
+        engineDebugDrawLine(glm::value_ptr(previous), glm::value_ptr(point), glm::value_ptr(color));
+        previous = point;
+    }
+    engineDebugDrawLine(glm::value_ptr(origin), glm::value_ptr(previous), glm::value_ptr(color));
+}
+
 // the colour of an enemy's awareness: grey unaware (or without a script, in Edit mode), yellow suspicious, red alert,
 // orange searching
 glm::vec3 awareness_color(const project_c::Enemy* enemy)
@@ -207,6 +245,7 @@ void project_c::register_gizmos(engine::GizmoRegistry& gizmos, std::function<Exe
 {
     gizmos.add(game_components().enemy_spawner, &draw_enemy_spawner);
     gizmos.add(game_components().player_start, &draw_player_start);
+    gizmos.add(game_components().player_config, &draw_player_shove);
     // the registry outlives its drawers (it holds them)
     gizmos.add(game_components().enemy_config, [cache = std::make_shared<EnemyPerceptionCache>(gizmos), execution_tuning = std::move(execution_tuning)](
         const engine::IScene& scene, engine_game_object_t go, bool selected)

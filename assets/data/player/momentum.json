@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "type": "momentum_tuning",
+  "type_version": 1,
+  "value": {
+    "ground_execution_fill": 0.25,
+    "plunge_fill": 0.35,
+    "chain_link_fill": 0.15,
+    "fall_kill_fill": 0.25,
+    "speed_bonus": 0.25,
+    "chain_range_bonus": 0.5,
+    "combat_drain_per_second": 0.15,
+    "hit_drain": 0.2,
+    "combat_radius": 8
+  }
+}

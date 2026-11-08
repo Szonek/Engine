@@ -3,6 +3,7 @@
 #include "game_components.h"
 #include "noise_rings.h"
 #include "player_executions.h"
+#include "player_shove.h"
 #include "player_traversal.h"
 #include "../player_input.h"
 #include "../player_state.h"
@@ -160,6 +161,13 @@ public:
     TraversalTuning traversal_tuning() const;
     // its execution tuning (the execution_tuning data asset of its player_config), read on every use
     ExecutionTuning execution_tuning() const;
+    // its momentum tuning (the momentum_tuning data asset of its player_config), read on every use
+    MomentumTuning momentum_tuning() const;
+    // the momentum meter (0..1; FALLS_AND_SHOVES.md), and whether it is draining (on the ground in combat)
+    float momentum() const { return momentum_.value(); }
+    bool is_momentum_draining() const { return momentum_.is_draining(); }
+    // an enemy the player kicked died from its fall: momentum
+    void on_kicked_enemy_fell_dead() { momentum_.add(MomentumEvent::eFallKill, momentum_tuning()); }
 
     void on_start() override;
     void update(float dt);
@@ -187,6 +195,16 @@ public:
     // attack, a dodge or a hard landing (noise_is_loud).
     float noise_radius() const { return noise_radius_; }
     bool noise_is_loud() const { return noise_is_loud_; }
+    // a kick (Q) is playing (FALLS_AND_SHOVES.md)
+    bool is_shoving() const { return shove_remaining_seconds_ > 0.0f; }
+    // the kick's foot lands (its animation event): the target is pushed
+    void on_shove_contact();
+
+private:
+    // damage from `source_position` (receive_damage's rules); a hit drains momentum, a fall doesn't
+    bool apply_damage(std::uint32_t damage, const glm::vec3& source_position, bool drains_momentum);
+
+public:
     // its stats (hp, coins, weapon), kept by the app so they outlive the level (AppProjectC::player_state)
     const PlayerState& state() const;
     // what a player who has nothing carried starts with
@@ -256,6 +274,12 @@ private:
     float landing_recovery_remaining_seconds_ = 0.0f;
     // the feet's height when the player started falling (entered eAirborne), to tell a hard landing
     float airborne_start_y_ = 0.0f;
+    // the fall in progress (from its highest point), and how long ago a dodge was pressed in the air (the roll)
+    FallMeasure fall_;
+    float air_dodge_press_age_seconds_ = 0.0f;
+    // a landing from a fall: its damage (half with a roll); the roll is the dodge instead of the landing's recovery.
+    // Called with the player on the ground already.
+    void land_from_fall(const TraversalTuning& traversal, bool rolled);
 
     // this frame's noise (noise_radius) and where it was made, and the rings showing it on the ground
     void make_loud_noise(const PlayerTuning& t);
@@ -268,6 +292,20 @@ private:
     NoiseRings noise_rings_;
     PlayerTraversal traversal_;
     PlayerExecutions executions_;
+    PlayerShove shove_;
+    PlayerMomentum momentum_;
+    // the execution in progress continues a chain (its strike fills the meter less)
+    bool execution_is_chain_link_ = false;
+    // on the ground with an alert enemy within the combat radius and the player's reach (not one below a roof)
+    bool in_ground_combat(float radius) const;
+    bool shove_press_pending_ = false;
+    // the kick playing (its clip's length), and the time until the next one may start
+    float shove_remaining_seconds_ = 0.0f;
+    float shove_cooldown_remaining_seconds_ = 0.0f;
+    // a kick starts: it turns toward its target (if any), plays the kick and makes a loud noise
+    void start_shove(const PlayerTuning& t);
+    // the kick ends (or is cut short): locomotion and the upper body play again
+    void end_shove();
     engine_game_object_t execution_target_ = ENGINE_INVALID_GAME_OBJECT_ID;
     // the radius a plunge onto execution_target_ would knock the others down in (in the air)
     float plunge_knockdown_radius_ = 0.0f;
