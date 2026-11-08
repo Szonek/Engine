@@ -501,6 +501,12 @@ TEST(RenderGraph, ResourceInfoContainsLifetimes)
     EXPECT_EQ(resources[1].last_pass, 2u);
 }
 
+// a Transparent stage which never copies the depth
+void no_copy(rg::PassContext&, rg::TextureHandle)
+{
+    ADD_FAILURE() << "the depth was copied";
+}
+
 // The Transparent stage (transparent_stage.h): drawn after the opaque pass into the same targets, which it loads, so
 // both run in that order and nothing of the opaque pass is lost; without a consumer of SceneColor it is culled with it
 TEST(RenderGraph, TransparentStageLoadsTheSceneTargetsAfterTheOpaquePass)
@@ -515,7 +521,7 @@ TEST(RenderGraph, TransparentStageLoadsTheSceneTargetsAfterTheOpaquePass)
         color = b.write_color(0, b.create_texture("SceneColor", DESC), rg::LoadOp::eClear);
         depth = b.write_depth(b.create_texture("SceneDepth", rg::TextureDesc{ 64, 64, DataLayout::eDEPTH24_STENCIL8_U32 }), rg::LoadOp::eClear);
     });
-    engine::add_transparent_pass(graph, "transparent", color, depth, [&recorder](rg::PassContext&) { recorder.executed.push_back("transparent"); });
+    engine::add_transparent_pass(graph, "transparent", color, depth, {}, no_copy, [&recorder](rg::PassContext&, const TransparentPassData&) { recorder.executed.push_back("transparent"); });
     add_pass(graph, recorder, "present", [&](rg::Builder& b) { b.read(color); b.write_color(0, backbuffer, rg::LoadOp::eDontCare); });
 
     graph.execute(backend);
@@ -540,9 +546,89 @@ TEST(RenderGraph, TransparentStageWithoutConsumerIsCulled)
         color = b.write_color(0, b.create_texture("SceneColor", DESC), rg::LoadOp::eClear);
         depth = b.write_depth(b.create_texture("SceneDepth", rg::TextureDesc{ 64, 64, DataLayout::eDEPTH24_STENCIL8_U32 }), rg::LoadOp::eClear);
     });
-    engine::add_transparent_pass(graph, "transparent", color, depth, [&recorder](rg::PassContext&) { recorder.executed.push_back("transparent"); });
+    engine::add_transparent_pass(graph, "transparent", color, depth, {}, no_copy, [&recorder](rg::PassContext&, const TransparentPassData&) { recorder.executed.push_back("transparent"); });
 
     graph.execute(backend);
 
     EXPECT_TRUE(recorder.executed.empty());
+}
+
+// Soft particles: the stage asks for the scene depth, so a copy pass runs between the opaque pass and the Transparent
+// pass, reading SceneDepth and writing a float texture of its size which the Transparent pass samples
+TEST(RenderGraph, TransparentStageCopiesTheSceneDepthWhenAsked)
+{
+    rg::Graph graph;
+    MockBackend backend;
+    Recorder recorder;
+    const auto backbuffer = graph.import_backbuffer("backbuffer", 64, 64);
+    rg::TextureHandle color;
+    rg::TextureHandle depth;
+    add_pass(graph, recorder, "forward", [&](rg::Builder& b) {
+        color = b.write_color(0, b.create_texture("SceneColor", DESC), rg::LoadOp::eClear);
+        depth = b.write_depth(b.create_texture("SceneDepth", rg::TextureDesc{ 64, 64, DataLayout::eDEPTH24_STENCIL8_U32 }), rg::LoadOp::eClear);
+    });
+    rg::TextureHandle copied_from;
+    rg::TextureHandle sampled;
+    rg::TextureDesc sampled_desc{};
+    engine::add_transparent_pass(graph, "transparent", color, depth, TransparentInputs{ .needs_scene_depth = true },
+        [&](rg::PassContext&, rg::TextureHandle source) { recorder.executed.push_back("copy"); copied_from = source; },
+        [&](rg::PassContext& ctx, const TransparentPassData& data) {
+            recorder.executed.push_back("transparent");
+            sampled = data.scene_depth_copy;
+            sampled_desc = ctx.desc(sampled);
+        });
+    add_pass(graph, recorder, "present", [&](rg::Builder& b) { b.read(color); b.write_color(0, backbuffer, rg::LoadOp::eDontCare); });
+
+    graph.execute(backend);
+
+    EXPECT_EQ(recorder.executed, (std::vector<std::string>{ "forward", "copy", "transparent", "present" }));
+    EXPECT_EQ(copied_from, depth);
+    ASSERT_TRUE(sampled.is_valid());
+    EXPECT_NE(sampled, depth);
+    EXPECT_EQ(sampled_desc.layout, DataLayout::eR_FP32);
+    EXPECT_EQ(sampled_desc.width, 64u);
+    EXPECT_EQ(sampled_desc.height, 64u);
+
+    const auto copy = std::ranges::find(backend.begin_infos, std::string("transparent Depth Copy"), &MockBackend::BeginInfo::name);
+    ASSERT_NE(copy, backend.begin_infos.end());
+    EXPECT_TRUE(copy->is_raster);
+    // the copy only reads the depth: it isn't its attachment
+    EXPECT_FALSE(copy->has_depth);
+    ASSERT_EQ(copy->color_slots.size(), 1u);
+    EXPECT_EQ(copy->color_slots[0].second, rg::LoadOp::eDontCare);
+
+    // the Transparent pass still tests against SceneDepth itself
+    const auto transparent = std::ranges::find(backend.begin_infos, std::string("transparent"), &MockBackend::BeginInfo::name);
+    ASSERT_NE(transparent, backend.begin_infos.end());
+    EXPECT_TRUE(transparent->has_depth);
+}
+
+// Without soft particles nothing is copied; the view's shadow map, when there is one, is read by the Transparent pass,
+// which keeps the shadow pass alive
+TEST(RenderGraph, TransparentStageReadsTheShadowMap)
+{
+    rg::Graph graph;
+    MockBackend backend;
+    Recorder recorder;
+    const auto backbuffer = graph.import_backbuffer("backbuffer", 64, 64);
+    rg::TextureHandle shadow_map;
+    add_pass(graph, recorder, "shadow", [&](rg::Builder& b) {
+        shadow_map = b.write_depth(b.create_texture("ShadowMap", rg::TextureDesc{ 32, 32, DataLayout::eDEPTH24_STENCIL8_U32 }), rg::LoadOp::eClear);
+    });
+    rg::TextureHandle color;
+    rg::TextureHandle depth;
+    add_pass(graph, recorder, "forward", [&](rg::Builder& b) {
+        color = b.write_color(0, b.create_texture("SceneColor", DESC), rg::LoadOp::eClear);
+        depth = b.write_depth(b.create_texture("SceneDepth", rg::TextureDesc{ 64, 64, DataLayout::eDEPTH24_STENCIL8_U32 }), rg::LoadOp::eClear);
+    });
+    TransparentPassData seen;
+    engine::add_transparent_pass(graph, "transparent", color, depth, TransparentInputs{ .shadow_map = shadow_map }, no_copy,
+        [&](rg::PassContext&, const TransparentPassData& data) { recorder.executed.push_back("transparent"); seen = data; });
+    add_pass(graph, recorder, "present", [&](rg::Builder& b) { b.read(color); b.write_color(0, backbuffer, rg::LoadOp::eDontCare); });
+
+    graph.execute(backend);
+
+    EXPECT_EQ(recorder.executed, (std::vector<std::string>{ "shadow", "forward", "transparent", "present" }));
+    EXPECT_EQ(seen.shadow_map, shadow_map);
+    EXPECT_FALSE(seen.scene_depth_copy.is_valid());
 }
