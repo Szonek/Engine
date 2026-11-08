@@ -506,3 +506,28 @@ TEST_F(MomentumTest, GroundCombatDrainsMomentum)
     EXPECT_TRUE(player->is_momentum_draining());
     EXPECT_LT(player->momentum(), filled - 0.05f);
 }
+
+// kicked off a step lower than the fall damage starts at, it lands unhurt and alerted (the kick's alert isn't lost)
+TEST_F(ShoveTest, EnemyKickedOffALowStepLandsAlert)
+{
+    constexpr float STEP_HEIGHT = 0.8f;
+    auto* enemy = kick_setup(STEP_HEIGHT);
+    ASSERT_NE(enemy, nullptr);
+    ASSERT_EQ(enemy->awareness().state(), Awareness::eUnaware);
+
+    press_shove();
+    bool fell = false;
+    ASSERT_TRUE(step_until({}, 120, [&] { fell = fell || enemy->is_falling(); return fell && !enemy->is_falling(); }));
+    EXPECT_EQ(enemy->hp, enemy->get_max_hp());
+    EXPECT_FALSE(enemy->is_knocked_down());
+    bool alerted = false;
+    step_until({}, 10, [&] { alerted = alerted || enemy->awareness().state() == Awareness::eAlert; return alerted; });
+    EXPECT_TRUE(alerted);
+
+    // the kick is settled: a later fall death of its own is no kick kill (it fills no momentum)
+    const auto go = enemy->get_game_object();
+    const float momentum = player_->momentum();
+    set_height(go, ROOF_HEIGHT + 1.0f);
+    ASSERT_TRUE(step_until({}, 120, [&] { return is_dead(go); }));
+    EXPECT_EQ(player_->momentum(), momentum);
+}

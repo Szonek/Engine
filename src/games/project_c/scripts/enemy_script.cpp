@@ -670,11 +670,17 @@ void project_c::Enemy::land(const EnemyType& type, float height)
 {
     ungrounded_seconds_ = 0.0f;
     knockback_velocity_ = glm::vec3(0.0f);
+    // kicked into this fall: whatever the landing, the kick's pending alert is settled here
+    const bool kicked = std::exchange(alert_after_shove_, false);
     const float drop = fall_.land(height);
     const float fraction = fall_damage_fraction(type.fall, drop, false);
     if (fraction <= 0.0f)
     {
-        // a drop it takes in its stride (a step, being spawned just above the floor): it goes on
+        // a drop it takes in its stride (a step, being spawned just above the floor): it goes on, alerted by a kick
+        if (kicked)
+        {
+            note_damage_position();
+        }
         state_ = States::DECISION_MAKE;
         return;
     }
@@ -691,20 +697,17 @@ void project_c::Enemy::land(const EnemyType& type, float height)
     if (hp == 0)
     {
         // it dies (the death plays next update), quietly for its pack; a kill by the player's kick fills its momentum
-        if (alert_after_shove_)
+        if (kicked)
         {
             if (auto* player = my_scene_->get_script<Player>(player_go_))
             {
                 player->on_kicked_enemy_fell_dead();
             }
         }
-        alert_after_shove_ = false;
         state_ = States::DECISION_MAKE;
         return;
     }
-    // knocked down, it is alerted anyway
-    alert_after_shove_ = false;
-    // it survives the landing: it lies a moment and stands up, alerted
+    // it survives the landing: it lies a moment and stands up, alerted (knock_down alerts it)
     const auto* player = my_scene_->get_script<Player>(player_go_);
     knock_down(player ? player->execution_tuning().knockdown_seconds : default_execution_tuning().knockdown_seconds);
 }
