@@ -108,9 +108,10 @@ struct ParticleGpuData
     float size;          // the quad's side, world units
     glm::vec4 color;     // RGBA
     float rotation;      // radians, around the view axis
-    float pad0_ = 0.0f;
-    float pad1_ = 0.0f;
-    float pad2_ = 0.0f;
+    float erosion;       // 0..1
+    // the flipbook frame plus how far it is blended into the next one (frame 2 halfway to the next: 2.5), and the next
+    float frame;
+    float next_frame;
 };
 
 // how a particle batch is blended (ParticleBlendMode)
@@ -130,6 +131,13 @@ struct ParticleBatch
     // nullptr: the built-in soft circle
     const Texture2D* texture = nullptr;
     ParticleBlend blend = ParticleBlend::eAlpha;
+    // the texture's flipbook frames across and down (1 x 1: the whole texture)
+    std::uint32_t flipbook_columns = 1;
+    std::uint32_t flipbook_rows = 1;
+    // lit by the directional lights (with the first one's shadow)
+    bool lit = false;
+    // soft: faded out over this distance in front of the opaque geometry, 0 is off
+    float soft_distance = 0.0f;
     std::int32_t sort_order = 0;
     // where the batch is, for sorting the batches: the emitter's position
     glm::vec3 center{ 0.0f };

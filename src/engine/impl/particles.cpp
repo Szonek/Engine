@@ -206,6 +206,47 @@ glm::vec3 engine::evaluate_curve(const ParticleColorCurve& curve, float t)
     return to_vec3(curve.keys[count - 1].color);
 }
 
+float engine::particle_erosion(const ParticleEmitterDesc& desc, float t)
+{
+    if (desc.erosion_over_life.keys_count == 0)
+    {
+        return 0.0f;
+    }
+    return std::clamp(evaluate_curve(desc.erosion_over_life, t), 0.0f, 1.0f);
+}
+
+engine::ParticleFlipbookFrame engine::particle_flipbook_frame(const ParticleEmitterDesc& desc, float age, float lifetime)
+{
+    const auto columns = std::max(desc.flipbook_columns, 1u);
+    const auto rows = std::max(desc.flipbook_rows, 1u);
+    const auto frames = columns * rows;
+    ParticleFlipbookFrame out{};
+    if (frames == 1)
+    {
+        return out;
+    }
+    if (desc.flipbook_over_life)
+    {
+        // the frames spread over the life: frame i shows at i / (frames - 1) of it, blending into the next until then
+        const float t = lifetime > 0.0f ? std::clamp(age / lifetime, 0.0f, 1.0f) : 0.0f;
+        const float position = t * static_cast<float>(frames - 1);
+        out.frame = std::min(static_cast<std::uint32_t>(position), frames - 1);
+        out.next_frame = std::min(out.frame + 1, frames - 1);
+        out.blend = out.frame == out.next_frame ? 0.0f : position - static_cast<float>(out.frame);
+        return out;
+    }
+    if (desc.flipbook_fps <= 0.0f || age <= 0.0f)
+    {
+        out.next_frame = desc.flipbook_fps > 0.0f ? 1u : 0u;
+        return out;
+    }
+    const float position = std::fmod(age * desc.flipbook_fps, static_cast<float>(frames));
+    out.frame = std::min(static_cast<std::uint32_t>(position), frames - 1);
+    out.next_frame = (out.frame + 1) % frames;
+    out.blend = std::clamp(position - static_cast<float>(out.frame), 0.0f, 1.0f);
+    return out;
+}
+
 void engine::ParticleEmitterState::reset(std::uint64_t seed)
 {
     count_ = 0;
@@ -393,6 +434,8 @@ void engine::ParticleEmitterState::gather(const ParticleEmitterDesc& desc, const
         const glm::vec3 rgb = glm::vec3(color_[i]) * evaluate_curve(desc.color_over_life, t);
         p.color = glm::vec4(rgb, color_[i].a * evaluate_curve(desc.alpha_over_life, t)) * tint;
         p.rotation = rotation_[i];
+        p.erosion = particle_erosion(desc, t);
+        p.flipbook = particle_flipbook_frame(desc, age_[i], lifetime_[i]);
         out.push_back(p);
     }
 }

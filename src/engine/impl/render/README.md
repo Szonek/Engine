@@ -20,6 +20,7 @@ Passes declared every frame:
 | Depth Pre-pass                              | built-in, per scene camera | SceneDepth             |
 | SSAO / SSAO Blur                            | built-in, per scene camera | AmbientOcclusion       |
 | Forward / Sprites                           | built-in, per scene camera | SceneColor (+EntityId, SceneDepth) |
+| Transparent Depth Copy                      | built-in, per scene camera, only with soft particles | SceneDepthCopy (R32F) |
 | Transparent                                 | built-in, per scene camera, only with particles | SceneColor (depth tested, not written) |
 | Debug Lines                                 | built-in, per scene camera | SceneColor, SceneDepth            |
 | Debug Lines Pick                            | built-in, per scene camera, only with owned lines (gizmos) | EntityId |
@@ -106,9 +107,30 @@ Today it draws particles (`particles.vs/.fs`): the scene submits `SceneRenderDat
 per emitter (`Scene::particles()`, see `impl/particles.h`); `Renderer::sort_particles` sorts them back to front for each
 camera (the batches by their emitter's distance and sort order, then each batch's particles) into the view's part of
 the frame's particle SSBO (one per frame in flight, like the lights and bone matrices), and each batch is one instanced
-draw of camera-facing quads, unlit (colour times texture, or a soft circle), with alpha, premultiplied or additive
-blending. It is declared only for a view whose scene has particles. Later translucent things (lit smoke, water, glass)
-draw in the same stage.
+draw of camera-facing quads (colour times texture, or a soft circle), with alpha, premultiplied or additive blending.
+It is declared only for a view whose scene has particles. Later translucent things (water, glass) draw in the same stage.
+
+What a particle batch can ask for (the effect's emitter, `ParticleEmitterDesc`):
+
+* **Flipbooks**: the texture is columns x rows frames, left to right and top to bottom; each particle carries the frame
+  it shows and the next one with how far it is blended into it (`particle_flipbook_frame`, GL-free and unit tested), so
+  the frames cross-fade instead of popping.
+* **Erosion**: the texture's alpha is its density, thresholded by the particle's erosion (`particle_erosion`, 0..1 over
+  its life) and stretched back to full strength above it, so a puff dissolves from its thin edges inwards.
+* **Lit** particles are shaded as the ball of smoke they show: the normal of a sphere in front of the quad (its centre
+  facing the camera, its rim along the quad's edge), wrapped diffuse light of the directional lights (smoke lets light
+  through, so its shadow side isn't black) plus their ambient, and the first light's shadow map at the fragment, so
+  smoke drifting into a building's shadow darkens. The pass then reads the view's shadow map (`TransparentInputs::shadow_map`);
+  point and spot lights don't light particles yet.
+* **Soft** particles fade out over `soft_distance` in front of the opaque geometry behind them instead of cutting a hard
+  line where a quad goes through the floor. A texture can't be sampled while it is the pass's depth attachment, so when
+  a batch of the view is soft (`TransparentInputs::needs_scene_depth`) a Transparent Depth Copy pass first copies
+  SceneDepth into an R32F texture (`depth_copy.fs`), which the particle shader samples and turns into view depth with
+  the inverse projection (perspective and orthographic alike).
+
+The particle texture and the depth copy have their own binding slots (`TEXTURE_PARTICLE`, `TEXTURE_SCENE_DEPTH`). The
+smoke puff flipbook is generated (`assets/models/particles/generate_particle_textures.py`, standard library only, the
+same bytes everywhere).
 
 ## Adding rendering without touching the renderer
 

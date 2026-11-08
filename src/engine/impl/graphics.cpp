@@ -72,6 +72,20 @@ inline std::uint32_t to_ogl_format(engine::DataLayout layout)
     return GL_FALSE;
 }
 
+// the format the texture is stored in: float layouts are sized (an unsized GL_RED with float data may be stored in 8 bits)
+inline std::uint32_t to_ogl_internal_format(engine::DataLayout layout)
+{
+    switch (layout)
+    {
+    case engine::DataLayout::eRGBA_FP32:
+        return GL_RGBA32F;
+    case engine::DataLayout::eR_FP32:
+        return GL_R32F;
+    default:
+        return to_ogl_format(layout);
+    }
+}
+
 inline std::uint32_t to_image_unit_format(engine::DataLayout layout)
 {
     switch (layout)
@@ -457,7 +471,7 @@ inline auto generate_opengl_texture(std::uint32_t width, std::uint32_t height, e
         }
     }
 
-    const auto gl_internal_format = to_ogl_format(layout);
+    const auto gl_internal_format = to_ogl_internal_format(layout);
 	const auto gl_host_format = to_ogl_host_format(layout);
 
 	std::uint32_t tex_id{ 0 };

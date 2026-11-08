@@ -46,7 +46,8 @@ engine::Renderer::Renderer(RenderContext& rdx)
     , backend_(rdx)
     , shader_debug_lines_({ "debug_physics_lines_ssbo.vs" }, { "debug_physics_lines_ssbo.fs" })
     , shader_debug_lines_pick_({ "debug_physics_lines_ssbo.vs" }, { "debug_lines_pick.fs" })
-    , shader_particles_({ "particles.vs" }, { "particles.fs" })
+    , shader_particles_({ "particles.vs" }, { "lit_helpers.h", "shadow_helpers.h", "particles.fs" })
+    , shader_depth_copy_({ "full_screen_quad.vs" }, { "depth_copy.fs" })
     , geometry_particle_quad_(6)
     , geometry_debug_line_(2)
     , shader_full_screen_quad_({ "full_screen_quad.vs" }, { "full_screen_quad.fs" })
@@ -407,10 +408,31 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
         // blended geometry over the opaque scene, before the debug lines (which stay readable on top of it)
         if (!particle_draws.empty())
         {
-            add_transparent_pass(frame.graph, fmt::format("Transparent{}", suffix), frame.scene_color, frame.scene_depth,
-                [this, view, &particle_draws](rg::PassContext&)
+            // the scene's depth is copied only for soft particles, the shadow map read only for lit ones
+            TransparentInputs inputs{};
+            for (const auto& draw : particle_draws)
+            {
+                inputs.needs_scene_depth = inputs.needs_scene_depth || draw.soft_distance > 0.0f;
+                if (draw.lit && shadow_map.is_valid())
                 {
-                    draw_particles(view, particle_draws);
+                    inputs.shadow_map = shadow_map;
+                }
+            }
+            add_transparent_pass(frame.graph, fmt::format("Transparent{}", suffix), frame.scene_color, frame.scene_depth, inputs,
+                [this](rg::PassContext& ctx, rg::TextureHandle source)
+                {
+                    rdx_.set_depth_test(false);
+                    rdx_.set_cull_face(false);
+                    shader_depth_copy_.bind();
+                    shader_depth_copy_.set_texture_with_sampler("source_depth", &ctx.texture(source));
+                    geometry_full_screen_quad_.bind();
+                    geometry_full_screen_quad_.draw(Geometry::Mode::eTriangles);
+                },
+                [this, view, &particle_draws](rg::PassContext& ctx, const TransparentPassData& data)
+                {
+                    draw_particles(view, particle_draws,
+                        data.scene_depth_copy.is_valid() ? &ctx.texture(data.scene_depth_copy) : nullptr,
+                        data.shadow_map.is_valid() ? &ctx.texture(data.shadow_map) : nullptr);
                 });
         }
 
@@ -578,7 +600,14 @@ void engine::Renderer::sort_particles(const SceneRenderData& scene, const Camera
             keys.push_back({ depth_of(scene.particles[batch.offset + i].position), 0, batch.offset + i });
         }
         sort_back_to_front(keys);
-        draws.push_back(ParticleDraw{ .first = first + written, .count = batch.count, .texture = batch.texture, .blend = batch.blend });
+        draws.push_back(ParticleDraw{ .first = first + written,
+            .count = batch.count,
+            .texture = batch.texture,
+            .blend = batch.blend,
+            .flipbook_columns = batch.flipbook_columns,
+            .flipbook_rows = batch.flipbook_rows,
+            .lit = batch.lit,
+            .soft_distance = batch.soft_distance });
         for (const auto& key : keys)
         {
             out[written++] = scene.particles[key.index];
@@ -586,7 +615,7 @@ void engine::Renderer::sort_particles(const SceneRenderData& scene, const Camera
     }
 }
 
-void engine::Renderer::draw_particles(const FrameView& view, const std::vector<ParticleDraw>& draws)
+void engine::Renderer::draw_particles(const FrameView& view, const std::vector<ParticleDraw>& draws, const Texture2D* scene_depth, const Texture2D* shadow_map)
 {
     ENGINE_PROFILE_SECTION_N("Renderer::draw_particles");
     // tested against the scene's depth, never writing it: particles behind each other all show, blended in order
@@ -595,7 +624,16 @@ void engine::Renderer::draw_particles(const FrameView& view, const std::vector<P
     shader_particles_.bind();
     shader_particles_.set_uniform_mat_f4("view", { glm::value_ptr(view.camera->view), 16 });
     shader_particles_.set_uniform_mat_f4("projection", { glm::value_ptr(view.camera->projection), 16 });
+    const auto inverse_projection = glm::inverse(view.camera->projection);
+    shader_particles_.set_uniform_mat_f4("inverse_projection", { glm::value_ptr(inverse_projection), 16 });
     view.particles_ssbo->bind(static_cast<std::uint32_t>(ShaderBindingSlot::PARTICLES));
+    // what lit particles read: the lights, the shadow's parameters and map (white: nothing in shadow)
+    view.scene_ubo->bind(static_cast<std::uint32_t>(ShaderBindingSlot::SCENE));
+    view.lights_ssbo->bind(static_cast<std::uint32_t>(ShaderBindingSlot::LIGHTS));
+    view.lighting_ubo->bind(static_cast<std::uint32_t>(ShaderBindingSlot::VIEW_LIGHTING));
+    (shadow_map ? *shadow_map : white_texture_).bind_with_sampler(static_cast<std::uint32_t>(ShaderBindingSlot::TEXTURE_SHADOW_MAP));
+    white_texture_.bind_with_sampler(static_cast<std::uint32_t>(ShaderBindingSlot::TEXTURE_SSAO));
+    (scene_depth ? *scene_depth : white_texture_).bind_with_sampler(static_cast<std::uint32_t>(ShaderBindingSlot::TEXTURE_SCENE_DEPTH));
     geometry_particle_quad_.bind();
     using Factor = RenderContext::BlendFactor;
     for (const auto& draw : draws)
@@ -609,7 +647,12 @@ void engine::Renderer::draw_particles(const FrameView& view, const std::vector<P
         shader_particles_.set_uniform_ui("blend_mode", static_cast<std::uint32_t>(draw.blend));
         shader_particles_.set_uniform_ui("has_texture", draw.texture ? 1u : 0u);
         shader_particles_.set_uniform_ui("first_particle", draw.first);
-        shader_particles_.set_texture_with_sampler("particle_texture", draw.texture ? draw.texture : &white_texture_);
+        const std::array<std::uint32_t, 2> flipbook = { draw.texture ? draw.flipbook_columns : 1u, draw.texture ? draw.flipbook_rows : 1u };
+        shader_particles_.set_uniform_ui2("flipbook_size", flipbook);
+        shader_particles_.set_uniform_ui("lit", draw.lit ? 1u : 0u);
+        // without the depth copy (it isn't there when nothing is soft) no draw is soft
+        shader_particles_.set_uniform_f1("soft_distance", scene_depth ? draw.soft_distance : 0.0f);
+        (draw.texture ? *draw.texture : white_texture_).bind_with_sampler(static_cast<std::uint32_t>(ShaderBindingSlot::TEXTURE_PARTICLE));
         geometry_particle_quad_.draw_instances(Geometry::Mode::eTriangles, draw.count);
     }
     rdx_.set_blend_mode(false);

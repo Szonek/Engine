@@ -528,3 +528,132 @@ TEST(ParticleEffectAsset, ShortListsOfStructsAreReadWithoutComplaint)
         "effects/long.json", types, assets));
     EXPECT_TRUE(test_logger::logged("has 9 elements instead of 8"));
 }
+
+namespace
+{
+ParticleEmitterDesc flipbook_emitter(std::uint32_t columns, std::uint32_t rows, float fps, bool over_life)
+{
+    auto e = engine::default_particle_emitter();
+    e.flipbook_columns = columns;
+    e.flipbook_rows = rows;
+    e.flipbook_fps = fps;
+    e.flipbook_over_life = over_life;
+    return e;
+}
+}  // namespace
+
+TEST(ParticleErosion, NoKeysIsNoErosion)
+{
+    const auto e = engine::default_particle_emitter();
+    EXPECT_EQ(engine::particle_erosion(e, 0.0f), 0.0f);
+    EXPECT_EQ(engine::particle_erosion(e, 1.0f), 0.0f);
+}
+
+TEST(ParticleErosion, FollowsItsCurveClampedToZeroToOne)
+{
+    auto e = engine::default_particle_emitter();
+    e.erosion_over_life.keys_count = 3;
+    e.erosion_over_life.keys[0] = { 0.0f, -0.5f };
+    e.erosion_over_life.keys[1] = { 0.5f, 0.25f };
+    e.erosion_over_life.keys[2] = { 1.0f, 2.0f };
+    EXPECT_EQ(engine::particle_erosion(e, 0.0f), 0.0f);
+    EXPECT_NEAR(engine::particle_erosion(e, 0.5f), 0.25f, 1e-6f);
+    EXPECT_EQ(engine::particle_erosion(e, 1.0f), 1.0f);
+}
+
+TEST(ParticleFlipbook, OneFrameIsAlwaysFrameZero)
+{
+    for (const bool over_life : { false, true })
+    {
+        const auto f = engine::particle_flipbook_frame(flipbook_emitter(1, 1, 30.0f, over_life), 0.7f, 1.0f);
+        EXPECT_EQ(f.frame, 0u);
+        EXPECT_EQ(f.next_frame, 0u);
+        EXPECT_EQ(f.blend, 0.0f);
+    }
+    // a zero sized grid counts as one frame
+    const auto f = engine::particle_flipbook_frame(flipbook_emitter(0, 0, 30.0f, false), 0.7f, 1.0f);
+    EXPECT_EQ(f.frame, 0u);
+    EXPECT_EQ(f.blend, 0.0f);
+}
+
+TEST(ParticleFlipbook, FpsPlaysFramesFromBirthAndLoops)
+{
+    // 2 x 2 frames at 10 fps: a frame every 0.1 s, the four again from 0.4 s
+    const auto e = flipbook_emitter(2, 2, 10.0f, false);
+    auto f = engine::particle_flipbook_frame(e, 0.0f, 5.0f);
+    EXPECT_EQ(f.frame, 0u);
+    EXPECT_EQ(f.blend, 0.0f);
+
+    f = engine::particle_flipbook_frame(e, 0.125f, 5.0f);
+    EXPECT_EQ(f.frame, 1u);
+    EXPECT_EQ(f.next_frame, 2u);
+    EXPECT_NEAR(f.blend, 0.25f, 1e-4f);
+
+    // the last frame blends into the first
+    f = engine::particle_flipbook_frame(e, 0.35f, 5.0f);
+    EXPECT_EQ(f.frame, 3u);
+    EXPECT_EQ(f.next_frame, 0u);
+    EXPECT_NEAR(f.blend, 0.5f, 1e-4f);
+
+    // and it loops, whatever the lifetime
+    f = engine::particle_flipbook_frame(e, 0.525f, 5.0f);
+    EXPECT_EQ(f.frame, 1u);
+    EXPECT_NEAR(f.blend, 0.25f, 1e-3f);
+}
+
+TEST(ParticleFlipbook, ZeroFpsHoldsTheFirstFrame)
+{
+    const auto f = engine::particle_flipbook_frame(flipbook_emitter(4, 4, 0.0f, false), 3.0f, 5.0f);
+    EXPECT_EQ(f.frame, 0u);
+    EXPECT_EQ(f.blend, 0.0f);
+}
+
+TEST(ParticleFlipbook, OverLifePlaysOnceAndHoldsTheLastFrame)
+{
+    // 4 x 1 frames over a 2 s life: frame i at i / 3 of it; the fps doesn't matter
+    const auto e = flipbook_emitter(4, 1, 100.0f, true);
+    auto f = engine::particle_flipbook_frame(e, 0.0f, 2.0f);
+    EXPECT_EQ(f.frame, 0u);
+    EXPECT_EQ(f.next_frame, 1u);
+    EXPECT_EQ(f.blend, 0.0f);
+
+    // halfway: between frames 1 and 2
+    f = engine::particle_flipbook_frame(e, 1.0f, 2.0f);
+    EXPECT_EQ(f.frame, 1u);
+    EXPECT_EQ(f.next_frame, 2u);
+    EXPECT_NEAR(f.blend, 0.5f, 1e-4f);
+
+    // at and past the end: the last frame alone
+    for (const float age : { 2.0f, 3.0f })
+    {
+        f = engine::particle_flipbook_frame(e, age, 2.0f);
+        EXPECT_EQ(f.frame, 3u);
+        EXPECT_EQ(f.next_frame, 3u);
+        EXPECT_EQ(f.blend, 0.0f);
+    }
+}
+
+TEST(ParticleFlipbook, GatheredParticlesCarryTheirFrameAndErosion)
+{
+    auto effect = quiet_effect();
+    auto& e = effect.emitters[0];
+    e.bursts_count = 1;
+    e.bursts[0] = { 0.0f, 1 };
+    e.lifetime = { 1.0f, 1.0f };
+    e.flipbook_columns = 2;
+    e.flipbook_rows = 1;
+    e.flipbook_over_life = true;
+    e.erosion_over_life.keys_count = 2;
+    e.erosion_over_life.keys[0] = { 0.0f, 0.0f };
+    e.erosion_over_life.keys[1] = { 1.0f, 1.0f };
+    ParticleSystem system(1);
+    system.play();
+    // 30 frames: half the life
+    step(system, effect, 30);
+    const auto particles = gather(system, effect);
+    ASSERT_EQ(particles.size(), 1u);
+    EXPECT_NEAR(particles[0].erosion, 0.5f, 0.02f);
+    EXPECT_EQ(particles[0].flipbook.frame, 0u);
+    EXPECT_EQ(particles[0].flipbook.next_frame, 1u);
+    EXPECT_NEAR(particles[0].flipbook.blend, 0.5f, 0.02f);
+}

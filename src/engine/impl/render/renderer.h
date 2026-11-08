@@ -30,7 +30,8 @@ namespace engine
 //           Depth Pre-pass  (depth of meshes seen from the camera)
 //           SSAO, SSAO Blur (ambient occlusion computed from the depth)
 //           Forward (static + skinned meshes, uses the shadow map and the ambient occlusion) -> Sprites
-//           -> Transparent (particles, sorted back to front; only when there are some) -> Debug Lines -> Debug Lines Pick
+//           -> [Transparent Depth Copy, only for soft particles] -> Transparent (particles, sorted back to front; only
+//           when there are some; lit ones read the shadow map) -> Debug Lines -> Debug Lines Pick
 //       RenderStage::ePostProcess features    (i.e. editor outline)
 //       Present                               (scene color -> scene output: the backbuffer or the texture set with set_scene_output())
 //       RenderStage::eOverlay features        (i.e. game UI, drawn onto the scene output)
@@ -112,6 +113,10 @@ private:
         std::uint32_t count = 0;
         const Texture2D* texture = nullptr;
         ParticleBlend blend = ParticleBlend::eAlpha;
+        std::uint32_t flipbook_columns = 1;
+        std::uint32_t flipbook_rows = 1;
+        bool lit = false;
+        float soft_distance = 0.0f;
     };
 
     // GPU buffers of a single submitted scene
@@ -168,7 +173,8 @@ private:
     // sorts the scene's particles back to front for the view's camera into `out` (the view's part of the particle
     // SSBO, from `first`) and lists the draws, farthest batch first
     static void sort_particles(const SceneRenderData& scene, const CameraGpuData& camera, std::uint32_t first, ParticleGpuData* out, std::vector<ParticleDraw>& draws);
-    void draw_particles(const FrameView& view, const std::vector<ParticleDraw>& draws);
+    // the textures: the copy of the scene's depth (soft particles) and the shadow map (lit ones), or null
+    void draw_particles(const FrameView& view, const std::vector<ParticleDraw>& draws, const Texture2D* scene_depth, const Texture2D* shadow_map);
 
 private:
     RenderContext& rdx_;
@@ -204,6 +210,8 @@ private:
     // the lines' owners into the entity ids, for picking
     Shader shader_debug_lines_pick_;
     Shader shader_particles_;
+    // the scene's depth into a float texture (soft particles)
+    Shader shader_depth_copy_;
     // six vertices without data: a quad made in the vertex shader
     Geometry geometry_particle_quad_;
     Geometry geometry_debug_line_;
