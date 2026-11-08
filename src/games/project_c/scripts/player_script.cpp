@@ -55,6 +55,17 @@ void attack_window_close_callback(const engine_animation_event_info_t* info, voi
     static_cast<project_c::Player*>(user_data)->set_attack_window_active(false);
 }
 
+// the move the input asks for, in the world's xz plane (WASD: -z is up the screen), at most of length 1
+glm::vec2 move_input_of(const project_c::PlayerInput& input)
+{
+    glm::vec2 move(0.0f);
+    if (input.left) move.x -= 1.0f;
+    if (input.right) move.x += 1.0f;
+    if (input.forward) move.y -= 1.0f;
+    if (input.back) move.y += 1.0f;
+    return glm::length(move) > 1.0f ? glm::normalize(move) : move;
+}
+
 void shove_contact_callback(const engine_animation_event_info_t* info, void* user_data)
 {
     assert(info);
@@ -636,19 +647,7 @@ void project_c::Player::update(float dt)
     const bool drop_weapon_pressed = std::exchange(drop_weapon_press_pending_, false);
     const bool shove_pressed = !presses_wait && std::exchange(shove_press_pending_, false);
 
-    const auto button_A = input().left;
-    const auto button_W = input().forward;
-    const auto button_D = input().right;
-    const auto button_S = input().back;
-    glm::vec2 move_input(0.0f);
-    if (button_A) move_input.x -= 1.0f;
-    if (button_D) move_input.x += 1.0f;
-    if (button_W) move_input.y -= 1.0f;
-    if (button_S) move_input.y += 1.0f;
-    if (glm::length(move_input) > 1.0f)
-    {
-        move_input = glm::normalize(move_input);
-    }
+    const glm::vec2 move_input = move_input_of(input());
 
     glm::vec3 move_direction(0.0f);
     if (glm::length(move_input) > 0.0f)
@@ -1405,7 +1404,7 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
         if (previous == MovementMode::eAirborne && !is_dead())
         {
             rolled = air_dodge_press_age_seconds_ <= traversal.roll_window_seconds;
-            land_from_fall(traversal);
+            land_from_fall(traversal, rolled);
         }
         // a landing (also the plunge's), unless the player died in the air or from the fall (its death plays instead);
         // loud after a fall from high enough, and after a plunge
@@ -1431,12 +1430,8 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
             // dodge press
             landing_recovery_remaining_seconds_ = 0.0f;
             dodge_press_pending_ = false;
-            glm::vec2 roll_input(0.0f);
-            roll_input.x = (input().right ? 1.0f : 0.0f) - (input().left ? 1.0f : 0.0f);
-            roll_input.y = (input().back ? 1.0f : 0.0f) - (input().forward ? 1.0f : 0.0f);
             engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
-            start_dodge(glm::length(roll_input) > 0.0f ? glm::normalize(roll_input) : roll_input,
-                glm::make_quat(engineGameObjectGetTransformComponent(go_).rotation));
+            start_dodge(move_input_of(input()), glm::make_quat(engineGameObjectGetTransformComponent(go_).rotation));
         }
         else if (landing_recovery_remaining_seconds_ > 0.0f)
         {
@@ -1453,10 +1448,9 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
     }
 }
 
-void project_c::Player::land_from_fall(const TraversalTuning& traversal)
+void project_c::Player::land_from_fall(const TraversalTuning& traversal, bool rolled)
 {
     const float drop = fall_.land(position_of().y);
-    const bool rolled = air_dodge_press_age_seconds_ <= traversal.roll_window_seconds;
     const float fraction = fall_damage_fraction(traversal.fall, drop, rolled);
     if (fraction <= 0.0f)
     {

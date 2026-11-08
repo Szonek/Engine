@@ -279,7 +279,7 @@ private:
     float air_dodge_press_age_seconds_ = 0.0f;
     // a landing from a fall: its damage (half with a roll); the roll is the dodge instead of the landing's recovery.
     // Called with the player on the ground already.
-    void land_from_fall(const TraversalTuning& traversal);
+    void land_from_fall(const TraversalTuning& traversal, bool rolled);
 
     // this frame's noise (noise_radius) and where it was made, and the rings showing it on the ground
     void make_loud_noise(const PlayerTuning& t);
