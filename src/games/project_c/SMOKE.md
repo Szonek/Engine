@@ -20,7 +20,9 @@ executions are in `EXECUTIONS.md`.
 **E** (`PlayerInput::smoke`) throws, on the ground only, not during an attack, a dodge, a hit stun, a landing, a kick
 or another throw, and only when the cooldown is ready (`cooldown_seconds`, 12 s from the throw; momentum doesn't
 change it). The bomb lands at the point under the cursor, or at `throw_range` (8 m, flat) from the player in that
-direction (`smoke_landing`), on the first level geometry below that point (a roof under the cursor puts it on the roof).
+direction (`smoke_landing`), on the first level geometry below that point: from just above the cursor point when it
+is within range (a roof under the cursor puts it on the roof, the floor under an overhang on the floor), from high
+above when the landing was clamped.
 It pops even behind a wall. The player turns that way and plays `Throw` on the locomotion layer, standing still; the
 bomb leaves the hand `throw_release_seconds` (0.35) into the throw, where its cloud appears, and the player acts again
 `throw_recovery_seconds` (0.25) later (the clip's long follow-through is cut). A hit before the release cuts the

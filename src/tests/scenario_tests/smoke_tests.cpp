@@ -363,6 +363,25 @@ TEST_F(SmokeTest, PopIsHeardWithinTheNoiseRadiusOnly)
     EXPECT_EQ(far_enemy->awareness().state(), Awareness::eUnaware);
 }
 
+// a throw at the floor under an overhang (seen past its edge by the camera) lands on the floor, not on the overhang
+TEST_F(SmokeTest, ThrowUnderAnOverhangLandsOnTheFloor)
+{
+    sandbox();
+    place_player(0.0f, 0.0f);
+    // a slab 2.35 m to 2.65 m above the floor; the camera looks at -z, so it sees the floor under the slab's +z edge
+    scene_->build().obstacle(glm::vec3(4.0f, 2.5f, 0.0f), glm::vec3(2.0f, 0.3f, 2.0f));
+    step(SETTLE_FRAMES);
+    const auto tuning = project_c::default_smoke_tuning();
+
+    throw_smoke_at(glm::vec3(4.0f, 0.0f, 0.7f));
+    ASSERT_EQ(clouds().size(), 1u);
+    const auto centre = clouds().front()->centre();
+    const auto player = position_of(player_->get_game_object());
+    EXPECT_NEAR(centre.x, 4.0f, 0.2f);
+    EXPECT_NEAR(centre.z, 0.7f, 0.2f);
+    EXPECT_NEAR(centre.y, player.y + tuning.centre_height, 0.2f);
+}
+
 // a throw farther than the range lands at the range, in the same direction
 TEST_F(SmokeTest, ThrowBeyondRangeLandsAtRange)
 {

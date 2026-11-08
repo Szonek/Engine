@@ -8,8 +8,11 @@
 
 namespace
 {
-// the ground under the landing spot is looked for from this far above the higher of the player and the cursor point,
-// this far down (a roof under the cursor puts the cloud on the roof)
+// The ground under the landing spot is looked for this far down from just above the cursor point when the throw reaches
+// it (the cursor ray found that surface already: a roof under the cursor puts the cloud on the roof, the floor under an
+// overhang on the floor), and from this far above the higher of the player and the cursor point when the landing was
+// clamped to the range (nothing is known about the ground there).
+constexpr float GROUND_PROBE_ABOVE_CURSOR = 0.1f;
 constexpr float GROUND_PROBE_ABOVE = 5.0f;
 constexpr float GROUND_PROBE_DEPTH = 50.0f;
 }  // namespace
@@ -28,8 +31,10 @@ void project_c::PlayerSmoke::update(float delta_seconds)
 void project_c::PlayerSmoke::begin(const glm::vec3& player, const glm::vec3& cursor_point, const SmokeTuning& tuning)
 {
     auto landing = smoke_landing(player, cursor_point, tuning.throw_range);
+    const bool clamped = landing.x != cursor_point.x || landing.z != cursor_point.z;
     // on the ground there: the first level geometry below
-    const glm::vec3 probe(landing.x, std::max(player.y, cursor_point.y) + GROUND_PROBE_ABOVE, landing.z);
+    const float probe_y = clamped ? std::max(player.y, cursor_point.y) + GROUND_PROBE_ABOVE : cursor_point.y + GROUND_PROBE_ABOVE_CURSOR;
+    const glm::vec3 probe(landing.x, probe_y, landing.z);
     if (const auto ground = utils::level_ray(probe, glm::vec3(0.0f, -1.0f, 0.0f), GROUND_PROBE_DEPTH))
     {
         landing.y = ground->position[1];

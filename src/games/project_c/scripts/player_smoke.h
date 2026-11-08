@@ -30,7 +30,8 @@ public:
     float cooldown_remaining_seconds() const { return cooldown_remaining_seconds_; }
 
     // A throw starts from `player` at `cursor_point` (the point under the cursor): where it will land is decided now
-    // (clamped to the throw range, on the ground found under it), and the cooldown starts.
+    // (clamped to the throw range, on the ground found under it: under the cursor point itself when it is within the
+    // range, so an overhang above it doesn't catch the bomb), and the cooldown starts.
     void begin(const glm::vec3& player, const glm::vec3& cursor_point, const SmokeTuning& tuning);
     // The bomb leaves the hand: its cloud pops where the throw lands (once per throw). False when no throw is pending.
     bool release(const SmokeTuning& tuning);
