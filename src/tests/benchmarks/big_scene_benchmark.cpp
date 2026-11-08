@@ -12,6 +12,7 @@
 // (--enemies 0 leaves the enemies out, to tell their cost from the rest)
 #include <app.h>
 #include <scenes/level_builder.h>
+#include <scripts/game_layers.h>
 #include <scripts/building_script.h>
 #include <scripts/encounter_script.h>
 #include <scripts/player_script.h>
@@ -245,6 +246,7 @@ private:
         engineGameObjectUpdateTransformComponent(go, &tc);
 
         auto cc = engineGameObjectAddColliderComponent(go);
+        project_c::set_layer(cc, project_c::Layer::eLevelGeometry);
         cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
         auto& child = cc.collider.compound.children[0];
         child.type = ENGINE_COLLIDER_TYPE_BOX;
