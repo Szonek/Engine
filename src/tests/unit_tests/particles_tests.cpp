@@ -3,6 +3,7 @@
 #include "serialization/game_types.h"
 #include "serialization/scene_serializer.h"
 #include "serialization/type_registry.h"
+#include "test_logger.h"
 
 #include <gtest/gtest.h>
 
@@ -500,4 +501,30 @@ TEST(ParticleEffectAsset, GameFieldKindReferencesIt)
     EXPECT_EQ(type->fields[0].kind, engine::FieldKind::eAsset);
     EXPECT_EQ(type->fields[0].asset_kind, engine::AssetKind::eDataAsset);
     EXPECT_EQ(type->fields[0].data_type, types.find(engine::PARTICLE_EFFECT_TYPE_NAME));
+}
+
+TEST(ParticleEffectAsset, ShortListsOfStructsAreReadWithoutComplaint)
+{
+    engine::TypeRegistry types;
+    engine::register_builtin_types(types);
+    NoAssets assets;
+    test_logger::messages().clear();
+    const auto loaded = engine::load_data_asset(R"({ "version": 1, "type": "particle_effect", "value": {
+        "emitters_count": 1, "emitters": [ { "bursts_count": 1, "bursts": [ { "time": 0, "count": 3 } ] } ] } })", "effects/short.json", types, assets);
+    ASSERT_TRUE(loaded);
+    EXPECT_TRUE(test_logger::messages().empty());
+    const auto& effect = *reinterpret_cast<const ParticleEffectDesc*>(loaded->value->get());
+    EXPECT_EQ(effect.emitters[0].bursts[0].count, 3u);
+    // the elements left out keep the default effect's values
+    EXPECT_EQ(effect.emitters[1].rate, engine::default_particle_emitter().rate);
+
+    // a longer list loses what doesn't fit, and says so
+    std::string bursts;
+    for (int i = 0; i < 9; i++)
+    {
+        bursts += std::string(i ? ", " : "") + "{ \"time\": 0, \"count\": 1 }";
+    }
+    ASSERT_TRUE(engine::load_data_asset(R"({ "version": 1, "type": "particle_effect", "value": { "emitters": [ { "bursts": [ )" + bursts + " ] } ] } }",
+        "effects/long.json", types, assets));
+    EXPECT_TRUE(test_logger::logged("has 9 elements instead of 8"));
 }

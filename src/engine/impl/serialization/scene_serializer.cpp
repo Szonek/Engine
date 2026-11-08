@@ -351,7 +351,9 @@ private:
             error(path, "is not an array, the default is kept");
             return;
         }
-        if (json.Size() != field.count)
+        // a list of structs (an effect's emitters, a curve's keys) may be written short: the elements it leaves out keep
+        // their values; numbers (a vector) and a longer list are a mistake
+        if (json.Size() > field.count || (json.Size() < field.count && field.kind != engine::FieldKind::eStruct))
         {
             error(path, fmt::format("has {} elements instead of {}, the ones which fit are read", json.Size(), field.count));
         }
