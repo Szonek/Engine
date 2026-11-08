@@ -142,7 +142,11 @@ engine::ParticleEmitterDesc engine::default_particle_emitter()
     e.gravity_scale = 0.0f;
     e.flipbook_columns = 1;
     e.flipbook_rows = 1;
+    e.flipbook_fps = 10.0f;
     e.blend = ParticleBlendMode::eAlpha;
+    e.texture_channels = ParticleTextureChannels::eRgba;
+    e.erosion_softness = 0.1f;
+    e.light_wrap = 0.5f;
     return e;
 }
 
@@ -157,12 +161,12 @@ engine::ParticleEffectDesc engine::default_particle_effect()
     return effect;
 }
 
-float engine::evaluate_curve(const ParticleCurve& curve, float t)
+float engine::evaluate_curve(const ParticleCurve& curve, float t, float empty)
 {
     const auto count = std::min(curve.keys_count, PARTICLE_CURVE_MAX_KEYS);
     if (count == 0)
     {
-        return 1.0f;
+        return empty;
     }
     if (t <= curve.keys[0].time)
     {
@@ -204,6 +208,26 @@ glm::vec3 engine::evaluate_curve(const ParticleColorCurve& curve, float t)
         }
     }
     return to_vec3(curve.keys[count - 1].color);
+}
+
+float engine::flipbook_frame(const ParticleEmitterDesc& desc, float age, float lifetime)
+{
+    const auto frames = std::max(1u, desc.flipbook_columns) * std::max(1u, desc.flipbook_rows);
+    if (frames == 1)
+    {
+        return 0.0f;
+    }
+    const auto count = static_cast<float>(frames);
+    if (desc.flipbook_over_life)
+    {
+        // once: the first frame at the start, the last one at the end
+        const float t = lifetime > 0.0f ? std::clamp(age / lifetime, 0.0f, 1.0f) : 0.0f;
+        return desc.flipbook_blend ? t * (count - 1.0f) : std::min(std::floor(t * count), count - 1.0f);
+    }
+    // looping at its fps
+    float frame = std::max(0.0f, age * desc.flipbook_fps);
+    frame -= std::floor(frame / count) * count;
+    return desc.flipbook_blend ? frame : std::min(std::floor(frame), count - 1.0f);
 }
 
 void engine::ParticleEmitterState::reset(std::uint64_t seed)
@@ -393,6 +417,8 @@ void engine::ParticleEmitterState::gather(const ParticleEmitterDesc& desc, const
         const glm::vec3 rgb = glm::vec3(color_[i]) * evaluate_curve(desc.color_over_life, t);
         p.color = glm::vec4(rgb, color_[i].a * evaluate_curve(desc.alpha_over_life, t)) * tint;
         p.rotation = rotation_[i];
+        p.erosion = std::clamp(evaluate_curve(desc.erosion_over_life, t, 0.0f), 0.0f, 1.0f);
+        p.frame = flipbook_frame(desc, age_[i], lifetime_[i]);
         out.push_back(p);
     }
 }

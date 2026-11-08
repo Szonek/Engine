@@ -528,3 +528,55 @@ TEST(ParticleEffectAsset, ShortListsOfStructsAreReadWithoutComplaint)
         "effects/long.json", types, assets));
     EXPECT_TRUE(test_logger::logged("has 9 elements instead of 8"));
 }
+
+TEST(ParticleFlipbook, OneFrameIsAlwaysTheFirst)
+{
+    auto e = engine::default_particle_emitter();
+    EXPECT_EQ(engine::flipbook_frame(e, 3.0f, 5.0f), 0.0f);
+}
+
+TEST(ParticleFlipbook, OverLifePlaysOnceToTheLastFrame)
+{
+    auto e = engine::default_particle_emitter();
+    e.flipbook_columns = 4;
+    e.flipbook_rows = 4;
+    e.flipbook_over_life = true;
+    EXPECT_EQ(engine::flipbook_frame(e, 0.0f, 2.0f), 0.0f);
+    EXPECT_EQ(engine::flipbook_frame(e, 1.0f, 2.0f), 8.0f);
+    EXPECT_EQ(engine::flipbook_frame(e, 1.99f, 2.0f), 15.0f);
+    EXPECT_EQ(engine::flipbook_frame(e, 2.0f, 2.0f), 15.0f);
+    // blended: continuous, from the first to the last frame
+    e.flipbook_blend = true;
+    EXPECT_FLOAT_EQ(engine::flipbook_frame(e, 1.0f, 2.0f), 7.5f);
+    EXPECT_FLOAT_EQ(engine::flipbook_frame(e, 2.0f, 2.0f), 15.0f);
+}
+
+TEST(ParticleFlipbook, ByFpsLoops)
+{
+    auto e = engine::default_particle_emitter();
+    e.flipbook_columns = 2;
+    e.flipbook_rows = 2;
+    e.flipbook_fps = 10.0f;
+    EXPECT_EQ(engine::flipbook_frame(e, 0.25f, 10.0f), 2.0f);
+    // 4 frames a loop: 0.45 s is frame 4.5, the first of the second loop
+    EXPECT_EQ(engine::flipbook_frame(e, 0.45f, 10.0f), 0.0f);
+    e.flipbook_blend = true;
+    EXPECT_NEAR(engine::flipbook_frame(e, 0.45f, 10.0f), 0.5f, 1e-4f);
+}
+
+TEST(ParticleSystem, ErosionFollowsItsCurveAndIsNoneWithoutKeys)
+{
+    auto effect = quiet_effect();
+    auto& e = effect.emitters[0];
+    e.lifetime = { 1.0f, 1.0f };
+    e.bursts_count = 1;
+    e.bursts[0] = { 0.0f, 1 };
+    ParticleSystem system(1);
+    system.play();
+    step(system, effect, 31);
+    EXPECT_EQ(gather(system, effect)[0].erosion, 0.0f);
+    e.erosion_over_life.keys_count = 2;
+    e.erosion_over_life.keys[0] = { 0.0f, 0.0f };
+    e.erosion_over_life.keys[1] = { 1.0f, 1.0f };
+    EXPECT_NEAR(gather(system, effect)[0].erosion, 0.5f, 0.03f);
+}

@@ -269,18 +269,25 @@ void register_particle_effect(engine::TypeRegistry& registry)
         .structure("color_over_life", &E::color_over_life, "particle_color_curve")
         .structure("alpha_over_life", &E::alpha_over_life, "particle_curve")
         .structure("erosion_over_life", &E::erosion_over_life, "particle_curve")
+        .field("erosion_softness", &E::erosion_softness).hints(ranged(0.001f, 1.0f, "how soft the eroded edge is, of the noise's range"))
         .field("drag", &E::drag).hints(ranged(0.0f, 100.0f, "slows the particles down, per second"))
         .field("gravity_scale", &E::gravity_scale).hints(ranged(-10.0f, 10.0f, "of the scene's gravity"))
         .asset("texture", &E::texture, AssetKind::eTexture)
+        .enumeration("texture_channels", &E::texture_channels, {
+            { "rgba", static_cast<std::int32_t>(ParticleTextureChannels::eRgba) },
+            { "packed", static_cast<std::int32_t>(ParticleTextureChannels::ePacked) } })
+        .hints(tip("rgba: a colour and alpha; packed: a smoke puff, R brightness, G erosion noise, A alpha"))
         .field("flipbook_columns", &E::flipbook_columns).hints(ranged(1.0f, 64.0f, "frames across the texture"))
         .field("flipbook_rows", &E::flipbook_rows).hints(ranged(1.0f, 64.0f, "frames down the texture"))
         .field("flipbook_fps", &E::flipbook_fps).hints(ranged(0.0f, 240.0f, "frames a second"))
         .field("flipbook_over_life", &E::flipbook_over_life).hints(tip("the frames play once over each particle's life"))
+        .field("flipbook_blend", &E::flipbook_blend).hints(tip("blends each frame into the next"))
         .enumeration("blend", &E::blend, {
             { "alpha", static_cast<std::int32_t>(ParticleBlendMode::eAlpha) },
             { "premultiplied", static_cast<std::int32_t>(ParticleBlendMode::ePremultiplied) },
             { "additive", static_cast<std::int32_t>(ParticleBlendMode::eAdditive) } })
-        .field("lit", &E::lit).hints(tip("lit by the scene's light"))
+        .field("lit", &E::lit).hints(tip("lit by the scene's directional light (and its shadow) and ambient light"))
+        .field("light_wrap", &E::light_wrap).hints(ranged(0.0f, 1.0f, "how far the light wraps around the puff (0: a hard terminator)"))
         .field("soft_distance", &E::soft_distance).hints(ranged(0.0f, 10.0f, "metres over which it fades into the geometry behind it"))
         .field("sort_order", &E::sort_order).hints(tip("among effects at the same distance, higher draws on top"))
         .structure();

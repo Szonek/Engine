@@ -52,6 +52,16 @@ enum class ParticleBlendMode : std::int32_t
     eAdditive = 2,
 };
 
+// what the texture's channels hold
+enum class ParticleTextureChannels : std::int32_t
+{
+    // a colour and its alpha; erosion thresholds the alpha
+    eRgba = 0,
+    // a smoke puff (generate_particle_textures.py): R brightness, G erosion noise, B unused, A alpha; the particle's
+    // colour tints it
+    ePacked = 1,
+};
+
 struct ParticleRange
 {
     float min;
@@ -133,23 +143,31 @@ struct ParticleEmitterDesc
     ParticleCurve size_over_life;
     ParticleColorCurve color_over_life;
     ParticleCurve alpha_over_life;
-    // the alpha threshold rising over life (stored; drawn by the lit smoke shader)
+    // the alpha threshold rising over life (no keys: none), the particle dissolves into wisps instead of fading as a
+    // whole; over `erosion_softness` of the noise the edge goes from transparent to opaque
     ParticleCurve erosion_over_life;
+    float erosion_softness;
     // per second, slowing particles down (velocity / (1 + drag * dt))
     float drag;
     // of the scene's gravity
     float gravity_scale;
 
-    // rendering: an unlit camera-facing quad, colour times texture (none: a soft circle)
+    // rendering: a camera-facing quad, colour times texture (none: a soft circle)
     engine_texture2d_t texture;
-    // a flipbook of columns x rows frames (stored; drawn by the lit smoke shader)
+    ParticleTextureChannels texture_channels;
+    // a flipbook of columns x rows frames, left to right then top to bottom: `flipbook_fps` frames a second, or once
+    // over each particle's life; blending between two frames
     std::uint32_t flipbook_columns;
     std::uint32_t flipbook_rows;
     float flipbook_fps;
     bool flipbook_over_life;
+    bool flipbook_blend;
     ParticleBlendMode blend;
-    // lit by the scene's light, faded near the geometry behind it (stored; drawn by the lit smoke shader)
+    // lit by the scene's directional light (a sphere-shaped normal with `light_wrap` of wrap-around, the shadow map at
+    // the particle) and its ambient light
     bool lit;
+    float light_wrap;
+    // metres over which the particle fades out where it nears the geometry behind it (0: a hard edge)
     float soft_distance;
     // among the effects with the same distance: higher draws later (on top)
     std::int32_t sort_order;
@@ -165,8 +183,13 @@ struct ParticleEffectDesc
 ParticleEmitterDesc default_particle_emitter();
 ParticleEffectDesc default_particle_effect();
 
-float evaluate_curve(const ParticleCurve& curve, float t);
+// `empty`: the value of a curve without keys (1 for a multiplier, 0 for erosion)
+float evaluate_curve(const ParticleCurve& curve, float t, float empty = 1.0f);
 glm::vec3 evaluate_curve(const ParticleColorCurve& curve, float t);
+
+// The flipbook frame of a particle `age` seconds into its `lifetime`: a whole frame, plus the fraction toward the next
+// one when the emitter blends frames. Over life the frames play once (the last frame at the end), by fps they loop.
+float flipbook_frame(const ParticleEmitterDesc& desc, float age, float lifetime);
 
 // SplitMix64 with its own float mapping: the same seed gives the same particles with every compiler and standard
 // library (std distributions differ between them).
@@ -209,6 +232,8 @@ struct ParticleInstance
     float size;          // world units, the quad's side
     glm::vec4 color;     // RGBA, tint applied
     float rotation;      // radians, around the view axis
+    float erosion;       // the alpha threshold, 0: none
+    float frame;         // the flipbook frame (fractional when blending)
 };
 
 // The particles of one emitter of a playing instance: structure of arrays, as many slots as its max_particles (no
