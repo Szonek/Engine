@@ -195,6 +195,23 @@ public:
     bool perceived_this_frame() const { return perceived_; }
     // since it last perceived the player itself (infinite when it never did)
     float seconds_since_perceived() const { return seconds_since_perceived_; }
+    // It lost the player (a smoke cloud blinded it, SMOKE.md): an alert enemy searches, from `position` (where the player
+    // vanished), as if it had not perceived the player for a long time, so it no longer keeps its pack alert either. An
+    // unaware or suspicious one is left as it is.
+    void lose_track(const glm::vec3& position)
+    {
+        if (state_ != Awareness::eAlert && state_ != Awareness::eSearching)
+        {
+            return;
+        }
+        set_state(Awareness::eSearching);
+        searching_seconds_ = 0.0f;
+        meter_ = 1.0f;
+        last_known_position_ = position;
+        perceived_ = false;
+        seconds_since_perceived_ = std::numeric_limits<float>::infinity();
+    }
+
     // alert and it perceived the player itself within the grace time: it chases and attacks the player where it is
     // (otherwise it goes to the last known position)
     bool hunting(const EnemyPerception& perception) const

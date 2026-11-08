@@ -44,6 +44,7 @@ set(LIB_SOURCES
 	scripts/execution_math.h
 	scripts/fall_damage.h
 	scripts/momentum.h
+	scripts/smoke.h
 	scripts/enviorment_script.h
 	scripts/enviorment_script.cpp
 	scripts/game_components.h

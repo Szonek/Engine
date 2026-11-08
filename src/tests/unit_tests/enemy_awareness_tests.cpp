@@ -264,3 +264,34 @@ TEST(EnemyAwareness, LastKnownPositionFollowsTheNewestStimulus)
     EXPECT_EQ(awareness.last_known_position(), seen.seen_position);
     EXPECT_GT(awareness.seconds_since_perceived(), 0.0f);
 }
+
+// a smoke cloud blinded it: an alert enemy searches where the player vanished and stops keeping its pack alert
+TEST(EnemyAwareness, LoseTrackTurnsAlertIntoSearchingFromThePosition)
+{
+    const auto p = perception();
+    project_c::EnemyAwareness awareness;
+    project_c::EnemyStimuli hit{};
+    hit.damaged = true;
+    hit.damage_position = glm::vec3(1.0f, 0.0f, 1.0f);
+    awareness.update(0.016f, hit, p);
+    ASSERT_EQ(awareness.state(), project_c::Awareness::eAlert);
+    ASSERT_EQ(awareness.seconds_since_perceived(), 0.0f);
+
+    awareness.lose_track(glm::vec3(5.0f, 0.0f, 2.0f));
+    EXPECT_EQ(awareness.state(), project_c::Awareness::eSearching);
+    EXPECT_EQ(awareness.last_known_position(), glm::vec3(5.0f, 0.0f, 2.0f));
+    EXPECT_FALSE(awareness.perceived_this_frame());
+    EXPECT_TRUE(std::isinf(awareness.seconds_since_perceived()));
+    EXPECT_FALSE(awareness.hunting(p));
+    // it searches its full time from now on
+    awareness.update(p.lose_seconds * 0.5f, project_c::EnemyStimuli{}, p);
+    EXPECT_EQ(awareness.state(), project_c::Awareness::eSearching);
+}
+
+TEST(EnemyAwareness, LoseTrackLeavesAnUnawareEnemyAlone)
+{
+    project_c::EnemyAwareness awareness;
+    awareness.lose_track(glm::vec3(5.0f, 0.0f, 2.0f));
+    EXPECT_EQ(awareness.state(), project_c::Awareness::eUnaware);
+    EXPECT_EQ(awareness.meter(), 0.0f);
+}
