@@ -66,6 +66,13 @@ An enemy of an alert pack whose members perceived the player within `lose_second
 most), so a pack calms down only once none of them has perceived the player for `lose_seconds`. A placed enemy, or one
 whose spawner is gone, is a pack of one.
 
+## Smoke
+
+The player's smoke bomb (`SMOKE.md`) hides the player from sight while its cloud is on the line of sight, and blinds
+the enemies it pops on: they lose track of the player (`EnemyAwareness::lose_track`: an alert enemy searches from the
+cloud as if it hadn't perceived the player for a long time, so it no longer keeps its pack alert) and see nothing for a
+few seconds. The pop is a loud noise for the enemies around which haven't noticed the player.
+
 ## Sneaking
 
 Holding Left Shift (`PlayerInput::sneak`) moves the player at `sneak_speed` and makes no footstep noise. It is below the

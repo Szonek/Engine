@@ -27,7 +27,7 @@ collision layer around the player, so floors and walls never crowd them out) whi
   collision layers, everything but characters, hitboxes and pickups, the same test as the enemies' sight);
 * isn't dying or being executed.
 
-A knocked-down enemy can be executed from any side, whatever it knows. The player must be grounded and not dodging,
+A knocked-down enemy, or one blinded by a smoke bomb (`SMOKE.md`), can be executed from any side, whatever it knows. The player must be grounded and not dodging,
 stunned or recovering from a landing; a press in the middle of a combo cancels the swing. Without a weapon the player
 kicks (`Unarmed_Melee_Attack_Kick`), with the daggers it stabs (`Dualwield_Melee_Attack_Stab`). The target is computed
 every frame (`Player::execution_target`); the HUD marks it and a press executes it, otherwise the press is a normal
