@@ -1,4 +1,5 @@
 #include "enemy_script.h"
+#include "smoke_cloud.h"
 #include "game_layers.h"
 #include "player_script.h"
 #include "enviorment_script.h"
@@ -920,8 +921,8 @@ void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_s
 
 bool project_c::Enemy::sees(const glm::vec3& eye, const glm::vec3& to_player) const
 {
-    // only level geometry hides the player (other enemies, on the characters' layer, don't)
-    return !utils::level_blocks(eye, eye + to_player);
+    // level geometry and smoke clouds hide the player (other enemies, on the characters' layer, don't)
+    return !utils::level_blocks(eye, eye + to_player) && !utils::smoke_blocks(*my_scene_, eye, eye + to_player);
 }
 
 bool project_c::Enemy::was_just_killed() const
