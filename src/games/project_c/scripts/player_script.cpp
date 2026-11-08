@@ -1714,17 +1714,13 @@ void project_c::Player::start_throw(const glm::vec3& cursor_point)
         std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
         engineGameObjectUpdateTransformComponent(go_, &tc);
     }
-    float duration = 0.0f;
-    if (engineAnimationControllerAnimationGetDuration(go_, PlayerSmoke::THROW_CLIP, &duration) != ENGINE_RESULT_CODE_OK || duration <= 0.0f)
-    {
-        duration = 0.8f;
-    }
     // the whole body throws: the locomotion layer plays it once, the upper body layer is off
     engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, false);
     engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
     engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 0.0f);
     engineAnimationControllerAnimationCrossFade(go_, PlayerSmoke::THROW_CLIP, LOCOMOTION_LAYER_ID, 0.05f);
-    throw_remaining_seconds_ = std::max(duration, PlayerSmoke::THROW_RELEASE_SECONDS + 0.05f);
+    // the player acts again a moment after the release (the clip's long follow-through is cut)
+    throw_remaining_seconds_ = PlayerSmoke::THROW_RELEASE_SECONDS + PlayerSmoke::THROW_RECOVERY_SECONDS;
     movement_velocity_ = glm::vec2(0.0f);
 }
 

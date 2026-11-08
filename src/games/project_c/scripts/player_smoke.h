@@ -23,6 +23,8 @@ public:
     static constexpr const char* THROW_CLIP = "Throw";
     // when in the clip the bomb leaves the hand (seconds)
     static constexpr float THROW_RELEASE_SECONDS = 0.35f;
+    // after the release the player can act again this soon (the clip's follow-through is cut short)
+    static constexpr float THROW_RECOVERY_SECONDS = 0.25f;
 
     PlayerSmoke(engine::IScene* scene, engine_game_object_t player);
 
