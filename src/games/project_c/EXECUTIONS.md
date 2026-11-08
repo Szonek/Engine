@@ -69,6 +69,12 @@ or is knocked down, and is reachable; no behind rule. The player dashes to its b
 strikes, and the window opens again; the chain has no cap. A press with no target is a normal attack and ends the chain.
 While the window is open, the HUD marks the next target and a line leads to it.
 
+## Momentum
+
+Executions feed the player's momentum (`FALLS_AND_SHOVES.md`): an execution from behind fills it by 0.25, a plunge by
+0.35, each further execution of a chain by 0.15 (in place of the 0.25). The chain's range grows with it, up to 50% more
+at a full meter (`chain_range` times `PlayerMomentum::chain_range_multiplier`).
+
 ## Tests
 
 * `src/tests/unit_tests/execution_math_tests.cpp`: the rules, target picking, landing prediction, the chain window.
