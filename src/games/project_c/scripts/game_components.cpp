@@ -111,7 +111,7 @@ project_c::EnemyType project_c::default_enemy_type()
     return EnemyType{ ENGINE_INVALID_OBJECT_HANDLE, 20, 2, 2.0f, 0.5f, 0.8f, { 1.0f, 0.32f, 0.22f }, {
         { "1H_Melee_Attack_Slice_Horizontal", 0.18f, 0.36f },
         { "1H_Melee_Attack_Slice_Diagonal", 0.32f, 0.50f },
-    }, default_enemy_perception(), true };
+    }, default_enemy_perception(), true, FallDamage{ 1.0f, 2.0f } };
 }
 
 project_c::PlayerTuning project_c::default_player_tuning()
@@ -260,6 +260,13 @@ void project_c::register_game_components()
             "metres per second while it walks to what it noticed, or searches", 10.0f),
     }, default_enemy_perception());
 
+    g_types.fall_damage = register_data_asset_type("fall_damage", {
+        ranged(field("min_height", ENGINE_FIELD_KIND_FLOAT, offsetof(FallDamage, min_height), "metres: a drop up to this height does no damage"),
+            0.0f, 100.0f),
+        ranged(field("lethal_height", ENGINE_FIELD_KIND_FLOAT, offsetof(FallDamage, lethal_height),
+            "metres: a drop from this height or higher kills (linear in between)"), 0.0f, 100.0f),
+    }, FallDamage{ 1.0f, 2.0f });
+
     g_types.enemy_type = register_data_asset_type("enemy_type", {
         field("prefab", ENGINE_FIELD_KIND_PREFAB, offsetof(EnemyType, prefab), "the model the enemies of the kind are made of"),
         ranged(field("max_hp", ENGINE_FIELD_KIND_UINT32, offsetof(EnemyType, max_hp), "hit points of a fresh enemy"), 1.0f, 1000.0f),
@@ -272,6 +279,7 @@ void project_c::register_game_components()
         structs("perception", offsetof(EnemyType, perception), "enemy_perception", "how it notices the player: sight, hearing, how fast it forgets", 0),
         field("execution_kills", ENGINE_FIELD_KIND_BOOL, offsetof(EnemyType, execution_kills),
             "an execution kills it; otherwise it takes the execution's damage and is alerted (heavies, the target)"),
+        structs("fall", offsetof(EnemyType, fall), "fall_damage", "the drops which hurt and kill it (a kick off a roof)", 0),
     }, default_enemy_type());
 
     g_types.player_tuning = register_data_asset_type("player_tuning", {

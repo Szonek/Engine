@@ -1,6 +1,7 @@
 #pragma once
 #include "base_script.h"
 #include "enemy_awareness.h"
+#include "fall_damage.h"
 #include "game_components.h"
 
 #include <glm/glm.hpp>
@@ -44,7 +45,9 @@ private:
         DIE,
         MOVE,
         // knocked down by a plunge: lies, then stands up; it neither moves nor attacks
-        KNOCKED_DOWN
+        KNOCKED_DOWN,
+        // off the ground (kicked off a ledge): no AI, it keeps the push it had; landing hurts (fall damage)
+        FALLING
     };
 
     struct IdleStateData {};
@@ -81,6 +84,14 @@ public:
     // a plunge landed next to it: it lies for `seconds` and stands up, alerted
     void knock_down(float seconds);
     bool is_knocked_down() const { return state_ == States::KNOCKED_DOWN && knocked_down_remaining_seconds_ > 0.0f; }
+    // off the ground, falling (no AI until it lands)
+    bool is_falling() const { return state_ == States::FALLING; }
+    // a body landed from a fall this frame: a loud noise where it landed, heard by the enemies around
+    bool landing_noise(glm::vec3& position) const
+    {
+        position = landing_noise_position_;
+        return landing_noise_;
+    }
     void set_attack_window_active(bool active);
     void on_weapon_hit_player(engine_game_object_t player_go);
 
@@ -154,5 +165,20 @@ private:
     float knocked_down_remaining_seconds_ = 0.0f;
     bool standing_up_ = false;
     float dying_seconds_ = 0.0f;
+
+    // horizontal push (a kick), decaying; it moves the enemy with its character controller, also off ledges
+    glm::vec3 knockback_velocity_{ 0.0f };
+    // seconds the controller has had nothing under it (a step down isn't a fall)
+    float ungrounded_seconds_ = 0.0f;
+    FallMeasure fall_;
+    // falls: when the controller leaves the ground for long enough, and the landing (damage, a knockdown or death)
+    void start_falling(float height);
+    void land(const EnemyType& type, float height);
+    // the noise of its landing, heard during one update of each enemy (kept until its own next update)
+    bool landing_noise_ = false;
+    glm::vec3 landing_noise_position_{ 0.0f };
+    void set_landing_noise(bool on, const glm::vec3& position = glm::vec3(0.0f));
+    // how many enemies have a landing noise now: the others look for them only then
+    static inline std::uint32_t landing_noises_ = 0;
 };
 } //namespace project_c

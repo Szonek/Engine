@@ -41,6 +41,11 @@ bool same_attacks(const project_c::EnemyAttack (&a)[project_c::ENEMY_TYPE_MAX_AT
     }
     return true;
 }
+// a kick's push decays like the player's knockback (exponentially), more slowly in the air
+constexpr float ENEMY_KNOCKBACK_DECAY = 4.0f;
+constexpr float ENEMY_AIR_DRAG = 0.5f;
+// seconds the character controller has nothing under the enemy before it falls (a step down isn't a fall)
+constexpr float ENEMY_FALL_DELAY_SECONDS = 0.1f;
 // the blade only reaches ~0.3 m in front of the skeleton, so the player is hit up to ~0.5 m between centers;
 // swinging from further away always misses
 // closer than this there is no nav mesh path to follow: the enemy walks straight at the player
@@ -232,6 +237,7 @@ void project_c::Enemy::remove_attack_events()
 
 project_c::Enemy::~Enemy()
 {
+    set_landing_noise(false);
     remove_attack_events();
     // its blade, a runtime object; the blade's script goes with it
     if (engineGameObjectIsValid(weapon_go_))
@@ -285,6 +291,9 @@ void project_c::Enemy::update(float dt)
     const auto cfg = tuning();
     // the attack timings of the type changed (an edit of its file, or another type)
     sync_attack_events(cfg);
+
+    // its landing noise of the last frame has been heard by every other enemy since
+    set_landing_noise(false);
 
     // what it notices of the player (also when there is none: it forgets), then (after a hit stop) what it does about
     // it: a hit alerts it at once, also during the hit stop. A player destroyed since (e.g. deleted in the editor) is
@@ -425,6 +434,16 @@ void project_c::Enemy::update(float dt)
     glm::vec3 velocity(0.0f);
     switch (state_)
     {
+    case States::FALLING:
+    {
+        // no AI in the air: it keeps the push it had, slowed a little by the air
+        if (!engineAnimationControllerIsAnimationPlaying(go_, "Jump_Idle"))
+        {
+            engineAnimationControllerLayerSetLooping(go_, 0, true);
+            engineAnimationControllerAnimationPlay(go_, "Jump_Idle", 0);
+        }
+        break;
+    }
     case States::DECISION_MAKE:
     {
         const auto* attack = distance_to_player <= cfg.attack_range && attack_cooldown_remaining_seconds_ <= 0.0f ? next_attack(cfg) : nullptr;
@@ -578,10 +597,101 @@ void project_c::Enemy::update(float dt)
         break;
     }
     }
-    if (state_ != States::DIE && engineCharacterControllerMove(go_, glm::value_ptr(velocity), dt, nullptr) != ENGINE_RESULT_CODE_OK)
+    if (state_ == States::DIE)
+    {
+        return;
+    }
+    // the push of a kick adds to its own move, and decays (more slowly in the air)
+    const float delta_seconds = dt / 1000.0f;
+    velocity += knockback_velocity_;
+    knockback_velocity_ *= std::exp(-(state_ == States::FALLING ? ENEMY_AIR_DRAG : ENEMY_KNOCKBACK_DECAY) * delta_seconds);
+    engine_character_controller_move_result_t moved{};
+    if (engineCharacterControllerMove(go_, glm::value_ptr(velocity), dt, &moved) != ENGINE_RESULT_CODE_OK)
     {
         engineLog("Failed to move the enemy.\n");
+        return;
     }
+    const float height = engineGameObjectGetTransformComponent(go_).position[1];
+    const bool supported = moved.grounded || moved.blocked_below;
+    if (state_ == States::FALLING)
+    {
+        fall_.update(height);
+        if (supported)
+        {
+            land(cfg, height);
+        }
+        return;
+    }
+    // nothing under it for a moment (not a step down): it falls, from where it left the ground
+    if (supported)
+    {
+        ungrounded_seconds_ = 0.0f;
+        return;
+    }
+    if (ungrounded_seconds_ <= 0.0f)
+    {
+        fall_.start(height);
+    }
+    fall_.update(height);
+    ungrounded_seconds_ += delta_seconds;
+    if (ungrounded_seconds_ >= ENEMY_FALL_DELAY_SECONDS)
+    {
+        start_falling(height);
+    }
+}
+
+void project_c::Enemy::start_falling(float /*height*/)
+{
+    // what it was doing ends; it neither attacks nor walks in the air
+    set_attack_window_active(false);
+    standing_up_ = false;
+    knocked_down_remaining_seconds_ = 0.0f;
+    state_ = States::FALLING;
+    engineAnimationControllerLayerSetLooping(go_, 0, true);
+    engineAnimationControllerAnimationPlay(go_, "Jump_Idle", 0);
+}
+
+void project_c::Enemy::land(const EnemyType& type, float height)
+{
+    ungrounded_seconds_ = 0.0f;
+    knockback_velocity_ = glm::vec3(0.0f);
+    const float drop = fall_.land(height);
+    const float fraction = fall_damage_fraction(type.fall, drop, false);
+    if (fraction <= 0.0f)
+    {
+        // a drop it takes in its stride (a step, being spawned just above the floor): it goes on
+        state_ = States::DECISION_MAKE;
+        return;
+    }
+    const auto own = engineGameObjectGetTransformComponent(go_);
+    // a body hitting the ground: loud, the enemies around hear it
+    set_landing_noise(true, glm::vec3(own.position[0], own.position[1], own.position[2]));
+    const auto damage = static_cast<std::uint32_t>(std::ceil(fraction * static_cast<float>(type.max_hp)));
+    if (damage > 0)
+    {
+        hp = damage >= hp ? 0 : hp - damage;
+        hit_flash_remaining_seconds_ = 0.12f;
+        update_hit_flash(1.0f);
+    }
+    if (hp == 0)
+    {
+        // it dies (the death plays next update)
+        state_ = States::DECISION_MAKE;
+        return;
+    }
+    // it survives the landing: it lies a moment and stands up, alerted
+    const auto* player = my_scene_->get_script<Player>(player_go_);
+    knock_down(player ? player->execution_tuning().knockdown_seconds : default_execution_tuning().knockdown_seconds);
+}
+
+void project_c::Enemy::set_landing_noise(bool on, const glm::vec3& position)
+{
+    if (on != landing_noise_)
+    {
+        landing_noises_ = on ? landing_noises_ + 1 : landing_noises_ - 1;
+    }
+    landing_noise_ = on;
+    landing_noise_position_ = position;
 }
 
 void project_c::Enemy::set_attack_window_active(bool active)
@@ -728,6 +838,21 @@ project_c::EnemyStimuli project_c::Enemy::perceive(const EnemyPerception& percep
             stimuli.seen_distance = distance;
             stimuli.seen_above = player_position.y - position.y > ENEMY_MAX_REACH_HEIGHT;
             stimuli.seen_position = player_position;
+        }
+    }
+
+    // hearing: a body landing near it is a loud noise (only looked for while one landed)
+    if (landing_noises_ > 0)
+    {
+        const float radius = player->tuning().loud_noise_radius;
+        for (const auto* other : my_scene_->get_scripts<Enemy>())
+        {
+            glm::vec3 landed{};
+            if (other != this && other->landing_noise(landed) && glm::distance(position, landed) <= radius)
+            {
+                stimuli.heard_loud_noise = true;
+                stimuli.loud_noise_position = landed;
+            }
         }
     }
 

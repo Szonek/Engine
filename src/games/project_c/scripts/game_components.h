@@ -1,5 +1,6 @@
 #pragma once
 #include "enemy_awareness.h"
+#include "fall_damage.h"
 
 #include <engine.h>
 
@@ -48,6 +49,8 @@ struct EnemyType
     EnemyPerception perception;
     // an execution kills it; otherwise it takes the execution's damage and is alerted (heavies, the target)
     bool execution_kills;
+    // what a fall does to it (FALLS_AND_SHOVES.md): a kick off a roof kills a fragile kind
+    FallDamage fall;
 };
 
 struct EnemyConfig
@@ -227,6 +230,7 @@ struct GameComponentTypes
 {
     engine_component_type_t enemy_attack = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_perception = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_component_type_t fall_damage = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_type = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t traversal_tuning = ENGINE_INVALID_OBJECT_HANDLE;
