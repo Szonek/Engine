@@ -1472,24 +1472,17 @@ void project_c::Player::land_from_fall(const TraversalTuning& traversal)
 
 bool project_c::Player::in_ground_combat(float radius) const
 {
-    constexpr std::size_t MAX_CHARACTERS_AROUND = 32;
     // an enemy farther above or below can't reach the player (one below a roof): no combat
     constexpr float MAX_HEIGHT_DIFFERENCE = 1.0f;
     const auto position = position_of();
-    engine_physics_query_filter_t filter{};
-    filter.ignore = &go_;
-    filter.ignore_count = 1;
-    filter.layer_mask = layer_bit(Layer::eCharacter);
-    std::array<engine_game_object_t, MAX_CHARACTERS_AROUND> found{};
-    const auto count = std::min(enginePhysicsOverlapSphere(glm::value_ptr(position), radius, &filter, found.data(), found.size()), found.size());
-    for (std::size_t i = 0; i < count; i++)
+    for (const auto go : utils::characters_around(position, radius, go_))
     {
-        const auto* enemy = my_scene_->get_script<Enemy>(found[i]);
+        const auto* enemy = my_scene_->get_script<Enemy>(go);
         if (!enemy || enemy->is_dying() || enemy->awareness().state() != Awareness::eAlert)
         {
             continue;
         }
-        const auto enemy_tc = engineGameObjectGetTransformComponent(found[i]);
+        const auto enemy_tc = engineGameObjectGetTransformComponent(go);
         if (std::abs(enemy_tc.position[1] - position.y) <= MAX_HEIGHT_DIFFERENCE)
         {
             return true;

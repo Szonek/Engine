@@ -110,6 +110,18 @@ std::optional<engine_ray_hit_t> project_c::utils::level_ray(const glm::vec3& ori
     return hit;
 }
 
+project_c::utils::CharactersAround project_c::utils::characters_around(const glm::vec3& center, float radius, engine_game_object_t ignore)
+{
+    engine_physics_query_filter_t filter{};
+    filter.ignore = &ignore;
+    filter.ignore_count = 1;
+    filter.layer_mask = layer_bit(Layer::eCharacter);
+    CharactersAround around;
+    const auto count = enginePhysicsOverlapSphere(glm::value_ptr(center), radius, &filter, around.found.data(), around.found.size());
+    around.count = std::min(count, around.found.size());
+    return around;
+}
+
 bool project_c::utils::level_blocks(const glm::vec3& from, const glm::vec3& to)
 {
     const glm::vec3 direction = to - from;

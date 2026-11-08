@@ -2,6 +2,7 @@
 #include "engine.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstring>
 #include <optional>
@@ -56,5 +57,19 @@ CursorRay get_ray_from_cursor(engine_game_object_t go_camera, engine_fvec2_t cur
 std::optional<engine_ray_hit_t> level_ray(const glm::vec3& origin, const glm::vec3& direction, float max_distance);
 // whether level geometry is on the segment from `from` to `to` (what hides a character from another, or blocks a move)
 bool level_blocks(const glm::vec3& from, const glm::vec3& to);
+
+// the most characters a search around the player looks at (the nearest are kept)
+inline constexpr std::size_t MAX_CHARACTERS_AROUND = 32;
+// what characters_around found, on the stack (these searches run every frame), nearest first
+struct CharactersAround
+{
+    std::array<engine_game_object_t, MAX_CHARACTERS_AROUND> found{};
+    std::size_t count = 0;
+    const engine_game_object_t* begin() const { return found.data(); }
+    const engine_game_object_t* end() const { return found.data() + count; }
+};
+// The characters (Layer::eCharacter: an overlap which skips the floor and walls) whose capsules overlap a sphere of
+// `radius` around `center`, but `ignore` (the one searching)
+CharactersAround characters_around(const glm::vec3& center, float radius, engine_game_object_t ignore);
 } // namespace utils
 } // namespace project_c

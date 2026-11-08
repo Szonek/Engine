@@ -1,20 +1,15 @@
 #include "player_shove.h"
 #include "enemy_script.h"
-#include "game_layers.h"
+#include "scripts_utils.h"
 
 #include "iscene.h"
 
-#include <glm/gtc/type_ptr.hpp>
 
-#include <algorithm>
-#include <array>
 #include <cmath>
 #include <limits>
 
 namespace
 {
-// the most characters the search looks at (the nearest are kept)
-constexpr std::size_t MAX_CHARACTERS_AROUND = 16;
 // the search sphere's center above the feet: the capsules of characters on the same floor overlap it
 constexpr float SEARCH_HEIGHT = 0.4f;
 // an enemy this far above or below the player is on another level: not kicked
@@ -43,25 +38,17 @@ engine_game_object_t project_c::PlayerShove::find_target(const glm::vec3& positi
     const glm::vec2 facing_direction = glm::normalize(facing);
     const float min_cos = std::cos(glm::radians(tuning.shove_half_angle_degrees));
 
-    // the characters around (not the floor and walls): an overlap with the characters' collision layer
-    engine_physics_query_filter_t filter{};
-    filter.ignore = &go_;
-    filter.ignore_count = 1;
-    filter.layer_mask = layer_bit(Layer::eCharacter);
-    std::array<engine_game_object_t, MAX_CHARACTERS_AROUND> found{};
-    const glm::vec3 center = position + glm::vec3(0.0f, SEARCH_HEIGHT, 0.0f);
-    const auto count = std::min(enginePhysicsOverlapSphere(glm::value_ptr(center), tuning.shove_range, &filter, found.data(), found.size()), found.size());
-
+    // the characters around (not the floor and walls)
     engine_game_object_t best = ENGINE_INVALID_GAME_OBJECT_ID;
     float best_distance = std::numeric_limits<float>::max();
-    for (std::size_t i = 0; i < count; i++)
+    for (const auto go : utils::characters_around(position + glm::vec3(0.0f, SEARCH_HEIGHT, 0.0f), tuning.shove_range, go_))
     {
-        const auto* enemy = scene_->get_script<Enemy>(found[i]);
+        const auto* enemy = scene_->get_script<Enemy>(go);
         if (!enemy || enemy->is_dying() || enemy->is_being_executed())
         {
             continue;
         }
-        const auto enemy_position = position_of(found[i]);
+        const auto enemy_position = position_of(go);
         if (std::abs(enemy_position.y - position.y) > MAX_HEIGHT_DIFFERENCE)
         {
             continue;
@@ -77,7 +64,7 @@ engine_game_object_t project_c::PlayerShove::find_target(const glm::vec3& positi
         {
             continue;
         }
-        best = found[i];
+        best = go;
         best_distance = distance;
     }
     return best;
