@@ -35,10 +35,11 @@ constexpr bool layers_interact(std::uint32_t layer_a, std::uint32_t collides_wit
 }
 
 // Whether a query (ray cast, overlap) with `query_mask` sees a body whose layer bit is `bit`: a mask of 0 is no layer
-// filter (every layer). The body's own collides-with mask doesn't matter to queries.
+// filter (every layer). A body on a layer out of range (no bit) is seen by no query, not even an unfiltered one. The
+// body's own collides-with mask doesn't matter to queries.
 constexpr bool query_sees_bit(std::uint32_t query_mask, std::uint32_t bit)
 {
-    return query_mask == 0 || (query_mask & bit) != 0;
+    return bit != 0 && (query_mask == 0 || (query_mask & bit) != 0);
 }
 
 constexpr bool query_sees(std::uint32_t query_mask, std::uint32_t layer)

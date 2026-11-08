@@ -67,7 +67,12 @@ TEST(CollisionLayers, ComponentMaskZeroCollidesWithNothing)
 TEST(CollisionLayers, LayerOutOfRangeInteractsWithNothing)
 {
     EXPECT_FALSE(engine::layers_interact(PHYSICS_LAYER_COUNT, ALL_PHYSICS_LAYERS, 0, ALL_PHYSICS_LAYERS));
+    EXPECT_FALSE(engine::layers_interact(PHYSICS_LAYER_COUNT, ALL_PHYSICS_LAYERS, PHYSICS_LAYER_COUNT, ALL_PHYSICS_LAYERS));
+    // no query sees it, also an unfiltered one (mask 0) or one with every layer
     EXPECT_FALSE(engine::query_sees(1u, PHYSICS_LAYER_COUNT));
+    EXPECT_FALSE(engine::query_sees(0u, PHYSICS_LAYER_COUNT));
+    EXPECT_FALSE(engine::query_sees(ALL_PHYSICS_LAYERS, PHYSICS_LAYER_COUNT));
+    EXPECT_FALSE(engine::query_sees_bit(0u, 0u));
 }
 
 // a query's mask of 0 is no filter: it sees every layer
