@@ -566,8 +566,9 @@ void project_c::Player::update(float dt)
     // momentum makes the chain reach farther
     auto executions = execution_tuning();
     executions.chain_range *= momentum_.chain_range_multiplier(momentum);
-    // it drains while the player brawls on the ground
-    momentum_.update(dt / 1000.0f, movement_mode_ == MovementMode::eGrounded && in_ground_combat(momentum.combat_radius), momentum);
+    // it drains while the player brawls on the ground (an empty meter has nothing to drain: no search)
+    momentum_.update(dt / 1000.0f, movement_mode_ == MovementMode::eGrounded && momentum_.value() > 0.0f && in_ground_combat(momentum.combat_radius),
+        momentum);
     // the rings of the noise made in the last frame, then this frame's noise is made below (none when the player
     // can't move)
     noise_rings_.update(dt / 1000.0f, noise_radius_, noise_is_loud_, noise_position_, t.show_footstep_ring, t.footstep_ring_interval_seconds);
