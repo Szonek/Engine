@@ -54,6 +54,8 @@ set(ENGINE_SOURCES
 	
 	${ENGINE_SOURCES_DIR}/animation_controller.cpp
 	${ENGINE_SOURCES_DIR}/animation_controller.h
+	${ENGINE_SOURCES_DIR}/particles.cpp
+	${ENGINE_SOURCES_DIR}/particles.h
 	
 	${ENGINE_SOURCES_DIR}/file_watcher.cpp
 	${ENGINE_SOURCES_DIR}/file_watcher.h	
