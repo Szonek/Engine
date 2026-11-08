@@ -330,6 +330,11 @@ void project_c::Enemy::update(float dt)
 
         if (hit_stop_remaining_seconds_ > 0.0f)
         {
+            // frozen by the hit stop, but a body in the air (or pushed) keeps moving
+            if (moves_without_ai())
+            {
+                move_body(cfg, glm::vec3(0.0f), dt);
+            }
             return;
         }
         if (!engineAnimationControllerSetPaused(go_, false))
@@ -346,9 +351,14 @@ void project_c::Enemy::update(float dt)
 
     attack_cooldown_remaining_seconds_ = std::max(0.0f, attack_cooldown_remaining_seconds_ - dt / 1000.0f);
 
-    // a scene without a player (e.g. a test scene), or the player was destroyed (e.g. deleted in the editor)
+    // a scene without a player (e.g. a test scene), or the player was destroyed (e.g. deleted in the editor): no AI,
+    // but a body in the air (or pushed) keeps moving
     if (!engineGameObjectIsValid(player_go_))
     {
+        if (moves_without_ai())
+        {
+            move_body(cfg, glm::vec3(0.0f), dt);
+        }
         return;
     }
 
@@ -421,13 +431,13 @@ void project_c::Enemy::update(float dt)
     }
 
     const auto* encounter = my_scene_->find_script<Encounter>();
-    if (encounter && encounter->is_over() && state_ != States::DIE)
+    // the encounter is over (no AI), or the player's execution holds it: a body in the air (or pushed) keeps moving
+    if ((encounter && encounter->is_over() || being_executed_) && state_ != States::DIE)
     {
-        return;
-    }
-    // held by the player's execution
-    if (being_executed_ && state_ != States::DIE)
-    {
+        if (moves_without_ai())
+        {
+            move_body(cfg, glm::vec3(0.0f), dt);
+        }
         return;
     }
 
@@ -616,6 +626,16 @@ void project_c::Enemy::update(float dt)
     {
         return;
     }
+    move_body(cfg, velocity, dt);
+}
+
+bool project_c::Enemy::moves_without_ai() const
+{
+    return state_ == States::FALLING || ungrounded_seconds_ > 0.0f || glm::dot(knockback_velocity_, knockback_velocity_) > 0.0f;
+}
+
+void project_c::Enemy::move_body(const EnemyType& cfg, glm::vec3 velocity, float dt)
+{
     // the push of a kick adds to its own move, and decays (more slowly in the air)
     const float delta_seconds = dt / 1000.0f;
     velocity += knockback_velocity_;

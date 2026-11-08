@@ -183,6 +183,11 @@ private:
     FallMeasure fall_;
     // falls: when the controller leaves the ground for long enough, and the landing (damage, a knockdown or death)
     void start_falling(float height);
+    // its character controller's move of this frame (`velocity` plus the kick's push; the engine adds gravity), and
+    // what it means: leaving the ground (a fall) or landing
+    void move_body(const EnemyType& cfg, glm::vec3 velocity, float dt);
+    // in the air or pushed: it moves also while it can't act (a hit stop, no player, the encounter's end, an execution)
+    bool moves_without_ai() const;
     void land(const EnemyType& type, float height);
     // the noise of its landing, heard during one update of each enemy (kept until its own next update)
     bool landing_noise_ = false;

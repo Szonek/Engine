@@ -559,3 +559,18 @@ TEST_F(ShoveTest, KickingAKnockedDownEnemyKeepsItsStandUp)
     EXPECT_FALSE(enemy->is_knocked_down());
     EXPECT_FALSE(enemy->is_staggered());
 }
+
+// an enemy kicked off a roof keeps falling when its AI stops (the player is gone, the encounter is over): it lands
+TEST_F(ShoveTest, KickedEnemyLandsAfterThePlayerIsGone)
+{
+    auto* enemy = kick_setup(ROOF_HEIGHT);
+    ASSERT_NE(enemy, nullptr);
+    const auto go = enemy->get_game_object();
+
+    press_shove();
+    ASSERT_TRUE(step_until({}, 60, [&] { return enemy->is_falling(); }));
+    engineGameObjectDestroy(player_->get_game_object());
+    player_ = nullptr;
+    EXPECT_TRUE(step_until({}, 120, [&] { return is_dead(go); }));
+    EXPECT_LT(position(go).y, 0.5f);
+}
