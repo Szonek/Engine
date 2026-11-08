@@ -24,10 +24,8 @@ enum class Layer : std::uint32_t
 
 constexpr std::uint32_t layer_bit(Layer layer)
 {
-    return 1u << static_cast<std::uint32_t>(layer);
+    return ENGINE_PHYSICS_LAYER_BIT(static_cast<std::uint32_t>(layer));
 }
-
-constexpr std::uint32_t ALL_LAYERS = 0xFFFFFFFFu;
 
 // the layers a body on `layer` collides with
 constexpr std::uint32_t collides_with(Layer layer)
@@ -43,7 +41,7 @@ constexpr std::uint32_t collides_with(Layer layer)
     case Layer::eCharacter:
         break;
     }
-    return ALL_LAYERS;
+    return ENGINE_PHYSICS_ALL_LAYERS;
 }
 
 // puts a collider or character controller component (before it is added or updated) on `layer`

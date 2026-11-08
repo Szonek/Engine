@@ -4,20 +4,22 @@
 #include <string>
 #include <string_view>
 
+#include "components/physics_layers.h"
+
 // Collision layers (like Unity's layers and layer masks, Godot's collision_layer / collision_mask, Jolt's object
 // layers): every collider and character controller is on one layer and has the mask of layers it collides with. Two
 // bodies interact when each one's layer is in the other's mask; physics queries see a body when its layer is in the
 // query's mask. GL-free and Bullet-free, unit tested; PhysicsWorld applies it.
 namespace engine
 {
-inline constexpr std::uint32_t PHYSICS_LAYER_COUNT = 32;
-inline constexpr std::uint32_t PHYSICS_LAYER_DEFAULT = 0;
-inline constexpr std::uint32_t ALL_PHYSICS_LAYERS = 0xFFFFFFFFu;
+inline constexpr std::uint32_t PHYSICS_LAYER_COUNT = ENGINE_PHYSICS_LAYER_COUNT;
+inline constexpr std::uint32_t PHYSICS_LAYER_DEFAULT = ENGINE_PHYSICS_LAYER_DEFAULT;
+inline constexpr std::uint32_t ALL_PHYSICS_LAYERS = ENGINE_PHYSICS_ALL_LAYERS;
 
 // the bit of a layer in a mask; none for a layer out of range
 constexpr std::uint32_t layer_bit(std::uint32_t layer)
 {
-    return layer < PHYSICS_LAYER_COUNT ? (1u << layer) : 0u;
+    return ENGINE_PHYSICS_LAYER_BIT(layer);
 }
 
 // Two bodies given by their layer bits and collides-with masks interact when each one's layer is in the other's mask

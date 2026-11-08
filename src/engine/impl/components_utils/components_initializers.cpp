@@ -91,7 +91,7 @@ void engine::initialize_character_controller_component(entt::registry& registry,
     comp.step_height = 0.3f;
     comp.max_slope = 45.0f;
     comp.layer = ENGINE_PHYSICS_LAYER_DEFAULT;
-    comp.collides_with = 0xFFFFFFFFu;
+    comp.collides_with = ENGINE_PHYSICS_ALL_LAYERS;
 }
 
 
@@ -155,7 +155,7 @@ void engine::initialize_collider_component(entt::registry& registry, entt::entit
     comp.bounciness = 0.5f;
     comp.friction_static = 1.0f;
     comp.layer = ENGINE_PHYSICS_LAYER_DEFAULT;
-    comp.collides_with = 0xFFFFFFFFu;
+    comp.collides_with = ENGINE_PHYSICS_ALL_LAYERS;
 }
 
 void engine::initialize_skin_component(entt::registry& registry, entt::entity entity)

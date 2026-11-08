@@ -1014,7 +1014,7 @@ bool display_physics_layers(const char* id, std::uint32_t& layer, std::uint32_t&
     {
         preview = "Nothing";
     }
-    else if (collides_with == 0xFFFFFFFFu)
+    else if (collides_with == ENGINE_PHYSICS_ALL_LAYERS)
     {
         preview = "Everything";
     }
@@ -1032,8 +1032,8 @@ bool display_physics_layers(const char* id, std::uint32_t& layer, std::uint32_t&
     {
         if (ImGui::Selectable("Everything", false, ImGuiSelectableFlags_DontClosePopups))
         {
-            changed |= collides_with != 0xFFFFFFFFu;
-            collides_with = 0xFFFFFFFFu;
+            changed |= collides_with != ENGINE_PHYSICS_ALL_LAYERS;
+            collides_with = ENGINE_PHYSICS_ALL_LAYERS;
         }
         if (ImGui::Selectable("Nothing", false, ImGuiSelectableFlags_DontClosePopups))
         {
