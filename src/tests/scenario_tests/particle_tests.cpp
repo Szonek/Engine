@@ -15,6 +15,9 @@ namespace
 {
 constexpr const char* BURST = "effects/test_fixtures/burst.json";
 constexpr const char* LOOPING = "effects/test_fixtures/looping.json";
+constexpr const char* LIT_SMOKE = "effects/test_fixtures/lit_smoke.json";
+// the generated puff flipbook lit_smoke.json draws (assets/models/particles)
+constexpr const char* SMOKE_PUFF = "particles/smoke_puff.png";
 constexpr float IDENTITY[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 
 // a test-fixture effect, released with the test
@@ -311,4 +314,54 @@ TEST_F(ParticlePlayModeTest, EditModeFreezesAndStopClearsThePlaySessionsParticle
     ASSERT_NE(restored, ENGINE_INVALID_GAME_OBJECT_ID);
     EXPECT_TRUE(engineGameObjectHasParticleEmitterComponent(restored));
     EXPECT_EQ(engineParticlesGetCount(restored), 0u);
+}
+
+// The lit soft smoke (lit, soft, eroding, a flipbook texture) is drawn by a camera with a shadowed directional light over
+// a floor: the effect loads its texture as a dependency, plays and keeps the texture while it is loaded; the frames
+// render its Transparent pass with the scene depth copy and the shadow map (a shader that doesn't compile is logged).
+TEST_F(ParticleTest, LitSoftSmokeDrawsWithItsFlipbookTexture)
+{
+    scenario::TestModel crate("crate.gltf");
+    ASSERT_TRUE(crate.loaded());
+    const auto floor = enginePrefabInstantiate(crate.prefab());
+    auto floor_transform = engineGameObjectGetTransformComponent(floor);
+    floor_transform.position[1] = -0.5f;
+    floor_transform.scale[0] = 10.0f;
+    floor_transform.scale[2] = 10.0f;
+    engineGameObjectUpdateTransformComponent(floor, &floor_transform);
+
+    const auto camera = engineGameObjectCreate();
+    auto cc = engineGameObjectAddCameraComponent(camera);
+    cc.enabled = true;
+    cc.target[1] = 1.0f;
+    engineGameObjectUpdateCameraComponent(camera, &cc);
+    auto camera_transform = engineGameObjectAddTransformComponent(camera);
+    camera_transform.position[1] = 3.0f;
+    camera_transform.position[2] = -8.0f;
+    engineGameObjectUpdateTransformComponent(camera, &camera_transform);
+
+    const auto light = engineGameObjectCreate();
+    auto lc = engineGameObjectAddLightComponent(light);
+    lc.type = ENGINE_LIGHT_TYPE_DIRECTIONAL;
+    lc.intensity.ambient[0] = lc.intensity.ambient[1] = lc.intensity.ambient[2] = 0.3f;
+    lc.intensity.diffuse[0] = lc.intensity.diffuse[1] = lc.intensity.diffuse[2] = 0.8f;
+    lc.directional.direction[0] = 0.4f;
+    lc.directional.direction[1] = 1.0f;
+    lc.directional.direction[2] = 0.3f;
+    engineGameObjectUpdateLightComponent(light, &lc);
+
+    {
+        TestEffect smoke(LIT_SMOKE);
+        ASSERT_NE(smoke.get(), ENGINE_INVALID_OBJECT_HANDLE);
+        EXPECT_NE(engineTextured2DGetByName(SMOKE_PUFF), ENGINE_INVALID_OBJECT_HANDLE);
+        const auto go = emitter(smoke.get());
+        // two seconds: about 24 puffs, the first ones eroding
+        step(120);
+        EXPECT_TRUE(engineParticlesIsAlive(go));
+        EXPECT_GT(engineParticlesGetCount(go), 15u);
+        engineGameObjectDestroy(go);
+        step();
+    }
+    // the texture went with the effect
+    EXPECT_EQ(engineTextured2DGetByName(SMOKE_PUFF), ENGINE_INVALID_OBJECT_HANDLE);
 }
