@@ -16,8 +16,13 @@ build\bin\Release\big_scene_benchmark.exe --sizes 64 --enemies 0      # one size
 ```
 
 Options: `--frames N` measured frames per shot (600), `--warmup N` frames before measuring (120), `--sizes 32,64,128`,
-`--enemies 0|1`, `--out <file>` writes the report as Markdown. Update is `AppProjectC::update` (scripts, animation,
+`--enemies 0|1`, `--particles 0|1` (the particle scene, below), `--out <file>` writes the report as Markdown. Update is `AppProjectC::update` (scripts, animation,
 physics, world transforms, gathering draw items); frame end is `engineFrameEnd` (rendering, present, waiting for the GPU).
+
+The particle scene (after the sizes, `--particles 0` skips it) is a floor in the gameplay view with 20 emitters of
+`assets/data/effects/test_fixtures/benchmark.json` (~100 live particles each, about 2,000 in all), measured without and
+with particles: the difference in Update is the particle simulation and gathering (budget: under 0.5 ms for 2,000 live
+particles in Release), the difference in Frame end the sorting, upload and Transparent pass.
 
 Tracy has to be built on demand (`TRACY_ON_DEMAND`), otherwise it keeps every zone in memory and the 128x128 scene runs
 out of it.

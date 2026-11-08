@@ -8,8 +8,12 @@
 // Each size is measured with two camera shots: the gameplay view on the player and an overview of the whole map (worst case).
 // Every frame simulates exactly FIXED_DT_MS, so runs are deterministic; the measured times are real (wall clock).
 //
-// Usage: big_scene_benchmark [--frames N] [--warmup N] [--sizes 32,64,128] [--enemies 0|1] [--out results.md]
-// (--enemies 0 leaves the enemies out, to tell their cost from the rest)
+// Usage: big_scene_benchmark [--frames N] [--warmup N] [--sizes 32,64,128] [--enemies 0|1] [--particles 0|1] [--out results.md]
+// (--enemies 0 leaves the enemies out, to tell their cost from the rest; --particles 0 skips the particle scene)
+//
+// The particle scene: a floor in the gameplay view with PARTICLE_EMITTERS emitters of the benchmark effect
+// (assets/data/effects/test_fixtures/benchmark.json, ~100 live particles each), measured without and with particles,
+// so the difference is what about PARTICLE_EMITTERS * 100 live particles cost.
 #include <app.h>
 #include <scenes/level_builder.h>
 #include <scripts/game_layers.h>
@@ -52,12 +56,16 @@ const glm::vec3 WALL_BOX_HALF_EXTENTS(2.0f, 2.0f, 0.5f);
 constexpr float GAMEPLAY_ORTHO_HALF_HEIGHT = 5.0f;
 constexpr float CAMERA_PITCH_DEGREES = 45.0f;
 
+constexpr std::int32_t PARTICLE_EMITTERS = 20;
+constexpr const char* PARTICLE_BENCHMARK_EFFECT = "effects/test_fixtures/benchmark.json";
+
 struct Options
 {
     std::uint32_t warmup_frames = 120;
     std::uint32_t measured_frames = 600;
     std::vector<std::int32_t> sizes = { 32, 64, 128 };
     bool enemies = true;
+    bool particles = true;
     std::string out_path;
 };
 
@@ -277,6 +285,92 @@ private:
     engine_game_object_t camera_ = ENGINE_INVALID_GAME_OBJECT_ID;
 };
 
+// A 16 x 16 m floor in the gameplay view with PARTICLE_EMITTERS emitters of the benchmark effect, which can be cleared.
+class ParticleBenchmarkScene : public engine::IScene
+{
+public:
+    static constexpr const char* get_name() { return "particle_benchmark"; }
+
+    ParticleBenchmarkScene(engine::IApplication* app)
+        : IScene(app)
+    {
+        auto& app_c = *static_cast<project_c::AppProjectC*>(app);
+        project_c::LevelBuilder builder(app_c, *this);
+        builder.main_light();
+        builder.floor_area(-8.0f, -8.0f, 8.0f, 8.0f);
+        effect_ = engineDataAssetLoad(PARTICLE_BENCHMARK_EFFECT);
+        if (effect_ == ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            std::cout << "The particle benchmark effect " << PARTICLE_BENCHMARK_EFFECT << " can't be loaded.\n";
+        }
+        // a 5 x 4 grid within the gameplay view
+        for (std::int32_t i = 0; i < PARTICLE_EMITTERS; i++)
+        {
+            const auto go = engineGameObjectCreate();
+            auto tc = engineGameObjectAddTransformComponent(go);
+            tc.position[0] = -4.0f + static_cast<float>(i % 5) * 2.0f;
+            tc.position[2] = -3.0f + static_cast<float>(i / 5) * 2.0f;
+            engineGameObjectUpdateTransformComponent(go, &tc);
+            auto emitter = engineGameObjectAddParticleEmitterComponent(go);
+            emitter.effect = effect_;
+            emitter.seed = static_cast<std::uint32_t>(i);
+            emitter.play_on_start = false;
+            engineGameObjectUpdateParticleEmitterComponent(go, &emitter);
+            emitters_.push_back(go);
+        }
+        camera_ = engineGameObjectCreate();
+        auto cc = engineGameObjectAddCameraComponent(camera_);
+        cc.enabled = true;
+        cc.type = ENGINE_CAMERA_PROJECTION_TYPE_ORTHOGRAPHIC;
+        cc.type_union.orthographics_scale = GAMEPLAY_ORTHO_HALF_HEIGHT;
+        cc.clip_plane_near = 0.1f;
+        cc.clip_plane_far = 100.0f;
+        engineGameObjectUpdateCameraComponent(camera_, &cc);
+        auto tc = engineGameObjectAddTransformComponent(camera_);
+        const float pitch = glm::radians(CAMERA_PITCH_DEGREES);
+        tc.position[1] = 20.0f * std::sin(pitch);
+        tc.position[2] = 20.0f * std::cos(pitch);
+        engineGameObjectUpdateTransformComponent(camera_, &tc);
+    }
+    ~ParticleBenchmarkScene() override
+    {
+        if (effect_ != ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            engineDataAssetRelease(effect_);
+        }
+    }
+
+    void set_playing(bool playing)
+    {
+        for (const auto go : emitters_)
+        {
+            if (playing)
+            {
+                engineParticlesPlay(go);
+            }
+            else
+            {
+                engineParticlesStop(go, ENGINE_PARTICLES_STOP_MODE_CLEAR);
+            }
+        }
+    }
+
+    std::uint32_t live_particles() const
+    {
+        std::uint32_t count = 0;
+        for (const auto go : emitters_)
+        {
+            count += engineParticlesGetCount(go);
+        }
+        return count;
+    }
+
+private:
+    engine_data_asset_t effect_ = ENGINE_INVALID_OBJECT_HANDLE;
+    std::vector<engine_game_object_t> emitters_;
+    engine_game_object_t camera_ = ENGINE_INVALID_GAME_OBJECT_ID;
+};
+
 void count_components(SceneCounts& counts)
 {
     engine_component_view_t view{};
@@ -386,6 +480,10 @@ Options parse_options(int argc, char** argv)
         {
             options.enemies = value != "0";
         }
+        else if (key == "--particles")
+        {
+            options.particles = value != "0";
+        }
         else if (key == "--out")
         {
             options.out_path = value;
@@ -445,6 +543,30 @@ int main(int argc, char** argv)
         run_frames(app, 1, nullptr);
     }
 
+    // the particle scene: without, then with particles
+    std::vector<std::pair<ShotResult, std::uint32_t>> particle_results;
+    if (options.particles)
+    {
+        auto* scene = static_cast<ParticleBenchmarkScene*>(app.register_scene<ParticleBenchmarkScene>());
+        scene->activate();
+        run_frames(app, 1, nullptr);
+        for (const bool playing : { false, true })
+        {
+            scene->set_playing(playing);
+            ShotResult result;
+            result.shot = playing ? "particles" : "no particles";
+            if (!run_frames(app, options.warmup_frames, nullptr) || !run_frames(app, options.measured_frames, &result))
+            {
+                return 1;
+            }
+            const auto live = scene->live_particles();
+            std::cout << "particle scene, " << result.shot << " (" << live << " live): frame median " << result.frame.median << " ms\n";
+            particle_results.emplace_back(result, live);
+        }
+        app.unregister_scene(ParticleBenchmarkScene::get_name());
+        run_frames(app, 1, nullptr);
+    }
+
     std::ostringstream report;
     report << "## Scenes\n\n";
     report << "| Cells | Floor tiles | Wall pieces | Chests | Enemies | Point lights | Game objects | Meshes | Skinned meshes | Colliders | Build (ms) | Nav mesh build (ms) |\n";
@@ -467,6 +589,17 @@ int main(int argc, char** argv)
         std::snprintf(fps, sizeof(fps), "%.0f", r.frame.median > 0.0 ? 1000.0 / r.frame.median : 0.0);
         report << "| " << r.cells << "x" << r.cells << " | " << r.shot << " | " << format_ms(r.update) << " | " << format_ms(r.frame_end)
             << " | " << format_ms(r.frame) << " | " << fps << " |\n";
+    }
+
+    if (!particle_results.empty())
+    {
+        report << "\n## Particles (ms: median / p95 / max; " << PARTICLE_EMITTERS << " emitters in the gameplay view)\n\n";
+        report << "| Shot | Live particles | Update (game + scene) | Frame end (render + present) | Whole frame |\n";
+        report << "|---|---|---|---|---|\n";
+        for (const auto& [r, live] : particle_results)
+        {
+            report << "| " << r.shot << " | " << live << " | " << format_ms(r.update) << " | " << format_ms(r.frame_end) << " | " << format_ms(r.frame) << " |\n";
+        }
     }
 
     std::cout << "\n" << report.str();
