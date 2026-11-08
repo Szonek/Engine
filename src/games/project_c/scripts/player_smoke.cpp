@@ -4,6 +4,8 @@
 
 #include "iscene.h"
 
+#include <engine.h>
+
 #include <algorithm>
 
 namespace
@@ -17,9 +19,8 @@ constexpr float GROUND_PROBE_ABOVE = 5.0f;
 constexpr float GROUND_PROBE_DEPTH = 50.0f;
 }  // namespace
 
-project_c::PlayerSmoke::PlayerSmoke(engine::IScene* scene, engine_game_object_t player)
+project_c::PlayerSmoke::PlayerSmoke(engine::IScene* scene)
     : scene_(scene)
-    , go_(player)
 {
 }
 

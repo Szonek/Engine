@@ -381,7 +381,7 @@ project_c::Player::Player(engine::IScene* my_scene, engine_game_object_t go)
     , traversal_(my_scene, go, LOCOMOTION_LAYER_ID)
     , executions_(my_scene, go, LOCOMOTION_LAYER_ID)
     , shove_(my_scene, go)
-    , smoke_(my_scene, go)
+    , smoke_(my_scene)
 {
     // the model's own weapons aren't used: the player equips a Weapon
     constexpr std::array<const char*, 5> unused_model_parts = { "Knife", "Knife_Offhand", "1H_Crossbow", "2H_Crossbow", "Throwable" };

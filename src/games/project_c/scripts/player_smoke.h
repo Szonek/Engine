@@ -1,8 +1,6 @@
 #pragma once
 #include "smoke.h"
 
-#include <engine.h>
-
 #include <glm/glm.hpp>
 
 #include <optional>
@@ -22,7 +20,7 @@ class PlayerSmoke
 public:
     static constexpr const char* THROW_CLIP = "Throw";
 
-    PlayerSmoke(engine::IScene* scene, engine_game_object_t player);
+    explicit PlayerSmoke(engine::IScene* scene);
 
     // each frame, wherever the player is
     void update(float delta_seconds);
@@ -42,7 +40,6 @@ public:
 
 private:
     engine::IScene* scene_;
-    engine_game_object_t go_;
     float cooldown_remaining_seconds_ = 0.0f;
     std::optional<glm::vec3> landing_;
 };
