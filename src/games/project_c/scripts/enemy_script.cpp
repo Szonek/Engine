@@ -680,9 +680,8 @@ void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_s
 
 bool project_c::Enemy::sees(const glm::vec3& eye, const glm::vec3& to_player) const
 {
-    // only level geometry (static and kinematic bodies) hides the player
-    const std::array<engine_game_object_t, 2> ignore = { go_, player_go_ };
-    return !utils::level_geometry_between(eye, eye + to_player, ignore);
+    // only level geometry hides the player (other enemies, on the characters' layer, don't)
+    return !utils::level_blocks(eye, eye + to_player);
 }
 
 bool project_c::Enemy::was_just_killed() const

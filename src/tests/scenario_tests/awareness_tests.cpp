@@ -414,3 +414,21 @@ TEST_F(AwarenessTest, OtherEnemiesDoNotBlockSight)
     const auto alert = step_until({}, 180, [&] { return rear->awareness().state() == Awareness::eAlert; });
     EXPECT_LE(alert, 180u);
 }
+
+// a file of enemies between them doesn't hide the player either, however many (sight is one ray against the level
+// geometry's collision layer; it used to look past at most four characters)
+TEST_F(AwarenessTest, EnemyBehindAFileOfOthersSeesThePlayer)
+{
+    auto* scene = sandbox();
+    scene->build().player(0.0f, 0.0f);
+    for (int i = 0; i < 5; i++)
+    {
+        ASSERT_NE(scene->build().enemy(0.0f, 1.0f + 0.8f * static_cast<float>(i), FACING_MINUS_Z), nullptr);
+    }
+    auto* rear = scene->build().enemy(0.0f, 5.0f, FACING_MINUS_Z);
+    ASSERT_NE(rear, nullptr);
+    scene->snap_camera_to_player();
+
+    const auto alert = step_until({}, 240, [&] { return rear->awareness().state() == Awareness::eAlert; });
+    EXPECT_LE(alert, 240u);
+}

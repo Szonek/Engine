@@ -9,6 +9,7 @@
 
 #include <cstddef>
 #include <optional>
+#include <vector>
 
 namespace engine
 {
@@ -85,6 +86,8 @@ private:
         engine_game_object_t go = ENGINE_INVALID_GAME_OBJECT_ID;
         Enemy* enemy = nullptr;
     };
+    // the characters (but the player) whose capsules overlap a sphere of `radius` around `center` (at chest height)
+    std::vector<engine_game_object_t> characters_within(const glm::vec3& center, float radius) const;
     // of the enemies within `range` of `center` (flat), the nearest executable by `rules` (measured from `from`)
     Target pick(const glm::vec3& center, float range, const execution_math::Rules& rules, const glm::vec3& from) const;
     // where the player strikes `target` from: behind it, or (when a wall is there) on the side the player comes from
