@@ -331,7 +331,9 @@ project_c::PlayerExecutions::Update project_c::PlayerExecutions::update(const Ex
         // the impact: the victim is executed, the others around it are knocked down (and alerted)
         victim->receive_execution(static_cast<std::uint32_t>(tuning.execution_damage));
         const auto impact = position_of(victim_);
-        for (const auto go : characters_within(impact, knockdown_radius_))
+        // the sphere reaches the characters up and down the height allowed too (it is centered at the impact's chest)
+        const float search_radius = std::hypot(knockdown_radius_, KNOCKDOWN_MAX_HEIGHT_DIFFERENCE + CHEST_HEIGHT);
+        for (const auto go : characters_within(impact, search_radius))
         {
             auto* other = scene_->get_script<Enemy>(go);
             if (!other)
