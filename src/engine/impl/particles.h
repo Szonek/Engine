@@ -133,23 +133,27 @@ struct ParticleEmitterDesc
     ParticleCurve size_over_life;
     ParticleColorCurve color_over_life;
     ParticleCurve alpha_over_life;
-    // the alpha threshold rising over life (stored; drawn by the lit smoke shader)
+    // the alpha threshold rising over life (0..1): the texture's thinner parts vanish first and the particle dissolves
+    // instead of fading evenly; no keys: no erosion (unlike the other curves, whose no keys is 1)
     ParticleCurve erosion_over_life;
     // per second, slowing particles down (velocity / (1 + drag * dt))
     float drag;
     // of the scene's gravity
     float gravity_scale;
 
-    // rendering: an unlit camera-facing quad, colour times texture (none: a soft circle)
+    // rendering: a camera-facing quad, colour times texture (none: a soft circle)
     engine_texture2d_t texture;
-    // a flipbook of columns x rows frames (stored; drawn by the lit smoke shader)
+    // the texture is a flipbook of columns x rows frames (left to right, top to bottom), played at flipbook_fps and
+    // looping, or once over each particle's life; consecutive frames are blended
     std::uint32_t flipbook_columns;
     std::uint32_t flipbook_rows;
     float flipbook_fps;
     bool flipbook_over_life;
     ParticleBlendMode blend;
-    // lit by the scene's light, faded near the geometry behind it (stored; drawn by the lit smoke shader)
+    // lit by the scene's lights like a ball of smoke (wrapped diffuse, the directional light's shadow), instead of unlit
     bool lit;
+    // a soft particle: faded out where it comes closer than this (world units) to the opaque geometry behind it,
+    // so it doesn't cut a hard line into the floor; 0 is off
     float soft_distance;
     // among the effects with the same distance: higher draws later (on top)
     std::int32_t sort_order;
@@ -167,6 +171,21 @@ ParticleEffectDesc default_particle_effect();
 
 float evaluate_curve(const ParticleCurve& curve, float t);
 glm::vec3 evaluate_curve(const ParticleColorCurve& curve, float t);
+
+// The erosion of a particle `t` (0..1) into its life, in [0, 1]: 0 without keys.
+float particle_erosion(const ParticleEmitterDesc& desc, float t);
+
+// The flipbook frames a particle shows: `frame` blended into `next_frame` by `blend` (0: only `frame`). Frames are
+// numbered left to right, top to bottom; a texture of one frame (or none) is always frame 0.
+struct ParticleFlipbookFrame
+{
+    std::uint32_t frame = 0;
+    std::uint32_t next_frame = 0;
+    float blend = 0.0f;
+};
+// Over life: the frames play once over the life, the last one held at its end. Otherwise flipbook_fps frames a second
+// from the particle's birth, looping (the last frame blends into the first); 0 fps holds the first frame.
+ParticleFlipbookFrame particle_flipbook_frame(const ParticleEmitterDesc& desc, float age, float lifetime);
 
 // SplitMix64 with its own float mapping: the same seed gives the same particles with every compiler and standard
 // library (std distributions differ between them).
@@ -209,6 +228,8 @@ struct ParticleInstance
     float size;          // world units, the quad's side
     glm::vec4 color;     // RGBA, tint applied
     float rotation;      // radians, around the view axis
+    float erosion;       // 0..1, particle_erosion
+    ParticleFlipbookFrame flipbook;
 };
 
 // The particles of one emitter of a playing instance: structure of arrays, as many slots as its max_particles (no
