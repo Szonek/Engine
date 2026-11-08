@@ -17,6 +17,7 @@
 #include "components/skin_component.h"
 #include "components/animation_controller_component.h"
 #include "components/character_controller_component.h"
+#include "components/particle_emitter_component.h"
 
 #include "engine_string.h"
 #include "engine_vector.h"
@@ -623,6 +624,9 @@ typedef enum _engine_field_kind_t
     // an engine_prefab_t (a model or a scene file, see enginePrefabLoad), saved as its asset ID; a scene file or data
     // asset referencing one holds it, so it stays loaded while they do
     ENGINE_FIELD_KIND_PREFAB,
+    // an engine_data_asset_t holding a particle effect (the engine's type "particle_effect", a file under
+    // assets/data/effects, see engineParticlesSpawn), saved as its asset ID and held like a data asset; type_name unused
+    ENGINE_FIELD_KIND_PARTICLE_EFFECT,
     ENGINE_FIELD_KIND_COUNT
 } engine_field_kind_t;
 
@@ -986,6 +990,49 @@ ENGINE_API bool engineGameObjectHasCharacterControllerComponent(engine_game_obje
 // right away. Call it once per frame while the character walks or falls; while it doesn't (e.g. a scripted climb), its
 // transform moves it. Fails without the component or for a game object with a parent. out_result may be NULL.
 ENGINE_API engine_result_code_t engineCharacterControllerMove(engine_game_object_t game_object, const float velocity[3], float delta_time, engine_character_controller_move_result_t* out_result);
+
+// particle emitter component (see engine_particle_emitter_component_t)
+ENGINE_API engine_particle_emitter_component_t engineGameObjectAddParticleEmitterComponent(engine_game_object_t game_object);
+ENGINE_API engine_particle_emitter_component_t engineGameObjectGetParticleEmitterComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateParticleEmitterComponent(engine_game_object_t game_object, const engine_particle_emitter_component_t* comp);
+ENGINE_API void engineGameObjectRemoveParticleEmitterComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasParticleEmitterComponent(engine_game_object_t game_object);
+
+// Particle effects (like Unreal's Niagara / Unity's particle systems): an effect is a data asset of the engine's type
+// "particle_effect", a file under assets/data/effects (loaded with engineDataAssetLoad; keep it loaded while it plays).
+// It plays on a game object with a particle emitter component, or as a one-shot with engineParticlesSpawn. Particles are
+// simulated in every scene update after the world transforms (frozen while the scene steps with dt 0: paused or in Edit
+// mode) and never saved; a Stop gives the scene back without them.
+typedef enum _engine_particles_stop_mode_t
+{
+    // no more particles are emitted; the live ones live out their lives
+    ENGINE_PARTICLES_STOP_MODE_LIVE_OUT = 0,
+    // the live particles go at once
+    ENGINE_PARTICLES_STOP_MODE_CLEAR,
+} engine_particles_stop_mode_t;
+
+typedef struct _engine_particles_spawn_params_t
+{
+    // uniform, like the emitter component's
+    float scale;
+    // the same seed gives the same particles
+    uint32_t seed;
+    // RGBA, multiplies every particle's colour
+    float tint[4];
+} engine_particles_spawn_params_t;
+
+// Plays the game object's effect from the start (again, when it played already). Fails without an emitter component.
+ENGINE_API engine_result_code_t engineParticlesPlay(engine_game_object_t game_object);
+ENGINE_API engine_result_code_t engineParticlesStop(engine_game_object_t game_object, engine_particles_stop_mode_t mode);
+// still emitting, or with live particles
+ENGINE_API bool engineParticlesIsAlive(engine_game_object_t game_object);
+// the live particles of its effect
+ENGINE_API uint32_t engineParticlesGetCount(engine_game_object_t game_object);
+// A one-shot effect (like Unreal's SpawnSystemAtLocation) at `world_matrix` (16 floats, column major) in the active
+// scene: a transient game object with an emitter component playing `effect`, which the engine destroys once the effect
+// has stopped emitting and its last particle died. params may be NULL (scale 1, seed 0, no tint). ENGINE_INVALID_GAME_OBJECT_ID
+// when `effect` holds no particle effect.
+ENGINE_API engine_game_object_t engineParticlesSpawn(engine_data_asset_t effect, const float world_matrix[16], const engine_particles_spawn_params_t* params);
 
 // collider component
 ENGINE_API engine_collider_component_t engineGameObjectAddColliderComponent(engine_game_object_t game_object);

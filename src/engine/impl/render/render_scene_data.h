@@ -101,6 +101,40 @@ struct SpriteDrawItem
     glm::vec3 scale{ 1.0f };
 };
 
+// One particle as the Transparent pass draws it (std430, ParticlePacket in particles.vs): a camera-facing quad.
+struct ParticleGpuData
+{
+    glm::vec3 position;  // world space
+    float size;          // the quad's side, world units
+    glm::vec4 color;     // RGBA
+    float rotation;      // radians, around the view axis
+    float pad0_ = 0.0f;
+    float pad1_ = 0.0f;
+    float pad2_ = 0.0f;
+};
+
+// how a particle batch is blended (ParticleBlendMode)
+enum class ParticleBlend : std::uint32_t
+{
+    eAlpha = 0,
+    ePremultiplied = 1,
+    eAdditive = 2,
+};
+
+// The live particles of one emitter of one playing effect, drawn with one instanced draw: a range of
+// SceneRenderData::particles. Sorted back to front with the others (by `center`) and within itself per camera.
+struct ParticleBatch
+{
+    std::uint32_t offset = 0;
+    std::uint32_t count = 0;
+    // nullptr: the built-in soft circle
+    const Texture2D* texture = nullptr;
+    ParticleBlend blend = ParticleBlend::eAlpha;
+    std::int32_t sort_order = 0;
+    // where the batch is, for sorting the batches: the emitter's position
+    glm::vec3 center{ 0.0f };
+};
+
 // Geometry rendered into the selection mask (editor outline effect).
 struct OutlineDrawItem
 {
@@ -124,6 +158,9 @@ struct SceneRenderData
 
     std::vector<OutlineDrawItem> outline_items;
     std::vector<DebugLineGpuData> debug_lines;
+    // the particles of every playing effect (ranges of it are ParticleBatch), drawn by the Transparent pass
+    std::vector<ParticleGpuData> particles;
+    std::vector<ParticleBatch> particle_batches;
 };
 
 }  // namespace engine

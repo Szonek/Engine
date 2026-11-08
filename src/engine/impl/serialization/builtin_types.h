@@ -3,6 +3,9 @@
 
 namespace engine
 {
+// the engine's data asset type of particle effects (ParticleEffectDesc, particles.h)
+inline constexpr const char* PARTICLE_EFFECT_TYPE_NAME = "particle_effect";
+
 // Registers the engine's components which scene files hold, and the structs inside them. The order is the order
 // components are loaded in (see TypeRegistry). Components without a description are not saved: internal ones never
 // are (derived data), and the public ones which aren't described yet are listed in builtin_types.cpp.

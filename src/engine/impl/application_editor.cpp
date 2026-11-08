@@ -1176,6 +1176,28 @@ bool display_character_controller_component(engine::Scene* /*scene*/, engine_cha
     return changed;
 }
 
+bool display_particle_emitter_component(engine::Scene* scene, engine_particle_emitter_component_t& c)
+{
+    const auto* app = scene->get_application();
+    // the loaded data assets holding a particle effect (files under assets/data/effects)
+    const auto is_effect = [scene](std::uint32_t asset) { return scene->particles().get_effect(asset) != nullptr; };
+    bool changed = display_asset_combo(scene->assets(), engine::AssetKind::eDataAsset, "Effect##particle_emitter", c.effect, app->get_data_asset_name(c.effect),
+        [app, &is_effect] {
+            auto assets = app->get_data_asset_names();
+            std::erase_if(assets, [&](const auto& asset) { return !is_effect(asset.first); });
+            return assets;
+        }, is_effect);
+    changed |= ImGui::Checkbox("Play on start##particle_emitter", &c.play_on_start);
+    changed |= ImGui::DragFloat("Scale##particle_emitter", &c.scale, 0.01f, 0.0f, 100.0f);
+    int seed = static_cast<int>(c.seed);
+    if (ImGui::InputInt("Seed##particle_emitter", &seed) && seed >= 0)
+    {
+        c.seed = static_cast<std::uint32_t>(seed);
+        changed = true;
+    }
+    return changed;
+}
+
 bool display_nav_surface_component(engine::Scene* /*scene*/, engine_nav_surface_component_t& c)
 {
     // takes effect with the next nav mesh build ("Build nav mesh" below the component)
@@ -1901,6 +1923,7 @@ const std::vector<engine_component_entry_t>& get_engine_component_entries()
             make_engine_component_entry<engine_mesh_component_t>("Mesh", "Rendering", display_mesh_component),
             make_engine_component_entry<engine_skinned_mesh_component_t>("Skinned Mesh", "Rendering", display_skinned_mesh_component),
             make_engine_component_entry<engine_material_component_t>("Material", "Rendering", display_material_component),
+            make_engine_component_entry<engine_particle_emitter_component_t>("Particle Emitter", "Rendering", display_particle_emitter_component),
             make_engine_component_entry<engine_skin_component_t>("Skin", "Animation", display_skin_component),
             make_engine_component_entry<engine_joint_attachment_component_t>("Joint Attachment", "Animation", display_joint_attachment_component),
             make_engine_component_entry<engine_animation_controller_component_t>("Animation controller", "Animation", display_animation_controller_component),
@@ -1914,6 +1937,34 @@ const std::vector<engine_component_entry_t>& get_engine_component_entries()
         // static colliders, build it again to see (and play with) the result
         for (auto& entry : ret)
         {
+            // runtime commands, not edits (no undo step): play the effect from the start, stop it; its live particles.
+            // Particles move only while the scene plays (paused and in Edit mode it steps with dt 0).
+            if (std::string_view(entry.name) == "Particle Emitter")
+            {
+                entry.draw = [draw = entry.draw](engine::Scene* scene, engine::CommandManager& commands, entt::entity e)
+                {
+                    draw(scene, commands, e);
+                    if (!scene->has_component<engine_particle_emitter_component_t>(e))
+                    {
+                        return;
+                    }
+                    if (ImGui::Button("Play##particle_emitter"))
+                    {
+                        scene->particles().play(e);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Stop##particle_emitter"))
+                    {
+                        scene->particles().stop(e, engine::ParticleStopMode::eLiveOut);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Clear##particle_emitter"))
+                    {
+                        scene->particles().stop(e, engine::ParticleStopMode::eClear);
+                    }
+                    ImGui::TextDisabled("Particles: %u%s", scene->particles().get_count(e), scene->particles().is_alive(e) ? "" : " (stopped)");
+                };
+            }
             if (std::string_view(entry.name) == "Nav Surface")
             {
                 entry.draw = [draw = entry.draw](engine::Scene* scene, engine::CommandManager& commands, entt::entity e)
@@ -2223,6 +2274,10 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
     ImGui::Text("FPS: %d", static_cast<std::uint32_t>(std::accumulate(fps_values.begin(), fps_values.end(), 0) / (fps_idx < fps_values.size() ? fps_idx : fps_values.size())));
     // they are owned by their game objects: a number that keeps growing is a leak
     ImGui::Text("Animation controllers: %zu", engine::AnimationController::get_live_count());
+    if (scene)
+    {
+        ImGui::Text("Particle systems: %u, particles: %u", scene->particles().get_live_system_count(), scene->particles().get_live_particle_count());
+    }
 
     auto& render_settings = renderer_.get_settings();
     ImGui::SeparatorText("Shadows");

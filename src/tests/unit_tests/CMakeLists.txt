@@ -42,8 +42,10 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	fall_damage_tests.cpp
 	momentum_tests.cpp
 	overlap_results_tests.cpp
+	particles_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
+	${ENGINE_IMPL_DIR}/render/transparent_stage.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
 	${ENGINE_IMPL_DIR}/render/shadows.h
 	# header-only; test_logger.cpp provides the logger the engine sources use
@@ -60,6 +62,9 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/animation_controller.cpp
 	${ENGINE_IMPL_DIR}/animation_controller.h
 	${ENGINE_IMPL_DIR}/asset_id.h
+	# particle effects: the simulation (glm only)
+	${ENGINE_IMPL_DIR}/particles.cpp
+	${ENGINE_IMPL_DIR}/particles.h
 	# nav mesh build (Recast) and queries (Detour)
 	${ENGINE_IMPL_DIR}/nav_mesh.cpp
 	${ENGINE_IMPL_DIR}/nav_mesh.h

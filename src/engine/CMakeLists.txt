@@ -54,6 +54,11 @@ set(ENGINE_SOURCES
 	
 	${ENGINE_SOURCES_DIR}/animation_controller.cpp
 	${ENGINE_SOURCES_DIR}/animation_controller.h
+	${ENGINE_SOURCES_DIR}/particles.cpp
+	${ENGINE_SOURCES_DIR}/particles.h
+	${ENGINE_SOURCES_DIR}/particle_scene_system.cpp
+	${ENGINE_SOURCES_DIR}/particle_scene_system.h
+	${ENGINE_SOURCES_DIR}/components_internals/particle_system_internal_component.h
 	
 	${ENGINE_SOURCES_DIR}/file_watcher.cpp
 	${ENGINE_SOURCES_DIR}/file_watcher.h	
@@ -81,6 +86,7 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/render/render_graph_gl_backend.h
 	${ENGINE_SOURCES_DIR}/render/render_graph_gl_backend.cpp
 	${ENGINE_SOURCES_DIR}/render/render_scene_data.h
+	${ENGINE_SOURCES_DIR}/render/transparent_stage.h
 	${ENGINE_SOURCES_DIR}/render/render_feature.h
 	${ENGINE_SOURCES_DIR}/render/render_settings.h
 	${ENGINE_SOURCES_DIR}/render/shadows.h

@@ -109,6 +109,7 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
         [this](const engine_joint_attachment_component_t& joint_attachment) { return get_joint_matrix(joint_attachment); },
         [this]() { return dynamic_cast<const ApplicationEditor*>(app_) && !app_->is_playing(); })
     , prefabs_(*app, *this, entity_registry_, assets_)
+    , particles_(*this, entity_registry_)
 {
     // the first entity EnTT creates is 0: reserve it, so that no game object has the value of ENGINE_INVALID_GAME_OBJECT_ID
     [[maybe_unused]] const auto reserved = entity_registry_.create();
@@ -142,6 +143,7 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     entity_registry_.on_construct<engine_sprite_component_t>().connect<&initialize_sprite_component>();
     entity_registry_.on_construct<engine_nav_surface_component_t>().connect<&initialize_nav_surface_component>();
     entity_registry_.on_construct<engine_nav_modifier_component_t>().connect<&initialize_nav_modifier_component>();
+    entity_registry_.on_construct<engine_particle_emitter_component_t>().connect<&initialize_particle_emitter_component>();
     entity_registry_.on_destroy<engine_nav_surface_component_t>().connect<&entt::registry::remove<nav_mesh_internal_component_t>>();
     
     connect_hierarchy(entity_registry_);
@@ -181,6 +183,16 @@ engine::PhysicsSystem& engine::Scene::physics()
 const engine::PhysicsSystem& engine::Scene::physics() const
 {
     return physics_;
+}
+
+engine::ParticleSceneSystem& engine::Scene::particles()
+{
+    return particles_;
+}
+
+const engine::ParticleSceneSystem& engine::Scene::particles() const
+{
+    return particles_;
 }
 
 void engine::Scene::enable_nav_mesh_debug_draw(bool enable)
@@ -360,6 +372,8 @@ engine_result_code_t engine::Scene::update(float dt)
     // queries during the scripts' update); this pass is for everything else, after the step moved the dynamic bodies
     physics_.update(dt);
     update_world_transforms();
+    // emitters follow their game objects
+    particles_.update(dt);
 
     {
         ENGINE_PROFILE_SECTION_N("skin_component_view");
@@ -586,6 +600,7 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
             collect_nav_mesh_debug_lines(*nav_mesh, render_data.debug_lines);
         }
     }
+    particles_.gather(render_data);
     // this frame's engineDebugDraw* shapes, cleared for the next one
     for (const auto& line : debug_draw_.take_lines())
     {

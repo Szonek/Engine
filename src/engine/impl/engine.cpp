@@ -1769,6 +1769,99 @@ bool engineGameObjectHasCharacterControllerComponent(engine_game_object_t game_o
     return has_component<engine_character_controller_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
+engine_particle_emitter_component_t engineGameObjectAddParticleEmitterComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_particle_emitter_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_particle_emitter_component_t engineGameObjectGetParticleEmitterComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_particle_emitter_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+void engineGameObjectUpdateParticleEmitterComponent(engine_game_object_t game_object, const engine_particle_emitter_component_t* comp)
+{
+    update_component(G_ACTIVE_SCENE, game_object, comp);
+}
+
+void engineGameObjectRemoveParticleEmitterComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_particle_emitter_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+bool engineGameObjectHasParticleEmitterComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_particle_emitter_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_result_code_t engineParticlesPlay(engine_game_object_t game_object)
+{
+    if (!G_ACTIVE_SCENE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    auto* scene = api_cast(G_ACTIVE_SCENE);
+    const auto entity = api_cast(game_object);
+    return scene->is_valid_entity(entity) && scene->particles().play(entity) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engineParticlesStop(engine_game_object_t game_object, engine_particles_stop_mode_t mode)
+{
+    if (!G_ACTIVE_SCENE)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    if (mode != ENGINE_PARTICLES_STOP_MODE_LIVE_OUT && mode != ENGINE_PARTICLES_STOP_MODE_CLEAR)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    auto* scene = api_cast(G_ACTIVE_SCENE);
+    const auto entity = api_cast(game_object);
+    const auto stop_mode = mode == ENGINE_PARTICLES_STOP_MODE_CLEAR ? engine::ParticleStopMode::eClear : engine::ParticleStopMode::eLiveOut;
+    return scene->is_valid_entity(entity) && scene->particles().stop(entity, stop_mode) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+bool engineParticlesIsAlive(engine_game_object_t game_object)
+{
+    if (!G_ACTIVE_SCENE)
+    {
+        return false;
+    }
+    auto* scene = api_cast(G_ACTIVE_SCENE);
+    const auto entity = api_cast(game_object);
+    return scene->is_valid_entity(entity) && scene->particles().is_alive(entity);
+}
+
+uint32_t engineParticlesGetCount(engine_game_object_t game_object)
+{
+    if (!G_ACTIVE_SCENE)
+    {
+        return 0;
+    }
+    auto* scene = api_cast(G_ACTIVE_SCENE);
+    const auto entity = api_cast(game_object);
+    return scene->is_valid_entity(entity) ? scene->particles().get_count(entity) : 0;
+}
+
+engine_game_object_t engineParticlesSpawn(engine_data_asset_t effect, const float world_matrix[16], const engine_particles_spawn_params_t* params)
+{
+    if (!G_ACTIVE_SCENE || !world_matrix)
+    {
+        return ENGINE_INVALID_GAME_OBJECT_ID;
+    }
+    float scale = 1.0f;
+    std::uint32_t seed = 0;
+    glm::vec4 tint(1.0f);
+    if (params)
+    {
+        scale = params->scale;
+        seed = params->seed;
+        tint = glm::make_vec4(params->tint);
+    }
+    const auto entity = api_cast(G_ACTIVE_SCENE)->particles().spawn(effect, glm::make_mat4(world_matrix), scale, seed, tint);
+    return entity == entt::null ? ENGINE_INVALID_GAME_OBJECT_ID : static_cast<engine_game_object_t>(entity);
+}
+
 engine_result_code_t engineCharacterControllerMove(engine_game_object_t game_object, const float velocity[3], float delta_time, engine_character_controller_move_result_t* out_result)
 {
     if (!velocity)

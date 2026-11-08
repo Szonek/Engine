@@ -1,4 +1,5 @@
 #include "render/render_graph.h"
+#include "render/transparent_stage.h"
 
 #include <gtest/gtest.h>
 
@@ -498,4 +499,50 @@ TEST(RenderGraph, ResourceInfoContainsLifetimes)
     EXPECT_EQ(resources[1].name, "tex");
     EXPECT_EQ(resources[1].first_pass, 0u);
     EXPECT_EQ(resources[1].last_pass, 2u);
+}
+
+// The Transparent stage (transparent_stage.h): drawn after the opaque pass into the same targets, which it loads, so
+// both run in that order and nothing of the opaque pass is lost; without a consumer of SceneColor it is culled with it
+TEST(RenderGraph, TransparentStageLoadsTheSceneTargetsAfterTheOpaquePass)
+{
+    rg::Graph graph;
+    MockBackend backend;
+    Recorder recorder;
+    const auto backbuffer = graph.import_backbuffer("backbuffer", 64, 64);
+    rg::TextureHandle color;
+    rg::TextureHandle depth;
+    add_pass(graph, recorder, "forward", [&](rg::Builder& b) {
+        color = b.write_color(0, b.create_texture("SceneColor", DESC), rg::LoadOp::eClear);
+        depth = b.write_depth(b.create_texture("SceneDepth", rg::TextureDesc{ 64, 64, DataLayout::eDEPTH24_STENCIL8_U32 }), rg::LoadOp::eClear);
+    });
+    engine::add_transparent_pass(graph, "transparent", color, depth, [&recorder](rg::PassContext&) { recorder.executed.push_back("transparent"); });
+    add_pass(graph, recorder, "present", [&](rg::Builder& b) { b.read(color); b.write_color(0, backbuffer, rg::LoadOp::eDontCare); });
+
+    graph.execute(backend);
+
+    EXPECT_EQ(recorder.executed, (std::vector<std::string>{ "forward", "transparent", "present" }));
+    const auto it = std::ranges::find(backend.begin_infos, std::string("transparent"), &MockBackend::BeginInfo::name);
+    ASSERT_NE(it, backend.begin_infos.end());
+    EXPECT_TRUE(it->is_raster);
+    EXPECT_TRUE(it->has_depth);
+    ASSERT_EQ(it->color_slots.size(), 1u);
+    EXPECT_EQ(it->color_slots[0].second, rg::LoadOp::eLoad);
+}
+
+TEST(RenderGraph, TransparentStageWithoutConsumerIsCulled)
+{
+    rg::Graph graph;
+    MockBackend backend;
+    Recorder recorder;
+    rg::TextureHandle color;
+    rg::TextureHandle depth;
+    add_pass(graph, recorder, "forward", [&](rg::Builder& b) {
+        color = b.write_color(0, b.create_texture("SceneColor", DESC), rg::LoadOp::eClear);
+        depth = b.write_depth(b.create_texture("SceneDepth", rg::TextureDesc{ 64, 64, DataLayout::eDEPTH24_STENCIL8_U32 }), rg::LoadOp::eClear);
+    });
+    engine::add_transparent_pass(graph, "transparent", color, depth, [&recorder](rg::PassContext&) { recorder.executed.push_back("transparent"); });
+
+    graph.execute(backend);
+
+    EXPECT_TRUE(recorder.executed.empty());
 }

@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "type": "particle_effect",
+    "value": {
+        "emitters_count": 1,
+        "emitters": [
+            {
+                "duration": 0.1,
+                "looping": false,
+                "rate": 0,
+                "bursts_count": 1,
+                "bursts": [ { "time": 0, "count": 10 } ],
+                "max_particles": 64,
+                "shape": "sphere",
+                "shape_radius": 0.5,
+                "lifetime": { "min": 0.5, "max": 0.5 },
+                "speed": { "min": 1, "max": 2 }
+            }
+        ]
+    }
+}
