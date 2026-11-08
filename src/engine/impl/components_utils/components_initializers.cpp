@@ -82,6 +82,16 @@ void engine::initialize_nav_modifier_component(entt::registry& registry, entt::e
     comp.type = ENGINE_NAV_MODIFIER_TYPE_WALKABLE;
 }
 
+void engine::initialize_particle_emitter_component(entt::registry& registry, entt::entity entity)
+{
+    // plays its effect (once it has one) as it is
+    auto& comp = get_zero_init_component<engine_particle_emitter_component_t>(registry, entity);
+    comp.effect = ENGINE_INVALID_OBJECT_HANDLE;
+    comp.play_on_start = true;
+    comp.scale = 1.0f;
+    comp.seed = 0;
+}
+
 void engine::initialize_character_controller_component(entt::registry& registry, entt::entity entity)
 {
     // Unity's CharacterController defaults: a 2 m tall human

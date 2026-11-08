@@ -231,7 +231,7 @@ void register_particle_effect(engine::TypeRegistry& registry)
         .structure();
 
     using E = ParticleEmitterDesc;
-    TypeBuilder<E>(registry, "particle_emitter")
+    TypeBuilder<E>(registry, "particle_effect_emitter")
         .field("enabled", &E::enabled)
         .field("duration", &E::duration).hints(ranged(0.0f, 600.0f, "seconds of emission (a loop's length when looping)"))
         .field("looping", &E::looping).hints(tip("emits again from the start after its duration"))
@@ -287,7 +287,7 @@ void register_particle_effect(engine::TypeRegistry& registry)
 
     TypeBuilder<ParticleEffectDesc>(registry, PARTICLE_EFFECT_TYPE_NAME)
         .field("emitters_count", &ParticleEffectDesc::emitters_count).hints(ranged(0.0f, static_cast<float>(PARTICLE_EFFECT_MAX_EMITTERS), "emitters used"))
-        .structure("emitters", &ParticleEffectDesc::emitters, "particle_emitter")
+        .structure("emitters", &ParticleEffectDesc::emitters, "particle_effect_emitter")
         .data_asset(default_particle_effect());
 }
 }  // namespace
@@ -335,6 +335,12 @@ void engine::register_builtin_types(TypeRegistry& registry)
         .component();
     register_light(registry);
     register_camera(registry);
+    TypeBuilder<engine_particle_emitter_component_t>(registry, "particle_emitter")
+        .data_asset_ref("effect", &engine_particle_emitter_component_t::effect, PARTICLE_EFFECT_TYPE_NAME)
+        .field("play_on_start", &engine_particle_emitter_component_t::play_on_start)
+        .field("scale", &engine_particle_emitter_component_t::scale)
+        .field("seed", &engine_particle_emitter_component_t::seed)
+        .component();
 
     // navigation
     TypeBuilder<engine_nav_surface_component_t>(registry, "nav_surface")

@@ -21,5 +21,6 @@ void initialize_light_component(entt::registry& registry, entt::entity entity);
 void initialize_sprite_component(entt::registry& registry, entt::entity entity);
 void initialize_nav_surface_component(entt::registry& registry, entt::entity entity);
 void initialize_nav_modifier_component(entt::registry& registry, entt::entity entity);
+void initialize_particle_emitter_component(entt::registry& registry, entt::entity entity);
 void initialize_character_controller_component(entt::registry& registry, entt::entity entity);
 } // namespace engine

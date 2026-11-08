@@ -381,6 +381,20 @@ public:
         return push(std::move(f));
     }
 
+    // a data asset holding a value of the registered data asset type `type_name`
+    TypeBuilder& data_asset_ref(std::string_view name, std::uint32_t T::* member, std::string_view type_name)
+    {
+        auto f = make_field<std::uint32_t>(name, member_offset(member));
+        f.kind = FieldKind::eAsset;
+        f.asset_kind = AssetKind::eDataAsset;
+        f.data_type = registry_.find(type_name);
+        if (!f.data_type || !f.data_type->data_asset_type)
+        {
+            error(fmt::format("field {}: {} is not a registered data asset type", name, type_name));
+        }
+        return push(std::move(f));
+    }
+
     TypeBuilder& engine_string(std::string_view name, engine_string_t* T::* member)
     {
         auto f = make_field<engine_string_t*>(name, member_offset(member));

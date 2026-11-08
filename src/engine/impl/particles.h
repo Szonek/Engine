@@ -263,7 +263,8 @@ enum class ParticleStopMode
 class ParticleSystem
 {
 public:
-    explicit ParticleSystem(std::uint32_t seed = 0) : seed_(seed) {}
+    ParticleSystem() = default;
+    explicit ParticleSystem(std::uint32_t seed) : seed_(seed) {}
 
     // starts again from the beginning (its particles cleared, the same particles again for the same seed)
     void play();
@@ -280,7 +281,7 @@ public:
     const ParticleEmitterState& emitter(std::uint32_t index) const { return emitters_[index]; }
 
 private:
-    std::uint32_t seed_;
+    std::uint32_t seed_ = 0;
     bool playing_ = false;
     std::array<ParticleEmitterState, PARTICLE_EFFECT_MAX_EMITTERS> emitters_{};
 };

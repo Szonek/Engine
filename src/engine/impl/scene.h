@@ -3,6 +3,7 @@
 #include "graphics.h"
 
 #include "debug_draw.h"
+#include "particle_scene_system.h"
 #include "physics_system.h"
 #include "entity_id_registry.h"
 #include "game_object_ref.h"
@@ -43,6 +44,9 @@ public:
     // the scene's bodies, physics queries and character controllers
     PhysicsSystem& physics();
     const PhysicsSystem& physics() const;
+    // the particle emitters of the scene and the one-shot effects spawned in it
+    ParticleSceneSystem& particles();
+    const ParticleSceneSystem& particles() const;
     // instantiates prefabs and knows the scene's prefab instances
     PrefabSystem& prefabs();
     const PrefabSystem& prefabs() const;
@@ -248,6 +252,7 @@ private:
     // declared after the registry too; constructed before the constructor connects the component initializers
     PhysicsSystem physics_;
     PrefabSystem prefabs_;
+    ParticleSceneSystem particles_;
 
     bool nav_mesh_debug_draw_ = false;
     DebugDrawList debug_draw_;

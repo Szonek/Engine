@@ -20,6 +20,7 @@ add_executable(${SCENARIO_TESTS_NAME}
 	hierarchy_tests.cpp
 	harness_tests.cpp
 	level_tests.cpp
+	particle_tests.cpp
 	physics_tests.cpp
 	play_mode_tests.cpp
 	play_session_tests.cpp
