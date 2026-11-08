@@ -1,4 +1,8 @@
 #include "particles.h"
+#include "serialization/builtin_types.h"
+#include "serialization/game_types.h"
+#include "serialization/scene_serializer.h"
+#include "serialization/type_registry.h"
 
 #include <gtest/gtest.h>
 
@@ -6,10 +10,12 @@
 
 #include <cmath>
 #include <cstdint>
+#include <string>
+#include <string_view>
 #include <vector>
 
 // The particle simulation (impl/particles.h): emission timing, bursts, rate, capacity, lifetimes, curves, determinism,
-// world and local space, stopping and death.
+// world and local space, stopping and death; and the effect as a data asset.
 namespace
 {
 using engine::ParticleEffectDesc;
@@ -417,4 +423,81 @@ TEST(ParticleSort, BackToFrontThenSortOrder)
     EXPECT_EQ(keys[1].index, 3u);
     EXPECT_EQ(keys[2].index, 2u);
     EXPECT_EQ(keys[3].index, 0u);
+}
+
+// ---- the effect as a data asset (the engine's type "particle_effect") ----
+namespace
+{
+// resolves nothing: the effects in these tests reference no asset
+class NoAssets : public engine::IAssetResolver
+{
+public:
+    std::string get_asset_id(engine::AssetKind, std::uint32_t) const override { return {}; }
+    std::uint32_t resolve(engine::AssetKind, std::string_view) override { return ENGINE_INVALID_OBJECT_HANDLE; }
+    const engine::TypeInfo* get_data_asset_type(std::uint32_t) const override { return nullptr; }
+};
+}  // namespace
+
+TEST(ParticleEffectAsset, IsAnEngineDataAssetType)
+{
+    engine::TypeRegistry types;
+    engine::register_builtin_types(types);
+    const auto* type = types.find(engine::PARTICLE_EFFECT_TYPE_NAME);
+    ASSERT_NE(type, nullptr);
+    EXPECT_TRUE(type->data_asset_type);
+    EXPECT_FALSE(type->game_defined);
+    EXPECT_FALSE(type->is_component());
+    EXPECT_EQ(type->size, sizeof(ParticleEffectDesc));
+}
+
+TEST(ParticleEffectAsset, FileLoadsOverTheDefaultsAndRoundTrips)
+{
+    engine::TypeRegistry types;
+    engine::register_builtin_types(types);
+    NoAssets assets;
+    const auto loaded = engine::load_data_asset(R"({ "version": 1, "type": "particle_effect", "value": {
+        "emitters_count": 2,
+        "emitters": [ { "rate": 5, "shape": "sphere", "bursts_count": 1, "bursts": [ { "time": 0.25, "count": 12 } ] }, { "blend": "additive" } ] } })",
+        "effects/test.json", types, assets);
+    ASSERT_TRUE(loaded);
+    const auto& effect = *reinterpret_cast<const ParticleEffectDesc*>(loaded->value->get());
+    EXPECT_EQ(effect.emitters_count, 2u);
+    EXPECT_EQ(effect.emitters[0].rate, 5.0f);
+    EXPECT_EQ(effect.emitters[0].shape, engine::ParticleSpawnShape::eSphere);
+    EXPECT_EQ(effect.emitters[0].bursts[0].count, 12u);
+    EXPECT_EQ(effect.emitters[1].blend, engine::ParticleBlendMode::eAdditive);
+    // what the file doesn't say keeps the default effect's values
+    EXPECT_EQ(effect.emitters[0].max_particles, engine::default_particle_emitter().max_particles);
+    EXPECT_EQ(effect.emitters[1].rate, engine::default_particle_emitter().rate);
+
+    const auto text = engine::save_data_asset(*loaded->type, loaded->value->get(), assets);
+    const auto again = engine::load_data_asset(text, "effects/test.json", types, assets);
+    ASSERT_TRUE(again);
+    EXPECT_TRUE(engine::equal_values(*loaded->type, loaded->value->get(), again->value->get()));
+}
+
+TEST(ParticleEffectAsset, GameFieldKindReferencesIt)
+{
+    engine::TypeRegistry types;
+    engine::register_builtin_types(types);
+    struct Torch
+    {
+        engine_data_asset_t flame;
+    };
+    engine_field_desc_t field{};
+    field.name = "flame";
+    field.kind = ENGINE_FIELD_KIND_PARTICLE_EFFECT;
+    field.offset = 0;
+    engine_type_desc_t desc{};
+    desc.name = "torch";
+    desc.size = sizeof(Torch);
+    desc.alignment = alignof(Torch);
+    desc.fields = &field;
+    desc.fields_count = 1;
+    const auto* type = engine::register_game_type(types, desc, true);
+    ASSERT_NE(type, nullptr);
+    ASSERT_EQ(type->fields.size(), 1u);
+    EXPECT_EQ(type->fields[0].kind, engine::FieldKind::eAsset);
+    EXPECT_EQ(type->fields[0].asset_kind, engine::AssetKind::eDataAsset);
+    EXPECT_EQ(type->fields[0].data_type, types.find(engine::PARTICLE_EFFECT_TYPE_NAME));
 }

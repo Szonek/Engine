@@ -1,4 +1,5 @@
 #include "builtin_types.h"
+#include "../particles.h"
 
 #include <engine.h>
 
@@ -177,10 +178,125 @@ void register_collider(engine::TypeRegistry& registry)
         .field("collides_with", &T::collides_with)
         .component();
 }
+engine::FieldHints tip(std::string_view tooltip)
+{
+    engine::FieldHints h{};
+    h.tooltip = std::string(tooltip);
+    return h;
+}
+
+engine::FieldHints ranged(float min, float max, std::string_view tooltip)
+{
+    auto h = tip(tooltip);
+    h.range = std::make_pair(min, max);
+    return h;
+}
+
+engine::FieldHints color(std::string_view tooltip)
+{
+    auto h = tip(tooltip);
+    h.color = true;
+    return h;
+}
+
+// the particle effect (ParticleEffectDesc), a data asset type: files under assets/data/effects
+void register_particle_effect(engine::TypeRegistry& registry)
+{
+    using namespace engine;
+    TypeBuilder<ParticleRange>(registry, "particle_range")
+        .field("min", &ParticleRange::min)
+        .field("max", &ParticleRange::max)
+        .structure();
+    TypeBuilder<ParticleBurst>(registry, "particle_burst")
+        .field("time", &ParticleBurst::time).hints(ranged(0.0f, 600.0f, "seconds into the emission (bursts in time order)"))
+        .field("count", &ParticleBurst::count).hints(ranged(0.0f, 10000.0f, "particles it spawns at once"))
+        .structure();
+    TypeBuilder<ParticleCurveKey>(registry, "particle_curve_key")
+        .field("time", &ParticleCurveKey::time).hints(ranged(0.0f, 1.0f, "of the particle's life"))
+        .field("value", &ParticleCurveKey::value)
+        .structure();
+    TypeBuilder<ParticleCurve>(registry, "particle_curve")
+        .field("keys_count", &ParticleCurve::keys_count).hints(ranged(0.0f, static_cast<float>(PARTICLE_CURVE_MAX_KEYS),
+            "keys used, in time order (none: 1 all life long)"))
+        .structure("keys", &ParticleCurve::keys, "particle_curve_key")
+        .structure();
+    TypeBuilder<ParticleColorKey>(registry, "particle_color_key")
+        .field("time", &ParticleColorKey::time).hints(ranged(0.0f, 1.0f, "of the particle's life"))
+        .field("color", &ParticleColorKey::color).hints(color("multiplies the start colour"))
+        .structure();
+    TypeBuilder<ParticleColorCurve>(registry, "particle_color_curve")
+        .field("keys_count", &ParticleColorCurve::keys_count).hints(ranged(0.0f, static_cast<float>(PARTICLE_CURVE_MAX_KEYS),
+            "keys used, in time order (none: white all life long)"))
+        .structure("keys", &ParticleColorCurve::keys, "particle_color_key")
+        .structure();
+
+    using E = ParticleEmitterDesc;
+    TypeBuilder<E>(registry, "particle_emitter")
+        .field("enabled", &E::enabled)
+        .field("duration", &E::duration).hints(ranged(0.0f, 600.0f, "seconds of emission (a loop's length when looping)"))
+        .field("looping", &E::looping).hints(tip("emits again from the start after its duration"))
+        .field("rate", &E::rate).hints(ranged(0.0f, 10000.0f, "particles a second during the duration"))
+        .field("bursts_count", &E::bursts_count).hints(ranged(0.0f, static_cast<float>(PARTICLE_EMITTER_MAX_BURSTS), "bursts used"))
+        .structure("bursts", &E::bursts, "particle_burst")
+        .field("max_particles", &E::max_particles).hints(ranged(0.0f, static_cast<float>(PARTICLE_EMITTER_CAPACITY_LIMIT),
+            "live particles at most; spawns beyond it are skipped"))
+        .enumeration("space", &E::space, {
+            { "world", static_cast<std::int32_t>(ParticleSpace::eWorld) },
+            { "local", static_cast<std::int32_t>(ParticleSpace::eLocal) } })
+        .hints(tip("world: particles stay where they spawned; local: they move with the emitter"))
+        .enumeration("shape", &E::shape, {
+            { "point", static_cast<std::int32_t>(ParticleSpawnShape::ePoint) },
+            { "sphere", static_cast<std::int32_t>(ParticleSpawnShape::eSphere) },
+            { "box", static_cast<std::int32_t>(ParticleSpawnShape::eBox) } })
+        .field("shape_offset", &E::shape_offset).hints(tip("the shape's centre in the effect's space"))
+        .field("shape_radius", &E::shape_radius).hints(ranged(0.0f, 1000.0f, "the sphere's radius"))
+        .field("shape_half_extents", &E::shape_half_extents).hints(ranged(0.0f, 1000.0f, "the box's half extents"))
+        .field("shape_surface", &E::shape_surface).hints(tip("on the shape's surface instead of inside it"))
+        .structure("lifetime", &E::lifetime, "particle_range")
+        .structure("speed", &E::speed, "particle_range")
+        .enumeration("direction_mode", &E::direction_mode, {
+            { "direction", static_cast<std::int32_t>(ParticleDirectionMode::eDirection) },
+            { "outward", static_cast<std::int32_t>(ParticleDirectionMode::eOutward) } })
+        .hints(tip("direction: along `direction`; outward: away from the shape's centre"))
+        .field("direction", &E::direction)
+        .field("cone_degrees", &E::cone_degrees).hints(ranged(0.0f, 180.0f, "the spread around the direction (half angle)"))
+        .structure("size", &E::size, "particle_range")
+        .structure("rotation_degrees", &E::rotation_degrees, "particle_range")
+        .structure("rotation_speed_degrees", &E::rotation_speed_degrees, "particle_range")
+        .field("color_min", &E::color_min).hints(color("the start colour is random between the two"))
+        .field("color_max", &E::color_max).hints(color("the start colour is random between the two"))
+        .structure("size_over_life", &E::size_over_life, "particle_curve")
+        .structure("color_over_life", &E::color_over_life, "particle_color_curve")
+        .structure("alpha_over_life", &E::alpha_over_life, "particle_curve")
+        .structure("erosion_over_life", &E::erosion_over_life, "particle_curve")
+        .field("drag", &E::drag).hints(ranged(0.0f, 100.0f, "slows the particles down, per second"))
+        .field("gravity_scale", &E::gravity_scale).hints(ranged(-10.0f, 10.0f, "of the scene's gravity"))
+        .asset("texture", &E::texture, AssetKind::eTexture)
+        .field("flipbook_columns", &E::flipbook_columns).hints(ranged(1.0f, 64.0f, "frames across the texture"))
+        .field("flipbook_rows", &E::flipbook_rows).hints(ranged(1.0f, 64.0f, "frames down the texture"))
+        .field("flipbook_fps", &E::flipbook_fps).hints(ranged(0.0f, 240.0f, "frames a second"))
+        .field("flipbook_over_life", &E::flipbook_over_life).hints(tip("the frames play once over each particle's life"))
+        .enumeration("blend", &E::blend, {
+            { "alpha", static_cast<std::int32_t>(ParticleBlendMode::eAlpha) },
+            { "premultiplied", static_cast<std::int32_t>(ParticleBlendMode::ePremultiplied) },
+            { "additive", static_cast<std::int32_t>(ParticleBlendMode::eAdditive) } })
+        .field("lit", &E::lit).hints(tip("lit by the scene's light"))
+        .field("soft_distance", &E::soft_distance).hints(ranged(0.0f, 10.0f, "metres over which it fades into the geometry behind it"))
+        .field("sort_order", &E::sort_order).hints(tip("among effects at the same distance, higher draws on top"))
+        .structure();
+
+    TypeBuilder<ParticleEffectDesc>(registry, PARTICLE_EFFECT_TYPE_NAME)
+        .field("emitters_count", &ParticleEffectDesc::emitters_count).hints(ranged(0.0f, static_cast<float>(PARTICLE_EFFECT_MAX_EMITTERS), "emitters used"))
+        .structure("emitters", &ParticleEffectDesc::emitters, "particle_emitter")
+        .data_asset(default_particle_effect());
+}
 }  // namespace
 
 void engine::register_builtin_types(TypeRegistry& registry)
 {
+    // data asset types the engine's components reference
+    register_particle_effect(registry);
+
     // what organizes the scene, then the transforms and the hierarchy: the systems reacting to the components after
     // them (bodies, nav mesh build) read world matrices
     TypeBuilder<engine_name_component_t>(registry, "name")

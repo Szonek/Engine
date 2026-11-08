@@ -172,7 +172,7 @@ TEST_F(DataAssetTest, FileWhichIsNoDataAssetIsNotLoaded)
     EXPECT_FALSE(engine::load_data_asset(R"({ "version": 2, "type": "tuning", "value": {} })", "c.json", types_, assets_));
     EXPECT_FALSE(engine::load_data_asset(R"({ "version": 1, "type": "nothing", "value": {} })", "d.json", types_, assets_));
     EXPECT_FALSE(engine::load_data_asset(R"({ "version": 1, "type": "tuning" })", "e.json", types_, assets_));
-    EXPECT_TRUE(test_logger::logged("Data asset d.json: its type isn't a struct type"));
+    EXPECT_TRUE(test_logger::logged("Data asset d.json: its type isn't a data asset type"));
     EXPECT_FALSE(engine::load_data_asset(R"({ "version": 1, "type": "tuning", "type_version": 0, "value": {} })", "f.json", types_, assets_));
 }
 

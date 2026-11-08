@@ -623,6 +623,9 @@ typedef enum _engine_field_kind_t
     // an engine_prefab_t (a model or a scene file, see enginePrefabLoad), saved as its asset ID; a scene file or data
     // asset referencing one holds it, so it stays loaded while they do
     ENGINE_FIELD_KIND_PREFAB,
+    // an engine_data_asset_t holding a particle effect (the engine's type "particle_effect", a file under
+    // assets/data/effects, see engineParticlesSpawn), saved as its asset ID and held like a data asset; type_name unused
+    ENGINE_FIELD_KIND_PARTICLE_EFFECT,
     ENGINE_FIELD_KIND_COUNT
 } engine_field_kind_t;
 

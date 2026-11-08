@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -155,8 +156,10 @@ struct TypeInfo
     std::unique_ptr<ComponentStorage> storage;
     // registered by the game through the C API (see game_types.h), not by the engine; the editor has no panel for it
     bool game_defined = false;
-    // game-defined struct types: what a data asset of the type holds in the fields its file doesn't have (zeroes when
-    // the game gave none)
+    // a data asset can hold a value of it: the game's struct types, and the engine's data asset types (a particle effect)
+    bool data_asset_type = false;
+    // data asset types: what a data asset of the type holds in the fields its file doesn't have (zeroes when the game
+    // gave none)
     std::vector<std::byte> default_value;
 
     bool is_component() const { return storage != nullptr; }
@@ -392,9 +395,31 @@ public:
         return push(std::move(f));
     }
 
+    // how the editor shows the field described last (a range, a colour, a tooltip); never changes what is saved
+    TypeBuilder& hints(FieldHints field_hints)
+    {
+        if (type_.fields.empty())
+        {
+            error("hints before any field");
+            return *this;
+        }
+        type_.fields.back().hints = std::move(field_hints);
+        return *this;
+    }
+
     // registers T as a type used inside other types
     const TypeInfo* structure()
     {
+        return finish();
+    }
+
+    // registers T as a type data assets can hold (an engine asset kept in a data asset file), starting from
+    // `default_value` where the file has no value
+    const TypeInfo* data_asset(const T& default_value)
+    {
+        type_.data_asset_type = true;
+        type_.default_value.resize(sizeof(T));
+        std::memcpy(type_.default_value.data(), &default_value, sizeof(T));
         return finish();
     }
 

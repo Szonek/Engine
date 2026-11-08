@@ -1324,9 +1324,9 @@ std::optional<engine::DataAssetValue> engine::load_data_asset(std::string_view j
     }
     const auto type_it = doc.FindMember("type");
     const auto* type = type_it != doc.MemberEnd() && type_it->value.IsString() ? types.find(type_it->value.GetString()) : nullptr;
-    if (!type || !type->game_defined || type->is_component() || holds_game_object(*type))
+    if (!type || !type->data_asset_type || holds_game_object(*type))
     {
-        log_error(fmt::format("Data asset {}: its type isn't a struct type the game registered without game object references.\n", file_name));
+        log_error(fmt::format("Data asset {}: its type isn't a data asset type (a struct type the game registered, or the engine's particle_effect) without game object references.\n", file_name));
         return std::nullopt;
     }
     // the version of the type the value was written for; a file written by hand may leave it out, it is the first one

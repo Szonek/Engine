@@ -1,4 +1,5 @@
 #include "game_types.h"
+#include "builtin_types.h"
 
 #include <fmt/format.h>
 
@@ -191,6 +192,7 @@ public:
         else
         {
             // what a data asset of the type starts from
+            type_.data_asset_type = true;
             type_.default_value.resize(type_.size);
             if (desc_.default_value)
             {
@@ -277,9 +279,19 @@ private:
             f.kind = FieldKind::eAsset;
             f.asset_kind = engine::AssetKind::eDataAsset;
             f.data_type = registry_.find(text(d.type_name));
-            if (!f.data_type || !f.data_type->game_defined || f.data_type->is_component() || engine::holds_game_object(*f.data_type))
+            if (!f.data_type || !f.data_type->data_asset_type || engine::holds_game_object(*f.data_type))
             {
-                return error(fmt::format("field {}: \"{}\" is not a struct type registered by the game without game object references", name, text(d.type_name)));
+                return error(fmt::format("field {}: \"{}\" is not a data asset type (a struct type registered by the game, or the engine's particle_effect) without game object references", name, text(d.type_name)));
+            }
+            break;
+        case ENGINE_FIELD_KIND_PARTICLE_EFFECT:
+            // a data asset holding a particle effect
+            f.kind = FieldKind::eAsset;
+            f.asset_kind = engine::AssetKind::eDataAsset;
+            f.data_type = registry_.find(engine::PARTICLE_EFFECT_TYPE_NAME);
+            if (!f.data_type)
+            {
+                return error(fmt::format("field {}: the engine's particle_effect type isn't registered", name));
             }
             break;
         default:
