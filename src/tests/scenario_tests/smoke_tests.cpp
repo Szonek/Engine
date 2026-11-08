@@ -1,0 +1,258 @@
+#include "sandbox_scene.h"
+
+#include <app.h>
+#include <scripts/enemy_script.h>
+#include <scripts/game_components.h>
+#include <scripts/player_script.h>
+#include <scripts/smoke_cloud.h>
+
+#include <gtest/gtest.h>
+
+#include <glm/gtc/quaternion.hpp>
+
+#include <cstdint>
+#include <functional>
+#include <vector>
+
+// The smoke bomb (SMOKE.md): the cloud hides the player from sight, blinds the enemies it pops on (they lose track of
+// the player, can't act, can be executed from any side) and is a loud noise; the throw's cooldown and range. Outcomes
+// with generous time limits.
+namespace
+{
+using project_c::Awareness;
+using project_c::Enemy;
+using project_c::MovementMode;
+using project_c::Player;
+using project_c::PlayerInput;
+using project_c::SmokeCloud;
+
+constexpr std::uint32_t SETTLE_FRAMES = 45;
+// yaw (around +y): facing +z, -z
+constexpr float FACING_PLUS_Z = 0.0f;
+constexpr float FACING_MINUS_Z = 180.0f;
+constexpr float FACING_PLUS_X = 90.0f;
+
+std::uint32_t frames(float seconds)
+{
+    return static_cast<std::uint32_t>(seconds * 1000.0f / scenario::FIXED_DT_MS);
+}
+
+class SmokeTest : public scenario::GameplayTest
+{
+protected:
+    scenario::SandboxScene* sandbox(float half_size = 16.0f)
+    {
+        scene_ = load_sandbox_scene();
+        scene_->build().floor_area(-half_size, -half_size, half_size, half_size);
+        return scene_;
+    }
+
+    Player* place_player(float x, float z)
+    {
+        player_ = scene_->build().player(x, z);
+        scene_->snap_camera_to_player();
+        return player_;
+    }
+
+    // E with the cursor on `target` (on the floor), then the throw plays out until its cloud popped (or `max_frames`)
+    void throw_smoke_at(const glm::vec3& target, std::uint32_t max_frames = 60)
+    {
+        PlayerInput smoke{};
+        smoke.smoke = true;
+        const auto clouds_before = scene_->get_scripts<SmokeCloud>().size();
+        step_aiming(1, smoke, target);
+        for (std::uint32_t frame = 0; frame < max_frames && scene_->get_scripts<SmokeCloud>().size() == clouds_before; frame++)
+        {
+            step_aiming(1, {}, target);
+        }
+        // the cloud starts (pops) at its first update
+        step(1);
+    }
+
+    std::vector<SmokeCloud*> clouds() { return scene_->get_scripts<SmokeCloud>(); }
+
+    // steps until `done` (checked after every frame); false when it isn't done within `max_frames`
+    bool step_until(std::uint32_t max_frames, const std::function<bool()>& done)
+    {
+        set_input({});
+        for (std::uint32_t frame = 0; frame < max_frames; frame++)
+        {
+            step();
+            if (done())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool is_dead(engine_game_object_t enemy) const
+    {
+        const auto* script = scene_->get_script<Enemy>(enemy);
+        return !script || script->is_dying();
+    }
+
+    scenario::SandboxScene* scene_ = nullptr;
+    Player* player_ = nullptr;
+};
+}  // namespace
+
+// an alert enemy chasing the player loses it when the bomb bursts on it: it searches the cloud instead of hunting
+TEST_F(SmokeTest, AlertEnemyLosesThePlayerAndSearchesTheCloud)
+{
+    sandbox();
+    place_player(0.0f, 0.0f);
+    auto* enemy = scene_->build().enemy(0.0f, 5.0f, FACING_MINUS_Z);
+    ASSERT_NE(enemy, nullptr);
+    step(SETTLE_FRAMES);
+    enemy->receive_attack_hit(0, 0.0f);
+    step(2);
+    ASSERT_EQ(enemy->awareness().state(), Awareness::eAlert);
+
+    throw_smoke_at(position_of(enemy->get_game_object()));
+    ASSERT_EQ(clouds().size(), 1u);
+    const auto centre = clouds().front()->centre();
+    EXPECT_TRUE(enemy->is_blinded());
+    EXPECT_EQ(enemy->awareness().state(), Awareness::eSearching);
+    EXPECT_LT(glm::distance(glm::vec2(enemy->awareness().last_known_position().x, enemy->awareness().last_known_position().z),
+        glm::vec2(centre.x, centre.z)), 0.01f);
+    // it doesn't find the player while the cloud lasts
+    bool alerted = false;
+    step_until(frames(4.0f), [&] { alerted = alerted || enemy->awareness().state() == Awareness::eAlert; return false; });
+    EXPECT_FALSE(alerted);
+    EXPECT_EQ(player_->get_hp(), player_->get_max_hp());
+}
+
+// a cloud between them hides the player from an enemy looking at it; once the cloud is gone it sees the player again
+TEST_F(SmokeTest, CloudBetweenHidesThePlayerUntilItFades)
+{
+    sandbox();
+    place_player(0.0f, 0.0f);
+    // facing away until the cloud is up, then toward the player (who stays still: silent)
+    auto* enemy = scene_->build().enemy(0.0f, 6.6f, FACING_PLUS_Z);
+    ASSERT_NE(enemy, nullptr);
+    step(SETTLE_FRAMES);
+    throw_smoke_at(glm::vec3(0.0f, 0.0f, 3.0f));
+    ASSERT_EQ(clouds().size(), 1u);
+    EXPECT_FALSE(enemy->is_blinded());
+    auto tc = engineGameObjectGetTransformComponent(enemy->get_game_object());
+    const auto facing_player = glm::angleAxis(glm::radians(FACING_MINUS_Z), glm::vec3(0.0f, 1.0f, 0.0f));
+    tc.rotation[0] = facing_player.x;
+    tc.rotation[1] = facing_player.y;
+    tc.rotation[2] = facing_player.z;
+    tc.rotation[3] = facing_player.w;
+    engineGameObjectUpdateTransformComponent(enemy->get_game_object(), &tc);
+
+    bool alerted = false;
+    const float life = project_c::default_smoke_tuning().duration_seconds;
+    step_until(frames(life - 1.0f), [&] { alerted = alerted || enemy->awareness().state() == Awareness::eAlert; return false; });
+    EXPECT_FALSE(alerted);
+    // gone: it sees the player
+    EXPECT_TRUE(step_until(frames(4.0f), [&] { return enemy->awareness().state() == Awareness::eAlert; }));
+    EXPECT_TRUE(clouds().empty());
+}
+
+// an enemy blinded by the bomb doesn't attack, and is executed from the front
+TEST_F(SmokeTest, BlindedEnemyDoesNotAttackAndIsExecutedFromTheFront)
+{
+    sandbox();
+    place_player(0.0f, 0.0f);
+    auto* enemy = scene_->build().enemy(0.0f, 1.2f, FACING_MINUS_Z);
+    ASSERT_NE(enemy, nullptr);
+    const auto go = enemy->get_game_object();
+    step(SETTLE_FRAMES);
+    enemy->receive_attack_hit(0, 0.0f);
+    step(2);
+
+    throw_smoke_at(position_of(go));
+    ASSERT_TRUE(enemy->is_blinded());
+    const auto hp = player_->get_hp();
+    step(frames(1.0f));
+    EXPECT_TRUE(enemy->is_blinded());
+    EXPECT_EQ(player_->get_hp(), hp);
+
+    // facing the player, but blinded: an execution
+    PlayerInput attack{};
+    attack.attack = true;
+    step_aiming(1, attack, position_of(go));
+    bool executing = false;
+    EXPECT_TRUE(step_until(90, [&] { executing = executing || player_->movement_mode() == MovementMode::eExecuting; return is_dead(go); }));
+    EXPECT_TRUE(executing);
+}
+
+// a hit ends the blindness: the enemy is alerted at once
+TEST_F(SmokeTest, HitEndsTheBlindness)
+{
+    sandbox();
+    place_player(-4.0f, 0.0f);
+    auto* enemy = scene_->build().enemy(2.0f, 0.0f, FACING_PLUS_X);
+    ASSERT_NE(enemy, nullptr);
+    step(SETTLE_FRAMES);
+    throw_smoke_at(position_of(enemy->get_game_object()));
+    ASSERT_TRUE(enemy->is_blinded());
+
+    enemy->receive_attack_hit(0, 0.0f);
+    step(2);
+    EXPECT_FALSE(enemy->is_blinded());
+    EXPECT_EQ(enemy->awareness().state(), Awareness::eAlert);
+}
+
+// the cooldown refuses a second throw, and allows one after it
+TEST_F(SmokeTest, CooldownRefusesASecondThrowUntilItEnds)
+{
+    sandbox();
+    place_player(0.0f, 0.0f);
+    step(SETTLE_FRAMES);
+    const auto tuning = project_c::default_smoke_tuning();
+
+    throw_smoke_at(glm::vec3(3.0f, 0.0f, 0.0f));
+    ASSERT_EQ(clouds().size(), 1u);
+    EXPECT_GT(player_->smoke_cooldown_remaining(), tuning.cooldown_seconds - 1.0f);
+    step(frames(0.5f));
+    throw_smoke_at(glm::vec3(-3.0f, 0.0f, 0.0f), 30);
+    EXPECT_EQ(clouds().size(), 1u);
+
+    // after the cooldown (the first cloud is gone by then)
+    step(frames(tuning.cooldown_seconds));
+    EXPECT_EQ(player_->smoke_cooldown_remaining(), 0.0f);
+    EXPECT_TRUE(clouds().empty());
+    throw_smoke_at(glm::vec3(-3.0f, 0.0f, 0.0f));
+    EXPECT_EQ(clouds().size(), 1u);
+}
+
+// the pop is a loud noise: an unaware enemy within the noise radius becomes suspicious, one beyond it notices nothing
+TEST_F(SmokeTest, PopIsHeardWithinTheNoiseRadiusOnly)
+{
+    sandbox();
+    place_player(-8.0f, 0.0f);
+    // facing away from the player; 4 m and 7 m from where the bomb lands (outside the cloud's radius)
+    auto* near_enemy = scene_->build().enemy(0.0f, 4.0f, FACING_PLUS_Z);
+    auto* far_enemy = scene_->build().enemy(0.0f, -7.0f, FACING_MINUS_Z);
+    ASSERT_NE(near_enemy, nullptr);
+    ASSERT_NE(far_enemy, nullptr);
+    step(SETTLE_FRAMES);
+    ASSERT_EQ(near_enemy->awareness().state(), Awareness::eUnaware);
+    ASSERT_EQ(far_enemy->awareness().state(), Awareness::eUnaware);
+
+    throw_smoke_at(glm::vec3(0.0f, 0.0f, 0.0f));
+    step(2);
+    EXPECT_FALSE(near_enemy->is_blinded());
+    EXPECT_EQ(near_enemy->awareness().state(), Awareness::eSuspicious);
+    EXPECT_EQ(far_enemy->awareness().state(), Awareness::eUnaware);
+}
+
+// a throw farther than the range lands at the range, in the same direction
+TEST_F(SmokeTest, ThrowBeyondRangeLandsAtRange)
+{
+    sandbox();
+    place_player(-6.0f, 0.0f);
+    step(SETTLE_FRAMES);
+    const auto tuning = project_c::default_smoke_tuning();
+
+    throw_smoke_at(glm::vec3(10.0f, 0.0f, 0.0f));
+    ASSERT_EQ(clouds().size(), 1u);
+    const auto centre = clouds().front()->centre();
+    const auto player = position_of(player_->get_game_object());
+    EXPECT_NEAR(glm::distance(glm::vec2(centre.x, centre.z), glm::vec2(player.x, player.z)), tuning.throw_range, 0.1f);
+    EXPECT_NEAR(centre.z, 0.0f, 0.1f);
+}
