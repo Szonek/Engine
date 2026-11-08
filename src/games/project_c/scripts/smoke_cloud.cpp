@@ -53,8 +53,11 @@ void project_c::SmokeCloud::on_start()
         if (distance <= tuning_.radius)
         {
             enemy->blind(tuning_.blind_seconds, centre_);
+            continue;
         }
-        if (distance <= tuning_.noise_radius)
+        // the bang alerts nobody by itself: it only makes the ones which haven't noticed the player suspicious
+        const auto awareness = enemy->awareness().state();
+        if (distance <= tuning_.noise_radius && (awareness == Awareness::eUnaware || awareness == Awareness::eSuspicious))
         {
             enemy->hear_loud_noise(centre_);
         }
