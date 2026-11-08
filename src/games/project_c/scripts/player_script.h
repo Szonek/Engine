@@ -170,8 +170,6 @@ public:
     float smoke_cooldown_remaining() const { return smoke_.cooldown_remaining_seconds(); }
     // a smoke bomb throw (E) is playing (SMOKE.md)
     bool is_throwing() const { return throw_remaining_seconds_ > 0.0f; }
-    // the bomb leaves the hand (the throw's animation event): its cloud pops where it lands
-    void on_smoke_release();
     // the momentum meter (0..1; FALLS_AND_SHOVES.md), and whether it is draining (on the ground in combat)
     float momentum() const { return momentum_.value(); }
     bool is_momentum_draining() const { return momentum_.is_draining(); }
@@ -304,7 +302,8 @@ private:
     PlayerShove shove_;
     PlayerSmoke smoke_;
     bool smoke_press_pending_ = false;
-    // the throw playing (its clip's length)
+    // the throw playing: since it started, and until the player acts again
+    float throw_elapsed_seconds_ = 0.0f;
     float throw_remaining_seconds_ = 0.0f;
     // a throw starts toward `cursor_point`: it turns there, plays the throw and starts the cooldown
     void start_throw(const glm::vec3& cursor_point);

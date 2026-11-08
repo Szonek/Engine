@@ -16,15 +16,11 @@ namespace project_c
 {
 // The player's smoke bomb (SMOKE.md), owned by Player like PlayerShove: the cooldown, where a throw lands, and the cloud
 // it spawns at the throw's release. The Player says when a throw may start (on the ground, not in another action) and
-// plays the throw (Throw, whose release is an animation event).
+// plays the throw (Throw); the bomb leaves the hand throw_release_seconds into it.
 class PlayerSmoke
 {
 public:
     static constexpr const char* THROW_CLIP = "Throw";
-    // when in the clip the bomb leaves the hand (seconds)
-    static constexpr float THROW_RELEASE_SECONDS = 0.35f;
-    // after the release the player can act again this soon (the clip's follow-through is cut short)
-    static constexpr float THROW_RECOVERY_SECONDS = 0.25f;
 
     PlayerSmoke(engine::IScene* scene, engine_game_object_t player);
 

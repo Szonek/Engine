@@ -22,8 +22,8 @@ or another throw, and only when the cooldown is ready (`cooldown_seconds`, 12 s 
 change it). The bomb lands at the point under the cursor, or at `throw_range` (8 m, flat) from the player in that
 direction (`smoke_landing`), on the first level geometry below that point (a roof under the cursor puts it on the roof).
 It pops even behind a wall. The player turns that way and plays `Throw` on the locomotion layer, standing still; the
-cloud appears at the clip's release event (`PlayerSmoke::THROW_RELEASE_SECONDS`, 0.35 s), and the player acts again
-`THROW_RECOVERY_SECONDS` (0.25) later (the clip's long follow-through is cut). A hit before the release cuts the
+bomb leaves the hand `throw_release_seconds` (0.35) into the throw, where its cloud appears, and the player acts again
+`throw_recovery_seconds` (0.25) later (the clip's long follow-through is cut). A hit before the release cuts the
 throw short: no cloud, and the cooldown stays.
 
 ## The cloud

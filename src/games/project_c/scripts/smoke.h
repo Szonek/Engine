@@ -26,6 +26,10 @@ struct SmokeTuning
     float blind_seconds;
     // the pop is a loud noise this far
     float noise_radius;
+    // the throw: the bomb leaves the hand this long after it starts, and the player acts again this long after that
+    // (the Throw clip's long follow-through is cut short)
+    float throw_release_seconds;
+    float throw_recovery_seconds;
 };
 
 // the cloud's radius `age` seconds after it popped: growing, full, then fading; 0 before and after its life

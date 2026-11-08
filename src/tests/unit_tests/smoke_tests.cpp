@@ -11,7 +11,7 @@ namespace
 {
 SmokeTuning tuning()
 {
-    return SmokeTuning{ 12.0f, 8.0f, 3.0f, 1.0f, 0.25f, 6.0f, 0.5f, 3.0f, 5.0f };
+    return SmokeTuning{ 12.0f, 8.0f, 3.0f, 1.0f, 0.25f, 6.0f, 0.5f, 3.0f, 5.0f, 0.35f, 0.25f };
 }
 }  // namespace
 

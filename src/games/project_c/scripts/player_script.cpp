@@ -66,13 +66,6 @@ glm::vec2 move_input_of(const project_c::PlayerInput& input)
     return glm::length(move) > 1.0f ? glm::normalize(move) : move;
 }
 
-void smoke_release_callback(const engine_animation_event_info_t* info, void* user_data)
-{
-    assert(info);
-    assert(user_data);
-    static_cast<project_c::Player*>(user_data)->on_smoke_release();
-}
-
 void shove_contact_callback(const engine_animation_event_info_t* info, void* user_data)
 {
     assert(info);
@@ -538,24 +531,6 @@ void project_c::Player::on_start()
         }
     }
 
-    {
-        // the smoke bomb leaves the hand
-        engine_animation_event_t release_event{};
-        release_event.trigger_time = PlayerSmoke::THROW_RELEASE_SECONDS;
-        release_event.user_data = this;
-        release_event.fn_ptr = smoke_release_callback;
-        engine_animation_event_id_t release_event_id = ENGINE_INVALID_OBJECT_HANDLE;
-        if (engineAnimationControllerAnimationAddEvent(go_, PlayerSmoke::THROW_CLIP, release_event, &release_event_id) == ENGINE_RESULT_CODE_OK
-            && release_event_id != ENGINE_INVALID_OBJECT_HANDLE)
-        {
-            animation_events_.emplace_back(PlayerSmoke::THROW_CLIP, release_event_id);
-        }
-        else
-        {
-            engineLog("Failed to add the smoke bomb's release event: throws make no cloud.\n");
-        }
-    }
-
     for (std::size_t combo_index = 0; combo_index < AttackStateData::combo_length; ++combo_index)
     {
         const auto& attack = attack_data_.get_attack(combo_index);
@@ -918,8 +893,14 @@ void project_c::Player::update(float dt)
     }
     else if (is_throwing())
     {
-        // the throw plays where the player stands
+        // the throw plays where the player stands; the bomb leaves the hand at its release (its cloud pops there)
         movement_velocity_ = glm::vec2(0.0f);
+        throw_elapsed_seconds_ += delta_seconds;
+        const auto smoke = smoke_tuning();
+        if (throw_elapsed_seconds_ >= smoke.throw_release_seconds)
+        {
+            smoke_.release(smoke);
+        }
         throw_remaining_seconds_ = std::max(0.0f, throw_remaining_seconds_ - delta_seconds);
         if (throw_remaining_seconds_ <= 0.0f)
         {
@@ -1719,8 +1700,10 @@ void project_c::Player::start_throw(const glm::vec3& cursor_point)
     engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
     engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 0.0f);
     engineAnimationControllerAnimationCrossFade(go_, PlayerSmoke::THROW_CLIP, LOCOMOTION_LAYER_ID, 0.05f);
-    // the player acts again a moment after the release (the clip's long follow-through is cut)
-    throw_remaining_seconds_ = PlayerSmoke::THROW_RELEASE_SECONDS + PlayerSmoke::THROW_RECOVERY_SECONDS;
+    // the bomb leaves the hand at the release, and the player acts again a moment after it (the clip's long
+    // follow-through is cut)
+    throw_elapsed_seconds_ = 0.0f;
+    throw_remaining_seconds_ = tuning.throw_release_seconds + tuning.throw_recovery_seconds;
     movement_velocity_ = glm::vec2(0.0f);
 }
 
@@ -1730,14 +1713,6 @@ void project_c::Player::end_throw()
     smoke_.cancel();
     engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
     engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
-}
-
-void project_c::Player::on_smoke_release()
-{
-    if (is_throwing())
-    {
-        smoke_.release(smoke_tuning());
-    }
 }
 
 void project_c::Player::on_shove_contact()

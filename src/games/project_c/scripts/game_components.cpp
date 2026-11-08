@@ -200,7 +200,7 @@ project_c::MomentumTuning project_c::default_momentum_tuning()
 
 project_c::SmokeTuning project_c::default_smoke_tuning()
 {
-    return SmokeTuning{ 12.0f, 8.0f, 3.0f, 1.0f, 0.25f, 6.0f, 0.5f, 3.0f, 5.0f };
+    return SmokeTuning{ 12.0f, 8.0f, 3.0f, 1.0f, 0.25f, 6.0f, 0.5f, 3.0f, 5.0f, 0.35f, 0.25f };
 }
 
 project_c::EnemyConfig project_c::default_enemy_config()
@@ -418,6 +418,10 @@ void project_c::register_game_components()
         smoke_field("blind_seconds", offsetof(SmokeTuning, blind_seconds),
             "seconds the enemies it pops on can't see or act", 30.0f),
         smoke_field("noise_radius", offsetof(SmokeTuning, noise_radius), "metres: the pop is a loud noise this far", 50.0f),
+        smoke_field("throw_release_seconds", offsetof(SmokeTuning, throw_release_seconds),
+            "seconds from the start of the throw until the bomb leaves the hand (the cloud pops then)", 2.0f),
+        smoke_field("throw_recovery_seconds", offsetof(SmokeTuning, throw_recovery_seconds),
+            "seconds after the release until the player acts again (the Throw clip's follow-through is cut)", 2.0f),
     }, default_smoke_tuning());
 
     g_types.execution_tuning = register_data_asset_type("execution_tuning", {
