@@ -61,6 +61,7 @@ project_c::GameplayHud::GameplayHud(engine::IScene* my_scene, engine_game_object
     encounter_status_ = engineStringCreate(
         gameplay_started_ ? "Defeat all enemies. WASD move, SHIFT sneak, RMB attack, SPACE dodge. Walk into walls to climb." : "Paused. Click Play in the editor toolbar to start.");
     assert(encounter_status_);
+    player_smoke_ = engineStringCreate("Smoke (E): ready");
 
     std::vector<engine_ui_document_data_binding_t> bindings{};
     add_binding(bindings, "items_go", items_.go);
@@ -113,6 +114,13 @@ project_c::GameplayHud::GameplayHud(engine::IScene* my_scene, engine_game_object
         binding.type = ENGINE_UI_DATA_TYPE_STRING;
         bindings.push_back(binding);
     }
+    {
+        engine_ui_document_data_binding_t binding{};
+        binding.name = "player_smoke";
+        binding.data_string = player_smoke_;
+        binding.type = ENGINE_UI_DATA_TYPE_STRING;
+        bindings.push_back(binding);
+    }
 
     engineUiDocumentCreateDataHandle("DataModel_Main_UI", bindings.data(), bindings.size(), &handle_);
 
@@ -147,6 +155,7 @@ project_c::GameplayHud::~GameplayHud()
     engineUiDataHandleDestroy(handle_);
     engineUiDocumentDestroy(doc_);
     engineStringDestroy(encounter_status_);
+    engineStringDestroy(player_smoke_);
 }
 
 void project_c::GameplayHud::late_update(float dt)
@@ -160,6 +169,7 @@ void project_c::GameplayHud::late_update(float dt)
     }
     update_player_health();
     update_player_momentum();
+    update_player_smoke();
     update_enemies();
     update_items_on_ground();
     update_encounter_status();
@@ -207,6 +217,25 @@ void project_c::GameplayHud::update_player_momentum()
         player_momentum_draining_ = draining;
         engineUiDataHandleDirtyVariable(handle_, "player_momentum_draining");
     }
+}
+
+void project_c::GameplayHud::update_player_smoke()
+{
+    const auto* player = my_scene_->find_script<Player>();
+    if (!player)
+    {
+        return;
+    }
+    // whole seconds, rounded up: 0 is ready
+    const auto seconds = static_cast<std::int32_t>(std::ceil(player->smoke_cooldown_remaining()));
+    if (seconds == shown_smoke_seconds_)
+    {
+        return;
+    }
+    shown_smoke_seconds_ = seconds;
+    const auto text = seconds <= 0 ? std::string("Smoke (E): ready") : std::format("Smoke (E): {} s", seconds);
+    engineStringSet(player_smoke_, text.c_str());
+    engineUiDataHandleDirtyVariable(handle_, "player_smoke");
 }
 
 void project_c::GameplayHud::update_enemies()

@@ -10,7 +10,8 @@
 			<div>Health</div>
 			<progress class="player_healthbar" data-attr-max="player_max_health" data-attr-value="player_health"></progress>
 			<progress class="player_momentumbar" max="100" data-attr-value="player_momentum" data-class-draining="player_momentum_draining == 1"></progress>
-			<div class="controls">WASD move | SHIFT sneak | RMB attack | SPACE dodge | Q kick</div>
+			<div class="smoke">{{player_smoke}}</div>
+			<div class="controls">WASD move | SHIFT sneak | RMB attack | SPACE dodge | Q kick | E smoke</div>
 		</div>
 		<div id="encounter_status" class="encounter_status">{{encounter_status}}</div>
 
