@@ -1,0 +1,3 @@
+frame_0000: an alert pack of three runs at the player (!)
+frame_0020: E: the smoke bomb is thrown at the pack; the cloud pops on them: blinded, they lose the player (?)
+frame_0041: the player walks away; the skeletons search the cloud, the HUD shows the smoke's cooldown

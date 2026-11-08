@@ -1,0 +1,3 @@
+frame_0000: an alert skeleton faces the player (!), about to attack
+frame_0007: E: the smoke bomb at its feet; it is blinded (Hit_B, then it stands still, ?)
+frame_0033: blinded it can be executed from any side: attack, from the front, kills it silently
