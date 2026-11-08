@@ -44,6 +44,11 @@ constexpr std::uint32_t collides_with(Layer layer)
     return ENGINE_PHYSICS_ALL_LAYERS;
 }
 
+// What blocks sight, reachability and the plunge: every layer but the characters', the hitboxes' and the pickups', so
+// a collider left on Default (a new one in the editor) blocks like level geometry.
+constexpr std::uint32_t BLOCKING_LAYERS = ENGINE_PHYSICS_ALL_LAYERS
+    & ~(layer_bit(Layer::eCharacter) | layer_bit(Layer::eHitbox) | layer_bit(Layer::ePickup));
+
 // puts a collider or character controller component (before it is added or updated) on `layer`
 template<typename Component>
 void set_layer(Component& component, Layer layer)

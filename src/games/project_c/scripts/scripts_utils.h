@@ -50,8 +50,9 @@ struct CursorRay
 // ray through the cursor (PlayerInput::cursor) from the near to the far plane of the camera
 CursorRay get_ray_from_cursor(engine_game_object_t go_camera, engine_fvec2_t cursor);
 
-// The first body on the level geometry layer (Layer::eLevelGeometry: floors, walls, the house) hit by the ray from
-// `origin` along `direction` within `max_distance`; characters and pickups are on other layers, so they never block it.
+// The first body which blocks (BLOCKING_LAYERS in game_layers.h: level geometry and anything left on Default, never
+// characters, hitboxes or pickups) hit by the ray from `origin` along `direction` within `max_distance`; triggers are
+// skipped.
 std::optional<engine_ray_hit_t> level_ray(const glm::vec3& origin, const glm::vec3& direction, float max_distance);
 // whether level geometry is on the segment from `from` to `to` (what hides a character from another, or blocks a move)
 bool level_blocks(const glm::vec3& from, const glm::vec3& to);

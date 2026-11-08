@@ -34,9 +34,10 @@ meter empties in `meter_decay_seconds`).
 
 * **Sight**: the player is in view within `sight_range` and `sight_half_angle_degrees` of the enemy's facing (flat), or
   within `close_range` in any direction. Then one ray cast from the enemy's eyes (`eye_height`) to the player's chest
-  must reach the player, so walls hide the player: the ray only sees the level geometry collision layer
-  (`utils::level_blocks`, `scripts/game_layers.h`), so other characters (enemies walking in a line) and pickups (a
-  dropped weapon) never hide it, however many. While seen, the meter fills in `detect_seconds_near` (right next
+  must reach the player, so walls hide the player: the ray sees every collision layer but the characters', hitboxes' and
+  pickups' (`utils::level_blocks`, `BLOCKING_LAYERS` in `scripts/game_layers.h`), so level geometry and anything left on
+  Default hide the player, while other characters (enemies walking in a line) and pickups (a dropped weapon) never do,
+  however many. While seen, the meter fills in `detect_seconds_near` (right next
   to it) to `detect_seconds_far` (at `sight_range`), linear in between; a player above the enemy's reach (on a roof)
   fills it `above_sight_multiplier` times as fast (0.35: about three times as slow).
 * **Hearing**: the player's noise of the frame (`Player::noise_radius`), which walls don't block: 0 while sneaking,

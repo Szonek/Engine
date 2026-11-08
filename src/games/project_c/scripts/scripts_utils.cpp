@@ -101,7 +101,7 @@ project_c::utils::CursorRay project_c::utils::get_ray_from_cursor(engine_game_ob
 std::optional<engine_ray_hit_t> project_c::utils::level_ray(const glm::vec3& origin, const glm::vec3& direction, float max_distance)
 {
     engine_physics_query_filter_t filter{};
-    filter.layer_mask = layer_bit(Layer::eLevelGeometry);
+    filter.layer_mask = BLOCKING_LAYERS;
     engine_ray_hit_t hit{};
     if (!enginePhysicsRayCast(glm::value_ptr(origin), glm::value_ptr(direction), max_distance, &filter, &hit))
     {
