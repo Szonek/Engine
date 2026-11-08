@@ -19,7 +19,9 @@ Passes declared every frame:
 | Shadow Map                                  | built-in, per scene camera | ShadowMap              |
 | Depth Pre-pass                              | built-in, per scene camera | SceneDepth             |
 | SSAO / SSAO Blur                            | built-in, per scene camera | AmbientOcclusion       |
-| Forward / Sprites / Debug Lines             | built-in, per scene camera | SceneColor (+EntityId, SceneDepth) |
+| Forward / Sprites                           | built-in, per scene camera | SceneColor (+EntityId, SceneDepth) |
+| Transparent                                 | built-in, per scene camera, only with particles | SceneColor (depth tested, not written) |
+| Debug Lines                                 | built-in, per scene camera | SceneColor, SceneDepth            |
 | Debug Lines Pick                            | built-in, per scene camera, only with owned lines (gizmos) | EntityId |
 | *features of stage* `ePostProcess`          | `RenderFeature` | usually SceneColor                |
 | Present                                     | built-in      | SceneOutput                         |
@@ -46,6 +48,7 @@ editor's debug panel. Every pass is also a named debug group in RenderDoc/Nsight
 | `renderer.h/.cpp`                 | Owns the graph, materials, per-scene GPU buffers; builds the built-in passes      |
 | `render_feature.h`                | `RenderFeature` extension point, `FrameContext`                                   |
 | `render_settings.h`               | `RenderSettings`: shadow and SSAO parameters                                      |
+| `transparent_stage.h`             | Declares the Transparent pass of a view (`add_transparent_pass`). **No GL.**      |
 | `shadows.h/.cpp`                  | Fits the shadow map of the directional light to the camera frustum. **No GL.**    |
 | `ssao_pass.h/.cpp`                | Screen space ambient occlusion passes                                             |
 | `outline_feature.h/.cpp`          | Example feature: editor selection outline (raster mask pass + compute pass)       |
@@ -92,6 +95,20 @@ through an image since the last barrier.
 
 Problems found while building the graph (reading a texture nobody wrote, attachments of different sizes, ...) are logged
 once as `[RenderGraph]` errors and the broken pass is skipped.
+
+## The Transparent stage
+
+Blended geometry is drawn after the opaque passes (Forward, Sprites) and before the debug lines and the post-process
+features: `add_transparent_pass` (GL-free, `transparent_stage.h`, unit tested) declares a pass which loads SceneColor
+and SceneDepth (so it never makes the opaque passes unnecessary) and writes no entity ids (transparent things can't be
+picked); its draw code sets the blending and turns depth writes off, so it is depth tested against the opaque scene.
+Today it draws particles (`particles.vs/.fs`): the scene submits `SceneRenderData::particles` with a `ParticleBatch`
+per emitter (`Scene::particles()`, see `impl/particles.h`); `Renderer::sort_particles` sorts them back to front for each
+camera (the batches by their emitter's distance and sort order, then each batch's particles) into the view's part of
+the frame's particle SSBO (one per frame in flight, like the lights and bone matrices), and each batch is one instanced
+draw of camera-facing quads, unlit (colour times texture, or a soft circle), with alpha, premultiplied or additive
+blending. It is declared only for a view whose scene has particles. Later translucent things (lit smoke, water, glass)
+draw in the same stage.
 
 ## Adding rendering without touching the renderer
 
