@@ -136,6 +136,10 @@ struct TraversalTuning
     float air_control;
     // seconds without control after landing
     float landing_recovery_seconds;
+    // what a fall does to the player (FALLS_AND_SHOVES.md): from max_safe_drop on it hurts
+    FallDamage fall;
+    // a dodge pressed this long before landing is a roll: half the fall damage, the dodge instead of the landing
+    float roll_window_seconds;
 };
 
 // How the player executes enemies: from behind, from above (the plunge) and in a chain (a data asset,

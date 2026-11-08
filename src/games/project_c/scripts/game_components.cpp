@@ -166,6 +166,8 @@ project_c::TraversalTuning project_c::default_traversal_tuning()
     t.leap_height = 0.6f;
     t.air_control = 0.3f;
     t.landing_recovery_seconds = 0.15f;
+    t.fall = FallDamage{ 3.0f, 8.0f };
+    t.roll_window_seconds = 0.25f;
     return t;
 }
 
@@ -368,6 +370,9 @@ void project_c::register_game_components()
             "the fraction of the ground acceleration the input has in the air"), 0.0f, 1.0f),
         ranged(field("landing_recovery_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, landing_recovery_seconds),
             "seconds without control after landing"), 0.0f, 2.0f),
+        structs("fall", offsetof(TraversalTuning, fall), "fall_damage", "the drops which hurt and kill the player (keep min_height at max_safe_drop)", 0),
+        ranged(field("roll_window_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(TraversalTuning, roll_window_seconds),
+            "a dodge pressed this long before landing is a roll: half the fall damage"), 0.0f, 2.0f),
     }, default_traversal_tuning());
 
     g_types.execution_tuning = register_data_asset_type("execution_tuning", {

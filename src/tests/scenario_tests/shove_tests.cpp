@@ -318,3 +318,110 @@ TEST_F(ShoveTest, KickedEnemyIsStoppedByAWall)
     EXPECT_LT(furthest, 2.2f);
     EXPECT_FALSE(is_dead(go));
 }
+
+namespace
+{
+// the player's falls: 6 m, between its safe (3 m) and lethal (8 m) heights
+constexpr float PLAYER_FALL_HEIGHT = 6.0f;
+
+class PlayerFallTest : public FallTest
+{
+protected:
+    Player* player_in_the_air(float height)
+    {
+        auto* scene = sandbox();
+        auto* player = scene->build().player(0.0f, 0.0f);
+        scene->snap_camera_to_player();
+        step(SETTLE_FRAMES);
+        set_height(player->get_game_object(), height);
+        return player;
+    }
+
+    // steps until the player is back on the ground; with `roll`, a dodge is pressed once its feet are this close to
+    // the floor
+    bool fall_and_land(Player* player, float roll_at_height = -1.0f)
+    {
+        bool rolled = false;
+        bool airborne = false;
+        set_input({});
+        for (int frame = 0; frame < 240; frame++)
+        {
+            PlayerInput input{};
+            const float height = engineGameObjectGetTransformComponent(player->get_game_object()).position[1];
+            if (roll_at_height > 0.0f && airborne && !rolled && height < roll_at_height)
+            {
+                input.dodge = true;
+                rolled = true;
+            }
+            set_input(input);
+            step();
+            airborne = airborne || player->movement_mode() == MovementMode::eAirborne;
+            if (airborne && player->movement_mode() == MovementMode::eGrounded)
+            {
+                set_input({});
+                return true;
+            }
+        }
+        return false;
+    }
+};
+}  // namespace
+
+// a fall from 6 m costs the player about 60% of its HP (3 m is safe, 8 m kills)
+TEST_F(PlayerFallTest, FallFromSixMetresHurts)
+{
+    auto* player = player_in_the_air(PLAYER_FALL_HEIGHT);
+    const auto max_hp = player->get_max_hp();
+    ASSERT_EQ(player->get_hp(), max_hp);
+
+    ASSERT_TRUE(fall_and_land(player));
+    const float lost = static_cast<float>(max_hp - player->get_hp()) / static_cast<float>(max_hp);
+    EXPECT_NEAR(lost, 0.6f, 0.05f);
+    EXPECT_FALSE(player->is_dead());
+}
+
+// a dodge pressed just before landing is a roll: half the damage
+TEST_F(PlayerFallTest, RollHalvesTheFallDamage)
+{
+    auto* player = player_in_the_air(PLAYER_FALL_HEIGHT);
+    const auto max_hp = player->get_max_hp();
+
+    // about 0.1 s before landing at the speed of a 6 m fall
+    ASSERT_TRUE(fall_and_land(player, 1.0f));
+    const float lost = static_cast<float>(max_hp - player->get_hp()) / static_cast<float>(max_hp);
+    EXPECT_NEAR(lost, 0.3f, 0.05f);
+}
+
+// a fall from the safe height or lower costs nothing
+TEST_F(PlayerFallTest, SafeDropCostsNothing)
+{
+    auto* player = player_in_the_air(2.8f);
+    ASSERT_TRUE(fall_and_land(player));
+    EXPECT_EQ(player->get_hp(), player->get_max_hp());
+}
+
+// the plunge is an attack: its landing costs nothing from the same height
+TEST_F(PlayerFallTest, PlungeFromTheSameHeightCostsNothing)
+{
+    auto* scene = sandbox();
+    scene->build().obstacle(glm::vec3(0.0f, PLAYER_FALL_HEIGHT * 0.5f, 0.0f), glm::vec3(4.0f, PLAYER_FALL_HEIGHT, 4.0f));
+    auto* player = scene->build().player(0.0f, 0.0f);
+    set_height(player->get_game_object(), PLAYER_FALL_HEIGHT + 0.05f);
+    auto* enemy = scene->build().enemy(5.0f, 0.0f, FACING_PLUS_X);
+    ASSERT_NE(enemy, nullptr);
+    scene->snap_camera_to_player();
+    step(SETTLE_FRAMES);
+    const auto max_hp = player->get_max_hp();
+
+    PlayerInput right{};
+    right.right = true;
+    ASSERT_TRUE(step_until(right, 120, [&] { return player->execution_target() != ENGINE_INVALID_GAME_OBJECT_ID; }));
+    PlayerInput plunge = right;
+    plunge.attack = true;
+    set_input(plunge);
+    step();
+    bool executed = false;
+    ASSERT_TRUE(step_until({}, 90, [&] { executed = executed || player->movement_mode() == MovementMode::eExecuting; return executed && player->movement_mode() == MovementMode::eGrounded; }));
+    EXPECT_TRUE(is_dead(enemy->get_game_object()));
+    EXPECT_EQ(player->get_hp(), max_hp);
+}

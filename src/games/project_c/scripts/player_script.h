@@ -261,6 +261,12 @@ private:
     float landing_recovery_remaining_seconds_ = 0.0f;
     // the feet's height when the player started falling (entered eAirborne), to tell a hard landing
     float airborne_start_y_ = 0.0f;
+    // the fall in progress (from its highest point), and how long ago a dodge was pressed in the air (the roll)
+    FallMeasure fall_;
+    float air_dodge_press_age_seconds_ = 0.0f;
+    // a landing from a fall: its damage (half with a roll); the roll is the dodge instead of the landing's recovery.
+    // Called with the player on the ground already.
+    void land_from_fall(const TraversalTuning& traversal);
 
     // this frame's noise (noise_radius) and where it was made, and the rings showing it on the ground
     void make_loud_noise(const PlayerTuning& t);

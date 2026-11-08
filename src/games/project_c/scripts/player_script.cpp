@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cmath>
 #include <format>
+#include <limits>
 #include <utility>
 
 namespace
@@ -662,6 +663,9 @@ void project_c::Player::update(float dt)
     {
     case MovementMode::eAirborne:
     {
+        // the fall's highest point, and the dodge press which may make the landing a roll
+        fall_.update(position_of().y);
+        air_dodge_press_age_seconds_ = input().dodge ? 0.0f : air_dodge_press_age_seconds_ + dt / 1000.0f;
         // an attack press plunges onto the enemy below the landing; without one it waits for the landing
         executions_.observe_air(position_of(), dt / 1000.0f);
         execution_target_ = executions_.find_plunge_target(position_of(), executions, &plunge_knockdown_radius_);
@@ -1355,6 +1359,8 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
     {
         // where the fall starts, however the player left the ground (also letting go of a wall)
         airborne_start_y_ = engineGameObjectGetTransformComponent(go_).position[1];
+        fall_.start(airborne_start_y_);
+        air_dodge_press_age_seconds_ = std::numeric_limits<float>::max();
     }
     if (mode == MovementMode::eGrounded)
     {
@@ -1365,8 +1371,15 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
         hit_stun_remaining_seconds_ = 0.0f;
         knockback_velocity_ = glm::vec3(0.0f);
         engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
-        // a landing (also the plunge's), unless the player died in the air (its death plays instead); loud after a fall
-        // from high enough, and after a plunge
+        // a fall hurts from high enough (the plunge is an attack: its landing doesn't)
+        bool rolled = false;
+        if (previous == MovementMode::eAirborne && !is_dead())
+        {
+            rolled = air_dodge_press_age_seconds_ <= traversal.roll_window_seconds;
+            land_from_fall(traversal);
+        }
+        // a landing (also the plunge's), unless the player died in the air or from the fall (its death plays instead);
+        // loud after a fall from high enough, and after a plunge
         const bool plunge_landing = previous == MovementMode::eExecuting && plunge_landing_;
         const bool landing = (previous == MovementMode::eAirborne || plunge_landing) && !is_dead();
         landing_recovery_remaining_seconds_ = landing ? traversal.landing_recovery_seconds : 0.0f;
@@ -1383,7 +1396,20 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
         {
             make_loud_noise(tuning());
         }
-        if (landing_recovery_remaining_seconds_ > 0.0f)
+        if (rolled && landing)
+        {
+            // the roll: the dodge (toward the input, or ahead) instead of the landing's recovery; it was the queued
+            // dodge press
+            landing_recovery_remaining_seconds_ = 0.0f;
+            dodge_press_pending_ = false;
+            glm::vec2 roll_input(0.0f);
+            roll_input.x = (input().right ? 1.0f : 0.0f) - (input().left ? 1.0f : 0.0f);
+            roll_input.y = (input().back ? 1.0f : 0.0f) - (input().forward ? 1.0f : 0.0f);
+            engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
+            start_dodge(glm::length(roll_input) > 0.0f ? glm::normalize(roll_input) : roll_input,
+                glm::make_quat(engineGameObjectGetTransformComponent(go_).rotation));
+        }
+        else if (landing_recovery_remaining_seconds_ > 0.0f)
         {
             // the landing plays out before the player acts again (the grounded update ends it)
             engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, false);
@@ -1395,6 +1421,26 @@ void project_c::Player::set_movement_mode(MovementMode mode, const TraversalTuni
             engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
             engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
         }
+    }
+}
+
+void project_c::Player::land_from_fall(const TraversalTuning& traversal)
+{
+    const float drop = fall_.land(position_of().y);
+    const bool rolled = air_dodge_press_age_seconds_ <= traversal.roll_window_seconds;
+    const float fraction = fall_damage_fraction(traversal.fall, drop, rolled);
+    if (fraction <= 0.0f)
+    {
+        return;
+    }
+    const auto max_hp = tuning().max_hp;
+    const auto damage = std::max<std::uint32_t>(1, static_cast<std::uint32_t>(std::ceil(fraction * static_cast<float>(max_hp))));
+    // the usual hit reaction and camera shake (a lethal one plays the death), without a push; a roll needs no stun
+    receive_damage(damage, position_of());
+    knockback_velocity_ = glm::vec3(0.0f);
+    if (rolled)
+    {
+        hit_stun_remaining_seconds_ = 0.0f;
     }
 }
 
