@@ -9,9 +9,11 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <span>
 #include <optional>
 #include <vector>
 
@@ -25,8 +27,6 @@ constexpr float PLAYER_RADIUS = 0.3f;
 constexpr float CHEST_HEIGHT = 0.5f;
 // the height difference the ground execution and the chain allow
 constexpr float EXECUTION_MAX_HEIGHT_DIFFERENCE = 0.5f;
-// the most characters an execution's search looks at (the nearest are kept)
-constexpr std::size_t MAX_CHARACTERS_AROUND = 32;
 // the shortest dash of the chain
 constexpr float CHAIN_DASH_MIN_SECONDS = 0.05f;
 // the shortest plunge
@@ -59,18 +59,18 @@ glm::vec3 forward_of(engine_game_object_t go)
 }
 }  // namespace
 
-std::vector<engine_game_object_t> project_c::PlayerExecutions::characters_within(const glm::vec3& center, float radius) const
+project_c::PlayerExecutions::CharactersAround project_c::PlayerExecutions::characters_within(const glm::vec3& center, float radius) const
 {
     // the characters only (Layer::eCharacter), never the player itself
     engine_physics_query_filter_t filter{};
     filter.ignore = &go_;
     filter.ignore_count = 1;
     filter.layer_mask = layer_bit(Layer::eCharacter);
-    std::vector<engine_game_object_t> found(MAX_CHARACTERS_AROUND, ENGINE_INVALID_GAME_OBJECT_ID);
+    CharactersAround around;
     const glm::vec3 sphere_center = center + WORLD_UP * CHEST_HEIGHT;
-    const auto count = enginePhysicsOverlapSphere(glm::value_ptr(sphere_center), radius, &filter, found.data(), found.size());
-    found.resize(std::min(count, found.size()));
-    return found;
+    const auto count = enginePhysicsOverlapSphere(glm::value_ptr(sphere_center), radius, &filter, around.found.data(), around.found.size());
+    around.count = std::min(count, around.found.size());
+    return around;
 }
 
 project_c::PlayerExecutions::PlayerExecutions(engine::IScene* scene, engine_game_object_t player, std::size_t locomotion_layer)
@@ -83,9 +83,11 @@ project_c::PlayerExecutions::PlayerExecutions(engine::IScene* scene, engine_game
 project_c::PlayerExecutions::Target project_c::PlayerExecutions::pick(const glm::vec3& center, float range, const execution_math::Rules& rules,
     const glm::vec3& from) const
 {
-    // the characters around: an overlap with the characters' layer (the floor and walls aren't on it)
-    std::vector<execution_math::Candidate> candidates;
-    std::vector<Target> targets;
+    // the characters around: an overlap with the characters' layer (the floor and walls aren't on it); on the stack, this
+    // runs every frame the player can execute
+    std::array<execution_math::Candidate, MAX_CHARACTERS_AROUND> candidates{};
+    std::array<Target, MAX_CHARACTERS_AROUND> targets{};
+    std::size_t count = 0;
     for (const auto go : characters_within(center, range))
     {
         auto* enemy = scene_->get_script<Enemy>(go);
@@ -113,10 +115,11 @@ project_c::PlayerExecutions::Target project_c::PlayerExecutions::pick(const glm:
             continue;
         }
         candidate.reachable = !utils::level_blocks(from + WORLD_UP * CHEST_HEIGHT, enemy_position + WORLD_UP * CHEST_HEIGHT);
-        candidates.push_back(candidate);
-        targets.push_back(Target{ go, enemy });
+        candidates[count] = candidate;
+        targets[count] = Target{ go, enemy };
+        count++;
     }
-    const auto best = execution_math::pick_target(candidates, rules);
+    const auto best = execution_math::pick_target(std::span<const execution_math::Candidate>(candidates.data(), count), rules);
     return best ? targets[*best] : Target{};
 }
 
