@@ -403,6 +403,39 @@ TEST_F(SmokeTest, PressInTheAirThrowsNothingAfterLanding)
     EXPECT_EQ(player_->smoke_cooldown_remaining(), 0.0f);
 }
 
+// a throw without recovery (throw_recovery_seconds 0) still releases its bomb: one cloud, the cooldown spent once
+TEST_F(SmokeTest, ThrowWithoutRecoveryStillReleasesTheBomb)
+{
+    sandbox();
+    place_player(0.0f, 0.0f);
+    const auto go = player_->get_game_object();
+    const auto file = std::filesystem::temp_directory_path() / "project_c_scenario_smoke_no_recovery.json";
+    std::ofstream(file, std::ios::binary) << R"({ "version": 1, "type": "smoke_tuning", "value": { "throw_release_seconds": 0.35, "throw_recovery_seconds": 0 } })";
+    const auto no_recovery = engineDataAssetLoad(file.generic_string().c_str());
+    std::filesystem::remove(file);
+    ASSERT_NE(no_recovery, ENGINE_INVALID_OBJECT_HANDLE);
+    const auto type = project_c::game_components().player_config;
+    auto config = project_c::get_game_component(go, type, project_c::default_player_config());
+    config.smoke = no_recovery;
+    ASSERT_EQ(engineGameObjectUpdateDataComponent(go, type, &config), ENGINE_RESULT_CODE_OK);
+    step(SETTLE_FRAMES);
+    ASSERT_EQ(player_->smoke_tuning().throw_recovery_seconds, 0.0f);
+
+    PlayerInput smoke{};
+    smoke.smoke = true;
+    step_aiming(1, smoke, glm::vec3(3.0f, 0.0f, 0.0f));
+    EXPECT_TRUE(player_->is_throwing());
+    const float cooldown = player_->smoke_cooldown_remaining();
+    EXPECT_GT(cooldown, 0.0f);
+    std::size_t most_clouds = 0;
+    step_until(frames(1.0f), [&] { most_clouds = std::max(most_clouds, clouds().size()); return false; });
+    EXPECT_EQ(most_clouds, 1u);
+    EXPECT_FALSE(player_->is_throwing());
+    // spent once: it only ran down since
+    EXPECT_LT(player_->smoke_cooldown_remaining(), cooldown);
+    engineDataAssetRelease(no_recovery);
+}
+
 // a throw farther than the range lands at the range, in the same direction
 TEST_F(SmokeTest, ThrowBeyondRangeLandsAtRange)
 {

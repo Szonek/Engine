@@ -896,14 +896,14 @@ void project_c::Player::update(float dt)
     {
         // the throw plays where the player stands; the bomb leaves the hand at its release (its cloud pops there)
         movement_velocity_ = glm::vec2(0.0f);
+        // both from the time since it started, the release first: a throw without recovery still releases its bomb
         throw_elapsed_seconds_ += delta_seconds;
         const auto smoke = smoke_tuning();
         if (throw_elapsed_seconds_ >= smoke.throw_release_seconds)
         {
             smoke_.release(smoke);
         }
-        throw_remaining_seconds_ = std::max(0.0f, throw_remaining_seconds_ - delta_seconds);
-        if (throw_remaining_seconds_ <= 0.0f)
+        if (throw_elapsed_seconds_ >= smoke.throw_release_seconds + smoke.throw_recovery_seconds)
         {
             end_throw();
         }
@@ -1634,7 +1634,7 @@ void project_c::Player::cancel_combat_actions()
     // before its release makes no cloud
     shove_remaining_seconds_ = 0.0f;
     shove_.begin(ENGINE_INVALID_GAME_OBJECT_ID);
-    throw_remaining_seconds_ = 0.0f;
+    throwing_ = false;
     smoke_.cancel();
 }
 
@@ -1703,14 +1703,14 @@ void project_c::Player::start_throw(const glm::vec3& cursor_point)
     engineAnimationControllerAnimationCrossFade(go_, PlayerSmoke::THROW_CLIP, LOCOMOTION_LAYER_ID, 0.05f);
     // the bomb leaves the hand at the release, and the player acts again a moment after it (the clip's long
     // follow-through is cut)
+    throwing_ = true;
     throw_elapsed_seconds_ = 0.0f;
-    throw_remaining_seconds_ = tuning.throw_release_seconds + tuning.throw_recovery_seconds;
     movement_velocity_ = glm::vec2(0.0f);
 }
 
 void project_c::Player::end_throw()
 {
-    throw_remaining_seconds_ = 0.0f;
+    throwing_ = false;
     smoke_.cancel();
     engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
     engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
