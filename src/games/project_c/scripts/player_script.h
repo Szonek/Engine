@@ -4,6 +4,7 @@
 #include "noise_rings.h"
 #include "player_executions.h"
 #include "player_shove.h"
+#include "player_smoke.h"
 #include "player_traversal.h"
 #include "../player_input.h"
 #include "../player_state.h"
@@ -163,6 +164,14 @@ public:
     ExecutionTuning execution_tuning() const;
     // its momentum tuning (the momentum_tuning data asset of its player_config), read on every use
     MomentumTuning momentum_tuning() const;
+    // its smoke bomb's tuning (the smoke_tuning data asset of its player_config), read on every use
+    SmokeTuning smoke_tuning() const;
+    // seconds until the smoke bomb can be thrown again (0: ready)
+    float smoke_cooldown_remaining() const { return smoke_.cooldown_remaining_seconds(); }
+    // a smoke bomb throw (E) is playing (SMOKE.md)
+    bool is_throwing() const { return throw_remaining_seconds_ > 0.0f; }
+    // the bomb leaves the hand (the throw's animation event): its cloud pops where it lands
+    void on_smoke_release();
     // the momentum meter (0..1; FALLS_AND_SHOVES.md), and whether it is draining (on the ground in combat)
     float momentum() const { return momentum_.value(); }
     bool is_momentum_draining() const { return momentum_.is_draining(); }
@@ -293,6 +302,16 @@ private:
     PlayerTraversal traversal_;
     PlayerExecutions executions_;
     PlayerShove shove_;
+    PlayerSmoke smoke_;
+    bool smoke_press_pending_ = false;
+    // the throw playing (its clip's length)
+    float throw_remaining_seconds_ = 0.0f;
+    // a throw starts toward `cursor_point`: it turns there, plays the throw and starts the cooldown
+    void start_throw(const glm::vec3& cursor_point);
+    // the throw ends (or is cut short: no cloud then): locomotion and the upper body play again
+    void end_throw();
+    // a kick or a throw is playing: the player does nothing else meanwhile
+    bool in_body_action() const { return is_shoving() || is_throwing(); }
     PlayerMomentum momentum_;
     // the execution in progress continues a chain (its strike fills the meter less)
     bool execution_is_chain_link_ = false;

@@ -60,6 +60,8 @@ set(LIB_SOURCES
 	scripts/player_executions.cpp
 	scripts/player_shove.h
 	scripts/player_shove.cpp
+	scripts/player_smoke.h
+	scripts/player_smoke.cpp
 	scripts/smoke_cloud.h
 	scripts/smoke_cloud.cpp
 	scripts/traversal_math.h
