@@ -1093,6 +1093,11 @@ void project_c::Player::on_confirmed_attack_hit(float hit_stop_seconds)
 
 bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& source_position)
 {
+    return apply_damage(damage, source_position, true);
+}
+
+bool project_c::Player::apply_damage(std::uint32_t damage, const glm::vec3& source_position, bool drains_momentum)
+{
     const auto t = tuning();
     auto& hp = edit_state().hp;
     // invulnerable while dodging, executing and landing from a plunge
@@ -1103,7 +1108,7 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
 
     hp = damage >= hp ? 0 : hp - damage;
     // a hit (not a fall) drains momentum
-    if (!taking_fall_damage_)
+    if (drains_momentum)
     {
         momentum_.on_hit(momentum_tuning());
     }
@@ -1460,9 +1465,7 @@ void project_c::Player::land_from_fall(const TraversalTuning& traversal)
     const auto max_hp = tuning().max_hp;
     const auto damage = std::max<std::uint32_t>(1, static_cast<std::uint32_t>(std::ceil(fraction * static_cast<float>(max_hp))));
     // the usual hit reaction and camera shake (a lethal one plays the death), without a push; a roll needs no stun
-    taking_fall_damage_ = true;
-    receive_damage(damage, position_of());
-    taking_fall_damage_ = false;
+    apply_damage(damage, position_of(), false);
     knockback_velocity_ = glm::vec3(0.0f);
     if (rolled)
     {

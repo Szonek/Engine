@@ -199,6 +199,12 @@ public:
     bool is_shoving() const { return shove_remaining_seconds_ > 0.0f; }
     // the kick's foot lands (its animation event): the target is pushed
     void on_shove_contact();
+
+private:
+    // damage from `source_position` (receive_damage's rules); a hit drains momentum, a fall doesn't
+    bool apply_damage(std::uint32_t damage, const glm::vec3& source_position, bool drains_momentum);
+
+public:
     // its stats (hp, coins, weapon), kept by the app so they outlive the level (AppProjectC::player_state)
     const PlayerState& state() const;
     // what a player who has nothing carried starts with
@@ -290,8 +296,6 @@ private:
     PlayerMomentum momentum_;
     // the execution in progress continues a chain (its strike fills the meter less)
     bool execution_is_chain_link_ = false;
-    // a fall's damage is being applied (it doesn't drain momentum like a hit)
-    bool taking_fall_damage_ = false;
     // on the ground with an alert enemy within the combat radius and the player's reach (not one below a roof)
     bool in_ground_combat(float radius) const;
     bool shove_press_pending_ = false;
