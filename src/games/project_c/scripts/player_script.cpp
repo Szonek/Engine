@@ -53,6 +53,13 @@ void attack_window_close_callback(const engine_animation_event_info_t* info, voi
     assert(user_data);
     static_cast<project_c::Player*>(user_data)->set_attack_window_active(false);
 }
+
+void shove_contact_callback(const engine_animation_event_info_t* info, void* user_data)
+{
+    assert(info);
+    assert(user_data);
+    static_cast<project_c::Player*>(user_data)->on_shove_contact();
+}
 } // namespace anonymous
 
 project_c::Weapon::Weapon(engine::IScene* my_scene, engine_game_object_t go)
@@ -361,6 +368,7 @@ project_c::Player::Player(engine::IScene* my_scene, engine_game_object_t go)
     , state_(States::IDLE)
     , traversal_(my_scene, go, LOCOMOTION_LAYER_ID)
     , executions_(my_scene, go, LOCOMOTION_LAYER_ID)
+    , shove_(my_scene, go)
 {
     // the model's own weapons aren't used: the player equips a Weapon
     constexpr std::array<const char*, 5> unused_model_parts = { "Knife", "Knife_Offhand", "1H_Crossbow", "2H_Crossbow", "Throwable" };
@@ -480,6 +488,24 @@ void project_c::Player::on_start()
         equip_waepon(my_scene_->register_script<Weapon>(weapon_go));
     }
 
+    {
+        // the kick's foot lands (the clip also plays in unarmed executions: the callback acts only during a shove)
+        engine_animation_event_t contact_event{};
+        contact_event.trigger_time = PlayerShove::KICK_CONTACT_SECONDS;
+        contact_event.user_data = this;
+        contact_event.fn_ptr = shove_contact_callback;
+        engine_animation_event_id_t contact_event_id = ENGINE_INVALID_OBJECT_HANDLE;
+        if (engineAnimationControllerAnimationAddEvent(go_, PlayerShove::KICK_CLIP, contact_event, &contact_event_id) == ENGINE_RESULT_CODE_OK
+            && contact_event_id != ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            animation_events_.emplace_back(PlayerShove::KICK_CLIP, contact_event_id);
+        }
+        else
+        {
+            engineLog("Failed to add the kick's contact event: the shove pushes nothing.\n");
+        }
+    }
+
     for (std::size_t combo_index = 0; combo_index < AttackStateData::combo_length; ++combo_index)
     {
         const auto& attack = attack_data_.get_attack(combo_index);
@@ -550,6 +576,8 @@ void project_c::Player::update(float dt)
     attack_press_pending_ = attack_press_pending_ || input().attack;
     dodge_press_pending_ = dodge_press_pending_ || input().dodge;
     drop_weapon_press_pending_ = drop_weapon_press_pending_ || input().drop_weapon;
+    shove_press_pending_ = shove_press_pending_ || input().shove;
+    shove_cooldown_remaining_seconds_ = std::max(0.0f, shove_cooldown_remaining_seconds_ - dt / 1000.0f);
 
     if (hit_stop_remaining_seconds_ > 0.0f)
     {
@@ -594,6 +622,7 @@ void project_c::Player::update(float dt)
     const bool attack_pressed = !presses_wait && std::exchange(attack_press_pending_, false);
     const bool dodge_pressed = !presses_wait && std::exchange(dodge_press_pending_, false);
     const bool drop_weapon_pressed = std::exchange(drop_weapon_press_pending_, false);
+    const bool shove_pressed = !presses_wait && std::exchange(shove_press_pending_, false);
 
     const auto button_A = input().left;
     const auto button_W = input().forward;
@@ -689,7 +718,7 @@ void project_c::Player::update(float dt)
 
     // an execution: on the target the attack press would execute (also in the middle of a combo, whose swing it
     // cancels; with or without a weapon); otherwise the press is a normal attack
-    const bool can_execute = !dodge_pressed && !recovering && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f;
+    const bool can_execute = !dodge_pressed && !recovering && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f && !is_shoving();
     const PlayerExecutions::Context execution_context{ position_of(), weapon() != nullptr };
     execution_target_ = can_execute ? executions_.find_ground_target(execution_context, executions) : ENGINE_INVALID_GAME_OBJECT_ID;
     if (attack_pressed && can_execute && executions_.try_ground(execution_context, executions, execution_target_) == MovementMode::eExecuting)
@@ -699,7 +728,14 @@ void project_c::Player::update(float dt)
         return;
     }
 
-    if (weapon() && attack_pressed && !dodge_pressed && !recovering && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
+    // the shove: a kick on its own key, with or without a weapon, not in the middle of another action
+    if (shove_pressed && !attack_pressed && !dodge_pressed && !recovering && !is_shoving() && shove_cooldown_remaining_seconds_ <= 0.0f
+        && !check_state_bit(States::ATTACK) && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
+    {
+        start_shove(t);
+    }
+
+    if (weapon() && attack_pressed && !dodge_pressed && !recovering && !is_shoving() && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
     {
         if (!check_state_bit(States::ATTACK))
         {
@@ -745,13 +781,15 @@ void project_c::Player::update(float dt)
     const bool can_dodge = dodge_pressed
         && dodge_cooldown_remaining_seconds_ <= 0.0f
         && hit_stun_remaining_seconds_ <= 0.0f
+        && !is_shoving()
         && !check_state_bit(States::ATTACK)
         && !recovering;
     PlayerTraversal::GroundInput traversal_input{};
     traversal_input.position = glm::vec3(tc.position[0], tc.position[1], tc.position[2]);
     traversal_input.move_direction = move_direction;
     traversal_input.approach_speed = glm::dot(ground_velocity_, move_direction);
-    traversal_input.can_start = !check_state_bit(States::ATTACK) && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f && !recovering;
+    traversal_input.can_start = !check_state_bit(States::ATTACK) && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f && !recovering
+        && !is_shoving();
     traversal_input.leap_pressed = can_dodge && traversal_input.can_start;
     if (const auto mode = traversal_.update_grounded(traversal_input, traversal, delta_seconds); mode != MovementMode::eGrounded)
     {
@@ -791,10 +829,25 @@ void project_c::Player::update(float dt)
     }
     else if (hit_stun_remaining_seconds_ > 0.0f)
     {
+        // a hit cuts a kick short
+        if (is_shoving())
+        {
+            end_shove();
+        }
         movement_velocity_ = glm::vec2(0.0f);
         velocity = glm::vec3(knockback_velocity_.x, 0.0f, knockback_velocity_.z);
         knockback_velocity_ *= std::exp(-10.0f * delta_seconds);
         hit_stun_remaining_seconds_ = std::max(0.0f, hit_stun_remaining_seconds_ - delta_seconds);
+    }
+    else if (is_shoving())
+    {
+        // the kick plays where the player stands
+        movement_velocity_ = glm::vec2(0.0f);
+        shove_remaining_seconds_ = std::max(0.0f, shove_remaining_seconds_ - delta_seconds);
+        if (shove_remaining_seconds_ <= 0.0f)
+        {
+            end_shove();
+        }
     }
     else
     {
@@ -847,8 +900,9 @@ void project_c::Player::update(float dt)
         }
     }
 
-    // while recovering, the landing animation plays
-    if (!recovering && !dodging_this_frame && movement_speed > PLAYER_IDLE_SPEED_THRESHOLD)
+    // while recovering, the landing animation plays, and the kick while shoving
+    const bool body_animation_plays = recovering || is_shoving();
+    if (!body_animation_plays && !dodging_this_frame && movement_speed > PLAYER_IDLE_SPEED_THRESHOLD)
     {
         const glm::vec3 move_direction(movement_velocity_.x / movement_speed, 0.0f, movement_velocity_.y / movement_speed);
         const glm::vec3 character_forward = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
@@ -877,7 +931,7 @@ void project_c::Player::update(float dt)
             engineAnimationControllerAnimationCrossFade(go_, animation_name, LOCOMOTION_LAYER_ID, 0.15f);
         }
     }
-    else if (!recovering)
+    else if (!body_animation_plays)
     {
         const bool playback_rate_set = engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
         assert(playback_rate_set);
@@ -950,7 +1004,9 @@ void project_c::Player::update(float dt)
         }
     }
 
-    if (cursor_hit && attack_phase_ != AttackPhase::eActive && !dodging_this_frame && hit_stun_remaining_seconds_ <= 0.0f)
+    // the player faces the cursor (not while a swing hits, a dodge or a stun plays, nor during a kick, which faces its
+    // target)
+    if (cursor_hit && attack_phase_ != AttackPhase::eActive && !dodging_this_frame && hit_stun_remaining_seconds_ <= 0.0f && !is_shoving())
     {
         auto facing_transform = engineGameObjectGetTransformComponent(go_);
         const glm::vec3 origin(facing_transform.position[0], facing_transform.position[1], facing_transform.position[2]);
@@ -1446,4 +1502,61 @@ void project_c::Player::cancel_combat_actions()
     dodge_invulnerability_remaining_seconds_ = 0.0f;
     hit_stun_remaining_seconds_ = 0.0f;
     knockback_velocity_ = glm::vec3(0.0f);
+    // a kick ends with what the player was doing (the layers are set by what comes next)
+    shove_remaining_seconds_ = 0.0f;
+    shove_.begin(ENGINE_INVALID_GAME_OBJECT_ID);
+}
+
+void project_c::Player::start_shove(const PlayerTuning& t)
+{
+    const auto tc = engineGameObjectGetTransformComponent(go_);
+    const glm::vec3 position(tc.position[0], tc.position[1], tc.position[2]);
+    const glm::vec3 forward = glm::make_quat(tc.rotation) * glm::vec3(0.0f, 0.0f, 1.0f);
+    const auto target = shove_.find_target(position, forward, t);
+    if (target != ENGINE_INVALID_GAME_OBJECT_ID)
+    {
+        // it turns toward the enemy it kicks
+        const auto target_tc = engineGameObjectGetTransformComponent(target);
+        const glm::vec2 to_target(target_tc.position[0] - position.x, target_tc.position[2] - position.z);
+        if (glm::length(to_target) > 0.0f)
+        {
+            auto turned = tc;
+            const glm::quat rotation = glm::angleAxis(std::atan2(to_target.x, to_target.y), glm::vec3(0.0f, 1.0f, 0.0f));
+            std::memcpy(turned.rotation, glm::value_ptr(rotation), sizeof(turned.rotation));
+            engineGameObjectUpdateTransformComponent(go_, &turned);
+        }
+    }
+    float duration = 0.0f;
+    if (engineAnimationControllerAnimationGetDuration(go_, PlayerShove::KICK_CLIP, &duration) != ENGINE_RESULT_CODE_OK || duration <= 0.0f)
+    {
+        duration = 0.8f;
+    }
+    // the whole body kicks: the locomotion layer plays it once, the upper body layer is off
+    engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, false);
+    engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
+    engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 0.0f);
+    engineAnimationControllerAnimationCrossFade(go_, PlayerShove::KICK_CLIP, LOCOMOTION_LAYER_ID, 0.05f);
+    shove_.begin(target);
+    shove_remaining_seconds_ = duration;
+    shove_cooldown_remaining_seconds_ = t.shove_cooldown_seconds;
+    movement_velocity_ = glm::vec2(0.0f);
+    make_loud_noise(t);
+}
+
+void project_c::Player::end_shove()
+{
+    shove_remaining_seconds_ = 0.0f;
+    shove_.begin(ENGINE_INVALID_GAME_OBJECT_ID);
+    engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
+    engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
+}
+
+void project_c::Player::on_shove_contact()
+{
+    if (!is_shoving())
+    {
+        return;
+    }
+    const auto tc = engineGameObjectGetTransformComponent(go_);
+    shove_.contact(glm::make_quat(tc.rotation) * glm::vec3(0.0f, 0.0f, 1.0f), tuning());
 }

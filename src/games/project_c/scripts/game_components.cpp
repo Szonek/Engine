@@ -140,6 +140,12 @@ project_c::PlayerTuning project_c::default_player_tuning()
     t.loud_noise_radius = 5.0f;
     t.show_footstep_ring = true;
     t.footstep_ring_interval_seconds = 0.4f;
+    t.shove_cooldown_seconds = 0.8f;
+    t.shove_range = 1.2f;
+    t.shove_half_angle_degrees = 50.0f;
+    t.shove_speed = 7.0f;
+    t.shove_stagger_seconds = 0.6f;
+    t.shove_damage = 0;
     return t;
 }
 
@@ -319,6 +325,18 @@ void project_c::register_game_components()
             "a faint ring at the footstep radius pulses with the steps while the player walks (none while sneaking)"),
         ranged(field("footstep_ring_interval_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, footstep_ring_interval_seconds),
             "seconds between two pulses of the footstep ring"), 0.05f, 5.0f),
+        ranged(field("shove_cooldown_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, shove_cooldown_seconds),
+            "seconds between two kicks (Q)"), 0.0f, 10.0f),
+        ranged(field("shove_range", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, shove_range),
+            "metres: the enemy kicked is the nearest this close"), 0.0f, 5.0f),
+        ranged(field("shove_half_angle_degrees", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, shove_half_angle_degrees),
+            "degrees off the player's facing an enemy can be to be kicked"), 0.0f, 180.0f),
+        ranged(field("shove_speed", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, shove_speed),
+            "metres per second the kicked enemy is pushed (the push decays)"), 0.0f, 30.0f),
+        ranged(field("shove_stagger_seconds", ENGINE_FIELD_KIND_FLOAT, offsetof(PlayerTuning, shove_stagger_seconds),
+            "seconds the kicked enemy can neither move nor attack"), 0.0f, 5.0f),
+        ranged(field("shove_damage", ENGINE_FIELD_KIND_UINT32, offsetof(PlayerTuning, shove_damage),
+            "damage of the kick itself; the fall is the weapon"), 0.0f, 100.0f),
     }, default_player_tuning());
 
     g_types.traversal_tuning = register_data_asset_type("traversal_tuning", {

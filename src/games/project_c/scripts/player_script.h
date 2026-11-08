@@ -3,6 +3,7 @@
 #include "game_components.h"
 #include "noise_rings.h"
 #include "player_executions.h"
+#include "player_shove.h"
 #include "player_traversal.h"
 #include "../player_input.h"
 #include "../player_state.h"
@@ -187,6 +188,10 @@ public:
     // attack, a dodge or a hard landing (noise_is_loud).
     float noise_radius() const { return noise_radius_; }
     bool noise_is_loud() const { return noise_is_loud_; }
+    // a kick (Q) is playing (FALLS_AND_SHOVES.md)
+    bool is_shoving() const { return shove_remaining_seconds_ > 0.0f; }
+    // the kick's foot lands (its animation event): the target is pushed
+    void on_shove_contact();
     // its stats (hp, coins, weapon), kept by the app so they outlive the level (AppProjectC::player_state)
     const PlayerState& state() const;
     // what a player who has nothing carried starts with
@@ -268,6 +273,15 @@ private:
     NoiseRings noise_rings_;
     PlayerTraversal traversal_;
     PlayerExecutions executions_;
+    PlayerShove shove_;
+    bool shove_press_pending_ = false;
+    // the kick playing (its clip's length), and the time until the next one may start
+    float shove_remaining_seconds_ = 0.0f;
+    float shove_cooldown_remaining_seconds_ = 0.0f;
+    // a kick starts: it turns toward its target (if any), plays the kick and makes a loud noise
+    void start_shove(const PlayerTuning& t);
+    // the kick ends (or is cut short): locomotion and the upper body play again
+    void end_shove();
     engine_game_object_t execution_target_ = ENGINE_INVALID_GAME_OBJECT_ID;
     // the radius a plunge onto execution_target_ would knock the others down in (in the air)
     float plunge_knockdown_radius_ = 0.0f;

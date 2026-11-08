@@ -56,6 +56,8 @@ set(LIB_SOURCES
 	scripts/player_traversal.cpp
 	scripts/player_executions.h
 	scripts/player_executions.cpp
+	scripts/player_shove.h
+	scripts/player_shove.cpp
 	scripts/traversal_math.h
 	
 	scripts/scripts_utils.h

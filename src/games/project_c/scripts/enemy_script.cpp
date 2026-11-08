@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <utility>
 #include <cstring>
 #include <limits>
 
@@ -434,6 +435,20 @@ void project_c::Enemy::update(float dt)
     glm::vec3 velocity(0.0f);
     switch (state_)
     {
+    case States::STAGGERED:
+    {
+        // pushed back, it can't act; then it is alerted (it knows who kicked it)
+        stagger_remaining_seconds_ = std::max(0.0f, stagger_remaining_seconds_ - dt / 1000.0f);
+        if (stagger_remaining_seconds_ <= 0.0f)
+        {
+            if (std::exchange(alert_after_shove_, false))
+            {
+                note_damage_position();
+            }
+            state_ = States::DECISION_MAKE;
+        }
+        break;
+    }
     case States::FALLING:
     {
         // no AI in the air: it keeps the push it had, slowed a little by the air
@@ -675,13 +690,48 @@ void project_c::Enemy::land(const EnemyType& type, float height)
     }
     if (hp == 0)
     {
-        // it dies (the death plays next update)
+        // it dies (the death plays next update), quietly for its pack
+        alert_after_shove_ = false;
         state_ = States::DECISION_MAKE;
         return;
     }
+    // knocked down, it is alerted anyway
+    alert_after_shove_ = false;
     // it survives the landing: it lies a moment and stands up, alerted
     const auto* player = my_scene_->get_script<Player>(player_go_);
     knock_down(player ? player->execution_tuning().knockdown_seconds : default_execution_tuning().knockdown_seconds);
+}
+
+void project_c::Enemy::receive_shove(const glm::vec3& direction, float speed, float stagger_seconds, std::uint32_t damage)
+{
+    if (hp == 0 || being_executed_)
+    {
+        return;
+    }
+    hp = damage >= hp ? 0 : hp - damage;
+    if (damage > 0)
+    {
+        hit_flash_remaining_seconds_ = 0.12f;
+        update_hit_flash(1.0f);
+    }
+    knockback_velocity_ = glm::vec3(direction.x, 0.0f, direction.z) * speed;
+    if (hp == 0)
+    {
+        // the kick itself killed it: an ordinary killing blow, which alerts its pack
+        note_damage_position();
+        return;
+    }
+    alert_after_shove_ = true;
+    set_attack_window_active(false);
+    standing_up_ = false;
+    stagger_remaining_seconds_ = stagger_seconds;
+    // already in the air it keeps falling (the push adds to it)
+    if (state_ != States::FALLING)
+    {
+        state_ = States::STAGGERED;
+        engineAnimationControllerLayerSetLooping(go_, 0, false);
+        engineAnimationControllerAnimationPlay(go_, "Hit_A", 0);
+    }
 }
 
 void project_c::Enemy::set_landing_noise(bool on, const glm::vec3& position)

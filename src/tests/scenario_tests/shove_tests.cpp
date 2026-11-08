@@ -9,6 +9,7 @@
 
 #include <glm/gtc/quaternion.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <vector>
@@ -152,4 +153,168 @@ TEST_F(FallTest, FallDeathIsALoudNoise)
     step_until({}, 120, [&] { noticed = noticed || listener->awareness().state() != Awareness::eUnaware; return false; });
     EXPECT_TRUE(is_dead(falling_go));
     EXPECT_TRUE(noticed);
+}
+
+namespace
+{
+class ShoveTest : public FallTest
+{
+protected:
+    // the player at (x, height, z) facing +x, and an enemy 1 m in front of it with its back to it; a ledge (a block
+    // from x = -2 to `edge_x`, `height` tall) under both when height > 0
+    Enemy* kick_setup(float height, float edge_x = 2.0f, float player_x = 0.6f)
+    {
+        auto* scene = sandbox();
+        if (height > 0.0f)
+        {
+            scene->build().obstacle(glm::vec3((edge_x - 2.0f) * 0.5f, height * 0.5f, 0.0f), glm::vec3(edge_x + 2.0f, height, 4.0f));
+        }
+        player_ = scene->build().player(player_x, 0.0f);
+        auto* enemy = scene->build().enemy(player_x + 1.0f, 0.0f, FACING_PLUS_X);
+        place(player_->get_game_object(), player_x, height, FACING_PLUS_X);
+        place(enemy->get_game_object(), player_x + 1.0f, height, FACING_PLUS_X);
+        scene->snap_camera_to_player();
+        // the player faces the cursor: on the enemy
+        aim_ = position(enemy->get_game_object()) + glm::vec3(0.0f, 0.35f, 0.0f);
+        step_aiming(SETTLE_FRAMES, {}, aim_);
+        return enemy;
+    }
+
+    static void place(engine_game_object_t go, float x, float y, float yaw_degrees)
+    {
+        auto tc = engineGameObjectGetTransformComponent(go);
+        tc.position[0] = x;
+        tc.position[1] = y + 0.05f;
+        const auto rotation = glm::angleAxis(glm::radians(yaw_degrees), glm::vec3(0.0f, 1.0f, 0.0f));
+        tc.rotation[0] = rotation.x;
+        tc.rotation[1] = rotation.y;
+        tc.rotation[2] = rotation.z;
+        tc.rotation[3] = rotation.w;
+        engineGameObjectUpdateTransformComponent(go, &tc);
+    }
+
+    // Q, with the cursor where it was aimed
+    void press_shove()
+    {
+        PlayerInput shove{};
+        shove.shove = true;
+        step_aiming(1, shove, aim_);
+        set_input({});
+    }
+
+    static glm::vec3 position(engine_game_object_t go)
+    {
+        const auto tc = engineGameObjectGetTransformComponent(go);
+        return glm::vec3(tc.position[0], tc.position[1], tc.position[2]);
+    }
+
+    Player* player_ = nullptr;
+    glm::vec3 aim_{ 0.0f };
+};
+}  // namespace
+
+// a kick on flat ground pushes the enemy well back and staggers it
+TEST_F(ShoveTest, KickPushesAnEnemyAndStaggersIt)
+{
+    auto* enemy = kick_setup(0.0f);
+    ASSERT_NE(enemy, nullptr);
+    const auto go = enemy->get_game_object();
+    const auto start = position(go);
+
+    press_shove();
+    EXPECT_TRUE(player_->is_shoving());
+    bool staggered = false;
+    float pushed = 0.0f;
+    step_until({}, 90, [&]
+        {
+            staggered = staggered || enemy->is_staggered();
+            pushed = std::max(pushed, glm::distance(glm::vec2(position(go).x, position(go).z), glm::vec2(start.x, start.z)));
+            return false;
+        });
+    EXPECT_TRUE(staggered);
+    EXPECT_GE(pushed, 1.5f);
+    EXPECT_FALSE(is_dead(go));
+}
+
+// with nobody in front the kick still plays, and pushes nobody (the enemy is behind the player)
+TEST_F(ShoveTest, KickWithNobodyInFrontPushesNothing)
+{
+    auto* scene = sandbox();
+    player_ = scene->build().player(0.0f, 0.0f);
+    auto* enemy = scene->build().enemy(-1.0f, 0.0f, FACING_MINUS_X);
+    ASSERT_NE(enemy, nullptr);
+    place(player_->get_game_object(), 0.0f, 0.0f, FACING_PLUS_X);
+    scene->snap_camera_to_player();
+    // facing away from the enemy
+    aim_ = glm::vec3(3.0f, 0.35f, 0.0f);
+    step_aiming(SETTLE_FRAMES, {}, aim_);
+    press_shove();
+    EXPECT_TRUE(player_->is_shoving());
+    bool staggered = false;
+    step_until({}, 60, [&] { staggered = staggered || enemy->is_staggered(); return false; });
+    // not pushed (it may walk to the kick's noise)
+    EXPECT_FALSE(staggered);
+    EXPECT_EQ(enemy->hp, enemy->get_max_hp());
+}
+
+// kicked off the house roof's height it dies when it lands
+TEST_F(ShoveTest, EnemyKickedOffARoofDies)
+{
+    auto* enemy = kick_setup(ROOF_HEIGHT);
+    ASSERT_NE(enemy, nullptr);
+    const auto go = enemy->get_game_object();
+
+    press_shove();
+    bool fell = false;
+    EXPECT_TRUE(step_until({}, 180, [&] { fell = fell || (!is_dead(go) && enemy->is_falling()); return is_dead(go); }));
+    EXPECT_TRUE(fell);
+}
+
+// kicked off a lower ledge it survives, hurt, and is knocked down
+TEST_F(ShoveTest, EnemyKickedOffALowLedgeIsHurtAndKnockedDown)
+{
+    auto* enemy = kick_setup(LOW_LEDGE_HEIGHT);
+    ASSERT_NE(enemy, nullptr);
+    const auto go = enemy->get_game_object();
+
+    press_shove();
+    ASSERT_TRUE(step_until({}, 180, [&] { return enemy->is_knocked_down(); }));
+    EXPECT_FALSE(is_dead(go));
+    EXPECT_LT(enemy->hp, enemy->get_max_hp());
+}
+
+// an enemy which hadn't noticed the player knows about it once it recovers from the kick
+TEST_F(ShoveTest, UnawareEnemyKickedBecomesAlert)
+{
+    auto* enemy = kick_setup(0.0f);
+    ASSERT_NE(enemy, nullptr);
+    ASSERT_EQ(enemy->awareness().state(), Awareness::eUnaware);
+
+    press_shove();
+    bool alerted = false;
+    step_until({}, 120, [&] { alerted = alerted || enemy->awareness().state() == Awareness::eAlert; return false; });
+    EXPECT_TRUE(alerted);
+}
+
+// a wall right behind the enemy stops the push
+TEST_F(ShoveTest, KickedEnemyIsStoppedByAWall)
+{
+    auto* scene = sandbox();
+    // a wall 0.5 m behind the enemy
+    scene->build().obstacle(glm::vec3(2.3f, 0.75f, 0.0f), glm::vec3(0.2f, 1.5f, 4.0f));
+    player_ = scene->build().player(0.6f, 0.0f);
+    auto* enemy = scene->build().enemy(1.6f, 0.0f, FACING_PLUS_X);
+    ASSERT_NE(enemy, nullptr);
+    place(player_->get_game_object(), 0.6f, 0.0f, FACING_PLUS_X);
+    scene->snap_camera_to_player();
+    const auto go = enemy->get_game_object();
+    aim_ = position(go) + glm::vec3(0.0f, 0.35f, 0.0f);
+    step_aiming(SETTLE_FRAMES, {}, aim_);
+
+    press_shove();
+    float furthest = position(go).x;
+    step_until({}, 60, [&] { furthest = std::max(furthest, position(go).x); return false; });
+    // the wall's face is at x = 2.2: the capsule stops in front of it
+    EXPECT_LT(furthest, 2.2f);
+    EXPECT_FALSE(is_dead(go));
 }

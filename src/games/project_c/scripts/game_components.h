@@ -97,6 +97,16 @@ struct PlayerTuning
     // walks (a loud noise always shows its ring)
     bool show_footstep_ring;
     float footstep_ring_interval_seconds;
+    // the shove (FALLS_AND_SHOVES.md): a kick which pushes the enemy in front, sending it off ledges
+    float shove_cooldown_seconds;
+    // metres and degrees: the enemy kicked is the nearest this close and this far off the facing
+    float shove_range;
+    float shove_half_angle_degrees;
+    // metres per second of the push (it decays), seconds the enemy can't act
+    float shove_speed;
+    float shove_stagger_seconds;
+    // damage of the kick itself (the fall is the weapon)
+    std::uint32_t shove_damage;
 };
 
 // how the player gets around obstacles: climbing, vaulting, mantling (a data asset, assets/data/player); the geometry
