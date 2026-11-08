@@ -1,0 +1,4 @@
+frame_0000: the momentum bar is the thin bar under the health bar (top left), empty at the level's start
+frame_0006: an execution fills it (+0.25), then the chain's next one (+0.15)
+frame_0065: out of combat it holds; the player runs faster with it
+frame_0095: an alert skeleton nearby on the same level: ground combat, the bar drains (brighter)

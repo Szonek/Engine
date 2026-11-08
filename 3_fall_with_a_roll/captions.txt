@@ -1,0 +1,2 @@
+frame_0000: the same 6 m fall; a dodge (Space) pressed just before landing
+frame_0032: a roll: half the damage (the health bar), and the dodge roll instead of the landing

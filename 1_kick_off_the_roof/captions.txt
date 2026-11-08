@@ -1,0 +1,4 @@
+frame_0000: on the house roof (2.25 m above the floor) the player stands behind an unaware skeleton at the edge
+frame_0008: Q: the kick (a loud noise ring); at the foot's contact the skeleton is pushed and staggered (Hit_A)
+frame_0021: it is pushed off the edge and falls (Jump_Idle, no AI)
+frame_0036: it lands from the roof: a lethal fall (the skeleton dies from 2 m); the landing is loud, the other skeleton turns to it (?)

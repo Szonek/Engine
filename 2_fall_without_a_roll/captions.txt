@@ -1,0 +1,2 @@
+frame_0000: the player falls 6 m (above the 3 m safe drop)
+frame_0032: landing: 60% of the HP lost (the health bar), the hit reaction and Jump_Land
