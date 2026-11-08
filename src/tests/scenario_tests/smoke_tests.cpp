@@ -382,6 +382,27 @@ TEST_F(SmokeTest, ThrowUnderAnOverhangLandsOnTheFloor)
     EXPECT_NEAR(centre.y, player.y + tuning.centre_height, 0.2f);
 }
 
+// E pressed in the air is dropped: nothing is thrown after the landing, and the cooldown stays ready
+TEST_F(SmokeTest, PressInTheAirThrowsNothingAfterLanding)
+{
+    sandbox();
+    place_player(0.0f, 0.0f);
+    step(SETTLE_FRAMES);
+    auto tc = engineGameObjectGetTransformComponent(player_->get_game_object());
+    tc.position[1] += 5.0f;
+    engineGameObjectUpdateTransformComponent(player_->get_game_object(), &tc);
+    ASSERT_TRUE(step_until(30, [&] { return player_->movement_mode() == MovementMode::eAirborne; }));
+
+    PlayerInput smoke{};
+    smoke.smoke = true;
+    step_aiming(1, smoke, glm::vec3(3.0f, 0.0f, 0.0f));
+    ASSERT_EQ(player_->movement_mode(), MovementMode::eAirborne);
+    ASSERT_TRUE(step_until(frames(3.0f), [&] { return player_->movement_mode() == MovementMode::eGrounded; }));
+    step_aiming(frames(2.0f), {}, glm::vec3(3.0f, 0.0f, 0.0f));
+    EXPECT_TRUE(clouds().empty());
+    EXPECT_EQ(player_->smoke_cooldown_remaining(), 0.0f);
+}
+
 // a throw farther than the range lands at the range, in the same direction
 TEST_F(SmokeTest, ThrowBeyondRangeLandsAtRange)
 {

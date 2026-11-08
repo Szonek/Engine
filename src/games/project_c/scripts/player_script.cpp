@@ -656,7 +656,9 @@ void project_c::Player::update(float dt)
     const bool dodge_pressed = !presses_wait && std::exchange(dodge_press_pending_, false);
     const bool drop_weapon_pressed = std::exchange(drop_weapon_press_pending_, false);
     const bool shove_pressed = !presses_wait && std::exchange(shove_press_pending_, false);
-    const bool smoke_pressed = !presses_wait && std::exchange(smoke_press_pending_, false);
+    // the smoke press is kept only through a hit stop: pressed in the air, during a scripted move, an execution or a
+    // landing it is dropped, so a bomb isn't thrown later by surprise
+    const bool smoke_pressed = std::exchange(smoke_press_pending_, false) && !presses_wait;
 
     const glm::vec2 move_input = move_input_of(input());
 

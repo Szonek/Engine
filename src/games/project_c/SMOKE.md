@@ -23,7 +23,8 @@ change it). The bomb lands at the point under the cursor, or at `throw_range` (8
 direction (`smoke_landing`), on the first level geometry below that point: from just above the cursor point when it
 is within range (a roof under the cursor puts it on the roof, the floor under an overhang on the floor), from high
 above when the landing was clamped.
-It pops even behind a wall. The player turns that way and plays `Throw` on the locomotion layer, standing still; the
+It pops even behind a wall. A press is kept through a hit stop, but one in the air, during a scripted move, an
+execution or a landing is dropped (no throw after it). The player turns that way and plays `Throw` on the locomotion layer, standing still; the
 bomb leaves the hand `throw_release_seconds` (0.35) into the throw, where its cloud appears, and the player acts again
 `throw_recovery_seconds` (0.25) later (the clip's long follow-through is cut). A hit before the release cuts the
 throw short: no cloud, and the cooldown stays.
