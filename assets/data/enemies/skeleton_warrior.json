@@ -31,6 +31,10 @@
       "suspicious_move_speed": 0.8,
       "lose_sight_grace_seconds": 0.5
     },
-    "execution_kills": true
+    "execution_kills": true,
+    "fall": {
+      "min_height": 1,
+      "lethal_height": 2
+    }
   }
 }

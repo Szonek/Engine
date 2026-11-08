@@ -19,6 +19,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #ifdef _WIN32
 #include <process.h>
@@ -121,12 +122,12 @@ TEST_F(LevelTest, LevelLoadsAndPlays)
     ASSERT_NE(player, nullptr);
     EXPECT_FALSE(player->is_dead());
     EXPECT_NE(scene->find_script<project_c::GameplayHud>(), nullptr);
-    // its spawner's pack of 5
-    EXPECT_EQ(scene->get_scripts<project_c::Enemy>().size(), 5u);
+    // its spawner's pack of 5 and the two placed on the house roof
+    EXPECT_EQ(scene->get_scripts<project_c::Enemy>().size(), 7u);
     const auto* encounter = scene->find_script<project_c::Encounter>();
     ASSERT_NE(encounter, nullptr);
     EXPECT_EQ(encounter->get_state(), project_c::Encounter::State::eInProgress);
-    EXPECT_EQ(encounter->get_remaining_enemies(), 5u);
+    EXPECT_EQ(encounter->get_remaining_enemies(), 7u);
 }
 
 // The committed level loads with nothing skipped: everything it holds is still there when the loaded level is saved.
@@ -187,9 +188,17 @@ TEST_F(LevelTest, LevelFileWithUnknownAndMissingDataStillPlays)
     std::filesystem::remove(enemy_type);
     step(60);
     ASSERT_NE(scene->find_script<project_c::Player>(), nullptr);
-    const auto enemies = scene->get_scripts<project_c::Enemy>();
-    EXPECT_EQ(enemies.size(), project_c::default_enemy_spawner().count);
-    for (const auto* enemy : enemies)
+    // the spawner's pack (the level's placed enemies keep their own type)
+    std::vector<const project_c::Enemy*> pack;
+    for (const auto* enemy : scene->get_scripts<project_c::Enemy>())
+    {
+        if (enemy->get_pack() != ENGINE_INVALID_GAME_OBJECT_ID)
+        {
+            pack.push_back(enemy);
+        }
+    }
+    EXPECT_EQ(pack.size(), project_c::default_enemy_spawner().count);
+    for (const auto* enemy : pack)
     {
         EXPECT_EQ(enemy->get_max_hp(), file_max_hp);
     }

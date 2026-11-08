@@ -18,7 +18,9 @@
     "player_start": 1,
     "level_exit": 1,
     "enemy_spawner": 1,
-    "script": 1
+    "script": 1,
+    "character_controller": 1,
+    "enemy_config": 2
   },
   "entities": [{
       "id": 1,
@@ -12477,6 +12479,68 @@
         },
         "script": {
           "type": "enemy_spawner"
+        }
+      }
+    }, {
+      "id": 305,
+      "prefab": "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb",
+      "nodes": {
+        "": {
+          "components": {
+            "name": {
+              "name": "enemy"
+            },
+            "transform": {
+              "position": [-1.2, 2.4, -2.2],
+              "scale": [0.35, 0.35, 0.35],
+              "rotation": [0, -0.70710677, 0, 0.70710677]
+            },
+            "character_controller": {
+              "radius": 0.51428574,
+              "height": 2,
+              "step_height": 0.42857146,
+              "max_slope": 45,
+              "layer": 2,
+              "collides_with": 4294967295
+            },
+            "enemy_config": {
+              "type": "enemies/skeleton_warrior.json"
+            },
+            "script": {
+              "type": "enemy"
+            }
+          }
+        }
+      }
+    }, {
+      "id": 306,
+      "prefab": "KayKit_Skeletons_1.0_FREE/characters/gltf/Skeleton_Warrior.glb",
+      "nodes": {
+        "": {
+          "components": {
+            "name": {
+              "name": "enemy"
+            },
+            "transform": {
+              "position": [1.2, 2.4, 0.2],
+              "scale": [0.35, 0.35, 0.35],
+              "rotation": [0, 0.70710677, 0, 0.70710677]
+            },
+            "character_controller": {
+              "radius": 0.51428574,
+              "height": 2,
+              "step_height": 0.42857146,
+              "max_slope": 45,
+              "layer": 2,
+              "collides_with": 4294967295
+            },
+            "enemy_config": {
+              "type": "enemies/skeleton_warrior.json"
+            },
+            "script": {
+              "type": "enemy"
+            }
+          }
         }
       }
     }]
