@@ -380,3 +380,26 @@ TEST_F(CharacterControllerTest, MoveFailsWithoutTheComponentOrWithAParent)
     EXPECT_EQ(engineCharacterControllerMove(character, &velocity.x, scenario::FIXED_DT_MS, nullptr), ENGINE_RESULT_CODE_FAIL);
     EXPECT_EQ(engineCharacterControllerMove(character, nullptr, scenario::FIXED_DT_MS, nullptr), ENGINE_RESULT_CODE_INVALID_ARG);
 }
+
+// a character controller is blocked only by bodies on layers it interacts with
+TEST_F(CharacterControllerTest, PassesAWallOnAnExcludedLayerAndStopsAtAnIncludedOne)
+{
+    constexpr std::uint32_t CHARACTER_LAYER = 2;
+    constexpr std::uint32_t GHOST_LAYER = 5;
+    // a wall at x = 1 on a layer the character doesn't collide with, and one at x = 3 it does
+    const auto ghost_wall = create_box({ 1.0f, 0.0f, -10.0f }, { 1.5f, 3.0f, 10.0f });
+    auto ghost = engineGameObjectGetColliderComponent(ghost_wall);
+    ghost.layer = GHOST_LAYER;
+    engineGameObjectUpdateColliderComponent(ghost_wall, &ghost);
+    create_box({ 3.0f, 0.0f, -10.0f }, { 3.5f, 3.0f, 10.0f });
+    const auto character = create_character({ 0.0f, 0.0f, 0.0f });
+    auto controller = engineGameObjectGetCharacterControllerComponent(character);
+    controller.layer = CHARACTER_LAYER;
+    controller.collides_with = 0xFFFFFFFFu & ~(1u << GHOST_LAYER);
+    engineGameObjectUpdateCharacterControllerComponent(character, &controller);
+    walk(character, glm::vec3(0.0f), 10);
+
+    walk(character, { 3.0f, 0.0f, 0.0f }, 90);
+    EXPECT_GT(position_of(character).x, 1.5f);
+    EXPECT_LT(position_of(character).x, 3.0f - RADIUS + 0.01f);
+}

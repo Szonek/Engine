@@ -1,5 +1,6 @@
 #include <profiler.h>
 #include "scripts_utils.h"
+#include "game_layers.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -97,52 +98,21 @@ project_c::utils::CursorRay project_c::utils::get_ray_from_cursor(engine_game_ob
     return ray;
 }
 
-bool project_c::utils::level_geometry_between(const glm::vec3& from, const glm::vec3& to, std::span<const engine_game_object_t> ignore)
+std::optional<engine_ray_hit_t> project_c::utils::level_ray(const glm::vec3& origin, const glm::vec3& direction, float max_distance)
 {
-    const glm::vec3 direction = to - from;
-    const float distance = glm::length(direction);
-    return distance > 0.0f && level_geometry_ray(from, direction, distance, ignore).has_value();
-}
-
-std::optional<engine_ray_hit_t> project_c::utils::level_geometry_ray(const glm::vec3& origin, const glm::vec3& direction, float max_distance,
-    std::span<const engine_game_object_t> ignore)
-{
-    constexpr std::size_t max_see_through = 4;
-    // on the stack: this runs every frame for every enemy
-    std::array<engine_game_object_t, MAX_LEVEL_RAY_IGNORED + max_see_through> skipped{};
-    const std::size_t ignored = std::min(ignore.size(), MAX_LEVEL_RAY_IGNORED);
-    std::copy_n(ignore.begin(), ignored, skipped.begin());
-    std::size_t skipped_count = ignored;
-    if (glm::length(direction) <= 0.0f)
+    engine_physics_query_filter_t filter{};
+    filter.layer_mask = BLOCKING_LAYERS;
+    engine_ray_hit_t hit{};
+    if (!enginePhysicsRayCast(glm::value_ptr(origin), glm::value_ptr(direction), max_distance, &filter, &hit))
     {
         return std::nullopt;
     }
-    engine_ray_hit_t hit{};
-    for (std::size_t cast = 0; cast <= max_see_through; cast++)
-    {
-        engine_physics_query_filter_t filter{};
-        filter.ignore = skipped.data();
-        filter.ignore_count = skipped_count;
-        if (!enginePhysicsRayCast(glm::value_ptr(origin), glm::value_ptr(direction), max_distance, &filter, &hit))
-        {
-            return std::nullopt;
-        }
-        bool dynamic = false;
-        if (engineGameObjectHasRigidBodyComponent(hit.go))
-        {
-            const auto body = engineGameObjectGetRigidBodyComponent(hit.go);
-            dynamic = body.type == ENGINE_RIGID_BODY_TYPE_DYNAMIC && body.mass > 0.0f;
-        }
-        if (!dynamic && !engineGameObjectHasCharacterControllerComponent(hit.go))
-        {
-            return hit;
-        }
-        if (cast == max_see_through)
-        {
-            break;
-        }
-        skipped[skipped_count++] = hit.go;
-    }
-    // more characters and dynamic bodies than it looks past: the last of them counts as blocking
     return hit;
+}
+
+bool project_c::utils::level_blocks(const glm::vec3& from, const glm::vec3& to)
+{
+    const glm::vec3 direction = to - from;
+    const float distance = glm::length(direction);
+    return distance > 0.0f && level_ray(from, direction, distance).has_value();
 }

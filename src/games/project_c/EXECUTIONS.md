@@ -17,13 +17,14 @@ aerial assassination) and one after another (the chain). Everything is game code
 
 ## Ground execution
 
-An attack press on the ground executes the nearest enemy which
+An attack press on the ground executes the nearest enemy (the candidates come from an overlap with the characters'
+collision layer around the player, so floors and walls never crowd them out) which
 
 * hasn't noticed the player: Unaware, or Suspicious while it doesn't see the player this frame;
 * is within `execution_range` (1.4 m, flat) and 0.5 m of the player's height;
 * has the player behind it: within `execution_behind_half_angle_degrees` (70) of its back, a 140° arc;
-* is reachable: the line between the chests hits no level geometry (`utils::level_geometry_between`, the same test as
-  the enemies' sight);
+* is reachable: the line between the chests hits no level geometry (`utils::level_blocks`, one ray against the blocking
+  collision layers, everything but characters, hitboxes and pickups, the same test as the enemies' sight);
 * isn't dying or being executed.
 
 A knocked-down enemy can be executed from any side, whatever it knows. The player must be grounded and not dodging,

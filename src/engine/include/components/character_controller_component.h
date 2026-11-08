@@ -5,6 +5,9 @@ extern "C"
 {
 #endif // cpp
 #include <stdbool.h>
+#include <stdint.h>
+
+#include "physics_layers.h"
 
 // A character moved with engineCharacterControllerMove (like Unity's CharacterController): a capsule standing on its game
 // object's origin which slides along walls, walks up steps and walkable slopes, sticks to the ground and falls with the
@@ -17,6 +20,10 @@ typedef struct _engine_character_controller_component_t
     float height;       // of the whole capsule, at least 2 * radius
     float step_height;  // ledges up to this height are walked onto
     float max_slope;    // in degrees: steeper ground is not walkable, it blocks like a wall
+    // its collision layer and the layers it collides with (see physics_layers.h): its moves are blocked only by bodies
+    // it interacts with
+    uint32_t layer;
+    uint32_t collides_with;
 } engine_character_controller_component_t;
 
 typedef struct _engine_character_controller_move_result_t

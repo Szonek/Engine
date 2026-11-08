@@ -1,4 +1,5 @@
 #include "building_script.h"
+#include "game_layers.h"
 #include "scripts_utils.h"
 #include "player_script.h"
 
@@ -252,6 +253,7 @@ project_c::House* project_c::build_house(engine::IScene& scene, AppProjectC& app
             if (collider)
             {
                 auto cc = engineGameObjectAddColliderComponent(go);
+                set_layer(cc, Layer::eLevelGeometry);
                 cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
                 auto& cc_child = cc.collider.compound.children[0];
                 cc_child.rotation_quaternion[3] = 1.0f;

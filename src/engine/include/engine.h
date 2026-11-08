@@ -259,6 +259,7 @@ typedef struct _engine_physics_query_filter_t
     const engine_game_object_t* ignore;  // game objects whose colliders the query passes over
     size_t ignore_count;
     bool hit_triggers;                   // false: triggers (hitboxes, pickups) are skipped
+    uint32_t layer_mask;                 // the layers it sees, one bit each (see physics_layers.h); 0: every layer
 } engine_physics_query_filter_t;
 
 typedef enum _engine_ui_event_type_t
@@ -787,6 +788,10 @@ ENGINE_API engine_texture2d_t   engineTextured2DGetByName(const char* name);
 ENGINE_API void engineTexture2DRelease(engine_texture2d_t tex2d);
 
 // physics 
+// The names of the collision layers (physics_layers.h), application-wide, for the editor: layer 0 is "Default", the
+// others start unnamed (""). A layer out of range is refused and logged (Set: ENGINE_RESULT_CODE_FAIL, Get: NULL).
+ENGINE_API engine_result_code_t enginePhysicsSetLayerName(uint32_t layer, const char* name);
+ENGINE_API const char* enginePhysicsGetLayerName(uint32_t layer);
 ENGINE_API void enginePhysicsSetGravityVector(const float gravity[3]);
 // the active scene's gravity (metres per second per second; (0, -10, 0) unless set), zeros without an active scene
 ENGINE_API void enginePhysicsGetGravityVector(float out_gravity[3]);
@@ -794,11 +799,12 @@ ENGINE_API size_t enginePhysicsGetNumCollisions();
 ENGINE_API const engine_collision_desc_t* enginePhysicsGetCollisionDesc(size_t idx);
 // The closest collider hit along origin + direction * t, t in [0, max_distance] (direction need not be normalized; for a
 // segment from a to b pass b - a and its length). Sees this frame's state, like every physics query. filter may be NULL
-// (everything but triggers). Returns true and fills out_hit on a hit; false on a miss, for an empty ray or no active scene.
+// (everything but triggers, on every layer). Returns true and fills out_hit on a hit; false on a miss, for an empty ray or
+// no active scene.
 ENGINE_API bool enginePhysicsRayCast(const float origin[3], const float direction[3], float max_distance, const engine_physics_query_filter_t* filter, engine_ray_hit_t* out_hit);
 // Every game object whose collider or character controller overlaps the sphere, nearest first (distance from the center
 // to the collider's surface, ties by handle). Sees this frame's state, like every physics query. filter may be NULL
-// (everything but triggers). Writes at most `capacity` game objects to out_game_objects (may be NULL when capacity is 0)
+// (everything but triggers, on every layer). Writes at most `capacity` game objects to out_game_objects (may be NULL when capacity is 0)
 // and returns how many overlap, which can be more than capacity: the nearest ones are kept. 0 for radius <= 0, a NULL
 // center or no active scene.
 ENGINE_API size_t enginePhysicsOverlapSphere(const float center[3], float radius, const engine_physics_query_filter_t* filter, engine_game_object_t* out_game_objects, size_t capacity);

@@ -216,6 +216,32 @@ TEST_F(AwarenessTest, WallBlocksSight)
     EXPECT_FALSE(noticed);
 }
 
+// a collider left on the Default collision layer (a new one in the editor) hides the player like level geometry
+TEST_F(AwarenessTest, WallOnTheDefaultLayerBlocksSight)
+{
+    auto* scene = sandbox();
+    const auto wall = engineGameObjectCreate();
+    auto tc = engineGameObjectAddTransformComponent(wall);
+    tc.position[1] = 1.0f;
+    tc.position[2] = 1.5f;
+    engineGameObjectUpdateTransformComponent(wall, &tc);
+    auto cc = engineGameObjectAddColliderComponent(wall);
+    cc.type = ENGINE_COLLIDER_TYPE_BOX;
+    cc.collider.box.size[0] = 1.5f;
+    cc.collider.box.size[1] = 1.0f;
+    cc.collider.box.size[2] = 0.15f;
+    engineGameObjectUpdateColliderComponent(wall, &cc);
+    ASSERT_EQ(engineGameObjectGetColliderComponent(wall).layer, static_cast<std::uint32_t>(ENGINE_PHYSICS_LAYER_DEFAULT));
+    scene->build().player(0.0f, 0.0f);
+    auto* enemy = scene->build().enemy(0.0f, 3.0f, FACING_MINUS_Z);
+    ASSERT_NE(enemy, nullptr);
+    scene->snap_camera_to_player();
+
+    bool noticed = false;
+    step_until({}, 240, [] { return false; }, [&] { noticed = noticed || enemy->awareness().state() != Awareness::eUnaware; });
+    EXPECT_FALSE(noticed);
+}
+
 TEST_F(AwarenessTest, PlayerOnARoofIsSeenMoreSlowly)
 {
     const float on_floor = seconds_to_alert(false);
@@ -413,4 +439,22 @@ TEST_F(AwarenessTest, OtherEnemiesDoNotBlockSight)
 
     const auto alert = step_until({}, 180, [&] { return rear->awareness().state() == Awareness::eAlert; });
     EXPECT_LE(alert, 180u);
+}
+
+// a file of enemies between them doesn't hide the player either, however many (sight is one ray against the level
+// geometry's collision layer; it used to look past at most four characters)
+TEST_F(AwarenessTest, EnemyBehindAFileOfOthersSeesThePlayer)
+{
+    auto* scene = sandbox();
+    scene->build().player(0.0f, 0.0f);
+    for (int i = 0; i < 5; i++)
+    {
+        ASSERT_NE(scene->build().enemy(0.0f, 1.0f + 0.8f * static_cast<float>(i), FACING_MINUS_Z), nullptr);
+    }
+    auto* rear = scene->build().enemy(0.0f, 5.0f, FACING_MINUS_Z);
+    ASSERT_NE(rear, nullptr);
+    scene->snap_camera_to_player();
+
+    const auto alert = step_until({}, 240, [&] { return rear->awareness().state() == Awareness::eAlert; });
+    EXPECT_LE(alert, 240u);
 }

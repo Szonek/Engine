@@ -654,3 +654,45 @@ TEST_F(ExecutionTest, ExecutionNextToAWallKeepsThePlayerOutOfIt)
     // the capsule (0.3 m) stays in front of the wall
     EXPECT_LT(position_of(player->get_game_object()).z, WALL_FACE_Z - 0.25f);
 }
+
+// the knockdown reaches an enemy as far below the impact as allowed (0.9 m) right next to it, with a small knockdown
+// radius too (the search reaches up and down the height allowed, not only the radius around the impact's chest)
+TEST_F(ExecutionTest, PlungeKnocksDownAnEnemyJustBelowTheImpact)
+{
+    auto* player = player_on_block();
+    const auto executions = temporary_data_asset("execution_tuning", R"({ "knockdown_radius_per_metre": 0.25 })");
+    ASSERT_NE(executions, ENGINE_INVALID_OBJECT_HANDLE);
+    const auto type = project_c::game_components().player_config;
+    auto config = project_c::get_game_component(player->get_game_object(), type, project_c::default_player_config());
+    config.executions = executions;
+    ASSERT_EQ(engineGameObjectUpdateDataComponent(player->get_game_object(), type, &config), ENGINE_RESULT_CODE_OK);
+    // a platform 0.9 m high with the victim at its edge, and another enemy on the floor just past the edge
+    constexpr float PLATFORM_HEIGHT = 0.9f;
+    scene_->build().obstacle(glm::vec3(5.25f, PLATFORM_HEIGHT * 0.5f, 0.0f), glm::vec3(1.5f, PLATFORM_HEIGHT, 2.0f));
+    auto* victim = scene_->build().enemy(5.8f, 0.0f, FACING_PLUS_X);
+    auto* below = scene_->build().enemy(6.15f, 0.0f, FACING_PLUS_X);
+    ASSERT_NE(victim, nullptr);
+    ASSERT_NE(below, nullptr);
+    auto tc = engineGameObjectGetTransformComponent(victim->get_game_object());
+    tc.position[1] = PLATFORM_HEIGHT + 0.05f;
+    engineGameObjectUpdateTransformComponent(victim->get_game_object(), &tc);
+    step(SETTLE_FRAMES);
+    const auto victim_position = position_of(victim->get_game_object());
+    const auto below_position = position_of(below->get_game_object());
+    ASSERT_GT(victim_position.y, PLATFORM_HEIGHT - 0.1f);
+    ASSERT_LT(below_position.y, 0.3f);
+
+    ASSERT_TRUE(step_until(moving_right(), 120, [&] { return player->execution_target() != ENGINE_INVALID_GAME_OBJECT_ID; }));
+    ASSERT_EQ(player->execution_target(), victim->get_game_object());
+    ASSERT_LT(glm::distance(glm::vec2(victim_position.x, victim_position.z), glm::vec2(below_position.x, below_position.z)),
+        player->plunge_knockdown_radius());
+    PlayerInput attack{};
+    attack.attack = true;
+    attack.right = true;
+    set_input(attack);
+    step_seeing();
+    ASSERT_TRUE(step_until({}, 60, [&] { return player->movement_mode() == MovementMode::eGrounded; }));
+    EXPECT_TRUE(is_dead(victim->get_game_object()));
+    EXPECT_TRUE(below->is_knocked_down());
+    engineDataAssetRelease(executions);
+}

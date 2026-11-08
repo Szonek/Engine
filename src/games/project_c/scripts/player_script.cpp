@@ -1,4 +1,5 @@
 #include "player_script.h"
+#include "game_layers.h"
 #include "scripts_utils.h"
 #include "enemy_script.h"
 #include "enviorment_script.h"
@@ -86,6 +87,7 @@ void project_c::Weapon::add_components(engine_game_object_t go, const AppProject
 
     // physics
     auto cc = engineGameObjectAddColliderComponent(go);
+    set_layer(cc, Layer::ePickup);
     cc.bounciness = 0.35f;
     cc.friction_static = 0.9f;
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
@@ -303,6 +305,7 @@ project_c::AttackTrigger::AttackTrigger(engine::IScene* my_scene, engine_game_ob
 
     // physics
     auto cc = engineGameObjectAddColliderComponent(go_);
+    set_layer(cc, Layer::eHitbox);
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
     cc.is_trigger = true;
     auto& cc_child = cc.collider.compound.children[0];
@@ -1002,11 +1005,10 @@ void project_c::Player::on_confirmed_attack_hit(float hit_stop_seconds)
     }
 
     const auto cameras = utils::get_active_camera_game_objects();
-    if (!cameras.empty())
+    auto* camera = cameras.empty() ? nullptr : my_scene_->get_script<CameraScript>(cameras.front());
+    if (camera)
     {
-        my_scene_->get_script<CameraScript>(cameras.front())->shake(
-            t.hit_camera_shake_intensity,
-            t.hit_camera_shake_seconds);
+        camera->shake(t.hit_camera_shake_intensity, t.hit_camera_shake_seconds);
     }
 }
 
@@ -1084,10 +1086,12 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
         }
     }
 
+    // the camera shakes when it is the game's (a scene's camera may have no CameraScript, e.g. a benchmark's)
     const auto cameras = utils::get_active_camera_game_objects();
-    if (!cameras.empty())
+    auto* camera = cameras.empty() ? nullptr : my_scene_->get_script<CameraScript>(cameras.front());
+    if (camera)
     {
-        my_scene_->get_script<CameraScript>(cameras.front())->shake(0.05f, 0.12f);
+        camera->shake(0.05f, 0.12f);
     }
     return true;
 }

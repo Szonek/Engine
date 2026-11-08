@@ -985,6 +985,81 @@ bool display_material_component(engine::Scene* scene, engine_material_component_
     return requires_component_updated;
 }
 
+// a collision layer's name for the editor: its name, "Layer N" when unnamed, "Layer N (invalid)" out of range (drawn
+// every frame, so it asks for the name only within range: enginePhysicsGetLayerName logs otherwise)
+std::string physics_layer_label(std::uint32_t layer)
+{
+    if (layer >= ENGINE_PHYSICS_LAYER_COUNT)
+    {
+        return fmt::format("Layer {} (invalid)", layer);
+    }
+    const char* name = enginePhysicsGetLayerName(layer);
+    return name && *name ? fmt::format("{}: {}", layer, name) : fmt::format("Layer {}", layer);
+}
+
+// a collider's or character controller's collision layer (a combo) and the layers it collides with (a dropdown of
+// checkboxes, like Unity's LayerMask field); true when one changed
+bool display_physics_layers(const char* id, std::uint32_t& layer, std::uint32_t& collides_with)
+{
+    bool changed = false;
+    if (ImGui::BeginCombo(fmt::format("Layer##{}", id).c_str(), physics_layer_label(layer).c_str()))
+    {
+        for (std::uint32_t i = 0; i < ENGINE_PHYSICS_LAYER_COUNT; i++)
+        {
+            if (ImGui::Selectable(physics_layer_label(i).c_str(), i == layer))
+            {
+                changed |= i != layer;
+                layer = i;
+            }
+        }
+        ImGui::EndCombo();
+    }
+    std::string preview;
+    if (collides_with == 0)
+    {
+        preview = "Nothing";
+    }
+    else if (collides_with == ENGINE_PHYSICS_ALL_LAYERS)
+    {
+        preview = "Everything";
+    }
+    else
+    {
+        for (std::uint32_t i = 0; i < ENGINE_PHYSICS_LAYER_COUNT; i++)
+        {
+            if (collides_with & (1u << i))
+            {
+                preview += (preview.empty() ? "" : ", ") + physics_layer_label(i);
+            }
+        }
+    }
+    if (ImGui::BeginCombo(fmt::format("Collides with##{}", id).c_str(), preview.c_str()))
+    {
+        if (ImGui::Selectable("Everything", false, ImGuiSelectableFlags_DontClosePopups))
+        {
+            changed |= collides_with != ENGINE_PHYSICS_ALL_LAYERS;
+            collides_with = ENGINE_PHYSICS_ALL_LAYERS;
+        }
+        if (ImGui::Selectable("Nothing", false, ImGuiSelectableFlags_DontClosePopups))
+        {
+            changed |= collides_with != 0;
+            collides_with = 0;
+        }
+        ImGui::Separator();
+        for (std::uint32_t i = 0; i < ENGINE_PHYSICS_LAYER_COUNT; i++)
+        {
+            bool on = (collides_with & (1u << i)) != 0;
+            if (ImGui::Checkbox(physics_layer_label(i).c_str(), &on))
+            {
+                collides_with = on ? (collides_with | (1u << i)) : (collides_with & ~(1u << i));
+                changed = true;
+            }
+        }
+        ImGui::EndCombo();
+    }
+    return changed;
+}
+
 bool display_collider_component(engine::Scene* /*scene*/, engine_collider_component_t& c)
 {
     bool requires_component_updated = false;
@@ -1069,6 +1144,7 @@ bool display_collider_component(engine::Scene* /*scene*/, engine_collider_compon
     requires_component_updated |= ImGui::DragFloat("Bounciness", &c.bounciness, 0.1f);
     // friction
     requires_component_updated |= ImGui::DragFloat("Friction", &c.friction_static, 0.1f);
+    requires_component_updated |= display_physics_layers("collider", c.layer, c.collides_with);
     return requires_component_updated;
 }
 
@@ -1096,6 +1172,7 @@ bool display_character_controller_component(engine::Scene* /*scene*/, engine_cha
     changed |= ImGui::DragFloat("Height##character_controller", &c.height, 0.01f, 0.01f, 20.0f);
     changed |= ImGui::DragFloat("Step height##character_controller", &c.step_height, 0.01f, 0.0f, 10.0f);
     changed |= ImGui::DragFloat("Max slope##character_controller", &c.max_slope, 0.5f, 0.0f, 90.0f);
+    changed |= display_physics_layers("character_controller", c.layer, c.collides_with);
     return changed;
 }
 
@@ -2372,7 +2449,7 @@ glm::vec3 engine::ApplicationEditor::get_mouse_scene_point(Scene* scene, entt::e
     engine_ray_hit_t hit{};
     // nothing beyond the far plane: it couldn't be seen there
     const float max_distance = scene->get_component<engine_camera_component_t>(camera_entity)->clip_plane_far;
-    return scene->physics().raycast(origin, direction, max_distance, {}, false, hit)
+    return scene->physics().raycast(origin, direction, max_distance, {}, hit)
         ? glm::vec3(hit.position[0], hit.position[1], hit.position[2]) : get_ground_point(origin, direction, max_distance);
 }
 

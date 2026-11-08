@@ -1,6 +1,7 @@
 #include "player_executions.h"
 #include "enemy_script.h"
 #include "scripts_utils.h"
+#include "game_layers.h"
 
 #include "iscene.h"
 
@@ -12,6 +13,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <span>
 #include <optional>
 #include <vector>
 
@@ -57,6 +59,20 @@ glm::vec3 forward_of(engine_game_object_t go)
 }
 }  // namespace
 
+project_c::PlayerExecutions::CharactersAround project_c::PlayerExecutions::characters_within(const glm::vec3& center, float radius) const
+{
+    // the characters only (Layer::eCharacter), never the player itself
+    engine_physics_query_filter_t filter{};
+    filter.ignore = &go_;
+    filter.ignore_count = 1;
+    filter.layer_mask = layer_bit(Layer::eCharacter);
+    CharactersAround around;
+    const glm::vec3 sphere_center = center + WORLD_UP * CHEST_HEIGHT;
+    const auto count = enginePhysicsOverlapSphere(glm::value_ptr(sphere_center), radius, &filter, around.found.data(), around.found.size());
+    around.count = std::min(count, around.found.size());
+    return around;
+}
+
 project_c::PlayerExecutions::PlayerExecutions(engine::IScene* scene, engine_game_object_t player, std::size_t locomotion_layer)
     : scene_(scene)
     , go_(player)
@@ -67,13 +83,18 @@ project_c::PlayerExecutions::PlayerExecutions(engine::IScene* scene, engine_game
 project_c::PlayerExecutions::Target project_c::PlayerExecutions::pick(const glm::vec3& center, float range, const execution_math::Rules& rules,
     const glm::vec3& from) const
 {
-    // the enemies themselves, not an overlap query around the player: it would find the floor and walls first (nearest
-    // first), which would push the enemies out of any buffer
-    std::vector<execution_math::Candidate> candidates;
-    std::vector<Target> targets;
-    for (auto* enemy : scene_->get_scripts<Enemy>())
+    // the characters around: an overlap with the characters' layer (the floor and walls aren't on it); on the stack, this
+    // runs every frame the player can execute
+    std::array<execution_math::Candidate, MAX_CHARACTERS_AROUND> candidates{};
+    std::array<Target, MAX_CHARACTERS_AROUND> targets{};
+    std::size_t count = 0;
+    for (const auto go : characters_within(center, range))
     {
-        const auto go = enemy->get_game_object();
+        auto* enemy = scene_->get_script<Enemy>(go);
+        if (!enemy)
+        {
+            continue;
+        }
         const auto enemy_position = position_of(go);
         if (glm::distance(glm::vec2(center.x, center.z), glm::vec2(enemy_position.x, enemy_position.z)) > range)
         {
@@ -93,12 +114,12 @@ project_c::PlayerExecutions::Target project_c::PlayerExecutions::pick(const glm:
         {
             continue;
         }
-        const std::array<engine_game_object_t, 2> ignore = { go_, go };
-        candidate.reachable = !utils::level_geometry_between(from + WORLD_UP * CHEST_HEIGHT, enemy_position + WORLD_UP * CHEST_HEIGHT, ignore);
-        candidates.push_back(candidate);
-        targets.push_back(Target{ go, enemy });
+        candidate.reachable = !utils::level_blocks(from + WORLD_UP * CHEST_HEIGHT, enemy_position + WORLD_UP * CHEST_HEIGHT);
+        candidates[count] = candidate;
+        targets[count] = Target{ go, enemy };
+        count++;
     }
-    const auto best = execution_math::pick_target(candidates, rules);
+    const auto best = execution_math::pick_target(std::span<const execution_math::Candidate>(candidates.data(), count), rules);
     return best ? targets[*best] : Target{};
 }
 
@@ -141,11 +162,10 @@ glm::vec3 project_c::PlayerExecutions::strike_spot(engine_game_object_t target, 
 {
     const auto victim = position_of(target);
     const auto behind = execution_math::execution_spot(victim, forward_of(target), EXECUTION_SPOT_OFFSET);
-    const std::array<engine_game_object_t, 2> ignore = { go_, target };
     const auto chest = WORLD_UP * CHEST_HEIGHT;
     const auto to_behind = behind - victim;
     const auto margin = glm::length(to_behind) > 0.0f ? glm::normalize(to_behind) * PLAYER_RADIUS : glm::vec3(0.0f);
-    if (!utils::level_geometry_between(victim + chest, behind + chest + margin, ignore))
+    if (!utils::level_blocks(victim + chest, behind + chest + margin))
     {
         return behind;
     }
@@ -176,9 +196,8 @@ void project_c::PlayerExecutions::observe_air(const glm::vec3& position, float d
 engine_game_object_t project_c::PlayerExecutions::find_plunge_target(const glm::vec3& position, const ExecutionTuning& tuning, float* knockdown_radius) const
 {
     // high enough above the ground: level geometry, not the enemy right below (its capsule) nor a dropped weapon
-    const std::array<engine_game_object_t, 1> ignore = { go_ };
     const glm::vec3 down(0.0f, -1.0f, 0.0f);
-    const auto ground = utils::level_geometry_ray(position, down, GROUND_PROBE_DEPTH, ignore);
+    const auto ground = utils::level_ray(position, down, GROUND_PROBE_DEPTH);
     if (ground && position.y - ground->position[1] < tuning.aerial_min_drop)
     {
         return ENGINE_INVALID_GAME_OBJECT_ID;
@@ -217,8 +236,7 @@ engine_game_object_t project_c::PlayerExecutions::find_plunge_target(const glm::
         {
             continue;
         }
-        const std::array<engine_game_object_t, 2> ignore_both = { go_, go };
-        candidate.reachable = !utils::level_geometry_between(position + WORLD_UP * CHEST_HEIGHT, enemy_position + WORLD_UP * CHEST_HEIGHT, ignore_both);
+        candidate.reachable = !utils::level_blocks(position + WORLD_UP * CHEST_HEIGHT, enemy_position + WORLD_UP * CHEST_HEIGHT);
         candidates.push_back(candidate);
         targets.push_back(go);
         drops.push_back(position.y - enemy_position.y);
@@ -313,9 +331,16 @@ project_c::PlayerExecutions::Update project_c::PlayerExecutions::update(const Ex
         // the impact: the victim is executed, the others around it are knocked down (and alerted)
         victim->receive_execution(static_cast<std::uint32_t>(tuning.execution_damage));
         const auto impact = position_of(victim_);
-        for (auto* other : scene_->get_scripts<Enemy>())
+        // the sphere reaches the characters up and down the height allowed too (it is centered at the impact's chest)
+        const float search_radius = std::hypot(knockdown_radius_, KNOCKDOWN_MAX_HEIGHT_DIFFERENCE + CHEST_HEIGHT);
+        for (const auto go : characters_within(impact, search_radius))
         {
-            const auto other_position = position_of(other->get_game_object());
+            auto* other = scene_->get_script<Enemy>(go);
+            if (!other)
+            {
+                continue;
+            }
+            const auto other_position = position_of(go);
             if (other != victim && !other->is_dying()
                 && std::abs(other_position.y - impact.y) <= KNOCKDOWN_MAX_HEIGHT_DIFFERENCE
                 && glm::distance(glm::vec2(impact.x, impact.z), glm::vec2(other_position.x, other_position.z)) <= knockdown_radius_)

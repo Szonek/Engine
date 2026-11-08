@@ -247,7 +247,9 @@
                 ]
               },
               "bounciness": 0.5,
-              "friction_static": 1
+              "friction_static": 1,
+              "layer": 1,
+              "collides_with": 4294967295
             },
             "script": {
               "type": "floor"

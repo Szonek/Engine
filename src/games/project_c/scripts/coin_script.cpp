@@ -1,4 +1,5 @@
 #include "coin_script.h"
+#include "game_layers.h"
 #include "player_script.h"
 #include <iscene.h>
 
@@ -13,6 +14,7 @@ project_c::Coin::Coin(engine::IScene* my_scene, engine_game_object_t go)
 
     // physcis
     auto cc = engineGameObjectAddColliderComponent(go_);
+    set_layer(cc, Layer::ePickup);
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
     auto& child_c = cc.collider.compound.children[0];
     {

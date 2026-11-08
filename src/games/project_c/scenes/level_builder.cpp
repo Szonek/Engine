@@ -1,6 +1,7 @@
 #include "level_builder.h"
 
 #include "../app.h"
+#include "../scripts/game_layers.h"
 #include "../scripts/building_script.h"
 #include "../scripts/camera_script.h"
 #include "../scripts/encounter_script.h"
@@ -24,6 +25,9 @@
 #include <array>
 #include <cstring>
 #include <string_view>
+
+using project_c::Layer;
+using project_c::set_layer;
 
 namespace
 {
@@ -54,13 +58,15 @@ void add_character_controller(engine_game_object_t go, float radius, float model
     character.height = 0.7f / model_scale;
     character.step_height = 0.15f / model_scale;
     character.max_slope = 45.0f;
+    set_layer(character, Layer::eCharacter);
     engineGameObjectUpdateCharacterControllerComponent(go, &character);
 }
 
-// a compound collider with one box child (half extents), in the game object's space
-void add_box_collider(engine_game_object_t go, const glm::vec3& center, const glm::vec3& half_extents)
+// a compound collider with one box child (half extents), in the game object's space, on `layer`
+void add_box_collider(engine_game_object_t go, const glm::vec3& center, const glm::vec3& half_extents, Layer layer)
 {
     auto cc = engineGameObjectAddColliderComponent(go);
+    set_layer(cc, layer);
     cc.type = ENGINE_COLLIDER_TYPE_COMPOUND;
     auto& child = cc.collider.compound.children[0];
     child.type = ENGINE_COLLIDER_TYPE_BOX;
@@ -156,7 +162,7 @@ engine_game_object_t project_c::LevelBuilder::place_floor(float x, float z)
     // on the cell, at the model's height
     const auto tc = engineGameObjectGetTransformComponent(go);
     set_position_and_scale(go, glm::vec3(tc.position[0] + x, tc.position[1], tc.position[2] + z), 0.25f);
-    add_box_collider(go, glm::vec3(0.0f), glm::vec3(2.0f, 0.5f, 2.0f));
+    add_box_collider(go, glm::vec3(0.0f), glm::vec3(2.0f, 0.5f, 2.0f), Layer::eLevelGeometry);
     scene_.attach_script<Floor>(go);
     return go;
 }
@@ -213,7 +219,7 @@ project_c::LevelBuilder& project_c::LevelBuilder::wall(float x, float z, float y
     const glm::quat rot = glm::angleAxis(glm::radians(y_rotation_degrees), glm::vec3(0.0f, 1.0f, 0.0f));
     set_c_array(tc.rotation, std::array<float, 4>{ rot.x, rot.y, rot.z, rot.w });
     engineGameObjectUpdateTransformComponent(go, &tc);
-    add_box_collider(go, glm::vec3(0.0f, 2.0f, 0.0f), glm::vec3(2.0f, 2.0f, 0.5f));
+    add_box_collider(go, glm::vec3(0.0f, 2.0f, 0.0f), glm::vec3(2.0f, 2.0f, 0.5f), Layer::eLevelGeometry);
     return *this;
 }
 
@@ -230,6 +236,7 @@ engine_game_object_t project_c::LevelBuilder::obstacle(const glm::vec3& center, 
 
     // no rigid body: a static collider
     auto cc = engineGameObjectAddColliderComponent(go);
+    set_layer(cc, Layer::eLevelGeometry);
     cc.type = ENGINE_COLLIDER_TYPE_BOX;
     // box sizes are half extents
     cc.collider.box.size[0] = size.x * 0.5f;
@@ -306,7 +313,7 @@ project_c::LevelExit* project_c::LevelBuilder::level_exit(float x, float z, std:
     set_position_and_scale(go, glm::vec3(x, 0.0f, z), 1.0f);
     // A trigger standing on the floor. Kinematic: static colliders never detect the player's capsule, which is
     // kinematic itself (kinematic bodies pair with dynamic and kinematic ones only).
-    add_box_collider(go, glm::vec3(0.0f, 0.5f, 0.0f), glm::vec3(0.5f, 0.5f, 0.5f));
+    add_box_collider(go, glm::vec3(0.0f, 0.5f, 0.0f), glm::vec3(0.5f, 0.5f, 0.5f), Layer::eDefault);
     auto cc = engineGameObjectGetColliderComponent(go);
     cc.is_trigger = true;
     engineGameObjectUpdateColliderComponent(go, &cc);
@@ -426,7 +433,7 @@ project_c::Chest* project_c::LevelBuilder::chest(float x, float y, float z)
     auto tc = engineGameObjectGetTransformComponent(go);
     set_c_array(tc.position, std::array<float, 3>{ x, y, z });
     engineGameObjectUpdateTransformComponent(go, &tc);
-    add_box_collider(go, glm::vec3(0.0f, 0.2f, 0.0f), glm::vec3(0.4f, 0.2f, 0.3f));
+    add_box_collider(go, glm::vec3(0.0f, 0.2f, 0.0f), glm::vec3(0.4f, 0.2f, 0.3f), Layer::eLevelGeometry);
     return scene_.attach_script<Chest>(go);
 }
 
