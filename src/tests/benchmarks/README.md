@@ -23,6 +23,8 @@ The particle scene (after the sizes, `--particles 0` skips it) is a floor in the
 `assets/data/effects/test_fixtures/benchmark.json` (~100 live particles each, about 2,000 in all), measured without and
 with particles: the difference in Update is the particle simulation and gathering (budget: under 0.5 ms for 2,000 live
 particles in Release), the difference in Frame end the sorting, upload and Transparent pass.
+On 2026-11-08 (same machine as the baseline below): 2,020 live particles add 0.09 ms to Update (0.07 to 0.16) and
+0.09 ms to Frame end (3.51 to 3.60).
 
 Tracy has to be built on demand (`TRACY_ON_DEMAND`), otherwise it keeps every zone in memory and the 128x128 scene runs
 out of it.
