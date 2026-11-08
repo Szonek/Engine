@@ -690,7 +690,14 @@ void project_c::Enemy::land(const EnemyType& type, float height)
     }
     if (hp == 0)
     {
-        // it dies (the death plays next update), quietly for its pack
+        // it dies (the death plays next update), quietly for its pack; a kill by the player's kick fills its momentum
+        if (alert_after_shove_)
+        {
+            if (auto* player = my_scene_->get_script<Player>(player_go_))
+            {
+                player->on_kicked_enemy_fell_dead();
+            }
+        }
         alert_after_shove_ = false;
         state_ = States::DECISION_MAKE;
         return;

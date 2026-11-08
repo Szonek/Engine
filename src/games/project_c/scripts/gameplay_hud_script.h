@@ -66,6 +66,10 @@ private:
 
     std::uint32_t player_health_ = 100;
     std::uint32_t player_max_health_ = 100;
+    // the momentum meter in percent, and 1 while it drains (the bar is brighter)
+    std::uint32_t player_momentum_ = 0;
+    std::uint32_t player_momentum_draining_ = 0;
+    void update_player_momentum();
     engine_string_t* encounter_status_ = nullptr;
     EnemyHealthbars enemies_{};
     ItemsOnGround items_{};

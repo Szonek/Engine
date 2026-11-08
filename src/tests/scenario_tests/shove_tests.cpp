@@ -425,3 +425,84 @@ TEST_F(PlayerFallTest, PlungeFromTheSameHeightCostsNothing)
     EXPECT_TRUE(is_dead(enemy->get_game_object()));
     EXPECT_EQ(player->get_hp(), max_hp);
 }
+
+namespace
+{
+class MomentumTest : public FallTest
+{
+protected:
+    // the player behind an unaware enemy, executes it: momentum from the execution
+    Player* execute_one()
+    {
+        auto* scene = sandbox();
+        auto* player = scene->build().player(0.0f, -1.0f);
+        auto* enemy = scene->build().enemy(0.0f, 0.0f, FACING_PLUS_Z);
+        EXPECT_NE(enemy, nullptr);
+        scene->snap_camera_to_player();
+        step(SETTLE_FRAMES);
+        EXPECT_EQ(player->momentum(), 0.0f);
+        PlayerInput attack{};
+        attack.attack = true;
+        set_input(attack);
+        step();
+        set_input({});
+        EXPECT_TRUE(step_until({}, 90, [&] { return player->movement_mode() == MovementMode::eGrounded && is_dead(enemy->get_game_object()); }));
+        step(10);
+        return player;
+    }
+
+    // metres per second the player runs at, once up to speed, along -x (away from everything)
+    float run_speed(Player* player)
+    {
+        PlayerInput left{};
+        left.left = true;
+        set_input(left);
+        step(40);
+        const auto start = engineGameObjectGetTransformComponent(player->get_game_object());
+        step(30);
+        const auto end = engineGameObjectGetTransformComponent(player->get_game_object());
+        set_input({});
+        return glm::distance(glm::vec2(start.position[0], start.position[2]), glm::vec2(end.position[0], end.position[2])) / (30.0f * scenario::FIXED_DT_MS / 1000.0f);
+    }
+};
+}  // namespace
+
+// an execution fills momentum, and the player then runs faster than its tuned speed
+TEST_F(MomentumTest, ExecutionFillsMomentumAndThePlayerRunsFaster)
+{
+    auto* player = execute_one();
+    const auto tuning = project_c::default_momentum_tuning();
+    EXPECT_NEAR(player->momentum(), tuning.ground_execution_fill, 0.01f);
+
+    const float speed = run_speed(player);
+    const float base = player->tuning().move_speed;
+    EXPECT_NEAR(speed, base * (1.0f + player->momentum() * tuning.speed_bonus), 0.05f);
+    EXPECT_GT(speed, base * 1.04f);
+}
+
+// out of combat it holds
+TEST_F(MomentumTest, MomentumHoldsOutOfCombat)
+{
+    auto* player = execute_one();
+    const float filled = player->momentum();
+    ASSERT_GT(filled, 0.0f);
+    step(180);
+    EXPECT_EQ(player->momentum(), filled);
+    EXPECT_FALSE(player->is_momentum_draining());
+}
+
+// on the ground with an alert enemy around it drains
+TEST_F(MomentumTest, GroundCombatDrainsMomentum)
+{
+    auto* player = execute_one();
+    const float filled = player->momentum();
+    ASSERT_GT(filled, 0.0f);
+    // an alert enemy 6 m away
+    auto* enemy = scene_->build().enemy(6.0f, -1.0f, FACING_MINUS_X);
+    ASSERT_NE(enemy, nullptr);
+    step(2);
+    enemy->receive_attack_hit(0, 0.0f);
+    step(30);
+    EXPECT_TRUE(player->is_momentum_draining());
+    EXPECT_LT(player->momentum(), filled - 0.05f);
+}

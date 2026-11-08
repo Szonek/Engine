@@ -463,6 +463,12 @@ project_c::ExecutionTuning project_c::Player::execution_tuning() const
     return get_data_asset(get_game_component(go_, types.player_config, default_player_config()).executions, types.execution_tuning, default_execution_tuning());
 }
 
+project_c::MomentumTuning project_c::Player::momentum_tuning() const
+{
+    const auto& types = game_components();
+    return get_data_asset(get_game_component(go_, types.player_config, default_player_config()).momentum, types.momentum_tuning, default_momentum_tuning());
+}
+
 project_c::TraversalTuning project_c::Player::traversal_tuning() const
 {
     const auto& types = game_components();
@@ -545,7 +551,12 @@ void project_c::Player::update(float dt)
     engine::ScopedProfiler prof("project_c::Player::update");
     const auto t = tuning();
     const auto traversal = traversal_tuning();
-    const auto executions = execution_tuning();
+    const auto momentum = momentum_tuning();
+    // momentum makes the chain reach farther
+    auto executions = execution_tuning();
+    executions.chain_range *= momentum_.chain_range_multiplier(momentum);
+    // it drains while the player brawls on the ground
+    momentum_.update(dt / 1000.0f, movement_mode_ == MovementMode::eGrounded && in_ground_combat(momentum.combat_radius), momentum);
     // the rings of the noise made in the last frame, then this frame's noise is made below (none when the player
     // can't move)
     noise_rings_.update(dt / 1000.0f, noise_radius_, noise_is_loud_, noise_position_, t.show_footstep_ring, t.footstep_ring_interval_seconds);
@@ -693,6 +704,11 @@ void project_c::Player::update(float dt)
         if (execution.struck)
         {
             on_execution_strike(t, executions);
+            momentum_.add(execution_is_chain_link_ ? MomentumEvent::eChainLink : MomentumEvent::eGroundExecution, momentum);
+        }
+        if (execution.plunged)
+        {
+            momentum_.add(MomentumEvent::ePlunge, momentum);
         }
         // the plunge ends in a (hard) landing
         plunge_landing_ = execution.plunged;
@@ -725,8 +741,10 @@ void project_c::Player::update(float dt)
     const bool can_execute = !dodge_pressed && !recovering && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f && !is_shoving();
     const PlayerExecutions::Context execution_context{ position_of(), weapon() != nullptr };
     execution_target_ = can_execute ? executions_.find_ground_target(execution_context, executions) : ENGINE_INVALID_GAME_OBJECT_ID;
+    const bool chain_window_open = executions_.is_chain_window_open();
     if (attack_pressed && can_execute && executions_.try_ground(execution_context, executions, execution_target_) == MovementMode::eExecuting)
     {
+        execution_is_chain_link_ = chain_window_open;
         execution_target_ = ENGINE_INVALID_GAME_OBJECT_ID;
         set_movement_mode(MovementMode::eExecuting, traversal);
         return;
@@ -857,7 +875,8 @@ void project_c::Player::update(float dt)
     {
         // landing: brakes, whatever the input
         const glm::vec2 wanted = recovering ? glm::vec2(0.0f) : move_input;
-        const float target_speed = input().sneak ? t.sneak_speed : t.move_speed;
+        // momentum makes the player faster (also above the speed the traversal runs from)
+        const float target_speed = input().sneak ? t.sneak_speed : t.move_speed * momentum_.speed_multiplier(momentum);
         const glm::vec2 target_velocity = wanted * target_speed;
         const glm::vec2 velocity_delta = target_velocity - movement_velocity_;
         const float max_velocity_change = (glm::length(wanted) > 0.0f ? t.movement_acceleration : t.movement_braking) * delta_seconds;
@@ -1083,6 +1102,11 @@ bool project_c::Player::receive_damage(std::uint32_t damage, const glm::vec3& so
     }
 
     hp = damage >= hp ? 0 : hp - damage;
+    // a hit (not a fall) drains momentum
+    if (!taking_fall_damage_)
+    {
+        momentum_.on_hit(momentum_tuning());
+    }
 
     auto player_transform = engineGameObjectGetTransformComponent(go_);
     glm::vec3 knockback_direction(
@@ -1436,12 +1460,42 @@ void project_c::Player::land_from_fall(const TraversalTuning& traversal)
     const auto max_hp = tuning().max_hp;
     const auto damage = std::max<std::uint32_t>(1, static_cast<std::uint32_t>(std::ceil(fraction * static_cast<float>(max_hp))));
     // the usual hit reaction and camera shake (a lethal one plays the death), without a push; a roll needs no stun
+    taking_fall_damage_ = true;
     receive_damage(damage, position_of());
+    taking_fall_damage_ = false;
     knockback_velocity_ = glm::vec3(0.0f);
     if (rolled)
     {
         hit_stun_remaining_seconds_ = 0.0f;
     }
+}
+
+bool project_c::Player::in_ground_combat(float radius) const
+{
+    constexpr std::size_t MAX_CHARACTERS_AROUND = 32;
+    // an enemy farther above or below can't reach the player (one below a roof): no combat
+    constexpr float MAX_HEIGHT_DIFFERENCE = 1.0f;
+    const auto position = position_of();
+    engine_physics_query_filter_t filter{};
+    filter.ignore = &go_;
+    filter.ignore_count = 1;
+    filter.layer_mask = layer_bit(Layer::eCharacter);
+    std::array<engine_game_object_t, MAX_CHARACTERS_AROUND> found{};
+    const auto count = std::min(enginePhysicsOverlapSphere(glm::value_ptr(position), radius, &filter, found.data(), found.size()), found.size());
+    for (std::size_t i = 0; i < count; i++)
+    {
+        const auto* enemy = my_scene_->get_script<Enemy>(found[i]);
+        if (!enemy || enemy->is_dying() || enemy->awareness().state() != Awareness::eAlert)
+        {
+            continue;
+        }
+        const auto enemy_tc = engineGameObjectGetTransformComponent(found[i]);
+        if (std::abs(enemy_tc.position[1] - position.y) <= MAX_HEIGHT_DIFFERENCE)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 void project_c::Player::make_loud_noise(const PlayerTuning& t)

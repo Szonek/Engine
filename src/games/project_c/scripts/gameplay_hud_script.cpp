@@ -7,6 +7,8 @@
 #include <iscene.h>
 
 #include <format>
+#include <utility>
+#include <cmath>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -88,6 +90,15 @@ project_c::GameplayHud::GameplayHud(engine::IScene* my_scene, engine_game_object
         binding.type = ENGINE_UI_DATA_TYPE_UINT32;
         bindings.push_back(binding);
     }
+    for (const auto& [name, value] : { std::pair<const char*, std::uint32_t*>{ "player_momentum", &player_momentum_ },
+             std::pair<const char*, std::uint32_t*>{ "player_momentum_draining", &player_momentum_draining_ } })
+    {
+        engine_ui_document_data_binding_t binding{};
+        binding.name = name;
+        binding.data_uint32_t = value;
+        binding.type = ENGINE_UI_DATA_TYPE_UINT32;
+        bindings.push_back(binding);
+    }
     {
         engine_ui_document_data_binding_t binding{};
         binding.name = "player_max_health";
@@ -148,6 +159,7 @@ void project_c::GameplayHud::late_update(float dt)
         set_status("WASD move, RMB attack, SPACE dodge. Walk into a wall / window / roof edge to climb, SPACE lets go.");
     }
     update_player_health();
+    update_player_momentum();
     update_enemies();
     update_items_on_ground();
     update_encounter_status();
@@ -174,6 +186,27 @@ void project_c::GameplayHud::update_player_health()
     player_max_health_ = player->get_max_hp();
     engineUiDataHandleDirtyVariable(handle_, "player_health");
     engineUiDataHandleDirtyVariable(handle_, "player_max_health");
+}
+
+void project_c::GameplayHud::update_player_momentum()
+{
+    const auto* player = my_scene_->find_script<Player>();
+    if (!player)
+    {
+        return;
+    }
+    const auto momentum = static_cast<std::uint32_t>(std::lround(player->momentum() * 100.0f));
+    const std::uint32_t draining = player->is_momentum_draining() ? 1 : 0;
+    if (momentum != player_momentum_)
+    {
+        player_momentum_ = momentum;
+        engineUiDataHandleDirtyVariable(handle_, "player_momentum");
+    }
+    if (draining != player_momentum_draining_)
+    {
+        player_momentum_draining_ = draining;
+        engineUiDataHandleDirtyVariable(handle_, "player_momentum_draining");
+    }
 }
 
 void project_c::GameplayHud::update_enemies()

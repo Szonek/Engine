@@ -43,6 +43,7 @@ set(LIB_SOURCES
 	scripts/noise_rings.h
 	scripts/execution_math.h
 	scripts/fall_damage.h
+	scripts/momentum.h
 	scripts/enviorment_script.h
 	scripts/enviorment_script.cpp
 	scripts/game_components.h

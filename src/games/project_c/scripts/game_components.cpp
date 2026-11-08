@@ -193,6 +193,11 @@ project_c::ExecutionTuning project_c::default_execution_tuning()
     return t;
 }
 
+project_c::MomentumTuning project_c::default_momentum_tuning()
+{
+    return MomentumTuning{ 0.25f, 0.35f, 0.15f, 0.25f, 0.25f, 0.5f, 0.15f, 0.2f, 8.0f };
+}
+
 project_c::EnemyConfig project_c::default_enemy_config()
 {
     return EnemyConfig{ ENGINE_INVALID_OBJECT_HANDLE };
@@ -200,7 +205,7 @@ project_c::EnemyConfig project_c::default_enemy_config()
 
 project_c::PlayerConfig project_c::default_player_config()
 {
-    return PlayerConfig{ ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE };
+    return PlayerConfig{ ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE };
 }
 
 project_c::BuildingPartConfig project_c::default_building_part_config()
@@ -375,6 +380,23 @@ void project_c::register_game_components()
             "a dodge pressed this long before landing is a roll: half the fall damage"), 0.0f, 2.0f),
     }, default_traversal_tuning());
 
+    const auto momentum_field = [](const char* name, std::size_t offset, const char* tooltip, float max_value)
+        {
+            return ranged(field(name, ENGINE_FIELD_KIND_FLOAT, offset, tooltip), 0.0f, max_value);
+        };
+    g_types.momentum_tuning = register_data_asset_type("momentum_tuning", {
+        momentum_field("ground_execution_fill", offsetof(MomentumTuning, ground_execution_fill), "what an execution from behind fills the meter by", 1.0f),
+        momentum_field("plunge_fill", offsetof(MomentumTuning, plunge_fill), "what a plunge fills the meter by", 1.0f),
+        momentum_field("chain_link_fill", offsetof(MomentumTuning, chain_link_fill), "what each execution after the first of a chain fills it by", 1.0f),
+        momentum_field("fall_kill_fill", offsetof(MomentumTuning, fall_kill_fill), "what an enemy the player kicked dying from its fall fills it by", 1.0f),
+        momentum_field("speed_bonus", offsetof(MomentumTuning, speed_bonus), "move speed x (1 + this) at a full meter", 2.0f),
+        momentum_field("chain_range_bonus", offsetof(MomentumTuning, chain_range_bonus), "chain range x (1 + this) at a full meter", 2.0f),
+        momentum_field("combat_drain_per_second", offsetof(MomentumTuning, combat_drain_per_second),
+            "drained per second on the ground in combat (an alert enemy within combat_radius)", 2.0f),
+        momentum_field("hit_drain", offsetof(MomentumTuning, hit_drain), "drained at once by a hit taken", 1.0f),
+        momentum_field("combat_radius", offsetof(MomentumTuning, combat_radius), "metres: an alert enemy this close means combat", 50.0f),
+    }, default_momentum_tuning());
+
     g_types.execution_tuning = register_data_asset_type("execution_tuning", {
         ranged(field("execution_range", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, execution_range),
             "metres: an enemy is executed from this close (flat)"), 0.0f, 10.0f),
@@ -419,6 +441,7 @@ void project_c::register_game_components()
         data_asset("tuning", offsetof(PlayerConfig, tuning), "player_tuning", "the player's tuning (assets/data/player)"),
         data_asset("traversal", offsetof(PlayerConfig, traversal), "traversal_tuning", "how the player climbs and vaults (assets/data/player)"),
         data_asset("executions", offsetof(PlayerConfig, executions), "execution_tuning", "how the player executes enemies (assets/data/player)"),
+        data_asset("momentum", offsetof(PlayerConfig, momentum), "momentum_tuning", "what fills and drains the player's momentum (assets/data/player)"),
     }, default_player_config(), 2);
 
     static const engine_enum_value_desc_t hide_values[] = {

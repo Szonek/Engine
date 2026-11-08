@@ -161,6 +161,13 @@ public:
     TraversalTuning traversal_tuning() const;
     // its execution tuning (the execution_tuning data asset of its player_config), read on every use
     ExecutionTuning execution_tuning() const;
+    // its momentum tuning (the momentum_tuning data asset of its player_config), read on every use
+    MomentumTuning momentum_tuning() const;
+    // the momentum meter (0..1; FALLS_AND_SHOVES.md), and whether it is draining (on the ground in combat)
+    float momentum() const { return momentum_.value(); }
+    bool is_momentum_draining() const { return momentum_.is_draining(); }
+    // an enemy the player kicked died from its fall: momentum
+    void on_kicked_enemy_fell_dead() { momentum_.add(MomentumEvent::eFallKill, momentum_tuning()); }
 
     void on_start() override;
     void update(float dt);
@@ -280,6 +287,13 @@ private:
     PlayerTraversal traversal_;
     PlayerExecutions executions_;
     PlayerShove shove_;
+    PlayerMomentum momentum_;
+    // the execution in progress continues a chain (its strike fills the meter less)
+    bool execution_is_chain_link_ = false;
+    // a fall's damage is being applied (it doesn't drain momentum like a hit)
+    bool taking_fall_damage_ = false;
+    // on the ground with an alert enemy within the combat radius and the player's reach (not one below a roof)
+    bool in_ground_combat(float radius) const;
     bool shove_press_pending_ = false;
     // the kick playing (its clip's length), and the time until the next one may start
     float shove_remaining_seconds_ = 0.0f;
