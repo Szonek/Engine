@@ -44,6 +44,7 @@ set(LIB_SOURCES
 	scripts/execution_math.h
 	scripts/fall_damage.h
 	scripts/momentum.h
+	scripts/smoke.h
 	scripts/enviorment_script.h
 	scripts/enviorment_script.cpp
 	scripts/game_components.h
@@ -59,6 +60,10 @@ set(LIB_SOURCES
 	scripts/player_executions.cpp
 	scripts/player_shove.h
 	scripts/player_shove.cpp
+	scripts/player_smoke.h
+	scripts/player_smoke.cpp
+	scripts/smoke_cloud.h
+	scripts/smoke_cloud.cpp
 	scripts/traversal_math.h
 	
 	scripts/scripts_utils.h

@@ -49,7 +49,9 @@ private:
         // off the ground (kicked off a ledge): no AI, it keeps the push it had; landing hurts (fall damage)
         FALLING,
         // kicked: pushed back, it can neither move nor attack for a moment
-        STAGGERED
+        STAGGERED,
+        // a smoke bomb burst on it (SMOKE.md): it sees nothing and stands where it is (no moving, turning or attacking)
+        BLINDED
     };
 
     struct IdleStateData {};
@@ -93,6 +95,15 @@ public:
     // by `damage`. It is alerted once it recovers or lands, unless the fall kills it.
     void receive_shove(const glm::vec3& direction, float speed, float stagger_seconds, std::uint32_t damage);
     bool is_staggered() const { return state_ == States::STAGGERED; }
+    // A smoke bomb burst on it (SMOKE.md): it loses track of the player (searching from `smoke_centre` once it can act),
+    // and for `seconds` it sees nothing and can't act; a hit ends it. Executable from any side meanwhile. A dying,
+    // executed, falling or knocked-down enemy only loses track.
+    void blind(float seconds, const glm::vec3& smoke_centre);
+    bool is_blinded() const { return state_ == States::BLINDED; }
+    // a hit or a blow it survives ends the blindness (it can act again; the blow alerts it)
+    void end_blindness();
+    // a loud noise at `position` (the pop of a smoke bomb), heard at its next update like the player's loud noises
+    void hear_loud_noise(const glm::vec3& position);
     // a body landed from a fall this frame: a loud noise where it landed, heard by the enemies around
     bool landing_noise(glm::vec3& position) const
     {
@@ -176,6 +187,10 @@ private:
     // horizontal push (a kick), decaying; it moves the enemy with its character controller, also off ledges
     glm::vec3 knockback_velocity_{ 0.0f };
     float stagger_remaining_seconds_ = 0.0f;
+    float blinded_remaining_seconds_ = 0.0f;
+    // a loud noise not made by the player, heard at the next update
+    bool pending_loud_noise_ = false;
+    glm::vec3 pending_loud_noise_position_{ 0.0f };
     // kicked and not alerted yet: it is once it recovers or survives its landing (a fall death stays quiet for its pack)
     bool alert_after_shove_ = false;
     // seconds the controller has had nothing under it (a step down isn't a fall)

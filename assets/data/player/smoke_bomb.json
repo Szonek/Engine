@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "type": "smoke_tuning",
+  "type_version": 1,
+  "value": {
+    "cooldown_seconds": 12,
+    "throw_range": 8,
+    "radius": 3,
+    "centre_height": 1,
+    "grow_seconds": 0.25,
+    "duration_seconds": 6,
+    "fade_seconds": 0.5,
+    "blind_seconds": 3,
+    "noise_radius": 5,
+    "throw_release_seconds": 0.35,
+    "throw_recovery_seconds": 0.25
+  }
+}

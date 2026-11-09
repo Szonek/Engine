@@ -71,6 +71,10 @@ private:
     std::uint32_t player_momentum_draining_ = 0;
     void update_player_momentum();
     engine_string_t* encounter_status_ = nullptr;
+    // the smoke bomb's state under the momentum bar: "ready", or the whole seconds left of its cooldown
+    engine_string_t* player_smoke_ = nullptr;
+    std::int32_t shown_smoke_seconds_ = -1;
+    void update_player_smoke();
     EnemyHealthbars enemies_{};
     ItemsOnGround items_{};
 

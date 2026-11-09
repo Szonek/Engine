@@ -41,6 +41,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	execution_math_tests.cpp
 	fall_damage_tests.cpp
 	momentum_tests.cpp
+	smoke_tests.cpp
 	overlap_results_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
@@ -128,6 +129,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${GAME_SCRIPTS_DIR}/execution_math.h
 	${GAME_SCRIPTS_DIR}/fall_damage.h
 	${GAME_SCRIPTS_DIR}/momentum.h
+	${GAME_SCRIPTS_DIR}/smoke.h
 )
 target_include_directories(${ENGINE_LOGIC_TESTS_NAME} PRIVATE ${ENGINE_IMPL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../engine/include ${RAPIDJSON_INCLUDE_DIR} ${GAME_SCRIPTS_DIR})
 # profiler.h includes Tracy and RmlUi headers: only their headers, without TRACY_ENABLE the profiling macros are empty

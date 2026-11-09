@@ -34,8 +34,8 @@ struct Candidate
     Awareness awareness = Awareness::eUnaware;
     // it sees the player this frame
     bool sees_player = false;
-    // knocked down by a plunge: executable from any side, whatever it knows
-    bool knocked_down = false;
+    // executable from any side, whatever it knows: knocked down by a plunge, or blinded by smoke
+    bool any_side = false;
     // dying, or already being executed
     bool unavailable = false;
     // flat metres to what the check measures from (the player, or the landing point of a plunge)
@@ -59,7 +59,8 @@ struct Rules
     float min_angle_from_facing = 0.0f;
     // any awareness, also seeing the player (the plunge)
     bool any_awareness = false;
-    bool allow_knocked_down = true;
+    // any_side candidates count (not for the plunge, which skips knocked-down enemies)
+    bool allow_any_side = true;
 };
 
 // The ground rule's "not noticed": unaware, or suspicious while it doesn't see the player.
@@ -76,9 +77,9 @@ inline bool executable(const Candidate& candidate, const Rules& rules)
     {
         return false;
     }
-    if (candidate.knocked_down)
+    if (candidate.any_side)
     {
-        return rules.allow_knocked_down;
+        return rules.allow_any_side;
     }
     if (rules.any_awareness)
     {

@@ -2,6 +2,7 @@
 #include "enemy_awareness.h"
 #include "fall_damage.h"
 #include "momentum.h"
+#include "smoke.h"
 
 #include <engine.h>
 
@@ -175,6 +176,8 @@ struct PlayerConfig
     engine_data_asset_t executions;
     // a MomentumTuning data asset; with none, the player has default_momentum_tuning()
     engine_data_asset_t momentum;
+    // a SmokeTuning data asset; with none, the player has default_smoke_tuning()
+    engine_data_asset_t smoke;
 };
 
 // what the House hides while the player is inside it
@@ -253,6 +256,7 @@ struct GameComponentTypes
     engine_component_type_t traversal_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t execution_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t momentum_tuning = ENGINE_INVALID_OBJECT_HANDLE;
+    engine_component_type_t smoke_tuning = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t enemy_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t player_config = ENGINE_INVALID_OBJECT_HANDLE;
     engine_component_type_t building_part_config = ENGINE_INVALID_OBJECT_HANDLE;
@@ -275,6 +279,7 @@ PlayerTuning default_player_tuning();
 TraversalTuning default_traversal_tuning();
 ExecutionTuning default_execution_tuning();
 MomentumTuning default_momentum_tuning();
+SmokeTuning default_smoke_tuning();
 EnemyConfig default_enemy_config();
 PlayerConfig default_player_config();
 BuildingPartConfig default_building_part_config();

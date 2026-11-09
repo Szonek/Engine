@@ -88,7 +88,7 @@ project_c::PlayerExecutions::Target project_c::PlayerExecutions::pick(const glm:
         execution_math::Candidate candidate{};
         candidate.awareness = enemy->awareness().state();
         candidate.sees_player = enemy->awareness().perceived_this_frame();
-        candidate.knocked_down = enemy->is_knocked_down();
+        candidate.any_side = enemy->is_knocked_down() || enemy->is_blinded();
         candidate.unavailable = enemy->is_dying() || enemy->is_being_executed();
         candidate.distance = glm::distance(glm::vec2(from.x, from.z), glm::vec2(enemy_position.x, enemy_position.z));
         candidate.height_difference = from.y - enemy_position.y;
@@ -194,7 +194,7 @@ engine_game_object_t project_c::PlayerExecutions::find_plunge_target(const glm::
     rules.range = tuning.aerial_aim_radius;
     rules.max_height_difference = std::numeric_limits<float>::infinity();
     rules.any_awareness = true;
-    rules.allow_knocked_down = false;
+    rules.allow_any_side = false;
     // where the fall comes down to each enemy below, and how far the enemy is from there
     std::vector<execution_math::Candidate> candidates;
     std::vector<engine_game_object_t> targets;
@@ -211,7 +211,7 @@ engine_game_object_t project_c::PlayerExecutions::find_plunge_target(const glm::
         execution_math::Candidate candidate{};
         candidate.awareness = enemy->awareness().state();
         candidate.sees_player = enemy->awareness().perceived_this_frame();
-        candidate.knocked_down = enemy->is_knocked_down();
+        candidate.any_side = enemy->is_knocked_down();
         candidate.unavailable = enemy->is_dying() || enemy->is_being_executed();
         candidate.distance = glm::distance(glm::vec2(landing->point.x, landing->point.z), glm::vec2(enemy_position.x, enemy_position.z));
         // the plunge is a straight line: no roof or wall on the way (the ray only for the ones the other rules let

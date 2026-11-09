@@ -381,6 +381,7 @@ project_c::Player::Player(engine::IScene* my_scene, engine_game_object_t go)
     , traversal_(my_scene, go, LOCOMOTION_LAYER_ID)
     , executions_(my_scene, go, LOCOMOTION_LAYER_ID)
     , shove_(my_scene, go)
+    , smoke_(my_scene)
 {
     // the model's own weapons aren't used: the player equips a Weapon
     constexpr std::array<const char*, 5> unused_model_parts = { "Knife", "Knife_Offhand", "1H_Crossbow", "2H_Crossbow", "Throwable" };
@@ -478,6 +479,12 @@ project_c::MomentumTuning project_c::Player::momentum_tuning() const
 {
     const auto& types = game_components();
     return get_data_asset(get_game_component(go_, types.player_config, default_player_config()).momentum, types.momentum_tuning, default_momentum_tuning());
+}
+
+project_c::SmokeTuning project_c::Player::smoke_tuning() const
+{
+    const auto& types = game_components();
+    return get_data_asset(get_game_component(go_, types.player_config, default_player_config()).smoke, types.smoke_tuning, default_smoke_tuning());
 }
 
 project_c::TraversalTuning project_c::Player::traversal_tuning() const
@@ -601,6 +608,8 @@ void project_c::Player::update(float dt)
     dodge_press_pending_ = dodge_press_pending_ || input().dodge;
     drop_weapon_press_pending_ = drop_weapon_press_pending_ || input().drop_weapon;
     shove_press_pending_ = shove_press_pending_ || input().shove;
+    smoke_press_pending_ = smoke_press_pending_ || input().smoke;
+    smoke_.update(dt / 1000.0f);
     shove_cooldown_remaining_seconds_ = std::max(0.0f, shove_cooldown_remaining_seconds_ - dt / 1000.0f);
 
     if (hit_stop_remaining_seconds_ > 0.0f)
@@ -647,6 +656,9 @@ void project_c::Player::update(float dt)
     const bool dodge_pressed = !presses_wait && std::exchange(dodge_press_pending_, false);
     const bool drop_weapon_pressed = std::exchange(drop_weapon_press_pending_, false);
     const bool shove_pressed = !presses_wait && std::exchange(shove_press_pending_, false);
+    // the smoke press is kept only through a hit stop: pressed in the air, during a scripted move, an execution or a
+    // landing it is dropped, so a bomb isn't thrown later by surprise
+    const bool smoke_pressed = std::exchange(smoke_press_pending_, false) && !presses_wait;
 
     const glm::vec2 move_input = move_input_of(input());
 
@@ -736,9 +748,15 @@ void project_c::Player::update(float dt)
         }
     }
 
+    // What every action on the ground needs, each adding its own conditions: not landing, kicking or throwing, nor
+    // stunned (not_busy), and, for all but the dodge, not dodging (free_to_act). Asked where each action is decided,
+    // after the ones before it may have started.
+    const auto not_busy = [&] { return !recovering && !in_body_action() && hit_stun_remaining_seconds_ <= 0.0f; };
+    const auto free_to_act = [&] { return not_busy() && dodge_remaining_seconds_ <= 0.0f; };
+
     // an execution: on the target the attack press would execute (also in the middle of a combo, whose swing it
     // cancels; with or without a weapon); otherwise the press is a normal attack
-    const bool can_execute = !dodge_pressed && !recovering && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f && !is_shoving();
+    const bool can_execute = free_to_act() && !dodge_pressed;
     const PlayerExecutions::Context execution_context{ position_of(), weapon() != nullptr };
     execution_target_ = can_execute ? executions_.find_ground_target(execution_context, executions) : ENGINE_INVALID_GAME_OBJECT_ID;
     const bool chain_window_open = executions_.is_chain_window_open();
@@ -751,13 +769,18 @@ void project_c::Player::update(float dt)
     }
 
     // the shove: a kick on its own key, with or without a weapon, not in the middle of another action
-    if (shove_pressed && !attack_pressed && !dodge_pressed && !recovering && !is_shoving() && shove_cooldown_remaining_seconds_ <= 0.0f
-        && !check_state_bit(States::ATTACK) && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
+    const bool can_act = free_to_act() && !attack_pressed && !dodge_pressed && !check_state_bit(States::ATTACK);
+    if (shove_pressed && can_act && shove_cooldown_remaining_seconds_ <= 0.0f)
     {
         start_shove(t);
     }
+    // the smoke bomb: thrown at the point under the cursor, when ready, not in the middle of another action
+    else if (smoke_pressed && can_act && smoke_.is_ready() && cursor_hit)
+    {
+        start_throw(glm::make_vec3(hit_info.position));
+    }
 
-    if (weapon() && attack_pressed && !dodge_pressed && !recovering && !is_shoving() && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f)
+    if (weapon() && attack_pressed && free_to_act() && !dodge_pressed)
     {
         if (!check_state_bit(States::ATTACK))
         {
@@ -800,18 +823,12 @@ void project_c::Player::update(float dt)
 
     // walking into a wall / window / roof edge starts a traversal, a dodge at an edge leaps off it (not in the middle of
     // an attack, a dodge, a stun or a landing)
-    const bool can_dodge = dodge_pressed
-        && dodge_cooldown_remaining_seconds_ <= 0.0f
-        && hit_stun_remaining_seconds_ <= 0.0f
-        && !is_shoving()
-        && !check_state_bit(States::ATTACK)
-        && !recovering;
+    const bool can_dodge = dodge_pressed && dodge_cooldown_remaining_seconds_ <= 0.0f && not_busy() && !check_state_bit(States::ATTACK);
     PlayerTraversal::GroundInput traversal_input{};
     traversal_input.position = glm::vec3(tc.position[0], tc.position[1], tc.position[2]);
     traversal_input.move_direction = move_direction;
     traversal_input.approach_speed = glm::dot(ground_velocity_, move_direction);
-    traversal_input.can_start = !check_state_bit(States::ATTACK) && dodge_remaining_seconds_ <= 0.0f && hit_stun_remaining_seconds_ <= 0.0f && !recovering
-        && !is_shoving();
+    traversal_input.can_start = free_to_act() && !check_state_bit(States::ATTACK);
     traversal_input.leap_pressed = can_dodge && traversal_input.can_start;
     if (const auto mode = traversal_.update_grounded(traversal_input, traversal, delta_seconds); mode != MovementMode::eGrounded)
     {
@@ -851,10 +868,14 @@ void project_c::Player::update(float dt)
     }
     else if (hit_stun_remaining_seconds_ > 0.0f)
     {
-        // a hit cuts a kick short
+        // a hit cuts a kick or a throw short (a throw before its release makes no cloud)
         if (is_shoving())
         {
             end_shove();
+        }
+        if (is_throwing())
+        {
+            end_throw();
         }
         movement_velocity_ = glm::vec2(0.0f);
         velocity = glm::vec3(knockback_velocity_.x, 0.0f, knockback_velocity_.z);
@@ -869,6 +890,22 @@ void project_c::Player::update(float dt)
         if (shove_remaining_seconds_ <= 0.0f)
         {
             end_shove();
+        }
+    }
+    else if (is_throwing())
+    {
+        // the throw plays where the player stands; the bomb leaves the hand at its release (its cloud pops there)
+        movement_velocity_ = glm::vec2(0.0f);
+        // both from the time since it started, the release first: a throw without recovery still releases its bomb
+        throw_elapsed_seconds_ += delta_seconds;
+        const auto smoke = smoke_tuning();
+        if (throw_elapsed_seconds_ >= smoke.throw_release_seconds)
+        {
+            smoke_.release(smoke);
+        }
+        if (throw_elapsed_seconds_ >= smoke.throw_release_seconds + smoke.throw_recovery_seconds)
+        {
+            end_throw();
         }
     }
     else
@@ -924,7 +961,7 @@ void project_c::Player::update(float dt)
     }
 
     // while recovering, the landing animation plays, and the kick while shoving
-    const bool body_animation_plays = recovering || is_shoving();
+    const bool body_animation_plays = recovering || in_body_action();
     if (!body_animation_plays && !dodging_this_frame && movement_speed > PLAYER_IDLE_SPEED_THRESHOLD)
     {
         const glm::vec3 move_direction(movement_velocity_.x / movement_speed, 0.0f, movement_velocity_.y / movement_speed);
@@ -1029,7 +1066,7 @@ void project_c::Player::update(float dt)
 
     // the player faces the cursor (not while a swing hits, a dodge or a stun plays, nor during a kick, which faces its
     // target)
-    if (cursor_hit && attack_phase_ != AttackPhase::eActive && !dodging_this_frame && hit_stun_remaining_seconds_ <= 0.0f && !is_shoving())
+    if (cursor_hit && attack_phase_ != AttackPhase::eActive && !dodging_this_frame && hit_stun_remaining_seconds_ <= 0.0f && !in_body_action())
     {
         auto facing_transform = engineGameObjectGetTransformComponent(go_);
         const glm::vec3 origin(facing_transform.position[0], facing_transform.position[1], facing_transform.position[2]);
@@ -1593,9 +1630,12 @@ void project_c::Player::cancel_combat_actions()
     dodge_invulnerability_remaining_seconds_ = 0.0f;
     hit_stun_remaining_seconds_ = 0.0f;
     knockback_velocity_ = glm::vec3(0.0f);
-    // a kick ends with what the player was doing (the layers are set by what comes next)
+    // a kick or a throw ends with what the player was doing (the layers are set by what comes next); a throw cut short
+    // before its release makes no cloud
     shove_remaining_seconds_ = 0.0f;
     shove_.begin(ENGINE_INVALID_GAME_OBJECT_ID);
+    throwing_ = false;
+    smoke_.cancel();
 }
 
 void project_c::Player::start_shove(const PlayerTuning& t)
@@ -1638,6 +1678,40 @@ void project_c::Player::end_shove()
 {
     shove_remaining_seconds_ = 0.0f;
     shove_.begin(ENGINE_INVALID_GAME_OBJECT_ID);
+    engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
+    engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
+}
+
+void project_c::Player::start_throw(const glm::vec3& cursor_point)
+{
+    const auto tuning = smoke_tuning();
+    const auto position = position_of();
+    smoke_.begin(position, cursor_point, tuning);
+    // it turns toward where the bomb goes
+    const glm::vec2 to_landing(smoke_.landing()->x - position.x, smoke_.landing()->z - position.z);
+    if (glm::length(to_landing) > 0.0f)
+    {
+        auto tc = engineGameObjectGetTransformComponent(go_);
+        const glm::quat rotation = glm::angleAxis(std::atan2(to_landing.x, to_landing.y), glm::vec3(0.0f, 1.0f, 0.0f));
+        std::memcpy(tc.rotation, glm::value_ptr(rotation), sizeof(tc.rotation));
+        engineGameObjectUpdateTransformComponent(go_, &tc);
+    }
+    // the whole body throws: the locomotion layer plays it once, the upper body layer is off
+    engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, false);
+    engineAnimationControllerLayerSetPlaybackRate(go_, LOCOMOTION_LAYER_ID, 1.0f);
+    engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 0.0f);
+    engineAnimationControllerAnimationCrossFade(go_, PlayerSmoke::THROW_CLIP, LOCOMOTION_LAYER_ID, 0.05f);
+    // the bomb leaves the hand at the release, and the player acts again a moment after it (the clip's long
+    // follow-through is cut)
+    throwing_ = true;
+    throw_elapsed_seconds_ = 0.0f;
+    movement_velocity_ = glm::vec2(0.0f);
+}
+
+void project_c::Player::end_throw()
+{
+    throwing_ = false;
+    smoke_.cancel();
     engineAnimationControllerLayerSetLooping(go_, LOCOMOTION_LAYER_ID, true);
     engineAnimationControllerLayerSetWeight(go_, COMBAT_LAYER_ID, 1.0f);
 }

@@ -198,6 +198,11 @@ project_c::MomentumTuning project_c::default_momentum_tuning()
     return MomentumTuning{ 0.25f, 0.35f, 0.15f, 0.25f, 0.25f, 0.5f, 0.15f, 0.2f, 8.0f };
 }
 
+project_c::SmokeTuning project_c::default_smoke_tuning()
+{
+    return SmokeTuning{ 12.0f, 8.0f, 3.0f, 1.0f, 0.25f, 6.0f, 0.5f, 3.0f, 5.0f, 0.35f, 0.25f };
+}
+
 project_c::EnemyConfig project_c::default_enemy_config()
 {
     return EnemyConfig{ ENGINE_INVALID_OBJECT_HANDLE };
@@ -205,7 +210,8 @@ project_c::EnemyConfig project_c::default_enemy_config()
 
 project_c::PlayerConfig project_c::default_player_config()
 {
-    return PlayerConfig{ ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE };
+    return PlayerConfig{ ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE, ENGINE_INVALID_OBJECT_HANDLE,
+        ENGINE_INVALID_OBJECT_HANDLE };
 }
 
 project_c::BuildingPartConfig project_c::default_building_part_config()
@@ -397,6 +403,27 @@ void project_c::register_game_components()
         momentum_field("combat_radius", offsetof(MomentumTuning, combat_radius), "metres: an alert enemy this close means combat", 50.0f),
     }, default_momentum_tuning());
 
+    const auto smoke_field = [](const char* name, std::size_t offset, const char* tooltip, float max_value)
+        {
+            return ranged(field(name, ENGINE_FIELD_KIND_FLOAT, offset, tooltip), 0.0f, max_value);
+        };
+    g_types.smoke_tuning = register_data_asset_type("smoke_tuning", {
+        smoke_field("cooldown_seconds", offsetof(SmokeTuning, cooldown_seconds), "seconds from a throw until the next one", 120.0f),
+        smoke_field("throw_range", offsetof(SmokeTuning, throw_range), "metres: the farthest the bomb lands from the player", 30.0f),
+        smoke_field("radius", offsetof(SmokeTuning, radius), "metres: the cloud's radius", 20.0f),
+        smoke_field("centre_height", offsetof(SmokeTuning, centre_height), "metres: the cloud's centre above where the bomb landed", 10.0f),
+        smoke_field("grow_seconds", offsetof(SmokeTuning, grow_seconds), "seconds the cloud takes to grow to its radius", 5.0f),
+        smoke_field("duration_seconds", offsetof(SmokeTuning, duration_seconds), "seconds the cloud lasts in all", 60.0f),
+        smoke_field("fade_seconds", offsetof(SmokeTuning, fade_seconds), "seconds it shrinks to nothing at the end of its life", 10.0f),
+        smoke_field("blind_seconds", offsetof(SmokeTuning, blind_seconds),
+            "seconds the enemies it pops on can't see or act", 30.0f),
+        smoke_field("noise_radius", offsetof(SmokeTuning, noise_radius), "metres: the pop is a loud noise this far", 50.0f),
+        smoke_field("throw_release_seconds", offsetof(SmokeTuning, throw_release_seconds),
+            "seconds from the start of the throw until the bomb leaves the hand (the cloud pops then)", 2.0f),
+        smoke_field("throw_recovery_seconds", offsetof(SmokeTuning, throw_recovery_seconds),
+            "seconds after the release until the player acts again (the Throw clip's follow-through is cut)", 2.0f),
+    }, default_smoke_tuning());
+
     g_types.execution_tuning = register_data_asset_type("execution_tuning", {
         ranged(field("execution_range", ENGINE_FIELD_KIND_FLOAT, offsetof(ExecutionTuning, execution_range),
             "metres: an enemy is executed from this close (flat)"), 0.0f, 10.0f),
@@ -442,6 +469,7 @@ void project_c::register_game_components()
         data_asset("traversal", offsetof(PlayerConfig, traversal), "traversal_tuning", "how the player climbs and vaults (assets/data/player)"),
         data_asset("executions", offsetof(PlayerConfig, executions), "execution_tuning", "how the player executes enemies (assets/data/player)"),
         data_asset("momentum", offsetof(PlayerConfig, momentum), "momentum_tuning", "what fills and drains the player's momentum (assets/data/player)"),
+        data_asset("smoke", offsetof(PlayerConfig, smoke), "smoke_tuning", "the player's smoke bomb (assets/data/player)"),
     }, default_player_config(), 2);
 
     static const engine_enum_value_desc_t hide_values[] = {

@@ -1,4 +1,5 @@
 #include "enemy_script.h"
+#include "smoke_cloud.h"
 #include "game_layers.h"
 #include "player_script.h"
 #include "enviorment_script.h"
@@ -312,6 +313,7 @@ void project_c::Enemy::update(float dt)
         awareness_.update(dt / 1000.0f, perceive(cfg.perception, glm::vec3(own.position[0], own.position[1], own.position[2]), forward), cfg.perception);
     }
     damaged_ = false;
+    pending_loud_noise_ = false;
     if (hp == 0)
     {
         dying_seconds_ += dt / 1000.0f;
@@ -445,6 +447,22 @@ void project_c::Enemy::update(float dt)
     glm::vec3 velocity(0.0f);
     switch (state_)
     {
+    case States::BLINDED:
+    {
+        // it stands, seeing nothing: the hit reaction, then idle, then it searches (from where it lost the player)
+        blinded_remaining_seconds_ = std::max(0.0f, blinded_remaining_seconds_ - dt / 1000.0f);
+        if (blinded_remaining_seconds_ <= 0.0f)
+        {
+            state_ = States::DECISION_MAKE;
+            break;
+        }
+        if (!engineAnimationControllerIsAnimationPlaying(go_, "Hit_B") && !engineAnimationControllerIsAnimationPlaying(go_, "Idle"))
+        {
+            engineAnimationControllerLayerSetLooping(go_, 0, true);
+            engineAnimationControllerAnimationPlay(go_, "Idle", 0);
+        }
+        break;
+    }
     case States::STAGGERED:
     {
         // pushed back, it can't act; then it is alerted (it knows who kicked it)
@@ -769,6 +787,40 @@ void project_c::Enemy::receive_shove(const glm::vec3& direction, float speed, fl
     }
 }
 
+void project_c::Enemy::blind(float seconds, const glm::vec3& smoke_centre)
+{
+    awareness_.lose_track(smoke_centre);
+    if (hp == 0 || being_executed_ || state_ == States::FALLING || state_ == States::KNOCKED_DOWN)
+    {
+        return;
+    }
+    set_attack_window_active(false);
+    standing_up_ = false;
+    stagger_remaining_seconds_ = 0.0f;
+    // a kick's pending alert (it was staggered) is dropped: it has just lost track of the player, and the stagger
+    // that would have settled the alert is over
+    alert_after_shove_ = false;
+    blinded_remaining_seconds_ = seconds;
+    state_ = States::BLINDED;
+    engineAnimationControllerLayerSetLooping(go_, 0, false);
+    engineAnimationControllerAnimationPlay(go_, "Hit_B", 0);
+}
+
+void project_c::Enemy::end_blindness()
+{
+    if (state_ == States::BLINDED)
+    {
+        blinded_remaining_seconds_ = 0.0f;
+        state_ = States::DECISION_MAKE;
+    }
+}
+
+void project_c::Enemy::hear_loud_noise(const glm::vec3& position)
+{
+    pending_loud_noise_ = true;
+    pending_loud_noise_position_ = position;
+}
+
 void project_c::Enemy::set_landing_noise(bool on, const glm::vec3& position)
 {
     if (on != landing_noise_)
@@ -836,6 +888,8 @@ void project_c::Enemy::receive_execution(std::uint32_t damage)
         death_animation_ = "Death_B";
         return;
     }
+    // a blow it survives: like a hit, it ends the smoke's blindness and alerts it
+    end_blindness();
     note_damage_position();
     hp = damage >= hp ? 0 : hp - damage;
 }
@@ -860,6 +914,8 @@ void project_c::Enemy::knock_down(float seconds)
 void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_seconds)
 {
     note_damage_position();
+    // a hit ends the smoke's blindness (it is alerted by the hit)
+    end_blindness();
     set_attack_window_active(false);
     hp = damage >= hp ? 0 : hp - damage;
     hit_flash_remaining_seconds_ = 0.12f;
@@ -875,8 +931,8 @@ void project_c::Enemy::receive_attack_hit(std::uint32_t damage, float hit_stop_s
 
 bool project_c::Enemy::sees(const glm::vec3& eye, const glm::vec3& to_player) const
 {
-    // only level geometry hides the player (other enemies, on the characters' layer, don't)
-    return !utils::level_blocks(eye, eye + to_player);
+    // level geometry and smoke clouds hide the player (other enemies, on the characters' layer, don't)
+    return !utils::level_blocks(eye, eye + to_player) && !utils::smoke_blocks(*my_scene_, eye, eye + to_player);
 }
 
 bool project_c::Enemy::was_just_killed() const
@@ -890,6 +946,12 @@ project_c::EnemyStimuli project_c::Enemy::perceive(const EnemyPerception& percep
     EnemyStimuli stimuli{};
     stimuli.damaged = damaged_;
     stimuli.damage_position = damage_position_;
+    // blinded by smoke it perceives nothing, its pack neither (a mate seeing the player would undo the lost track at
+    // once); only a hit reaches it, which ends the blindness. Its pack re-alerts it after the blindness, as usual.
+    if (state_ == States::BLINDED)
+    {
+        return stimuli;
+    }
 
     // its pack: alert while another member perceived the player recently
     if (const auto* pack = my_scene_->get_script<EnemySpawner>(pack_))
@@ -924,6 +986,13 @@ project_c::EnemyStimuli project_c::Enemy::perceive(const EnemyPerception& percep
             stimuli.seen_above = player_position.y - position.y > ENEMY_MAX_REACH_HEIGHT;
             stimuli.seen_position = player_position;
         }
+    }
+
+    // hearing: a loud noise made at it (a smoke bomb's pop)
+    if (pending_loud_noise_)
+    {
+        stimuli.heard_loud_noise = true;
+        stimuli.loud_noise_position = pending_loud_noise_position_;
     }
 
     // hearing: a body landing near it is a loud noise (only looked for while one landed)

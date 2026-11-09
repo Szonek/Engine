@@ -283,6 +283,7 @@ project_c::Player* project_c::LevelBuilder::set_up_player(engine_game_object_t g
     config.traversal = app_.get_traversal_tuning();
     config.executions = app_.get_execution_tuning();
     config.momentum = app_.get_momentum_tuning();
+    config.smoke = app_.get_smoke_tuning();
     engineGameObjectAddDataComponent(go, game_components().player_config, &config);
     return scene_.attach_script<Player>(go);
 }

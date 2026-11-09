@@ -98,7 +98,7 @@ TEST(ExecutionMath, RangeHeightReachAndAvailability)
 TEST(ExecutionMath, KnockedDownIsExecutableFromAnySideWhateverItKnows)
 {
     Candidate candidate{};
-    candidate.knocked_down = true;
+    candidate.any_side = true;
     candidate.awareness = Awareness::eAlert;
     candidate.sees_player = true;
     candidate.distance = 1.0f;
@@ -106,7 +106,7 @@ TEST(ExecutionMath, KnockedDownIsExecutableFromAnySideWhateverItKnows)
     EXPECT_TRUE(executable(candidate, ground_rules()));
     // not as a plunge's target
     auto plunge = ground_rules();
-    plunge.allow_knocked_down = false;
+    plunge.allow_any_side = false;
     EXPECT_FALSE(executable(candidate, plunge));
 }
 
@@ -116,7 +116,7 @@ TEST(ExecutionMath, PlungeTakesAnyAwareness)
     plunge.range = 2.5f;
     plunge.max_height_difference = std::numeric_limits<float>::infinity();
     plunge.any_awareness = true;
-    plunge.allow_knocked_down = false;
+    plunge.allow_any_side = false;
     Candidate candidate{};
     candidate.awareness = Awareness::eAlert;
     candidate.sees_player = true;
