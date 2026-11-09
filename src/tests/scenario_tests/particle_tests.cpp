@@ -312,3 +312,43 @@ TEST_F(ParticlePlayModeTest, EditModeFreezesAndStopClearsThePlaySessionsParticle
     EXPECT_TRUE(engineGameObjectHasParticleEmitterComponent(restored));
     EXPECT_EQ(engineParticlesGetCount(restored), 0u);
 }
+
+// A lit, soft, eroding flipbook effect (the generated smoke puff) is drawn by a camera with a shadow casting light: the
+// Transparent pass with its Scene Depth Copy, the shadow map and the puff texture. In Debug a uniform or texture the
+// shaders don't have asserts, so this renders every path of the particle shaders.
+TEST_F(ParticleTest, LitSoftErodingSmokeRenders)
+{
+    const auto light = engineGameObjectCreate();
+    auto lc = engineGameObjectAddLightComponent(light);
+    lc.type = ENGINE_LIGHT_TYPE_DIRECTIONAL;
+    const float ambient[3] = { 0.45f, 0.45f, 0.45f };
+    const float diffuse[3] = { 0.75f, 0.75f, 0.75f };
+    const float direction[3] = { 0.4f, 1.0f, 0.3f };
+    std::memcpy(lc.intensity.ambient, ambient, sizeof(ambient));
+    std::memcpy(lc.intensity.diffuse, diffuse, sizeof(diffuse));
+    std::memcpy(lc.directional.direction, direction, sizeof(direction));
+    engineGameObjectUpdateLightComponent(light, &lc);
+    const auto camera = engineGameObjectCreate();
+    auto cc = engineGameObjectAddCameraComponent(camera);
+    cc.enabled = true;
+    cc.type = ENGINE_CAMERA_PROJECTION_TYPE_PERSPECTIVE;
+    cc.clip_plane_near = 0.1f;
+    cc.clip_plane_far = 100.0f;
+    engineGameObjectUpdateCameraComponent(camera, &cc);
+    auto tc = engineGameObjectAddTransformComponent(camera);
+    tc.position[1] = 6.0f;
+    tc.position[2] = 6.0f;
+    engineGameObjectUpdateTransformComponent(camera, &tc);
+
+    TestEffect smoke("effects/test_fixtures/lit_smoke.json");
+    ASSERT_NE(smoke.get(), ENGINE_INVALID_OBJECT_HANDLE);
+    const auto go = engineParticlesSpawn(smoke.get(), IDENTITY, nullptr);
+    ASSERT_NE(go, ENGINE_INVALID_GAME_OBJECT_ID);
+    step();
+    EXPECT_EQ(engineParticlesGetCount(go), 24u);
+    // through the burst, the hold and the erosion
+    step(120);
+    EXPECT_TRUE(engineParticlesIsAlive(go));
+    step(120);
+    EXPECT_FALSE(engineGameObjectIsValid(go));
+}

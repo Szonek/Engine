@@ -135,7 +135,15 @@ void engine::ParticleSceneSystem::gather(SceneRenderData& out) const
             batch.count = static_cast<std::uint32_t>(instances.size());
             // a texture which was released draws as the built-in circle
             batch.texture = desc.texture == ENGINE_INVALID_OBJECT_HANDLE ? nullptr : scene_.get_application()->get_texture(desc.texture);
+            batch.packed_channels = desc.texture_channels == ParticleTextureChannels::ePacked;
+            batch.flipbook_columns = desc.flipbook_columns;
+            batch.flipbook_rows = desc.flipbook_rows;
+            batch.flipbook_blend = desc.flipbook_blend;
+            batch.erosion_softness = desc.erosion_softness;
             batch.blend = static_cast<ParticleBlend>(desc.blend);
+            batch.lit = desc.lit;
+            batch.light_wrap = desc.light_wrap;
+            batch.soft_distance = std::max(0.0f, desc.soft_distance);
             batch.sort_order = desc.sort_order;
             batch.center = glm::vec3(params.world[3]);
             for (const auto& p : instances)
@@ -145,6 +153,8 @@ void engine::ParticleSceneSystem::gather(SceneRenderData& out) const
                 gpu.size = p.size;
                 gpu.color = p.color;
                 gpu.rotation = p.rotation;
+                gpu.erosion = p.erosion;
+                gpu.frame = p.frame;
                 out.particles.push_back(gpu);
             }
             out.particle_batches.push_back(batch);

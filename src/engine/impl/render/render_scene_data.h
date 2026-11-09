@@ -108,9 +108,9 @@ struct ParticleGpuData
     float size;          // the quad's side, world units
     glm::vec4 color;     // RGBA
     float rotation;      // radians, around the view axis
+    float erosion;       // the alpha threshold, 0: none
+    float frame;         // the flipbook frame (fractional: blended into the next)
     float pad0_ = 0.0f;
-    float pad1_ = 0.0f;
-    float pad2_ = 0.0f;
 };
 
 // how a particle batch is blended (ParticleBlendMode)
@@ -129,7 +129,18 @@ struct ParticleBatch
     std::uint32_t count = 0;
     // nullptr: the built-in soft circle
     const Texture2D* texture = nullptr;
+    // the texture holds a smoke puff (R brightness, G erosion noise, A alpha) instead of a colour
+    bool packed_channels = false;
+    std::uint32_t flipbook_columns = 1;
+    std::uint32_t flipbook_rows = 1;
+    bool flipbook_blend = false;
+    float erosion_softness = 0.1f;
     ParticleBlend blend = ParticleBlend::eAlpha;
+    // lit by the directional light (with its shadow), with `light_wrap` of wrap-around
+    bool lit = false;
+    float light_wrap = 0.5f;
+    // > 0: fades near the geometry behind (needs a copy of the scene's depth)
+    float soft_distance = 0.0f;
     std::int32_t sort_order = 0;
     // where the batch is, for sorting the batches: the emitter's position
     glm::vec3 center{ 0.0f };
