@@ -165,6 +165,19 @@ public:
         return slot ? references_[*slot] : 0;
     }
 
+    // calls fn(handle, object) for every object, by slot, without copying anything
+    template<typename Fn>
+    void for_each(Fn&& fn) const
+    {
+        for (std::uint32_t i = 0; i < SIZE; i++)
+        {
+            if (occupied_[i])
+            {
+                fn(make_handle(i), objects_[i]);
+            }
+        }
+    }
+
     // handle and name of every object, by slot
     std::vector<std::pair<std::uint32_t, std::string>> get_object_names() const
     {

@@ -17,6 +17,8 @@ class Terrain
 {
 public:
     explicit Terrain(TerrainData data);
+    // whoever reads its heights in place learns that it went
+    ~Terrain() { TerrainData::mark_changed(); }
     Terrain(const Terrain&) = delete;
     Terrain& operator=(const Terrain&) = delete;
 

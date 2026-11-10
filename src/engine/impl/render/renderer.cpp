@@ -560,14 +560,17 @@ void engine::Renderer::draw_terrains(const FrameView& view, const UniformBuffer&
         return;
     }
     ENGINE_PROFILE_SECTION_N("Renderer::draw_terrains");
-    const auto frustum = Frustum::from_view_projection(view_projection);
     geometry_terrain_chunk_.bind();
     for (const auto& item : scene.terrains)
     {
-        if (!item.heights->is_valid())
+        if (!item.heights->is_valid() || !item.data)
         {
             continue;
         }
+        // the camera's frustum in the terrain's local space, where the chunks' bounds are: one matrix per terrain
+        // instead of a transformed box per chunk
+        const auto frustum = Frustum::from_view_projection(view_projection * item.model);
+        const auto chunks = item.data->get_chunks();
         const TerrainDrawContext terrain{
             .camera = camera_ubo,
             .model_matrix = glm::value_ptr(item.model),
@@ -577,7 +580,7 @@ void engine::Renderer::draw_terrains(const FrameView& view, const UniformBuffer&
             .texture_tile_size = { item.texture_tile_size.x, item.texture_tile_size.y } };
         // bound when the first visible chunk is found: a terrain out of view costs only its culling
         bool began = false;
-        for (const auto& chunk : item.chunks)
+        for (const auto& chunk : chunks)
         {
             if (!frustum.intersects(chunk.bounds))
             {
@@ -602,21 +605,19 @@ void engine::Renderer::draw_terrains(const FrameView& view, const UniformBuffer&
                         .texture_specular = *item.texture_specular });
                 }
             }
-            const auto origin_x = static_cast<std::uint32_t>(chunk.origin.x);
-            const auto origin_z = static_cast<std::uint32_t>(chunk.origin.y);
             if (depth_only)
             {
-                material_terrain_depth_only_.draw_chunk(geometry_terrain_chunk_, origin_x, origin_z);
+                material_terrain_depth_only_.draw_chunk(geometry_terrain_chunk_, chunk.x, chunk.z);
             }
             else
             {
-                material_terrain_lit_.draw_chunk(geometry_terrain_chunk_, origin_x, origin_z);
+                material_terrain_lit_.draw_chunk(geometry_terrain_chunk_, chunk.x, chunk.z);
                 stats_.terrain_chunks_drawn++;
             }
         }
         if (!depth_only)
         {
-            stats_.terrain_chunks_total += static_cast<std::uint32_t>(item.chunks.size());
+            stats_.terrain_chunks_total += static_cast<std::uint32_t>(chunks.size());
             if (began)
             {
                 material_terrain_lit_.end();

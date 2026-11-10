@@ -430,10 +430,7 @@ engine_application_frame_end_info_t engine::Application::end_frame()
     // the UI is laid out for the image rendered now; mouse events of the next frame happen while it is on the screen
     ui_manager_.set_viewport(get_scene_viewport());
     // the heights changed this frame reach the GPU before anything is drawn with them
-    for (const auto& [handle, name] : terrains_atlas_.get_object_names())
-    {
-        get_terrain(handle)->update_gpu();
-    }
+    terrains_atlas_.for_each([](std::uint32_t, const std::shared_ptr<Terrain>& terrain) { terrain->update_gpu(); });
     renderer_.render_frame();
     rdx_.end_frame();
     ENGINE_PROFILE_FRAME;

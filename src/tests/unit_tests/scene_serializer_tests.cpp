@@ -690,6 +690,19 @@ TEST_F(SceneFileTest, TerrainAndHeightfieldColliderReferenceTheTerrainByAssetId)
     EXPECT_EQ(missing.get<engine_collider_component_t>(1).collider.heightfield.terrain, static_cast<std::uint32_t>(ENGINE_INVALID_OBJECT_HANDLE));
 }
 
+// a compound's child is a box or a sphere: a terrain can't be one, and a file saying so is refused when it is loaded,
+// not when the body is created
+TEST_F(SceneFileTest, CompoundChildCanNotBeAHeightfield)
+{
+    World w;
+    ASSERT_TRUE(load(w, R"({ "version": 1, "entities": [ { "id": 1, "components": {
+        "collider": { "type": "compound", "compound": { "children": [ { "type": "heightfield" } ] } } } } ] })"));
+    const auto& collider = w.get<engine_collider_component_t>(1);
+    EXPECT_EQ(collider.type, ENGINE_COLLIDER_TYPE_COMPOUND);
+    EXPECT_EQ(collider.collider.compound.children[0].type, ENGINE_COLLIDER_TYPE_BOX);
+    EXPECT_TRUE(test_logger::logged("unknown value \"heightfield\""));
+}
+
 TEST_F(SceneFileTest, InactiveUnionCaseIsIgnored)
 {
     World w;

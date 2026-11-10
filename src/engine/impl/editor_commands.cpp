@@ -492,130 +492,101 @@ void CommandDuplicateEntity::duplicate(Scene& sc)
     select_copy_ = std::make_unique<CommandSetSelection>(sc, sc.resolve(selected_), copy_entity);
 }
 
-CommandPlacePrefab::CommandPlacePrefab(Scene& sc, IAssetSelection& assets, std::string_view prefab_asset_id, const glm::vec3& position, entt::entity selected)
+CommandPlaceAsset::CommandPlaceAsset(Scene& sc, IAssetSelection& assets, std::string_view asset_id, const glm::vec3& position, entt::entity selected)
     : assets_(assets)
-    , asset_id_(prefab_asset_id)
+    , asset_id_(asset_id)
     , position_(position)
     , selected_(sc.make_ref(selected))
 {
 }
 
-void CommandPlacePrefab::execute(Scene& sc)
+void CommandPlaceAsset::execute(Scene& sc)
 {
-    if (!destroy_instance_)
+    if (!destroy_placed_)
     {
         place(sc);
     }
     else
     {
-        destroy_instance_->undo(sc);
+        destroy_placed_->undo(sc);
     }
-    if (select_instance_)
+    if (select_placed_)
     {
-        select_instance_->execute(sc);
+        select_placed_->execute(sc);
     }
 }
 
-void CommandPlacePrefab::undo(Scene& sc)
+void CommandPlaceAsset::undo(Scene& sc)
 {
-    if (select_instance_)
+    if (select_placed_)
     {
-        select_instance_->undo(sc);
+        select_placed_->undo(sc);
     }
-    if (destroy_instance_)
+    if (destroy_placed_)
     {
-        destroy_instance_->execute(sc);
+        destroy_placed_->execute(sc);
     }
 }
 
-void CommandPlacePrefab::place(Scene& sc)
+void CommandPlaceAsset::place(Scene& sc)
 {
-    // logs why when it can't be loaded
-    const auto prefab = sc.assets().resolve_prefab(asset_id_);
-    if (prefab == ENGINE_INVALID_OBJECT_HANDLE)
-    {
-        return;
-    }
-    const auto root = sc.prefabs().instantiate_prefab(prefab, Prefab::Instance::ePersistent);
+    const auto root = create(sc, asset_id_, position_);
     if (root == entt::null)
     {
         return;
     }
     root_ = sc.make_ref(root);
+    make_name_unique_among_siblings(sc, root);
+
+    destroy_placed_ = std::make_unique<CommandDestroyEntity>(sc, root);
+    // the file selected before (the one dragged in, often) comes back with undo
+    select_placed_ = std::make_unique<CommandSetSelection>(sc, assets_, sc.resolve(selected_), root, "");
+}
+
+entt::entity CommandPlacePrefab::create(Scene& sc, const std::string& asset_id, const glm::vec3& position)
+{
+    // logs why when it can't be loaded
+    const auto prefab = sc.assets().resolve_prefab(asset_id);
+    if (prefab == ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return entt::null;
+    }
+    const auto root = sc.prefabs().instantiate_prefab(prefab, Prefab::Instance::ePersistent);
+    if (root == entt::null)
+    {
+        return entt::null;
+    }
     if (!sc.has_component<engine_transform_component_t>(root))
     {
         sc.add_component<engine_transform_component_t>(root);
     }
     auto transform = *sc.get_component<engine_transform_component_t>(root);
-    std::memcpy(transform.position, &position_[0], sizeof(transform.position));
+    std::memcpy(transform.position, &position[0], sizeof(transform.position));
     sc.update_component<engine_transform_component_t>(root, transform);
-    make_name_unique_among_siblings(sc, root);
-
-    destroy_instance_ = std::make_unique<CommandDestroyEntity>(sc, root);
-    // the file selected before (the one dragged in, often) comes back with undo
-    select_instance_ = std::make_unique<CommandSetSelection>(sc, assets_, sc.resolve(selected_), root, "");
+    return root;
 }
 
-
-CommandPlaceTerrain::CommandPlaceTerrain(Scene& sc, IAssetSelection& assets, std::string_view terrain_asset_id, const glm::vec3& position, entt::entity selected)
-    : assets_(assets)
-    , asset_id_(terrain_asset_id)
-    , position_(position)
-    , selected_(sc.make_ref(selected))
-{
-}
-
-void CommandPlaceTerrain::execute(Scene& sc)
-{
-    if (!destroy_terrain_)
-    {
-        place(sc);
-    }
-    else
-    {
-        destroy_terrain_->undo(sc);
-    }
-    if (select_terrain_)
-    {
-        select_terrain_->execute(sc);
-    }
-}
-
-void CommandPlaceTerrain::undo(Scene& sc)
-{
-    if (select_terrain_)
-    {
-        select_terrain_->undo(sc);
-    }
-    if (destroy_terrain_)
-    {
-        destroy_terrain_->execute(sc);
-    }
-}
-
-void CommandPlaceTerrain::place(Scene& sc)
+entt::entity CommandPlaceTerrain::create(Scene& sc, const std::string& asset_id, const glm::vec3& position)
 {
     // the scene holds the terrain it references; logs why when it can't be loaded
-    const auto handle = sc.assets().resolve(AssetKind::eTerrain, asset_id_);
+    const auto handle = sc.assets().resolve(AssetKind::eTerrain, asset_id);
     const auto* terrain = sc.get_application()->get_terrain(handle);
     if (!terrain)
     {
-        return;
+        return entt::null;
     }
     const auto root = sc.create_new_entity();
-    root_ = sc.make_ref(root);
     auto name = *sc.add_component<engine_name_component_t>(root);
-    const auto stem = std::filesystem::path(asset_id_).stem().string();
-    const auto length = std::min<std::size_t>(stem.size(), ENGINE_ENTITY_NAME_MAX_LENGTH - 1);
-    std::memcpy(name.name, stem.c_str(), length);
-    name.name[length] = '\0';
+    // named after the file
+    const auto stem = truncate_name(std::filesystem::path(asset_id).stem().string(), ENGINE_ENTITY_NAME_MAX_LENGTH);
+    std::memcpy(name.name, stem.c_str(), stem.size() + 1);
     sc.update_component<engine_name_component_t>(root, name);
     // a terrain starts at its origin: its middle goes where it was dropped
     auto transform = *sc.add_component<engine_transform_component_t>(root);
     const auto size = terrain->get_data().get_size();
-    transform.position[0] = position_.x - size.x * 0.5f;
-    transform.position[1] = position_.y;
-    transform.position[2] = position_.z - size.y * 0.5f;
+    transform.position[0] = position.x - size.x * 0.5f;
+    transform.position[1] = position.y;
+    transform.position[2] = position.z - size.y * 0.5f;
     sc.update_component<engine_transform_component_t>(root, transform);
     auto terrain_component = *sc.add_component<engine_terrain_component_t>(root);
     terrain_component.terrain = handle;
@@ -625,11 +596,7 @@ void CommandPlaceTerrain::place(Scene& sc)
     collider.type = ENGINE_COLLIDER_TYPE_HEIGHTFIELD;
     collider.collider.heightfield.terrain = handle;
     sc.update_component<engine_collider_component_t>(root, collider);
-    make_name_unique_among_siblings(sc, root);
-
-    destroy_terrain_ = std::make_unique<CommandDestroyEntity>(sc, root);
-    // the file selected before (the one dragged in, often) comes back with undo
-    select_terrain_ = std::make_unique<CommandSetSelection>(sc, assets_, sc.resolve(selected_), root, "");
+    return root;
 }
 
 

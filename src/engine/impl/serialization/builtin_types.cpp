@@ -153,11 +153,14 @@ void register_collider(engine::TypeRegistry& registry)
     TypeBuilder<engine_heightfield_collider_t>(registry, "heightfield_collider")
         .asset("terrain", &engine_heightfield_collider_t::terrain, AssetKind::eTerrain)
         .structure();
+    // a child is a box or a sphere: any other type is refused when a file is loaded
+    const std::vector<EnumValue> child_collider_types = {
+        { "box", ENGINE_COLLIDER_TYPE_BOX },
+        { "sphere", ENGINE_COLLIDER_TYPE_SPHERE } };
     TypeBuilder<engine_child_collider_t>(registry, "child_collider")
-        .enumeration("type", &engine_child_collider_t::type, collider_types)
+        .enumeration("type", &engine_child_collider_t::type, child_collider_types)
         .field("transform", &engine_child_collider_t::transform)
         .field("rotation_quaternion", &engine_child_collider_t::rotation_quaternion)
-        // a child is a box or a sphere
         .tagged_union("collider", &engine_child_collider_t::collider, "type", {
             { ENGINE_COLLIDER_TYPE_BOX, "box_collider" },
             { ENGINE_COLLIDER_TYPE_SPHERE, "sphere_collider" } })

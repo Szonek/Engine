@@ -228,7 +228,7 @@ engine::PhysicsWorld::BodyType engine::PhysicsSystem::get_body_type(entt::entity
         return PhysicsWorld::BodyType::eKinematic;
     }
     // a terrain never moves
-    if (const auto* collider = registry_.try_get<engine_collider_component_t>(entity); collider && collider->type == ENGINE_COLLIDER_TYPE_HEIGHTFIELD)
+    if (const auto* collider = registry_.try_get<engine_collider_component_t>(entity); collider && is_always_static(*collider))
     {
         return PhysicsWorld::BodyType::eStatic;
     }
@@ -270,6 +270,8 @@ void engine::PhysicsSystem::create_body(entt::entity entity, bool without_rigid_
     }
     if (!registry_.all_of<engine_transform_component_t>(entity) || (!character && !collider))
     {
+        // no body: nothing to follow a terrain with (a heightfield which is disabled, or has no transform yet)
+        registry_.remove<heightfield_body_internal_component_t>(entity);
         return;
     }
     const auto layer = character ? character->layer : collider->layer;
@@ -290,7 +292,7 @@ void engine::PhysicsSystem::create_body(entt::entity entity, bool without_rigid_
         physcics_component = world_.create_character_body(character->radius, character->height, character->layer, character->collides_with, local_to_world,
             static_cast<std::int32_t>(entity));
     }
-    else if (collider->type == ENGINE_COLLIDER_TYPE_HEIGHTFIELD)
+    else if (is_always_static(*collider))
     {
         const auto* rigid_body = without_rigid_body ? nullptr : registry_.try_get<engine_rigid_body_component_t>(entity);
         if (rigid_body && rigid_body->type != ENGINE_RIGID_BODY_TYPE_STATIC)
@@ -325,6 +327,12 @@ void engine::PhysicsSystem::create_body(entt::entity entity, bool without_rigid_
 
 void engine::PhysicsSystem::sync_heightfields_to_terrains()
 {
+    // nothing to look at while no terrain changed, was made or went (nearly every call: this runs before every query)
+    if (terrain_changes_seen_ == TerrainData::get_change_count())
+    {
+        return;
+    }
+    terrain_changes_seen_ = TerrainData::get_change_count();
     // a few game objects at most; collected first, creating a body changes the storage
     std::vector<entt::entity> changed;
     for (const auto [entity, body] : registry_.view<const heightfield_body_internal_component_t>().each())

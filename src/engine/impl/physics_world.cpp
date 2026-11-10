@@ -198,6 +198,7 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
             else
             {
                 engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Unknown collider type in compound collider!\n"));
+                delete_shape(cs);
                 return ret;
             }
         }
@@ -228,8 +229,8 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
         shape->addChildShape(offset, heights);
         ret.collision_shape = shape;
         ret.shape_data = std::move(heightfield);
-        type = BodyType::eStatic;
-        mass = 0.0f;
+        // a terrain never moves (is_always_static): the caller asks for a static body
+        assert(type == BodyType::eStatic);
     }
     else
     {

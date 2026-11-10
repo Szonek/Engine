@@ -349,6 +349,39 @@ TEST_F(TerrainTest, ColliderWithoutItsTerrainHasNoBodyUntilItGetsOne)
     collider.disable = true;
     engineGameObjectUpdateColliderComponent(go, &collider);
     EXPECT_FALSE(ray_down(2.0f, 2.0f, hit));
+    // heights changed while it is disabled give it no body, and are there when it is enabled again
+    const std::vector<float> raised(25, 4.0f);
+    ASSERT_EQ(engineTerrainSetHeights(collider.collider.heightfield.terrain, 0, 0, 5, 5, raised.data()), ENGINE_RESULT_CODE_OK);
+    EXPECT_FALSE(ray_down(2.0f, 2.0f, hit));
+    step(2);
+    EXPECT_FALSE(ray_down(2.0f, 2.0f, hit));
+    collider.disable = false;
+    engineGameObjectUpdateColliderComponent(go, &collider);
+    ASSERT_TRUE(ray_down(2.0f, 2.0f, hit));
+    EXPECT_NEAR(hit.position[1], 4.0f, 0.01f);
+}
+
+// the committed terrain of the outdoor level is what importing its heightmap writes: pressing Import in the editor
+// with the same settings changes nothing (generate_test_terrains.py computes the heights like the engine)
+TEST_F(TerrainTest, OutdoorTerrainIsItsHeightmapImported)
+{
+    const engine_terrain_import_desc_t desc{ 1.0f, 0.0f, 6.0f };
+    engine_terrain_t imported = ENGINE_INVALID_OBJECT_HANDLE;
+    ASSERT_EQ(engineTerrainImportHeightmap("outdoor_test.png", &desc, "test/outdoor_imported", &imported), ENGINE_RESULT_CODE_OK);
+    terrains_.push_back(imported);
+    engine_terrain_t committed = ENGINE_INVALID_OBJECT_HANDLE;
+    ASSERT_EQ(engineTerrainLoad("outdoor_test.terrain", &committed), ENGINE_RESULT_CODE_OK);
+    terrains_.push_back(committed);
+    engine_terrain_info_t info{};
+    ASSERT_EQ(engineTerrainGetInfo(committed, &info), ENGINE_RESULT_CODE_OK);
+    ASSERT_EQ(info.samples_x, 65u);
+    ASSERT_EQ(info.samples_z, 65u);
+    EXPECT_FLOAT_EQ(info.cell_size, 1.0f);
+    std::vector<float> from_file(65 * 65);
+    std::vector<float> from_heightmap(65 * 65);
+    ASSERT_EQ(engineTerrainGetHeights(committed, 0, 0, 65, 65, from_file.data()), ENGINE_RESULT_CODE_OK);
+    ASSERT_EQ(engineTerrainGetHeights(imported, 0, 0, 65, 65, from_heightmap.data()), ENGINE_RESULT_CODE_OK);
+    EXPECT_EQ(from_file, from_heightmap);
 }
 
 TEST_F(TerrainTest, HeightfieldStaysStaticWhateverRigidBodyItHas)

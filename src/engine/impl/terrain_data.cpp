@@ -90,6 +90,7 @@ std::optional<engine::TerrainData> engine::TerrainData::create(std::uint32_t sam
     }
     data.update_bounds(Region{ 0, 0, samples_x, samples_z });
     data.mark_rows_changed(0, samples_z - 1);
+    mark_changed();
     return data;
 }
 
@@ -222,6 +223,7 @@ bool engine::TerrainData::set_heights(const Region& region, std::span<const floa
     update_bounds(region);
     mark_rows_changed(region.z, region.z + region.depth - 1);
     revision_++;
+    mark_changed();
     return true;
 }
 

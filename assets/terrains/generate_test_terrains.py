@@ -32,13 +32,21 @@ def write_png16(path, width, height, pixels):
         f.write(chunk(b"IEND", b""))
 
 
+def f32(value):
+    """The value rounded to a 32-bit float, as the engine computes."""
+    return struct.unpack("<f", struct.pack("<f", value))[0]
+
+
 def write_terrain(path, width, height, cell_size, pixels, height_min, height_max):
-    """The engine's terrain file (TerrainData::serialize): little endian, heights as floats."""
-    scale = (height_max - height_min) / 65535.0
+    """The engine's terrain file (TerrainData::serialize): little endian, heights as floats. The heights are computed
+    like TerrainData::from_heightmap does, in 32-bit floats step by step, so importing the heightmap in the editor
+    with the same settings writes the same bytes."""
+    low = f32(height_min)
+    scale = f32(f32(f32(height_max) - low) / 65535.0)
     with open(path, "wb") as f:
         f.write(b"ENGTERR\x00")
         f.write(struct.pack("<IIIf", 1, width, height, cell_size))
-        f.write(struct.pack("<%df" % len(pixels), *(height_min + p * scale for p in pixels)))
+        f.write(struct.pack("<%df" % len(pixels), *(f32(low + f32(p * scale)) for p in pixels)))
 
 
 def hills(size):

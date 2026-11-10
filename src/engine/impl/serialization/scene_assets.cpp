@@ -96,7 +96,14 @@ std::uint32_t engine::SceneAssets::resolve(AssetKind kind, std::string_view asse
             {
                 return existing;
             }
-            it = terrains_.emplace(asset_id, app_.load_terrain(asset_id)).first;
+            // A file which can't be loaded (logged) is tried again the next time: it may have been written since
+            // (a heightmap imported again).
+            const auto loaded = app_.load_terrain(asset_id);
+            if (loaded == ENGINE_INVALID_OBJECT_HANDLE)
+            {
+                return ENGINE_INVALID_OBJECT_HANDLE;
+            }
+            it = terrains_.emplace(asset_id, loaded).first;
         }
         return it->second;
     }

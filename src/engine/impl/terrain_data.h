@@ -98,6 +98,11 @@ public:
     // moves with every change of the heights: what is derived from them (the GPU's copy, the collision shape's range)
     // is brought up to date when it differs
     std::uint64_t get_revision() const { return revision_; }
+    // Moves whenever any terrain's heights change, a terrain is made or one goes (mark_changed): whoever follows the
+    // terrains (the physics, before every query) looks at them only when it moved. Main thread only.
+    static std::uint64_t get_change_count() { return change_count_; }
+    static void mark_changed() { change_count_++; }
+
     // The rows of samples changed since the last call, as [first, last], for uploading them; nullopt when none did.
     std::optional<std::pair<std::uint32_t, std::uint32_t>> take_changed_rows();
 
@@ -128,6 +133,7 @@ private:
     std::uint32_t chunks_z_ = 0;
     std::vector<Chunk> chunks_;
     std::uint64_t revision_ = 1;
+    inline static std::uint64_t change_count_ = 0;
     bool rows_changed_ = false;
     std::uint32_t first_changed_row_ = 0;
     std::uint32_t last_changed_row_ = 0;

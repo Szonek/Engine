@@ -1,10 +1,12 @@
 #pragma once
 #include "../bounds.h"
+#include "../terrain_data.h"
 #include "../graphics.h"
 
 #include <glm/glm.hpp>
 
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 namespace engine
@@ -100,14 +102,6 @@ struct SkinnedMeshDrawItem : StaticMeshDrawItem
 // camera sees.
 struct TerrainDrawItem
 {
-    struct Chunk
-    {
-        // the chunk's first sample
-        glm::ivec2 origin{ 0 };
-        // around its surface, in world space
-        Aabb bounds;
-    };
-
     std::uint32_t entity_id = 0;
     // one float per sample: the height in the terrain's local space
     const Texture2D* heights = nullptr;
@@ -120,7 +114,8 @@ struct TerrainDrawItem
     float shininess = 0.0f;
     const Texture2D* texture_diffuse = nullptr;
     const Texture2D* texture_specular = nullptr;
-    std::vector<Chunk> chunks;
+    // the terrain's chunks with their bounds in its local space (held: the heights can't go before the frame is drawn)
+    std::shared_ptr<const TerrainData> data;
 };
 
 struct SpriteDrawItem

@@ -119,7 +119,8 @@ A new built-in lit/unlit shader is a `Material*` class in `material.h/.cpp` plus
   chunk with one shared grid of vertices which `terrain.vs` displaces with the terrain's height texture (one float per
   sample, kept up to date by `Terrain::update_gpu` before the frame is rendered), lit by `lit.fs` like a mesh. The
   material's textures repeat over the terrain through a `Sampler` bound for these draws only. **Chunks are frustum
-  culled per pass** (`Frustum`, `bounds.h`): against the view's camera in Depth Pre-pass and Forward, against the
+  culled per pass** (`Frustum`, `bounds.h`; the frustum is taken into the terrain's local space, where the chunks'
+  bounds are, so nothing is transformed per chunk): against the view's camera in Depth Pre-pass and Forward, against the
   light's camera in Shadow Map. The editor's stats show how many chunks the cameras drew. Meshes aren't culled yet.
 * Bone matrices of all skinned meshes of a scene are uploaded once per frame (`SceneGpu::frames[...].skinning`, one copy per frame in flight guarded by a fence, so the CPU never overwrites matrices the GPU is still reading), draws only pass an offset into it.
 * `RenderGraph` is unit tested without a GL context: see `src/tests/unit_tests/render_graph_tests.cpp` (target `engine_logic_tests`).

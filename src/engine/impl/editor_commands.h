@@ -279,25 +279,25 @@ private:
     std::unique_ptr<CommandSetSelection> select_copy_;
 };
 
-// Places a prefab (a model or a scene file, by its asset ID) as a persistent instance, like dragging an asset into
-// Unity's or Godot's scene view: its root is moved to `position` (keeping the rotation and scale the prefab gave it),
-// gets a name no other game object without a parent has ("Rogue (1)" when there is a "Rogue", like a duplicate) and becomes
-// the selection (deselecting the file selected in the asset browser). The scene holds the prefab (SceneAssets) as long as
-// it lives. Undo destroys the instance (and gives the selection back, a file too), redo brings it back with the same IDs
-// and handles; one undo step.
-class CommandPlacePrefab : public ICommand
+// Places something dragged from the asset browser into the scene view as a new game object (with what it brings under
+// it) at `position`, and selects it. Undo destroys it the way a delete does (and gives the selection back, a file
+// too), redo brings it back with the same IDs and handles; one undo step. What is placed is the derived command's.
+class CommandPlaceAsset : public ICommand
 {
 public:
-    // `selected`: the game object selected before the placement, given back on undo with the file selected in `assets`
-    CommandPlacePrefab(Scene& sc, IAssetSelection& assets, std::string_view prefab_asset_id, const glm::vec3& position, entt::entity selected);
-
-    // the instance's root in `sc`, entt::null when nothing was placed
+    // the placed game object in `sc`, entt::null when nothing was placed
     entt::entity get_instance(const Scene& sc) const { return sc.resolve(root_); }
 
     void execute(Scene& sc) override;
     void undo(Scene& sc) override;
-    // a prefab which couldn't be loaded or instantiated leaves no undo step
+    // an asset which couldn't be loaded or placed leaves no undo step
     bool has_effect() const override { return !root_.is_none(); }
+
+protected:
+    // `selected`: the game object selected before the placement, given back on undo with the file selected in `assets`
+    CommandPlaceAsset(Scene& sc, IAssetSelection& assets, std::string_view asset_id, const glm::vec3& position, entt::entity selected);
+    // Creates the game object for the asset at `position`, named; entt::null (logged) when it can't.
+    virtual entt::entity create(Scene& sc, const std::string& asset_id, const glm::vec3& position) = 0;
 
 private:
     void place(Scene& sc);
@@ -307,37 +307,34 @@ private:
     const glm::vec3 position_;
     const GameObjectRef selected_;
     GameObjectRef root_;
-    // undo destroys the instance the way a delete does, redo is that delete's undo
-    std::unique_ptr<CommandDestroyEntity> destroy_instance_;
-    std::unique_ptr<CommandSetSelection> select_instance_;
+    // undo destroys what was placed the way a delete does, redo is that delete's undo
+    std::unique_ptr<CommandDestroyEntity> destroy_placed_;
+    std::unique_ptr<CommandSetSelection> select_placed_;
 };
 
+// Places a model or a scene file dragged into the scene view: a persistent instance of its prefab, its root at the
+// position. The scene's assets hold the prefab, so the instance's assets live as long as it does.
+class CommandPlacePrefab : public CommandPlaceAsset
+{
+public:
+    CommandPlacePrefab(Scene& sc, IAssetSelection& assets, std::string_view prefab_asset_id, const glm::vec3& position, entt::entity selected)
+        : CommandPlaceAsset(sc, assets, prefab_asset_id, position, selected) {}
+
+protected:
+    entt::entity create(Scene& sc, const std::string& asset_id, const glm::vec3& position) override;
+};
 
 // Places a terrain file dragged into the scene view: a new game object named after the file with what a terrain is
 // made of (a transform, the terrain and a material to draw it, a heightfield collider to walk on it), its middle at
-// `position`. One undo step, like CommandPlacePrefab.
-class CommandPlaceTerrain : public ICommand
+// the position.
+class CommandPlaceTerrain : public CommandPlaceAsset
 {
 public:
-    // `selected`: the game object selected before the placement, given back on undo with the file selected in `assets`
-    CommandPlaceTerrain(Scene& sc, IAssetSelection& assets, std::string_view terrain_asset_id, const glm::vec3& position, entt::entity selected);
+    CommandPlaceTerrain(Scene& sc, IAssetSelection& assets, std::string_view terrain_asset_id, const glm::vec3& position, entt::entity selected)
+        : CommandPlaceAsset(sc, assets, terrain_asset_id, position, selected) {}
 
-    void execute(Scene& sc) override;
-    void undo(Scene& sc) override;
-    // a terrain which couldn't be loaded leaves no undo step
-    bool has_effect() const override { return !root_.is_none(); }
-
-private:
-    void place(Scene& sc);
-
-    IAssetSelection& assets_;
-    const std::string asset_id_;
-    const glm::vec3 position_;
-    const GameObjectRef selected_;
-    GameObjectRef root_;
-    // undo destroys the game object the way a delete does, redo is that delete's undo
-    std::unique_ptr<CommandDestroyEntity> destroy_terrain_;
-    std::unique_ptr<CommandSetSelection> select_terrain_;
+protected:
+    entt::entity create(Scene& sc, const std::string& asset_id, const glm::vec3& position) override;
 };
 
 class CommandSetPhysicsDebugDraw: public ICommand

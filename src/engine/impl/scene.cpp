@@ -264,10 +264,10 @@ engine_result_code_t engine::Scene::build_nav_mesh()
     colliders.each([this, &input](auto entity, const world_transform_internal_component_t& world, const engine_collider_component_t& collider)
         {
             // only static colliders: moving bodies (dynamic, kinematic), triggers and disabled colliders don't block for good
-            const auto* rigid_body = entity_registry_.try_get<engine_rigid_body_component_t>(entity);
-            const bool is_heightfield = collider.type == ENGINE_COLLIDER_TYPE_HEIGHTFIELD;
-            if (collider.is_trigger || collider.disable || (!is_heightfield && rigid_body && rigid_body->type == ENGINE_RIGID_BODY_TYPE_KINEMATIC)
-                || (!is_heightfield && rigid_body && rigid_body->type == ENGINE_RIGID_BODY_TYPE_DYNAMIC && rigid_body->mass > 0.0f))
+            // (a collider which is always static, a terrain, is as if it had no rigid body)
+            const auto* rigid_body = is_always_static(collider) ? nullptr : entity_registry_.try_get<engine_rigid_body_component_t>(entity);
+            if (collider.is_trigger || collider.disable || (rigid_body && rigid_body->type == ENGINE_RIGID_BODY_TYPE_KINEMATIC)
+                || (rigid_body && rigid_body->type == ENGINE_RIGID_BODY_TYPE_DYNAMIC && rigid_body->mass > 0.0f))
             {
                 return;
             }
@@ -591,11 +591,9 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
                 item.texture_diffuse = texture_diffuse;
                 // like meshes: the specular texture isn't used yet
                 item.texture_specular = texture_diffuse;
-                item.chunks.reserve(data.get_chunks().size());
-                for (const auto& chunk : data.get_chunks())
-                {
-                    item.chunks.push_back({ glm::ivec2(chunk.x, chunk.z), transform_aabb(chunk.bounds, world.local_to_world) });
-                }
+                // its chunks and their bounds, culled by the renderer in the terrain's local space: nothing is copied
+                // or transformed per frame
+                item.data = terrain->get_shared_data();
                 render_data.terrains.push_back(std::move(item));
             }
         );

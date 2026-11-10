@@ -21,6 +21,13 @@ namespace engine
 // and answers physics queries. Like Unity, bodies are created as soon as their components exist (and again when they
 // change), and moved transforms are synced to the bodies lazily: before the physics step and before every query, so
 // queries during the scripts' update see this frame's state.
+// A heightfield collider is a terrain, which never moves: its body is static whatever rigid body its game object has.
+// The one place saying so, for the physics and for what reads colliders like it (nav mesh builds).
+inline bool is_always_static(const engine_collider_component_t& collider)
+{
+    return collider.type == ENGINE_COLLIDER_TYPE_HEIGHTFIELD;
+}
+
 class PhysicsSystem
 {
 public:
@@ -92,6 +99,8 @@ private:
     JointMatrixFunction joint_matrix_;
     std::function<bool()> is_editing_;
     TerrainLookup terrain_lookup_;
+    // TerrainData::get_change_count() when the heightfields were last compared with their terrains
+    std::uint64_t terrain_changes_seen_ = 0;
     PhysicsWorld world_;
     // game objects whose transform changed since the last sync (a reactive storage: owned by the registry, so destroyed
     // game objects leave it; a standalone one would keep their stale entities)
