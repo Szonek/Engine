@@ -31,6 +31,9 @@ struct FrameView
     // camera of the directional light (CameraGpuData), valid only if has_shadow is set
     const UniformBuffer* shadow_camera_ubo = nullptr;
     bool has_shadow = false;
+    // world space -> clip space of the directional light's camera (valid only if has_shadow is set), for culling what
+    // the shadow map is rendered from
+    glm::mat4 shadow_view_projection{ 1.0f };
 };
 
 // Everything a feature needs to declare its passes.

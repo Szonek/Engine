@@ -175,6 +175,48 @@ TEST(NavMesh, WalkableSurfaceSteeperThanMaxSlopeIsNotWalkable)
     EXPECT_EQ(engine::NavMesh::build(input, {}), nullptr);
 }
 
+// a terrain is nav mesh input like a collider: a slope agents can walk, with a ridge too steep for them across most of
+// it, placed by its game object's matrix
+TEST(NavMesh, HeightfieldIsWalkableWhereItsSlopeAllows)
+{
+    std::vector<float> heights;
+    for (std::uint32_t z = 0; z < 21; z++)
+    {
+        for (std::uint32_t x = 0; x < 21; x++)
+        {
+            const bool ridge = x >= 10 && x <= 11 && z <= 14;
+            heights.push_back(static_cast<float>(x) * 0.2f + (ridge ? 3.0f : 0.0f));
+        }
+    }
+    const auto terrain = *engine::TerrainData::create(21, 21, 1.0f, heights);
+    const glm::vec3 origin(100.0f, 5.0f, -50.0f);
+    engine::NavMeshInput input;
+    input.add_heightfield(terrain, glm::translate(glm::mat4(1.0f), origin), engine::NavArea::eWalkable);
+    EXPECT_EQ(input.get_triangle_count(), 20u * 20u * 2u);
+
+    const auto nav_mesh = engine::NavMesh::build(input, {});
+    ASSERT_NE(nav_mesh, nullptr);
+    // on the slope, at the terrain's height
+    const auto on_slope = nav_mesh->find_nearest_point(origin + glm::vec3(5.0f, 3.0f, 17.0f), glm::vec3(0.5f, 4.0f, 0.5f));
+    ASSERT_TRUE(on_slope);
+    EXPECT_NEAR(on_slope->y, origin.y + 1.0f, 0.15f);
+    // nothing on the ridge's sides
+    EXPECT_FALSE(nav_mesh->find_nearest_point(origin + glm::vec3(9.5f, 3.5f, 5.0f), glm::vec3(0.1f, 1.0f, 0.1f)));
+    // from one side of the ridge to the other: around its end at z = 14
+    const auto start = origin + glm::vec3(4.0f, 0.8f, 4.0f);
+    const auto end = origin + glm::vec3(16.0f, 3.2f, 4.0f);
+    const auto path = nav_mesh->find_path(start, end, SEARCH_HALF_EXTENTS, 64);
+    ASSERT_TRUE(path);
+    EXPECT_FALSE(path->partial);
+    EXPECT_GT(path_length(path->points), 20.0f);
+    EXPECT_TRUE(std::ranges::any_of(path->points, [&origin](const glm::vec3& point) { return point.z - origin.z > 14.0f; }));
+
+    // as an obstacle nothing of it is walkable
+    engine::NavMeshInput blocked;
+    blocked.add_heightfield(terrain, glm::mat4(1.0f), engine::NavArea::eNotWalkable);
+    EXPECT_EQ(engine::NavMesh::build(blocked, {}), nullptr);
+}
+
 TEST(NavMesh, NothingWalkableFailsToBuild)
 {
     engine::NavMeshInput empty;

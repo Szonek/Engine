@@ -10,6 +10,7 @@
 #include <array>
 #include <deque>
 #include <functional>
+#include <memory>
 #include <span>
 #include <tuple>
 #include <vector>
@@ -23,10 +24,19 @@ namespace engine
 class PhysicsSystem
 {
 public:
+    // the heights of a terrain asset and their revision (Terrain::get_revision); no data for a terrain which doesn't exist
+    struct TerrainHeights
+    {
+        std::shared_ptr<const TerrainData> data;
+        std::uint64_t revision = 0;
+    };
+    using TerrainLookup = std::function<TerrainHeights(engine_terrain_t)>;
+
     // `joint_matrix` gives the model matrix of a joint attachment's joint (the scene's skin poses); `is_editing` is true
-    // while the editor edits the scene (moving static colliders is on purpose then). Connects to the registry's signals:
+    // while the editor edits the scene (moving static colliders is on purpose then); `terrain_lookup` gives the heights
+    // of heightfield colliders. Connects to the registry's signals:
     // construct it before the component initializers are connected, so its listeners run after them.
-    PhysicsSystem(entt::registry& registry, JointMatrixFunction joint_matrix, std::function<bool()> is_editing);
+    PhysicsSystem(entt::registry& registry, JointMatrixFunction joint_matrix, std::function<bool()> is_editing, TerrainLookup terrain_lookup);
     PhysicsSystem(const PhysicsSystem&) = delete;
     PhysicsSystem& operator=(const PhysicsSystem&) = delete;
     ~PhysicsSystem();
@@ -67,6 +77,8 @@ private:
     // moves the bodies to their game objects' current world transforms; without `force` only when a transform, parent or
     // joint attachment changed since the last sync (before queries)
     void sync_bodies_to_transforms(bool force);
+    // creates the bodies of heightfield colliders again whose terrain's heights changed (or which appeared or went)
+    void sync_heightfields_to_terrains();
     void apply_forces();
     void write_dynamic_bodies_to_transforms();
 
@@ -79,6 +91,7 @@ private:
     entt::registry& registry_;
     JointMatrixFunction joint_matrix_;
     std::function<bool()> is_editing_;
+    TerrainLookup terrain_lookup_;
     PhysicsWorld world_;
     // game objects whose transform changed since the last sync (a reactive storage: owned by the registry, so destroyed
     // game objects leave it; a standalone one would keep their stale entities)

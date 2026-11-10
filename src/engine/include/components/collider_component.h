@@ -10,6 +10,8 @@ extern "C"
 
 #define ENGINE_COMPOUND_COLLIDER_MAX_CHILD_COLLIDERS 1
 
+typedef uint32_t engine_terrain_t;
+
 /**
 * @enum _engine_collider_type_t
 * @brief An enumeration representing the types of colliders that can be used in the engine.
@@ -36,12 +38,19 @@ extern "C"
 * the `compound` field of the collider union in the `engine_collider_component_t` struct should be used.
 * The `engine_compound_collider_t` struct contains a list of child colliders, each with its own type,
 * shape, and transform.
+*
+* @var ENGINE_COLLIDER_TYPE_HEIGHTFIELD
+* Represents the surface of a terrain asset (like Unity's TerrainCollider or Godot's HeightMapShape3D). When this type
+* is set, the `heightfield` field of the collider union should be used. The collider is always static: a dynamic or
+* kinematic rigid body on its game object is ignored (logged). Like the terrain component,
+* it starts at its game object's origin and extends along +x and +z.
 */
 typedef enum _engine_collider_type_t
 {
     ENGINE_COLLIDER_TYPE_BOX = 0,
     ENGINE_COLLIDER_TYPE_SPHERE,
     ENGINE_COLLIDER_TYPE_COMPOUND,
+    ENGINE_COLLIDER_TYPE_HEIGHTFIELD,
 } engine_collider_type_t;
 
 /**
@@ -65,6 +74,18 @@ typedef struct _engine_sphere_collider_t
 {
     float radius;
 } engine_sphere_collider_t;
+
+/**
+ * @struct _engine_heightfield_collider_t
+ * @brief A struct representing a heightfield collider: the surface of a terrain asset.
+ *
+ * The collider reads the terrain asset's heights in place, so a change of the heights (engineTerrainSetHeights) is a
+ * change of the collider.
+ */
+typedef struct _engine_heightfield_collider_t
+{
+    engine_terrain_t terrain;
+} engine_heightfield_collider_t;
 
 /**
  * @struct _engine_child_collider_t
@@ -148,6 +169,7 @@ typedef struct _engine_collider_component_t
         engine_box_collider_t box;
         engine_sphere_collider_t sphere;
         engine_compound_collider_t compound;
+        engine_heightfield_collider_t heightfield;
     } collider;
 
     float bounciness;

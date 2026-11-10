@@ -91,7 +91,7 @@ TEST_F(TypeRegistryTest, BuiltinTypesRegisterWithoutErrors)
     // the load order: transforms and the hierarchy before what reads world matrices, the skin before what reads its pose,
     // joint attachments and the rigid body before the collider
     const std::vector<std::string> expected = { "name", "folder", "transform", "parent", "skin", "joint_attachment", "animation_controller",
-        "mesh", "skinned_mesh", "material", "light", "camera", "nav_surface", "nav_modifier", "rigid_body", "collider", "character_controller" };
+        "mesh", "skinned_mesh", "material", "terrain", "light", "camera", "nav_surface", "nav_modifier", "rigid_body", "collider", "character_controller" };
     EXPECT_EQ(components, expected);
 }
 
@@ -145,7 +145,7 @@ TEST_F(TypeRegistryTest, UnionCasesAreNamedByTheirTagValue)
     {
         names.push_back(c.name);
     }
-    EXPECT_EQ(names, (std::vector<std::string>{ "box", "sphere", "compound" }));
+    EXPECT_EQ(names, (std::vector<std::string>{ "box", "sphere", "compound", "heightfield" }));
 }
 
 TEST_F(TypeRegistryTest, ATypeNameIsRegisteredOnce)

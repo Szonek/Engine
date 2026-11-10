@@ -17,6 +17,7 @@
 #include "components/skin_component.h"
 #include "components/animation_controller_component.h"
 #include "components/character_controller_component.h"
+#include "components/terrain_component.h"
 
 #include "engine_string.h"
 #include "engine_vector.h"
@@ -52,6 +53,7 @@ typedef uint32_t engine_prefab_t;
 typedef uint32_t engine_skin_t;
 typedef uint32_t engine_animation_set_t;
 typedef uint32_t engine_data_asset_t;
+typedef uint32_t engine_terrain_t;
 typedef uint32_t engine_shader_t;
 typedef uint32_t engine_animation_event_id_t;
 
@@ -739,6 +741,77 @@ ENGINE_API void engineDataAssetRelease(engine_data_asset_t asset);
 // holds a value of another type.
 ENGINE_API engine_result_code_t engineDataAssetGet(engine_data_asset_t asset, engine_component_type_t type, void* out);
 
+// Terrain assets (like Unity's TerrainData): a grid of samples_x * samples_z heights in metres, cell_size metres apart,
+// drawn by a terrain component and collided with through a heightfield collider. Sample (x, z) is at
+// (x * cell_size, height, z * cell_size) in the terrain's local space; heights are passed row by row (samples_x heights
+// for z = 0, then z = 1, ...). A terrain has 2 to ENGINE_TERRAIN_MAX_SAMPLES samples a side.
+// A terrain file is named by its path relative to assets/terrains (or absolute) ending in ".terrain"
+// ("outdoor/valley.terrain"), its asset ID, which is what scene files reference. Reference counted like the other assets: creating or loading gives the
+// caller a reference (loading a file which is loaded already returns the same terrain), a scene file referencing one
+// holds it as long as the scene.
+#define ENGINE_TERRAIN_MAX_SAMPLES 8193
+typedef struct _engine_terrain_create_desc_t
+{
+    uint32_t samples_x;
+    uint32_t samples_z;
+    float cell_size;
+    // samples_x * samples_z heights, or NULL for a flat terrain at height 0
+    const float* heights;
+} engine_terrain_create_desc_t;
+
+// how a 16-bit heightmap becomes heights: black is height_min, white height_max
+typedef struct _engine_terrain_import_desc_t
+{
+    float cell_size;
+    float height_min;
+    float height_max;
+} engine_terrain_import_desc_t;
+
+typedef struct _engine_terrain_info_t
+{
+    uint32_t samples_x;
+    uint32_t samples_z;
+    float cell_size;
+    // metres along x and z: (samples - 1) * cell_size
+    float size_x;
+    float size_z;
+    // of all heights
+    float height_min;
+    float height_max;
+} engine_terrain_info_t;
+
+// A terrain made by code (e.g. a seeded generator), named `name`: unique among the terrains. Name it like a file
+// ("generated/zone_1.terrain") to save it with engineTerrainSave; a terrain which is never saved has to be created again
+// before a scene file referencing it is loaded.
+ENGINE_API engine_result_code_t engineTerrainCreate(const char* name, const engine_terrain_create_desc_t* desc, engine_terrain_t* out);
+// The terrain file at `path` (relative to assets/terrains, or absolute). ENGINE_RESULT_CODE_FAIL (logged) when it
+// can't be read.
+ENGINE_API engine_result_code_t engineTerrainLoad(const char* path, engine_terrain_t* out);
+// A terrain named `name` from a heightmap at `heightmap_path` (relative to assets/terrains, or absolute): a 16-bit
+// grayscale PNG, or a square 16-bit little endian raw file without a header (.r16, .raw), which is what Gaea, World
+// Machine and Blender export. Pixel (x, y) becomes sample (x, z = y). When a terrain named `name` exists already (a
+// loaded file imported again), its heights are replaced and it is returned with one more reference. Nothing is written:
+// engineTerrainSave does.
+ENGINE_API engine_result_code_t engineTerrainImportHeightmap(const char* heightmap_path, const engine_terrain_import_desc_t* desc, const char* name, engine_terrain_t* out);
+// Writes the terrain to the file its name is (relative to assets/terrains or absolute; the name has to end in
+// ".terrain"), creating its folder when needed.
+ENGINE_API engine_result_code_t engineTerrainSave(engine_terrain_t terrain);
+// ENGINE_INVALID_OBJECT_HANDLE when there is no terrain of that name; gives no reference
+ENGINE_API engine_terrain_t engineTerrainGetByName(const char* name);
+ENGINE_API void engineTerrainRelease(engine_terrain_t terrain);
+ENGINE_API engine_result_code_t engineTerrainGetInfo(engine_terrain_t terrain, engine_terrain_info_t* out);
+// Reads or replaces the heights of the samples x .. x + width - 1, z .. z + depth - 1 (width * depth floats, row by
+// row). ENGINE_RESULT_CODE_INVALID_ARG when the region isn't inside the terrain. A change shows at once everywhere the
+// terrain is used: drawing, collision (also physics queries later in the same frame) and engineTerrainSampleHeight. The
+// nav mesh is derived data and built on demand: call engineNavMeshBuild after changing heights it was built from.
+ENGINE_API engine_result_code_t engineTerrainGetHeights(engine_terrain_t terrain, uint32_t x, uint32_t z, uint32_t width, uint32_t depth, float* out_heights);
+ENGINE_API engine_result_code_t engineTerrainSetHeights(engine_terrain_t terrain, uint32_t x, uint32_t z, uint32_t width, uint32_t depth, const float* heights);
+// The height (world y) of the terrain drawn by the game object's terrain component under or above a world position
+// (its x and z are used), like Unity's Terrain.SampleHeight, and optionally the surface's normal there (out_normal may
+// be NULL). From the game object's current transform. For a terrain which isn't tilted (rotated around the y axis
+// only). ENGINE_RESULT_CODE_FAIL when the game object has no terrain or the position is outside it.
+ENGINE_API engine_result_code_t engineTerrainSampleHeight(engine_game_object_t game_object, const float world_position[3], float* out_height, float out_normal[3]);
+
 // game objects in scene
 ENGINE_API engine_game_object_t engineGameObjectCreate();
 // A game object which is not part of the scene's content: it gets no persistent ID (so it doesn't shift the IDs of the
@@ -1007,6 +1080,13 @@ ENGINE_API engine_nav_modifier_component_t engineGameObjectGetNavModifierCompone
 ENGINE_API void engineGameObjectUpdateNavModifierComponent(engine_game_object_t game_object, const engine_nav_modifier_component_t* comp);
 ENGINE_API void engineGameObjectRemoveNavModifierComponent(engine_game_object_t game_object);
 ENGINE_API bool engineGameObjectHasNavModifierComponent(engine_game_object_t game_object);
+
+// terrain component
+ENGINE_API engine_terrain_component_t engineGameObjectAddTerrainComponent(engine_game_object_t game_object);
+ENGINE_API engine_terrain_component_t engineGameObjectGetTerrainComponent(engine_game_object_t game_object);
+ENGINE_API void engineGameObjectUpdateTerrainComponent(engine_game_object_t game_object, const engine_terrain_component_t* comp);
+ENGINE_API void engineGameObjectRemoveTerrainComponent(engine_game_object_t game_object);
+ENGINE_API bool engineGameObjectHasTerrainComponent(engine_game_object_t game_object);
 
 // parent component
 ENGINE_API engine_parent_component_t engineGameObjectAddParentComponent(engine_game_object_t game_object);

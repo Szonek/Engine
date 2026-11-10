@@ -55,6 +55,8 @@ enum class AssetKind
     eDataAsset,
     // a prefab (a model or a scene file)
     ePrefab,
+    // a terrain's heights (Terrain)
+    eTerrain,
 };
 
 struct EnumValue

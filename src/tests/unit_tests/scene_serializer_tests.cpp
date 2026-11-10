@@ -650,6 +650,46 @@ TEST_F(SceneFileTest, UnknownComponentsAndFieldsAreIgnored)
     EXPECT_TRUE(test_logger::logged("unknown field \"skew\""));
 }
 
+// a terrain's heights are an asset: the terrain component and the heightfield collider (a case of the collider's
+// union holding an asset reference) save its asset ID
+TEST_F(SceneFileTest, TerrainAndHeightfieldColliderReferenceTheTerrainByAssetId)
+{
+    assets_.add(AssetKind::eTerrain, "outdoor/valley.terrain", 11);
+    World w;
+    const auto ground = w.create();
+    w.put<engine_terrain_component_t>(ground, engine_terrain_component_t{ 11, 2.5f, true });
+    engine_collider_component_t collider{};
+    collider.type = ENGINE_COLLIDER_TYPE_HEIGHTFIELD;
+    collider.collider.heightfield.terrain = 11;
+    collider.layer = 1;
+    w.put<engine_collider_component_t>(ground, collider);
+
+    const auto json = save(w);
+    EXPECT_NE(json.find(R"("terrain": "outdoor/valley.terrain")"), std::string::npos) << json;
+    EXPECT_NE(json.find(R"("type": "heightfield")"), std::string::npos) << json;
+    EXPECT_NE(json.find(R"("heightfield": {)"), std::string::npos) << json;
+
+    World loaded;
+    ASSERT_TRUE(load(loaded, json));
+    const auto& terrain = loaded.get<engine_terrain_component_t>(1);
+    EXPECT_EQ(terrain.terrain, 11u);
+    EXPECT_EQ(terrain.texture_tile_size, 2.5f);
+    EXPECT_TRUE(terrain.disable);
+    const auto& loaded_collider = loaded.get<engine_collider_component_t>(1);
+    EXPECT_EQ(loaded_collider.type, ENGINE_COLLIDER_TYPE_HEIGHTFIELD);
+    EXPECT_EQ(loaded_collider.collider.heightfield.terrain, 11u);
+    EXPECT_EQ(loaded_collider.layer, 1u);
+    EXPECT_EQ(save(loaded), json);
+
+    // a terrain which can't be found is none, never another one
+    World missing;
+    ASSERT_TRUE(load(missing, R"({ "version": 1, "entities": [ { "id": 1, "components": {
+        "terrain": { "terrain": "outdoor/gone.terrain" },
+        "collider": { "type": "heightfield", "heightfield": { "terrain": "outdoor/gone.terrain" } } } } ] })"));
+    EXPECT_EQ(missing.get<engine_terrain_component_t>(1).terrain, static_cast<std::uint32_t>(ENGINE_INVALID_OBJECT_HANDLE));
+    EXPECT_EQ(missing.get<engine_collider_component_t>(1).collider.heightfield.terrain, static_cast<std::uint32_t>(ENGINE_INVALID_OBJECT_HANDLE));
+}
+
 TEST_F(SceneFileTest, InactiveUnionCaseIsIgnored)
 {
     World w;

@@ -107,7 +107,12 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     // connects its listeners before the initializers below: EnTT calls them last-connected first, so its listeners run after them
     , physics_(entity_registry_,
         [this](const engine_joint_attachment_component_t& joint_attachment) { return get_joint_matrix(joint_attachment); },
-        [this]() { return dynamic_cast<const ApplicationEditor*>(app_) && !app_->is_playing(); })
+        [this]() { return dynamic_cast<const ApplicationEditor*>(app_) && !app_->is_playing(); },
+        [this](engine_terrain_t handle)
+        {
+            const auto* terrain = app_->get_terrain(handle);
+            return terrain ? PhysicsSystem::TerrainHeights{ terrain->get_shared_data(), terrain->get_revision() } : PhysicsSystem::TerrainHeights{};
+        })
     , prefabs_(*app, *this, entity_registry_, assets_)
 {
     // the first entity EnTT creates is 0: reserve it, so that no game object has the value of ENGINE_INVALID_GAME_OBJECT_ID
@@ -120,6 +125,7 @@ engine::Scene::Scene(Application* app, Renderer& renderer, const engine_scene_cr
     entity_registry_.on_construct<engine_mesh_component_t>().connect<&initialize_mesh_component>();
     entity_registry_.on_construct<engine_skinned_mesh_component_t>().connect<&initialize_skinned_mesh_component>();
     entity_registry_.on_construct<engine_material_component_t>().connect<&initialize_material_component>();
+    entity_registry_.on_construct<engine_terrain_component_t>().connect<&initialize_terrain_component>();
     entity_registry_.on_construct<engine_parent_component_t>().connect<&initialize_parent_component>();
     entity_registry_.on_construct<engine_name_component_t>().connect<&initialize_name_component>();
     entity_registry_.on_construct<engine_folder_component_t>().connect<&initialize_folder_component>();
@@ -259,8 +265,9 @@ engine_result_code_t engine::Scene::build_nav_mesh()
         {
             // only static colliders: moving bodies (dynamic, kinematic), triggers and disabled colliders don't block for good
             const auto* rigid_body = entity_registry_.try_get<engine_rigid_body_component_t>(entity);
-            if (collider.is_trigger || collider.disable || (rigid_body && rigid_body->type == ENGINE_RIGID_BODY_TYPE_KINEMATIC)
-                || (rigid_body && rigid_body->type == ENGINE_RIGID_BODY_TYPE_DYNAMIC && rigid_body->mass > 0.0f))
+            const bool is_heightfield = collider.type == ENGINE_COLLIDER_TYPE_HEIGHTFIELD;
+            if (collider.is_trigger || collider.disable || (!is_heightfield && rigid_body && rigid_body->type == ENGINE_RIGID_BODY_TYPE_KINEMATIC)
+                || (!is_heightfield && rigid_body && rigid_body->type == ENGINE_RIGID_BODY_TYPE_DYNAMIC && rigid_body->mass > 0.0f))
             {
                 return;
             }
@@ -275,6 +282,14 @@ engine_result_code_t engine::Scene::build_nav_mesh()
                 {
                     area = NavArea::eNotWalkable;
                 }
+            }
+            if (collider.type == ENGINE_COLLIDER_TYPE_HEIGHTFIELD)
+            {
+                if (const auto* terrain = app_->get_terrain(collider.collider.heightfield.terrain))
+                {
+                    input.add_heightfield(terrain->get_data(), world.local_to_world, area);
+                }
+                return;
             }
             input.add_collider(collider, world.local_to_world, area);
         });
@@ -544,6 +559,44 @@ void engine::Scene::submit_render_data(SceneRenderData&& render_data)
                 item.skinning_matrices_count = static_cast<std::uint32_t>(bones.size());
                 render_data.skinning_matrices.insert(render_data.skinning_matrices.end(), bones.begin(), bones.end());
                 render_data.skinned_meshes.push_back(item);
+            }
+        );
+
+        auto terrain_renderer = entity_registry_.view<const world_transform_internal_component_t, const engine_terrain_component_t, const engine_material_component_t>();
+        terrain_renderer.each([&](auto entity, const world_transform_internal_component_t& world, const engine_terrain_component_t& terrain_component, const engine_material_component_t& material_component)
+            {
+                // a terrain component without a terrain yet draws nothing
+                if (terrain_component.disable || terrain_component.terrain == ENGINE_INVALID_OBJECT_HANDLE)
+                {
+                    return;
+                }
+                const auto* terrain = get_application()->get_terrain(terrain_component.terrain);
+                const auto texture_diffuse_idx = material_component.diffuse_texture == ENGINE_INVALID_OBJECT_HANDLE ? get_application()->get_default_texture() : material_component.diffuse_texture;
+                const auto* texture_diffuse = get_application()->get_texture(texture_diffuse_idx);
+                if (!terrain || !texture_diffuse)
+                {
+                    log::log(log::LogLevel::eError, fmt::format("[Entity: {}]. Terrain or its material uses a terrain or texture which doesn't exist (any more).\n", (std::uint32_t)entity));
+                    return;
+                }
+                const auto& data = terrain->get_data();
+                TerrainDrawItem item;
+                item.entity_id = static_cast<std::uint32_t>(entity);
+                item.heights = &terrain->get_height_texture();
+                item.sample_count = glm::ivec2(data.get_samples_x(), data.get_samples_z());
+                item.cell_size = data.get_cell_size();
+                item.model = world.local_to_world;
+                item.texture_tile_size = terrain_component.texture_tile_size > 0.0f ? glm::vec2(terrain_component.texture_tile_size) : data.get_size();
+                item.diffuse_color = glm::make_vec4(material_component.diffuse_color);
+                item.shininess = static_cast<float>(material_component.shininess);
+                item.texture_diffuse = texture_diffuse;
+                // like meshes: the specular texture isn't used yet
+                item.texture_specular = texture_diffuse;
+                item.chunks.reserve(data.get_chunks().size());
+                for (const auto& chunk : data.get_chunks())
+                {
+                    item.chunks.push_back({ glm::ivec2(chunk.x, chunk.z), transform_aabb(chunk.bounds, world.local_to_world) });
+                }
+                render_data.terrains.push_back(std::move(item));
             }
         );
 

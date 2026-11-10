@@ -12,7 +12,7 @@ class Application;
 
 // The assets a scene loaded from a file uses. An asset is kept alive by its file: the scene holds one reference to
 // each file it references (a model's prefab for "<model path>#<name>", a prefab referenced itself, an image file named by its path under
-// assets/models, a data asset named by its path under assets/data) whether the file was loaded already or is loaded
+// assets/models, a data asset named by its path under assets/data, a terrain named by its path under assets/terrains) whether the file was loaded already or is loaded
 // now, and releases them when it is destroyed. A data asset holds the assets its value references the same way. So the
 // scene's assets live as long as the scene, also when the game releases the same prefab. Assets which don't come from
 // a file (the default texture, geometries the game creates) are found by name and held by whoever created them.
@@ -44,5 +44,6 @@ private:
     std::map<std::string, std::uint32_t, std::less<>> prefabs_;
     std::map<std::string, std::uint32_t, std::less<>> image_files_;
     std::map<std::string, std::uint32_t, std::less<>> data_assets_;
+    std::map<std::string, std::uint32_t, std::less<>> terrains_;
 };
 }  // namespace engine

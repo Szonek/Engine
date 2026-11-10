@@ -1,6 +1,8 @@
 #include "renderer.h"
 #include "shadows.h"
+#include "../bounds.h"
 #include "../debug_draw.h"
+#include "../terrain_data.h"
 #include "../logger.h"
 #include "../profiler.h"
 #include "../shaders_binding_slots.h"
@@ -36,11 +38,50 @@ bool ensure_buffer_capacity(BufferT& buffer, std::size_t required_size)
     buffer = BufferT(required_size);
     return true;
 }
+
+// A grid of TERRAIN_CHUNK_CELLS cells: its vertices are their place in the grid (x, z), the terrain's vertex shader
+// gives them their position. Cells are split like everywhere else (TerrainData), counter-clockwise seen from above.
+engine::Geometry create_terrain_chunk_grid()
+{
+    constexpr auto side = engine::TERRAIN_CHUNK_CELLS + 1;
+    std::vector<float> vertices;
+    vertices.reserve(side * side * 2);
+    for (std::uint32_t z = 0; z < side; z++)
+    {
+        for (std::uint32_t x = 0; x < side; x++)
+        {
+            vertices.push_back(static_cast<float>(x));
+            vertices.push_back(static_cast<float>(z));
+        }
+    }
+    std::vector<std::uint32_t> indices;
+    indices.reserve(engine::TERRAIN_CHUNK_CELLS * engine::TERRAIN_CHUNK_CELLS * 6);
+    for (std::uint32_t z = 0; z < engine::TERRAIN_CHUNK_CELLS; z++)
+    {
+        for (std::uint32_t x = 0; x < engine::TERRAIN_CHUNK_CELLS; x++)
+        {
+            const auto i00 = z * side + x;
+            const auto i10 = i00 + 1;
+            const auto i01 = i00 + side;
+            const auto i11 = i01 + 1;
+            indices.insert(indices.end(), { i00, i01, i10, i10, i01, i11 });
+        }
+    }
+    engine::Geometry::vertex_attribute_t position{};
+    position.index = 0;
+    position.size = 2;
+    position.stride = 2 * sizeof(float);
+    position.offset = 0;
+    position.type = engine::Geometry::vertex_attribute_t::Type::eFloat32;
+    return engine::Geometry(std::span<const engine::Geometry::vertex_attribute_t>(&position, 1), std::as_bytes(std::span<const float>(vertices)),
+        static_cast<std::int32_t>(side * side), indices);
+}
 }  // namespace
 
 engine::Renderer::Renderer(RenderContext& rdx)
     : rdx_(rdx)
     , backend_(rdx)
+    , geometry_terrain_chunk_(create_terrain_chunk_grid())
     , shader_debug_lines_({ "debug_physics_lines_ssbo.vs" }, { "debug_physics_lines_ssbo.fs" })
     , shader_debug_lines_pick_({ "debug_physics_lines_ssbo.vs" }, { "debug_lines_pick.fs" })
     , geometry_debug_line_(2)
@@ -171,6 +212,7 @@ void engine::Renderer::prepare_gpu_data()
                 *camera_ubo.data = camera;
             }
 
+            glm::mat4 shadow_view_projection{ 1.0f };
             ViewLightingGpuData lighting;
             lighting.ssao_enabled = settings_.ssao.enabled ? 1.0f : 0.0f;
             lighting.ssao_direct_light_occlusion = std::clamp(settings_.ssao.direct_light_occlusion, 0.0f, 1.0f);
@@ -184,6 +226,7 @@ void engine::Renderer::prepare_gpu_data()
                     *shadow_camera_ubo.data = CameraGpuData{ .view = shadow.view, .projection = shadow.projection, .position = glm::vec3(0.0f), .pad_ = 0.0f };
                 }
                 lighting.shadow_view_projection = shadow.projection * shadow.view;
+                shadow_view_projection = lighting.shadow_view_projection;
                 lighting.shadow_enabled = 1.0f;
                 lighting.shadow_depth_bias = settings_.shadows.depth_bias;
                 lighting.shadow_normal_offset = settings_.shadows.normal_offset * shadow.world_texel_size;
@@ -207,7 +250,8 @@ void engine::Renderer::prepare_gpu_data()
                 .skinning_ssbo = &frame_ssbos.skinning.ssbo,
                 .lighting_ubo = &view_gpu.lighting_ubo,
                 .shadow_camera_ubo = &view_gpu.shadow_camera_ubo,
-                .has_shadow = has_shadow });
+                .has_shadow = has_shadow,
+                .shadow_view_projection = shadow_view_projection });
         }
     }
 }
@@ -226,6 +270,7 @@ void engine::Renderer::render_frame()
     const auto height = scene_output_ ? scene_output_->get_height() : window_height;
 
     prepare_gpu_data();
+    stats_ = Stats{};
 
     backend_.new_frame();
     graph_.reset();
@@ -314,6 +359,7 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
                 [this, view](const ShadowPassData&, rg::PassContext&)
                 {
                     draw_meshes_depth_only(view, *view.shadow_camera_ubo);
+                    draw_terrains(view, *view.shadow_camera_ubo, view.shadow_view_projection, true);
                 }).shadow_map;
         }
 
@@ -330,6 +376,7 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
             [this, view](const rg::NoPassData&, rg::PassContext&)
             {
                 draw_meshes_depth_only(view, *view.camera_ubo);
+                draw_terrains(view, *view.camera_ubo, view.camera->projection * view.camera->view, true);
             });
 
         rg::TextureHandle ambient_occlusion;
@@ -362,6 +409,7 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
                 // depth is already there (Depth Pre-pass), so the visible geometry is exactly equal to it
                 rdx_.set_depth_func(RenderContext::DepthFunc::eLessOrEqual);
                 draw_meshes(view);
+                draw_terrains(view, *view.camera_ubo, view.camera->projection * view.camera->view, false);
             });
 
         // Sprites don't write entity ids, so they are drawn without that attachment.
@@ -501,6 +549,79 @@ void engine::Renderer::draw_meshes_depth_only(const FrameView& view, const Unifo
             .model_matrix = glm::value_ptr(item.model),
             .skinning_matrices_offset = item.skinning_matrices_offset };
         material_skinned_geometry_depth_only_.draw(*item.geometry, ctx);
+    }
+}
+
+void engine::Renderer::draw_terrains(const FrameView& view, const UniformBuffer& camera_ubo, const glm::mat4& view_projection, bool depth_only)
+{
+    const auto& scene = *view.scene;
+    if (scene.terrains.empty())
+    {
+        return;
+    }
+    ENGINE_PROFILE_SECTION_N("Renderer::draw_terrains");
+    const auto frustum = Frustum::from_view_projection(view_projection);
+    geometry_terrain_chunk_.bind();
+    for (const auto& item : scene.terrains)
+    {
+        if (!item.heights->is_valid())
+        {
+            continue;
+        }
+        const TerrainDrawContext terrain{
+            .camera = camera_ubo,
+            .model_matrix = glm::value_ptr(item.model),
+            .heights = *item.heights,
+            .sample_count = { static_cast<std::uint32_t>(item.sample_count.x), static_cast<std::uint32_t>(item.sample_count.y) },
+            .cell_size = item.cell_size,
+            .texture_tile_size = { item.texture_tile_size.x, item.texture_tile_size.y } };
+        // bound when the first visible chunk is found: a terrain out of view costs only its culling
+        bool began = false;
+        for (const auto& chunk : item.chunks)
+        {
+            if (!frustum.intersects(chunk.bounds))
+            {
+                continue;
+            }
+            if (!began)
+            {
+                began = true;
+                if (depth_only)
+                {
+                    material_terrain_depth_only_.begin(terrain);
+                }
+                else
+                {
+                    material_terrain_lit_.begin(MaterialTerrainLit::DrawContext{
+                        .terrain = terrain,
+                        .entity_id = item.entity_id,
+                        .scene = *view.scene_ubo,
+                        .color_diffuse = glm::value_ptr(item.diffuse_color),
+                        .shininess = item.shininess,
+                        .texture_diffuse = *item.texture_diffuse,
+                        .texture_specular = *item.texture_specular });
+                }
+            }
+            const auto origin_x = static_cast<std::uint32_t>(chunk.origin.x);
+            const auto origin_z = static_cast<std::uint32_t>(chunk.origin.y);
+            if (depth_only)
+            {
+                material_terrain_depth_only_.draw_chunk(geometry_terrain_chunk_, origin_x, origin_z);
+            }
+            else
+            {
+                material_terrain_lit_.draw_chunk(geometry_terrain_chunk_, origin_x, origin_z);
+                stats_.terrain_chunks_drawn++;
+            }
+        }
+        if (!depth_only)
+        {
+            stats_.terrain_chunks_total += static_cast<std::uint32_t>(item.chunks.size());
+            if (began)
+            {
+                material_terrain_lit_.end();
+            }
+        }
     }
 }
 

@@ -165,3 +165,74 @@ void engine::MaterialStaticGeometryUnlit::draw(const Geometry& geometry, const D
     geometry.bind();
     geometry.draw(Geometry::Mode::eTriangles);
 }
+
+namespace
+{
+void set_terrain_uniforms(engine::Shader& shader, const engine::TerrainDrawContext& ctx)
+{
+    shader.set_uniform_block("CameraData", &ctx.camera, 0);
+    shader.set_uniform_mat_f4("model", { ctx.model_matrix, 16 });
+    shader.set_uniform_ui2("sample_count", ctx.sample_count);
+    shader.set_uniform_f1("cell_size", ctx.cell_size);
+    shader.set_texture_with_sampler("texture_heights", &ctx.heights);
+}
+
+void draw_terrain_chunk(engine::Shader& shader, const engine::Geometry& chunk_grid, std::uint32_t origin_x, std::uint32_t origin_z)
+{
+    const std::uint32_t origin[2] = { origin_x, origin_z };
+    shader.set_uniform_ui2("chunk_origin", origin);
+    chunk_grid.draw(engine::Geometry::Mode::eTriangles);
+}
+}  // namespace
+
+engine::MaterialTerrainLit::MaterialTerrainLit()
+    : shader_(Shader({ "terrain_definitions.h", "terrain.vs" }, { "lit_helpers.h", "shadow_helpers.h", "lit.fs" }))
+    , repeat_sampler_(TextureAddressClampMode::eRepeat)
+{
+}
+
+void engine::MaterialTerrainLit::begin(const DrawContext& ctx)
+{
+    ENGINE_PROFILE_SECTION_N("MaterialTerrainLit::begin");
+    shader_.bind();
+    set_terrain_uniforms(shader_, ctx.terrain);
+    shader_.set_uniform_f2("texture_tile_size", ctx.terrain.texture_tile_size);
+
+    assert(ctx.entity_id != ENGINE_INVALID_GAME_OBJECT_ID);
+    shader_.set_uniform_ui("entity_id", ctx.entity_id);
+    shader_.set_uniform_block("SceneData", &ctx.scene, 1);
+    shader_.set_uniform_f4("diffuse_color", { ctx.color_diffuse, 4 });
+    shader_.set_uniform_f1("shininess", ctx.shininess);
+    shader_.set_texture_with_sampler("texture_diffuse", &ctx.texture_diffuse);
+    shader_.set_texture_with_sampler("texture_specular", &ctx.texture_specular);
+    repeat_sampler_.bind(static_cast<std::uint32_t>(ShaderBindingSlot::TEXTURE_DIFFUSE));
+    repeat_sampler_.bind(static_cast<std::uint32_t>(ShaderBindingSlot::TEXTURE_SPECULAR));
+}
+
+void engine::MaterialTerrainLit::draw_chunk(const Geometry& chunk_grid, std::uint32_t origin_x, std::uint32_t origin_z)
+{
+    draw_terrain_chunk(shader_, chunk_grid, origin_x, origin_z);
+}
+
+void engine::MaterialTerrainLit::end()
+{
+    Sampler::unbind(static_cast<std::uint32_t>(ShaderBindingSlot::TEXTURE_DIFFUSE));
+    Sampler::unbind(static_cast<std::uint32_t>(ShaderBindingSlot::TEXTURE_SPECULAR));
+}
+
+engine::MaterialTerrainDepthOnly::MaterialTerrainDepthOnly()
+    : shader_(Shader({ "terrain_definitions.h", "terrain.vs" }, { "depth_only.fs" }))
+{
+}
+
+void engine::MaterialTerrainDepthOnly::begin(const TerrainDrawContext& ctx)
+{
+    ENGINE_PROFILE_SECTION_N("MaterialTerrainDepthOnly::begin");
+    shader_.bind();
+    set_terrain_uniforms(shader_, ctx);
+}
+
+void engine::MaterialTerrainDepthOnly::draw_chunk(const Geometry& chunk_grid, std::uint32_t origin_x, std::uint32_t origin_z)
+{
+    draw_terrain_chunk(shader_, chunk_grid, origin_x, origin_z);
+}

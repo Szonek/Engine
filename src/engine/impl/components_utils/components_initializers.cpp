@@ -30,6 +30,13 @@ void engine::initialize_mesh_component(entt::registry& registry, entt::entity en
     comp.geometry = ENGINE_INVALID_OBJECT_HANDLE;
 }
 
+void engine::initialize_terrain_component(entt::registry& registry, entt::entity entity)
+{
+    auto& comp = get_zero_init_component<engine_terrain_component_t>(registry, entity);
+    comp.terrain = ENGINE_INVALID_OBJECT_HANDLE;
+    comp.texture_tile_size = 4.0f;
+}
+
 void engine::initialize_skinned_mesh_component(entt::registry& registry, entt::entity entity)
 {
     auto& comp = get_zero_init_component<engine_skinned_mesh_component_t>(registry, entity);

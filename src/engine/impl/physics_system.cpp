@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <optional>
 
 namespace
 {
@@ -38,10 +39,11 @@ void remove_physics_internal_component_of_character_controller(entt::registry& r
 }
 }  // namespace
 
-engine::PhysicsSystem::PhysicsSystem(entt::registry& registry, JointMatrixFunction joint_matrix, std::function<bool()> is_editing)
+engine::PhysicsSystem::PhysicsSystem(entt::registry& registry, JointMatrixFunction joint_matrix, std::function<bool()> is_editing, TerrainLookup terrain_lookup)
     : registry_(registry)
     , joint_matrix_(std::move(joint_matrix))
     , is_editing_(std::move(is_editing))
+    , terrain_lookup_(std::move(terrain_lookup))
     , moved_bodies_(registry.storage<entt::reactive>(entt::hashed_string{"engine::moved_bodies"}))
 {
     moved_bodies_.on_update<engine_transform_component_t>();
@@ -71,6 +73,7 @@ engine::PhysicsSystem::PhysicsSystem(entt::registry& registry, JointMatrixFuncti
     registry_.on_construct<engine_collider_component_t>().connect<&initialize_collider_component>();
     registry_.on_construct<engine_collider_component_t>().connect<&add_physics_internal_component>();
     registry_.on_destroy<engine_collider_component_t>().connect<&remove_physics_internal_component_of_collider>();
+    registry_.on_destroy<engine_collider_component_t>().connect<&entt::registry::remove<heightfield_body_internal_component_t>>();
     registry_.on_construct<engine_character_controller_component_t>().connect<&initialize_character_controller_component>();
     registry_.on_construct<engine_character_controller_component_t>().connect<&add_physics_internal_component>();
     registry_.on_construct<engine_character_controller_component_t>().connect<&entt::registry::emplace<character_controller_internal_component_t>>();
@@ -224,6 +227,11 @@ engine::PhysicsWorld::BodyType engine::PhysicsSystem::get_body_type(entt::entity
     {
         return PhysicsWorld::BodyType::eKinematic;
     }
+    // a terrain never moves
+    if (const auto* collider = registry_.try_get<engine_collider_component_t>(entity); collider && collider->type == ENGINE_COLLIDER_TYPE_HEIGHTFIELD)
+    {
+        return PhysicsWorld::BodyType::eStatic;
+    }
     if (const auto* rigid_body = registry_.try_get<engine_rigid_body_component_t>(entity))
     {
         switch (rigid_body->type)
@@ -272,6 +280,7 @@ void engine::PhysicsSystem::create_body(entt::entity entity, bool without_rigid_
     }
     const auto local_to_world = get_world_matrix(entity);
     physcic_internal_component_t physcics_component{};
+    std::optional<heightfield_body_internal_component_t> heightfield;
     if (character)
     {
         if (collider)
@@ -281,6 +290,21 @@ void engine::PhysicsSystem::create_body(entt::entity entity, bool without_rigid_
         physcics_component = world_.create_character_body(character->radius, character->height, character->layer, character->collides_with, local_to_world,
             static_cast<std::int32_t>(entity));
     }
+    else if (collider->type == ENGINE_COLLIDER_TYPE_HEIGHTFIELD)
+    {
+        const auto* rigid_body = without_rigid_body ? nullptr : registry_.try_get<engine_rigid_body_component_t>(entity);
+        if (rigid_body && rigid_body->type != ENGINE_RIGID_BODY_TYPE_STATIC)
+        {
+            log::log(log::LogLevel::eError, fmt::format("[Entity: {}] A heightfield collider is always static, its rigid body is ignored.\n", static_cast<std::uint32_t>(entity)));
+        }
+        const auto terrain = terrain_lookup_(collider->collider.heightfield.terrain);
+        if (!terrain.data && collider->collider.heightfield.terrain != ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            log::log(log::LogLevel::eError, fmt::format("[Entity: {}] The heightfield collider's terrain doesn't exist (any more): it has no body.\n", static_cast<std::uint32_t>(entity)));
+        }
+        heightfield = heightfield_body_internal_component_t{ collider->collider.heightfield.terrain, terrain.data ? terrain.revision : 0 };
+        physcics_component = world_.create_rigid_body(*collider, PhysicsWorld::BodyType::eStatic, 0.0f, local_to_world, static_cast<std::int32_t>(entity), terrain.data);
+    }
     else
     {
         const auto* rigid_body = without_rigid_body ? nullptr : registry_.try_get<engine_rigid_body_component_t>(entity);
@@ -288,11 +312,39 @@ void engine::PhysicsSystem::create_body(entt::entity entity, bool without_rigid_
             rigid_body ? rigid_body->mass : 0.0f, local_to_world, static_cast<std::int32_t>(entity));
     }
     registry_.replace<physcic_internal_component_t>(entity, physcics_component);
+    if (heightfield)
+    {
+        registry_.emplace_or_replace<heightfield_body_internal_component_t>(entity, *heightfield);
+    }
+    else
+    {
+        registry_.remove<heightfield_body_internal_component_t>(entity);
+    }
     bodies_created_this_frame_.push_back(entity);
+}
+
+void engine::PhysicsSystem::sync_heightfields_to_terrains()
+{
+    // a few game objects at most; collected first, creating a body changes the storage
+    std::vector<entt::entity> changed;
+    for (const auto [entity, body] : registry_.view<const heightfield_body_internal_component_t>().each())
+    {
+        const auto terrain = terrain_lookup_(body.terrain);
+        if ((terrain.data ? terrain.revision : 0) != body.revision)
+        {
+            changed.push_back(entity);
+        }
+    }
+    for (const auto entity : changed)
+    {
+        create_body(entity);
+    }
 }
 
 void engine::PhysicsSystem::sync_bodies_to_transforms(bool force)
 {
+    // heights changed by code are collided with at once, like moved transforms
+    sync_heightfields_to_terrains();
     if (!force && !transforms_changed_)
     {
         return;

@@ -313,6 +313,33 @@ private:
 };
 
 
+// Places a terrain file dragged into the scene view: a new game object named after the file with what a terrain is
+// made of (a transform, the terrain and a material to draw it, a heightfield collider to walk on it), its middle at
+// `position`. One undo step, like CommandPlacePrefab.
+class CommandPlaceTerrain : public ICommand
+{
+public:
+    // `selected`: the game object selected before the placement, given back on undo with the file selected in `assets`
+    CommandPlaceTerrain(Scene& sc, IAssetSelection& assets, std::string_view terrain_asset_id, const glm::vec3& position, entt::entity selected);
+
+    void execute(Scene& sc) override;
+    void undo(Scene& sc) override;
+    // a terrain which couldn't be loaded leaves no undo step
+    bool has_effect() const override { return !root_.is_none(); }
+
+private:
+    void place(Scene& sc);
+
+    IAssetSelection& assets_;
+    const std::string asset_id_;
+    const glm::vec3 position_;
+    const GameObjectRef selected_;
+    GameObjectRef root_;
+    // undo destroys the game object the way a delete does, redo is that delete's undo
+    std::unique_ptr<CommandDestroyEntity> destroy_terrain_;
+    std::unique_ptr<CommandSetSelection> select_terrain_;
+};
+
 class CommandSetPhysicsDebugDraw: public ICommand
 {
 public:

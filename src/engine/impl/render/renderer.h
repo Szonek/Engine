@@ -78,6 +78,15 @@ public:
     // Graph of the last rendered frame, for debugging/visualization.
     const rg::Graph& get_last_frame_graph() const { return graph_; }
 
+    // What the last rendered frame drew, for the editor's stats.
+    struct Stats
+    {
+        // terrain chunks the cameras saw (Forward passes), and how many they could have seen: the rest were culled
+        std::uint32_t terrain_chunks_drawn = 0;
+        std::uint32_t terrain_chunks_total = 0;
+    };
+    const Stats& get_stats() const { return stats_; }
+
 private:
     // GPU buffers of a single camera
     struct ViewGpu
@@ -152,6 +161,9 @@ private:
     void draw_meshes(const FrameView& view);
     // camera_ubo: camera of the view or of the light
     void draw_meshes_depth_only(const FrameView& view, const UniformBuffer& camera_ubo);
+    // The chunks of the scene's terrains inside the frustum of view_projection (the view's camera or its light):
+    // depth only with camera_ubo, or lit (camera_ubo is the view's then).
+    void draw_terrains(const FrameView& view, const UniformBuffer& camera_ubo, const glm::mat4& view_projection, bool depth_only);
     void draw_sprites(const FrameView& view);
     void draw_debug_lines(const FrameView& view, Shader& shader);
 
@@ -182,6 +194,11 @@ private:
     MaterialStaticGeometryDepthOnly material_static_geometry_depth_only_;
     MaterialSkinnedGeometryDepthOnly material_skinned_geometry_depth_only_;
     MaterialSprite material_sprite_;
+    MaterialTerrainLit material_terrain_lit_;
+    MaterialTerrainDepthOnly material_terrain_depth_only_;
+    // the grid of vertices every terrain chunk is drawn with (terrain.vs)
+    Geometry geometry_terrain_chunk_;
+    Stats stats_;
 
     Shader shader_debug_lines_;
     // the lines' owners into the entity ids, for picking

@@ -12,6 +12,11 @@ placed; keep rooms under `rooms/` here.
 After a format change (a component gains a field), old files keep loading with the new field at its default; saving
 the level writes the new format.
 
+`outdoor_test.json` is a small outdoor level whose ground is a heightmap terrain instead of floor tiles
+(`project_c_game --level outdoor_test.json`); terrains are explained in `../terrains/README.md`. A scene file references
+a terrain by its asset ID, its path under `assets/terrains`: in the `terrain` component and in a `collider` of type
+`heightfield`.
+
 ## Format
 
 ```json

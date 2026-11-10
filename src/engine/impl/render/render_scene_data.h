@@ -1,4 +1,5 @@
 #pragma once
+#include "../bounds.h"
 #include "../graphics.h"
 
 #include <glm/glm.hpp>
@@ -95,6 +96,33 @@ struct SkinnedMeshDrawItem : StaticMeshDrawItem
     std::uint32_t skinning_matrices_count = 0;
 };
 
+// A terrain: a grid of chunks displaced by its height texture (terrain.vs). The renderer draws the chunks a pass's
+// camera sees.
+struct TerrainDrawItem
+{
+    struct Chunk
+    {
+        // the chunk's first sample
+        glm::ivec2 origin{ 0 };
+        // around its surface, in world space
+        Aabb bounds;
+    };
+
+    std::uint32_t entity_id = 0;
+    // one float per sample: the height in the terrain's local space
+    const Texture2D* heights = nullptr;
+    glm::ivec2 sample_count{ 0 };
+    float cell_size = 1.0f;
+    glm::mat4 model{ 1.0f };
+    // metres of the local xz plane one repeat of the textures covers
+    glm::vec2 texture_tile_size{ 1.0f };
+    glm::vec4 diffuse_color{ 1.0f };
+    float shininess = 0.0f;
+    const Texture2D* texture_diffuse = nullptr;
+    const Texture2D* texture_specular = nullptr;
+    std::vector<Chunk> chunks;
+};
+
 struct SpriteDrawItem
 {
     glm::vec3 world_position{ 0.0f };
@@ -121,6 +149,7 @@ struct SceneRenderData
     std::vector<SkinnedMeshDrawItem> skinned_meshes;
     std::vector<glm::mat4> skinning_matrices;
     std::vector<SpriteDrawItem> sprites;
+    std::vector<TerrainDrawItem> terrains;
 
     std::vector<OutlineDrawItem> outline_items;
     std::vector<DebugLineGpuData> debug_lines;

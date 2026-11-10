@@ -94,6 +94,11 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/render/grid_feature.h
 	${ENGINE_SOURCES_DIR}/render/grid_feature.cpp
 
+	${ENGINE_SOURCES_DIR}/bounds.h
+	${ENGINE_SOURCES_DIR}/terrain_data.h
+	${ENGINE_SOURCES_DIR}/terrain_data.cpp
+	${ENGINE_SOURCES_DIR}/terrain.h
+	${ENGINE_SOURCES_DIR}/terrain.cpp
 	${ENGINE_SOURCES_DIR}/nav_mesh.h
 	${ENGINE_SOURCES_DIR}/nav_mesh.cpp
 	${ENGINE_SOURCES_DIR}/world_transform.h
@@ -189,6 +194,7 @@ set(ENGINE_API_SOURCES
 	${ENGINE_API_COMPONENTS}/camera_component.h
 	${ENGINE_API_COMPONENTS}/light_component.h
 	${ENGINE_API_COMPONENTS}/material_component.h
+	${ENGINE_API_COMPONENTS}/terrain_component.h
 	${ENGINE_API_COMPONENTS}/mesh_component.h
 	${ENGINE_API_COMPONENTS}/transform_component.h
 	${ENGINE_API_COMPONENTS}/name_component.h

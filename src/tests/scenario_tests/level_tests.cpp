@@ -130,6 +130,64 @@ TEST_F(LevelTest, LevelLoadsAndPlays)
     EXPECT_EQ(encounter->get_remaining_enemies(), 7u);
 }
 
+// The outdoor test level (assets/scenes/outdoor_test.json): its ground is a heightmap terrain instead of floor tiles.
+// The game plays on it unchanged: the player stands and walks on the terrain's collider, enemies are spawned on the nav
+// mesh built from it.
+TEST_F(LevelTest, OutdoorLevelPlaysOnItsTerrain)
+{
+    struct OutdoorLevel
+    {
+        OutdoorLevel() { scenario::app().set_level_path("outdoor_test.json"); }
+        ~OutdoorLevel()
+        {
+            scenario::app().set_level_path(project_c::AppConfig{}.level_path);
+            scenario::app().set_level_entry_state(std::nullopt);
+        }
+    } level;
+    auto* scene = load_scene<project_c::LevelScene>();
+    step(60);
+
+    const auto* player = scene->find_script<project_c::Player>();
+    ASSERT_NE(player, nullptr);
+    EXPECT_EQ(scene->get_scripts<project_c::Enemy>().size(), 3u);
+    const auto terrain = engineTerrainGetByName("outdoor_test.terrain");
+    ASSERT_NE(terrain, ENGINE_INVALID_OBJECT_HANDLE);
+    // the game object drawing it: under the player
+    const float origin[3] = { 0.0f, 50.0f, 0.0f };
+    const float down[3] = { 0.0f, -1.0f, 0.0f };
+    engine_physics_query_filter_t level_only{};
+    level_only.layer_mask = 1u << 1;
+    engine_ray_hit_t hit{};
+    ASSERT_TRUE(enginePhysicsRayCast(origin, down, 100.0f, &level_only, &hit));
+    ASSERT_TRUE(engineGameObjectHasTerrainComponent(hit.go));
+    const auto ground = hit.go;
+    const auto height_under = [ground](const engine_transform_component_t& tc)
+        {
+            float height = -1000.0f;
+            EXPECT_EQ(engineTerrainSampleHeight(ground, tc.position, &height, nullptr), ENGINE_RESULT_CODE_OK);
+            return height;
+        };
+
+    // landed in the clearing
+    auto tc = engineGameObjectGetTransformComponent(player->get_game_object());
+    EXPECT_NEAR(tc.position[1], height_under(tc), 0.05f);
+
+    // out of the clearing onto the hill rising to its right and front: the player stays on the ground
+    project_c::PlayerInput input{};
+    input.right = true;
+    input.back = true;
+    set_input(input);
+    step(300);
+    release_all_input();
+    step(30);
+    tc = engineGameObjectGetTransformComponent(player->get_game_object());
+    EXPECT_GT(tc.position[0], 6.0f);
+    EXPECT_GT(tc.position[2], 6.0f);
+    EXPECT_GT(tc.position[1], 0.05f);
+    EXPECT_NEAR(tc.position[1], height_under(tc), 0.08f);
+    EXPECT_FALSE(player->is_dead());
+}
+
 // The committed level loads with nothing skipped: everything it holds is still there when the loaded level is saved.
 // (A newer engine may write more, e.g. a field added to a component: old files keep loading with its default.)
 TEST_F(LevelTest, LevelFileLoadsCompletely)

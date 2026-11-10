@@ -651,6 +651,161 @@ engine_result_code_t engineDataAssetGet(engine_data_asset_t asset, engine_compon
     return ENGINE_RESULT_CODE_OK;
 }
 
+engine_result_code_t engineTerrainCreate(const char* name, const engine_terrain_create_desc_t* desc, engine_terrain_t* out)
+{
+    if (!G_ACTIVE_APP || !name || !desc || !out)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const auto count = static_cast<std::size_t>(desc->samples_x) * desc->samples_z;
+    auto data = engine::TerrainData::create(desc->samples_x, desc->samples_z, desc->cell_size,
+        desc->heights ? std::span<const float>(desc->heights, count) : std::span<const float>());
+    if (!data)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    *out = api_cast(G_ACTIVE_APP)->create_terrain(name, std::move(*data));
+    return *out != ENGINE_INVALID_OBJECT_HANDLE ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engineTerrainLoad(const char* path, engine_terrain_t* out)
+{
+    if (!G_ACTIVE_APP || !path || !out)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    *out = api_cast(G_ACTIVE_APP)->load_terrain(path);
+    return *out != ENGINE_INVALID_OBJECT_HANDLE ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engineTerrainImportHeightmap(const char* heightmap_path, const engine_terrain_import_desc_t* desc, const char* name, engine_terrain_t* out)
+{
+    if (!G_ACTIVE_APP || !heightmap_path || !desc || !name || !out)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    *out = api_cast(G_ACTIVE_APP)->import_terrain_heightmap(heightmap_path, *desc, name);
+    return *out != ENGINE_INVALID_OBJECT_HANDLE ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_result_code_t engineTerrainSave(engine_terrain_t terrain)
+{
+    if (!G_ACTIVE_APP)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    return api_cast(G_ACTIVE_APP)->save_terrain(terrain) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_FAIL;
+}
+
+engine_terrain_t engineTerrainGetByName(const char* name)
+{
+    if (!G_ACTIVE_APP || !name)
+    {
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    return api_cast(G_ACTIVE_APP)->get_terrain(std::string_view(name));
+}
+
+void engineTerrainRelease(engine_terrain_t terrain)
+{
+    if (!G_ACTIVE_APP)
+    {
+        return;
+    }
+    api_cast(G_ACTIVE_APP)->release_terrain(terrain);
+}
+
+engine_result_code_t engineTerrainGetInfo(engine_terrain_t terrain, engine_terrain_info_t* out)
+{
+    if (!G_ACTIVE_APP || !out)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const auto* asset = api_cast(G_ACTIVE_APP)->get_terrain(terrain);
+    if (!asset)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const auto& data = asset->get_data();
+    out->samples_x = data.get_samples_x();
+    out->samples_z = data.get_samples_z();
+    out->cell_size = data.get_cell_size();
+    out->size_x = data.get_size().x;
+    out->size_z = data.get_size().y;
+    out->height_min = data.get_min_height();
+    out->height_max = data.get_max_height();
+    return ENGINE_RESULT_CODE_OK;
+}
+
+engine_result_code_t engineTerrainGetHeights(engine_terrain_t terrain, uint32_t x, uint32_t z, uint32_t width, uint32_t depth, float* out_heights)
+{
+    if (!G_ACTIVE_APP || !out_heights)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const auto* asset = api_cast(G_ACTIVE_APP)->get_terrain(terrain);
+    if (!asset)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const auto count = static_cast<std::size_t>(width) * depth;
+    return asset->get_data().get_heights({ x, z, width, depth }, std::span<float>(out_heights, count)) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_INVALID_ARG;
+}
+
+engine_result_code_t engineTerrainSetHeights(engine_terrain_t terrain, uint32_t x, uint32_t z, uint32_t width, uint32_t depth, const float* heights)
+{
+    if (!G_ACTIVE_APP || !heights)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    auto* asset = api_cast(G_ACTIVE_APP)->get_terrain(terrain);
+    if (!asset)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const auto count = static_cast<std::size_t>(width) * depth;
+    return asset->set_heights({ x, z, width, depth }, std::span<const float>(heights, count)) ? ENGINE_RESULT_CODE_OK : ENGINE_RESULT_CODE_INVALID_ARG;
+}
+
+engine_result_code_t engineTerrainSampleHeight(engine_game_object_t game_object, const float world_position[3], float* out_height, float out_normal[3])
+{
+    if (!G_ACTIVE_APP || !G_ACTIVE_SCENE || !world_position || !out_height)
+    {
+        return ENGINE_RESULT_CODE_INVALID_ARG;
+    }
+    const auto* scene = api_cast(G_ACTIVE_SCENE);
+    const auto entity = api_cast(game_object);
+    if (!scene->is_valid_entity(entity) || !scene->has_component<engine_terrain_component_t>(entity) || !scene->has_component<engine_transform_component_t>(entity))
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const auto* asset = api_cast(G_ACTIVE_APP)->get_terrain(scene->get_component<engine_terrain_component_t>(entity)->terrain);
+    if (!asset)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    // this frame's transform (the world transform component is from the last scene update)
+    const auto local_to_world = scene->compute_world_matrix(entity);
+    if (std::abs(glm::determinant(local_to_world)) < 1e-12f)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    const auto local = glm::inverse(local_to_world) * glm::vec4(world_position[0], 0.0f, world_position[2], 1.0f);
+    const auto& data = asset->get_data();
+    const auto height = data.sample_height(local.x, local.z);
+    if (!height)
+    {
+        return ENGINE_RESULT_CODE_FAIL;
+    }
+    *out_height = (local_to_world * glm::vec4(local.x, *height, local.z, 1.0f)).y;
+    if (out_normal)
+    {
+        const auto normal = glm::normalize(glm::transpose(glm::inverse(glm::mat3(local_to_world))) * *data.sample_normal(local.x, local.z));
+        std::memcpy(out_normal, glm::value_ptr(normal), sizeof(float) * 3);
+    }
+    return ENGINE_RESULT_CODE_OK;
+}
+
 engine_result_code_t engineSceneCreate(engine_scene_create_desc_t desc, engine_scene_t* out)
 {
     if (!G_ACTIVE_APP)
@@ -1491,6 +1646,31 @@ void engineGameObjectRemoveMeshComponent(engine_game_object_t game_object)
 bool engineGameObjectHasMeshComponent(engine_game_object_t game_object)
 {
     return has_component<engine_mesh_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_terrain_component_t engineGameObjectAddTerrainComponent(engine_game_object_t game_object)
+{
+    return add_component<engine_terrain_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+engine_terrain_component_t engineGameObjectGetTerrainComponent(engine_game_object_t game_object)
+{
+    return get_component<engine_terrain_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+void engineGameObjectUpdateTerrainComponent(engine_game_object_t game_object, const engine_terrain_component_t* comp)
+{
+    update_component(G_ACTIVE_SCENE, game_object, comp);
+}
+
+void engineGameObjectRemoveTerrainComponent(engine_game_object_t game_object)
+{
+    remove_component<engine_terrain_component_t>(G_ACTIVE_SCENE, game_object);
+}
+
+bool engineGameObjectHasTerrainComponent(engine_game_object_t game_object)
+{
+    return has_component<engine_terrain_component_t>(G_ACTIVE_SCENE, game_object);
 }
 
 engine_skinned_mesh_component_t engineGameObjectAddSkinnedMeshComponent(engine_game_object_t game_object)

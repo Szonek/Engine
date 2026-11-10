@@ -499,7 +499,8 @@ bool display_asset_combo(engine::IAssetResolver& assets, engine::AssetKind kind,
     const auto* payload_type = kind == engine::AssetKind::eGeometry ? engine::ASSET_PAYLOAD_GEOMETRY
         : kind == engine::AssetKind::eTexture ? engine::ASSET_PAYLOAD_TEXTURE
         : kind == engine::AssetKind::ePrefab ? engine::ASSET_PAYLOAD_PREFAB
-        : kind == engine::AssetKind::eDataAsset ? engine::ASSET_PAYLOAD_DATA_ASSET : nullptr;
+        : kind == engine::AssetKind::eDataAsset ? engine::ASSET_PAYLOAD_DATA_ASSET
+        : kind == engine::AssetKind::eTerrain ? engine::ASSET_PAYLOAD_TERRAIN : nullptr;
     if (!open && payload_type && ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payload_type))
@@ -534,9 +535,10 @@ bool display_asset_combo(engine::IAssetResolver& assets, engine::AssetKind kind,
             if (ImGui::Selectable(name.c_str(), selected))
             {
                 changed |= !selected;
-                // the scene holds a data asset or prefab it references (whoever loaded it may release it); the other
-                // kinds are held by whoever created them
-                handle = kind == engine::AssetKind::eDataAsset || kind == engine::AssetKind::ePrefab ? assets.resolve(kind, name) : idx;
+                // the scene holds a data asset, prefab or terrain it references (whoever loaded it may release it); the
+                // other kinds are held by whoever created them
+                handle = kind == engine::AssetKind::eDataAsset || kind == engine::AssetKind::ePrefab || kind == engine::AssetKind::eTerrain
+                    ? assets.resolve(kind, name) : idx;
             }
             if (selected)
             {
@@ -558,6 +560,13 @@ bool display_texture_combo(engine::Scene* scene, const char* label, std::uint32_
 {
     const auto* app = scene->get_application();
     return display_asset_combo(scene->assets(), engine::AssetKind::eTexture, label, texture, app->get_texture_name(texture), [app] { return app->get_texture_names(); });
+}
+
+// the loaded terrains; others are dropped from the asset browser
+bool display_terrain_combo(engine::Scene* scene, const char* label, std::uint32_t& terrain)
+{
+    const auto* app = scene->get_application();
+    return display_asset_combo(scene->assets(), engine::AssetKind::eTerrain, label, terrain, app->get_terrain_name(terrain), [app] { return app->get_terrain_names(); });
 }
 
 // Draws a value of a game-defined type from its description, a widget per field kind (game types have no unions; the
@@ -670,6 +679,9 @@ private:
                         return assets;
                     }, holds_type);
                 }
+                break;
+            case engine::AssetKind::eTerrain:
+                changed = display_terrain_combo(scene_, label, handle);
                 break;
             case engine::AssetKind::ePrefab:
                 // the loaded models and scene files; others are dropped from the asset browser
@@ -974,6 +986,23 @@ bool display_light_component(engine::Scene* /*scene*/, engine_light_component_t&
 }
 
 
+bool display_terrain_component(engine::Scene* scene, engine_terrain_component_t& c)
+{
+    bool requires_component_updated = false;
+    requires_component_updated |= display_terrain_combo(scene, "Terrain", c.terrain);
+    requires_component_updated |= ImGui::DragFloat("Texture tile size", &c.texture_tile_size, 0.1f, 0.0f, 1000.0f, "%.2f m");
+    ImGui::SetItemTooltip("Metres one repeat of the material's textures covers; 0 stretches them once over the terrain");
+    requires_component_updated |= ImGui::Checkbox("Disable", &c.disable);
+    if (const auto* terrain = scene->get_application()->get_terrain(c.terrain))
+    {
+        const auto& data = terrain->get_data();
+        ImGui::TextDisabled("%u x %u samples, %.1f x %.1f m, heights %.2f .. %.2f m", data.get_samples_x(), data.get_samples_z(),
+            static_cast<double>(data.get_size().x), static_cast<double>(data.get_size().y), static_cast<double>(data.get_min_height()), static_cast<double>(data.get_max_height()));
+    }
+    ImGui::TextDisabled("Drawn with the Material component; collides through a Heightfield collider.");
+    return requires_component_updated;
+}
+
 bool display_material_component(engine::Scene* scene, engine_material_component_t& c)
 {
     // pong is the only material type
@@ -1060,11 +1089,11 @@ bool display_physics_layers(const char* id, std::uint32_t& layer, std::uint32_t&
     return changed;
 }
 
-bool display_collider_component(engine::Scene* /*scene*/, engine_collider_component_t& c)
+bool display_collider_component(engine::Scene* scene, engine_collider_component_t& c)
 {
     bool requires_component_updated = false;
     // list of types
-    const char* items[] = { "Box", "Sphere", "Compound" };
+    const char* items[] = { "Box", "Sphere", "Compound", "Heightfield" };
     std::int32_t selected_type = c.type;
     if (ImGui::ListBox("Type", &selected_type, items, std::size(items)))
     {
@@ -1104,6 +1133,11 @@ bool display_collider_component(engine::Scene* /*scene*/, engine_collider_compon
     else if (c.type == ENGINE_COLLIDER_TYPE_SPHERE)
     {
         requires_component_updated |= ImGui::DragFloat("Radius", &c.collider.sphere.radius, 0.1f);
+    }
+    else if (c.type == ENGINE_COLLIDER_TYPE_HEIGHTFIELD)
+    {
+        requires_component_updated |= display_terrain_combo(scene, "Terrain##collider", c.collider.heightfield.terrain);
+        ImGui::TextDisabled("The surface of the terrain; always static.");
     }
     else if (c.type == ENGINE_COLLIDER_TYPE_COMPOUND)
     {
@@ -1901,6 +1935,7 @@ const std::vector<engine_component_entry_t>& get_engine_component_entries()
             make_engine_component_entry<engine_mesh_component_t>("Mesh", "Rendering", display_mesh_component),
             make_engine_component_entry<engine_skinned_mesh_component_t>("Skinned Mesh", "Rendering", display_skinned_mesh_component),
             make_engine_component_entry<engine_material_component_t>("Material", "Rendering", display_material_component),
+            make_engine_component_entry<engine_terrain_component_t>("Terrain", "Rendering", display_terrain_component),
             make_engine_component_entry<engine_skin_component_t>("Skin", "Animation", display_skin_component),
             make_engine_component_entry<engine_joint_attachment_component_t>("Joint Attachment", "Animation", display_joint_attachment_component),
             make_engine_component_entry<engine_animation_controller_component_t>("Animation controller", "Animation", display_animation_controller_component),
@@ -2171,6 +2206,14 @@ void engine::ApplicationEditor::handle_asset_drop(Scene* scene)
             scene_hierarchy_context_.sync_selected_from_scene(scene);
             scene_hierarchy_context_.reveal_selection();
         }
+        else if (const ImGuiPayload* terrain_payload = camera_entity != entt::null ? ImGui::AcceptDragDropPayload(ASSET_PAYLOAD_TERRAIN) : nullptr)
+        {
+            const auto position = get_mouse_scene_point(scene, camera_entity, get_scene_view_mouse());
+            commands_.execute_command(*scene, std::make_unique<CommandPlaceTerrain>(*scene, asset_browser_, static_cast<const char*>(terrain_payload->Data), position,
+                scene_hierarchy_context_.get_selected_entity()));
+            scene_hierarchy_context_.sync_selected_from_scene(scene);
+            scene_hierarchy_context_.reveal_selection();
+        }
         ImGui::EndDragDropTarget();
     }
     ImGui::End();
@@ -2223,6 +2266,11 @@ void engine::ApplicationEditor::render_debug_panel(class Scene* scene, float dt)
     ImGui::Text("FPS: %d", static_cast<std::uint32_t>(std::accumulate(fps_values.begin(), fps_values.end(), 0) / (fps_idx < fps_values.size() ? fps_idx : fps_values.size())));
     // they are owned by their game objects: a number that keeps growing is a leak
     ImGui::Text("Animation controllers: %zu", engine::AnimationController::get_live_count());
+    // what frustum culling left of the terrains the cameras could see
+    if (const auto& stats = renderer_.get_stats(); stats.terrain_chunks_total > 0)
+    {
+        ImGui::Text("Terrain chunks drawn: %u / %u", stats.terrain_chunks_drawn, stats.terrain_chunks_total);
+    }
 
     auto& render_settings = renderer_.get_settings();
     ImGui::SeparatorText("Shadows");
