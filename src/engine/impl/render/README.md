@@ -113,6 +113,10 @@ A new built-in lit/unlit shader is a `Material*` class in `material.h/.cpp` plus
   extracted `EntityId` texture, with the owners of that frame's debug lines. Forward writes the meshes' ids, Debug Lines Pick the
   owners of debug lines (gizmos, `engineDebugDrawSetOwner`), which the editor prefers within a few pixels (`pick_game_object`).
 * Geometry/Texture pointers in draw items are only valid until the end of the frame.
+* A view has its own camera (`FrameView::view_camera`) and a list of shadow cameras (`FrameView::shadow_cameras`, one
+  Shadow Map pass each). There is one today, the directional light's; more shadow casting lights or cascades are more
+  entries, and the draw and culling code takes whichever `PassCamera` its pass renders with. The lit shader still
+  samples one shadow map (the first), so a second caster also needs its map and matrix in `ViewLightingGpuData`.
 * Meshes are drawn by three passes (Shadow Map, Depth Pre-pass, Forward). The Forward pass uses depth test "less or equal" against the
   depth of the pre-pass, so a new mesh type has to be drawn in `draw_meshes_depth_only` too, with the same vertex shader as its lit draw.
 * Terrains (`TerrainDrawItem`) are drawn by the same three passes, after the meshes (`Renderer::draw_terrains`): chunk by
@@ -120,7 +124,8 @@ A new built-in lit/unlit shader is a `Material*` class in `material.h/.cpp` plus
   sample, kept up to date by `Terrain::update_gpu` before the frame is rendered), lit by `lit.fs` like a mesh. The
   material's textures repeat over the terrain through a `Sampler` bound for these draws only. **Chunks are frustum
   culled per pass** (`Frustum`, `bounds.h`; the frustum is taken into the terrain's local space, where the chunks'
-  bounds are, so nothing is transformed per chunk): against the view's camera in Depth Pre-pass and Forward, against the
+  bounds are, so nothing is transformed per chunk) against the pass's camera, a `PassCamera` (`render_feature.h`: the
+  camera's buffer for the shaders and its matrix for culling, as one value): against the view's camera in Depth Pre-pass and Forward, against the
   light's camera in Shadow Map. The editor's stats show how many chunks the cameras drew. Meshes aren't culled yet.
 * Bone matrices of all skinned meshes of a scene are uploaded once per frame (`SceneGpu::frames[...].skinning`, one copy per frame in flight guarded by a fence, so the CPU never overwrites matrices the GPU is still reading), draws only pass an offset into it.
 * `RenderGraph` is unit tested without a GL context: see `src/tests/unit_tests/render_graph_tests.cpp` (target `engine_logic_tests`).

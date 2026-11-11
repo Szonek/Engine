@@ -95,6 +95,8 @@ private:
         UniformBuffer lighting_ubo{ sizeof(ViewLightingGpuData) };
         // the directional light as a camera: what the shadow map of this view is rendered with
         UniformBuffer shadow_camera_ubo{ sizeof(CameraGpuData) };
+        // this frame's FrameView::shadow_cameras
+        std::vector<PassCamera> shadow_cameras;
     };
 
     // Persistently mapped SSBOs written every frame. The GPU may still be reading the previous frames' data,
@@ -159,11 +161,11 @@ private:
     void add_features_passes(FrameContext& frame, RenderStage stage);
 
     void draw_meshes(const FrameView& view);
-    // camera_ubo: camera of the view or of the light
-    void draw_meshes_depth_only(const FrameView& view, const UniformBuffer& camera_ubo);
-    // The chunks of the scene's terrains inside the frustum of view_projection (the view's camera or its light):
-    // depth only with camera_ubo, or lit (camera_ubo is the view's then).
-    void draw_terrains(const FrameView& view, const UniformBuffer& camera_ubo, const glm::mat4& view_projection, bool depth_only);
+    // camera: the view's or one of its shadow cameras
+    void draw_meshes_depth_only(const FrameView& view, const PassCamera& camera);
+    // The chunks of the scene's terrains the camera sees (the view's or one of its shadow cameras): depth only, or lit
+    // (with the view's camera).
+    void draw_terrains(const FrameView& view, const PassCamera& camera, bool depth_only);
     void draw_sprites(const FrameView& view);
     void draw_debug_lines(const FrameView& view, Shader& shader);
 

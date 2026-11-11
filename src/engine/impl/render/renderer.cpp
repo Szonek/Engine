@@ -212,7 +212,7 @@ void engine::Renderer::prepare_gpu_data()
                 *camera_ubo.data = camera;
             }
 
-            glm::mat4 shadow_view_projection{ 1.0f };
+            view_gpu.shadow_cameras.clear();
             ViewLightingGpuData lighting;
             lighting.ssao_enabled = settings_.ssao.enabled ? 1.0f : 0.0f;
             lighting.ssao_direct_light_occlusion = std::clamp(settings_.ssao.direct_light_occlusion, 0.0f, 1.0f);
@@ -226,7 +226,7 @@ void engine::Renderer::prepare_gpu_data()
                     *shadow_camera_ubo.data = CameraGpuData{ .view = shadow.view, .projection = shadow.projection, .position = glm::vec3(0.0f), .pad_ = 0.0f };
                 }
                 lighting.shadow_view_projection = shadow.projection * shadow.view;
-                shadow_view_projection = lighting.shadow_view_projection;
+                view_gpu.shadow_cameras.push_back(PassCamera{ &view_gpu.shadow_camera_ubo, lighting.shadow_view_projection });
                 lighting.shadow_enabled = 1.0f;
                 lighting.shadow_depth_bias = settings_.shadows.depth_bias;
                 lighting.shadow_normal_offset = settings_.shadows.normal_offset * shadow.world_texel_size;
@@ -243,15 +243,13 @@ void engine::Renderer::prepare_gpu_data()
             frame_views_.push_back(FrameView{
                 .scene = &scene,
                 .camera = &camera,
-                .camera_ubo = &view_gpu.camera_ubo,
+                .view_camera = PassCamera{ &view_gpu.camera_ubo, camera.projection * camera.view },
                 .scene_ubo = &gpu.scene_ubo,
                 .lights_ssbo = &frame_ssbos.lights.ssbo,
                 .debug_lines_ssbo = &gpu.debug_lines_ssbo,
                 .skinning_ssbo = &frame_ssbos.skinning.ssbo,
                 .lighting_ubo = &view_gpu.lighting_ubo,
-                .shadow_camera_ubo = &view_gpu.shadow_camera_ubo,
-                .has_shadow = has_shadow,
-                .shadow_view_projection = shadow_view_projection });
+                .shadow_cameras = view_gpu.shadow_cameras });
         }
     }
 }
@@ -345,22 +343,29 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
         const bool is_first_view = view_counter == 0;
         const auto suffix = fmt::format(" [View {}]", view_counter++);
 
-        // Depth of the scene seen from the directional light. The lit shader compares against it to find out what is in shadow.
+        // Depth of the scene seen from each of the view's shadow cameras (the directional light's, for now). The lit shader
+        // compares against the first one's map to find out what is in shadow.
         rg::TextureHandle shadow_map;
-        if (view.has_shadow)
+        for (std::size_t shadow_index = 0; shadow_index < view.shadow_cameras.size(); shadow_index++)
         {
+            const auto shadow_camera = view.shadow_cameras[shadow_index];
             const auto shadow_map_size = std::max(settings_.shadows.map_size, 1u);
             const auto desc_shadow_map = rg::TextureDesc{ shadow_map_size, shadow_map_size, DataLayout::eDEPTH24_STENCIL8_U32 };
-            shadow_map = frame.graph.add_pass<ShadowPassData>(fmt::format("Shadow Map{}", suffix),
+            const auto name = shadow_index == 0 ? fmt::format("Shadow Map{}", suffix) : fmt::format("Shadow Map {}{}", shadow_index, suffix);
+            const auto pass_shadow_map = frame.graph.add_pass<ShadowPassData>(name,
                 [&](rg::Builder& builder, ShadowPassData& data)
                 {
                     data.shadow_map = builder.write_depth(builder.create_texture("ShadowMap", desc_shadow_map), rg::LoadOp::eClear);
                 },
-                [this, view](const ShadowPassData&, rg::PassContext&)
+                [this, view, shadow_camera](const ShadowPassData&, rg::PassContext&)
                 {
-                    draw_meshes_depth_only(view, *view.shadow_camera_ubo);
-                    draw_terrains(view, *view.shadow_camera_ubo, view.shadow_view_projection, true);
+                    draw_meshes_depth_only(view, shadow_camera);
+                    draw_terrains(view, shadow_camera, true);
                 }).shadow_map;
+            if (shadow_index == 0)
+            {
+                shadow_map = pass_shadow_map;
+            }
         }
 
         // Depth of the scene seen from the camera, rendered before any shading is done:
@@ -375,8 +380,8 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
             },
             [this, view](const rg::NoPassData&, rg::PassContext&)
             {
-                draw_meshes_depth_only(view, *view.camera_ubo);
-                draw_terrains(view, *view.camera_ubo, view.camera->projection * view.camera->view, true);
+                draw_meshes_depth_only(view, view.view_camera);
+                draw_terrains(view, view.view_camera, true);
             });
 
         rg::TextureHandle ambient_occlusion;
@@ -409,7 +414,7 @@ void engine::Renderer::add_scene_passes(FrameContext& frame)
                 // depth is already there (Depth Pre-pass), so the visible geometry is exactly equal to it
                 rdx_.set_depth_func(RenderContext::DepthFunc::eLessOrEqual);
                 draw_meshes(view);
-                draw_terrains(view, *view.camera_ubo, view.camera->projection * view.camera->view, false);
+                draw_terrains(view, view.view_camera, false);
             });
 
         // Sprites don't write entity ids, so they are drawn without that attachment.
@@ -502,7 +507,7 @@ void engine::Renderer::draw_meshes(const FrameView& view)
     {
         const auto ctx = MaterialStaticGeometryLit::DrawContext{
             .entity_id = item.entity_id,
-            .camera = *view.camera_ubo,
+            .camera = *view.view_camera.ubo,
             .scene = *view.scene_ubo,
             .model_matrix = glm::value_ptr(item.model),
             .color_diffuse = glm::value_ptr(item.diffuse_color),
@@ -516,7 +521,7 @@ void engine::Renderer::draw_meshes(const FrameView& view)
     {
         const auto ctx = MaterialSkinnedGeometryLit::DrawContext{
             .entity_id = item.entity_id,
-            .camera = *view.camera_ubo,
+            .camera = *view.view_camera.ubo,
             .scene = *view.scene_ubo,
             .model_matrix = glm::value_ptr(item.model),
             .skinning_matrices_offset = item.skinning_matrices_offset,
@@ -528,7 +533,7 @@ void engine::Renderer::draw_meshes(const FrameView& view)
     }
 }
 
-void engine::Renderer::draw_meshes_depth_only(const FrameView& view, const UniformBuffer& camera_ubo)
+void engine::Renderer::draw_meshes_depth_only(const FrameView& view, const PassCamera& camera)
 {
     ENGINE_PROFILE_SECTION_N("Renderer::draw_meshes_depth_only");
     const auto& scene = *view.scene;
@@ -537,7 +542,7 @@ void engine::Renderer::draw_meshes_depth_only(const FrameView& view, const Unifo
     for (const auto& item : scene.static_meshes)
     {
         const auto ctx = MaterialStaticGeometryDepthOnly::DrawContext{
-            .camera = camera_ubo,
+            .camera = *camera.ubo,
             .model_matrix = glm::value_ptr(item.model) };
         material_static_geometry_depth_only_.draw(*item.geometry, ctx);
     }
@@ -545,14 +550,14 @@ void engine::Renderer::draw_meshes_depth_only(const FrameView& view, const Unifo
     for (const auto& item : scene.skinned_meshes)
     {
         const auto ctx = MaterialSkinnedGeometryDepthOnly::DrawContext{
-            .camera = camera_ubo,
+            .camera = *camera.ubo,
             .model_matrix = glm::value_ptr(item.model),
             .skinning_matrices_offset = item.skinning_matrices_offset };
         material_skinned_geometry_depth_only_.draw(*item.geometry, ctx);
     }
 }
 
-void engine::Renderer::draw_terrains(const FrameView& view, const UniformBuffer& camera_ubo, const glm::mat4& view_projection, bool depth_only)
+void engine::Renderer::draw_terrains(const FrameView& view, const PassCamera& camera, bool depth_only)
 {
     const auto& scene = *view.scene;
     if (scene.terrains.empty())
@@ -569,10 +574,10 @@ void engine::Renderer::draw_terrains(const FrameView& view, const UniformBuffer&
         }
         // the camera's frustum in the terrain's local space, where the chunks' bounds are: one matrix per terrain
         // instead of a transformed box per chunk
-        const auto frustum = Frustum::from_view_projection(view_projection * item.model);
+        const auto frustum = Frustum::from_view_projection(camera.view_projection * item.model);
         const auto chunks = item.data->get_chunks();
         const TerrainDrawContext terrain{
-            .camera = camera_ubo,
+            .camera = *camera.ubo,
             .model_matrix = glm::value_ptr(item.model),
             .heights = *item.heights,
             .sample_count = { static_cast<std::uint32_t>(item.sample_count.x), static_cast<std::uint32_t>(item.sample_count.y) },
@@ -632,7 +637,7 @@ void engine::Renderer::draw_sprites(const FrameView& view)
     for (const auto& item : view.scene->sprites)
     {
         const auto ctx = MaterialSprite::DrawContext{
-            .camera = *view.camera_ubo,
+            .camera = *view.view_camera.ubo,
             .scene = *view.scene_ubo,
             .world_position = item.world_position,
             .scale = item.scale };
