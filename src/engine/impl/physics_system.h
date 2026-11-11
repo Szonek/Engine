@@ -10,6 +10,7 @@
 #include <array>
 #include <deque>
 #include <functional>
+#include <memory>
 #include <span>
 #include <tuple>
 #include <vector>
@@ -20,13 +21,29 @@ namespace engine
 // and answers physics queries. Like Unity, bodies are created as soon as their components exist (and again when they
 // change), and moved transforms are synced to the bodies lazily: before the physics step and before every query, so
 // queries during the scripts' update see this frame's state.
+// A heightfield collider is a terrain, which never moves: its body is static whatever rigid body its game object has.
+// The one place saying so, for the physics and for what reads colliders like it (nav mesh builds).
+inline bool is_always_static(const engine_collider_component_t& collider)
+{
+    return collider.type == ENGINE_COLLIDER_TYPE_HEIGHTFIELD;
+}
+
 class PhysicsSystem
 {
 public:
+    // the heights of a terrain asset and their revision (Terrain::get_revision); no data for a terrain which doesn't exist
+    struct TerrainHeights
+    {
+        std::shared_ptr<const TerrainData> data;
+        std::uint64_t revision = 0;
+    };
+    using TerrainLookup = std::function<TerrainHeights(engine_terrain_t)>;
+
     // `joint_matrix` gives the model matrix of a joint attachment's joint (the scene's skin poses); `is_editing` is true
-    // while the editor edits the scene (moving static colliders is on purpose then). Connects to the registry's signals:
+    // while the editor edits the scene (moving static colliders is on purpose then); `terrain_lookup` gives the heights
+    // of heightfield colliders. Connects to the registry's signals:
     // construct it before the component initializers are connected, so its listeners run after them.
-    PhysicsSystem(entt::registry& registry, JointMatrixFunction joint_matrix, std::function<bool()> is_editing);
+    PhysicsSystem(entt::registry& registry, JointMatrixFunction joint_matrix, std::function<bool()> is_editing, TerrainLookup terrain_lookup);
     PhysicsSystem(const PhysicsSystem&) = delete;
     PhysicsSystem& operator=(const PhysicsSystem&) = delete;
     ~PhysicsSystem();
@@ -67,6 +84,8 @@ private:
     // moves the bodies to their game objects' current world transforms; without `force` only when a transform, parent or
     // joint attachment changed since the last sync (before queries)
     void sync_bodies_to_transforms(bool force);
+    // creates the bodies of heightfield colliders again whose terrain's heights changed (or which appeared or went)
+    void sync_heightfields_to_terrains();
     void apply_forces();
     void write_dynamic_bodies_to_transforms();
 
@@ -79,6 +98,9 @@ private:
     entt::registry& registry_;
     JointMatrixFunction joint_matrix_;
     std::function<bool()> is_editing_;
+    TerrainLookup terrain_lookup_;
+    // TerrainData::get_change_count() when the heightfields were last compared with their terrains
+    std::uint64_t terrain_changes_seen_ = 0;
     PhysicsWorld world_;
     // game objects whose transform changed since the last sync (a reactive storage: owned by the registry, so destroyed
     // game objects leave it; a standalone one would keep their stale entities)

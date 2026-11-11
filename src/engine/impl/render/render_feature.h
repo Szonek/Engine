@@ -15,12 +15,23 @@ class UniformBuffer;
 class ShaderStorageBuffer;
 class Geometry;
 
+// A camera a pass renders the scene with: the view's own, or one a shadow map is rendered from. What the shaders read
+// and what culling reads are one value, so a pass can't draw with one camera and cull with another.
+struct PassCamera
+{
+    // CameraGpuData
+    const UniformBuffer* ubo = nullptr;
+    // world space -> clip space, for culling what the pass draws (Frustum::from_view_projection)
+    glm::mat4 view_projection{ 1.0f };
+};
+
 // A camera of a scene together with GPU buffers prepared by the renderer for this frame.
 struct FrameView
 {
     const SceneRenderData* scene = nullptr;
     const CameraGpuData* camera = nullptr;
-    const UniformBuffer* camera_ubo = nullptr;
+    // the view's camera, as the passes use it
+    PassCamera view_camera;
     const UniformBuffer* scene_ubo = nullptr;
     const ShaderStorageBuffer* lights_ssbo = nullptr;
     const ShaderStorageBuffer* debug_lines_ssbo = nullptr;
@@ -28,9 +39,10 @@ struct FrameView
     const ShaderStorageBuffer* skinning_ssbo = nullptr;
     // shadows and ambient occlusion parameters (ViewLightingGpuData)
     const UniformBuffer* lighting_ubo = nullptr;
-    // camera of the directional light (CameraGpuData), valid only if has_shadow is set
-    const UniformBuffer* shadow_camera_ubo = nullptr;
-    bool has_shadow = false;
+    // The cameras shadow maps are rendered from, one Shadow Map pass each; empty when the view has no shadow. One for
+    // now, the directional light's: more shadow casting lights or cascades are more entries (the lit shader samples
+    // the first one's map only, see ViewLightingGpuData).
+    std::span<const PassCamera> shadow_cameras;
 };
 
 // Everything a feature needs to declare its passes.

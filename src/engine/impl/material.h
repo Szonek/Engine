@@ -120,6 +120,58 @@ private:
     Shader shader_;
 };
 
+// Terrains are drawn chunk by chunk: begin() binds everything the chunks of one terrain share, draw_chunk() draws one.
+// The chunk geometry is a grid of TERRAIN_CHUNK_CELLS cells whose vertices are displaced by the height texture.
+struct TerrainDrawContext
+{
+    const UniformBuffer& camera;
+    const float* model_matrix;
+    const Texture2D& heights;
+    std::uint32_t sample_count[2];
+    float cell_size;
+    float texture_tile_size[2];
+};
+
+class MaterialTerrainLit
+{
+public:
+    struct DrawContext
+    {
+        TerrainDrawContext terrain;
+        std::uint32_t entity_id;
+        const UniformBuffer& scene;
+        const float* color_diffuse;
+        float shininess;
+        const Texture2D& texture_diffuse;
+        const Texture2D& texture_specular;
+    };
+public:
+    MaterialTerrainLit();
+
+    void begin(const DrawContext& ctx);
+    void draw_chunk(const Geometry& chunk_grid, std::uint32_t origin_x, std::uint32_t origin_z);
+    // after the last chunk: the texture units sample like their textures say again
+    void end();
+
+private:
+    Shader shader_;
+    // the terrain's textures repeat over it
+    Sampler repeat_sampler_;
+};
+
+// the same vertex shader as MaterialTerrainLit, see MaterialStaticGeometryDepthOnly
+class MaterialTerrainDepthOnly
+{
+public:
+    MaterialTerrainDepthOnly();
+
+    void begin(const TerrainDrawContext& ctx);
+    void draw_chunk(const Geometry& chunk_grid, std::uint32_t origin_x, std::uint32_t origin_z);
+
+private:
+    Shader shader_;
+};
+
 class MaterialSkinnedGeometryUnlit
 {
 public:

@@ -135,6 +135,33 @@ TEST(AssetBrowserAssetId, DataAssetsByTheirPathUnderData)
     EXPECT_EQ(engine::get_asset_id(entry("data/enemies/skeleton_warrior.json")), "enemies/skeleton_warrior.json");
 }
 
+TEST(AssetFileKind, TerrainsAndHeightmapsUnderTerrains)
+{
+    using engine::AssetFileKind;
+    EXPECT_EQ(engine::get_asset_file_kind("terrains/outdoor/valley.terrain", false), AssetFileKind::eTerrain);
+    // what the import reads; an image there is a heightmap, not a texture
+    EXPECT_EQ(engine::get_asset_file_kind("terrains/outdoor/valley.png", false), AssetFileKind::eHeightmap);
+    EXPECT_EQ(engine::get_asset_file_kind("terrains/valley.R16", false), AssetFileKind::eHeightmap);
+    EXPECT_EQ(engine::get_asset_file_kind("terrains/valley.raw", false), AssetFileKind::eHeightmap);
+    EXPECT_EQ(engine::get_asset_file_kind("terrains/generate.py", false), AssetFileKind::eOther);
+    // elsewhere they are what they were
+    EXPECT_EQ(engine::get_asset_file_kind("models/valley.terrain", false), AssetFileKind::eOther);
+    EXPECT_EQ(engine::get_asset_file_kind("models/valley.png", false), AssetFileKind::eTexture);
+}
+
+TEST(AssetBrowserAssetId, TerrainsAndHeightmapsByTheirPathUnderTerrains)
+{
+    EXPECT_EQ(engine::get_asset_id(entry("terrains/outdoor/valley.terrain")), "outdoor/valley.terrain");
+    EXPECT_EQ(engine::get_asset_id(entry("terrains/outdoor/valley.png")), "outdoor/valley.png");
+}
+
+TEST(AssetBrowserTerrainImport, HeightmapIsImportedToTheTerrainFileOfItsName)
+{
+    EXPECT_EQ(engine::get_terrain_import_id("outdoor/valley.png"), "outdoor/valley.terrain");
+    EXPECT_EQ(engine::get_terrain_import_id("valley.r16"), "valley.terrain");
+    EXPECT_EQ(engine::get_terrain_import_id("a.b/valley"), "a.b/valley.terrain");
+}
+
 TEST(AssetBrowserAssetId, NoneOutsideTheirFolderOrForOtherFiles)
 {
     // images outside models/ aren't named by a path the engine resolves

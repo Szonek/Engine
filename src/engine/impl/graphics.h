@@ -36,6 +36,7 @@ enum class TextureAddressClampMode
 {
     eClampToEdge = 0,
     eClampToBorder = 1,
+    eRepeat = 2,
     // ...
     eCount
 };
@@ -155,6 +156,27 @@ public:
     void copy_from_active_fbo(std::uint32_t x, std::uint32_t y, std::uint32_t width, std::uint32_t height);
 private:
 	std::uint32_t texture_ = 0;
+};
+
+// How a texture unit samples whatever texture is bound to it, overriding the texture's own settings while bound: i.e.
+// to tile a texture which is clamped everywhere else. Linear filtering.
+class Sampler
+{
+public:
+    Sampler() = default;
+    explicit Sampler(TextureAddressClampMode address_mode);
+    Sampler(const Sampler& rhs) = delete;
+    Sampler(Sampler&& rhs) noexcept;
+    Sampler& operator=(const Sampler& rhs) = delete;
+    Sampler& operator=(Sampler&& rhs) noexcept;
+    ~Sampler();
+
+    void bind(std::uint32_t slot) const;
+    // the textures bound to the slot use their own settings again
+    static void unbind(std::uint32_t slot);
+
+private:
+    std::uint32_t sampler_ = 0;
 };
 
 class Framebuffer

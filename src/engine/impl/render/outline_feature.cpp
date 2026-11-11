@@ -50,7 +50,7 @@ void engine::OutlineFeature::add_passes(FrameContext& frame)
                 for (const auto& item : view.scene->outline_items)
                 {
                     const MaterialStaticGeometryUnlit::DrawContext ctx{
-                        .camera = *view.camera_ubo,
+                        .camera = *view.view_camera.ubo,
                         .model_matrix = glm::value_ptr(item.model),
                         .color_diffuse = glm::value_ptr(white),
                         .texture_diffuse = white_texture_ };

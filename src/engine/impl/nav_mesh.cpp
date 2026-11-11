@@ -98,6 +98,13 @@ void engine::NavMeshInput::add_collider(const engine_collider_component_t& colli
     }
 }
 
+void engine::NavMeshInput::add_heightfield(const TerrainData& terrain, const glm::mat4& world, NavArea area)
+{
+    const auto triangles_before = triangles_.size();
+    terrain.append_triangles(world, vertices_, triangles_);
+    areas_.insert(areas_.end(), (triangles_.size() - triangles_before) / 3, area);
+}
+
 void engine::NavMeshInput::add_box(const glm::mat4& world, const glm::vec3& half_extents, NavArea area)
 {
     std::array<glm::vec3, 8> corners{};

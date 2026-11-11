@@ -141,7 +141,8 @@ void register_collider(engine::TypeRegistry& registry)
     const std::vector<EnumValue> collider_types = {
         { "box", ENGINE_COLLIDER_TYPE_BOX },
         { "sphere", ENGINE_COLLIDER_TYPE_SPHERE },
-        { "compound", ENGINE_COLLIDER_TYPE_COMPOUND } };
+        { "compound", ENGINE_COLLIDER_TYPE_COMPOUND },
+        { "heightfield", ENGINE_COLLIDER_TYPE_HEIGHTFIELD } };
 
     TypeBuilder<engine_box_collider_t>(registry, "box_collider")
         .field("size", &engine_box_collider_t::size)
@@ -149,11 +150,17 @@ void register_collider(engine::TypeRegistry& registry)
     TypeBuilder<engine_sphere_collider_t>(registry, "sphere_collider")
         .field("radius", &engine_sphere_collider_t::radius)
         .structure();
+    TypeBuilder<engine_heightfield_collider_t>(registry, "heightfield_collider")
+        .asset("terrain", &engine_heightfield_collider_t::terrain, AssetKind::eTerrain)
+        .structure();
+    // a child is a box or a sphere: any other type is refused when a file is loaded
+    const std::vector<EnumValue> child_collider_types = {
+        { "box", ENGINE_COLLIDER_TYPE_BOX },
+        { "sphere", ENGINE_COLLIDER_TYPE_SPHERE } };
     TypeBuilder<engine_child_collider_t>(registry, "child_collider")
-        .enumeration("type", &engine_child_collider_t::type, collider_types)
+        .enumeration("type", &engine_child_collider_t::type, child_collider_types)
         .field("transform", &engine_child_collider_t::transform)
         .field("rotation_quaternion", &engine_child_collider_t::rotation_quaternion)
-        // a child is a box or a sphere
         .tagged_union("collider", &engine_child_collider_t::collider, "type", {
             { ENGINE_COLLIDER_TYPE_BOX, "box_collider" },
             { ENGINE_COLLIDER_TYPE_SPHERE, "sphere_collider" } })
@@ -170,7 +177,8 @@ void register_collider(engine::TypeRegistry& registry)
         .tagged_union("collider", &T::collider, "type", {
             { ENGINE_COLLIDER_TYPE_BOX, "box_collider" },
             { ENGINE_COLLIDER_TYPE_SPHERE, "sphere_collider" },
-            { ENGINE_COLLIDER_TYPE_COMPOUND, "compound_collider" } })
+            { ENGINE_COLLIDER_TYPE_COMPOUND, "compound_collider" },
+            { ENGINE_COLLIDER_TYPE_HEIGHTFIELD, "heightfield_collider" } })
         .field("bounciness", &T::bounciness)
         .field("friction_static", &T::friction_static)
         .field("layer", &T::layer)
@@ -216,6 +224,11 @@ void engine::register_builtin_types(TypeRegistry& registry)
         .asset("diffuse_texture", &engine_material_component_t::diffuse_texture, AssetKind::eTexture)
         .field("shininess", &engine_material_component_t::shininess)
         .asset("specular_texture", &engine_material_component_t::specular_texture, AssetKind::eTexture)
+        .component();
+    TypeBuilder<engine_terrain_component_t>(registry, "terrain")
+        .asset("terrain", &engine_terrain_component_t::terrain, AssetKind::eTerrain)
+        .field("texture_tile_size", &engine_terrain_component_t::texture_tile_size)
+        .field("disable", &engine_terrain_component_t::disable)
         .component();
     register_light(registry);
     register_camera(registry);

@@ -78,6 +78,15 @@ public:
     // Graph of the last rendered frame, for debugging/visualization.
     const rg::Graph& get_last_frame_graph() const { return graph_; }
 
+    // What the last rendered frame drew, for the editor's stats.
+    struct Stats
+    {
+        // terrain chunks the cameras saw (Forward passes), and how many they could have seen: the rest were culled
+        std::uint32_t terrain_chunks_drawn = 0;
+        std::uint32_t terrain_chunks_total = 0;
+    };
+    const Stats& get_stats() const { return stats_; }
+
 private:
     // GPU buffers of a single camera
     struct ViewGpu
@@ -86,6 +95,8 @@ private:
         UniformBuffer lighting_ubo{ sizeof(ViewLightingGpuData) };
         // the directional light as a camera: what the shadow map of this view is rendered with
         UniformBuffer shadow_camera_ubo{ sizeof(CameraGpuData) };
+        // this frame's FrameView::shadow_cameras
+        std::vector<PassCamera> shadow_cameras;
     };
 
     // Persistently mapped SSBOs written every frame. The GPU may still be reading the previous frames' data,
@@ -150,8 +161,11 @@ private:
     void add_features_passes(FrameContext& frame, RenderStage stage);
 
     void draw_meshes(const FrameView& view);
-    // camera_ubo: camera of the view or of the light
-    void draw_meshes_depth_only(const FrameView& view, const UniformBuffer& camera_ubo);
+    // camera: the view's or one of its shadow cameras
+    void draw_meshes_depth_only(const FrameView& view, const PassCamera& camera);
+    // The chunks of the scene's terrains the camera sees (the view's or one of its shadow cameras): depth only, or lit
+    // (with the view's camera).
+    void draw_terrains(const FrameView& view, const PassCamera& camera, bool depth_only);
     void draw_sprites(const FrameView& view);
     void draw_debug_lines(const FrameView& view, Shader& shader);
 
@@ -182,6 +196,11 @@ private:
     MaterialStaticGeometryDepthOnly material_static_geometry_depth_only_;
     MaterialSkinnedGeometryDepthOnly material_skinned_geometry_depth_only_;
     MaterialSprite material_sprite_;
+    MaterialTerrainLit material_terrain_lit_;
+    MaterialTerrainDepthOnly material_terrain_depth_only_;
+    // the grid of vertices every terrain chunk is drawn with (terrain.vs)
+    Geometry geometry_terrain_chunk_;
+    Stats stats_;
 
     Shader shader_debug_lines_;
     // the lines' owners into the entity ids, for picking

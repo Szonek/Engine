@@ -55,6 +55,17 @@ void draw_icon(engine::AssetFileKind kind, float size)
         draw_list->AddLine(at(0.2f, 0.5f), at(0.8f, 0.5f), IM_COL32(255, 235, 210, 255));
         draw_list->AddLine(at(0.2f, 0.7f), at(0.8f, 0.7f), IM_COL32(255, 235, 210, 255));
         break;
+    case AssetFileKind::eTerrain:
+        // hills under a sky
+        draw_list->AddRectFilled(at(0.05f, 0.1f), at(0.95f, 0.9f), IM_COL32(120, 180, 230, 255), 2.0f);
+        draw_list->AddTriangleFilled(at(0.05f, 0.9f), at(0.35f, 0.4f), at(0.65f, 0.9f), IM_COL32(70, 150, 80, 255));
+        draw_list->AddTriangleFilled(at(0.4f, 0.9f), at(0.7f, 0.55f), at(0.95f, 0.9f), IM_COL32(50, 120, 65, 255));
+        break;
+    case AssetFileKind::eHeightmap:
+        // a gradient from black to white: heights
+        draw_list->AddRectFilledMultiColor(at(0.05f, 0.1f), at(0.95f, 0.9f), IM_COL32(20, 20, 20, 255), IM_COL32(130, 130, 130, 255), IM_COL32(245, 245, 245, 255),
+            IM_COL32(130, 130, 130, 255));
+        break;
     case AssetFileKind::eOther:
         // a page with a folded corner
         draw_list->AddRectFilled(at(0.2f, 0.05f), at(0.8f, 0.95f), IM_COL32(150, 150, 150, 255), 1.0f);
@@ -72,6 +83,8 @@ const char* get_payload_type(engine::AssetFileKind kind)
     case engine::AssetFileKind::eScene: return engine::ASSET_PAYLOAD_PREFAB;
     case engine::AssetFileKind::eTexture: return engine::ASSET_PAYLOAD_TEXTURE;
     case engine::AssetFileKind::eData: return engine::ASSET_PAYLOAD_DATA_ASSET;
+    case engine::AssetFileKind::eTerrain: return engine::ASSET_PAYLOAD_TERRAIN;
+    case engine::AssetFileKind::eHeightmap:
     case engine::AssetFileKind::eFolder:
     case engine::AssetFileKind::eOther: break;
     }
@@ -120,6 +133,7 @@ constexpr const char* IMAGE_TOOLTIP = "Drag onto a texture field of the properti
 constexpr const char* PLACE_TOOLTIP = "Drag into the scene view to place it";
 constexpr const char* SCENE_TOOLTIP = "Drag into the scene view to place it, double-click to open it";
 constexpr const char* DATA_ASSET_TOOLTIP = "Drag onto a data asset field of the properties panel";
+constexpr const char* TERRAIN_TOOLTIP = "Drag into the scene view to place it, or onto a terrain field of the properties panel";
 }  // namespace
 
 engine::AssetBrowserPanel::AssetBrowserPanel(Application& app, const EditedDataAssets& edited)
@@ -190,6 +204,11 @@ void engine::AssetBrowserPanel::clear_selection()
     {
         app_.release_data_asset(std::exchange(inspected_data_asset_, ENGINE_INVALID_OBJECT_HANDLE));
     }
+    if (inspected_terrain_ != ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        app_.release_terrain(std::exchange(inspected_terrain_, ENGINE_INVALID_OBJECT_HANDLE));
+    }
+    heightmap_import_result_.clear();
     selected_.reset();
 }
 
@@ -211,6 +230,10 @@ void engine::AssetBrowserPanel::select(const asset_entry_t& entry)
         else if (entry.kind == AssetFileKind::eData)
         {
             inspected_data_asset_ = app_.load_data_asset(*asset_id);
+        }
+        else if (entry.kind == AssetFileKind::eTerrain)
+        {
+            inspected_terrain_ = app_.load_terrain(*asset_id);
         }
     }
 }
@@ -435,7 +458,8 @@ std::optional<std::string> engine::AssetBrowserPanel::draw_files()
         {
             const auto* hint = entry.kind == AssetFileKind::eTexture ? IMAGE_TOOLTIP
                 : entry.kind == AssetFileKind::eScene ? SCENE_TOOLTIP
-                : entry.kind == AssetFileKind::eData ? DATA_ASSET_TOOLTIP : PLACE_TOOLTIP;
+                : entry.kind == AssetFileKind::eData ? DATA_ASSET_TOOLTIP
+                : entry.kind == AssetFileKind::eTerrain ? TERRAIN_TOOLTIP : PLACE_TOOLTIP;
             ImGui::SetItemTooltip("%s\n%s", asset_id->c_str(), hint);
             asset_drag_source(payload_type, *asset_id, entry.kind, entry.name);
         }
@@ -504,6 +528,12 @@ void engine::AssetBrowserPanel::draw_inspector()
     case AssetFileKind::eData:
         draw_data_asset_details();
         break;
+    case AssetFileKind::eTerrain:
+        draw_terrain_details();
+        break;
+    case AssetFileKind::eHeightmap:
+        draw_heightmap_details();
+        break;
     case AssetFileKind::eFolder:
     case AssetFileKind::eOther:
         ImGui::TextWrapped("Not an asset the editor can use.");
@@ -521,6 +551,66 @@ void engine::AssetBrowserPanel::draw_data_asset_details()
     }
     ImGui::Text("Type: %s", asset->get_type().name.c_str());
     ImGui::TextWrapped("Edits take effect in the game at once. Drag it onto a data asset field of the properties panel.");
+}
+
+void engine::AssetBrowserPanel::draw_terrain_details()
+{
+    const auto* terrain = inspected_terrain_ == ENGINE_INVALID_OBJECT_HANDLE ? nullptr : app_.get_terrain(inspected_terrain_);
+    if (!terrain)
+    {
+        ImGui::TextWrapped("The terrain couldn't be loaded (see the log).");
+        return;
+    }
+    const auto& data = terrain->get_data();
+    ImGui::Text("Samples: %u x %u", data.get_samples_x(), data.get_samples_z());
+    ImGui::Text("Cell size: %.2f m", static_cast<double>(data.get_cell_size()));
+    ImGui::Text("Size: %.1f x %.1f m", static_cast<double>(data.get_size().x), static_cast<double>(data.get_size().y));
+    ImGui::Text("Heights: %.2f .. %.2f m", static_cast<double>(data.get_min_height()), static_cast<double>(data.get_max_height()));
+    ImGui::Text("Chunks: %u x %u", data.get_chunks_x(), data.get_chunks_z());
+    ImGui::TextWrapped("Drag it into the scene view to place it, or onto a terrain field of the properties panel.");
+}
+
+void engine::AssetBrowserPanel::draw_heightmap_details()
+{
+    const auto asset_id = get_asset_id(*selected_);
+    if (!asset_id)
+    {
+        return;
+    }
+    const auto terrain_id = get_terrain_import_id(*asset_id);
+    ImGui::TextWrapped("A heightmap: a 16-bit grayscale PNG or a raw 16-bit file (.r16, .raw), as Gaea, World Machine and Blender export. Import turns it into a terrain.");
+    ImGui::SeparatorText("Import as terrain");
+    ImGui::DragFloat("Cell size", &heightmap_import_.cell_size, 0.05f, 0.05f, 100.0f, "%.2f m");
+    ImGui::SetItemTooltip("Metres between two pixels of the heightmap");
+    ImGui::DragFloat("Lowest height", &heightmap_import_.height_min, 0.1f, 0.0f, 0.0f, "%.2f m");
+    ImGui::SetItemTooltip("The height of black");
+    ImGui::DragFloat("Highest height", &heightmap_import_.height_max, 0.1f, 0.0f, 0.0f, "%.2f m");
+    ImGui::SetItemTooltip("The height of white");
+    const bool valid = heightmap_import_.cell_size > 0.0f && heightmap_import_.height_max >= heightmap_import_.height_min;
+    ImGui::BeginDisabled(!valid);
+    if (ImGui::Button("Import"))
+    {
+        // A terrain of that name which is loaded (a scene shows it) gets the new heights at once. The reference is only
+        // for saving it.
+        const auto terrain = app_.import_terrain_heightmap(*asset_id, heightmap_import_, terrain_id);
+        const bool saved = terrain != ENGINE_INVALID_OBJECT_HANDLE && app_.save_terrain(terrain);
+        if (terrain != ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            app_.release_terrain(terrain);
+        }
+        heightmap_import_result_ = saved ? fmt::format("Imported to terrains/{}", terrain_id) : std::string("The import failed (see the log).");
+        if (saved)
+        {
+            // the new file shows in its folder: listed again when drawn
+            folders_.clear();
+        }
+    }
+    ImGui::EndDisabled();
+    ImGui::SetItemTooltip("Writes terrains/%s (replacing it)", terrain_id.c_str());
+    if (!heightmap_import_result_.empty())
+    {
+        ImGui::TextWrapped("%s", heightmap_import_result_.c_str());
+    }
 }
 
 void engine::AssetBrowserPanel::draw_model_details()

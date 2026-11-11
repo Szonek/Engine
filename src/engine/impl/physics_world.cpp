@@ -138,7 +138,21 @@ void engine::PhysicsWorld::collect_debug_lines(std::vector<DebugLineGpuData>& ou
     }
 }
 
-engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, BodyType type, float mass, const glm::mat4& local_to_world, std::int32_t body_index)
+void engine::PhysicsWorld::delete_shape(btCollisionShape* shape)
+{
+    if (shape && shape->isCompound())
+    {
+        auto* compound = static_cast<btCompoundShape*>(shape);
+        for (int i = compound->getNumChildShapes() - 1; i >= 0; i--)
+        {
+            delete compound->getChildShape(i);
+        }
+    }
+    delete shape;
+}
+
+engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(const engine_collider_component_t& collider, BodyType type, float mass, const glm::mat4& local_to_world, std::int32_t body_index,
+    std::shared_ptr<const TerrainData> heightfield)
 {
     physcic_internal_component_t ret{};
     if (type != BodyType::eDynamic)
@@ -184,10 +198,39 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
             else
             {
                 engine::log::log(engine::log::LogLevel::eCritical, fmt::format("Unknown collider type in compound collider!\n"));
+                delete_shape(cs);
                 return ret;
             }
         }
         ret.collision_shape = cs;
+    }
+    else if (collider.type == ENGINE_COLLIDER_TYPE_HEIGHTFIELD)
+    {
+        if (!heightfield)
+        {
+            return ret;
+        }
+        // The heights are read in place: nothing is copied, and a change of them is a change of the shape (its height
+        // range is fixed, so the body is created again then, see PhysicsSystem).
+        // Its cells are split along the same diagonal as everywhere else (TerrainData).
+        const auto low = heightfield->get_min_height();
+        const auto high = heightfield->get_max_height();
+        auto* heights = new btHeightfieldTerrainShape(static_cast<int>(heightfield->get_samples_x()), static_cast<int>(heightfield->get_samples_z()),
+            heightfield->get_heights().data(), low, high, 1, false);
+        heights->setLocalScaling(btVector3(heightfield->get_cell_size(), 1.0f, heightfield->get_cell_size()));
+        // rays walk the cells under them coarse to fine instead of testing every cell they pass over
+        heights->buildAccelerator();
+        // Bullet centers the shape on its bounds; the terrain starts at its game object's origin
+        const auto size = heightfield->get_size();
+        btTransform offset;
+        offset.setIdentity();
+        offset.setOrigin(btVector3(size.x * 0.5f, (low + high) * 0.5f, size.y * 0.5f));
+        auto* shape = new btCompoundShape();
+        shape->addChildShape(offset, heights);
+        ret.collision_shape = shape;
+        ret.shape_data = std::move(heightfield);
+        // a terrain never moves (is_always_static): the caller asks for a static body
+        assert(type == BodyType::eStatic);
     }
     else
     {
@@ -217,6 +260,11 @@ engine::physcic_internal_component_t engine::PhysicsWorld::create_rigid_body(con
         ret.rigid_body->setCollisionFlags(ret.rigid_body->getCollisionFlags() | btCollisionObject::CF_NO_CONTACT_RESPONSE);
     }
     ret.rigid_body->setUserIndex(body_index);
+    if (collider.type == ENGINE_COLLIDER_TYPE_HEIGHTFIELD)
+    {
+        // the debug drawer would draw every triangle of the terrain every frame
+        ret.rigid_body->setCollisionFlags(ret.rigid_body->getCollisionFlags() | btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT);
+    }
     if (type == BodyType::eKinematic)
     {
         ret.rigid_body->setCollisionFlags(ret.rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);

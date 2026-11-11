@@ -11,6 +11,7 @@
 #include "animation_controller.h"
 #include "prefab.h"
 #include "data_asset.h"
+#include "terrain.h"
 #include "play_mode.h"
 #include "serialization/type_registry.h"
 #include "collision_layers.h"
@@ -106,6 +107,24 @@ public:
     virtual std::string get_data_asset_name(std::uint32_t idx) const;
     virtual std::vector<std::pair<std::uint32_t, std::string>> get_data_asset_names() const;
 
+    // terrain assets (see Terrain): heights in a file under assets/terrains, named by its path there
+    // ("outdoor/valley.terrain"), or made by code under any unique name. Loading a file which is loaded already returns
+    // it with one more reference.
+    virtual std::uint32_t create_terrain(std::string_view name, TerrainData data);
+    virtual std::uint32_t load_terrain(std::string_view path);
+    // A terrain named `name` from a heightmap file (relative to assets/terrains, or absolute). A terrain of that name
+    // which exists already gets the heightmap's heights and one more reference.
+    virtual std::uint32_t import_terrain_heightmap(std::string_view heightmap_path, const engine_terrain_import_desc_t& desc, std::string_view name);
+    // writes the terrain to the file its name is; false (logged) when the name isn't a .terrain path or it can't be written
+    virtual bool save_terrain(std::uint32_t idx);
+    virtual std::uint32_t get_terrain(std::string_view name) const;
+    // nullptr for a handle which isn't valid; the heights can be changed through it
+    virtual Terrain* get_terrain(std::uint32_t idx) const;
+    virtual std::string get_terrain_name(std::uint32_t idx) const;
+    virtual std::vector<std::pair<std::uint32_t, std::string>> get_terrain_names() const;
+    virtual bool acquire_terrain(std::uint32_t idx);
+    virtual void release_terrain(std::uint32_t idx);
+
     virtual std::uint32_t add_shader(const std::vector<std::string>& vertex_shader_name, const std::vector<std::string>& fragment_shader_name, std::string_view name);
     virtual std::uint32_t get_shader(std::string_view name) const;
     virtual std::string get_shader_name(std::uint32_t idx) const;
@@ -199,6 +218,7 @@ protected:
     Atlas<std::shared_ptr<const AnimationLibrary>> animation_sets_atlas_;
     Atlas<std::unique_ptr<Prefab>> prefabs_atlas_;
     Atlas<Shader> shader_atlas_;
+    Atlas<std::shared_ptr<Terrain>, 256> terrains_atlas_;
     TypeRegistry types_;
     PhysicsLayerNames physics_layer_names_;
     // set (on the watcher's thread) when a data asset's file changed, so the frame only looks at them then; before the

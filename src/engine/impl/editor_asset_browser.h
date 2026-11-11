@@ -20,6 +20,8 @@ enum class AssetFileKind
     eScene,    // .json under assets/scenes: a scene file, placed as a scene prefab named by its path there
     eTexture,  // an image file (.png, .jpg, ...)
     eData,     // .json under assets/data: a data asset (DataAsset) named by its path there
+    eTerrain,  // .terrain under assets/terrains: a terrain's heights, named by its path there
+    eHeightmap,  // an image or .r16 / .raw under assets/terrains: a heightmap a terrain is imported from
     eOther,    // shaders, fonts, UI documents, ...: listed, but nothing uses them from the browser
 };
 
@@ -53,7 +55,8 @@ std::vector<asset_entry_t> list_asset_folder(const std::filesystem::path& assets
 
 // The asset ID the engine names the file by, or nothing when it has none: a model or an image by its path under
 // models/ (images in their own files are named like models, so models using them share one texture), a scene file by
-// its path under scenes/, a data asset by its path under data/.
+// its path under scenes/, a data asset by its path under data/, a terrain by its path under terrains/ (and so is a
+// heightmap, for the import: it isn't an asset of the engine).
 std::optional<std::string> get_asset_id(const asset_entry_t& entry);
 
 // The scene file Save As writes for the name typed into its dialog in `folder` (relative to the assets folder,
@@ -74,6 +77,12 @@ inline constexpr const char* ASSET_PAYLOAD_PREFAB = "ASSET_PREFAB";      // a mo
 inline constexpr const char* ASSET_PAYLOAD_GEOMETRY = "ASSET_GEOMETRY";  // a mesh of a model, "<model path>#<name>"
 inline constexpr const char* ASSET_PAYLOAD_TEXTURE = "ASSET_TEXTURE";    // an image file, or an image of a model
 inline constexpr const char* ASSET_PAYLOAD_DATA_ASSET = "ASSET_DATA";    // a data asset (a file under assets/data)
+inline constexpr const char* ASSET_PAYLOAD_TERRAIN = "ASSET_TERRAIN";    // a terrain (a file under assets/terrains)
+
+// The terrain file a heightmap is imported to, by its asset ID: the heightmap's path under assets/terrains with the
+// extension .terrain ("outdoor/valley.png" -> "outdoor/valley.terrain"), like Unity's imported assets keep their
+// source's name.
+std::string get_terrain_import_id(std::string_view heightmap_id);
 
 // Where an asset dropped along the ray lands when it hits no collider: on the ground plane (y = 0) when the ray goes
 // down to it within `max_distance` (the camera's far plane: farther, it couldn't be seen), otherwise `fallback_distance`

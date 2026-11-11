@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "types": {
+    "name": 1,
+    "folder": 1,
+    "transform": 1,
+    "material": 1,
+    "terrain": 1,
+    "light": 1,
+    "camera": 1,
+    "nav_surface": 1,
+    "collider": 1,
+    "player_start": 1,
+    "enemy_spawner": 1,
+    "script": 1
+  },
+  "entities": [{
+      "id": 1,
+      "components": {
+        "name": {
+          "name": "camera"
+        },
+        "transform": {
+          "position": [0, 14.142136, 14.142136],
+          "scale": [1, 1, 1],
+          "rotation": [0, 0, 0, 1]
+        },
+        "camera": {
+          "enabled": true,
+          "type": "orthographic",
+          "orthographic": {
+            "scale": 5
+          },
+          "target": [0, 0, 0],
+          "viewport_rect": {
+            "x": 0,
+            "y": 0,
+            "width": 1,
+            "height": 1
+          },
+          "direction": {
+            "up": [0, 1, 0],
+            "right": [0, 0, 0],
+            "front": [0, 0, 0]
+          },
+          "pitch": 0,
+          "yaw": 0,
+          "roll": 0,
+          "clip_plane_near": 0.1,
+          "clip_plane_far": 100
+        },
+        "script": {
+          "type": "camera"
+        }
+      }
+    }, {
+      "id": 2,
+      "components": {
+        "name": {
+          "name": "encounter"
+        },
+        "script": {
+          "type": "encounter"
+        }
+      }
+    }, {
+      "id": 3,
+      "components": {
+        "name": {
+          "name": "gameplay-hud"
+        },
+        "script": {
+          "type": "gameplay_hud"
+        }
+      }
+    }, {
+      "id": 4,
+      "components": {
+        "name": {
+          "name": "main-light"
+        },
+        "folder": {
+          "path": "lights"
+        },
+        "transform": {
+          "position": [0, 10, 0],
+          "scale": [0.1, 0.1, 0.1],
+          "rotation": [0, 0, 0, 1]
+        },
+        "material": {
+          "diffuse_color": [0, 0, 0, 0],
+          "diffuse_texture": null,
+          "shininess": 0,
+          "specular_texture": null
+        },
+        "light": {
+          "type": "directional",
+          "intensity": {
+            "ambient": [0.45, 0.45, 0.45],
+            "diffuse": [0.75, 0.75, 0.75],
+            "specular": [0.1, 0.1, 0.1]
+          },
+          "directional": {
+            "direction": [0.4, 1, 0.3]
+          }
+        }
+      }
+    }, {
+      "id": 5,
+      "components": {
+        "name": {
+          "name": "nav-surface"
+        },
+        "nav_surface": {
+          "agent_radius": 0.3,
+          "agent_height": 1,
+          "agent_max_slope": 45,
+          "agent_max_climb": 0.2,
+          "cell_size": 0.2,
+          "cell_height": 0.1
+        }
+      }
+    }, {
+      "id": 7,
+      "components": {
+        "name": {
+          "name": "player-start"
+        },
+        "folder": {
+          "path": "player_starts"
+        },
+        "transform": {
+          "position": [0, 0.5, 0],
+          "scale": [1, 1, 1],
+          "rotation": [0, 0, 0, 1]
+        },
+        "player_start": {
+          "id": "default"
+        }
+      }
+    }, {
+      "id": 8,
+      "components": {
+        "name": {
+          "name": "terrain"
+        },
+        "folder": {
+          "path": "environment"
+        },
+        "transform": {
+          "position": [-32, 0, -32],
+          "scale": [1, 1, 1],
+          "rotation": [0, 0, 0, 1]
+        },
+        "material": {
+          "diffuse_color": [0.36, 0.55, 0.25, 1],
+          "diffuse_texture": null,
+          "shininess": 4,
+          "specular_texture": null
+        },
+        "terrain": {
+          "terrain": "outdoor_test.terrain",
+          "texture_tile_size": 4,
+          "disable": false
+        },
+        "collider": {
+          "type": "heightfield",
+          "is_trigger": false,
+          "disable": false,
+          "heightfield": {
+            "terrain": "outdoor_test.terrain"
+          },
+          "bounciness": 0,
+          "friction_static": 1,
+          "layer": 1,
+          "collides_with": 4294967295
+        }
+      }
+    }, {
+      "id": 9,
+      "components": {
+        "name": {
+          "name": "enemy-spawner"
+        },
+        "folder": {
+          "path": "enemy_spawners"
+        },
+        "transform": {
+          "position": [5, 0, -4],
+          "scale": [1, 1, 1],
+          "rotation": [0, 0, 0, 1]
+        },
+        "enemy_spawner": {
+          "enemy_type": "enemies/skeleton_warrior.json",
+          "count": 3,
+          "area_half_extents": [1.5, 1.5],
+          "min_spacing": 0.8,
+          "seed": 1
+        },
+        "script": {
+          "type": "enemy_spawner"
+        }
+      }
+    }]
+}

@@ -1,5 +1,6 @@
 #pragma once
 #include "components/collider_component.h"
+#include "terrain_data.h"
 
 #include <glm/glm.hpp>
 
@@ -40,7 +41,10 @@ class NavMeshInput
 public:
     // the collider's shapes, placed by the world matrix of its game object (boxes: 12 triangles, spheres: a coarse
     // triangulation, compounds: each child)
+    // (a heightfield collider adds nothing here: its terrain is added with add_heightfield)
     void add_collider(const engine_collider_component_t& collider, const glm::mat4& world, NavArea area);
+    // the surface of a terrain, placed by the world matrix of its game object: two triangles per cell, facing up
+    void add_heightfield(const TerrainData& terrain, const glm::mat4& world, NavArea area);
 
     const std::vector<float>& get_vertices() const { return vertices_; }
     const std::vector<std::int32_t>& get_triangles() const { return triangles_; }

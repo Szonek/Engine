@@ -49,18 +49,23 @@ inline std::uint32_t to_ogl_datatype(engine::DataLayout layout)
     return GL_FALSE;
 }
 
+// the format a texture is stored in (glTexImage2D's internal format)
 inline std::uint32_t to_ogl_format(engine::DataLayout layout)
 {
     switch (layout)
     {
     case engine::DataLayout::eRGBA_U8:
-    case engine::DataLayout::eRGBA_FP32:
         return GL_RGBA;
     case engine::DataLayout::eRGB_U8:
         return GL_RGB;
     case engine::DataLayout::eR_U8:
-    case engine::DataLayout::eR_FP32:
         return GL_RED;
+    // float layouts are stored as floats: an unsized format (GL_RED, GL_RGBA) would store them as 8-bit values
+    // clamped to 0..1
+    case engine::DataLayout::eRGBA_FP32:
+        return GL_RGBA32F;
+    case engine::DataLayout::eR_FP32:
+        return GL_R32F;
     case engine::DataLayout::eR_U32:
         return GL_R32UI;
     case engine::DataLayout::eDEPTH24_STENCIL8_U32:
@@ -145,6 +150,7 @@ inline std::uint32_t to_ogl_texture_border_clamp_mode(engine::TextureAddressClam
     {
     case engine::TextureAddressClampMode::eClampToBorder: return GL_CLAMP_TO_BORDER;
     case engine::TextureAddressClampMode::eClampToEdge: return GL_CLAMP_TO_EDGE;
+    case engine::TextureAddressClampMode::eRepeat: return GL_REPEAT;
     default:
         assert(false && "Unknown TextureAddressClampMode!");
     }
@@ -522,6 +528,47 @@ engine::Texture2D::Texture2D(std::string_view texture_name, bool generate_mipmap
 	texture_ = generate_opengl_texture(texture_data.get_width(), texture_data.get_height(), dt, generate_mipmaps, texture_data.get_data_ptr(), TextureAddressClampMode::eClampToEdge);
 }
 
+engine::Sampler::Sampler(TextureAddressClampMode address_mode)
+{
+    glGenSamplers(1, &sampler_);
+    glSamplerParameteri(sampler_, GL_TEXTURE_WRAP_S, to_ogl_texture_border_clamp_mode(address_mode));
+    glSamplerParameteri(sampler_, GL_TEXTURE_WRAP_T, to_ogl_texture_border_clamp_mode(address_mode));
+    glSamplerParameteri(sampler_, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glSamplerParameteri(sampler_, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+}
+
+engine::Sampler::Sampler(Sampler&& rhs) noexcept
+{
+    std::swap(sampler_, rhs.sampler_);
+}
+
+engine::Sampler& engine::Sampler::operator=(Sampler&& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        std::swap(sampler_, rhs.sampler_);
+    }
+    return *this;
+}
+
+engine::Sampler::~Sampler()
+{
+    if (sampler_)
+    {
+        glDeleteSamplers(1, &sampler_);
+    }
+}
+
+void engine::Sampler::bind(std::uint32_t slot) const
+{
+    glBindSampler(slot, sampler_);
+}
+
+void engine::Sampler::unbind(std::uint32_t slot)
+{
+    glBindSampler(slot, 0);
+}
+
 engine::Texture2D engine::Texture2D::create_and_attach_to_frame_buffer(std::uint32_t width, std::uint32_t height, DataLayout layout, std::size_t idx)
 {
     Texture2D ret(width, height, false, nullptr, layout, engine::TextureAddressClampMode::eClampToEdge);
@@ -557,7 +604,8 @@ engine::Texture2D::~Texture2D()
 bool engine::Texture2D::upload_region(std::uint32_t x_pos, std::uint32_t y_pos, std::uint32_t width, std::uint32_t height, const void* data, DataLayout layout)
 {
     glBindTexture(GL_TEXTURE_2D, texture_);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, x_pos, y_pos, width, height, to_ogl_format(layout), to_ogl_datatype(layout), data);
+    // the format of `data`, not the one the texture is stored in
+    glTexSubImage2D(GL_TEXTURE_2D, 0, x_pos, y_pos, width, height, to_ogl_host_format(layout), to_ogl_datatype(layout), data);
     glBindTexture(GL_TEXTURE_2D, 0);
     return false;
 }

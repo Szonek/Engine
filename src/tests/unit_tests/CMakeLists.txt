@@ -43,6 +43,8 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	momentum_tests.cpp
 	smoke_tests.cpp
 	overlap_results_tests.cpp
+	bounds_tests.cpp
+	terrain_data_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
@@ -61,6 +63,11 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	${ENGINE_IMPL_DIR}/animation_controller.cpp
 	${ENGINE_IMPL_DIR}/animation_controller.h
 	${ENGINE_IMPL_DIR}/asset_id.h
+	# header-only: bounds and frustum culling (glm only)
+	${ENGINE_IMPL_DIR}/bounds.h
+	# a terrain's heights: sampling, chunk bounds, its file and heightmap import
+	${ENGINE_IMPL_DIR}/terrain_data.cpp
+	${ENGINE_IMPL_DIR}/terrain_data.h
 	# nav mesh build (Recast) and queries (Detour)
 	${ENGINE_IMPL_DIR}/nav_mesh.cpp
 	${ENGINE_IMPL_DIR}/nav_mesh.h

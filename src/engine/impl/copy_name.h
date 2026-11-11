@@ -7,6 +7,19 @@
 
 namespace engine
 {
+// `name` cut to fit a name component's storage of `max_length` bytes (the terminator included), never inside a UTF-8
+// character.
+inline std::string truncate_name(std::string_view name, std::size_t max_length)
+{
+    auto length = std::min(name.size(), max_length > 0 ? max_length - 1 : 0);
+    // a UTF-8 continuation byte (10xxxxxx) can't start the cut part
+    while (length > 0 && length < name.size() && (static_cast<unsigned char>(name[length]) & 0xC0) == 0x80)
+    {
+        length--;
+    }
+    return std::string(name.substr(0, length));
+}
+
 // The name of a copy (the editor's duplicate): "<base> (<n>)" with the first n from 1 which no name in `names` uses.
 // The base is the name without a number in parentheses at its end, so a copy of "wall (1)" is "wall (2)". The result
 // is shorter than `max_length` (the size of the name component's storage, the terminator included): the number is
@@ -22,13 +35,7 @@ inline std::string copy_name(std::string_view name, const std::vector<std::strin
     for (std::size_t n = 1;; n++)
     {
         const auto suffix = " (" + std::to_string(n) + ")";
-        auto length = std::min(base.size(), max_length - 1 - suffix.size());
-        // a UTF-8 continuation byte (10xxxxxx) can't start the cut part
-        while (length > 0 && length < base.size() && (static_cast<unsigned char>(base[length]) & 0xC0) == 0x80)
-        {
-            length--;
-        }
-        auto candidate = base.substr(0, length) + suffix;
+        auto candidate = truncate_name(base, max_length - suffix.size()) + suffix;
         if (std::find(names.begin(), names.end(), candidate) == names.end())
         {
             return candidate;

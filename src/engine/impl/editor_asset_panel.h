@@ -22,7 +22,9 @@ class Application;
 // details of the selected file for the properties panel. Models and scene files are dragged into the scene view to
 // place them (ASSET_PAYLOAD_PREFAB); images, and the meshes and images of a model (listed under it when it is opened
 // with its arrow, like Unity's sub-assets, and in its details), and data assets onto the asset fields of the properties
-// panel (ASSET_PAYLOAD_GEOMETRY, ASSET_PAYLOAD_TEXTURE, ASSET_PAYLOAD_DATA_ASSET). Dragging doesn't select, so a file can
+// panel (ASSET_PAYLOAD_GEOMETRY, ASSET_PAYLOAD_TEXTURE, ASSET_PAYLOAD_DATA_ASSET). A terrain file (under terrains/) is
+// dragged into the scene view to place it, or onto a terrain field (ASSET_PAYLOAD_TERRAIN); a heightmap there (a
+// 16-bit PNG, .r16 or .raw) is imported to a terrain file from its details. Dragging doesn't select, so a file can
 // be dropped on the selected game object's fields. A data asset with unsaved changes shows "*" after its name.
 // Selecting a model, an image or a data asset, or opening a model, loads it to show what it holds, and holds it until the selection
 // changes or the model is closed. The folders are listed once and again after Refresh (and after the editor saved a
@@ -89,6 +91,8 @@ private:
     void draw_model_details();
     void draw_texture_details();
     void draw_data_asset_details();
+    void draw_terrain_details();
+    void draw_heightmap_details();
 
 private:
     Application& app_;
@@ -104,6 +108,11 @@ private:
     opened_model_t inspected_model_;
     std::uint32_t inspected_texture_ = ENGINE_INVALID_OBJECT_HANDLE;
     std::uint32_t inspected_data_asset_ = ENGINE_INVALID_OBJECT_HANDLE;
+    std::uint32_t inspected_terrain_ = ENGINE_INVALID_OBJECT_HANDLE;
+    // how the selected heightmap is imported (the Import button)
+    engine_terrain_import_desc_t heightmap_import_{ 1.0f, 0.0f, 50.0f };
+    // what the last import of the selected heightmap did, shown under the button
+    std::string heightmap_import_result_;
     // the opened models by path, each held while open
     std::map<std::string, opened_model_t> expanded_models_;
     std::optional<std::string> open_scene_request_;

@@ -45,6 +45,18 @@ engine::AssetFileKind engine::get_asset_file_kind(std::string_view path, bool is
     {
         return AssetFileKind::eData;
     }
+    if (path_under(path, "terrains"))
+    {
+        if (extension == ".terrain")
+        {
+            return AssetFileKind::eTerrain;
+        }
+        // what the import reads (import_heightmap_file)
+        if (extension == ".png" || extension == ".r16" || extension == ".raw")
+        {
+            return AssetFileKind::eHeightmap;
+        }
+    }
     constexpr std::array<std::string_view, 5> image_extensions = { ".png", ".jpg", ".jpeg", ".tga", ".bmp" };
     if (std::ranges::find(image_extensions, extension) != image_extensions.end())
     {
@@ -94,10 +106,17 @@ std::optional<std::string> engine::get_asset_id(const asset_entry_t& entry)
     case AssetFileKind::eTexture: return path_under(entry.path, "models");
     case AssetFileKind::eScene: return path_under(entry.path, "scenes");
     case AssetFileKind::eData: return path_under(entry.path, "data");
+    case AssetFileKind::eTerrain:
+    case AssetFileKind::eHeightmap: return path_under(entry.path, "terrains");
     case AssetFileKind::eFolder:
     case AssetFileKind::eOther: break;
     }
     return std::nullopt;
+}
+
+std::string engine::get_terrain_import_id(std::string_view heightmap_id)
+{
+    return std::filesystem::path(heightmap_id).replace_extension(".terrain").generic_string();
 }
 
 std::optional<std::string> engine::get_scene_save_path(std::string_view folder, std::string_view name)

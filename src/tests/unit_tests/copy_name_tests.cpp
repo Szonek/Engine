@@ -34,6 +34,18 @@ TEST(CopyName, KeepsParenthesesWhichAreNotANumber)
     EXPECT_EQ(engine::copy_name("wall(1)", {}, MAX_LENGTH), "wall(1) (1)");
 }
 
+TEST(TruncateName, FitsTheStorageAndNeverSplitsAUtf8Character)
+{
+    EXPECT_EQ(engine::truncate_name("valley", 128), "valley");
+    // 7 bytes and the terminator
+    EXPECT_EQ(engine::truncate_name("mountains", 8), "mountai");
+    // "ż" is two bytes: a cut after its first byte drops the whole character
+    EXPECT_EQ(engine::truncate_name("abc\xC5\xBC" "def", 5), "abc");
+    EXPECT_EQ(engine::truncate_name("abc\xC5\xBC" "def", 6), "abc\xC5\xBC");
+    EXPECT_EQ(engine::truncate_name("valley", 1), "");
+    EXPECT_EQ(engine::truncate_name("valley", 0), "");
+}
+
 TEST(CopyName, EmptyName)
 {
     EXPECT_EQ(engine::copy_name("", {}, MAX_LENGTH), " (1)");

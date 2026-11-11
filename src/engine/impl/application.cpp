@@ -7,6 +7,7 @@
 #include "model_prefab.h"
 #include "scene_prefab.h"
 #include "ui_document.h"
+#include "file_io.h"
 #include "serialization/builtin_types.h"
 #include "serialization/game_types.h"
 #include "serialization/scene_assets.h"
@@ -17,6 +18,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <SDL3/SDL_events.h>
 #include <fmt/format.h>
 
@@ -427,6 +429,8 @@ engine_application_frame_end_info_t engine::Application::end_frame()
     on_frame_end();
     // the UI is laid out for the image rendered now; mouse events of the next frame happen while it is on the screen
     ui_manager_.set_viewport(get_scene_viewport());
+    // the heights changed this frame reach the GPU before anything is drawn with them
+    terrains_atlas_.for_each([](std::uint32_t, const std::shared_ptr<Terrain>& terrain) { terrain->update_gpu(); });
     renderer_.render_frame();
     rdx_.end_frame();
     ENGINE_PROFILE_FRAME;
@@ -671,6 +675,98 @@ bool engine::Application::acquire_prefab(std::uint32_t idx)
 void engine::Application::release_prefab(std::uint32_t idx)
 {
     prefabs_atlas_.release(idx);
+}
+
+std::uint32_t engine::Application::create_terrain(std::string_view name, TerrainData data)
+{
+    return terrains_atlas_.add_object(name, std::make_shared<Terrain>(std::move(data)));
+}
+
+std::uint32_t engine::Application::load_terrain(std::string_view path)
+{
+    // the asset ID: the same file is always named the same way
+    const auto name = std::filesystem::path(path).lexically_normal().generic_string();
+    if (const auto loaded = terrains_atlas_.get_object(name); loaded != ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        return terrains_atlas_.acquire(loaded) ? loaded : ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    const auto file_path = AssetStore::get_instance().get_terrains_base_path() / name;
+    const auto content = read_text_file(file_path, "Terrain");
+    auto data = content ? TerrainData::parse(*content, file_path.string()) : std::nullopt;
+    return data ? create_terrain(name, std::move(*data)) : ENGINE_INVALID_OBJECT_HANDLE;
+}
+
+std::uint32_t engine::Application::import_terrain_heightmap(std::string_view heightmap_path, const engine_terrain_import_desc_t& desc, std::string_view name)
+{
+    // an absolute path replaces the base path
+    auto data = import_heightmap_file(AssetStore::get_instance().get_terrains_base_path() / heightmap_path, desc.cell_size, desc.height_min, desc.height_max);
+    if (!data)
+    {
+        return ENGINE_INVALID_OBJECT_HANDLE;
+    }
+    const auto asset_name = std::filesystem::path(name).lexically_normal().generic_string();
+    if (const auto existing = terrains_atlas_.get_object(asset_name); existing != ENGINE_INVALID_OBJECT_HANDLE)
+    {
+        if (!terrains_atlas_.acquire(existing))
+        {
+            return ENGINE_INVALID_OBJECT_HANDLE;
+        }
+        get_terrain(existing)->replace_data(std::move(*data));
+        return existing;
+    }
+    return create_terrain(asset_name, std::move(*data));
+}
+
+bool engine::Application::save_terrain(std::uint32_t idx)
+{
+    const auto* terrain = get_terrain(idx);
+    if (!terrain)
+    {
+        log::log(log::LogLevel::eError, fmt::format("Terrain: can't save {}, it is not a valid handle.\n", idx));
+        return false;
+    }
+    const auto name = std::filesystem::path(terrains_atlas_.get_object_name(idx));
+    if (name.extension() != ".terrain")
+    {
+        log::log(log::LogLevel::eError, fmt::format("Terrain: \"{}\" can't be saved, its name has to be a file path ending in .terrain.\n", name.generic_string()));
+        return false;
+    }
+    // an absolute path replaces the base path
+    const auto file_path = AssetStore::get_instance().get_terrains_base_path() / name;
+    std::error_code error;
+    std::filesystem::create_directories(file_path.parent_path(), error);
+    return write_file_atomic(file_path, terrain->get_data().serialize(), "Terrain");
+}
+
+std::uint32_t engine::Application::get_terrain(std::string_view name) const
+{
+    return terrains_atlas_.get_object(name);
+}
+
+engine::Terrain* engine::Application::get_terrain(std::uint32_t idx) const
+{
+    const auto* terrain = terrains_atlas_.get_object(idx);
+    return terrain ? terrain->get() : nullptr;
+}
+
+std::string engine::Application::get_terrain_name(std::uint32_t idx) const
+{
+    return terrains_atlas_.get_object_name(idx);
+}
+
+std::vector<std::pair<std::uint32_t, std::string>> engine::Application::get_terrain_names() const
+{
+    return terrains_atlas_.get_object_names();
+}
+
+bool engine::Application::acquire_terrain(std::uint32_t idx)
+{
+    return terrains_atlas_.acquire(idx);
+}
+
+void engine::Application::release_terrain(std::uint32_t idx)
+{
+    terrains_atlas_.release(idx);
 }
 
 std::uint32_t engine::Application::load_data_asset(std::string_view path)

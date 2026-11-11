@@ -29,6 +29,7 @@ add_executable(${SCENARIO_TESTS_NAME}
 	script_lifecycle_tests.cpp
 	shove_tests.cpp
 	smoke_tests.cpp
+	terrain_tests.cpp
 	traversal_tests.cpp
 )
 set_property(TARGET ${SCENARIO_TESTS_NAME} PROPERTY CXX_STANDARD 20)

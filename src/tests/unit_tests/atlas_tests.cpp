@@ -175,6 +175,20 @@ TEST_F(AtlasTest, InvalidHandleHasNoName)
     EXPECT_EQ(atlas.get_object_name(ENGINE_INVALID_OBJECT_HANDLE), "");
 }
 
+TEST_F(AtlasTest, ForEachVisitsEveryObjectWithItsHandle)
+{
+    TestAtlas atlas;
+    const auto a = atlas.add_object("a", 1);
+    const auto b = atlas.add_object("b", 2);
+    const auto c = atlas.add_object("c", 3);
+    atlas.release(b);
+    std::vector<std::pair<std::uint32_t, int>> visited;
+    atlas.for_each([&visited](std::uint32_t handle, const int& value) { visited.emplace_back(handle, value); });
+    EXPECT_EQ(visited, (std::vector<std::pair<std::uint32_t, int>>{ { a, 1 }, { c, 3 } }));
+    atlas.release(a);
+    atlas.release(c);
+}
+
 TEST_F(AtlasTest, ObjectNamesListsOccupiedSlotsInIndexOrder)
 {
     TestAtlas atlas;

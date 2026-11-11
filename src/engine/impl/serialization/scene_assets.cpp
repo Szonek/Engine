@@ -33,6 +33,13 @@ engine::SceneAssets::~SceneAssets()
             app_.release_data_asset(data_asset);
         }
     }
+    for (const auto& [file, terrain] : terrains_)
+    {
+        if (terrain != ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            app_.release_terrain(terrain);
+        }
+    }
 }
 
 void engine::SceneAssets::swap(SceneAssets& other)
@@ -41,6 +48,7 @@ void engine::SceneAssets::swap(SceneAssets& other)
     prefabs_.swap(other.prefabs_);
     image_files_.swap(other.image_files_);
     data_assets_.swap(other.data_assets_);
+    terrains_.swap(other.terrains_);
 }
 
 std::string engine::SceneAssets::get_asset_id(AssetKind kind, std::uint32_t handle) const
@@ -53,6 +61,7 @@ std::string engine::SceneAssets::get_asset_id(AssetKind kind, std::uint32_t hand
     case AssetKind::eAnimationSet: return app_.get_animation_set_name(handle);
     case AssetKind::eDataAsset: return app_.get_data_asset_name(handle);
     case AssetKind::ePrefab: return app_.get_prefab_name(handle);
+    case AssetKind::eTerrain: return app_.get_terrain_name(handle);
     }
     return {};
 }
@@ -75,6 +84,29 @@ std::uint32_t engine::SceneAssets::resolve(AssetKind kind, std::string_view asse
         // the asset is its file too
         return resolve_prefab(asset_id);
     }
+    if (kind == AssetKind::eTerrain)
+    {
+        auto it = terrains_.find(asset_id);
+        if (it == terrains_.end())
+        {
+            // A terrain made by code (and not saved) has no file: it is found by name and held by whoever created it,
+            // like the geometries the game creates. A file is loaded, or held once more (logs why when it fails).
+            const auto file = AssetStore::get_instance().get_terrains_base_path() / asset_id;
+            if (const auto existing = app_.get_terrain(asset_id); existing != ENGINE_INVALID_OBJECT_HANDLE && !std::filesystem::is_regular_file(file))
+            {
+                return existing;
+            }
+            // A file which can't be loaded (logged) is tried again the next time: it may have been written since
+            // (a heightmap imported again).
+            const auto loaded = app_.load_terrain(asset_id);
+            if (loaded == ENGINE_INVALID_OBJECT_HANDLE)
+            {
+                return ENGINE_INVALID_OBJECT_HANDLE;
+            }
+            it = terrains_.emplace(asset_id, loaded).first;
+        }
+        return it->second;
+    }
     hold_source_file(kind, asset_id);
     switch (kind)
     {
@@ -83,7 +115,8 @@ std::uint32_t engine::SceneAssets::resolve(AssetKind kind, std::string_view asse
     case AssetKind::eSkin: return app_.get_skin(asset_id);
     case AssetKind::eAnimationSet: return app_.get_animation_set(asset_id);
     case AssetKind::eDataAsset:
-    case AssetKind::ePrefab: break;
+    case AssetKind::ePrefab:
+    case AssetKind::eTerrain: break;
     }
     return ENGINE_INVALID_OBJECT_HANDLE;
 }

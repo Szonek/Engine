@@ -8,8 +8,9 @@
 // Each size is measured with two camera shots: the gameplay view on the player and an overview of the whole map (worst case).
 // Every frame simulates exactly FIXED_DT_MS, so runs are deterministic; the measured times are real (wall clock).
 //
-// Usage: big_scene_benchmark [--frames N] [--warmup N] [--sizes 32,64,128] [--enemies 0|1] [--out results.md]
-// (--enemies 0 leaves the enemies out, to tell their cost from the rest)
+// Usage: big_scene_benchmark [--frames N] [--warmup N] [--sizes 32,64,128] [--enemies 0|1] [--ground tiles|terrain] [--out results.md]
+// (--enemies 0 leaves the enemies out, to tell their cost from the rest; --ground terrain replaces the floor tiles
+// with one heightmap terrain of the map's size, the way outdoor ground is made)
 #include <app.h>
 #include <scenes/level_builder.h>
 #include <scripts/game_layers.h>
@@ -58,6 +59,8 @@ struct Options
     std::uint32_t measured_frames = 600;
     std::vector<std::int32_t> sizes = { 32, 64, 128 };
     bool enemies = true;
+    // one terrain instead of a floor tile per cell
+    bool terrain_ground = false;
     std::string out_path;
 };
 
@@ -80,6 +83,10 @@ struct SceneCounts
 // the size of the next BenchmarkScene; scenes are created by type, so it's passed on the side
 std::int32_t G_SCENE_CELLS = 0;
 bool G_SCENE_ENEMIES = true;
+bool G_SCENE_TERRAIN_GROUND = false;
+// the top of a floor tile, where the terrain replacing the tiles lies
+constexpr float FLOOR_TOP = 0.125f;
+constexpr const char* GROUND_TERRAIN_NAME = "benchmark/ground";
 SceneCounts G_COUNTS{};
 
 void point_light(float x, float y, float z)
@@ -126,12 +133,19 @@ public:
 
         const std::int32_t cells = G_SCENE_CELLS;
         const std::int32_t half = cells / 2;
-        for (std::int32_t x = -half; x < cells - half; x++)
+        if (G_SCENE_TERRAIN_GROUND)
         {
-            for (std::int32_t z = -half; z < cells - half; z++)
+            terrain_ground(cells, half);
+        }
+        else
+        {
+            for (std::int32_t x = -half; x < cells - half; x++)
             {
-                builder.floor(static_cast<float>(x), static_cast<float>(z));
-                G_COUNTS.floor_tiles++;
+                for (std::int32_t z = -half; z < cells - half; z++)
+                {
+                    builder.floor(static_cast<float>(x), static_cast<float>(z));
+                    G_COUNTS.floor_tiles++;
+                }
             }
         }
 
@@ -192,6 +206,14 @@ public:
         G_COUNTS.nav_mesh_build_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - nav_start).count();
     }
 
+    ~BenchmarkScene() override
+    {
+        if (terrain_ != ENGINE_INVALID_OBJECT_HANDLE)
+        {
+            engineTerrainRelease(terrain_);
+        }
+    }
+
     // gameplay: the game's camera on the player; overview: the whole map in view
     void set_camera_shot(bool overview)
     {
@@ -224,6 +246,38 @@ public:
     }
 
 private:
+    // one flat terrain under the whole map (a sample per cell corner), where the floor tiles' tops would be: a game
+    // object and a collider instead of one per cell
+    void terrain_ground(std::int32_t cells, std::int32_t half)
+    {
+        const engine_terrain_create_desc_t desc{ static_cast<std::uint32_t>(cells) + 1, static_cast<std::uint32_t>(cells) + 1, 1.0f, nullptr };
+        if (engineTerrainCreate(GROUND_TERRAIN_NAME, &desc, &terrain_) != ENGINE_RESULT_CODE_OK)
+        {
+            std::cout << "Creating the terrain failed for " << cells << "x" << cells << " cells.\n";
+            return;
+        }
+        const auto go = engineGameObjectCreate();
+        project_c::utils::set_name(go, "terrain");
+        auto tc = engineGameObjectAddTransformComponent(go);
+        // floor tiles are centered on their cells
+        tc.position[0] = static_cast<float>(-half) - 0.5f;
+        tc.position[1] = FLOOR_TOP;
+        tc.position[2] = static_cast<float>(-half) - 0.5f;
+        engineGameObjectUpdateTransformComponent(go, &tc);
+        auto terrain = engineGameObjectAddTerrainComponent(go);
+        terrain.terrain = terrain_;
+        engineGameObjectUpdateTerrainComponent(go, &terrain);
+        auto material = engineGameObjectAddMaterialComponent(go);
+        const std::array<float, 4> color = { 0.45f, 0.45f, 0.5f, 1.0f };
+        std::copy(color.begin(), color.end(), material.diffuse_color);
+        engineGameObjectUpdateMaterialComponent(go, &material);
+        auto cc = engineGameObjectAddColliderComponent(go);
+        project_c::set_layer(cc, project_c::Layer::eLevelGeometry);
+        cc.type = ENGINE_COLLIDER_TYPE_HEIGHTFIELD;
+        cc.collider.heightfield.terrain = terrain_;
+        engineGameObjectUpdateColliderComponent(go, &cc);
+    }
+
     void wall(float x, float z, float y_rotation_degrees)
     {
         auto& app_c = *static_cast<project_c::AppProjectC*>(get_app());
@@ -275,6 +329,7 @@ private:
 
     project_c::Player* player_ = nullptr;
     engine_game_object_t camera_ = ENGINE_INVALID_GAME_OBJECT_ID;
+    engine_terrain_t terrain_ = ENGINE_INVALID_OBJECT_HANDLE;
 };
 
 void count_components(SceneCounts& counts)
@@ -386,6 +441,10 @@ Options parse_options(int argc, char** argv)
         {
             options.enemies = value != "0";
         }
+        else if (key == "--ground")
+        {
+            options.terrain_ground = value == "terrain";
+        }
         else if (key == "--out")
         {
             options.out_path = value;
@@ -419,6 +478,7 @@ int main(int argc, char** argv)
     {
         G_SCENE_CELLS = cells;
         G_SCENE_ENEMIES = options.enemies;
+        G_SCENE_TERRAIN_GROUND = options.terrain_ground;
         auto* scene = static_cast<BenchmarkScene*>(app.register_scene<BenchmarkScene>());
         scene->activate();
         // the first update creates the scripts and starts them (enemies find the player, the player equips its weapon)
@@ -447,6 +507,7 @@ int main(int argc, char** argv)
 
     std::ostringstream report;
     report << "## Scenes\n\n";
+    report << "Ground: " << (options.terrain_ground ? "one heightmap terrain" : "a floor tile per cell") << "\n\n";
     report << "| Cells | Floor tiles | Wall pieces | Chests | Enemies | Point lights | Game objects | Meshes | Skinned meshes | Colliders | Build (ms) | Nav mesh build (ms) |\n";
     report << "|---|---|---|---|---|---|---|---|---|---|---|---|\n";
     for (const auto& [cells, c] : counts)

@@ -3,11 +3,13 @@
 #include "collision_desc.h"
 #include "overlap_results.h"
 #include "collision_layers.h"
+#include "terrain_data.h"
 
 #ifdef _MSC_VER
 #pragma warning(disable: 4127) // disable warning
 #endif
 #include <btBulletDynamicsCommon.h>
+#include <BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h>
 #ifdef _MSC_VER
 #pragma warning(default: 4127) // enable warning back
 #endif
@@ -55,9 +57,10 @@ public:
         eDynamic,
     };
     // A body at the world transform of its game object: translation and rotation place the body, the scale scales its
-    // collision shape. The mass is only used by dynamic bodies.
+    // collision shape. The mass is only used by dynamic bodies. `heightfield` is the terrain of a heightfield collider:
+    // the shape reads its heights in place (the body holds them), and without it such a collider has no body.
     physcic_internal_component_t create_rigid_body(const engine_collider_component_t& collider, BodyType type, float mass,
-        const glm::mat4& local_to_world, std::int32_t body_index);
+        const glm::mat4& local_to_world, std::int32_t body_index, std::shared_ptr<const TerrainData> heightfield = nullptr);
     static BodyType get_body_type(const btRigidBody* rigid_body);
     // A character controller's body: a kinematic capsule standing on the origin of local_to_world, scaled by its scale,
     // on `layer`, colliding with `collides_with` (collision_layers.h).
@@ -91,6 +94,9 @@ public:
 
         delete comp.rigid_body;
         comp.rigid_body = nullptr;
+        delete_shape(comp.collision_shape);
+        comp.collision_shape = nullptr;
+        comp.shape_data.reset();
     }
 
     void update(float dt);
@@ -121,6 +127,9 @@ public:
     void overlap_sphere(const glm::vec3& center, float radius, const QueryFilter& filter, std::vector<OverlapHit>& out) const;
 
 private:
+    // a body's shape, with the shapes of its children when it is a compound
+    static void delete_shape(btCollisionShape* shape);
+
     static constexpr float FIXED_TIME_STEP = 1.0f / 60.0f;
     static constexpr int MAX_SUB_STEPS = 10;
 
