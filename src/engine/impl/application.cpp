@@ -735,7 +735,12 @@ bool engine::Application::save_terrain(std::uint32_t idx)
     const auto file_path = AssetStore::get_instance().get_terrains_base_path() / name;
     std::error_code error;
     std::filesystem::create_directories(file_path.parent_path(), error);
-    return write_file_atomic(file_path, terrain->get_data().serialize(), "Terrain");
+    if (!write_file_atomic(file_path, terrain->get_data().serialize(), "Terrain"))
+    {
+        return false;
+    }
+    get_terrain(idx)->mark_saved();
+    return true;
 }
 
 std::uint32_t engine::Application::get_terrain(std::string_view name) const

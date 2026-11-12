@@ -429,7 +429,14 @@ std::optional<std::string> engine::AssetBrowserPanel::draw_files()
         draw_icon(entry.kind, icon_size);
         ImGui::SameLine();
         const bool is_selected = selected_ && selected_->path == entry.path;
-        const bool unsaved = entry.kind == AssetFileKind::eData && asset_id && edited_.is_unsaved(*asset_id);
+        // a data asset edited in the inspector, or a terrain sculpted, and not saved yet
+        const auto is_dirty_terrain = [this](const std::string& terrain_id)
+            {
+                const auto* terrain = app_.get_terrain(app_.get_terrain(std::string_view(terrain_id)));
+                return terrain && terrain->is_dirty();
+            };
+        const bool unsaved = asset_id && ((entry.kind == AssetFileKind::eData && edited_.is_unsaved(*asset_id))
+            || (entry.kind == AssetFileKind::eTerrain && is_dirty_terrain(*asset_id)));
         const auto label = unsaved ? entry.name + " *" : entry.name;
         if (ImGui::Selectable(fmt::format("{}###{}", label, entry.name).c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
         {

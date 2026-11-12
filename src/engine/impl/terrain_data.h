@@ -5,10 +5,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace engine
@@ -88,6 +90,12 @@ public:
     // the surface's normal there (of the triangle under the point), in local space
     std::optional<glm::vec3> sample_normal(float local_x, float local_z) const;
 
+    // Where the ray origin + direction * t, t in [0, max_distance] (local space; the direction needs no unit length,
+    // max_distance is in its lengths) first hits the surface, from either side; nullopt when it doesn't. Walks the
+    // cells under the ray, so its cost is the cells crossed, not the terrain's size. For the editor's cursor: it needs
+    // no collider.
+    std::optional<glm::vec3> raycast(const glm::vec3& origin, const glm::vec3& direction, float max_distance) const;
+
     // row by row, get_chunks_x() a row
     std::span<const Chunk> get_chunks() const { return chunks_; }
     std::uint32_t get_chunks_x() const { return chunks_x_; }
@@ -102,6 +110,29 @@ public:
     // terrains (the physics, before every query) looks at them only when it moved. Main thread only.
     static std::uint64_t get_change_count() { return change_count_; }
     static void mark_changed() { change_count_++; }
+
+    // Many changes in a row as one, for whoever follows the terrains through get_change_count(): while a batch lives,
+    // the heights it holds change (and their revision moves) without moving the change count, which moves once when
+    // the batch ends. For the editor's strokes: the collision body, expensive to make for a big terrain, is made
+    // again once a stroke, not every frame of it (it is out of date in between). Holds the heights, so it may outlive
+    // their terrain.
+    class EditBatch
+    {
+    public:
+        explicit EditBatch(std::shared_ptr<TerrainData> data) : data_(std::move(data)) { data_->batches_++; }
+        EditBatch(const EditBatch&) = delete;
+        EditBatch& operator=(const EditBatch&) = delete;
+        ~EditBatch()
+        {
+            if (--data_->batches_ == 0)
+            {
+                mark_changed();
+            }
+        }
+
+    private:
+        std::shared_ptr<TerrainData> data_;
+    };
 
     // The rows of samples changed since the last call, as [first, last], for uploading them; nullopt when none did.
     std::optional<std::pair<std::uint32_t, std::uint32_t>> take_changed_rows();
@@ -134,6 +165,8 @@ private:
     std::vector<Chunk> chunks_;
     std::uint64_t revision_ = 1;
     inline static std::uint64_t change_count_ = 0;
+    // the EditBatches alive
+    std::uint32_t batches_ = 0;
     bool rows_changed_ = false;
     std::uint32_t first_changed_row_ = 0;
     std::uint32_t last_changed_row_ = 0;

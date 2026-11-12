@@ -13,6 +13,7 @@
 engine::Terrain::Terrain(TerrainData data)
     : data_(std::make_shared<TerrainData>(std::move(data)))
 {
+    mark_saved();
 }
 
 void engine::Terrain::replace_data(TerrainData data)

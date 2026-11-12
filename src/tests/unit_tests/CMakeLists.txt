@@ -45,6 +45,7 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	overlap_results_tests.cpp
 	bounds_tests.cpp
 	terrain_data_tests.cpp
+	terrain_brush_tests.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.cpp
 	${ENGINE_IMPL_DIR}/render/render_graph.h
 	${ENGINE_IMPL_DIR}/render/shadows.cpp
@@ -68,6 +69,10 @@ add_executable(${ENGINE_LOGIC_TESTS_NAME}
 	# a terrain's heights: sampling, chunk bounds, its file and heightmap import
 	${ENGINE_IMPL_DIR}/terrain_data.cpp
 	${ENGINE_IMPL_DIR}/terrain_data.h
+	# the editor's terrain brushes, what a stroke records and its undo step
+	${ENGINE_IMPL_DIR}/terrain_brush.cpp
+	${ENGINE_IMPL_DIR}/terrain_brush.h
+	${ENGINE_IMPL_DIR}/editor_terrain_stroke.h
 	# nav mesh build (Recast) and queries (Detour)
 	${ENGINE_IMPL_DIR}/nav_mesh.cpp
 	${ENGINE_IMPL_DIR}/nav_mesh.h

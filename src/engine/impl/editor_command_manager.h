@@ -18,7 +18,7 @@ class Scene;
 // when they run: they find their game objects again after Stop gave them new handles, or after undo brought a deleted
 // one back. The editor drops the steps recorded while playing at Stop (CommandManager::end_play_session), so a step
 // never writes play session values into the edit state, and all of them when a scene is released (CommandManager::clear),
-// so a step never acts on another scene's game objects; a data asset's steps stay (see get_data_asset). A command whose
+// so a step never acts on another scene's game objects; the steps changing an asset stay (see changes_asset). A command whose
 // game object isn't there (any more) changes nothing and logs it (log_missing). GL-free (the scene is only passed on),
 // so the history is unit tested.
 class ICommand
@@ -54,6 +54,12 @@ public:
     {
         return {};
     }
+    // Whether the step changes an asset (a file) instead of the scene: a data asset, a terrain. Such a step is kept at
+    // Stop and when the scene is released, like the asset's changes are.
+    virtual bool changes_asset() const
+    {
+        return !get_data_asset().empty();
+    }
 };
 
 class CommandManager
@@ -80,6 +86,9 @@ public:
     // starts a new undo step instead of merging into the last one (ICommand::merge_with). A click is one step, a drag
     // from press to release is one step.
     void end_continuous_edit() { edit_ended_ = true; }
+
+    // whether there is a step to undo
+    bool can_undo() const { return !undo_stack_.empty(); }
 
     void undo(Scene& sc)
     {
@@ -215,7 +224,7 @@ private:
     {
         for (auto& cmd : from)
         {
-            if (!cmd->get_data_asset().empty())
+            if (cmd->changes_asset())
             {
                 into.push_back(std::move(cmd));
             }

@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <memory>
 #include <numeric>
 #include <vector>
 
@@ -226,6 +227,38 @@ TEST(TerrainDataTest, ReportsTheRowsChangedSinceTheyWereTaken)
     EXPECT_EQ(rows->first, 4u);
     EXPECT_EQ(rows->second, 10u);
     EXPECT_FALSE(terrain.take_changed_rows());
+}
+
+TEST(TerrainDataTest, ChangeCountMovesWithEveryChangeAndOnceForABatch)
+{
+    auto terrain = std::make_shared<TerrainData>(*TerrainData::create(9, 9, 1.0f));
+    const std::vector<float> one{ 1.0f };
+    auto count = TerrainData::get_change_count();
+    ASSERT_TRUE(terrain->set_heights({ 1, 1, 1, 1 }, one));
+    EXPECT_GT(TerrainData::get_change_count(), count);
+
+    // a batch: the heights and their revision change, whoever follows the terrains hears of it once, at its end
+    count = TerrainData::get_change_count();
+    const auto revision = terrain->get_revision();
+    {
+        const TerrainData::EditBatch batch(terrain);
+        ASSERT_TRUE(terrain->set_heights({ 2, 2, 1, 1 }, one));
+        ASSERT_TRUE(terrain->set_heights({ 3, 3, 1, 1 }, one));
+        EXPECT_EQ(TerrainData::get_change_count(), count);
+        EXPECT_GT(terrain->get_revision(), revision);
+        EXPECT_FLOAT_EQ(terrain->get_height(3, 3), 1.0f);
+        // one inside another ends with the outer one
+        {
+            const TerrainData::EditBatch inner(terrain);
+            ASSERT_TRUE(terrain->set_heights({ 4, 4, 1, 1 }, one));
+        }
+        EXPECT_EQ(TerrainData::get_change_count(), count);
+    }
+    EXPECT_GT(TerrainData::get_change_count(), count);
+    // and changes tell at once again
+    count = TerrainData::get_change_count();
+    ASSERT_TRUE(terrain->set_heights({ 5, 5, 1, 1 }, one));
+    EXPECT_GT(TerrainData::get_change_count(), count);
 }
 
 TEST(TerrainDataTest, FileRoundTrip)

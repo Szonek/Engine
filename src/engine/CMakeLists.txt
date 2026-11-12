@@ -97,6 +97,11 @@ set(ENGINE_SOURCES
 	${ENGINE_SOURCES_DIR}/bounds.h
 	${ENGINE_SOURCES_DIR}/terrain_data.h
 	${ENGINE_SOURCES_DIR}/terrain_data.cpp
+	${ENGINE_SOURCES_DIR}/terrain_brush.h
+	${ENGINE_SOURCES_DIR}/terrain_brush.cpp
+	${ENGINE_SOURCES_DIR}/editor_terrain_stroke.h
+	${ENGINE_SOURCES_DIR}/editor_terrains.h
+	${ENGINE_SOURCES_DIR}/editor_terrains.cpp
 	${ENGINE_SOURCES_DIR}/terrain.h
 	${ENGINE_SOURCES_DIR}/terrain.cpp
 	${ENGINE_SOURCES_DIR}/nav_mesh.h

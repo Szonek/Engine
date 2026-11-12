@@ -40,7 +40,7 @@ bool engine::ApplicationEditor::on_quit_requested()
 
 bool engine::ApplicationEditor::has_unsaved_changes() const
 {
-    return commands_.is_dirty() || data_assets_.has_unsaved();
+    return commands_.is_dirty() || data_assets_.has_unsaved() || terrains_.has_unsaved();
 }
 
 void engine::ApplicationEditor::request_scene_file_action(Scene* scene, SceneFileAction action, std::string path)
@@ -59,6 +59,7 @@ void engine::ApplicationEditor::request_scene_file_action(Scene* scene, SceneFil
     else if (action == SceneFileAction::eSave)
     {
         data_assets_.save_all();
+        terrains_.save_all();
     }
 }
 
@@ -69,6 +70,8 @@ void engine::ApplicationEditor::forget_game_objects()
     gizmo_hovered_entity_ = entt::null;
     gizmo_hovered_handle_.reset();
     delete_without_undo_ = entt::null;
+    // a stroke on a terrain of the scene which goes: what it changed so far stays, without an undo step
+    terrain_stroke_.reset();
     scene_hierarchy_context_.end_rename();
     name_field_active_ = false;
     name_field_entity_ = entt::null;
@@ -232,6 +235,14 @@ void engine::ApplicationEditor::render_unsaved_changes_prompt(Scene* scene)
             ImGui::BulletText("%s", asset.c_str());
         }
     }
+    if (const auto terrains = terrains_.get_unsaved(); !terrains.empty())
+    {
+        ImGui::TextUnformatted("These terrains have unsaved changes:");
+        for (const auto& terrain : terrains)
+        {
+            ImGui::BulletText("%s", terrain.c_str());
+        }
+    }
     ImGui::TextUnformatted(waiting == SceneFileAction::eQuit ? "Save them before closing?" : "Save them first?");
     const bool in_edit = get_play_mode_state() == ENGINE_PLAY_MODE_EDIT;
     ImGui::BeginDisabled(!in_edit);
@@ -248,7 +259,8 @@ void engine::ApplicationEditor::render_unsaved_changes_prompt(Scene* scene)
     if (save && in_edit)
     {
         ImGui::CloseCurrentPopup();
-        if (!data_assets_.save_all())
+        const bool data_assets_saved = data_assets_.save_all();
+        if (!terrains_.save_all() || !data_assets_saved)
         {
             // logged; what waited doesn't go on without its save
             scene_files_.cancel_waiting();

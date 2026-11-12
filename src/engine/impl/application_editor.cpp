@@ -1521,13 +1521,15 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     {
         handle_asset_drop(scene);
     }
+    // the terrain tool takes the scene view's left mouse while it is on
+    const bool terrain_tool_on = handle_terrain_tool(scene);
     if (editor_view_ == EditorView::eEditor)
     {
         if (modal_transform_)
         {
             draw_modal_transform(scene);
         }
-        else if (!mouse_consumed_)
+        else if (!mouse_consumed_ && !terrain_tool_on)
         {
             render_guizmo(scene);
             handle_mouse_picking(scene);
@@ -2118,6 +2120,10 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
             }
         }
         display_add_component_button(scene, selected);
+        if (scene->has_component<engine_terrain_component_t>(selected))
+        {
+            display_terrain_tools(scene, selected);
+        }
     }
     else
     {
@@ -2125,6 +2131,229 @@ void engine::ApplicationEditor::render_entity_properties_panel(class Scene* scen
         ImGui::Text("Select entity to display its components.");
     }
     ImGui::End();
+}
+
+void engine::ApplicationEditor::display_terrain_tools(Scene* scene, entt::entity entity)
+{
+    ImGui::SeparatorText("Terrain tools");
+    const auto handle = scene->get_component<engine_terrain_component_t>(entity)->terrain;
+    const auto* terrain = get_terrain(handle);
+    if (!terrain)
+    {
+        ImGui::TextDisabled("Pick a terrain to sculpt it.");
+        return;
+    }
+    const auto name = get_terrain_name(handle);
+    const bool in_edit = get_play_mode_state() == ENGINE_PLAY_MODE_EDIT;
+    // like Unity's Paint Terrain tools: one brush is on, or none
+    ImGui::BeginDisabled(!in_edit || editor_view_ != EditorView::eEditor);
+    const auto brush_button = [this](const char* label, std::optional<TerrainBrushMode> mode, const char* tooltip)
+        {
+            if (ImGui::RadioButton(label, terrain_tool_ == mode))
+            {
+                terrain_tool_ = mode;
+            }
+            ImGui::SetItemTooltip("%s", tooltip);
+        };
+    brush_button("Off", std::nullopt, "The scene view selects and moves game objects again (Escape)");
+    ImGui::SameLine();
+    brush_button("Raise", TerrainBrushMode::eRaise, "Lifts the ground under the brush; hold Shift to lower");
+    ImGui::SameLine();
+    brush_button("Lower", TerrainBrushMode::eLower, "Digs under the brush; hold Shift to raise");
+    brush_button("Smooth", TerrainBrushMode::eSmooth, "Evens out bumps and steps");
+    ImGui::SameLine();
+    brush_button("Flatten", TerrainBrushMode::eFlatten, "Brings the ground to the height under the cursor where the stroke starts");
+    ImGui::EndDisabled();
+    if (!in_edit)
+    {
+        ImGui::TextDisabled("Stop to sculpt: terrains are edited in Edit mode.");
+    }
+    else if (editor_view_ != EditorView::eEditor)
+    {
+        ImGui::TextDisabled("Switch to the Editor view to sculpt.");
+    }
+    ImGui::DragFloat("Radius", &terrain_brush_.radius, 0.1f, 0.25f, 200.0f, "%.2f m");
+    ImGui::SetItemTooltip("[ and ] change it while the brush is over the scene");
+    ImGui::DragFloat("Strength", &terrain_brush_.strength, 0.05f, 0.05f, 50.0f, "%.2f");
+    ImGui::SetItemTooltip("Raise and lower: metres per second. Smooth and flatten: how fast the ground gets there");
+    ImGui::SliderFloat("Falloff", &terrain_brush_.falloff, 0.0f, 1.0f, "%.2f");
+    ImGui::SetItemTooltip("How much of the radius the effect fades out over: 0 is a hard disc");
+    if (terrain_tool_)
+    {
+        ImGui::TextDisabled("Hold the left mouse button over the terrain. The nav mesh is built with its button.");
+    }
+
+    // its unsaved changes, like a data asset's
+    if (!EditedTerrains::is_file(name))
+    {
+        if (terrain->is_dirty())
+        {
+            ImGui::TextWrapped("%s was made by code: its changes can't be saved to a file.", name.c_str());
+        }
+        return;
+    }
+    const bool unsaved = terrains_.is_unsaved(name);
+    ImGui::Text("%s%s", name.c_str(), unsaved ? " *" : "");
+    ImGui::BeginDisabled(!unsaved || !in_edit);
+    if (ImGui::Button("Save terrain"))
+    {
+        terrains_.save(name);
+    }
+    ImGui::EndDisabled();
+    ImGui::SetItemTooltip("Writes the heights to terrains/%s (Ctrl+S saves it with the scene)", name.c_str());
+}
+
+bool engine::ApplicationEditor::handle_terrain_tool(Scene* scene)
+{
+    const auto selected = scene_hierarchy_context_.get_selected_entity();
+    const auto& io = ImGui::GetIO();
+    Terrain* terrain = nullptr;
+    std::string name;
+    const auto camera_entity = editor_view_ == EditorView::eEditor ? camera_context_.get_camera_entity(scene) : entt::entity{ entt::null };
+    if (terrain_tool_ && render_imgui_ && camera_entity != entt::null && get_play_mode_state() == ENGINE_PLAY_MODE_EDIT && !modal_transform_
+        && scene_hierarchy_context_.has_selected_entity() && scene->is_valid_entity(selected) && scene->has_component<engine_terrain_component_t>(selected)
+        && scene->has_component<engine_transform_component_t>(selected))
+    {
+        const auto handle = scene->get_component<engine_terrain_component_t>(selected)->terrain;
+        terrain = get_terrain(handle);
+        name = get_terrain_name(handle);
+    }
+    if (!terrain)
+    {
+        // the tool stays chosen for the next terrain selected, but has nothing to do
+        finish_terrain_stroke(scene);
+        return false;
+    }
+    if (terrain_stroke_ && (terrain_stroke_->terrain != name || !ImGui::IsMouseDown(ImGuiMouseButton_Left)))
+    {
+        finish_terrain_stroke(scene);
+    }
+    if (!io.WantTextInput && !terrain_stroke_)
+    {
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+        {
+            terrain_tool_.reset();
+            return false;
+        }
+        // like Photoshop's and Unity's brush size keys
+        if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket, true))
+        {
+            terrain_brush_.radius = std::max(terrain_brush_.radius / 1.1f, 0.25f);
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_RightBracket, true))
+        {
+            terrain_brush_.radius = std::min(terrain_brush_.radius * 1.1f, 200.0f);
+        }
+    }
+
+    // the cursor on the terrain: the mouse ray in the terrain's local space, against its heights (no collider needed)
+    const auto local_to_world = scene->compute_world_matrix(selected);
+    if (std::abs(glm::determinant(local_to_world)) < 1e-12f)
+    {
+        return true;
+    }
+    const auto viewport = get_scene_viewport();
+    const modal_transform_view_t view{ scene->get_camera_view(camera_entity), scene->get_camera_projection(camera_entity),
+        glm::vec2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)) };
+    glm::vec3 origin{};
+    glm::vec3 direction{};
+    mouse_ray(view, get_scene_view_mouse(), origin, direction);
+    const auto world_to_local = glm::inverse(local_to_world);
+    const auto& data = terrain->get_data();
+    // the same t along the ray in both spaces, so the far plane's distance is the ray's length
+    const auto hit = data.raycast(glm::vec3(world_to_local * glm::vec4(origin, 1.0f)), glm::vec3(world_to_local * glm::vec4(direction, 0.0f)),
+        scene->get_component<engine_camera_component_t>(camera_entity)->clip_plane_far);
+    const bool over_scene = is_mouse_over_scene() && !mouse_consumed_ && !ImGuizmo::IsUsingAny();
+    if (!hit || !over_scene)
+    {
+        return true;
+    }
+    // While the mouse is held still, the brush stays where it is: the ground rising under the cursor would otherwise
+    // move the ray's hit, and the brush with it, towards the camera.
+    const auto mouse = get_scene_view_mouse();
+    const bool held_still = terrain_stroke_ && glm::distance(mouse, terrain_stroke_->mouse) < 0.5f;
+    const glm::vec2 center = held_still ? terrain_stroke_->center : glm::vec2(hit->x, hit->z);
+
+    // the brush on the ground: its radius, and inside it where its effect starts to fade
+    const bool inverted = io.KeyShift;
+    auto mode = *terrain_tool_;
+    if (inverted && mode == TerrainBrushMode::eRaise)
+    {
+        mode = TerrainBrushMode::eLower;
+    }
+    else if (inverted && mode == TerrainBrushMode::eLower)
+    {
+        mode = TerrainBrushMode::eRaise;
+    }
+    const glm::vec3 color = mode == TerrainBrushMode::eRaise ? glm::vec3(0.3f, 1.0f, 0.4f)
+        : mode == TerrainBrushMode::eLower ? glm::vec3(1.0f, 0.4f, 0.3f)
+        : mode == TerrainBrushMode::eSmooth ? glm::vec3(0.4f, 0.7f, 1.0f) : glm::vec3(1.0f, 0.9f, 0.3f);
+    const auto draw_ring = [&](float radius, const glm::vec3& ring_color)
+        {
+            constexpr int SEGMENTS = 48;
+            // a little above the surface, following it; outside the terrain at the cursor's height
+            const auto point = [&](int index)
+                {
+                    const float angle = glm::two_pi<float>() * static_cast<float>(index) / SEGMENTS;
+                    const auto local = center + glm::vec2(std::cos(angle), std::sin(angle)) * radius;
+                    const float height = data.sample_height(local.x, local.y).value_or(hit->y);
+                    return glm::vec3(local_to_world * glm::vec4(local.x, height + 0.05f, local.y, 1.0f));
+                };
+            for (int i = 0; i < SEGMENTS; i++)
+            {
+                scene->debug_draw().add_line(point(i), point(i + 1), ring_color);
+            }
+        };
+    draw_ring(terrain_brush_.radius, color);
+    if (const float inner = terrain_brush_.radius * (1.0f - std::clamp(terrain_brush_.falloff, 0.0f, 1.0f)); inner > 0.05f && inner < terrain_brush_.radius)
+    {
+        draw_ring(inner, color * 0.6f);
+    }
+
+    // Alt + left mouse orbits the camera
+    if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && !io.KeyAlt)
+    {
+        if (!terrain_stroke_)
+        {
+            terrain_stroke_ = terrain_stroke_t{ name, {}, hit->y, mouse, center, terrain->begin_edit_batch() };
+        }
+        terrain_stroke_->mouse = mouse;
+        terrain_stroke_->center = center;
+        if (const auto region = brush_region(data, center, terrain_brush_.radius))
+        {
+            // before it changes: the stroke's undo step gives these heights back
+            terrain_stroke_->stroke.include(data, *region);
+            apply_brush(terrain->get_mutable_data(), mode, terrain_brush_, center, frame_delta_time_ / 1000.0f, terrain_stroke_->flatten_height);
+            terrains_.on_edited(name);
+        }
+    }
+    return true;
+}
+
+void engine::ApplicationEditor::finish_terrain_stroke(Scene* scene)
+{
+    if (!terrain_stroke_)
+    {
+        return;
+    }
+    auto stroke = std::move(*terrain_stroke_);
+    terrain_stroke_.reset();
+    // the collision catches up with the stroke
+    stroke.batch.reset();
+    const auto* terrain = get_terrain(get_terrain(std::string_view(stroke.terrain)));
+    if (!terrain || stroke.stroke.is_empty())
+    {
+        return;
+    }
+    std::vector<float> after(stroke.stroke.get_before().size());
+    if (!terrain->get_data().get_heights(stroke.stroke.get_region(), after))
+    {
+        return;
+    }
+    // the heights are there already: the step's first execute sets them again, undo gives the ones before the stroke
+    commands_.execute_command(*scene, std::make_unique<CommandTerrainStroke>(terrains_, stroke.terrain, stroke.stroke.get_region(), stroke.stroke.get_before(),
+        std::move(after)));
+    commands_.end_continuous_edit();
 }
 
 void engine::ApplicationEditor::display_name_field(Scene* scene, entt::entity entity)

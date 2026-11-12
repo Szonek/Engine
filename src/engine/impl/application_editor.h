@@ -8,6 +8,8 @@
 #include "editor_context_click.h"
 #include "editor_gizmo_visibility.h"
 #include "editor_data_assets.h"
+#include "editor_terrains.h"
+#include "terrain_brush.h"
 #include "editor_component_list.h"
 #include "editor_modal_transform.h"
 #include "editor_scene_file_dialog.h"
@@ -225,6 +227,14 @@ private:
     void handle_modal_transform(class Scene* scene);
     void draw_modal_transform(class Scene* scene);
     void cancel_modal_transform(class Scene* scene);
+    // The terrain tool (sculpt brushes on the selected terrain, in Edit mode): draws the brush under the cursor and
+    // applies it while the left mouse button is held. True while the tool is on: the scene view's left mouse is its
+    // own then (no picking, no transform gizmo).
+    bool handle_terrain_tool(class Scene* scene);
+    // ends the stroke in progress, if any, as one undo step
+    void finish_terrain_stroke(class Scene* scene);
+    // the tool's section of the properties panel, under the components of a game object with a terrain
+    void display_terrain_tools(class Scene* scene, entt::entity entity);
 
 private:
     class CameraContext
@@ -314,6 +324,24 @@ private:
     class Scene* play_mode_scene_ = nullptr;
     // the data assets with unsaved changes; before the undo steps changing them
     EditedDataAssets data_assets_{ *this };
+    // the same for the terrains sculpted
+    EditedTerrains terrains_{ *this };
+    // the terrain tool: the brush chosen (none: the tool is off) and its settings
+    std::optional<TerrainBrushMode> terrain_tool_;
+    TerrainBrush terrain_brush_;
+    // the stroke in progress: the terrain it changes (by name), what it changed so far and the height a flatten goes to
+    struct terrain_stroke_t
+    {
+        std::string terrain;
+        TerrainStroke stroke;
+        float flatten_height = 0.0f;
+        // where the mouse was (in the scene view) and the brush's center (the terrain's local x and z) at the last step
+        glm::vec2 mouse{ 0.0f };
+        glm::vec2 center{ 0.0f };
+        // the terrain's collision follows the stroke when it ends, not at every step of it
+        std::unique_ptr<TerrainData::EditBatch> batch;
+    };
+    std::optional<terrain_stroke_t> terrain_stroke_;
     CommandManager commands_;
     std::shared_ptr<OutlineFeature> outline_feature_;
     std::shared_ptr<GridFeature> grid_feature_;

@@ -33,6 +33,22 @@ Drag the `.terrain` file from the asset browser into the scene view. That create
 The terrain starts at its game object's origin and extends along +x and +z. One sample per metre is plenty for the
 game's camera; a side of 2^n + 1 samples (65, 129, 257, ...) gives whole chunks of 32 cells, the unit it is culled by.
 
+## Sculpting
+
+Select the terrain's game object in the editor (Edit mode, Editor view). Under its components, **Terrain tools** has
+the brushes:
+
+| Brush | What it does |
+|---|---|
+| Raise / Lower | Lifts or digs the ground under the brush; Shift does the other one. |
+| Smooth | Evens out bumps and steps. |
+| Flatten | Brings the ground to the height under the cursor where the stroke starts: plateaus, paths, ground for buildings. |
+
+Hold the left mouse button over the terrain. Radius (`[` and `]` change it), strength and falloff are in the panel;
+Escape turns the tool off, which gives the scene view back to selecting and moving game objects. A stroke is one undo
+step. The terrain shows `*` until it is saved: its Save terrain button, or Ctrl+S with the scene. Build the nav mesh
+again (its button under the Nav Surface) after changing ground characters walk on.
+
 Limits for now: the nav mesh is built in one piece, so keep terrains with a nav surface small (the outdoor test level
 is 64 m; a tiled nav mesh is step 6 of the big scenes epic); no holes; one material for the whole terrain (painted
-layers and the editor's sculpt brushes are step 4b).
+layers are step 4b-2).
