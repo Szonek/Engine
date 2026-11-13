@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <memory>
 #include <numeric>
 #include <vector>
 
@@ -228,6 +229,38 @@ TEST(TerrainDataTest, ReportsTheRowsChangedSinceTheyWereTaken)
     EXPECT_FALSE(terrain.take_changed_rows());
 }
 
+TEST(TerrainDataTest, ChangeCountMovesWithEveryChangeAndOnceForABatch)
+{
+    auto terrain = std::make_shared<TerrainData>(*TerrainData::create(9, 9, 1.0f));
+    const std::vector<float> one{ 1.0f };
+    auto count = TerrainData::get_change_count();
+    ASSERT_TRUE(terrain->set_heights({ 1, 1, 1, 1 }, one));
+    EXPECT_GT(TerrainData::get_change_count(), count);
+
+    // a batch: the heights and their revision change, whoever follows the terrains hears of it once, at its end
+    count = TerrainData::get_change_count();
+    const auto revision = terrain->get_revision();
+    {
+        const TerrainData::EditBatch batch(terrain);
+        ASSERT_TRUE(terrain->set_heights({ 2, 2, 1, 1 }, one));
+        ASSERT_TRUE(terrain->set_heights({ 3, 3, 1, 1 }, one));
+        EXPECT_EQ(TerrainData::get_change_count(), count);
+        EXPECT_GT(terrain->get_revision(), revision);
+        EXPECT_FLOAT_EQ(terrain->get_height(3, 3), 1.0f);
+        // one inside another ends with the outer one
+        {
+            const TerrainData::EditBatch inner(terrain);
+            ASSERT_TRUE(terrain->set_heights({ 4, 4, 1, 1 }, one));
+        }
+        EXPECT_EQ(TerrainData::get_change_count(), count);
+    }
+    EXPECT_GT(TerrainData::get_change_count(), count);
+    // and changes tell at once again
+    count = TerrainData::get_change_count();
+    ASSERT_TRUE(terrain->set_heights({ 5, 5, 1, 1 }, one));
+    EXPECT_GT(TerrainData::get_change_count(), count);
+}
+
 TEST(TerrainDataTest, FileRoundTrip)
 {
     const auto terrain = ramp(7, 4, 0.25f);
@@ -338,4 +371,47 @@ TEST(TerrainDataTest, TrianglesFaceUpAndFollowTheMatrix)
         // the winding Recast's slope test reads: (b - a) x (c - a) points up
         EXPECT_GT(glm::cross(b - a, c - a).y, 0.0f);
     }
+}
+
+TEST(TerrainData, ContentHashFollowsTheHeightsNotTheirHistory)
+{
+    auto terrain = TerrainData::create(9, 7, 0.5f);
+    ASSERT_TRUE(terrain);
+    const auto flat = terrain->content_hash();
+    // the same content made again has the same hash
+    EXPECT_EQ(TerrainData::create(9, 7, 0.5f)->content_hash(), flat);
+    // another size, cell size or height has another one
+    EXPECT_NE(TerrainData::create(7, 9, 0.5f)->content_hash(), flat);
+    EXPECT_NE(TerrainData::create(9, 7, 1.0f)->content_hash(), flat);
+    const std::vector<float> one{ 0.25f };
+    ASSERT_TRUE(terrain->set_heights({ 8, 6, 1, 1 }, one));
+    EXPECT_NE(terrain->content_hash(), flat);
+    // put back (an undo): the revision moved on, the content is what it was
+    const auto revision = terrain->get_revision();
+    const std::vector<float> zero{ 0.0f };
+    ASSERT_TRUE(terrain->set_heights({ 8, 6, 1, 1 }, zero));
+    EXPECT_NE(terrain->get_revision(), revision);
+    EXPECT_EQ(terrain->content_hash(), flat);
+}
+
+TEST(TerrainData, ACopyMadeDuringAnEditBatchIsNotInTheBatch)
+{
+    auto data = std::make_shared<TerrainData>(*TerrainData::create(5, 5, 1.0f));
+    const std::vector<float> one{ 1.0f };
+    {
+        const TerrainData::EditBatch batch(data);
+        // the batch holds `data`, not its copies: a copy's changes are seen at once
+        TerrainData copy = *data;
+        const auto changes = TerrainData::get_change_count();
+        ASSERT_TRUE(copy.set_heights({ 1, 1, 1, 1 }, one));
+        EXPECT_NE(TerrainData::get_change_count(), changes);
+        // and assigning to the batch's terrain leaves it in its batch
+        *data = copy;
+        const auto after_assign = TerrainData::get_change_count();
+        ASSERT_TRUE(data->set_heights({ 2, 2, 1, 1 }, one));
+        EXPECT_EQ(TerrainData::get_change_count(), after_assign);
+    }
+    const auto changes = TerrainData::get_change_count();
+    ASSERT_TRUE(data->set_heights({ 3, 3, 1, 1 }, one));
+    EXPECT_NE(TerrainData::get_change_count(), changes);
 }

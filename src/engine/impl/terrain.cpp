@@ -13,6 +13,21 @@
 engine::Terrain::Terrain(TerrainData data)
     : data_(std::make_shared<TerrainData>(std::move(data)))
 {
+    mark_saved();
+}
+
+void engine::Terrain::mark_saved()
+{
+    saved_revision_ = get_revision();
+    saved_hash_ = data_->content_hash();
+}
+
+void engine::Terrain::refresh_dirty()
+{
+    if (is_dirty() && data_->content_hash() == saved_hash_)
+    {
+        saved_revision_ = get_revision();
+    }
 }
 
 void engine::Terrain::replace_data(TerrainData data)

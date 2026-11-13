@@ -18,7 +18,7 @@ class Scene;
 // when they run: they find their game objects again after Stop gave them new handles, or after undo brought a deleted
 // one back. The editor drops the steps recorded while playing at Stop (CommandManager::end_play_session), so a step
 // never writes play session values into the edit state, and all of them when a scene is released (CommandManager::clear),
-// so a step never acts on another scene's game objects; a data asset's steps stay (see get_data_asset). A command whose
+// so a step never acts on another scene's game objects; the steps changing an asset stay (see changes_asset). A command whose
 // game object isn't there (any more) changes nothing and logs it (log_missing). GL-free (the scene is only passed on),
 // so the history is unit tested.
 class ICommand
@@ -54,6 +54,18 @@ public:
     {
         return {};
     }
+    // the name of the terrain the step changes, empty for any other step: its steps are dropped when its heights are
+    // replaced (CommandManager::drop_terrain_steps)
+    virtual std::string_view get_terrain() const
+    {
+        return {};
+    }
+    // Whether the step changes an asset (a file) instead of the scene: a data asset, a terrain. Such a step is kept at
+    // Stop and when the scene is released, like the asset's changes are.
+    virtual bool changes_asset() const
+    {
+        return !get_data_asset().empty() || !get_terrain().empty();
+    }
 };
 
 class CommandManager
@@ -80,6 +92,9 @@ public:
     // starts a new undo step instead of merging into the last one (ICommand::merge_with). A click is one step, a drag
     // from press to release is one step.
     void end_continuous_edit() { edit_ended_ = true; }
+
+    // whether there is a step to undo
+    bool can_undo() const { return !undo_stack_.empty(); }
 
     void undo(Scene& sc)
     {
@@ -182,12 +197,14 @@ public:
     // again, and an undo would bring back an older value over the file's change
     void drop_data_asset_steps(std::string_view asset_id)
     {
-        drop_data_asset_steps(undo_stack_, redo_stack_, save_point_, asset_id);
-        if (edit_history_)
-        {
-            drop_data_asset_steps(edit_history_->undo, edit_history_->redo, edit_history_->save_point, asset_id);
-        }
-        edit_ended_ = true;
+        drop_steps([asset_id](const std::unique_ptr<ICommand>& cmd) { return cmd->get_data_asset() == asset_id; });
+    }
+
+    // drops the steps changing the terrain (ICommand::get_terrain), the edit history's too: its heights were replaced
+    // (a heightmap imported again), and an undo would write heights from before over the new ones
+    void drop_terrain_steps(std::string_view terrain)
+    {
+        drop_steps([terrain](const std::unique_ptr<ICommand>& cmd) { return cmd->get_terrain() == terrain; });
     }
 
 private:
@@ -215,7 +232,7 @@ private:
     {
         for (auto& cmd : from)
         {
-            if (!cmd->get_data_asset().empty())
+            if (cmd->changes_asset())
             {
                 into.push_back(std::move(cmd));
             }
@@ -236,10 +253,22 @@ private:
         edit_ended_ = true;
     }
 
-    static void drop_data_asset_steps(std::vector<std::unique_ptr<ICommand>>& undo, std::vector<std::unique_ptr<ICommand>>& redo, SavePoint& save_point,
-        std::string_view asset_id)
+    // drops the steps `changes` is true for, the edit history's too
+    template<typename Changes>
+    void drop_steps(const Changes& changes)
     {
-        const auto changes = [asset_id](const std::unique_ptr<ICommand>& cmd) { return cmd->get_data_asset() == asset_id; };
+        drop_steps(undo_stack_, redo_stack_, save_point_, changes);
+        if (edit_history_)
+        {
+            drop_steps(edit_history_->undo, edit_history_->redo, edit_history_->save_point, changes);
+        }
+        edit_ended_ = true;
+    }
+
+    template<typename Changes>
+    static void drop_steps(std::vector<std::unique_ptr<ICommand>>& undo, std::vector<std::unique_ptr<ICommand>>& redo, SavePoint& save_point,
+        const Changes& changes)
+    {
         // from the newest step: the undone ones (the redo stack's first is the newest), then the done ones
         for (std::size_t i = 0; i < redo.size(); i++)
         {

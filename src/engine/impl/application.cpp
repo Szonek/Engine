@@ -712,6 +712,7 @@ std::uint32_t engine::Application::import_terrain_heightmap(std::string_view hei
             return ENGINE_INVALID_OBJECT_HANDLE;
         }
         get_terrain(existing)->replace_data(std::move(*data));
+        on_terrain_replaced(existing);
         return existing;
     }
     return create_terrain(asset_name, std::move(*data));
@@ -735,7 +736,13 @@ bool engine::Application::save_terrain(std::uint32_t idx)
     const auto file_path = AssetStore::get_instance().get_terrains_base_path() / name;
     std::error_code error;
     std::filesystem::create_directories(file_path.parent_path(), error);
-    return write_file_atomic(file_path, terrain->get_data().serialize(), "Terrain");
+    if (!write_file_atomic(file_path, terrain->get_data().serialize(), "Terrain"))
+    {
+        return false;
+    }
+    get_terrain(idx)->mark_saved();
+    on_terrain_saved(idx);
+    return true;
 }
 
 std::uint32_t engine::Application::get_terrain(std::string_view name) const

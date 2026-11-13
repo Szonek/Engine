@@ -193,6 +193,9 @@ protected:
     // the data asset's file changed and was read again (not after a save of its own): the asset has the file's value,
     // or kept its unsaved one, which is dirty against the file's new value now
     virtual void on_data_asset_reloaded(std::uint32_t /*idx*/) {}
+    // a loaded terrain got new heights as a whole (a heightmap imported again) / was written to its file
+    virtual void on_terrain_replaced(std::uint32_t /*idx*/) {}
+    virtual void on_terrain_saved(std::uint32_t /*idx*/) {}
     // a quit was asked for (request_quit); false holds it: whoever held it calls confirm_quit() later, or never (cancelled)
     virtual bool on_quit_requested() { return true; }
     // the next frame (or this one, during on_frame_begine) reports ENGINE_EVENT_QUIT

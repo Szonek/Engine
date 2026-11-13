@@ -136,9 +136,10 @@ constexpr const char* DATA_ASSET_TOOLTIP = "Drag onto a data asset field of the 
 constexpr const char* TERRAIN_TOOLTIP = "Drag into the scene view to place it, or onto a terrain field of the properties panel";
 }  // namespace
 
-engine::AssetBrowserPanel::AssetBrowserPanel(Application& app, const EditedDataAssets& edited)
+engine::AssetBrowserPanel::AssetBrowserPanel(Application& app, const EditedDataAssets& edited, const EditedTerrains& edited_terrains)
     : app_(app)
     , edited_(edited)
+    , edited_terrains_(edited_terrains)
     , assets_root_(AssetStore::get_instance().get_models_base_path().parent_path())
 {
 }
@@ -429,7 +430,9 @@ std::optional<std::string> engine::AssetBrowserPanel::draw_files()
         draw_icon(entry.kind, icon_size);
         ImGui::SameLine();
         const bool is_selected = selected_ && selected_->path == entry.path;
-        const bool unsaved = entry.kind == AssetFileKind::eData && asset_id && edited_.is_unsaved(*asset_id);
+        // a data asset edited in the inspector, or a terrain sculpted, and not saved yet
+        const bool unsaved = asset_id && ((entry.kind == AssetFileKind::eData && edited_.is_unsaved(*asset_id))
+            || (entry.kind == AssetFileKind::eTerrain && edited_terrains_.is_unsaved(*asset_id)));
         const auto label = unsaved ? entry.name + " *" : entry.name;
         if (ImGui::Selectable(fmt::format("{}###{}", label, entry.name).c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
         {
@@ -587,6 +590,10 @@ void engine::AssetBrowserPanel::draw_heightmap_details()
     ImGui::DragFloat("Highest height", &heightmap_import_.height_max, 0.1f, 0.0f, 0.0f, "%.2f m");
     ImGui::SetItemTooltip("The height of white");
     const bool valid = heightmap_import_.cell_size > 0.0f && heightmap_import_.height_max >= heightmap_import_.height_min;
+    if (edited_terrains_.is_unsaved(terrain_id))
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.3f, 1.0f), "terrains/%s has unsaved sculpting, which Import replaces (it can't be undone).", terrain_id.c_str());
+    }
     ImGui::BeginDisabled(!valid);
     if (ImGui::Button("Import"))
     {

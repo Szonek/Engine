@@ -131,6 +131,38 @@ std::optional<engine::TerrainData> engine::TerrainData::from_raw16(std::string_v
     return from_heightmap(pixels, static_cast<std::uint32_t>(side), static_cast<std::uint32_t>(side), cell_size, height_min, height_max);
 }
 
+std::uint64_t engine::TerrainData::content_hash() const
+{
+    // FNV-1a over 64-bit words (two heights at a time), then a final mix: fast enough for the biggest terrain
+    std::uint64_t hash = 14695981039346656037ull;
+    const auto add = [&hash](std::uint64_t word)
+        {
+            hash = (hash ^ word) * 1099511628211ull;
+        };
+    add(samples_x_);
+    add(samples_z_);
+    std::uint32_t cell_bits = 0;
+    std::memcpy(&cell_bits, &cell_size_, sizeof(cell_bits));
+    add(cell_bits);
+    const auto add_bytes = [&add](const void* data, std::size_t size)
+        {
+            const auto* bytes = static_cast<const unsigned char*>(data);
+            std::size_t i = 0;
+            for (; i + sizeof(std::uint64_t) <= size; i += sizeof(std::uint64_t))
+            {
+                std::uint64_t word = 0;
+                std::memcpy(&word, bytes + i, sizeof(word));
+                add(word);
+            }
+            std::uint64_t rest = 0;
+            std::memcpy(&rest, bytes + i, size - i);
+            add(rest);
+        };
+    add_bytes(heights_.data(), heights_.size() * sizeof(float));
+    hash ^= hash >> 32;
+    return hash;
+}
+
 std::string engine::TerrainData::serialize() const
 {
     const FileHeader header{ FILE_MAGIC, FILE_VERSION, samples_x_, samples_z_, cell_size_ };
@@ -223,7 +255,11 @@ bool engine::TerrainData::set_heights(const Region& region, std::span<const floa
     update_bounds(region);
     mark_rows_changed(region.z, region.z + region.depth - 1);
     revision_++;
-    mark_changed();
+    // in a batch, its end tells
+    if (batches_.value == 0)
+    {
+        mark_changed();
+    }
     return true;
 }
 
@@ -362,4 +398,131 @@ void engine::TerrainData::append_triangles(const glm::mat4& matrix, std::vector<
             triangles.insert(triangles.end(), { i00, i01, i10, i10, i01, i11 });
         }
     }
+}
+
+namespace
+{
+// the t of origin + direction * t on the triangle, nullopt when the ray misses it or runs along it (Moller-Trumbore)
+std::optional<float> ray_triangle(const glm::vec3& origin, const glm::vec3& direction, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
+{
+    const auto edge_ab = b - a;
+    const auto edge_ac = c - a;
+    const auto p = glm::cross(direction, edge_ac);
+    const float determinant = glm::dot(edge_ab, p);
+    if (std::abs(determinant) < 1e-12f)
+    {
+        return std::nullopt;
+    }
+    const float inverse = 1.0f / determinant;
+    const auto to_origin = origin - a;
+    const float u = glm::dot(to_origin, p) * inverse;
+    // a little over the edges: a ray through the diagonal or a cell's edge hits one of the two triangles sharing it
+    constexpr float EDGE = 1e-4f;
+    if (u < -EDGE || u > 1.0f + EDGE)
+    {
+        return std::nullopt;
+    }
+    const auto q = glm::cross(to_origin, edge_ab);
+    const float v = glm::dot(direction, q) * inverse;
+    if (v < -EDGE || u + v > 1.0f + EDGE)
+    {
+        return std::nullopt;
+    }
+    return glm::dot(edge_ac, q) * inverse;
+}
+}  // namespace
+
+std::optional<glm::vec3> engine::TerrainData::raycast(const glm::vec3& origin, const glm::vec3& direction, float max_distance) const
+{
+    if (!(max_distance > 0.0f) || !(glm::dot(direction, direction) > 0.0f))
+    {
+        return std::nullopt;
+    }
+    // the part of the ray inside the box around the surface
+    const auto bounds = get_bounds();
+    float t_enter = 0.0f;
+    float t_exit = max_distance;
+    for (int axis = 0; axis < 3; axis++)
+    {
+        if (std::abs(direction[axis]) < 1e-12f)
+        {
+            if (origin[axis] < bounds.min[axis] || origin[axis] > bounds.max[axis])
+            {
+                return std::nullopt;
+            }
+            continue;
+        }
+        float t0 = (bounds.min[axis] - origin[axis]) / direction[axis];
+        float t1 = (bounds.max[axis] - origin[axis]) / direction[axis];
+        if (t0 > t1)
+        {
+            std::swap(t0, t1);
+        }
+        t_enter = std::max(t_enter, t0);
+        t_exit = std::min(t_exit, t1);
+    }
+    if (t_enter > t_exit)
+    {
+        return std::nullopt;
+    }
+
+    // walks the cells along the ray's xz (Amanatides & Woo), in grid units; a hit in a cell is the nearest one, since
+    // the cells are visited in the ray's order
+    const auto start = origin + direction * t_enter;
+    const auto last_cell_x = static_cast<std::int64_t>(samples_x_) - 2;
+    const auto last_cell_z = static_cast<std::int64_t>(samples_z_) - 2;
+    auto cell_x = std::clamp(static_cast<std::int64_t>(std::floor(start.x / cell_size_)), std::int64_t{ 0 }, last_cell_x);
+    auto cell_z = std::clamp(static_cast<std::int64_t>(std::floor(start.z / cell_size_)), std::int64_t{ 0 }, last_cell_z);
+    const std::int64_t step_x = direction.x > 0.0f ? 1 : -1;
+    const std::int64_t step_z = direction.z > 0.0f ? 1 : -1;
+    const float infinity = std::numeric_limits<float>::infinity();
+    // the t at which the ray leaves the cell along each axis, and how much t a whole cell takes
+    const auto next_boundary = [this](std::int64_t cell, std::int64_t step) { return static_cast<float>(cell + (step > 0 ? 1 : 0)) * cell_size_; };
+    float t_next_x = std::abs(direction.x) < 1e-12f ? infinity : (next_boundary(cell_x, step_x) - origin.x) / direction.x;
+    float t_next_z = std::abs(direction.z) < 1e-12f ? infinity : (next_boundary(cell_z, step_z) - origin.z) / direction.z;
+    const float t_delta_x = std::abs(direction.x) < 1e-12f ? infinity : cell_size_ / std::abs(direction.x);
+    const float t_delta_z = std::abs(direction.z) < 1e-12f ? infinity : cell_size_ / std::abs(direction.z);
+
+    while (cell_x >= 0 && cell_z >= 0 && cell_x <= last_cell_x && cell_z <= last_cell_z)
+    {
+        const auto x = static_cast<std::uint32_t>(cell_x);
+        const auto z = static_cast<std::uint32_t>(cell_z);
+        const auto corner = [this, x, z](std::uint32_t dx, std::uint32_t dz)
+            {
+                return glm::vec3(static_cast<float>(x + dx) * cell_size_, get_height(x + dx, z + dz), static_cast<float>(z + dz) * cell_size_);
+            };
+        const auto p00 = corner(0, 0);
+        const auto p10 = corner(1, 0);
+        const auto p01 = corner(0, 1);
+        const auto p11 = corner(1, 1);
+        std::optional<float> nearest;
+        for (const auto& hit : { ray_triangle(origin, direction, p00, p01, p10), ray_triangle(origin, direction, p10, p01, p11) })
+        {
+            if (hit && *hit >= 0.0f && *hit <= max_distance && (!nearest || *hit < *nearest))
+            {
+                nearest = hit;
+            }
+        }
+        if (nearest)
+        {
+            return origin + direction * *nearest;
+        }
+        // on to the next cell, unless the ray ends or leaves the box before it
+        const float t_leave = std::min(t_next_x, t_next_z);
+        if (t_leave > t_exit)
+        {
+            break;
+        }
+        if (t_next_x < t_next_z)
+        {
+            cell_x += step_x;
+            t_next_x += t_delta_x;
+        }
+        else
+        {
+            cell_z += step_z;
+            t_next_z += t_delta_z;
+        }
+    }
+    return std::nullopt;
 }
