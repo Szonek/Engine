@@ -19,7 +19,7 @@ bool engine::EditedTerrains::is_file(std::string_view terrain)
     return std::filesystem::path(terrain).extension() == ".terrain";
 }
 
-bool engine::EditedTerrains::set_terrain_heights(std::string_view terrain, const TerrainData::Region& region, std::span<const float> heights)
+bool engine::EditedTerrains::set_terrain_heights(std::string_view terrain, std::span<const TerrainPatch> patches, Side side)
 {
     // the one loaded, or loaded again from its file when it was released since (undo of a stroke saved meanwhile)
     auto handle = app_.get_terrain(terrain);
@@ -35,7 +35,15 @@ bool engine::EditedTerrains::set_terrain_heights(std::string_view terrain, const
         return false;
     }
     // logs why when the region doesn't fit
-    const bool set = asset->set_heights(region, heights);
+    bool set = true;
+    {
+        // one change for the collision
+        const auto batch = asset->begin_edit_batch();
+        for (const auto& patch : patches)
+        {
+            set &= asset->set_heights(patch.region, side == Side::eBefore ? patch.before : patch.after);
+        }
+    }
     // an undo back to the heights which were saved makes it clean again
     asset->refresh_dirty();
     hold_while_dirty(std::string(terrain), handle);

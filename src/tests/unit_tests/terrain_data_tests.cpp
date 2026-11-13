@@ -393,3 +393,25 @@ TEST(TerrainData, ContentHashFollowsTheHeightsNotTheirHistory)
     EXPECT_NE(terrain->get_revision(), revision);
     EXPECT_EQ(terrain->content_hash(), flat);
 }
+
+TEST(TerrainData, ACopyMadeDuringAnEditBatchIsNotInTheBatch)
+{
+    auto data = std::make_shared<TerrainData>(*TerrainData::create(5, 5, 1.0f));
+    const std::vector<float> one{ 1.0f };
+    {
+        const TerrainData::EditBatch batch(data);
+        // the batch holds `data`, not its copies: a copy's changes are seen at once
+        TerrainData copy = *data;
+        const auto changes = TerrainData::get_change_count();
+        ASSERT_TRUE(copy.set_heights({ 1, 1, 1, 1 }, one));
+        EXPECT_NE(TerrainData::get_change_count(), changes);
+        // and assigning to the batch's terrain leaves it in its batch
+        *data = copy;
+        const auto after_assign = TerrainData::get_change_count();
+        ASSERT_TRUE(data->set_heights({ 2, 2, 1, 1 }, one));
+        EXPECT_EQ(TerrainData::get_change_count(), after_assign);
+    }
+    const auto changes = TerrainData::get_change_count();
+    ASSERT_TRUE(data->set_heights({ 3, 3, 1, 1 }, one));
+    EXPECT_NE(TerrainData::get_change_count(), changes);
+}

@@ -2230,21 +2230,28 @@ bool engine::ApplicationEditor::handle_terrain_tool(Scene* scene)
     {
         finish_terrain_stroke(scene);
     }
-    if (!io.WantTextInput && !terrain_stroke_)
+    // The tool's keys belong to the scene view, like its other shortcuts: an Escape which closes a popup or cancels a
+    // widget's drag in another panel isn't the tool's.
+    const bool keys_for_scene_view = (scene_view_focused_ || is_mouse_over_scene()) && !io.WantTextInput && !ImGui::IsAnyItemActive()
+        && !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
+    if (keys_for_scene_view && !terrain_stroke_)
     {
         if (ImGui::IsKeyPressed(ImGuiKey_Escape, false))
         {
             terrain_tool_.reset();
             return false;
         }
-        // like Photoshop's and Unity's brush size keys
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket, true))
+        // like Photoshop's and Unity's brush size keys, while the brush is over the scene
+        if (is_mouse_over_scene())
         {
-            terrain_brush_.radius = std::max(terrain_brush_.radius / 1.1f, 0.25f);
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_RightBracket, true))
-        {
-            terrain_brush_.radius = std::min(terrain_brush_.radius * 1.1f, 200.0f);
+            if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket, true))
+            {
+                terrain_brush_.radius = std::max(terrain_brush_.radius / 1.1f, 0.25f);
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_RightBracket, true))
+            {
+                terrain_brush_.radius = std::min(terrain_brush_.radius * 1.1f, 200.0f);
+            }
         }
     }
 
@@ -2271,7 +2278,8 @@ bool engine::ApplicationEditor::handle_terrain_tool(Scene* scene)
         return true;
     }
     // While the mouse is held still, the brush stays where it is: the ground rising under the cursor would otherwise
-    // move the ray's hit, and the brush with it, towards the camera.
+    // move the ray's hit, and the brush with it, towards the camera. Still is measured from where the mouse was when
+    // the brush was last placed, so a slow drag adds up and moves it.
     const auto mouse = get_scene_view_mouse();
     const bool held_still = terrain_stroke_ && glm::distance(mouse, terrain_stroke_->mouse) < 0.5f;
     const glm::vec2 center = held_still ? terrain_stroke_->center : glm::vec2(hit->x, hit->z);
@@ -2319,8 +2327,11 @@ bool engine::ApplicationEditor::handle_terrain_tool(Scene* scene)
         {
             terrain_stroke_ = terrain_stroke_t{ name, {}, hit->y, mouse, center, terrain->begin_edit_batch() };
         }
-        terrain_stroke_->mouse = mouse;
-        terrain_stroke_->center = center;
+        if (!held_still)
+        {
+            terrain_stroke_->mouse = mouse;
+            terrain_stroke_->center = center;
+        }
         if (const auto region = brush_region(data, center, terrain_brush_.radius))
         {
             // before it changes: the stroke's undo step gives these heights back
@@ -2343,18 +2354,17 @@ void engine::ApplicationEditor::finish_terrain_stroke(Scene* scene)
     // the collision catches up with the stroke
     stroke.batch.reset();
     const auto* terrain = get_terrain(get_terrain(std::string_view(stroke.terrain)));
-    if (!terrain || stroke.stroke.is_empty())
+    if (!terrain)
     {
         return;
     }
-    std::vector<float> after(stroke.stroke.get_before().size());
-    if (!terrain->get_data().get_heights(stroke.stroke.get_region(), after))
+    auto patches = stroke.stroke.finish(terrain->get_data());
+    if (patches.empty())
     {
         return;
     }
-    // the heights are there already: the step's first execute sets them again, undo gives the ones before the stroke
-    commands_.execute_command(*scene, std::make_unique<CommandTerrainStroke>(terrains_, stroke.terrain, stroke.stroke.get_region(), stroke.stroke.get_before(),
-        std::move(after)));
+    // the heights are there already, so the step starts as done; undo gives the ones before the stroke
+    commands_.execute_command(*scene, std::make_unique<CommandTerrainStroke>(terrains_, stroke.terrain, std::move(patches), true));
     commands_.end_continuous_edit();
 }
 

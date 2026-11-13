@@ -107,36 +107,45 @@ std::optional<engine::TerrainData::Region> engine::apply_brush(TerrainData& terr
 
 void engine::TerrainStroke::include(const TerrainData& terrain, const TerrainData::Region& region)
 {
-    if (region.width == 0 || region.depth == 0)
+    if (region.width == 0 || region.depth == 0 || region.x + region.width > terrain.get_samples_x() || region.z + region.depth > terrain.get_samples_z())
     {
         return;
     }
-    if (before_.empty())
+    for (std::uint32_t tile_z = region.z / TILE_SAMPLES; tile_z <= (region.z + region.depth - 1) / TILE_SAMPLES; tile_z++)
     {
-        region_ = region;
-        before_.resize(static_cast<std::size_t>(region.width) * region.depth);
-        terrain.get_heights(region, before_);
-        return;
+        for (std::uint32_t tile_x = region.x / TILE_SAMPLES; tile_x <= (region.x + region.width - 1) / TILE_SAMPLES; tile_x++)
+        {
+            if (!tiles_.insert((static_cast<std::uint64_t>(tile_z) << 32) | tile_x).second)
+            {
+                // recorded when the stroke first touched it: those are its heights before the stroke
+                continue;
+            }
+            TerrainPatch patch;
+            patch.region.x = tile_x * TILE_SAMPLES;
+            patch.region.z = tile_z * TILE_SAMPLES;
+            patch.region.width = std::min(TILE_SAMPLES, terrain.get_samples_x() - patch.region.x);
+            patch.region.depth = std::min(TILE_SAMPLES, terrain.get_samples_z() - patch.region.z);
+            patch.before.resize(static_cast<std::size_t>(patch.region.width) * patch.region.depth);
+            terrain.get_heights(patch.region, patch.before);
+            patches_.push_back(std::move(patch));
+        }
     }
-    const auto x0 = std::min(region_.x, region.x);
-    const auto z0 = std::min(region_.z, region.z);
-    const auto x1 = std::max(region_.x + region_.width, region.x + region.width);
-    const auto z1 = std::max(region_.z + region_.depth, region.z + region.depth);
-    const TerrainData::Region grown{ x0, z0, x1 - x0, z1 - z0 };
-    if (grown.x == region_.x && grown.z == region_.z && grown.width == region_.width && grown.depth == region_.depth)
+}
+
+std::vector<engine::TerrainPatch> engine::TerrainStroke::finish(const TerrainData& terrain)
+{
+    auto patches = std::move(patches_);
+    patches_.clear();
+    tiles_.clear();
+    for (auto& patch : patches)
     {
-        return;
+        patch.after.resize(patch.before.size());
+        if (!terrain.get_heights(patch.region, patch.after))
+        {
+            // the terrain got another size under the stroke: nothing of it can be given back
+            return {};
+        }
     }
-    // What is outside the old rectangle wasn't touched by the stroke yet: its heights now are its heights before. What
-    // is inside keeps the heights recorded when it was included.
-    std::vector<float> before(static_cast<std::size_t>(grown.width) * grown.depth);
-    terrain.get_heights(grown, before);
-    for (std::uint32_t row = 0; row < region_.depth; row++)
-    {
-        const auto* source = before_.data() + static_cast<std::size_t>(row) * region_.width;
-        std::copy(source, source + region_.width,
-            before.begin() + static_cast<std::ptrdiff_t>(static_cast<std::size_t>(region_.z - grown.z + row) * grown.width + (region_.x - grown.x)));
-    }
-    region_ = grown;
-    before_ = std::move(before);
+    std::erase_if(patches, [](const TerrainPatch& patch) { return patch.before == patch.after; });
+    return patches;
 }

@@ -590,6 +590,10 @@ void engine::AssetBrowserPanel::draw_heightmap_details()
     ImGui::DragFloat("Highest height", &heightmap_import_.height_max, 0.1f, 0.0f, 0.0f, "%.2f m");
     ImGui::SetItemTooltip("The height of white");
     const bool valid = heightmap_import_.cell_size > 0.0f && heightmap_import_.height_max >= heightmap_import_.height_min;
+    if (edited_terrains_.is_unsaved(terrain_id))
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.3f, 1.0f), "terrains/%s has unsaved sculpting, which Import replaces (it can't be undone).", terrain_id.c_str());
+    }
     ImGui::BeginDisabled(!valid);
     if (ImGui::Button("Import"))
     {

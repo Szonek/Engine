@@ -295,11 +295,24 @@ namespace
 class FakeTerrains : public engine::ITerrainHeights
 {
 public:
-    bool set_terrain_heights(std::string_view terrain, const TerrainData::Region& region, std::span<const float> heights) override
+    bool set_terrain_heights(std::string_view terrain, std::span<const engine::TerrainPatch> patches, Side side) override
     {
         const auto it = terrains.find(std::string(terrain));
-        return it != terrains.end() && it->second.set_heights(region, heights);
+        if (it == terrains.end())
+        {
+            return false;
+        }
+        bool set = true;
+        for (const auto& patch : patches)
+        {
+            sets++;
+            set &= it->second.set_heights(patch.region, side == Side::eBefore ? patch.before : patch.after);
+        }
+        return set;
     }
+
+    // patches written so far
+    int sets = 0;
 
     std::map<std::string, TerrainData> terrains;
 };
@@ -312,37 +325,63 @@ engine::Scene& no_scene()
 }
 }  // namespace
 
-TEST(TerrainStroke, RecordsTheHeightsBeforeTheStrokeOverEverythingItTouched)
+TEST(TerrainStroke, RecordsTheTilesItTouchedAsTheyWereBeforeTheStroke)
 {
-    auto terrain = slope();
-    const auto original = all_heights(terrain);
+    // 3 x 2 tiles of 32 samples, the last ones cut by the terrain's edge
+    auto terrain = *TerrainData::create(80, 40, 1.0f);
+    std::vector<float> heights(80 * 40);
+    for (std::size_t i = 0; i < heights.size(); i++)
+    {
+        heights[i] = static_cast<float>(i % 80) * 0.25f;
+    }
+    ASSERT_TRUE(terrain.set_heights({ 0, 0, 80, 40 }, heights));
     const TerrainBrush brush{ 2.0f, 3.0f, 0.5f };
     engine::TerrainStroke stroke;
     EXPECT_TRUE(stroke.is_empty());
-    // dragged along x, overlapping steps
-    for (const float x : { 4.0f, 5.0f, 6.5f, 9.0f })
+    // dragged along x inside the first tile, then over the edge into the second: overlapping steps
+    for (const float x : { 4.0f, 5.0f, 6.5f, 31.0f })
     {
         const auto region = engine::brush_region(terrain, { x, 8.0f }, brush.radius);
         ASSERT_TRUE(region);
         stroke.include(terrain, *region);
         engine::apply_brush(terrain, TerrainBrushMode::eRaise, brush, { x, 8.0f }, 0.1f);
     }
-    ASSERT_FALSE(stroke.is_empty());
-    const auto& region = stroke.get_region();
-    EXPECT_EQ(region.x, 2u);
-    EXPECT_EQ(region.width, 10u);
-    EXPECT_EQ(region.z, 6u);
-    EXPECT_EQ(region.depth, 5u);
-    // what it recorded is the terrain before the stroke, not after its earlier steps
-    std::vector<float> expected;
-    for (std::uint32_t z = region.z; z < region.z + region.depth; z++)
+    // two tiles, however many steps touched them, not the rectangle around the stroke
+    ASSERT_EQ(stroke.get_patches().size(), 2u);
+    const auto patches = stroke.finish(terrain);
+    EXPECT_TRUE(stroke.is_empty());
+    ASSERT_EQ(patches.size(), 2u);
+    for (const auto& patch : patches)
     {
-        for (std::uint32_t x = region.x; x < region.x + region.width; x++)
+        EXPECT_EQ(patch.region.x % 32, 0u);
+        EXPECT_EQ(patch.region.z, 0u);
+        EXPECT_EQ(patch.region.width, 32u);
+        EXPECT_EQ(patch.region.depth, 32u);
+        // before is the terrain before the stroke, not after its earlier steps; after is the terrain now
+        std::vector<float> expected;
+        std::vector<float> now(patch.before.size());
+        for (std::uint32_t z = 0; z < 32; z++)
         {
-            expected.push_back(original[z * 17 + x]);
+            for (std::uint32_t x = patch.region.x; x < patch.region.x + 32; x++)
+            {
+                expected.push_back(heights[z * 80 + x]);
+            }
         }
+        EXPECT_EQ(patch.before, expected);
+        ASSERT_TRUE(terrain.get_heights(patch.region, now));
+        EXPECT_EQ(patch.after, now);
+        EXPECT_NE(patch.after, patch.before);
     }
-    EXPECT_EQ(stroke.get_before(), expected);
+
+    // a tile at the terrain's corner is as big as what is left of the terrain, and one the stroke included but left
+    // as it was is no part of the step
+    stroke.include(terrain, { 78, 38, 2, 2 });
+    ASSERT_EQ(stroke.get_patches().size(), 1u);
+    EXPECT_EQ(stroke.get_patches()[0].region.x, 64u);
+    EXPECT_EQ(stroke.get_patches()[0].region.z, 32u);
+    EXPECT_EQ(stroke.get_patches()[0].region.width, 16u);
+    EXPECT_EQ(stroke.get_patches()[0].region.depth, 8u);
+    EXPECT_TRUE(stroke.finish(terrain).empty());
 }
 
 TEST(TerrainStroke, UndoGivesTheHeightsBackExactlyAndRedoTheStroke)
@@ -361,12 +400,13 @@ TEST(TerrainStroke, UndoGivesTheHeightsBackExactlyAndRedoTheStroke)
     }
     const auto sculpted = all_heights(terrain);
     ASSERT_NE(sculpted, original);
-    std::vector<float> after(stroke.get_before().size());
-    ASSERT_TRUE(terrain.get_heights(stroke.get_region(), after));
 
+    // the brush set the heights already: the step starts as done and writes nothing
     engine::CommandManager commands;
-    commands.execute_command(no_scene(), std::make_unique<engine::CommandTerrainStroke>(terrains, "valley.terrain", stroke.get_region(), stroke.get_before(), after));
+    commands.execute_command(no_scene(), std::make_unique<engine::CommandTerrainStroke>(terrains, "valley.terrain", stroke.finish(terrain), true));
+    EXPECT_EQ(terrains.sets, 0);
     EXPECT_EQ(all_heights(terrain), sculpted);
+    ASSERT_TRUE(commands.can_undo());
     // a terrain is a file of its own: the scene isn't unsaved by the stroke
     EXPECT_FALSE(commands.is_dirty());
 
@@ -374,6 +414,7 @@ TEST(TerrainStroke, UndoGivesTheHeightsBackExactlyAndRedoTheStroke)
     EXPECT_EQ(all_heights(terrain), original);
     commands.redo(no_scene());
     EXPECT_EQ(all_heights(terrain), sculpted);
+    EXPECT_GT(terrains.sets, 0);
 }
 
 TEST(TerrainStroke, StepStaysWhenTheSceneIsReleasedAndAfterStop)

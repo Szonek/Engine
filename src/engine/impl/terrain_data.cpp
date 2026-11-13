@@ -256,7 +256,7 @@ bool engine::TerrainData::set_heights(const Region& region, std::span<const floa
     mark_rows_changed(region.z, region.z + region.depth - 1);
     revision_++;
     // in a batch, its end tells
-    if (batches_ == 0)
+    if (batches_.value == 0)
     {
         mark_changed();
     }

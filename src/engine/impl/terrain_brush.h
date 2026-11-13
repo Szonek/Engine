@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 
 #include <optional>
+#include <unordered_set>
 #include <vector>
 
 namespace engine
@@ -45,21 +46,36 @@ std::optional<TerrainData::Region> brush_region(const TerrainData& terrain, cons
 std::optional<TerrainData::Region> apply_brush(TerrainData& terrain, TerrainBrushMode mode, const TerrainBrush& brush, const glm::vec2& center,
     float dt_seconds, float flatten_height = 0.0f);
 
-// What a stroke changed, for its undo step: the rectangle around every region the stroke touched and the heights it
-// had before. Call include() with each region before changing it.
+// A rectangle of a terrain's heights before and after a change (row by row), what an undo step of a stroke is made of.
+struct TerrainPatch
+{
+    TerrainData::Region region;
+    std::vector<float> before;
+    std::vector<float> after;
+};
+
+// What a stroke changed, for its undo step: the heights before the stroke of every tile (TILE_SAMPLES samples a side)
+// the stroke touched, so its cost and its step's size follow what the brush covered, not the rectangle around the
+// whole stroke. Call include() with each region before changing it.
 class TerrainStroke
 {
 public:
-    // `region` (inside the terrain) is about to change: its heights, as they are now, are part of the stroke
+    static constexpr std::uint32_t TILE_SAMPLES = TERRAIN_CHUNK_CELLS;
+
+    // `region` (inside the terrain) is about to change: the tiles it touches which the stroke didn't touch before are
+    // recorded as they are now
     void include(const TerrainData& terrain, const TerrainData::Region& region);
 
-    bool is_empty() const { return before_.empty(); }
-    const TerrainData::Region& get_region() const { return region_; }
-    // the heights of get_region() before the stroke, row by row
-    const std::vector<float>& get_before() const { return before_; }
+    bool is_empty() const { return patches_.empty(); }
+    // the tiles recorded so far; `after` is filled by finish()
+    const std::vector<TerrainPatch>& get_patches() const { return patches_; }
+    // The stroke ended: its tiles with the terrain's heights now as `after`, without the ones it left as they were.
+    // The stroke is empty afterwards.
+    std::vector<TerrainPatch> finish(const TerrainData& terrain);
 
 private:
-    TerrainData::Region region_;
-    std::vector<float> before_;
+    std::vector<TerrainPatch> patches_;
+    // the tiles recorded: z * 2^32 + x of each
+    std::unordered_set<std::uint64_t> tiles_;
 };
 }  // namespace engine

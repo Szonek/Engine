@@ -25,7 +25,7 @@ public:
     // the unsaved changes are lost (closing the window asks first)
     ~EditedTerrains() override;
 
-    bool set_terrain_heights(std::string_view terrain, const TerrainData::Region& region, std::span<const float> heights) override;
+    bool set_terrain_heights(std::string_view terrain, std::span<const TerrainPatch> patches, Side side) override;
     // the terrain was changed directly (a brush during a stroke), saved or its heights replaced by someone else: held
     // while it is dirty
     void on_edited(std::string_view terrain);

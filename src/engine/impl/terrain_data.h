@@ -123,12 +123,12 @@ public:
     class EditBatch
     {
     public:
-        explicit EditBatch(std::shared_ptr<TerrainData> data) : data_(std::move(data)) { data_->batches_++; }
+        explicit EditBatch(std::shared_ptr<TerrainData> data) : data_(std::move(data)) { data_->batches_.value++; }
         EditBatch(const EditBatch&) = delete;
         EditBatch& operator=(const EditBatch&) = delete;
         ~EditBatch()
         {
-            if (--data_->batches_ == 0)
+            if (--data_->batches_.value == 0)
             {
                 mark_changed();
             }
@@ -169,8 +169,16 @@ private:
     std::vector<Chunk> chunks_;
     std::uint64_t revision_ = 1;
     inline static std::uint64_t change_count_ = 0;
-    // the EditBatches alive
-    std::uint32_t batches_ = 0;
+    // The EditBatches alive. They hold this object, not its value: a copy starts with none, and an assignment leaves
+    // the count of the object assigned to as it is.
+    struct BatchCount
+    {
+        BatchCount() = default;
+        BatchCount(const BatchCount&) {}
+        BatchCount& operator=(const BatchCount&) { return *this; }
+        std::uint32_t value = 0;
+    };
+    BatchCount batches_;
     bool rows_changed_ = false;
     std::uint32_t first_changed_row_ = 0;
     std::uint32_t last_changed_row_ = 0;
