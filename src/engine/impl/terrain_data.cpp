@@ -131,6 +131,38 @@ std::optional<engine::TerrainData> engine::TerrainData::from_raw16(std::string_v
     return from_heightmap(pixels, static_cast<std::uint32_t>(side), static_cast<std::uint32_t>(side), cell_size, height_min, height_max);
 }
 
+std::uint64_t engine::TerrainData::content_hash() const
+{
+    // FNV-1a over 64-bit words (two heights at a time), then a final mix: fast enough for the biggest terrain
+    std::uint64_t hash = 14695981039346656037ull;
+    const auto add = [&hash](std::uint64_t word)
+        {
+            hash = (hash ^ word) * 1099511628211ull;
+        };
+    add(samples_x_);
+    add(samples_z_);
+    std::uint32_t cell_bits = 0;
+    std::memcpy(&cell_bits, &cell_size_, sizeof(cell_bits));
+    add(cell_bits);
+    const auto add_bytes = [&add](const void* data, std::size_t size)
+        {
+            const auto* bytes = static_cast<const unsigned char*>(data);
+            std::size_t i = 0;
+            for (; i + sizeof(std::uint64_t) <= size; i += sizeof(std::uint64_t))
+            {
+                std::uint64_t word = 0;
+                std::memcpy(&word, bytes + i, sizeof(word));
+                add(word);
+            }
+            std::uint64_t rest = 0;
+            std::memcpy(&rest, bytes + i, size - i);
+            add(rest);
+        };
+    add_bytes(heights_.data(), heights_.size() * sizeof(float));
+    hash ^= hash >> 32;
+    return hash;
+}
+
 std::string engine::TerrainData::serialize() const
 {
     const FileHeader header{ FILE_MAGIC, FILE_VERSION, samples_x_, samples_z_, cell_size_ };

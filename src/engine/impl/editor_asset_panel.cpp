@@ -136,9 +136,10 @@ constexpr const char* DATA_ASSET_TOOLTIP = "Drag onto a data asset field of the 
 constexpr const char* TERRAIN_TOOLTIP = "Drag into the scene view to place it, or onto a terrain field of the properties panel";
 }  // namespace
 
-engine::AssetBrowserPanel::AssetBrowserPanel(Application& app, const EditedDataAssets& edited)
+engine::AssetBrowserPanel::AssetBrowserPanel(Application& app, const EditedDataAssets& edited, const EditedTerrains& edited_terrains)
     : app_(app)
     , edited_(edited)
+    , edited_terrains_(edited_terrains)
     , assets_root_(AssetStore::get_instance().get_models_base_path().parent_path())
 {
 }
@@ -430,13 +431,8 @@ std::optional<std::string> engine::AssetBrowserPanel::draw_files()
         ImGui::SameLine();
         const bool is_selected = selected_ && selected_->path == entry.path;
         // a data asset edited in the inspector, or a terrain sculpted, and not saved yet
-        const auto is_dirty_terrain = [this](const std::string& terrain_id)
-            {
-                const auto* terrain = app_.get_terrain(app_.get_terrain(std::string_view(terrain_id)));
-                return terrain && terrain->is_dirty();
-            };
         const bool unsaved = asset_id && ((entry.kind == AssetFileKind::eData && edited_.is_unsaved(*asset_id))
-            || (entry.kind == AssetFileKind::eTerrain && is_dirty_terrain(*asset_id)));
+            || (entry.kind == AssetFileKind::eTerrain && edited_terrains_.is_unsaved(*asset_id)));
         const auto label = unsaved ? entry.name + " *" : entry.name;
         if (ImGui::Selectable(fmt::format("{}###{}", label, entry.name).c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
         {

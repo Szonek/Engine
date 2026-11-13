@@ -372,3 +372,24 @@ TEST(TerrainDataTest, TrianglesFaceUpAndFollowTheMatrix)
         EXPECT_GT(glm::cross(b - a, c - a).y, 0.0f);
     }
 }
+
+TEST(TerrainData, ContentHashFollowsTheHeightsNotTheirHistory)
+{
+    auto terrain = TerrainData::create(9, 7, 0.5f);
+    ASSERT_TRUE(terrain);
+    const auto flat = terrain->content_hash();
+    // the same content made again has the same hash
+    EXPECT_EQ(TerrainData::create(9, 7, 0.5f)->content_hash(), flat);
+    // another size, cell size or height has another one
+    EXPECT_NE(TerrainData::create(7, 9, 0.5f)->content_hash(), flat);
+    EXPECT_NE(TerrainData::create(9, 7, 1.0f)->content_hash(), flat);
+    const std::vector<float> one{ 0.25f };
+    ASSERT_TRUE(terrain->set_heights({ 8, 6, 1, 1 }, one));
+    EXPECT_NE(terrain->content_hash(), flat);
+    // put back (an undo): the revision moved on, the content is what it was
+    const auto revision = terrain->get_revision();
+    const std::vector<float> zero{ 0.0f };
+    ASSERT_TRUE(terrain->set_heights({ 8, 6, 1, 1 }, zero));
+    EXPECT_NE(terrain->get_revision(), revision);
+    EXPECT_EQ(terrain->content_hash(), flat);
+}

@@ -152,6 +152,8 @@ protected:
     // the data asset's undo steps are dropped (undo would bring back an older value over the file's change), and it
     // may be clean now
     void on_data_asset_reloaded(std::uint32_t idx) override;
+    void on_terrain_replaced(std::uint32_t idx) override;
+    void on_terrain_saved(std::uint32_t idx) override;
 
 private:
     // Play or Stop asked for by the toolbar or a shortcut, done at the start of the next frame
@@ -356,7 +358,7 @@ private:
     bool scene_view_focused_ = false;
     // the properties panel shows the file selected in it while no game object is selected (selecting one deselects the
     // other); before the hierarchy context, which uses its selection
-    AssetBrowserPanel asset_browser_{ *this, data_assets_ };
+    AssetBrowserPanel asset_browser_{ *this, data_assets_, terrains_ };
     SceneHierarchyContext scene_hierarchy_context_{ asset_browser_ };
     // the game object whose delete without undo waits for its confirmation
     entt::entity delete_without_undo_ = entt::null;

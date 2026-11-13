@@ -64,6 +64,10 @@ public:
     // samples_x, samples_z (uint32), cell_size (float), then the heights (float), row by row. parse() gives nullopt
     // (logged, `what` names the file) for anything else.
     std::string serialize() const;
+    // A hash of everything a terrain file holds: two terrains with the same content have the same one, and for
+    // telling "the same as what was saved" apart from "changed" a different content has another one. Reads every
+    // height, so call it when something changed, not every frame.
+    std::uint64_t content_hash() const;
     static std::optional<TerrainData> parse(std::string_view content, std::string_view what);
 
     std::uint32_t get_samples_x() const { return samples_x_; }

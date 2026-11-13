@@ -421,3 +421,35 @@ TEST(TerrainStroke, StrokeWhichChangedNothingOrLostItsTerrainLeavesNoStep)
     EXPECT_FALSE(commands.can_undo());
     EXPECT_TRUE(test_logger::logged("isn't inside"));
 }
+
+TEST(TerrainStroke, StepsOfATerrainAreDroppedWhenItsHeightsAreReplaced)
+{
+    FakeTerrains terrains;
+    terrains.terrains.emplace("a.terrain", flat());
+    terrains.terrains.emplace("b.terrain", flat());
+    const TerrainData::Region region{ 2, 2, 1, 1 };
+    const auto stroke = [&terrains, &region](const char* terrain, float height)
+        {
+            return std::make_unique<engine::CommandTerrainStroke>(terrains, terrain, region, std::vector<float>{ 0.0f }, std::vector<float>{ height });
+        };
+    engine::CommandManager commands;
+    commands.execute_command(no_scene(), stroke("a.terrain", 1.0f));
+    commands.end_continuous_edit();
+    commands.execute_command(no_scene(), stroke("b.terrain", 2.0f));
+    commands.end_continuous_edit();
+    commands.execute_command(no_scene(), stroke("a.terrain", 3.0f));
+    commands.end_continuous_edit();
+    commands.undo(no_scene());
+
+    // a.terrain is imported again: neither its done step nor its undone one may write old heights into it
+    ASSERT_TRUE(terrains.terrains.at("a.terrain").set_heights(region, std::vector<float>{ 9.0f }));
+    commands.drop_terrain_steps("a.terrain");
+    commands.redo(no_scene());
+    EXPECT_FLOAT_EQ(terrains.terrains.at("a.terrain").get_height(2, 2), 9.0f);
+    // the other terrain's step is still there
+    ASSERT_TRUE(commands.can_undo());
+    commands.undo(no_scene());
+    EXPECT_FLOAT_EQ(terrains.terrains.at("b.terrain").get_height(2, 2), 0.0f);
+    EXPECT_FALSE(commands.can_undo());
+    EXPECT_FLOAT_EQ(terrains.terrains.at("a.terrain").get_height(2, 2), 9.0f);
+}

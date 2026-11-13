@@ -42,7 +42,7 @@ public:
     // a stroke which changed nothing (or whose terrain is gone) leaves no step
     bool has_effect() const override { return set_ && before_ != after_; }
     bool changes_scene() const override { return false; }
-    bool changes_asset() const override { return true; }
+    std::string_view get_terrain() const override { return terrain_; }
 
 private:
     ITerrainHeights& terrains_;

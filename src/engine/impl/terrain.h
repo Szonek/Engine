@@ -37,11 +37,15 @@ public:
     // moves with every change of the heights, also a replacement
     std::uint64_t get_revision() const { return revision_base_ + data_->get_revision(); }
 
-    // Whether the heights changed since the terrain was loaded, made or last saved: what the editor's unsaved changes
-    // are (like DataAsset::is_dirty).
+    // Whether the heights differ from what the terrain was loaded with, made with or last saved as: what the editor's
+    // unsaved changes are (like DataAsset::is_dirty). Cheap: a change makes it dirty, and whoever puts heights back
+    // (an undo) asks for the comparison with refresh_dirty().
     bool is_dirty() const { return get_revision() != saved_revision_; }
     // the heights are what the terrain's file holds now
-    void mark_saved() { saved_revision_ = get_revision(); }
+    void mark_saved();
+    // Clean again when the heights are what was saved (a stroke undone back to the saved heights), by their content.
+    // Reads every height, so it is for after a change, not for every frame.
+    void refresh_dirty();
 
     // Brings the height texture up to date; before the frame is rendered (Application::end_frame).
     void update_gpu();
@@ -53,6 +57,8 @@ private:
     // the revisions of the heights replaced so far, so the revision never repeats
     std::uint64_t revision_base_ = 0;
     std::uint64_t saved_revision_ = 0;
+    // TerrainData::content_hash of what was saved
+    std::uint64_t saved_hash_ = 0;
     Texture2D height_texture_;
     std::uint32_t texture_width_ = 0;
     std::uint32_t texture_height_ = 0;

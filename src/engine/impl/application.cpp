@@ -712,6 +712,7 @@ std::uint32_t engine::Application::import_terrain_heightmap(std::string_view hei
             return ENGINE_INVALID_OBJECT_HANDLE;
         }
         get_terrain(existing)->replace_data(std::move(*data));
+        on_terrain_replaced(existing);
         return existing;
     }
     return create_terrain(asset_name, std::move(*data));
@@ -740,6 +741,7 @@ bool engine::Application::save_terrain(std::uint32_t idx)
         return false;
     }
     get_terrain(idx)->mark_saved();
+    on_terrain_saved(idx);
     return true;
 }
 

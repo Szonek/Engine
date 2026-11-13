@@ -36,6 +36,8 @@ bool engine::EditedTerrains::set_terrain_heights(std::string_view terrain, const
     }
     // logs why when the region doesn't fit
     const bool set = asset->set_heights(region, heights);
+    // an undo back to the heights which were saved makes it clean again
+    asset->refresh_dirty();
     hold_while_dirty(std::string(terrain), handle);
     if (loaded_here)
     {

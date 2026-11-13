@@ -1543,7 +1543,9 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
     const auto z = keyboard_is_key_down(ENGINE_KEYBOARD_KEY_Z);
     static bool ctrl_shift_z_prev = lctrl && lshift && z;
     const auto ctrl_shift_z_curr = lctrl && lshift && z;
-    if (ctrl_shift_z_prev && !ctrl_shift_z_curr && !modal_transform_)
+    // not during a G / R / S or a terrain stroke: the step in progress recorded what an undo would change under it
+    const bool can_undo_now = !modal_transform_ && !terrain_stroke_;
+    if (ctrl_shift_z_prev && !ctrl_shift_z_curr && can_undo_now)
     {
         commands_.redo(*scene);
         scene_hierarchy_context_.sync_selected_from_scene(scene);
@@ -1552,7 +1554,7 @@ void engine::ApplicationEditor::on_scene_update_post(Scene* scene, float)
 
     static bool ctrl_z_prev = lctrl && !lshift && z;
     const auto ctrl_z_curr = lctrl && !lshift && z;
-    if (ctrl_z_curr && !ctrl_z_prev && !modal_transform_)
+    if (ctrl_z_curr && !ctrl_z_prev && can_undo_now)
     {
         commands_.undo(*scene);
         scene_hierarchy_context_.sync_selected_from_scene(scene);
@@ -3046,6 +3048,25 @@ void engine::ApplicationEditor::on_data_asset_reloaded(std::uint32_t idx)
     const auto asset_id = get_data_asset_name(idx);
     commands_.drop_data_asset_steps(asset_id);
     data_assets_.on_reloaded(asset_id);
+}
+
+void engine::ApplicationEditor::on_terrain_replaced(std::uint32_t idx)
+{
+    // the steps of its strokes hold heights from before: an undo would write them over the new ones. A stroke in
+    // progress on it ends without a step for the same reason.
+    const auto name = get_terrain_name(idx);
+    commands_.drop_terrain_steps(name);
+    if (terrain_stroke_ && terrain_stroke_->terrain == name)
+    {
+        terrain_stroke_.reset();
+    }
+    terrains_.on_edited(name);
+}
+
+void engine::ApplicationEditor::on_terrain_saved(std::uint32_t idx)
+{
+    // saved by someone else than the editor's own save (an import writes its file): nothing unsaved to hold any more
+    terrains_.on_edited(get_terrain_name(idx));
 }
 
 void engine::ApplicationEditor::on_play_mode_enter(Scene* /*scene*/)

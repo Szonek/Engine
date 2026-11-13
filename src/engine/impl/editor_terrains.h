@@ -26,7 +26,8 @@ public:
     ~EditedTerrains() override;
 
     bool set_terrain_heights(std::string_view terrain, const TerrainData::Region& region, std::span<const float> heights) override;
-    // the terrain was changed directly (a brush during a stroke): held while it is dirty
+    // the terrain was changed directly (a brush during a stroke), saved or its heights replaced by someone else: held
+    // while it is dirty
     void on_edited(std::string_view terrain);
 
     // whether the terrain is a file the editor can write
